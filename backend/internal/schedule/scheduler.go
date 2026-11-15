@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,11 +22,16 @@ const lockKey int64 = 0x5041_5448_4f53_0001 // "PATHOS" + 1
 // Scheduler runs Tick on the elected leader. Any number of replicas may run;
 // standbys poll for the lock and take over when the leader's connection dies.
 type Scheduler struct {
+	leader atomic.Bool
+
 	Pool     *pgxpool.Pool
 	Log      *slog.Logger
 	Holder   string        // identifies this replica (hostname)
 	Interval time.Duration // tick interval
 }
+
+// IsLeader reports whether this replica currently holds leadership.
+func (s *Scheduler) IsLeader() bool { return s.leader.Load() }
 
 // Run blocks until ctx is cancelled.
 func (s *Scheduler) Run(ctx context.Context) error {
@@ -69,6 +75,8 @@ func (s *Scheduler) lead(ctx context.Context) (bool, error) {
 		_, _ = conn.Exec(uctx, `SELECT pg_advisory_unlock($1)`, lockKey)
 	}()
 	s.Log.Info("scheduler elected leader", "holder", s.Holder)
+	s.leader.Store(true)
+	defer s.leader.Store(false)
 	t := time.NewTicker(s.Interval)
 	defer t.Stop()
 	for {

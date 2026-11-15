@@ -165,7 +165,7 @@ func (s SMTPSender) Send(ctx context.Context, cfg SMTPConfig, m Message) error {
 	}
 	c, err := smtp.NewClient(conn, cfg.Host)
 	if err != nil {
-		conn.Close()
+		_ = conn.Close()
 		return fmt.Errorf("smtp greeting: %w", err)
 	}
 	defer c.Close()

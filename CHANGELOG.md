@@ -1,6 +1,23 @@
 # Changelog
 
-## [Unreleased] — Phase 7: Scheduling & notifications (2026-11-15)
+## [Unreleased] — Phase 8: Enterprise hardening (2026-11-15)
+
+### Added
+- API rate limiting (GCRA in Valkey) with `429` and `Retry-After`; tuned with `PATHOS_RATE_LIMIT_SCALE`.
+- Keycloak admin console restricted to `KEYCLOAK_ADMIN_ALLOW`; optional TOTP enrolment for new users (`PATHOS_REQUIRE_MFA`).
+- `docker-compose.prod.yml` production override, plus `backup.sh`, `restore.sh` and `upgrade.sh`, and the `docs/OPERATIONS.md` runbook.
+- OpenTelemetry traces and metrics (OTLP/HTTP) with route-level spans and platform gauges; optional Grafana LGTM profile.
+- S3-compatible object storage for scan artifacts (SeaweedFS profile) and `pathosctl migrate-artifacts`.
+- `make security` (gosec, govulncheck, npm audit, Trivy, ZAP baseline) and `make load-test` (k6 with 100k-finding seed data).
+
+### Fixed
+- The worker context reader now resolves symlinked directories (defence in depth).
+- Valkey crash-looped after any restart; it now runs unprivileged as its own user.
+- 42 fixable HIGH/CRITICAL vulnerabilities in our images: go-jose, plus Caddy and Gitleaks rebuilt with patched dependencies; Debian packages upgraded and pip removed from the worker runtime.
+- TLS clients without SNI are served; cross-origin isolation headers were added.
+- The dashboard findings trend is 10× faster on large datasets.
+
+## Phase 7: Scheduling & notifications (2026-11-15)
 
 ### Added
 - `scheduler` role and compose service. A Postgres advisory lock elects the leader, so replicas are hot standbys. It runs cron schedules (with time zones) targeting the organization, a region, a business unit (including children), a repository or a scan profile, with per-schedule priority. It catches up missed runs once and reports them, recovers expired worker leases and reports offline workers.

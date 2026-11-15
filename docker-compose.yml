@@ -20,6 +20,17 @@ x-pathos-env: &pathos-env
   PATHOS_MASTER_KEYS_PREVIOUS: ${PATHOS_MASTER_KEYS_PREVIOUS:-}
   PATHOS_ORG_NAME: ${PATHOS_ORG_NAME:-Default Organization}
   PATHOS_ORG_SLUG: ${PATHOS_ORG_SLUG:-default}
+  # OpenTelemetry export (traces and metrics, OTLP/HTTP). Empty disables it.
+  # COMPOSE_PROFILES=observability starts a local Grafana LGTM stack at
+  # http://otel-lgtm:4318 (UI on http://127.0.0.1:3001).
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  # Scan artifacts in S3-compatible storage (empty bucket: kept in PostgreSQL).
+  # COMPOSE_PROFILES=objectstore runs SeaweedFS at http://objectstore:8333.
+  PATHOS_S3_ENDPOINT: ${PATHOS_S3_ENDPOINT:-}
+  PATHOS_S3_REGION: ${PATHOS_S3_REGION:-us-east-1}
+  PATHOS_S3_BUCKET: ${PATHOS_S3_BUCKET:-}
+  PATHOS_S3_ACCESS_KEY: ${PATHOS_S3_ACCESS_KEY:-}
+  PATHOS_S3_SECRET_KEY: ${PATHOS_S3_SECRET_KEY:-}
 
 services:
   proxy:
@@ -34,6 +45,8 @@ services:
     environment:
       PATHOS_DOMAIN: ${PATHOS_DOMAIN:-localhost}
       CADDY_TLS: ${CADDY_TLS:-internal}
+      # Who may reach the Keycloak admin console (space-separated CIDRs).
+      KEYCLOAK_ADMIN_ALLOW: ${KEYCLOAK_ADMIN_ALLOW:-private_ranges}
     ports:
       - "${PATHOS_HTTPS_PORT:-443}:443"
       - "${PATHOS_HTTP_PORT:-80}:80"
@@ -97,6 +110,10 @@ services:
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: keycloak,localhost
       PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN:?run deploy/scripts/install.sh}
+      # Multiplies all API rate limits (0 disables; see docs/SECURITY.md).
+      PATHOS_RATE_LIMIT_SCALE: ${PATHOS_RATE_LIMIT_SCALE:-1}
+      # New users must enrol a TOTP authenticator at first login.
+      PATHOS_REQUIRE_MFA: ${PATHOS_REQUIRE_MFA:-false}
     # edge: outbound HTTPS to SCM APIs. worker-api: internal listener (:8081)
     # that scan workers use; it is not reachable through the proxy.
     networks: [app, data, edge, worker-api]
@@ -170,7 +187,10 @@ services:
     image: valkey/valkey:9.0.7-alpine@sha256:2d04268dfa26ab31cfa3fdc538866e76438b2d00e41db41b8cb86d780ac5a416
     restart: unless-stopped
     # Config is passed on stdin so the password never appears in process args.
-    # The image entrypoint drops privileges to the valkey user.
+    # Runs as the image's valkey user from the start: the entrypoint's root
+    # "chown" step is skipped, so no capabilities are needed (as root without
+    # DAC_OVERRIDE it could not traverse its own appendonlydir after a restart).
+    user: "999:1000"
     init: true
     command: ["sh", "-c", "printf 'requirepass %s\\nappendonly yes\\nsave 60 1000\\n' \"$$VALKEY_PASSWORD\" | docker-entrypoint.sh valkey-server -"]
     environment:
@@ -181,7 +201,6 @@ services:
       - redis_data:/data
     networks: [data]
     cap_drop: [ALL]
-    cap_add: [SETUID, SETGID, CHOWN]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "valkey-cli", "ping"]
@@ -296,6 +315,47 @@ services:
       timeout: 3s
       retries: 5
 
+  # S3-compatible object store for scan artifacts (opt-in).
+  objectstore:
+    profiles: [objectstore]
+    image: chrislusf/seaweedfs:4.51@sha256:f7a49e3f3972ebed5be2ed4befa4a0c68eb7bdddba6e692d42729ceb545134b8
+    restart: unless-stopped
+    # Runs as the image's seaweed user (owner of /data), without capabilities.
+    # The S3 identity file is written with the shell builtin printf, so the
+    # keys never appear in process arguments.
+    user: "1000:1000"
+    entrypoint: ["sh", "-c"]
+    command:
+      - >-
+        printf '{"identities":[{"name":"pathos","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","Write","List","Tagging"]}]}'
+        "$$S3_ACCESS_KEY" "$$S3_SECRET_KEY" > /tmp/s3.json &&
+        exec weed server -dir=/data -ip=objectstore -ip.bind=0.0.0.0 -volume.max=0 -master.volumeSizeLimitMB=1024
+        -s3 -s3.port=8333 -s3.config=/tmp/s3.json
+    environment:
+      S3_ACCESS_KEY: ${PATHOS_S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${PATHOS_S3_SECRET_KEY:-}
+    volumes:
+      - s3_data:/data
+    networks: [data]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9333/cluster/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  # Local observability backend (Grafana, Tempo, Prometheus/Mimir, Loki)
+  # for development and evaluation. Use your own collector in production.
+  otel-lgtm:
+    profiles: [observability]
+    image: grafana/otel-lgtm:0.39.0@sha256:4c8056c9c05fcb3c8fd93800e85334bfd79b4d0271b47a54a121a64af41fe1fe
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${OTEL_LGTM_UI_PORT:-3001}:3000"
+    networks: [data, edge]
+
 networks:
   edge: {}
   app:
@@ -308,6 +368,7 @@ networks:
     internal: true
 
 volumes:
+  s3_data:
   scanner_cache:
   egress_logs:
   pg_data:

@@ -30,3 +30,6 @@ frontend/node_modules/
 # Generated caches
 __pycache__/
 *.tsbuildinfo
+
+# Generated reports (security scans, load tests)
+/reports/

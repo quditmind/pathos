@@ -21,6 +21,9 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/objstore"
+	"pathos/internal/platform/ratelimit"
+	"pathos/internal/platform/telemetry"
 	"pathos/internal/repos"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
@@ -45,6 +48,11 @@ type Deps struct {
 	PublicURL   string
 	// WorkerBootstrapToken enables worker registration.
 	WorkerBootstrapToken string
+	// Artifacts is the object store for scan artifacts (nil: PostgreSQL).
+	Artifacts objstore.Store
+	// RateLimiter enables API rate limiting with RateLimitPolicy (nil: off).
+	RateLimiter     ratelimit.Limiter
+	RateLimitPolicy ratelimit.Policy
 }
 
 // Handlers bundles the public handler and the internal worker handler.
@@ -71,7 +79,7 @@ func Build(d Deps) Handlers {
 	repoSvc := &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log,
 		Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
 	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
-		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID}
+		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID, Artifacts: d.Artifacts}
 	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
@@ -98,7 +106,7 @@ func Build(d Deps) Handlers {
 	repoSvc.Register(protected)
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
-	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
@@ -106,10 +114,20 @@ func Build(d Deps) Handlers {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})
 
-	public.Handle("/api/", d.Auth.RequireAuth(protected))
+	public.Handle("/api/", d.Auth.RequireAuth(telemetry.RecordRoute(protected)))
+	publicHandler := telemetry.RecordRoute(public)
+	if d.RateLimiter != nil {
+		publicHandler = (&ratelimit.Middleware{Limiter: d.RateLimiter, Policy: d.RateLimitPolicy, Log: d.Log,
+			UserID: func(ctx context.Context) (uuid.UUID, bool) {
+				if p := auth.PrincipalFrom(ctx); p != nil {
+					return p.UserID, true
+				}
+				return uuid.Nil, false
+			}}).Wrap(publicHandler)
+	}
 	return Handlers{
-		Public: httpx.Middleware(d.Log, d.Auth.Authenticate(public)),
-		Worker: httpx.Middleware(d.Log, scanSvc.InternalHandler()),
+		Public: telemetry.HTTP(httpx.Middleware(d.Log, d.Auth.Authenticate(publicHandler)), "pathos-api"),
+		Worker: telemetry.HTTP(httpx.Middleware(d.Log, scanSvc.InternalHandler()), "pathos-worker-api"),
 	}
 }
 

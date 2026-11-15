@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"pathos/internal/platform/objstore"
 	"slices"
 	"strings"
 
@@ -207,11 +208,16 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var data []byte
+	var key *string
 	var name string
-	err = s.DB.QueryRow(ctx, `SELECT a.data_gzip, r.name FROM scan_artifacts a JOIN scan_results sr ON sr.id = a.scan_result_id
+	err = s.DB.QueryRow(ctx, `SELECT a.data_gzip, a.object_key, r.name FROM scan_artifacts a JOIN scan_results sr ON sr.id = a.scan_result_id
 		JOIN scan_jobs j ON j.id = sr.scan_job_id JOIN repositories r ON r.id = j.repository_id
-		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID).Scan(&data, &name)
+		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID).Scan(&data, &key, &name)
 	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if data, err = objstore.Load(ctx, s.Artifacts, key, data); err != nil {
 		s.fail(w, r, err)
 		return
 	}

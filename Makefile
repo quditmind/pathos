@@ -33,6 +33,12 @@ test-web:
 test-integration: ## Go integration tests against a throwaway PostgreSQL
 	scripts/test-integration.sh
 
+security: ## Security self-tests: gosec, govulncheck, npm audit, Trivy (images), ZAP baseline
+	scripts/security-scan.sh
+
+load-test: ## k6 load test against the running stack (see scripts/load/README.md)
+	scripts/load/run.sh
+
 smoke: ## End-to-end test against the running stack
 	python3 scripts/smoke-test.py
 

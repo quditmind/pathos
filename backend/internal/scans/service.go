@@ -7,6 +7,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"pathos/internal/platform/objstore"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -30,6 +31,8 @@ type Service struct {
 	// BootstrapToken lets workers register (PATHOS_WORKER_BOOTSTRAP_TOKEN).
 	BootstrapToken string
 	OrgID          uuid.UUID
+	// Artifacts stores raw reports and SBOMs; nil keeps them in PostgreSQL.
+	Artifacts objstore.Store
 	// OnScanFinished runs after a job completes (AI auto-review enqueue).
 	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
 }

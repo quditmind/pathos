@@ -269,3 +269,62 @@ docker compose up -d --build --wait && make smoke
 - The smoke test now has 87 checks, including leader health, schedule CRUD and preview, the seeded rules and SMTP, and a real test email delivered by `jobs` to Mailpit and verified through Mailpit's API.
 
 **Next:** Phase 8, enterprise hardening.
+
+## Phase 8 milestone report (2026-11-15)
+
+**Implemented:**
+- **Rate limiting:**
+  - GCRA buckets in Valkey (an atomic Lua script on server time, shared by replicas), with an in-memory fallback.
+  - Classes: login per IP, anonymous per IP, reads and writes per user, webhooks per connection, MCP per token.
+  - Throttled requests get `429` with `Retry-After`. The limiter fails open if Valkey is down, and `PATHOS_RATE_LIMIT_SCALE` tunes all limits.
+- **Identity hardening:**
+  - The Keycloak admin console, admin REST API and master realm are reachable only from `KEYCLOAK_ADMIN_ALLOW` (private networks by default; required in production mode).
+  - `PATHOS_REQUIRE_MFA` makes new users enrol TOTP.
+- **Production override** (`docker-compose.prod.yml`): resource limits, log rotation, PostgreSQL tuning, a hot-standby scheduler, and an explicit admin allow-list.
+- **Operations scripts:** `backup.sh` (online dumps, certificates, object storage, manifest with checksums, retention), `restore.sh` (verify → stop → recreate → restore → migrate → start) and `upgrade.sh` (validate → backup → build or pull → migrate → health → rollback hint), with `docs/OPERATIONS.md` as the runbook.
+- **OpenTelemetry:**
+  - OTLP/HTTP traces and metrics with route-named spans and `http.route` metric labels (bounded cardinality) plus Go runtime metrics.
+  - Leader-only platform gauges (queue depth, workers, notification backlog, open findings, leadership); `trace_id` in access logs.
+  - An opt-in Grafana LGTM profile.
+- **Object storage:**
+  - Scan artifacts can live in S3-compatible storage (aws-sdk-go-v2, path-style, checksums only when required), with SeaweedFS 4.51 as an opt-in profile.
+  - A DB constraint guarantees exactly one location per artifact.
+  - Objects written by a failed ingest are deleted; retention deletes the row first, then the object.
+  - `pathosctl migrate-artifacts` moves existing blobs and can be resumed.
+- **Security self-tests** (`make security`): gosec, govulncheck, npm audit, Trivy on our three images and an OWASP ZAP baseline, with a gate.
+
+**Found and fixed by this phase's testing:**
+- **Worker context reader:** it trusted `Lstat` on the final path, so a symlinked *directory* in a scanned repository could have pulled files from outside the checkout. The clone already disables symlinks, so this was not exploitable; the reader now resolves every path component as well. Covered by a regression test.
+- **Valkey:** it crash-looped on any restart (root without DAC_OVERRIDE could not traverse its own `appendonlydir`). It never surfaced because the container had not restarted. It now runs as its own user with no capabilities.
+- **Image vulnerabilities, 42 fixable HIGH/CRITICAL in total:**
+  - Our own image: go-jose 4.1.6.
+  - Caddy: rebuilt with xcaddy and x/net 0.62.0.
+  - Gitleaks: rebuilt from its checksum-verified module with Go 1.27 and patched x/crypto, x/text and compress. This removes 39 issues, including a CRITICAL in the Go standard library.
+  - Worker image: Debian packages upgraded, and pip removed from the runtime (it carried vulnerable vendored urllib3 and msgpack).
+- **Proxy:** `default_sni` is set, so TLS clients that omit SNI (found by ZAP's Java client) get a certificate instead of an alert. COOP, COEP, CORP and `object-src 'none'` headers were added.
+- **Dashboard:** the open-findings trend ran 120 correlated counts. It is now a single-pass running sum, 10× faster at 100k findings. An integration test checks equivalence with the definition, and the two queries matched on all 120 cells with 25k resolved findings.
+
+**Measured:**
+- **Load (k6, 100,000 findings across 300 repositories, single API replica):** 0 errors in all runs.
+
+  | Rate | Requests | Detail p95 | List p95 | Dashboard p95 |
+  |---|---|---|---|---|
+  | 20 req/s | 1,203 | 7 ms | 66 ms | 352 ms (1.25 s before the query rewrite) |
+  | 80 req/s | 4,802 | 4.4 ms | 117 ms | 493 ms |
+
+- **Security gate:**
+  - gosec: 0 issues (15 reviewed `#nosec`, each with a reason); govulncheck: none; npm audit: 0.
+  - Trivy: 0 fixable HIGH/CRITICAL in all three images. What remains has no upstream fix: 118 Debian packages in the worker base, the ecdsa timing issue the maintainers won't fix, and go-jose v3 inside Caddy.
+  - ZAP baseline: 0 FAIL, 64 PASS, 4 accepted warnings (documented).
+- **Backup, restore and upgrade:**
+  - A backup took 2 s.
+  - A restore took 40 s and removed a marker row written after the backup; the smoke test passed afterwards and the app role's least-privilege grants were intact.
+  - The upgrade ran in production mode and all services survived a full restart.
+- **OpenTelemetry:** route-labelled HTTP metrics and scheduler gauges reached Prometheus, and route-named traces reached Tempo (Grafana LGTM).
+- **Object storage:** a live S3 round trip against SeaweedFS (bucket, 1 MiB put and get, batch delete, not-found, invalid credentials).
+- **Smoke test:** 88 checks, adding rate limiting.
+
+**Not verified:**
+- Automated reviews against a live AI provider (no key in this environment).
+- An authenticated active DAST scan. Only the passive baseline ran, so as not to mutate the shared development data; run ZAP's API scan against a disposable environment.
+- Multi-host deployment (Compose is single-host by design; see ARCHITECTURE §7 for the Kubernetes path).

@@ -137,6 +137,7 @@ func (s *Service) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// The flow cookie binds the callback to this browser (login CSRF).
+	// #nosec G124 -- HttpOnly and SameSite set; Secure is on except for http development URLs (secureCookies)
 	http.SetCookie(w, &http.Cookie{
 		Name: s.flowCookieName(), Value: state, Path: "/", MaxAge: 600,
 		HttpOnly: true, Secure: s.secureCookies(), SameSite: http.SameSiteLaxMode,
@@ -162,6 +163,7 @@ func (s *Service) loginFailed(w http.ResponseWriter, r *http.Request, reason str
 func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	q := r.URL.Query()
+	// #nosec G124 -- HttpOnly and SameSite set; Secure is on except for http development URLs (secureCookies)
 	http.SetCookie(w, &http.Cookie{Name: s.flowCookieName(), Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.secureCookies(), SameSite: http.SameSiteLaxMode})
 
 	if e := q.Get("error"); e != "" {
@@ -253,6 +255,7 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) setSessionCookie(w http.ResponseWriter, token string) {
+	// #nosec G124 -- HttpOnly and SameSite set; Secure is on except for http development URLs (secureCookies)
 	http.SetCookie(w, &http.Cookie{
 		Name: s.SessionCookieName(), Value: token, Path: "/",
 		MaxAge:   int(s.Sessions.AbsoluteTTL.Seconds()),
@@ -274,6 +277,7 @@ func (s *Service) HandleLogout(w http.ResponseWriter, r *http.Request) {
 		_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "auth.logout", TargetType: "user", TargetID: p.UserID.String()})
 	}
+	// #nosec G124 -- HttpOnly and SameSite set; Secure is on except for http development URLs (secureCookies)
 	http.SetCookie(w, &http.Cookie{Name: s.SessionCookieName(), Value: "", Path: "/", MaxAge: -1, HttpOnly: true, Secure: s.secureCookies(), SameSite: http.SameSiteLaxMode})
 
 	logoutURL := s.Cfg.PublicURL.String() + "/login?logged_out=1"

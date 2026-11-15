@@ -47,3 +47,29 @@ func TestEnrichSARIF(t *testing.T) {
 		t.Errorf("unexpected context: %v", p)
 	}
 }
+
+func TestReadLinesRefusesSymlinkEscapes(t *testing.T) {
+	root := t.TempDir()
+	src := filepath.Join(root, "src")
+	outside := filepath.Join(root, "outside")
+	for _, d := range []string{src, outside, filepath.Join(src, "pkg")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	_ = os.WriteFile(filepath.Join(outside, "secret.txt"), []byte("TOKEN=s3cret\n"), 0o600)
+	_ = os.WriteFile(filepath.Join(src, "pkg", "ok.go"), []byte("package pkg\n"), 0o600)
+	if err := os.Symlink(outside, filepath.Join(src, "evil")); err != nil {
+		t.Skip("symlinks unsupported:", err)
+	}
+	_ = os.Symlink(filepath.Join(outside, "secret.txt"), filepath.Join(src, "link.txt"))
+
+	if got := readLines(src, "pkg/ok.go"); len(got) != 1 {
+		t.Fatalf("regular file inside the checkout should be read: %v", got)
+	}
+	for _, uri := range []string{"evil/secret.txt", "link.txt", "../outside/secret.txt", "file://" + filepath.Join(outside, "secret.txt")} {
+		if got := readLines(src, uri); got != nil {
+			t.Errorf("%s escaped the checkout: %v", uri, got)
+		}
+	}
+}

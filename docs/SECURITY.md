@@ -118,8 +118,34 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - **Recipients:** role-based recipients only include users whose assignment scope covers the event's repository. Approval requests go to users who may accept risk there, never to the requester. Explicit addresses are an administrator decision (`notifications.manage` is organization-only). Each email has a single recipient, so recipient lists are never disclosed.
 - **Scheduling:** schedules need `schedules.manage` at the target's scope, and scoped users see only schedules in their scope. A schedule may run at most once per hour, and priority 100 is reserved for emergency scans.
 
+## Enterprise hardening (Phase 8)
+
+- **Rate limiting:**
+  - Every API request is classified and limited with GCRA: login per client IP (1/s, burst 20), unauthenticated calls per IP, reads and writes per user, webhooks per connection, MCP per token.
+  - The state lives in Valkey, so limits hold across replicas.
+  - A throttled request gets `429` with `Retry-After`. If Valkey is unavailable the limiter fails open (availability over strictness) and logs a warning.
+  - Keycloak's brute-force detection still protects the password form itself.
+- **Keycloak administration:** `/auth/admin`, the admin REST API and the master realm are served only to `KEYCLOAK_ADMIN_ALLOW` (default: private networks). Production mode requires an explicit value. PATHOS reaches Keycloak on the internal network and is unaffected.
+- **MFA:** with `PATHOS_REQUIRE_MFA=true`, invited users must enrol a TOTP authenticator at first login, and Keycloak then asks for it at every sign-in. Existing users and the bootstrap administrator enrol from their Keycloak account page, or per user in the admin console.
+- **Edge headers:**
+  - The SPA is served with a strict CSP: `script-src 'self'`, `object-src 'none'`, no framing.
+  - `style-src` allows `'unsafe-inline'` because the Radix scroll lock injects a `<style>` element with runtime values that cannot be hash-pinned. Inline CSS cannot execute code.
+  - COOP, COEP and CORP are set to same-origin, and HSTS applies to all responses.
+- **Supply chain:**
+  - All images are pinned by digest and all downloaded binaries by SHA-256.
+  - Gitleaks and Caddy are rebuilt from checksum-verified Go modules with a current toolchain and patched dependencies.
+  - The worker runtime contains no package manager.
+- **Self-tests:** `make security` gates on gosec, govulncheck, npm audit, fixable HIGH/CRITICAL image vulnerabilities (Trivy) and ZAP baseline failures. Accepted ZAP warnings are documented in `deploy/security/zap-baseline.conf`.
+- **Accepted residual risk:** vulnerabilities with no upstream fix are reported but not gated. As of Phase 8:
+  - 118 Debian base packages in the worker image (the worker is sandboxed; see "Scanning").
+  - `ecdsa` CVE-2024-23342, a timing side channel the maintainers will not fix; it is unused in PATHOS code paths.
+  - go-jose v3 inside Caddy's ACME stack.
+
+  Re-run `make security` with each release.
+- **Defence in depth in workers:** report context is read only from paths whose fully resolved location (`EvalSymlinks`) stays inside the checkout, in addition to the clone running with `core.symlinks=false`.
+
 ## Known gaps (tracked)
 
-- The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.
-- MFA is available in Keycloak but not enforced by default. Enforce it per realm in the Keycloak admin console.
-- Rate limiting on PATHOS endpoints is not implemented yet. Keycloak's brute-force protection covers credential guessing.
+- MFA enforcement applies to newly invited users. Existing accounts need an administrator to require OTP in Keycloak.
+- Authenticated active DAST is not automated. Run ZAP's API scan (`zap-api-scan.py` with `backend/api/openapi.yaml` and a session cookie) against a disposable environment before major releases.
+- Vulnerabilities without an upstream fix in base images (see "Accepted residual risk").

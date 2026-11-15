@@ -294,6 +294,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 				}
 			}
 			if res.Status == "succeeded" || res.Status == "failed" {
+				// #nosec G304 -- report path is created by the worker in its job directory
 				if data, err := os.ReadFile(outFile); err == nil && len(data) > 0 {
 					res.ContentType = "application/json"
 					res.OutputGzip = gzipB64(data)

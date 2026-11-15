@@ -96,7 +96,8 @@ erDiagram
 | `scan_profiles` / `scan_profile_versions` | Immutable versions: severity_threshold, branch_rule, exclusions, incremental, timeout, parallelism, sbom, license_check, fail_on_critical, ai_configuration_version_id, retention_days | Edits create a new version, which gives change history |
 | `profile_scanners` | profile_version_id, scanner_id, pinned_version, config jsonb | Gitleaks row enforced by trigger and service |
 | `scan_jobs` | repository_id, profile_version_id, trigger (`manual`,`schedule`,`push`,`pull_request`,`merge`,`onboarding`,`emergency`), priority, status, commit_sha, dedupe_key, attempts, leased_by, lease_expires_at | Partial unique index on dedupe_key WHERE status IN (`queued`,`running`) prevents duplicate execution |
-| `scan_results` | scan_job_id, scanner_version_id, status, duration_ms, raw_object_key, error | |
+| `scan_results` | scan_job_id, scanner_key, scanner_version, status, duration_ms, findings_count, error | |
+| `scan_artifacts` | scan_result_id, kind (`raw`,`sbom`), content_type, sha256, size_bytes, data_gzip **or** object_key | Exactly one location (CHECK). `object_key` = `artifacts/<org>/<uuidv7>.gz` in S3-compatible storage |
 | `findings` | repository_id, fingerprint, scanner_key, rule_id, title, severity, cwe[], cve, cvss, file_path, status, assignee_id, first_seen_at, last_seen_at, sla_due_at, resolved_at, ai_status | Unique (repository_id, fingerprint) gives deduplication across scans |
 | `finding_occurrences` | finding_id, scan_result_id, commit_sha, line, ... | Append-only: history is never overwritten |
 | `finding_evidence` | occurrence_id, snippet (redacted), raw_ref | |

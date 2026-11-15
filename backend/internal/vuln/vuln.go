@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"pathos/internal/platform/objstore"
 	"slices"
 	"strconv"
 	"strings"
@@ -32,6 +33,8 @@ type Service struct {
 	Authz     *authz.Authorizer
 	Log       *slog.Logger
 	Principal func(context.Context) *authz.Principal
+	// Artifacts reads SBOMs kept in object storage (nil: inline only).
+	Artifacts objstore.Store
 }
 
 // DefaultSLA is seeded per organization (days; 0 = no SLA).

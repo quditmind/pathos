@@ -37,7 +37,19 @@ type KeycloakProvisioner struct {
 	// sends the user afterwards.
 	ActionsClientID    string
 	ActionsRedirectURI string
-	HTTP               *http.Client
+	// RequireMFA adds CONFIGURE_TOTP to new users' required actions. Once a
+	// user has an authenticator, Keycloak's browser flow asks for it on
+	// every login.
+	RequireMFA bool
+	HTTP       *http.Client
+}
+
+func (k *KeycloakProvisioner) requiredActions() []string {
+	a := []string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}
+	if k.RequireMFA {
+		a = append(a, "CONFIGURE_TOTP")
+	}
+	return a
 }
 
 func (k *KeycloakProvisioner) client(ctx context.Context) *http.Client {
@@ -67,6 +79,7 @@ func (k *KeycloakProvisioner) do(ctx context.Context, method, u string, body any
 		}
 		rd = bytes.NewReader(b)
 	}
+	// #nosec G704 -- URL is built from operator configuration (PATHOS_KEYCLOAK_ADMIN_URL), never from request input
 	req, err := http.NewRequestWithContext(ctx, method, u, rd)
 	if err != nil {
 		return nil, err
@@ -74,6 +87,7 @@ func (k *KeycloakProvisioner) do(ctx context.Context, method, u string, body any
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
+	// #nosec G704 -- same request as above; destination is the configured Keycloak
 	resp, err := k.client(ctx).Do(req)
 	if err != nil {
 		return nil, err
@@ -116,7 +130,7 @@ func (k *KeycloakProvisioner) EnsureUser(ctx context.Context, email, displayName
 	resp, err := k.do(ctx, http.MethodPost, k.admin("/users"), map[string]any{
 		"username": email, "email": email, "firstName": first, "lastName": last,
 		"enabled": true, "emailVerified": false,
-		"requiredActions": []string{"UPDATE_PASSWORD", "VERIFY_EMAIL"},
+		"requiredActions": k.requiredActions(),
 	}, nil)
 	if err != nil {
 		return "", false, err
@@ -138,7 +152,7 @@ func (k *KeycloakProvisioner) EnsureUser(ctx context.Context, email, displayName
 		q.Set("redirect_uri", k.ActionsRedirectURI)
 	}
 	if _, err := k.do(ctx, http.MethodPut, k.admin("/users/"+url.PathEscape(id)+"/execute-actions-email?"+q.Encode()),
-		[]string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}, nil); err != nil {
+		k.requiredActions(), nil); err != nil {
 		return id, true, fmt.Errorf("account created but invitation email failed: %w", err)
 	}
 	return id, true, nil

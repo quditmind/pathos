@@ -51,7 +51,7 @@ func (c *chatCompletions) post(ctx context.Context, body any, out any) error {
 			return fmt.Errorf("ai: %s request failed: %w", c.kind, err)
 		}
 		data, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		switch {
 		case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
 			return ErrAuth

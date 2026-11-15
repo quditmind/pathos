@@ -6,6 +6,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
+	"pathos/internal/platform/objstore"
 	"slices"
 	"strings"
 
@@ -65,6 +67,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		errText = errText[:2000]
 	}
 
+	var written []string // objects to remove if the transaction fails
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "detected again by "+up.Scanner); err != nil {
 			return err
@@ -87,9 +90,17 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				ct = "application/json"
 			}
 			sum := sha256.Sum256(raw)
-			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, uuid.Must(uuid.NewV7()), orgID, resultID, kind, ct,
-				hex.EncodeToString(sum[:]), len(raw), recompress(gz, raw)); err != nil {
+			artID := uuid.Must(uuid.NewV7())
+			key, inline, err := putArtifact(ctx, s.Artifacts, orgID, artID, recompress(gz, raw))
+			if err != nil {
+				return err
+			}
+			if key != nil {
+				written = append(written, *key)
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip, object_key)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, artID, orgID, resultID, kind, ct,
+				hex.EncodeToString(sum[:]), len(raw), inline, key); err != nil {
 				return err
 			}
 		}
@@ -100,6 +111,11 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		}
 		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, findings)
 	})
+	if err != nil && len(written) > 0 {
+		if derr := s.Artifacts.Delete(context.WithoutCancel(ctx), written); derr != nil {
+			s.Log.Warn("orphaned artifact objects after a failed ingest", "keys", written, "err", derr)
+		}
+	}
 	return len(findings), err
 }
 
@@ -168,7 +184,7 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 		for range fs[start:end] {
 			var id uuid.UUID
 			if err := br.QueryRow().Scan(&id); err != nil {
-				br.Close()
+				_ = br.Close()
 				return err
 			}
 			ids = append(ids, id)
@@ -275,10 +291,38 @@ func joinSorted(v []string) string {
 // PruneArtifacts deletes raw reports and SBOMs older than the retention
 // configured on the profile version that produced them. Findings, results
 // and the audit log are kept.
-func PruneArtifacts(ctx context.Context, q db.Querier) (int64, error) {
-	tag, err := q.Exec(ctx, `
+func PruneArtifacts(ctx context.Context, q db.Querier, store objstore.Store) (int64, error) {
+	rows, err := q.Query(ctx, `
 		DELETE FROM scan_artifacts a USING scan_results sr, scan_jobs j, scan_profile_versions v
 		WHERE a.scan_result_id = sr.id AND sr.scan_job_id = j.id AND v.id = j.profile_version_id
-		  AND a.created_at < now() - make_interval(days => v.retention_days)`)
-	return tag.RowsAffected(), err
+		  AND a.created_at < now() - make_interval(days => v.retention_days)
+		RETURNING a.object_key`)
+	if err != nil {
+		return 0, err
+	}
+	var n int64
+	var keys []string
+	for rows.Next() {
+		var k *string
+		if err := rows.Scan(&k); err != nil {
+			rows.Close()
+			return n, err
+		}
+		n++
+		if k != nil {
+			keys = append(keys, *k)
+		}
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return n, err
+	}
+	// Rows are gone first: a failed object delete leaves an unreferenced
+	// object (harmless) rather than a row pointing at nothing.
+	if len(keys) > 0 && store != nil {
+		if err := store.Delete(ctx, keys); err != nil {
+			return n, fmt.Errorf("delete %d expired objects: %w", len(keys), err)
+		}
+	}
+	return n, nil
 }

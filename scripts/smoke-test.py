@@ -380,6 +380,14 @@ def main():
     s, _ = admin.api("GET", "/api/v1/me")
     check("session invalid after logout -> 401", s == 401, s)
 
+    print("\nRate limiting (Phase 8)")
+    burst = Client()
+    codes = [burst.req("GET", "/api/auth/login?return_to=/")[0] for _ in range(40)]
+    limited = codes.count(429)
+    check("login endpoint throttles a burst from one address (429)", limited > 0, codes[-5:])
+    st, _, _ = burst.req("GET", "/api/auth/login?return_to=/")
+    if st == 429:
+        print("  (login is throttled for ~20 s from this address; re-run the smoke test after that)")
 
 if __name__ == "__main__":
     main()

@@ -52,6 +52,21 @@ type Config struct {
 	SCMAllowPrivate bool
 	SCMAllowHTTP    bool
 
+	// S3 object storage for scan artifacts; empty bucket keeps them in
+	// PostgreSQL.
+	S3Endpoint, S3Region, S3Bucket, S3AccessKey, S3SecretKey string
+	S3PathStyle                                              bool
+
+	// RequireMFA makes new users enrol a TOTP authenticator.
+	RequireMFA bool
+
+	// RateLimitScale multiplies every API rate limit; 0 disables limiting.
+	RateLimitScale float64
+
+	// Telemetry: OTLP/HTTP endpoint (e.g. http://otel-collector:4318);
+	// empty disables export.
+	OTLPEndpoint string
+
 	OrgName             string
 	OrgSlug             string
 	BootstrapAdminEmail string
@@ -97,6 +112,7 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 			return v
 		}
 		if path := getenv(key + "_FILE"); path != "" {
+			// #nosec G304 -- *_FILE secrets: the operator chooses the path (Docker secrets convention)
 			b, err := os.ReadFile(path)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("%s_FILE: %w", key, err))
@@ -128,6 +144,14 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 		WorkerBootstrapToken: get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
 		SCMAllowPrivate:      get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
 		SCMAllowHTTP:         get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
+		OTLPEndpoint:         get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		RequireMFA:           get("PATHOS_REQUIRE_MFA", "false") == "true",
+		S3Endpoint:           get("PATHOS_S3_ENDPOINT", ""),
+		S3Region:             get("PATHOS_S3_REGION", "us-east-1"),
+		S3Bucket:             get("PATHOS_S3_BUCKET", ""),
+		S3AccessKey:          get("PATHOS_S3_ACCESS_KEY", ""),
+		S3SecretKey:          get("PATHOS_S3_SECRET_KEY", ""),
+		S3PathStyle:          get("PATHOS_S3_PATH_STYLE", "true") == "true",
 		OrgName:              get("PATHOS_ORG_NAME", "Default Organization"),
 		OrgSlug:              get("PATHOS_ORG_SLUG", "default"),
 		BootstrapAdminEmail:  strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
@@ -166,6 +190,14 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 	if c.WorkerBootstrapToken != "" && len(c.WorkerBootstrapToken) < 32 {
 		errs = append(errs, errors.New("PATHOS_WORKER_BOOTSTRAP_TOKEN must be at least 32 characters"))
+	}
+	if v, err := strconv.ParseFloat(get("PATHOS_RATE_LIMIT_SCALE", "1"), 64); err != nil || v < 0 || v > 1000 {
+		errs = append(errs, errors.New("PATHOS_RATE_LIMIT_SCALE must be a number between 0 (disabled) and 1000"))
+	} else {
+		c.RateLimitScale = v
+	}
+	if c.S3Bucket != "" && (c.S3AccessKey == "" || c.S3SecretKey == "") {
+		errs = append(errs, errors.New("PATHOS_S3_BUCKET requires PATHOS_S3_ACCESS_KEY and PATHOS_S3_SECRET_KEY"))
 	}
 	if c.SCMAllowHTTP && c.IsProduction() {
 		errs = append(errs, errors.New("PATHOS_SCM_ALLOW_HTTP is only allowed in development"))

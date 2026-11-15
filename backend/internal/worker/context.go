@@ -21,6 +21,7 @@ var workspacePrefix = regexp.MustCompile(`^/?work/[^/]+/src/`)
 // so AI review has evidence after the checkout is deleted. Paths are
 // resolved strictly inside src; the API redacts the text again on ingest.
 func enrichSARIF(path, src string) error {
+	// #nosec G304 -- report path is created by the worker in its job directory
 	raw, err := os.ReadFile(path)
 	if err != nil || len(raw) == 0 {
 		return err
@@ -104,13 +105,26 @@ func readLines(src, uri string) []string {
 		rel = r
 	}
 	full := filepath.Join(src, rel)
-	if r, err := filepath.Rel(src, full); err != nil || r == ".." || strings.HasPrefix(r, "../") {
+	if !within(src, full) {
 		return nil
 	}
+	// Resolve symlinks in every path component, so a symlinked directory in
+	// the scanned repository cannot point outside the checkout (the clone
+	// disables symlinks; this is defence in depth).
+	realSrc, err := filepath.EvalSymlinks(src)
+	if err != nil {
+		return nil
+	}
+	real, err := filepath.EvalSymlinks(full)
+	if err != nil || !within(realSrc, real) {
+		return nil
+	}
+	full = real
 	st, err := os.Lstat(full)
 	if err != nil || !st.Mode().IsRegular() || st.Size() > 5<<20 {
 		return nil
 	}
+	// #nosec G304 -- path is resolved with EvalSymlinks and verified to be inside the checkout
 	f, err := os.Open(full)
 	if err != nil {
 		return nil
@@ -123,4 +137,10 @@ func readLines(src, uri string) []string {
 		lines = append(lines, sc.Text())
 	}
 	return lines
+}
+
+// within reports whether path is inside (or equal to) dir; both are cleaned.
+func within(dir, path string) bool {
+	r, err := filepath.Rel(dir, path)
+	return err == nil && r != ".." && !strings.HasPrefix(r, ".."+string(filepath.Separator)) && !filepath.IsAbs(r)
 }

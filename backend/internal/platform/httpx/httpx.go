@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"pathos/internal/platform/telemetry"
 	"runtime/debug"
 	"strings"
 	"time"
@@ -163,9 +164,12 @@ func Middleware(log *slog.Logger, next http.Handler) http.Handler {
 			if r.URL.Path == "/healthz" || r.URL.Path == "/readyz" {
 				return
 			}
-			log.Info("http",
-				"method", r.Method, "path", r.URL.Path, "status", rec.status, "bytes", rec.bytes,
-				"duration_ms", time.Since(start).Milliseconds(), "ip", ClientIP(r), "request_id", id)
+			attrs := []any{"method", r.Method, "path", r.URL.Path, "status", rec.status, "bytes", rec.bytes,
+				"duration_ms", time.Since(start).Milliseconds(), "ip", ClientIP(r), "request_id", id}
+			if tid := telemetry.TraceID(r.Context()); tid != "" {
+				attrs = append(attrs, "trace_id", tid)
+			}
+			log.Info("http", attrs...)
 		}()
 		next.ServeHTTP(rec, r)
 	})

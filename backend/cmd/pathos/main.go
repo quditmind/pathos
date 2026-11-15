@@ -27,6 +27,9 @@ import (
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
+	"pathos/internal/platform/objstore"
+	"pathos/internal/platform/ratelimit"
+	"pathos/internal/platform/telemetry"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
 	"pathos/internal/scm"
@@ -54,6 +57,21 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	host, _ := os.Hostname()
+	shutdownTelemetry, err := telemetry.Setup(ctx, cfg.OTLPEndpoint, string(cfg.Role), server.Version, host)
+	if err != nil {
+		log.Error("telemetry setup failed", "err", err)
+		os.Exit(1)
+	}
+	if cfg.OTLPEndpoint != "" {
+		log.Info("OpenTelemetry export enabled", "endpoint", cfg.OTLPEndpoint)
+	}
+	defer func() {
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = shutdownTelemetry(sctx)
+	}()
+
 	var runErr error
 	switch cfg.Role {
 	case config.RoleAPI:
@@ -65,6 +83,9 @@ func main() {
 	}
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
 		log.Error("exiting", "err", runErr)
+		sctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = shutdownTelemetry(sctx)
+		cancel()
 		os.Exit(1)
 	}
 }
@@ -100,6 +121,7 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			ClientID: cfg.OIDC.ProvisionerClientID, ClientSecret: cfg.OIDC.ProvisionerClientSecret,
 			// Must be registered on the pathos-web client (deploy/keycloak/pathos-realm.json).
 			ActionsClientID: cfg.OIDC.ClientID, ActionsRedirectURI: cfg.PublicURL.String() + "/login",
+			RequireMFA: cfg.RequireMFA,
 		}
 		log.Info("keycloak user provisioning enabled")
 	}
@@ -109,12 +131,17 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 
+	artifacts, err := artifactStore(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
 	if err := mcp.EnsureBuiltIn(ctx, pool, orgID, cfg.PublicURL.String()); err != nil {
 		return fmt.Errorf("seed MCP registry: %w", err)
 	}
 	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
 		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
-		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken})
+		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken,
+		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts})
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handlers.Public,
@@ -166,11 +193,15 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
+	artifacts, err := artifactStore(ctx, cfg, log)
+	if err != nil {
+		return err
+	}
 	tick := func() {
 		if err := org.EnsureAuditPartitions(ctx, pool); err != nil {
 			log.Error("audit partition maintenance failed", "err", err)
 		}
-		if n, err := scans.PruneArtifacts(ctx, pool); err != nil {
+		if n, err := scans.PruneArtifacts(ctx, pool, artifacts); err != nil {
 			log.Error("artifact retention failed", "err", err)
 		} else if n > 0 {
 			log.Info("pruned scan artifacts past retention", "count", n)
@@ -244,6 +275,53 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 
 // runScheduler runs the leader-elected scan scheduler. Replicas are safe:
 // one holds a Postgres advisory lock, the others wait as standbys.
+// artifactStore connects the S3 object store when configured (nil keeps
+// artifacts in PostgreSQL). The bucket is created if missing.
+func artifactStore(ctx context.Context, cfg *config.Config, log *slog.Logger) (objstore.Store, error) {
+	if cfg.S3Bucket == "" {
+		return nil, nil
+	}
+	st, err := objstore.NewS3(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+		AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, PathStyle: cfg.S3PathStyle})
+	if err != nil {
+		return nil, err
+	}
+	var lastErr error
+	for range 30 { // the object store may still be starting
+		cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		lastErr = st.EnsureBucket(cctx)
+		cancel()
+		if lastErr == nil {
+			log.Info("scan artifacts stored in object storage", "endpoint", cfg.S3Endpoint, "bucket", cfg.S3Bucket)
+			return st, nil
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(2 * time.Second):
+		}
+	}
+	return nil, fmt.Errorf("object store %s/%s unavailable: %w", cfg.S3Endpoint, cfg.S3Bucket, lastErr)
+}
+
+// rateLimiter returns the shared Valkey limiter, or nil when disabled.
+func rateLimiter(cfg *config.Config, rdb redis.UniversalClient, log *slog.Logger) ratelimit.Limiter {
+	if cfg.RateLimitScale == 0 {
+		log.Warn("API rate limiting disabled (PATHOS_RATE_LIMIT_SCALE=0)")
+		return nil
+	}
+	return &ratelimit.Redis{R: rdb, Prefix: "pathos:rl:"}
+}
+
+func scaledPolicy(f float64) ratelimit.Policy {
+	p := ratelimit.DefaultPolicy()
+	for _, r := range []*ratelimit.Rule{&p.Auth, &p.Anonymous, &p.Read, &p.Write, &p.Webhook, &p.MCP} {
+		r.PerSecond *= f
+		r.Burst = max(1, int(float64(r.Burst)*f))
+	}
+	return p
+}
+
 func runScheduler(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	pool, err := db.Connect(ctx, cfg.DatabaseURL, log)
 	if err != nil {
@@ -269,7 +347,11 @@ func runScheduler(ctx context.Context, cfg *config.Config, log *slog.Logger) err
 	}()
 	defer hs.Close()
 	log.Info("scheduler started", "holder", host)
-	return (&schedule.Scheduler{Pool: pool, Log: log, Holder: host, Interval: 15 * time.Second}).Run(ctx)
+	sch := &schedule.Scheduler{Pool: pool, Log: log, Holder: host, Interval: 15 * time.Second}
+	if err := schedule.RegisterMetrics(pool, sch.IsLeader); err != nil {
+		return err
+	}
+	return sch.Run(ctx)
 }
 
 func healthcheck(args []string) int {
@@ -278,12 +360,13 @@ func healthcheck(args []string) int {
 		url = args[0]
 	}
 	c := &http.Client{Timeout: 3 * time.Second}
+	// #nosec G704 -- container health probe; URL comes from the healthcheck command line (localhost)
 	resp, err := c.Get(url)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	resp.Body.Close()
+	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		fmt.Fprintln(os.Stderr, "status", resp.StatusCode)
 		return 1

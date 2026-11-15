@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"pathos/internal/platform/objstore"
 	"strconv"
 	"strings"
 	"time"
@@ -452,10 +453,15 @@ func (s *Service) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 	scanner := r.PathValue("scanner")
 	var ct string
 	var data []byte
-	err = s.DB.QueryRow(ctx, `SELECT a.content_type, a.data_gzip FROM scan_artifacts a
+	var key *string
+	err = s.DB.QueryRow(ctx, `SELECT a.content_type, a.data_gzip, a.object_key FROM scan_artifacts a
 		JOIN scan_results sr ON sr.id = a.scan_result_id
-		WHERE sr.scan_job_id = $1 AND sr.scanner_key = $2 ORDER BY a.kind LIMIT 1`, j.ID, scanner).Scan(&ct, &data)
+		WHERE sr.scan_job_id = $1 AND sr.scanner_key = $2 ORDER BY a.kind LIMIT 1`, j.ID, scanner).Scan(&ct, &data, &key)
 	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if data, err = objstore.Load(ctx, s.Artifacts, key, data); err != nil {
 		s.fail(w, r, err)
 		return
 	}

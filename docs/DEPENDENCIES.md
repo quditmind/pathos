@@ -18,6 +18,19 @@ Status: **Phase 1**. Exact versions are pinned when each component is introduced
 | Egress proxy | `ubuntu/squid:7.2-26.04_edge` (digest-pinned) |
 | Frontend | React 19.3.1, TypeScript 6.0.3 (7.x deferred: Go-based compiler, tooling still settling), Vite 8.3.8, Tailwind 4.3.5, TanStack Query 5.107.1 / Router 1.170.46, Radix Dialog/Dropdown, lucide-react 1.73.0, Vitest 5.1.0 |
 
+## Added in Phase 8
+
+| Component | Pinned version | License | Use |
+|---|---|---|---|
+| OpenTelemetry Go | otel v1.47.0, contrib v0.72.0 (otelhttp, runtime), OTLP/HTTP exporters | Apache-2.0 | Traces and metrics |
+| AWS SDK for Go v2 | service/s3 v1.114.5 | Apache-2.0 | S3-compatible artifact storage |
+| SeaweedFS (optional profile) | `chrislusf/seaweedfs:4.51` (digest-pinned) | Apache-2.0 | Bundled object store |
+| Grafana otel-lgtm (dev profile) | `grafana/otel-lgtm:0.39.0` (digest-pinned) | Apache-2.0 | Local observability backend |
+| Caddy build | `caddy:2.11.9-builder-alpine` + xcaddy, x/net v0.62.0 | Apache-2.0 | Patched edge proxy binary |
+| Gitleaks build | module v8.30.1 built with Go 1.27.4; x/crypto v0.55.0, x/text v0.41.0, klauspost/compress v1.18.7 | MIT | Patched secret scanner binary |
+| go-jose | v4.1.6 | Apache-2.0 | Security update (OIDC) |
+| Self-test tools (not shipped) | gosec v2.30.0, govulncheck v1.9.0, `zaproxy/zap-stable` (digest-pinned), `grafana/k6:2.3.0` (digest-pinned) | Apache-2.0 / BSD-3 / Apache-2.0 / AGPL-3.0 (k6, a standalone tool that is not distributed) | `make security`, `make load-test` |
+
 ## Platform services (containers)
 
 | Component | Version target | License | Notes |

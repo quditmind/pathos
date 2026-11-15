@@ -519,29 +519,51 @@ func (q *queries) chart(ctx context.Context, c *Chart) error {
 		c.Categories, err = collectCategories(rows)
 		return err
 	case "findings_trend":
+		// Open findings at the end of each day, per severity. One pass over
+		// the findings: +1 on the day first seen, -1 on the day resolved,
+		// then running totals. (Equivalent to counting, per day, findings
+		// with first_seen_at < day+1 and resolved_at null or >= day+1.)
 		w, args := q.scoped(authz.PermFindingsRead)
 		args = append(args, q.start, q.end)
 		n := len(args)
+		rows, err := q.db.Query(ctx, fmt.Sprintf(`
+			WITH base AS (
+			  SELECT f.severity, f.first_seen_at, f.resolved_at FROM findings f JOIN repositories r ON r.id = f.repository_id
+			  LEFT JOIN countries co ON co.id = r.country_id
+			  WHERE f.organization_id = $1 AND `+w+` AND f.severity IN ('critical', 'high', 'medium', 'low')
+			    AND f.status NOT IN ('false_positive', 'accepted_risk')
+			    AND f.first_seen_at < $%[2]d::date + interval '1 day'
+			), ev AS (
+			  SELECT severity, GREATEST(first_seen_at::date, $%[1]d::date) AS day, 1 AS delta FROM base
+			  UNION ALL
+			  SELECT severity, GREATEST(GREATEST(resolved_at, first_seen_at)::date, $%[1]d::date), -1 FROM base
+			  WHERE resolved_at IS NOT NULL AND resolved_at < $%[2]d::date + interval '1 day'
+			), daily AS (SELECT severity, day, sum(delta) AS delta FROM ev GROUP BY 1, 2)
+			SELECT d::date, s.sev, COALESCE(sum(dl.delta), 0)::bigint
+			FROM generate_series($%[1]d::date, $%[2]d::date, interval '1 day') d
+			CROSS JOIN unnest(ARRAY['critical', 'high', 'medium', 'low']) s(sev)
+			LEFT JOIN daily dl ON dl.severity = s.sev AND dl.day <= d::date
+			GROUP BY 1, 2 ORDER BY 1`, n-1, n), args...)
+		if err != nil {
+			return err
+		}
+		series := map[string][]Point{}
+		for rows.Next() {
+			var d time.Time
+			var sev string
+			var v int64
+			if err := rows.Scan(&d, &sev, &v); err != nil {
+				rows.Close()
+				return err
+			}
+			series[sev] = append(series[sev], Point{Date: d.Format("2006-01-02"), Value: float64(v)})
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
 		for _, sev := range []string{"critical", "high", "medium", "low"} {
-			rows, err := q.db.Query(ctx, fmt.Sprintf(`SELECT d::date, (SELECT count(*) FROM findings f JOIN repositories r ON r.id = f.repository_id
-				  LEFT JOIN countries co ON co.id = r.country_id
-				  WHERE f.organization_id = $1 AND `+w+` AND f.severity = '%s'
-				    AND f.status NOT IN ('false_positive', 'accepted_risk')
-				    AND f.first_seen_at < d + interval '1 day' AND (f.resolved_at IS NULL OR f.resolved_at >= d + interval '1 day'))
-				FROM generate_series($%d::date, $%d::date, interval '1 day') d ORDER BY 1`, sev, n-1, n), args...)
-			if err != nil {
-				return err
-			}
-			pts, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Point, error) {
-				var d time.Time
-				var v int64
-				err := r.Scan(&d, &v)
-				return Point{Date: d.Format("2006-01-02"), Value: float64(v)}, err
-			})
-			if err != nil {
-				return err
-			}
-			c.Series = append(c.Series, Series{Name: sev, Points: pts})
+			c.Series = append(c.Series, Series{Name: sev, Points: series[sev]})
 		}
 		return nil
 	case "repos_by_criticality":

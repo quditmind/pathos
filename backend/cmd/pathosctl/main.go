@@ -26,6 +26,7 @@ import (
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
+	"pathos/internal/platform/objstore"
 	"pathos/internal/scanners"
 	"pathos/internal/scans"
 	"pathos/internal/secrets"
@@ -38,6 +39,7 @@ func usage() {
 commands:
   migrate             apply migrations, sync the RBAC catalog, ensure the organization exists
   migrate-status      print current and latest migration versions
+  migrate-artifacts   move scan artifacts stored in PostgreSQL to the configured S3 bucket
   gen-key             print a new random 32-byte master key (base64)
   rbac-matrix         print the role/permission matrix as Markdown
   rotate-master-key   re-wrap every secret's data key with the current master key`)
@@ -65,7 +67,7 @@ func main() {
 	// Admin commands need only the database and master key, which is the
 	// scheduler role's configuration (no web settings, no public URL).
 	if os.Getenv("PATHOS_ROLE") == "" {
-		os.Setenv("PATHOS_ROLE", "scheduler")
+		_ = os.Setenv("PATHOS_ROLE", "scheduler")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -94,6 +96,22 @@ func main() {
 		}
 	case "rotate-master-key":
 		err = rotate(ctx, pool, cfg, log)
+	case "migrate-artifacts":
+		if cfg.S3Bucket == "" {
+			err = fmt.Errorf("PATHOS_S3_BUCKET is not set; configure object storage first")
+			break
+		}
+		var st *objstore.S3
+		if st, err = objstore.NewS3(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, PathStyle: cfg.S3PathStyle}); err != nil {
+			break
+		}
+		if err = st.EnsureBucket(ctx); err != nil {
+			break
+		}
+		var n int
+		n, err = scans.MigrateArtifacts(ctx, pool, st, 200)
+		log.Info("artifacts moved to object storage", "count", n, "bucket", cfg.S3Bucket)
 	default:
 		usage()
 		os.Exit(2)

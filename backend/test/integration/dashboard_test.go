@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"time"
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
@@ -91,6 +92,63 @@ func TestDashboardSummary(t *testing.T) {
 
 	if code, _ := call(&authz.Principal{UserID: uuid.New(), OrganizationID: orgID}, ""); code != 403 {
 		t.Errorf("principal without dashboard.read: want 403, got %d", code)
+	}
+}
+
+// The open-findings trend uses a single-pass running sum; it must equal the
+// direct definition (open at the end of each day) for every day and severity,
+// including findings resolved inside, before and after the window.
+func TestFindingsTrendMatchesDefinition(t *testing.T) {
+	ctx := t.Context()
+	repo := createRepo(t, "trend-"+uuid.NewString()[:6])
+	sevs := []string{"critical", "high", "medium", "low"}
+	for i := range 60 {
+		f := insertFinding(t, repo, sevs[i%4], "")
+		first := time.Now().Add(-time.Duration(i%45) * 24 * time.Hour).Add(-time.Duration(i) * time.Hour)
+		var resolved *time.Time
+		if i%3 == 0 {
+			r := first.Add(time.Duration(i%20) * 24 * time.Hour)
+			resolved = &r
+		}
+		if _, err := ownerPool.Exec(ctx, `UPDATE findings SET first_seen_at = $2, resolved_at = $3,
+			status = CASE WHEN $3::timestamptz IS NULL THEN status ELSE 'fixed' END WHERE id = $1`, f, first, resolved); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h := &dashboard.Handlers{DB: appPool, Log: log, Principal: auth.PrincipalFrom}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/api/v1/dashboard?days=30", nil)
+	req = req.WithContext(auth.WithPrincipal(req.Context(), principalWithRole(t, authz.RoleSuperAdmin)))
+	newMux(h.Register).ServeHTTP(rec, req)
+	var resp dashboard.Response
+	_ = json.Unmarshal(rec.Body.Bytes(), &resp)
+	var trend *dashboard.Chart
+	for i := range resp.Charts {
+		if resp.Charts[i].Key == "findings_trend" {
+			trend = &resp.Charts[i]
+		}
+	}
+	if trend == nil || len(trend.Series) != 4 {
+		t.Fatalf("findings_trend missing: %+v", trend)
+	}
+	checked := 0
+	for _, s := range trend.Series {
+		for _, p := range s.Points {
+			var want int64
+			if err := appPool.QueryRow(ctx, `SELECT count(*) FROM findings f WHERE f.organization_id = $1 AND f.severity = $2
+				AND f.status NOT IN ('false_positive', 'accepted_risk')
+				AND f.first_seen_at < $3::date + interval '1 day' AND (f.resolved_at IS NULL OR f.resolved_at >= $3::date + interval '1 day')`,
+				orgID, s.Name, p.Date).Scan(&want); err != nil {
+				t.Fatal(err)
+			}
+			if int64(p.Value) != want {
+				t.Errorf("%s %s: chart %v, definition %d", s.Name, p.Date, p.Value, want)
+			}
+			checked++
+		}
+	}
+	if checked < 4*30 {
+		t.Errorf("checked only %d points", checked)
 	}
 }
 

@@ -37,6 +37,7 @@ type Tool interface {
 // command runs a binary in its own process group (so a timeout kills every
 // child), with a scrubbed environment and bounded output capture.
 func command(ctx context.Context, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
+	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
 	cmd := exec.Command(name, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(baseEnv(), env...)
@@ -122,6 +123,7 @@ var versionRe = regexp.MustCompile(`v?(\d+\.\d+\.\d+[\w.+-]*)`)
 func versionOf(ctx context.Context, name string, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
+	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
 	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
 	if err != nil {
 		return "", err
@@ -238,6 +240,7 @@ func Tools(cfg Config) map[string]Tool {
 			if err != nil {
 				return "", err
 			}
+			// #nosec G304,G703 -- paths are created by the worker inside its own job directory
 			if b, err := os.ReadFile(filepath.Join(dir, "checkov", "results_sarif.sarif")); err == nil {
 				if err := os.WriteFile(in.Out, b, 0o600); err != nil {
 					return "", err
@@ -294,6 +297,7 @@ func clone(ctx context.Context, job Job, dst string, maxBytes int64) error {
 		return err
 	}
 	if job.CommitSHA != "" && shaRe.MatchString(job.CommitSHA) {
+		// #nosec G204 -- fixed binary and arguments; dst is the worker's own checkout directory
 		head, _ := exec.CommandContext(ctx, "git", "-C", dst, "rev-parse", "HEAD").Output()
 		if !strings.HasPrefix(strings.TrimSpace(string(head)), job.CommitSHA) {
 			fetch := append(append([]string{}, hardening...), "-C", dst, "fetch", "--depth", "1", "origin", job.CommitSHA)

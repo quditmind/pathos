@@ -88,11 +88,11 @@ docker compose run --rm migrate           # re-run migrations (idempotent)
 docker compose exec api pathosctl migrate-status
 ```
 
-Upgrades: pull the new version, then `docker compose up -d --build`. `migrate` runs before `api` starts, and migrations are forward-only.
+Upgrades: `deploy/scripts/upgrade.sh` (backup, build, migrate, health check). Backups: `deploy/scripts/backup.sh`; restores: `deploy/scripts/restore.sh <dir> --yes`. Production deployment, monitoring, scaling, rate limits and object storage are covered in [OPERATIONS.md](OPERATIONS.md).
 
-**Data lives in named volumes** (`pg_data`, `redis_data`, `caddy_data`). `docker compose down` keeps them. **`docker compose down -v` deletes all data.**
+**Data lives in named volumes** (`pg_data`, `redis_data`, `caddy_data`, plus `s3_data` with the `objectstore` profile). `docker compose down` keeps them. **`docker compose down -v` deletes all data.**
 
-**Back up `PATHOS_MASTER_KEY`.** Without it, stored credentials cannot be decrypted. Backup and restore scripts arrive in Phase 8. Until then, use `pg_dump` from the `postgres` container.
+**Back up `PATHOS_MASTER_KEY`.** Without it, stored credentials cannot be decrypted. It is deliberately not part of `backup.sh` output unless you pass `--with-env`.
 
 ## Verifying an install
 
