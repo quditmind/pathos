@@ -1,0 +1,15 @@
+# Known, harmless log lines that scripts/log-triage.py must not turn into
+# issues (one Python regex per line, matched against "service: message details").
+# Keep each entry justified.
+
+# Scan workers retry while the API container restarts (e.g. during upgrades).
+^worker-core: lease failed .*(lookup api|connection refused|no such host)
+
+# Wrong passwords are user behaviour, not defects (Keycloak's brute-force
+# protection handles them; the audit log records them).
+^keycloak: event LOGIN_ERROR error=(invalid_user_credentials|user_not_found)
+# Caddy start-up notices: plain-HTTP listener for redirects, admin API off by
+# design, and the local CA installing its root.
+^proxy: HTTP/[23] skipped because it requires TLS
+^proxy: admin endpoint disabled
+^proxy: installing root certificate

@@ -37,6 +37,10 @@ CI (`.github/workflows/ci.yml`) runs all of these on every pull request, startin
 
 Commits are public. To keep your email private, use your GitHub noreply address (`git config user.email <id>+<username>@users.noreply.github.com`).
 
+## Errors found in logs
+
+After a manual test session, run `make triage` (optionally `SINCE=6h`). It collects errors, warnings, HTTP 5xx responses and panics from all services, groups repeats, and redacts emails, IP addresses, IDs, tokens and secrets. Review the draft, then file issues with `make triage-create`. They are labelled `bug` and `from-logs`; a recurring error gets a "seen again" comment instead of a duplicate. Known harmless lines belong in `scripts/log-triage-ignore.txt`, each with a reason.
+
 ## Reporting bugs and security issues
 
 Use the issue templates for bugs and feature requests. Report **security vulnerabilities privately**: see [SECURITY.md](SECURITY.md).
