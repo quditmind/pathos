@@ -1,0 +1,47 @@
+{
+	admin off
+	# No trusted_proxies: Caddy discards client-supplied X-Forwarded-* headers
+	# and sets its own, so the API can trust the rightmost X-Forwarded-For.
+}
+
+{$PATHOS_DOMAIN:localhost} {
+	# "internal" uses Caddy's local CA (development / private networks).
+	# Set CADDY_TLS to an email address to obtain a public ACME certificate.
+	tls {$CADDY_TLS:internal}
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
+	}
+
+	handle /api/* {
+		reverse_proxy api:8080
+	}
+
+	# Health endpoints are not exposed publicly.
+	handle /healthz {
+		respond 404
+	}
+
+	handle /auth/* {
+		reverse_proxy keycloak:8080
+	}
+
+	handle {
+		root * /srv
+		header {
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
+			X-Frame-Options "DENY"
+		}
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@html not path /assets/*
+		header @html Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

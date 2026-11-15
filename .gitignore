@@ -1,0 +1,28 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+
+# Build output
+/backend/bin/
+/frontend/dist/
+node_modules/
+coverage/
+*.test
+*.out
+
+# Local data
+/data/
+/backups/
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+
+# Toolchain caches (scripts/go.sh, scripts/npm.sh use ~/.cache by default)
+frontend/node_modules/

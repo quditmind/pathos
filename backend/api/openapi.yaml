@@ -1,0 +1,351 @@
+openapi: 3.1.0
+info:
+  title: PATHOS API
+  version: 0.1.0
+  description: |
+    PATHOS REST API (Phase 1: identity, RBAC, organization structure, audit).
+
+    **Authentication.** Browser clients authenticate through the BFF login flow
+    (`GET /api/auth/login`), which sets an opaque, HttpOnly session cookie.
+    OIDC tokens are never exposed to the client.
+
+    **CSRF.** Every `POST`/`PUT`/`PATCH`/`DELETE` must send `X-CSRF-Token`
+    (from `GET /api/v1/me`). If an `Origin` header is present, it must match the
+    PATHOS public URL.
+
+    **Errors.** Every error body is `{"error": {"code", "message"}, "request_id"}`.
+    Unknown JSON fields are rejected with 400.
+
+    **Pagination.** List endpoints return `{"items": [...], "next_cursor": string|null}`.
+    Pass `cursor` to fetch the next page.
+servers:
+  - url: /
+security:
+  - session: []
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: __Host-pathos_session
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+    CSRF:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema: { type: string }
+  responses:
+    Error:
+      description: Error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+  schemas:
+    Error:
+      type: object
+      required: [error, request_id]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              examples: [unauthenticated, forbidden, not_found, invalid_request, conflict, csrf_failed, internal]
+            message: { type: string }
+        request_id: { type: string }
+    ScopeType:
+      type: string
+      enum: [organization, region, business_unit, repository]
+    User:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        organization_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        status: { type: string, enum: [invited, active, deactivated] }
+        last_login_at: { type: [string, "null"], format: date-time }
+        deactivated_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RoleAssignment:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        role_id: { type: string, format: uuid }
+        role_key: { type: string }
+        role_name: { type: string }
+        scope_type: { $ref: "#/components/schemas/ScopeType" }
+        scope_id: { type: string, format: uuid }
+        scope_name: { type: string }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+    RoleGrant:
+      type: object
+      required: [role_key, scope_type]
+      additionalProperties: false
+      properties:
+        role_key: { type: string, examples: [security_analyst] }
+        scope_type: { $ref: "#/components/schemas/ScopeType" }
+        scope_id:
+          type: string
+          format: uuid
+          description: Required unless scope_type is organization.
+    Role:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        key: { type: string }
+        name: { type: string }
+        description: { type: string }
+        is_system: { type: boolean }
+        permissions: { type: array, items: { type: string } }
+    AuditRecord:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actor_id: { type: [string, "null"], format: uuid }
+        actor_email: { type: string }
+        action: { type: string, examples: [user.invite] }
+        target_type: { type: string }
+        target_id: { type: string }
+        outcome: { type: string, enum: [success, denied, failure] }
+        ip: { type: [string, "null"] }
+        user_agent: { type: string }
+        request_id: { type: string }
+        metadata: { type: object }
+        created_at: { type: string, format: date-time }
+paths:
+  /api/auth/login:
+    get:
+      summary: Start OIDC login (redirects to Keycloak)
+      security: []
+      parameters:
+        - name: return_to
+          in: query
+          description: Same-origin relative path to return to after login.
+          schema: { type: string }
+      responses:
+        "302": { description: Redirect to the identity provider }
+        "503": { $ref: "#/components/responses/Error" }
+  /api/auth/callback:
+    get:
+      summary: OIDC redirect URI (sets the session cookie)
+      security: []
+      responses:
+        "302": { description: Redirect to return_to, or to /login?error=... on failure }
+  /api/auth/logout:
+    post:
+      summary: End the PATHOS session
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200":
+          description: The browser should navigate to logout_url to end the Keycloak session.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { logout_url: { type: string } }
+  /api/v1/me:
+    get:
+      summary: Current user, effective permissions and CSRF token
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+                  permissions: { type: array, items: { type: string } }
+                  org_wide_permissions: { type: [array, "null"], items: { type: string } }
+                  role_assignments: { type: array, items: { $ref: "#/components/schemas/RoleAssignment" } }
+                  csrf_token: { type: string }
+        "401": { $ref: "#/components/responses/Error" }
+  /api/v1/users:
+    get:
+      summary: List users (users.read, organization scope)
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Search email and display name }
+        - { name: status, in: query, schema: { type: string, enum: [invited, active, deactivated] } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/User" } }
+                  next_cursor: { type: [string, "null"] }
+        "403": { $ref: "#/components/responses/Error" }
+    post:
+      summary: Invite / provision a user (users.manage)
+      description: |
+        Creates the user (status `invited`) and the requested role assignments in one
+        transaction, then creates the Keycloak account and sends a set-password email.
+        Identity-provider failures do not roll back the PATHOS user; they are reported in `provisioning`.
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email }
+                display_name: { type: string, maxLength: 200 }
+                roles: { type: array, maxItems: 20, items: { $ref: "#/components/schemas/RoleGrant" } }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+                  role_assignments: { type: array, items: { $ref: "#/components/schemas/RoleAssignment" } }
+                  provisioning:
+                    type: object
+                    properties:
+                      status: { type: string, enum: [created, linked_existing, skipped, failed] }
+                      message: { type: string }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/v1/users/{id}:
+    get:
+      summary: Get a user (users.read)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+        "404": { $ref: "#/components/responses/Error" }
+  /api/v1/users/{id}/deactivate:
+    post:
+      summary: Deactivate a user and revoke all sessions (users.manage)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+        "400": { description: Cannot deactivate yourself }
+        "409": { description: Already deactivated, or last active super administrator }
+  /api/v1/users/{id}/reactivate:
+    post:
+      summary: Reactivate a user (users.manage)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "200": { description: OK, content: { application/json: { schema: { $ref: "#/components/schemas/User" } } } }
+        "409": { description: User is not deactivated }
+  /api/v1/users/{id}/role-assignments:
+    get:
+      summary: List a user's role assignments (roles.read)
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties: { items: { type: array, items: { $ref: "#/components/schemas/RoleAssignment" } } }
+    post:
+      summary: Grant a role at a scope (roles.assign plus every permission of the role at that scope)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/RoleGrant" } } }
+      responses:
+        "201": { description: Created, content: { application/json: { schema: { $ref: "#/components/schemas/RoleAssignment" } } } }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { $ref: "#/components/responses/Error" }
+  /api/v1/role-assignments/{id}:
+    delete:
+      summary: Revoke a role assignment (same authority as granting)
+      parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }]
+      responses:
+        "204": { description: Deleted }
+        "403": { $ref: "#/components/responses/Error" }
+        "409": { description: Would remove the last active super administrator }
+  /api/v1/roles:
+    get:
+      summary: List roles with permissions (roles.read)
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { type: object, properties: { items: { type: array, items: { $ref: "#/components/schemas/Role" } } } }
+  /api/v1/permissions:
+    get:
+      summary: Permission catalog (roles.read)
+      responses:
+        "200": { description: OK }
+  /api/v1/organization:
+    get:
+      summary: Current organization
+      responses:
+        "200": { description: OK }
+  /api/v1/regions:
+    get:
+      summary: Regions with countries (org.read at any scope)
+      responses:
+        "200": { description: OK }
+  /api/v1/business-units:
+    get:
+      summary: Business units (org.read at any scope)
+      responses:
+        "200": { description: OK }
+    post:
+      summary: Create a business unit (org.manage)
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 200 }
+                parent_id: { type: [string, "null"], format: uuid }
+                description: { type: string, maxLength: 2000 }
+      responses:
+        "201": { description: Created }
+        "409": { description: Name already used under the same parent }
+  /api/v1/audit-logs:
+    get:
+      summary: Audit log, newest first (audit.read)
+      parameters:
+        - { name: action, in: query, schema: { type: string }, description: "Exact action or prefix, e.g. `user` matches `user.invite`" }
+        - { name: actor_id, in: query, schema: { type: string, format: uuid } }
+        - { name: target_type, in: query, schema: { type: string } }
+        - { name: target_id, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }
+                  next_cursor: { type: [string, "null"] }

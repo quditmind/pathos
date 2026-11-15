@@ -1,0 +1,255 @@
+// Package config loads and validates PATHOS runtime configuration from the
+// environment. Any variable ending in _FILE is read from the named file
+// instead (Docker secrets convention), e.g. PATHOS_MASTER_KEY_FILE.
+package config
+
+import (
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"net/url"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// Role selects which subsystems a pathos process runs.
+type Role string
+
+const (
+	RoleAPI       Role = "api"
+	RoleJobs      Role = "jobs"
+	RoleScheduler Role = "scheduler"
+)
+
+type Config struct {
+	Env      string // development | production
+	Role     Role
+	HTTPAddr string
+	LogLevel string
+
+	DatabaseURL string
+	RedisURL    string
+
+	// MasterKeys maps key version -> 32-byte AES key. The highest version is
+	// used for new encryptions; older versions remain for decryption until
+	// rotation completes.
+	MasterKeys map[int][]byte
+
+	PublicURL *url.URL // externally visible base URL, e.g. https://localhost
+
+	OIDC OIDCConfig
+
+	SessionIdleTTL     time.Duration
+	SessionAbsoluteTTL time.Duration
+
+	OrgName            string
+	OrgSlug            string
+	BootstrapAdminEmail string
+}
+
+type OIDCConfig struct {
+	// Issuer is the issuer as seen in tokens (the public Keycloak URL).
+	Issuer string
+	// DiscoveryURL is where the API fetches discovery/JWKS from (internal URL).
+	// Defaults to Issuer.
+	DiscoveryURL string
+	ClientID     string
+	ClientSecret string
+
+	// Optional Keycloak admin API service account used to provision users.
+	ProvisionerClientID     string
+	ProvisionerClientSecret string
+	AdminBaseURL            string // e.g. http://keycloak:8080/auth
+	Realm                   string
+}
+
+func (c *Config) IsProduction() bool { return c.Env == "production" }
+
+// CurrentKeyVersion returns the highest configured master key version.
+func (c *Config) CurrentKeyVersion() int {
+	v := 0
+	for k := range c.MasterKeys {
+		if k > v {
+			v = k
+		}
+	}
+	return v
+}
+
+// Load reads configuration from the process environment.
+func Load() (*Config, error) { return LoadFrom(os.Getenv) }
+
+// LoadFrom reads configuration using getenv, which makes it testable.
+func LoadFrom(getenv func(string) string) (*Config, error) {
+	var errs []error
+	get := func(key, def string) string {
+		if v := getenv(key); v != "" {
+			return v
+		}
+		if path := getenv(key + "_FILE"); path != "" {
+			b, err := os.ReadFile(path)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s_FILE: %w", key, err))
+				return ""
+			}
+			return strings.TrimSpace(string(b))
+		}
+		return def
+	}
+	dur := func(key, def string) time.Duration {
+		s := get(key, def)
+		d, err := time.ParseDuration(s)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("%s: invalid duration %q", key, s))
+		}
+		return d
+	}
+
+	c := &Config{
+		Env:                 get("PATHOS_ENV", "production"),
+		Role:                Role(get("PATHOS_ROLE", string(RoleAPI))),
+		HTTPAddr:            get("PATHOS_HTTP_ADDR", ":8080"),
+		LogLevel:            get("PATHOS_LOG_LEVEL", "info"),
+		DatabaseURL:         get("PATHOS_DATABASE_URL", ""),
+		RedisURL:            get("PATHOS_REDIS_URL", ""),
+		SessionIdleTTL:      dur("PATHOS_SESSION_IDLE_TTL", "8h"),
+		SessionAbsoluteTTL:  dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		OrgName:             get("PATHOS_ORG_NAME", "Default Organization"),
+		OrgSlug:             get("PATHOS_ORG_SLUG", "default"),
+		BootstrapAdminEmail: strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
+		OIDC: OIDCConfig{
+			Issuer:                  get("PATHOS_OIDC_ISSUER", ""),
+			DiscoveryURL:            get("PATHOS_OIDC_DISCOVERY_URL", ""),
+			ClientID:                get("PATHOS_OIDC_CLIENT_ID", "pathos-web"),
+			ClientSecret:            get("PATHOS_OIDC_CLIENT_SECRET", ""),
+			ProvisionerClientID:     get("PATHOS_KEYCLOAK_PROVISIONER_CLIENT_ID", ""),
+			ProvisionerClientSecret: get("PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET", ""),
+			AdminBaseURL:            get("PATHOS_KEYCLOAK_ADMIN_URL", ""),
+			Realm:                   get("PATHOS_KEYCLOAK_REALM", "pathos"),
+		},
+	}
+	if c.OIDC.DiscoveryURL == "" {
+		c.OIDC.DiscoveryURL = c.OIDC.Issuer
+	}
+
+	switch c.Env {
+	case "development", "production":
+	default:
+		errs = append(errs, fmt.Errorf("PATHOS_ENV must be development or production, got %q", c.Env))
+	}
+	switch c.Role {
+	case RoleAPI, RoleJobs, RoleScheduler:
+	default:
+		errs = append(errs, fmt.Errorf("PATHOS_ROLE must be api, jobs or scheduler, got %q", c.Role))
+	}
+	switch c.LogLevel {
+	case "debug", "info", "warn", "error":
+	default:
+		errs = append(errs, fmt.Errorf("PATHOS_LOG_LEVEL must be debug, info, warn or error, got %q", c.LogLevel))
+	}
+	if c.DatabaseURL == "" {
+		errs = append(errs, errors.New("PATHOS_DATABASE_URL is required"))
+	}
+	if c.SessionIdleTTL > c.SessionAbsoluteTTL {
+		errs = append(errs, errors.New("PATHOS_SESSION_IDLE_TTL must not exceed PATHOS_SESSION_ABSOLUTE_TTL"))
+	}
+	if !validSlug(c.OrgSlug) {
+		errs = append(errs, fmt.Errorf("PATHOS_ORG_SLUG %q must be lowercase letters, digits and hyphens", c.OrgSlug))
+	}
+
+	keys, err := parseMasterKeys(get("PATHOS_MASTER_KEY", ""), get("PATHOS_MASTER_KEYS_PREVIOUS", ""))
+	if err != nil {
+		errs = append(errs, err)
+	}
+	c.MasterKeys = keys
+
+	if c.Role == RoleAPI {
+		if c.RedisURL == "" {
+			errs = append(errs, errors.New("PATHOS_REDIS_URL is required for role api"))
+		}
+		pub := get("PATHOS_PUBLIC_URL", "")
+		u, err := url.Parse(pub)
+		if pub == "" || err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
+			errs = append(errs, fmt.Errorf("PATHOS_PUBLIC_URL must be an absolute http(s) URL, got %q", pub))
+		} else {
+			if c.IsProduction() && u.Scheme != "https" {
+				errs = append(errs, errors.New("PATHOS_PUBLIC_URL must use https in production"))
+			}
+			u.Path = strings.TrimRight(u.Path, "/")
+			c.PublicURL = u
+		}
+		if c.OIDC.Issuer == "" {
+			errs = append(errs, errors.New("PATHOS_OIDC_ISSUER is required for role api"))
+		}
+		if c.OIDC.ClientSecret == "" {
+			errs = append(errs, errors.New("PATHOS_OIDC_CLIENT_SECRET is required for role api"))
+		}
+	}
+
+	if len(errs) > 0 {
+		return nil, errors.Join(errs...)
+	}
+	return c, nil
+}
+
+// parseMasterKeys parses the current key ("v<N>:<base64>" or bare base64,
+// which is version 1) and a comma-separated list of previous keys.
+func parseMasterKeys(current, previous string) (map[int][]byte, error) {
+	keys := map[int][]byte{}
+	if current == "" {
+		return nil, errors.New("PATHOS_MASTER_KEY is required (32 random bytes, base64; generate with: openssl rand -base64 32)")
+	}
+	parse := func(s string) (int, []byte, error) {
+		ver := 1
+		if strings.HasPrefix(s, "v") {
+			if i := strings.IndexByte(s, ':'); i > 1 {
+				n, err := strconv.Atoi(s[1:i])
+				if err != nil || n < 1 {
+					return 0, nil, errors.New("master key version must be a positive integer")
+				}
+				ver, s = n, s[i+1:]
+			}
+		}
+		b, err := base64.StdEncoding.DecodeString(strings.TrimSpace(s))
+		if err != nil {
+			return 0, nil, errors.New("master key is not valid base64")
+		}
+		if len(b) != 32 {
+			return 0, nil, fmt.Errorf("master key must decode to 32 bytes, got %d", len(b))
+		}
+		return ver, b, nil
+	}
+	v, k, err := parse(current)
+	if err != nil {
+		return nil, fmt.Errorf("PATHOS_MASTER_KEY: %w", err)
+	}
+	keys[v] = k
+	for _, p := range strings.Split(previous, ",") {
+		if p = strings.TrimSpace(p); p == "" {
+			continue
+		}
+		pv, pk, err := parse(p)
+		if err != nil {
+			return nil, fmt.Errorf("PATHOS_MASTER_KEYS_PREVIOUS: %w", err)
+		}
+		if pv >= v {
+			return nil, errors.New("PATHOS_MASTER_KEYS_PREVIOUS versions must be lower than the current key version")
+		}
+		keys[pv] = pk
+	}
+	return keys, nil
+}
+
+func validSlug(s string) bool {
+	if s == "" || len(s) > 63 {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-') {
+			return false
+		}
+	}
+	return true
+}

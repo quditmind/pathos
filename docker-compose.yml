@@ -1,0 +1,218 @@
+# PATHOS - docker compose up -d
+#
+# Configuration comes from .env (copy .env.example or run deploy/scripts/install.sh).
+# Only the edge proxy publishes ports. Data stores are on internal networks.
+
+name: pathos
+
+x-pathos-hardening: &hardening
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  user: "65532:65532"
+  restart: unless-stopped
+
+x-pathos-env: &pathos-env
+  PATHOS_ENV: ${PATHOS_ENV:-production}
+  PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+  PATHOS_DATABASE_URL: postgres://pathos_app:${PATHOS_DB_APP_PASSWORD:?run deploy/scripts/install.sh}@postgres:5432/pathos?sslmode=disable
+  PATHOS_MASTER_KEY: ${PATHOS_MASTER_KEY:?run deploy/scripts/install.sh}
+  PATHOS_MASTER_KEYS_PREVIOUS: ${PATHOS_MASTER_KEYS_PREVIOUS:-}
+  PATHOS_ORG_NAME: ${PATHOS_ORG_NAME:-Default Organization}
+  PATHOS_ORG_SLUG: ${PATHOS_ORG_SLUG:-default}
+
+services:
+  proxy:
+    build:
+      context: .
+      dockerfile: deploy/caddy/Dockerfile
+    image: pathos-proxy:${PATHOS_VERSION:-dev}
+    restart: unless-stopped
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      PATHOS_DOMAIN: ${PATHOS_DOMAIN:-localhost}
+      CADDY_TLS: ${CADDY_TLS:-internal}
+    ports:
+      - "${PATHOS_HTTPS_PORT:-443}:443"
+      - "${PATHOS_HTTP_PORT:-80}:80"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge, app]
+    depends_on:
+      api: { condition: service_healthy }
+      keycloak: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "443"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    build:
+      context: backend
+      args: { VERSION: "${PATHOS_VERSION:-dev}" }
+    image: pathos:${PATHOS_VERSION:-dev}
+    <<: *hardening
+    restart: "no"
+    entrypoint: ["/usr/local/bin/pathosctl", "migrate"]
+    environment:
+      <<: *pathos-env
+      # Migrations run as the schema owner; the API uses pathos_app.
+      PATHOS_DATABASE_URL: postgres://pathos_owner:${PATHOS_DB_OWNER_PASSWORD:?run deploy/scripts/install.sh}@postgres:5432/pathos?sslmode=disable
+    networks: [data]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api:
+    image: pathos:${PATHOS_VERSION:-dev}
+    <<: *hardening
+    environment:
+      <<: *pathos-env
+      PATHOS_ROLE: api
+      PATHOS_REDIS_URL: redis://:${VALKEY_PASSWORD:?run deploy/scripts/install.sh}@valkey:6379/0
+      PATHOS_PUBLIC_URL: ${PATHOS_PUBLIC_URL:-https://localhost}
+      PATHOS_OIDC_ISSUER: ${PATHOS_PUBLIC_URL:-https://localhost}/auth/realms/pathos
+      PATHOS_OIDC_DISCOVERY_URL: http://keycloak:8080/auth/realms/pathos
+      PATHOS_OIDC_CLIENT_ID: pathos-web
+      PATHOS_OIDC_CLIENT_SECRET: ${PATHOS_OIDC_CLIENT_SECRET:?run deploy/scripts/install.sh}
+      PATHOS_KEYCLOAK_ADMIN_URL: http://keycloak:8080/auth
+      PATHOS_KEYCLOAK_PROVISIONER_CLIENT_ID: pathos-provisioner
+      PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET:?run deploy/scripts/install.sh}
+      PATHOS_BOOTSTRAP_ADMIN_EMAIL: ${PATHOS_BOOTSTRAP_ADMIN_EMAIL:?run deploy/scripts/install.sh}
+    networks: [app, data]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      valkey: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/pathos", "healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+
+  jobs:
+    image: pathos:${PATHOS_VERSION:-dev}
+    <<: *hardening
+    environment:
+      <<: *pathos-env
+      PATHOS_ROLE: jobs
+    networks: [data]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/pathos", "healthcheck"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
+  postgres:
+    image: postgres:18.7-alpine@sha256:b6972e1115a4ff8eba5d7f7d19184926d1e16d7d1136ae1e1a7ebf286da0f015
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD:?run deploy/scripts/install.sh}
+      PATHOS_DB_OWNER_PASSWORD: ${PATHOS_DB_OWNER_PASSWORD}
+      PATHOS_DB_APP_PASSWORD: ${PATHOS_DB_APP_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?run deploy/scripts/install.sh}
+    volumes:
+      - pg_data:/var/lib/postgresql
+      - ./deploy/postgres/init:/docker-entrypoint-initdb.d:ro
+    networks: [data]
+    shm_size: 256mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  valkey:
+    image: valkey/valkey:9.0.7-alpine@sha256:2d04268dfa26ab31cfa3fdc538866e76438b2d00e41db41b8cb86d780ac5a416
+    restart: unless-stopped
+    # Config is passed on stdin so the password never appears in process args.
+    # The image entrypoint drops privileges to the valkey user.
+    init: true
+    command: ["sh", "-c", "printf 'requirepass %s\\nappendonly yes\\nsave 60 1000\\n' \"$$VALKEY_PASSWORD\" | docker-entrypoint.sh valkey-server -"]
+    environment:
+      VALKEY_PASSWORD: ${VALKEY_PASSWORD}
+      VALKEYCLI_AUTH: ${VALKEY_PASSWORD}
+      REDISCLI_AUTH: ${VALKEY_PASSWORD}
+    volumes:
+      - redis_data:/data
+    networks: [data]
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, CHOWN]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0
+    restart: unless-stopped
+    command: ["start", "--import-realm"]
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: ${PATHOS_PUBLIC_URL:-https://localhost}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HTTP_RELATIVE_PATH: /auth
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_LOG_CONSOLE_OUTPUT: json
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-kcadmin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run deploy/scripts/install.sh}
+      # Placeholders substituted into deploy/keycloak/pathos-realm.json on import.
+      PATHOS_PUBLIC_URL: ${PATHOS_PUBLIC_URL:-https://localhost}
+      PATHOS_OIDC_CLIENT_SECRET: ${PATHOS_OIDC_CLIENT_SECRET}
+      PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET}
+      PATHOS_BOOTSTRAP_ADMIN_EMAIL: ${PATHOS_BOOTSTRAP_ADMIN_EMAIL}
+      PATHOS_BOOTSTRAP_ADMIN_PASSWORD: ${PATHOS_BOOTSTRAP_ADMIN_PASSWORD:?run deploy/scripts/install.sh}
+      PATHOS_SMTP_HOST: ${PATHOS_SMTP_HOST:-mailpit}
+      PATHOS_SMTP_PORT: ${PATHOS_SMTP_PORT:-1025}
+      PATHOS_SMTP_FROM: ${PATHOS_SMTP_FROM:-pathos@localhost}
+    volumes:
+      - ./deploy/keycloak/pathos-realm.json:/opt/keycloak/data/import/pathos-realm.json:ro
+    # edge: outbound access for identity federation (Entra ID, SAML IdPs).
+    networks: [app, data, edge]
+    depends_on:
+      postgres: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n' >&3 && grep -q '\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  mailpit:
+    profiles: [dev]
+    image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [app, edge]
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+networks:
+  edge: {}
+  app:
+    internal: true
+  data:
+    internal: true
+
+volumes:
+  pg_data:
+  redis_data:
+  caddy_data:
+  caddy_config:

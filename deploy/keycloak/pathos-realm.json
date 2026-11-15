@@ -1,0 +1,100 @@
+{
+  "realm": "pathos",
+  "displayName": "PATHOS",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "registrationEmailAsUsername": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "maxDeltaTimeSeconds": 43200,
+  "passwordPolicy": "length(12) and notUsername and notEmail and passwordHistory(5)",
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 28800,
+  "ssoSessionMaxLifespan": 86400,
+  "internationalizationEnabled": false,
+  "loginTheme": "keycloak.v2",
+  "smtpServer": {
+    "host": "${PATHOS_SMTP_HOST:mailpit}",
+    "port": "${PATHOS_SMTP_PORT:1025}",
+    "from": "${PATHOS_SMTP_FROM:pathos@localhost}",
+    "fromDisplayName": "PATHOS",
+    "ssl": "false",
+    "starttls": "${PATHOS_SMTP_STARTTLS:false}",
+    "auth": "${PATHOS_SMTP_AUTH:false}",
+    "user": "${PATHOS_SMTP_USER:}",
+    "password": "${PATHOS_SMTP_PASSWORD:}"
+  },
+  "clients": [
+    {
+      "clientId": "pathos-web",
+      "name": "PATHOS Web (BFF)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PATHOS_OIDC_CLIENT_SECRET}",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "redirectUris": ["${PATHOS_PUBLIC_URL}/api/auth/callback", "${PATHOS_PUBLIC_URL}/login"],
+      "webOrigins": ["${PATHOS_PUBLIC_URL}"],
+      "rootUrl": "${PATHOS_PUBLIC_URL}",
+      "baseUrl": "/",
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "${PATHOS_PUBLIC_URL}/login*",
+        "oauth2.device.authorization.grant.enabled": "false"
+      },
+      "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email", "basic"],
+      "optionalClientScopes": ["offline_access"]
+    },
+    {
+      "clientId": "pathos-provisioner",
+      "name": "PATHOS user provisioning (service account)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "${PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET}",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "defaultClientScopes": ["basic", "roles", "kc-admin-api"]
+    }
+  ],
+  "users": [
+    {
+      "username": "${PATHOS_BOOTSTRAP_ADMIN_EMAIL}",
+      "email": "${PATHOS_BOOTSTRAP_ADMIN_EMAIL}",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "PATHOS",
+      "lastName": "Administrator",
+      "credentials": [
+        { "type": "password", "value": "${PATHOS_BOOTSTRAP_ADMIN_PASSWORD}", "temporary": true }
+      ],
+      "requiredActions": ["UPDATE_PASSWORD"]
+    },
+    {
+      "username": "service-account-pathos-provisioner",
+      "enabled": true,
+      "serviceAccountClientId": "pathos-provisioner",
+      "clientRoles": {
+        "realm-management": ["manage-users", "view-users", "query-users"]
+      }
+    }
+  ]
+}

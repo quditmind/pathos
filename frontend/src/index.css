@@ -1,0 +1,87 @@
+@import "tailwindcss";
+@import "@fontsource-variable/inter";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Design tokens (shadcn convention). Light enterprise theme; dark mode
+   reuses the same token names. Accent tuned for WCAG AA on white. */
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-muted: #f1f3f6;
+  --foreground: #111827;
+  --muted-foreground: #5b6474;
+  --border: #e3e6eb;
+  --ring: #1f5fd6;
+  --primary: #1f5fd6;
+  --primary-hover: #1a50b5;
+  --primary-foreground: #ffffff;
+  --danger: #c62828;
+  --danger-soft: #fdecec;
+  --success: #1e7b45;
+  --success-soft: #e7f5ec;
+  --warning: #9a6200;
+  --warning-soft: #fff4dc;
+  --sev-critical: #b42318;
+  --sev-high: #d9480f;
+  --sev-medium: #b7791f;
+  --sev-low: #52667a;
+  --sev-info: #7a8594;
+}
+
+.dark {
+  --background: #0d1117;
+  --surface: #151b23;
+  --surface-muted: #1c2430;
+  --foreground: #e6e9ef;
+  --muted-foreground: #9aa4b2;
+  --border: #2a3340;
+  --ring: #5b8def;
+  --primary: #4c82ef;
+  --primary-hover: #6b97f2;
+  --primary-foreground: #0b1220;
+  --danger: #f2706a;
+  --danger-soft: #3a1717;
+  --success: #57c785;
+  --success-soft: #12301f;
+  --warning: #e7b14c;
+  --warning-soft: #33270f;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-foreground: var(--foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
