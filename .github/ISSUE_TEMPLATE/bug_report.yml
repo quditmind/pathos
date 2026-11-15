@@ -1,0 +1,44 @@
+name: Bug report
+description: Something in PATHOS does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Security vulnerabilities must not be reported here.** Use the Security tab → "Report a vulnerability" (see SECURITY.md).
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Go to …
+        2. Click …
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Output of `git rev-parse --short HEAD`, or the release tag
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Installation / Compose, Login & users, Repositories & SCM, Scanning & workers, Findings & vulnerability management, AI review & MCP, Scheduling & notifications, Dashboard & UI, Backup / upgrade / operations, Other]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: For example `docker compose logs api --tail 100`. Remove secrets first (PATHOS redacts most of them, but check).
+      render: text

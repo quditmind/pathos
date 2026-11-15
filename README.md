@@ -1,5 +1,7 @@
 # PATHOS
 
+[![CI](https://github.com/quditmind/pathos/actions/workflows/ci.yml/badge.svg)](https://github.com/quditmind/pathos/actions/workflows/ci.yml) [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
 > **Status: release candidate. All eight roadmap phases are implemented and tested.** Delivered so far:
@@ -17,7 +19,7 @@
 ## Installation
 
 ```bash
-git clone <repo-url> pathos && cd pathos
+git clone https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh    # generates .env with secrets and prints the admin login
 docker compose up -d --wait
 ```
@@ -54,6 +56,10 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 | [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Scanner licensing and maintenance review |
 | [DEPENDENCIES](docs/DEPENDENCIES.md) | Dependencies and licenses |
 | [DEVELOPMENT_ROADMAP](docs/DEVELOPMENT_ROADMAP.md) | Phase plan and status |
+
+## Contributing and security
+
+Contributions are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md) and the [Code of Conduct](CODE_OF_CONDUCT.md). Please report vulnerabilities privately, as described in [SECURITY.md](SECURITY.md).
 
 ## License
 

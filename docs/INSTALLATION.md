@@ -9,7 +9,7 @@
 ## Quick start
 
 ```bash
-git clone <repo-url> pathos && cd pathos
+git clone https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh      # creates .env with generated secrets, prints the admin login
 docker compose up -d --wait      # first start takes 1–2 minutes (Keycloak initialises)
 ```
