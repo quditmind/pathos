@@ -42,6 +42,9 @@ load-test: ## k6 load test against the running stack (see docs/OPERATIONS.md)
 e2e: ## Browser end-to-end tests (Playwright) against the running stack
 	scripts/e2e.sh
 
+dast: ## Authenticated active ZAP API scan. DESTRUCTIVE: disposable stacks only
+	scripts/dast.sh --destructive-ok
+
 smoke: ## End-to-end test against the running stack
 	python3 scripts/smoke-test.py
 

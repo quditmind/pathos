@@ -276,6 +276,8 @@ def main():
         check("worker reports all core tool versions", len(online[0]["scanners"]) == 7, online[0]["scanners"])
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
     check("internal worker API not reachable through the proxy -> 404", st == 404, st)
+    st, _, body = anon.req("GET", "/api")
+    check("GET /api answers with the API's JSON 404 (not the web app)", st == 404 and '"not_found"' in body, st)
     s, fs = admin.api("GET", "/api/v1/findings")
     check("findings API -> 200", s == 200 and "items" in fs, s)
 

@@ -148,6 +148,8 @@ func Middleware(log *slog.Logger, next http.Handler) http.Handler {
 		h := w.Header()
 		h.Set("X-Content-Type-Options", "nosniff")
 		h.Set("X-Frame-Options", "DENY")
+		// API responses are only for this origin's own pages (ZAP 90004).
+		h.Set("Cross-Origin-Resource-Policy", "same-origin")
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Cache-Control", "no-store")
 		h.Set("Content-Security-Policy", "default-src 'none'; frame-ancestors 'none'")

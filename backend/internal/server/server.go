@@ -115,6 +115,10 @@ func Build(d Deps) Handlers {
 	})
 
 	public.Handle("/api/", d.Auth.RequireAuth(telemetry.RecordRoute(protected)))
+	// "/api" without a slash: a JSON 404, not the mux's redirect to "/api/".
+	public.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
+		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
+	})
 	publicHandler := telemetry.RecordRoute(public)
 	if d.RateLimiter != nil {
 		publicHandler = (&ratelimit.Middleware{Limiter: d.RateLimiter, Policy: d.RateLimitPolicy, Log: d.Log,

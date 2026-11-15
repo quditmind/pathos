@@ -4,7 +4,13 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
-_Nothing yet._
+### Added
+- Authenticated active DAST (`scripts/dast.sh`, `make dast`): an OWASP ZAP API scan of every endpoint with session, CSRF token and Origin. CI runs it on pushes to `main`, releases, weekly and manual runs, and gates on unreviewed High alerts.
+- A weekly scheduled CI run, which picks up new advisories in dependencies and images.
+
+### Fixed
+- API responses now carry `Cross-Origin-Resource-Policy: same-origin`.
+- `GET /api` (without a trailing slash) returned the web app's HTML instead of the API's JSON 404.
 
 ## [0.9.0] — 2026-11-15
 

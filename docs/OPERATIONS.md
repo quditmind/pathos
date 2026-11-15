@@ -228,6 +228,14 @@ The script runs:
 
 It exits non-zero on any gosec issue, on a reachable Go vulnerability, on a high or critical npm advisory, on a fixable high or critical image vulnerability, or on a ZAP FAIL. Reports go to `reports/security/<UTC>/`. Accepted ZAP warnings are listed with reasons in `deploy/security/zap-baseline.conf`.
 
+### Authenticated DAST
+
+```bash
+make dast            # scripts/dast.sh --destructive-ok (disposable stacks only)
+```
+
+This runs OWASP ZAP's active API scan, signed in as the bootstrap administrator, against every endpoint in the OpenAPI definition except the login flow. **It sends attack payloads and changes data**, so never run it against an installation with real data; CI runs it on its throwaway stack. Turn rate limiting off for the scan (`PATHOS_RATE_LIMIT_SCALE=0`). Any High alert that isn't listed in `deploy/security/zap-api.conf` fails the run.
+
 ## Load tests
 
 ```bash

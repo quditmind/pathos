@@ -21,7 +21,10 @@
 		-Server
 	}
 
-	handle /api/* {
+	# "/api" itself too, so it answers with the API's JSON 404 instead of
+	# the single-page app (ZAP 100001).
+	@api path /api /api/*
+	handle @api {
 		reverse_proxy api:8080
 	}
 
