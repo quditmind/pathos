@@ -24,7 +24,7 @@ git clone https://github.com/quditmind/pathos.git && cd pathos
 docker compose up -d --wait
 ```
 
-Then open https://localhost. Details: [docs/INSTALLATION.md](docs/INSTALLATION.md).
+Then open https://localhost. Details: [docs/INSTALLATION.md](docs/INSTALLATION.md). This builds the images locally; to install a tested, cosign-signed release from GHCR instead, see [Installing a release](docs/OPERATIONS.md#installing-a-release-signed-images).
 
 The only host requirement is Docker Engine with the Compose plugin. For production, see [docs/OPERATIONS.md](docs/OPERATIONS.md) (`docker-compose.prod.yml`).
 

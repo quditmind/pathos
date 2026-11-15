@@ -1,8 +1,29 @@
 # Changelog
 
-## [Unreleased] — Local AI and Claude subscriptions (2026-11-15)
+All notable changes are listed here. Versions follow [Semantic Versioning](https://semver.org/); before 1.0, minor versions may contain breaking changes.
 
-### Added
+## [Unreleased]
+
+_Nothing yet._
+
+## [0.9.0] — 2026-11-15
+
+First public release: roadmap phases 1–8 and the follow-up work below.
+
+### Releases and project hygiene
+
+#### Added
+- Release workflow: on a version tag it runs the full CI, then publishes cosign-signed images with SBOM and SLSA provenance attestations to `ghcr.io/quditmind/{pathos,pathos-proxy,pathos-worker-core}` and creates the GitHub release with verification instructions.
+- `PATHOS_IMAGE_PREFIX` selects registry images instead of local builds (`upgrade.sh --pull`).
+- `SECURITY.md` (private vulnerability reporting), `CONTRIBUTING.md`, the code of conduct, and issue and PR templates. `main` is protected by CI.
+- Dependency policy: a 14-day Dependabot cooldown, deliberate major upgrades, and security updates enabled.
+
+#### Fixed
+- `upgrade.sh --pull` skipped every PATHOS image: `--ignore-buildable` excludes services that also have a build section.
+
+### Local AI and Claude subscriptions (2026-11-15)
+
+#### Added
 - Self-hosted AI provider (any OpenAI-compatible server: Ollama, vLLM, LM Studio, llama.cpp):
   - plain `http` on private networks, with an optional key;
   - `max_tokens` and temperature 0 for deterministic triage;
@@ -11,12 +32,12 @@
 - `allow_self_approval` on AI configurations, so a single person can approve the interactive (MCP) reviews made with their own Claude Code (Pro/Max). Audited.
 - Claude Code setup notes, including the local-CA tip, on the API tokens page. AI options guide in OPERATIONS.md.
 
-### Verified
+#### Verified
 - A live review of a real command-injection finding by `qwen2.5-coder:3b` on CPU through Ollama: correct verdict and remediation in 30 s, accepted by strict schema validation.
 
-## [Unreleased] — Continuous integration (2026-11-15)
+### Continuous integration (2026-11-15)
 
-### Added
+#### Added
 - GitHub Actions CI:
   - Backend: gofmt, vet, race-enabled unit tests, gosec, govulncheck.
   - Integration tests against PostgreSQL 18.
@@ -25,14 +46,14 @@
 - Actions are pinned to commit SHAs. Dependabot updates Go, npm, Docker, Compose and Actions.
 - Playwright browser test suite (`e2e/`, `make e2e`): every page renders without page errors or CSP violations, plus the command palette, security headers, schedule lifecycle, notification administration, policies, the finding drawer and the notification centre.
 
-### Fixed
+#### Fixed
 - `backend/internal/secrets` was never committed: the unanchored `secrets/` pattern in `.gitignore` excluded it, so a fresh clone could not build. The pattern is now `/secrets/`. Found by the fresh-install CI dry run.
 - Command palette: typing a page name and pressing Enter right away opened the Dashboard, because page matching used the debounced query. It now uses the live input.
 - Integration test files were not gofmt-formatted (`go fmt ./...` skips build-tagged files); CI now checks with `gofmt -l`.
 
-## Phase 8: Enterprise hardening (2026-11-15)
+### Phase 8: Enterprise hardening (2026-11-15)
 
-### Added
+#### Added
 - API rate limiting (GCRA in Valkey) with `429` and `Retry-After`; tuned with `PATHOS_RATE_LIMIT_SCALE`.
 - Keycloak admin console restricted to `KEYCLOAK_ADMIN_ALLOW`; optional TOTP enrolment for new users (`PATHOS_REQUIRE_MFA`).
 - `docker-compose.prod.yml` production override, plus `backup.sh`, `restore.sh` and `upgrade.sh`, and the `docs/OPERATIONS.md` runbook.
@@ -40,29 +61,29 @@
 - S3-compatible object storage for scan artifacts (SeaweedFS profile) and `pathosctl migrate-artifacts`.
 - `make security` (gosec, govulncheck, npm audit, Trivy, ZAP baseline) and `make load-test` (k6 with 100k-finding seed data).
 
-### Fixed
+#### Fixed
 - The worker context reader now resolves symlinked directories (defence in depth).
 - Valkey crash-looped after any restart; it now runs unprivileged as its own user.
 - 42 fixable HIGH/CRITICAL vulnerabilities in our images: go-jose, plus Caddy and Gitleaks rebuilt with patched dependencies; Debian packages upgraded and pip removed from the worker runtime.
 - TLS clients without SNI are served; cross-origin isolation headers were added.
 - The dashboard findings trend is 10× faster on large datasets.
 
-## Phase 7: Scheduling & notifications (2026-11-15)
+### Phase 7: Scheduling & notifications (2026-11-15)
 
-### Added
+#### Added
 - `scheduler` role and compose service. A Postgres advisory lock elects the leader, so replicas are hot standbys. It runs cron schedules (with time zones) targeting the organization, a region, a business unit (including children), a repository or a scan profile, with per-schedule priority. It catches up missed runs once and reports them, recovers expired worker leases and reports offline workers.
 - Schedules API and UI: create, edit, pause, run now, delete, cadence presets with a live preview of the next runs and repository count, scheduler and queue health, and a "Last run" link to the schedule's scan jobs.
 - Notification engine: a trigger-fed outbox, eight built-in rules, custom rules (event, minimum severity, region, business unit or repository scope, role/user/email/dynamic recipients, email and in-app channels), editable templates with a live preview, SMTP settings with a test email, delivery history with retry, and an in-app notification centre with an unread badge.
 - Events: new findings, scan failed, SLA breached, finding assigned, risk acceptance requested and decided, schedule missed, worker offline.
 - SCM metadata re-sync: nightly in `jobs`, or **Re-sync metadata** per connection.
 
-### Fixed
+#### Fixed
 - The `jobs` service was on the internal `data` network only, so automated AI reviews could not reach the provider. It now also joins `edge` (with `HTTPS_PROXY` support), which notification email also needs.
 - Assignments now record the acting user, so self-assignment is not notified.
 
-## Phase 6: Vulnerability management (2026-11-15)
+### Phase 6: Vulnerability management (2026-11-15)
 
-### Added
+#### Added
 - Finding lifecycle enforced by a database trigger: append-only status history with actor/source/reason, SLA deadline on detection, recurrence counter when a fixed finding reappears.
 - Manual triage API and UI: status changes with required reasons, assignment, atomic bulk status/assign, history timeline, SLA and assignee columns and filters.
 - Risk acceptance workflow: time-boxed (≤ 365 days), approved by a different person with `findings.accept_risk`, revocable, findings reopen automatically at expiry (jobs role, every 10 minutes).
@@ -70,22 +91,22 @@
 - SBOM inventory: Syft CycloneDX components stored per scan, component search across repositories with license-policy matches and open vulnerability counts, CycloneDX download per repository.
 - UI pages: Risk acceptances, SBOM inventory, Policies. All 24 dashboard KPIs are now live.
 
-### Fixed
+#### Fixed
 - Client disconnects are no longer logged as internal errors.
 - `openapi.yaml` is valid YAML again (an unquoted description broke parsing).
 
-## Phase 5: AI review & MCP (2026-11-15)
+### Phase 5: AI review & MCP (2026-11-15)
 
-### Added
+#### Added
 - AI providers: Anthropic (official Go SDK, default `claude-opus-5-5`, structured output, prompt caching, refusal fallbacks), OpenAI and xAI. Keys are encrypted and tested.
 - Versioned AI configurations, a review queue in the jobs role, auto-review after scans, and per-review transmitted-payload hashes.
 - Redaction, nonce-fenced untrusted evidence, strict output validation, code context captured by workers.
 - Approval queue with a critical-finding guardrail and four-eyes for interactive reviews.
 - PATHOS MCP server (`/mcp`) with personal API tokens; MCP server registry with tool allow-lists.
 
-## Phase 4: Scanning engine (2026-11-15)
+### Phase 4: Scanning engine (2026-11-15)
 
-### Added
+#### Added
 - Scanner catalog (52 integrations), versioned scan profiles with mandatory Gitleaks, scan jobs with priority leasing, retries, cancellation and webhook triggers.
 - `worker-core` image (Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov; checksum-pinned) and the `pathos-worker` agent with a hardened clone. Internal worker API with per-worker revocable tokens.
 - Squid egress proxy with an allowlist and denial of private and metadata destinations.
@@ -93,9 +114,9 @@
 - PATHOS baseline Opengrep rules (Apache-2.0).
 - UI: Scans, Findings (read-only), Scan profiles, Scanners & workers, Scan now / bulk scan; live scanning KPIs and charts.
 
-## Phase 3: Repository & asset management (2026-11-15)
+### Phase 3: Repository & asset management (2026-11-15)
 
-### Added
+#### Added
 - SCM connections: GitHub (PAT or GitHub App), GitHub Enterprise Server, Azure DevOps Services and Server. Credentials are encrypted and write-only; outbound calls are SSRF-protected.
 - Repository discovery and import (selection with defaults, CSV bulk onboarding with dry run), live branch selection, placement and classification, archive/delete, and bulk tagging.
 - Tag categories with mandatory and single-value rules; applications with owners.
@@ -103,18 +124,18 @@
 - Repository-scoped RBAC through the BU → region → organization hierarchy.
 - Dashboard KPIs Repositories, Applications and Without owner, plus a criticality chart; repositories and applications in global search.
 
-## Phase 2: Premium UI & dashboard (2026-11-15)
+### Phase 2: Premium UI & dashboard (2026-11-15)
 
-### Added
+#### Added
 - Dashboard API with the 24-KPI catalog and chart panels. KPIs that have no data source yet are reported as "not yet available", never with placeholder numbers. Values are permission-aware, with period and geography filters.
 - Global search API and the ⌘K command palette.
 - UI components: KpiCard, FilterBar and DataTable (column chooser, CSV export). Also a notification centre shell, a dashboard page with lazy-loaded charts, and deep-linkable filters on the Users and Audit pages.
 - Keycloak login theme `pathos`.
 - Audit log `outcome` filter.
 
-## Phase 1: Foundation (2026-11-15)
+### Phase 1: Foundation (2026-11-15)
 
-### Added
+#### Added
 - Go backend (`pathos` with `api` and `jobs` roles, `pathosctl`): validated configuration (with `_FILE` secret support), slog JSON logging with secret redaction, and `/healthz` and `/readyz`.
 - PostgreSQL schema and goose migrations: organizations, regions, countries, business units, users, teams, roles, permissions, role assignments, encrypted secrets, and an append-only audit log partitioned by month. Runtime role `pathos_app` with least privilege.
 - RBAC: 29-permission catalog, 9 system roles, and scoped assignments (organization, region, business unit with descendants, repository). Includes privilege-escalation and last-super-admin protections, and SQL scope filters.

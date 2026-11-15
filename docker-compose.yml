@@ -37,7 +37,7 @@ services:
     build:
       context: .
       dockerfile: deploy/caddy/Dockerfile
-    image: pathos-proxy:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-proxy:${PATHOS_VERSION:-dev}
     restart: unless-stopped
     cap_drop: [ALL]
     cap_add: [NET_BIND_SERVICE]
@@ -67,7 +67,7 @@ services:
     build:
       context: backend
       args: { VERSION: "${PATHOS_VERSION:-dev}" }
-    image: pathos:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos:${PATHOS_VERSION:-dev}
     <<: *hardening
     restart: "no"
     entrypoint: ["/usr/local/bin/pathosctl", "migrate"]
@@ -89,7 +89,7 @@ services:
       postgres: { condition: service_healthy }
 
   api:
-    image: pathos:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos:${PATHOS_VERSION:-dev}
     <<: *hardening
     environment:
       <<: *pathos-env
@@ -131,7 +131,7 @@ services:
       start_period: 10s
 
   jobs:
-    image: pathos:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos:${PATHOS_VERSION:-dev}
     <<: *hardening
     environment:
       <<: *pathos-env
@@ -153,7 +153,7 @@ services:
 
   # Leader-elected scan scheduler. Safe to scale: replicas wait as standbys.
   scheduler:
-    image: pathos:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos:${PATHOS_VERSION:-dev}
     <<: *hardening
     environment:
       <<: *pathos-env
@@ -275,7 +275,7 @@ services:
       context: .
       dockerfile: workers/core/Dockerfile
       args: { VERSION: "${PATHOS_VERSION:-dev}" }
-    image: pathos-worker-core:${PATHOS_VERSION:-dev}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-core:${PATHOS_VERSION:-dev}
     restart: unless-stopped
     read_only: true
     cap_drop: [ALL]
