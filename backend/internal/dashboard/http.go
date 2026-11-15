@@ -275,6 +275,31 @@ func (q *queries) kpi(ctx context.Context, k *KPI) error {
 		return err
 	}
 	switch k.Key {
+	case "ai_reviews", "ai_false_positive_rate", "pending_human_review":
+		w, args := q.scoped(authz.PermFindingsRead)
+		args = append(args, q.start)
+		var total, fp, pending float64
+		err := q.db.QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FILTER (WHERE ar.created_at >= $%[1]d),
+			  count(*) FILTER (WHERE ar.created_at >= $%[1]d AND ar.verdict = 'false_positive'),
+			  count(*) FILTER (WHERE ar.status = 'pending_approval')
+			FROM ai_reviews ar JOIN findings f ON f.id = ar.finding_id JOIN repositories r ON r.id = f.repository_id
+			LEFT JOIN countries co ON co.id = r.country_id WHERE ar.organization_id = $1 AND `+w, len(args)), args...).Scan(&total, &fp, &pending)
+		if err != nil {
+			return err
+		}
+		switch k.Key {
+		case "ai_reviews":
+			k.Value = &total
+		case "pending_human_review":
+			k.Value = &pending
+		default:
+			rate := 0.0
+			if total > 0 {
+				rate = float64(int(1000*fp/total)) / 10
+			}
+			k.Value = &rate
+		}
+		return nil
 	case "open_findings":
 		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom))
 	case "critical_findings":

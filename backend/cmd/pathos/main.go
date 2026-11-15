@@ -18,7 +18,9 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"pathos/internal/auth"
+	"pathos/internal/authz"
 	"pathos/internal/identity"
+	"pathos/internal/mcp"
 	"pathos/internal/org"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/crypto"
@@ -104,6 +106,9 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 
+	if err := mcp.EnsureBuiltIn(ctx, pool, orgID, cfg.PublicURL.String()); err != nil {
+		return fmt.Errorf("seed MCP registry: %w", err)
+	}
 	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
 		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
 		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken})
@@ -186,6 +191,16 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		}
 	}()
 	defer hs.Close()
+
+	// AI review worker (no-op until a provider and configuration exist).
+	keys, err := crypto.NewKeyring(cfg.MasterKeys)
+	if err != nil {
+		return err
+	}
+	az := &authz.Authorizer{}
+	aiSvc := server.NewAIService(server.Deps{DB: pool, Log: log, Secrets: &secrets.Store{Keys: keys},
+		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate}}, az)
+	go aiSvc.RunWorker(ctx)
 
 	tick()
 	t := time.NewTicker(6 * time.Hour)

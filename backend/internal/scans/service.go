@@ -30,6 +30,8 @@ type Service struct {
 	// BootstrapToken lets workers register (PATHOS_WORKER_BOOTSTRAP_TOKEN).
 	BootstrapToken string
 	OrgID          uuid.UUID
+	// OnScanFinished runs after a job completes (AI auto-review enqueue).
+	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
 }
 
 var errNotFound = errors.New("not found")

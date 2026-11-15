@@ -96,6 +96,14 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - Raw reports are downloadable only with `scans.read` on the repository.
 - **Integrity:** every scan records the immutable profile version and the scanner versions it ran with.
 
+## AI review and MCP (Phase 5)
+
+- **No subscription credentials:** automated reviews use provider API keys only. Claude subscriptions are used solely by a person's own assistant through the MCP server (ARCHITECTURE §6).
+- **Data minimization:** evidence is the finding metadata plus at most ±5 lines of code. It passes through redaction three times (worker capture → ingest → prompt), using built-in secret patterns plus organization patterns. Secret findings never include code. The SHA-256 of every transmitted request is stored with the review.
+- **Prompt injection:** evidence is JSON-encoded inside a delimiter carrying a random per-request nonce; the system prompt forbids following embedded instructions. Provider output must match a strict schema, and unknown fields are rejected, so a model cannot introduce actions.
+- **Guardrails:** AI never closes a Critical finding and never overrides a human decision. Approval policy is per configuration, with four-eyes for interactive reviews and a written justification for closing Critical findings.
+- **MCP:** personal tokens are random 256-bit values, stored hashed with the prefix `pathos_pat_` (recognisable by secret scanners), limited to 90 days, revocable, and scoped to the MCP endpoint only. They carry the owner's live permissions. Every tool call is audited (`mcp.tool_call`). The registry can disable the server or individual tools at once.
+
 ## Known gaps (tracked)
 
 - The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.

@@ -18,6 +18,10 @@ import { ScansPage, validateScanSearch } from "@/features/scans/ScansPage";
 import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import { ScannersPage } from "@/features/scans/ScannersPage";
 import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
+import { AIReviewsPage } from "@/features/ai/AIReviewsPage";
+import { AISettingsPage } from "@/features/ai/AISettingsPage";
+import { McpRegistryPage } from "@/features/ai/McpRegistryPage";
+import { TokensPage } from "@/features/ai/TokensPage";
 
 function Authenticated() {
   const me = useMe();
@@ -99,10 +103,15 @@ const profilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scan
 const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", component: ScannersPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
+const aiRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai", component: AIReviewsPage });
+const aiSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/ai", component: AISettingsPage });
+const mcpRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/mcp", component: McpRegistryPage });
+const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, profilesRoute, scannersRoute, findingsRoute]),
+    scansRoute, profilesRoute, scannersRoute, findingsRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });

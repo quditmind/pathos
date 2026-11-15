@@ -1,6 +1,15 @@
 # Changelog
 
-## [Unreleased] — Phase 4: Scanning engine (2026-11-15)
+## [Unreleased] — Phase 5: AI review & MCP (2026-11-15)
+
+### Added
+- AI providers: Anthropic (official Go SDK, default `claude-opus-5-5`, structured output, prompt caching, refusal fallbacks), OpenAI and xAI. Keys are encrypted and tested.
+- Versioned AI configurations, a review queue in the jobs role, auto-review after scans, and per-review transmitted-payload hashes.
+- Redaction, nonce-fenced untrusted evidence, strict output validation, code context captured by workers.
+- Approval queue with a critical-finding guardrail and four-eyes for interactive reviews.
+- PATHOS MCP server (`/mcp`) with personal API tokens; MCP server registry with tool allow-lists.
+
+## Phase 4: Scanning engine (2026-11-15)
 
 ### Added
 - Scanner catalog (52 integrations), versioned scan profiles with mandatory Gitleaks, scan jobs with priority leasing, retries, cancellation and webhook triggers.

@@ -9,7 +9,7 @@ Each phase ends with: working features, automated tests passing, `docker compose
 | 2 Premium UI & dashboard | **Done (2026-11-15)**: see milestone report below |
 | 3 Repository & asset management | **Done (2026-11-15)**: see milestone report below |
 | 4 Scanning engine | **Done (2026-11-15)**: see milestone report below |
-| 5 AI & MCP | Not started |
+| 5 AI & MCP | **Done (2026-11-15)**: see milestone report below |
 | 6 Vulnerability management | Not started |
 | 7 Scheduling & notifications | Not started |
 | 8 Enterprise hardening | Not started |
@@ -170,3 +170,38 @@ docker compose up -d --build --wait && make smoke
 - Public repositories fall back to an anonymous clone when the stored credential is rejected; private ones never do.
 
 **Next:** Phase 5, AI review and MCP.
+
+## Phase 5 milestone report (2026-11-15)
+
+**Implemented:**
+- **Providers** behind one `ai.Provider` interface:
+  - **Anthropic** through the official Go SDK (`anthropic-sdk-go/v2`), default model `claude-opus-5-5`, with JSON-schema structured output (`output_config.format`), an effort setting, a cached static system prompt, refusal and truncation handling, and server-side refusal fallbacks (`fallbacks: "default"`) on supported models.
+  - **OpenAI and xAI** through the Chat Completions API with strict JSON-schema responses. The model is configured explicitly; no default is guessed.
+  - Keys are envelope-encrypted (`ai` kind) and tested on save. Errors never echo request bodies or keys.
+- **Versioned AI configuration:** provider, model, effort, trusted organization instructions, auto-review, categories, minimum severity, approval policy (`always` / `false_positives` / `never`), daily limit, code-context toggle and extra redaction patterns.
+- **Pipeline:** new findings from a scan (within the filters and daily limit), or manual requests, enter a queue that the `jobs` role processes with `SKIP LOCKED`, lease expiry and rate-limit backoff. Each review records the model, the configuration version, token counts and the SHA-256 of exactly what was transmitted.
+- **Prompt-injection resistance:**
+  - The evidence is redacted (secrets, keys, long tokens, organization patterns), JSON-encoded and fenced in `<untrusted_evidence id=NONCE>`, with a random per-request nonce.
+  - The system prompt forbids following instructions found in the evidence.
+  - The output is validated strictly (unknown fields rejected, enums and ranges checked).
+  - Code is never sent for secret findings.
+- **Code context:** workers capture ±5 lines around each SAST/IaC result, reading only inside the checkout. The API redacts it again before storing it.
+- **Human approval:** reviews apply automatically only when policy allows. **Critical findings are never closed by AI**: a false-positive verdict goes to a human, and approving it requires a written justification. Interactive reviews need a second person to approve (four-eyes). AI never overrides a human status.
+- **PATHOS MCP server** (`POST /mcp`, JSON-RPC 2.0 over Streamable HTTP):
+  - Tools `list_pending_findings`, `get_finding_evidence` (same redaction and fencing) and `submit_review`.
+  - Authenticated with personal API tokens (`pathos_pat_…`, hashed, 1–90 days, revocable, at most 10 per user). Tokens act with the owner's current permissions and die immediately on deactivation.
+  - Reviews are attributed to the human with `source=interactive_mcp`.
+- **MCP registry:** request/approve/reject/disable servers and allow-list individual tools (requested tools start disallowed). The built-in PATHOS server is seeded and governed the same way.
+- **UI:** AI reviews (approval queue), AI settings, MCP registry, API tokens (with the `claude mcp add` command), and an AI section in the finding drawer. The three AI KPIs are live.
+
+**Tests:**
+- Unit: redaction, nonce fencing against fake delimiters, strict validation, the decision/guardrail matrix.
+- Integration (`TestAIReviewAndMCP`), with a fake provider capturing the exact transmitted request:
+  - configuration requirement, permissions, the redacted/fenced prompt and model default, approval, the critical guardrail with a justification;
+  - invalid output becomes a failed review, and auto-review respects severity filters;
+  - full MCP protocol, token revocation and deactivation, four-eyes, and registry tool/server controls.
+- Smoke test now has 67 checks, including a live SDK call to the Anthropic API that correctly reports an invalid key.
+
+**Not verified:** a real review against a live provider, because no API key is available in this environment. Everything up to the HTTP call is covered with the fake provider, and the SDK path is verified up to authentication.
+
+**Next:** Phase 6, vulnerability management.

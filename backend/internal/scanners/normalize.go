@@ -29,6 +29,9 @@ type Finding struct {
 	PackageVersion string
 	FixedVersion   string
 	FilePath       string
+	// Snippet is code context captured by the worker (redacted).
+	Snippet        string
+	SnippetStart   *int
 	StartLine      *int
 	EndLine        *int
 	Fingerprint    string
@@ -206,6 +209,13 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 				}
 				if loc.Region.Snippet != nil {
 					snippet = strings.Join(strings.Fields(loc.Region.Snippet.Text), " ")
+				}
+			}
+			if ctx, ok := res.Properties["pathos_context"].(string); ok && f.Category != "secrets" {
+				f.Snippet = truncate(logging.RedactString(ctx), 16000)
+				if st, ok := res.Properties["pathos_context_start"].(float64); ok && st > 0 {
+					n := int(st)
+					f.SnippetStart = &n
 				}
 			}
 			f.Severity = severityOf(sc, rule, res)

@@ -422,6 +422,9 @@ func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Log.Info("scan finished", "job_id", id, "status", job.Status, "new", job.FindingsNew, "fixed", job.FindingsFixed)
+	if s.OnScanFinished != nil && job.Status != "failed" {
+		s.OnScanFinished(context.WithoutCancel(ctx), wk.orgID, id)
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"status": job.Status})
 }
 

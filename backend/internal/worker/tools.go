@@ -188,7 +188,10 @@ func Tools(cfg Config) map[string]Tool {
 			if err != nil {
 				return "", err
 			}
-			return "", ensureReport(in.Out, "opengrep")
+			if err := ensureReport(in.Out, "opengrep"); err != nil {
+				return "", err
+			}
+			return "", enrichSARIF(in.Out, in.Src)
 		}},
 		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			_, err := command(ctx, nil, []int{0}, bin, "fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
@@ -236,7 +239,10 @@ func Tools(cfg Config) map[string]Tool {
 				return "", err
 			}
 			if b, err := os.ReadFile(filepath.Join(dir, "checkov", "results_sarif.sarif")); err == nil {
-				return "", os.WriteFile(in.Out, b, 0o600)
+				if err := os.WriteFile(in.Out, b, 0o600); err != nil {
+					return "", err
+				}
+				return "", enrichSARIF(in.Out, in.Src)
 			}
 			return "", ensureReport(in.Out, "checkov")
 		}},

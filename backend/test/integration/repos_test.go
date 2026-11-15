@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -47,9 +46,7 @@ type harness struct {
 }
 
 func newHarness(t *testing.T) *harness {
-	key := make([]byte, 32)
-	_, _ = rand.Read(key)
-	kr, _ := crypto.NewKeyring(map[int][]byte{1: key})
+	kr, _ := crypto.NewKeyring(map[int][]byte{1: testKey})
 	h := &harness{t: t, mux: http.NewServeMux()}
 	fake := &fakeSCM{repos: []scm.RemoteRepo{
 		{ExternalID: "101", FullName: "acme/payments-api", Name: "payments-api", URL: "https://github.com/acme/payments-api", DefaultBranch: "main", Visibility: "private", Language: "Go"},
@@ -332,8 +329,16 @@ func TestRepositoryLifecycle(t *testing.T) {
 	}
 	for _, c := range cats["items"].([]any) {
 		m := c.(map[string]any)
-		if m["name"] == "Team"+sfx && m["noncompliant_repositories"].(float64) != 0 {
-			t.Errorf("all active repos have a Team tag: %v", m)
+		if m["name"] == "Team"+sfx {
+			// Other tests create untagged repositories; compare with an
+			// independent count.
+			var want float64
+			_ = appPool.QueryRow(t.Context(), `SELECT count(*) FROM repositories r WHERE r.organization_id = $1 AND r.archived_at IS NULL
+				AND NOT EXISTS (SELECT 1 FROM repository_tags rt JOIN tags tg ON tg.id = rt.tag_id WHERE rt.repository_id = r.id AND tg.category_id = $2)`,
+				orgID, m["id"]).Scan(&want)
+			if m["noncompliant_repositories"].(float64) != want {
+				t.Errorf("noncompliant count %v, want %v", m["noncompliant_repositories"], want)
+			}
 		}
 	}
 }

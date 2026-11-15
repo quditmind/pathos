@@ -18,6 +18,8 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/ai"
+	"pathos/internal/mcp"
 	"pathos/internal/repos"
 	"pathos/internal/scans"
 	"pathos/internal/scm"
@@ -69,6 +71,11 @@ func Build(d Deps) Handlers {
 		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID}
 	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
+	aiSvc := NewAIService(d, az)
+	scanSvc.OnScanFinished = aiSvc.OnScanFinished
+	mcpSvc := &mcp.Service{DB: d.DB, Authz: az, AI: aiSvc, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+	// The MCP endpoint authenticates with personal API tokens, not sessions.
+	public.Handle("/mcp", mcpSvc.Handler())
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("POST /api/auth/logout", d.Auth.HandleLogout)
@@ -87,6 +94,8 @@ func Build(d Deps) Handlers {
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	repoSvc.Register(protected)
 	scanSvc.Register(protected)
+	aiSvc.Register(protected)
+	mcpSvc.Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})
@@ -122,4 +131,11 @@ func readiness(d Deps) http.HandlerFunc {
 		}
 		httpx.WriteJSON(w, status, map[string]any{"ready": ok, "checks": checks})
 	}
+}
+
+// NewAIService builds the AI review service (also used by the jobs role).
+func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {
+	client := d.SCMNet.Client()
+	client.Timeout = 5 * time.Minute
+	return &ai.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client}
 }

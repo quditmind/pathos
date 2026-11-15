@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -77,9 +76,7 @@ func (h *scanHarness) worker(token, method, path string, body any) (int, map[str
 func createRepo(t *testing.T, name string) uuid.UUID {
 	t.Helper()
 	ctx := t.Context()
-	key := make([]byte, 32)
-	_, _ = rand.Read(key)
-	kr, _ := crypto.NewKeyring(map[int][]byte{1: key})
+	kr, _ := crypto.NewKeyring(map[int][]byte{1: testKey})
 	st := &secrets.Store{Keys: kr}
 	sec, _ := st.Create(ctx, appPool, orgID, secrets.KindSCM, "x", []byte("t"), nil)
 	wh, _ := st.Create(ctx, appPool, orgID, secrets.KindWebhook, "w", []byte("w"), nil)

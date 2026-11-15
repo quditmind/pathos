@@ -1,6 +1,11 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Search, ShieldCheck } from "lucide-react";
+import { Bot, Search, ShieldCheck } from "lucide-react";
+import { api } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import { useSession } from "@/features/auth/session";
+import { useAIMutation, useFindingReviews } from "@/features/ai/api";
+import { ReviewCard } from "@/features/ai/ReviewCard";
 import type { Finding, Severity } from "@/api/types";
 import { Dialog } from "@/components/ui/dialog";
 import { Alert, Card, EmptyState, Input, PageHeader, Skeleton } from "@/components/ui/primitives";
@@ -146,6 +151,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
           </dl>
+          <AISection id={d.id} />
           <div>
             <h3 className="mb-2 text-[13px] font-semibold">Sightings</h3>
             <ul className="divide-y divide-border rounded-md border border-border">
@@ -160,5 +166,30 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
         </div>
       )}
     </Dialog>
+  );
+}
+
+function AISection({ id }: { id: string }) {
+  const { can } = useSession();
+  const reviews = useFindingReviews(id);
+  const request = useAIMutation(() => api(`/api/v1/findings/${id}/ai-review`, { method: "POST" }));
+  const queued = reviews.data?.ai_status === "queued";
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-[13px] font-semibold">AI review</h3>
+        {can("ai.review") && (
+          <Button size="sm" variant="secondary" disabled={request.isPending || queued} onClick={() => request.mutate(undefined)}>
+            <Bot /> {queued ? "Queued…" : "Request AI review"}
+          </Button>
+        )}
+      </div>
+      {request.isError && <Alert>{request.error.message}</Alert>}
+      {reviews.data?.items.length ? (
+        <div className="space-y-2">{reviews.data.items.slice(0, 3).map((r) => <ReviewCard key={r.id} review={r} />)}</div>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">{reviews.data?.ai_status === "failed" ? "The last AI review failed; see AI settings." : "Not reviewed yet."}</p>
+      )}
+    </div>
   );
 }

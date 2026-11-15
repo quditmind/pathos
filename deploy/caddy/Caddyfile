@@ -22,6 +22,11 @@
 		reverse_proxy api:8080
 	}
 
+	# PATHOS MCP server (personal API token authentication).
+	handle /mcp {
+		reverse_proxy api:8080
+	}
+
 	# Health endpoints and the internal worker API are never exposed.
 	handle /healthz {
 		respond 404

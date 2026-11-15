@@ -18,6 +18,9 @@ import {
   ShieldAlert,
   SlidersHorizontal,
   Plug,
+  Cpu,
+  KeyRound,
+  Network,
   Sun,
   Tags,
   Users,
@@ -48,7 +51,14 @@ const groups: NavGroup[] = [
     ],
   },
   { label: "Findings", items: [{ label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" }] },
-  { label: "AI & MCP", items: [{ label: "AI reviews", icon: <Bot />, phase: 5 }] },
+  {
+    label: "AI & MCP",
+    items: [
+      { label: "AI reviews", to: "/ai", icon: <Bot />, perm: "findings.read" },
+      { label: "AI settings", to: "/admin/ai", icon: <Cpu />, perm: "ai.configure" },
+      { label: "MCP registry", to: "/admin/mcp", icon: <Network />, perm: "ai.review" },
+    ],
+  },
   {
     label: "Administration",
     items: [
@@ -93,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read", "ai.review"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (
@@ -190,6 +200,9 @@ export function AppShell({ children }: { children: ReactNode }) {
               <DM.Content align="end" sideOffset={6} className="z-50 min-w-52 rounded-md border border-border bg-surface p-1 shadow-lg">
                 <div className="px-2 py-1.5 text-[12px] text-muted-foreground">{me.user.email}</div>
                 <DM.Separator className="my-1 h-px bg-border" />
+                <DM.Item asChild className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] outline-none data-highlighted:bg-surface-muted">
+                  <Link to="/settings/tokens"><KeyRound className="size-4" /> API tokens (MCP)</Link>
+                </DM.Item>
                 <DM.Item
                   onSelect={() => void logout()}
                   className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] outline-none data-highlighted:bg-surface-muted"

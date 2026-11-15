@@ -389,3 +389,93 @@ export interface Worker {
   online: boolean;
   active_jobs: number;
 }
+
+export interface AIProvider {
+  id: string;
+  name: string;
+  kind: "anthropic" | "openai" | "xai";
+  base_url: string;
+  status: "untested" | "ok" | "error";
+  status_message: string;
+  default_model: string;
+  created_at: string;
+}
+
+export interface AIConfigVersion {
+  id: string;
+  version: number;
+  provider_id: string;
+  model: string;
+  effort: "low" | "medium" | "high";
+  instructions: string;
+  auto_review: boolean;
+  categories: string[];
+  min_severity: Severity;
+  approval_policy: "always" | "false_positives" | "never";
+  daily_limit: number;
+  send_code_context: boolean;
+  redaction_patterns: string[];
+  change_note: string;
+  created_at: string;
+}
+
+export interface AIConfiguration {
+  id: string;
+  name: string;
+  is_default: boolean;
+  current: AIConfigVersion;
+  used_today: number;
+}
+
+export interface AIReview {
+  id: string;
+  finding_id: string;
+  finding_title: string;
+  finding_severity: Severity;
+  finding_status: string;
+  repository_name: string;
+  source: "automated" | "interactive_mcp";
+  provider: string;
+  model: string;
+  verdict: "true_positive" | "false_positive" | "needs_review";
+  confidence: number;
+  suggested_severity: Severity;
+  rationale: string;
+  remediation: string;
+  evidence_cited: string[];
+  status: "pending_approval" | "applied" | "rejected" | "superseded";
+  reviewed_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string;
+  transmitted_sha256: string;
+  created_at: string;
+}
+
+export interface ApiToken {
+  id: string;
+  name: string;
+  prefix: string;
+  scopes: string[];
+  expires_at: string;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+export interface McpServer {
+  id: string;
+  name: string;
+  description: string;
+  transport: "stdio" | "streamable_http";
+  endpoint: string;
+  status: "pending" | "approved" | "rejected" | "disabled";
+  data_access: "none" | "findings_redacted" | "findings_full";
+  built_in: boolean;
+  requested_by: string | null;
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string;
+  tools: { tool: string; access: "read" | "write"; allowed: boolean }[];
+  created_at: string;
+}

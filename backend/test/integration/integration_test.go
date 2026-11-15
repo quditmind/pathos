@@ -36,6 +36,9 @@ import (
 )
 
 var (
+	// testKey is the one master key all tests use, so global operations
+	// (key rotation) see consistent ciphertexts.
+	testKey = func() []byte { k := make([]byte, 32); _, _ = rand.Read(k); return k }()
 	ownerPool *pgxpool.Pool // migration owner
 	appPool   *pgxpool.Pool // least-privilege runtime role
 	orgID     uuid.UUID
@@ -293,10 +296,9 @@ func TestBusinessUnitHierarchyScoping(t *testing.T) {
 
 func TestSecretsStoreAndRotation(t *testing.T) {
 	ctx := context.Background()
-	k1, k2 := make([]byte, 32), make([]byte, 32)
-	_, _ = rand.Read(k1)
+	k2 := make([]byte, 32)
 	_, _ = rand.Read(k2)
-	kr1, _ := crypto.NewKeyring(map[int][]byte{1: k1})
+	kr1, _ := crypto.NewKeyring(map[int][]byte{1: testKey})
 	s1 := &secrets.Store{Keys: kr1}
 
 	id, err := s1.Create(ctx, appPool, orgID, secrets.KindSCM, "github", []byte("ghp_example"), nil)
@@ -311,28 +313,28 @@ func TestSecretsStoreAndRotation(t *testing.T) {
 	if _, err := s1.Reveal(ctx, appPool, orgID, id, secrets.KindAI); !errors.Is(err, secrets.ErrNotFound) {
 		t.Fatalf("revealing with the wrong kind must fail, got %v", err)
 	}
-	// Moving the ciphertext to a different kind is detected by AAD.
-	if _, err := ownerPool.Exec(ctx, `UPDATE secrets SET kind = 'ai' WHERE id = $1`, id); err != nil {
+	// Rotation runs in a transaction that is rolled back, so other tests
+	// keep using the shared key.
+	tx, err := ownerPool.Begin(ctx)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := s1.Reveal(ctx, appPool, orgID, id, secrets.KindAI); !errors.Is(err, crypto.ErrDecrypt) {
+	defer tx.Rollback(ctx) //nolint:errcheck
+	// Moving the ciphertext to a different kind is detected by AAD.
+	if _, err := tx.Exec(ctx, `UPDATE secrets SET kind = 'ai' WHERE id = $1`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s1.Reveal(ctx, tx, orgID, id, secrets.KindAI); !errors.Is(err, crypto.ErrDecrypt) {
 		t.Fatalf("kind swap must fail decryption, got %v", err)
 	}
-	_, _ = ownerPool.Exec(ctx, `UPDATE secrets SET kind = 'scm' WHERE id = $1`, id)
-
-	kr2, _ := crypto.NewKeyring(map[int][]byte{1: k1, 2: k2})
-	s2 := &secrets.Store{Keys: kr2}
-	var n int
-	err = db.InTx(ctx, appPool, func(tx pgx.Tx) error {
-		var err error
-		n, err = s2.RewrapAll(ctx, tx)
-		return err
-	})
+	_, _ = tx.Exec(ctx, `UPDATE secrets SET kind = 'scm' WHERE id = $1`, id)
+	kr2, _ := crypto.NewKeyring(map[int][]byte{1: testKey, 2: k2})
+	n, err := (&secrets.Store{Keys: kr2}).RewrapAll(ctx, tx)
 	if err != nil || n < 1 {
 		t.Fatalf("rewrap failed: n=%d err=%v", n, err)
 	}
 	only2, _ := crypto.NewKeyring(map[int][]byte{2: k2})
-	pt, err := (&secrets.Store{Keys: only2}).Reveal(ctx, appPool, orgID, id, secrets.KindSCM)
+	pt, err := (&secrets.Store{Keys: only2}).Reveal(ctx, tx, orgID, id, secrets.KindSCM)
 	if err != nil || string(pt) != "ghp_example" {
 		t.Fatalf("secret should open with the new key only after rotation: %q %v", pt, err)
 	}

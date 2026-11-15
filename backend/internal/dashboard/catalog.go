@@ -69,9 +69,9 @@ var KPIs = []KPIDef{
 	{"scans_completed", "Scans completed", "Scanning", "Scan jobs finished in the period", UnitCount, HigherIsBetter, 4, "/scans?status=succeeded", authz.PermScansRead, true},
 	{"scan_success_rate", "Scan success rate", "Scanning", "Succeeded / finished scan jobs in the period", UnitPercent, HigherIsBetter, 4, "/scans?status=failed", authz.PermScansRead, true},
 
-	{"ai_reviews", "AI reviews", "AI review", "Findings reviewed by AI in the period", UnitCount, Neutral, 5, "/ai/reviews", authz.PermFindingsRead, true},
-	{"ai_false_positive_rate", "AI false-positive rate", "AI review", "Share of AI reviews with a False Positive verdict", UnitPercent, Neutral, 5, "/ai/reviews?verdict=false_positive", authz.PermFindingsRead, true},
-	{"pending_human_review", "Awaiting human review", "AI review", "AI verdicts that need human approval", UnitCount, LowerIsBetter, 5, "/ai/reviews?status=pending_approval", authz.PermFindingsRead, true},
+	{"ai_reviews", "AI reviews", "AI review", "Findings reviewed by AI in the period", UnitCount, Neutral, 5, "/ai", authz.PermFindingsRead, true},
+	{"ai_false_positive_rate", "AI false-positive rate", "AI review", "Share of AI reviews with a False Positive verdict", UnitPercent, Neutral, 5, "/ai?status=applied", authz.PermFindingsRead, true},
+	{"pending_human_review", "Awaiting human review", "AI review", "AI verdicts that need human approval", UnitCount, LowerIsBetter, 5, "/ai", authz.PermFindingsRead, true},
 
 	{"sbom_components", "SBOM components", "Supply chain", "Distinct components across the latest SBOMs", UnitCount, Neutral, 6, "/sbom", authz.PermSBOMRead, true},
 	{"license_violations", "License violations", "Supply chain", "Components with a disallowed license", UnitCount, LowerIsBetter, 6, "/sbom?license=violations", authz.PermSBOMRead, true},
@@ -83,7 +83,7 @@ var KPIs = []KPIDef{
 
 // CurrentPhase is the last completed roadmap phase; KPIs with Phase <= it
 // have a data source.
-const CurrentPhase = 4
+const CurrentPhase = 5
 
 // ChartDef defines one chart panel.
 type ChartDef struct {

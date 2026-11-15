@@ -278,6 +278,31 @@ def main():
     s, fs = admin.api("GET", "/api/v1/findings")
     check("findings API -> 200", s == 200 and "items" in fs, s)
 
+    print("\nAI review & MCP (Phase 5)")
+    s, pv = admin.api("POST", "/api/v1/ai/providers", {"name": f"Smoke Claude {sfx}", "kind": "anthropic", "api_key": "sk-ant-invalid-smoke-key"})
+    check("create AI provider -> 201", s == 201, s)
+    if s == 201:
+        check("invalid Anthropic key reported (live call through the SDK)", pv["status"] == "error" and "rejected the API key" in pv["status_message"], pv.get("status_message"))
+        check("API key never returned", "sk-ant-invalid" not in json.dumps(pv))
+        admin.api("DELETE", f"/api/v1/ai/providers/{pv['id']}")
+    s, tok = admin.api("POST", "/api/v1/me/tokens", {"name": "smoke", "days": 1})
+    check("create personal API token -> 201", s == 201 and tok["secret"].startswith("pathos_pat_"), s)
+    if s == 201:
+        def rpc(method, params=None, token=tok["secret"]):
+            return anon.req("POST", "/mcp", {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}},
+                            {"Authorization": f"Bearer {token}"})
+        st, _, body = rpc("initialize", {"protocolVersion": "2025-06-18"})
+        check("MCP initialize through the proxy", st == 200 and '"pathos"' in body, st)
+        st, _, body = rpc("tools/list")
+        check("MCP lists 3 tools", st == 200 and body.count('"name"') == 3, body[:200])
+        st, _, _ = rpc("tools/list", token="pathos_pat_bogus")
+        check("MCP rejects an unknown token -> 401", st == 401, st)
+        admin.api("DELETE", f"/api/v1/me/tokens/{tok['token']['id']}")
+        st, _, _ = rpc("tools/list")
+        check("revoked token stops working -> 401", st == 401, st)
+    s, reg = admin.api("GET", "/api/v1/mcp-servers")
+    check("MCP registry has the built-in PATHOS server", s == 200 and any(x["built_in"] and x["status"] == "approved" for x in reg["items"]), s)
+
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")
     check("logout returns Keycloak end-session URL", s == 200 and "/protocol/openid-connect/logout" in out.get("logout_url", ""), out)

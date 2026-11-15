@@ -123,8 +123,8 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 	const q = `
 		INSERT INTO findings (id, organization_id, repository_id, fingerprint, category, scanner_keys, rule_id, title, description,
 		  severity, cwe, cve, cvss, package_name, package_version, fixed_version, file_path, start_line, end_line,
-		  first_scan_job_id, last_scan_job_id)
-		VALUES ($1, $2, $3, $4, $5, ARRAY[$6], $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20)
+		  first_scan_job_id, last_scan_job_id, snippet, snippet_start_line)
+		VALUES ($1, $2, $3, $4, $5, ARRAY[$6], $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20, $21, $22)
 		ON CONFLICT (repository_id, fingerprint) DO UPDATE SET
 		  last_seen_at = now(), last_scan_job_id = EXCLUDED.last_scan_job_id,
 		  scanner_keys = (SELECT array_agg(DISTINCT k ORDER BY k) FROM unnest(findings.scanner_keys || EXCLUDED.scanner_keys) k),
@@ -135,6 +135,8 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 		  cve = CASE WHEN findings.cve = '' THEN EXCLUDED.cve ELSE findings.cve END,
 		  fixed_version = CASE WHEN EXCLUDED.fixed_version <> '' THEN EXCLUDED.fixed_version ELSE findings.fixed_version END,
 		  file_path = EXCLUDED.file_path, start_line = EXCLUDED.start_line, end_line = EXCLUDED.end_line,
+		  snippet = CASE WHEN EXCLUDED.snippet <> '' THEN EXCLUDED.snippet ELSE findings.snippet END,
+		  snippet_start_line = CASE WHEN EXCLUDED.snippet <> '' THEN EXCLUDED.snippet_start_line ELSE findings.snippet_start_line END,
 		  status = CASE WHEN findings.status = 'fixed' THEN 'open' ELSE findings.status END,
 		  resolved_at = CASE WHEN findings.status = 'fixed' THEN NULL ELSE findings.resolved_at END,
 		  updated_at = now()
@@ -150,7 +152,8 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 			}
 			b.Queue(q, uuid.Must(uuid.NewV7()), orgID, repoID, f.Fingerprint, f.Category, f.ScannerKey, truncate(f.RuleID, 300),
 				truncate(f.Title, 300), f.Description, f.Severity, cwe, f.CVE, f.CVSS, truncate(f.PackageName, 300),
-				truncate(f.PackageVersion, 100), truncate(f.FixedVersion, 100), truncate(f.FilePath, 1000), f.StartLine, f.EndLine, jobID)
+				truncate(f.PackageVersion, 100), truncate(f.FixedVersion, 100), truncate(f.FilePath, 1000), f.StartLine, f.EndLine, jobID,
+				f.Snippet, f.SnippetStart)
 		}
 		br := tx.SendBatch(ctx, b)
 		for range fs[start:end] {
