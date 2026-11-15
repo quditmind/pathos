@@ -49,7 +49,6 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 | [RBAC_MATRIX](docs/RBAC_MATRIX.md) | Roles, scopes, permission matrix |
 | [API](backend/api/openapi.yaml) | OpenAPI 3.1 spec |
 | [CHANGELOG](CHANGELOG.md) | Changes per phase |
-| [ENVIRONMENT_ASSESSMENT](docs/ENVIRONMENT_ASSESSMENT.md) | Dev host assessment |
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | System design, isolation model, deployment, UI plan, decisions, sizing |
 | [DATABASE](docs/DATABASE.md) | Entity-relationship design |
 | [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Scanner licensing and maintenance review |
@@ -58,4 +57,4 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 
 ## License
 
-To be decided before first release (Apache-2.0 recommended: compatible with all planned dependencies and common in enterprise security tooling).
+PATHOS is licensed under the [Apache License 2.0](LICENSE). Third-party scanners and images keep their own licenses; see [DEPENDENCIES](docs/DEPENDENCIES.md) and [SCANNER_CATALOG](docs/SCANNER_CATALOG.md).

@@ -1,0 +1,7 @@
+PATHOS - Application Security Posture Management Platform
+Copyright 2026 The PATHOS Authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Third-party components (scanners, container images, libraries) keep their own
+licenses; see docs/DEPENDENCIES.md and docs/SCANNER_CATALOG.md.
