@@ -37,16 +37,16 @@ type KeycloakProvisioner struct {
 	// sends the user afterwards.
 	ActionsClientID    string
 	ActionsRedirectURI string
-	// RequireMFA adds CONFIGURE_TOTP to new users' required actions. Once a
+	// MFAForNewUsers adds CONFIGURE_TOTP to new users' required actions. Once a
 	// user has an authenticator, Keycloak's browser flow asks for it on
 	// every login.
-	RequireMFA bool
-	HTTP       *http.Client
+	MFAForNewUsers bool
+	HTTP           *http.Client
 }
 
 func (k *KeycloakProvisioner) requiredActions() []string {
 	a := []string{"UPDATE_PASSWORD", "VERIFY_EMAIL"}
-	if k.RequireMFA {
+	if k.MFAForNewUsers {
 		a = append(a, "CONFIGURE_TOTP")
 	}
 	return a

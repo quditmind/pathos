@@ -121,9 +121,29 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			ClientID: cfg.OIDC.ProvisionerClientID, ClientSecret: cfg.OIDC.ProvisionerClientSecret,
 			// Must be registered on the pathos-web client (deploy/keycloak/pathos-realm.json).
 			ActionsClientID: cfg.OIDC.ClientID, ActionsRedirectURI: cfg.PublicURL.String() + "/login",
-			RequireMFA: cfg.RequireMFA,
+			MFAForNewUsers: cfg.RequireMFA,
 		}
 		log.Info("keycloak user provisioning enabled")
+	}
+	if kp, ok := prov.(*identity.KeycloakProvisioner); ok && cfg.RequireMFA {
+		// Existing users too: every active/invited account without an
+		// authenticator must enrol at its next sign-in. Hourly, idempotent.
+		go func() {
+			t := time.NewTicker(time.Hour)
+			defer t.Stop()
+			for {
+				if n, err := identity.EnforceMFA(ctx, pool, kp, log); err != nil {
+					log.Error("MFA enforcement failed", "err", err)
+				} else if n > 0 {
+					log.Info("MFA now required for existing users", "count", n)
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-t.C:
+				}
+			}
+		}()
 	}
 
 	keys, err := crypto.NewKeyring(cfg.MasterKeys)

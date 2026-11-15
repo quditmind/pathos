@@ -126,7 +126,9 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - A throttled request gets `429` with `Retry-After`. If Valkey is unavailable the limiter fails open (availability over strictness) and logs a warning.
   - Keycloak's brute-force detection still protects the password form itself.
 - **Keycloak administration:** `/auth/admin`, the admin REST API and the master realm are served only to `KEYCLOAK_ADMIN_ALLOW` (default: private networks). Production mode requires an explicit value. PATHOS reaches Keycloak on the internal network and is unaffected.
-- **MFA:** with `PATHOS_REQUIRE_MFA=true`, invited users must enrol a TOTP authenticator at first login, and Keycloak then asks for it at every sign-in. Existing users and the bootstrap administrator enrol from their Keycloak account page, or per user in the admin console.
+- **MFA:**
+  - With `PATHOS_REQUIRE_MFA=true`, every active or invited account without an authenticator must enrol TOTP at its next sign-in. This covers new invitations and, through an hourly idempotent sweep by the API, existing users too, including the bootstrap administrator. Keycloak then asks for the code at every sign-in.
+  - Administrators can also require MFA per user from the Users page (`POST /api/v1/users/{id}/require-mfa`, `users.manage`, audited). The drawer shows each user's status: enabled, enrolment pending or not set up.
 - **Edge headers:**
   - The SPA is served with a strict CSP: `script-src 'self'`, `object-src 'none'`, no framing.
   - `style-src` allows `'unsafe-inline'` because the Radix scroll lock injects a `<style>` element with runtime values that cannot be hash-pinned. Inline CSS cannot execute code.
@@ -158,5 +160,4 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 
 ## Known gaps (tracked)
 
-- MFA enforcement applies to newly invited users. Existing accounts need an administrator to require OTP in Keycloak.
 - Vulnerabilities without an upstream fix in base images (see "Accepted residual risk").

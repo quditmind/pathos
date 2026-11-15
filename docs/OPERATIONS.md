@@ -146,6 +146,12 @@ Suggested alerts:
 - `pathos.notifications.pending` above 100.
 - API 5xx rate above 1 %.
 
+## Two-factor authentication
+
+- **Everyone:** set `PATHOS_REQUIRE_MFA=true` and recreate the API (`docker compose up -d api`). Within a minute, and then hourly, every active or invited user without an authenticator is required to enrol one at the next sign-in. That includes your own administrator account, so have your phone's authenticator app ready.
+- **Individual users:** open **Users**, choose the user and click **Require MFA**. The drawer shows whether two-factor is enabled, pending or not set up.
+- **Lost authenticator:** an administrator removes the user's OTP credential in the Keycloak admin console (Users → Credentials). Requiring MFA again then starts a fresh enrolment.
+
 ## Rate limiting
 
 The API rate-limits per client (GCRA, shared across replicas through Valkey):

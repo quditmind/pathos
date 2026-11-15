@@ -90,6 +90,29 @@ export function useInviteUser() {
   });
 }
 
+export interface MFAStatus {
+  configured: boolean;
+  pending: boolean;
+}
+
+/** MFA state from Keycloak; errors (e.g. no Keycloak account yet) are shown inline. */
+export function useUserMFA(userId: string | null) {
+  return useQuery({
+    queryKey: ["user-mfa", userId],
+    queryFn: () => api<MFAStatus>(`/api/v1/users/${userId}/mfa`),
+    enabled: !!userId,
+    retry: false,
+  });
+}
+
+export function useRequireMFA() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<{ changed: boolean; mfa: MFAStatus }>(`/api/v1/users/${id}/require-mfa`, { method: "POST" }),
+    onSuccess: (_, id) => void qc.invalidateQueries({ queryKey: ["user-mfa", id] }),
+  });
+}
+
 export function useSetUserStatus() {
   const invalidate = useInvalidateUsers();
   return useMutation({
