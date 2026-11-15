@@ -45,6 +45,8 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/users/{id}", h.getUser)
 	mux.HandleFunc("POST /api/v1/users/{id}/deactivate", h.deactivate)
 	mux.HandleFunc("POST /api/v1/users/{id}/reactivate", h.reactivate)
+	mux.HandleFunc("GET /api/v1/users/{id}/mfa", h.mfaStatus)
+	mux.HandleFunc("POST /api/v1/users/{id}/require-mfa", h.requireMFA)
 	mux.HandleFunc("GET /api/v1/users/{id}/role-assignments", h.listAssignments)
 	mux.HandleFunc("POST /api/v1/users/{id}/role-assignments", h.createAssignment)
 	mux.HandleFunc("DELETE /api/v1/role-assignments/{id}", h.deleteAssignment)
@@ -608,4 +610,67 @@ func (h *Handlers) deleteAssignment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// mfaUser loads a user and the MFA manager, or explains why MFA cannot be
+// managed (no Keycloak provisioning, or a user not linked to Keycloak yet).
+func (h *Handlers) mfaUser(r *http.Request, perm authz.Permission) (*authz.Principal, User, MFAManager, error) {
+	p, err := h.require(r, perm)
+	if err != nil {
+		return nil, User{}, nil, err
+	}
+	id, err := pathUUID(r, "id")
+	if err != nil {
+		return nil, User{}, nil, err
+	}
+	u, err := GetUser(r.Context(), h.DB, p.OrganizationID, id)
+	if err != nil {
+		return nil, User{}, nil, err
+	}
+	m, ok := h.Provisioner.(MFAManager)
+	if !ok || h.Provisioner == nil {
+		return nil, User{}, nil, httpx.E(http.StatusConflict, "mfa_unavailable", "MFA is managed in Keycloak; Keycloak provisioning is not configured")
+	}
+	if u.KeycloakSubject == nil {
+		return nil, User{}, nil, httpx.E(http.StatusConflict, "mfa_unavailable", "this user has no Keycloak account yet")
+	}
+	return p, u, m, nil
+}
+
+func (h *Handlers) mfaStatus(w http.ResponseWriter, r *http.Request) {
+	_, u, m, err := h.mfaUser(r, authz.PermUsersRead)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	st, err := m.MFAStatus(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.Log.Warn("MFA status lookup failed", "user_id", u.ID, "err", err)
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not read the MFA status from Keycloak"))
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, st)
+}
+
+// requireMFA makes the user enrol an authenticator at the next sign-in.
+func (h *Handlers) requireMFA(w http.ResponseWriter, r *http.Request) {
+	p, u, m, err := h.mfaUser(r, authz.PermUsersManage)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	changed, err := m.RequireMFA(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.Log.Warn("require MFA failed", "user_id", u.ID, "err", err)
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not update the user in Keycloak"))
+		return
+	}
+	_ = audit.Write(r.Context(), h.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+		Action: "user.require_mfa", TargetType: "user", TargetID: u.ID.String(), Metadata: map[string]any{"changed": changed}})
+	st, err := m.MFAStatus(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not read the MFA status from Keycloak"))
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"changed": changed, "mfa": st})
 }

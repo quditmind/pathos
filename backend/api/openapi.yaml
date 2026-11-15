@@ -703,6 +703,10 @@ paths:
     get: { summary: "Caller's in-app notifications (latest 50; ?unread=1) and unread count", responses: { "200": { description: OK } } }
   /api/v1/me/notifications/read:
     post: { summary: "Mark read {ids} or {all: true}", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
+  /api/v1/users/{id}/mfa:
+    get: { summary: "Two-factor status from Keycloak {configured, pending} (users.read)", parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK }, "409": { description: Keycloak provisioning off or user not linked yet } } }
+  /api/v1/users/{id}/require-mfa:
+    post: { summary: "Require TOTP enrolment at next sign-in (users.manage, idempotent, audited)", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "changed, mfa" }, "409": { description: Keycloak provisioning off or user not linked yet } } }
 # Internal worker API (separate listener :8081, internal network only, not
 # routed by the proxy): POST /internal/worker/v1/register (bootstrap token),
 # /lease, /jobs/{id}/heartbeat, /jobs/{id}/results, /jobs/{id}/complete

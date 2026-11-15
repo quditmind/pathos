@@ -57,3 +57,10 @@ test("notification centre opens", async ({ page }) => {
   await page.getByRole("button", { name: /^Notifications/ }).click();
   await expect(page.getByText(/Mark all read|all caught up/).first()).toBeVisible();
 });
+
+test("user drawer shows the two-factor status", async ({ page }) => {
+  await page.goto("/admin/users");
+  await page.locator("tbody tr").first().click();
+  await expect(page.getByText("Two-factor (TOTP)")).toBeVisible();
+  await expect(page.getByText(/enabled|enrolment at next sign-in|not set up/).first()).toBeVisible();
+});

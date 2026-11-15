@@ -8,6 +8,8 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 - Authenticated active DAST (`scripts/dast.sh`, `make dast`): an OWASP ZAP API scan of every endpoint with session, CSRF token and Origin. CI runs it on pushes to `main`, releases, weekly and manual runs, and gates on unreviewed High alerts.
 - A weekly scheduled CI run, which picks up new advisories in dependencies and images.
 
+- MFA for existing users: `PATHOS_REQUIRE_MFA=true` now also makes every existing account without an authenticator enrol at its next sign-in (hourly, idempotent). The Users page shows each user's two-factor status and has a **Require MFA** action (audited).
+
 ### Fixed
 - API responses now carry `Cross-Origin-Resource-Policy: same-origin`.
 - `GET /api` (without a trailing slash) returned the web app's HTML instead of the API's JSON 404.

@@ -5,7 +5,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
-import { useAssignments, useGrantRole, useRevokeRole, useSetUserStatus, useUser, type RoleGrant } from "./api";
+import { useAssignments, useGrantRole, useRequireMFA, useRevokeRole, useSetUserStatus, useUser, useUserMFA, type RoleGrant } from "./api";
 import { RoleScopePicker, grantIsComplete, scopeLabels } from "./RoleScopePicker";
 import { statusTone } from "./UsersPage";
 
@@ -18,12 +18,14 @@ export function UserDrawer({ userId, onClose }: { userId: string | null; onClose
   const revoke = useRevokeRole(userId ?? "");
   const [newGrant, setNewGrant] = useState<RoleGrant>({ role_key: "", scope_type: "organization" });
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
+  const mfa = useUserMFA(userId);
+  const requireMFA = useRequireMFA();
 
   const u = user.data;
   const isSelf = u?.id === me.user.id;
   const canManage = canOrgWide("users.manage");
   const canAssign = can("roles.assign");
-  const error = setStatus.error ?? grant.error ?? revoke.error;
+  const error = setStatus.error ?? grant.error ?? revoke.error ?? requireMFA.error;
 
   return (
     <Dialog
@@ -65,6 +67,19 @@ export function UserDrawer({ userId, onClose }: { userId: string | null; onClose
               <div>
                 <dt className="text-[12px] text-muted-foreground">Added</dt>
                 <dd className="tabular mt-0.5">{formatDateTime(u.created_at)}</dd>
+              </div>
+              <div>
+                <dt className="text-[12px] text-muted-foreground">Two-factor (TOTP)</dt>
+                <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                  {mfa.isPending ? <span className="text-muted-foreground">…</span>
+                    : mfa.isError ? <span className="text-[12px] text-muted-foreground">{mfa.error.message}</span>
+                    : mfa.data?.configured ? <Badge tone="success">enabled</Badge>
+                    : mfa.data?.pending ? <Badge tone="warning">enrolment at next sign-in</Badge>
+                    : <Badge tone="neutral">not set up</Badge>}
+                  {canManage && mfa.data && !mfa.data.configured && !mfa.data.pending && u.status !== "deactivated" && (
+                    <Button size="sm" variant="secondary" disabled={requireMFA.isPending} onClick={() => requireMFA.mutate(u.id)}>Require MFA</Button>
+                  )}
+                </dd>
               </div>
               {u.deactivated_at && (
                 <div>
