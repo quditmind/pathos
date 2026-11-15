@@ -179,21 +179,33 @@ def main():
         gh("label", "create", LABEL, "--color", "d93f0b", "--description", "Found in runtime logs", "--force")
     except RuntimeError:
         pass
-    existing = json.loads(gh("issue", "list", "--label", LABEL, "--state", "all", "--limit", "500", "--json", "number,body,state"))
+    # The plain REST issue list is immediately consistent; label filters and
+    # search lag a few seconds behind newly created issues, which caused
+    # duplicates. Scan the 500 most recent issues for fingerprint markers.
+    existing = []
+    for page in range(1, 6):
+        batch = json.loads(gh("api", f"repos/{{owner}}/{{repo}}/issues?state=all&per_page=100&page={page}"))
+        existing += [{"number": i["number"], "body": i.get("body") or "", "state": i["state"].upper(),
+                      "reason": i.get("state_reason") or ""}
+                     for i in batch if "pull_request" not in i]
+        if len(batch) < 100:
+            break
+    # One issue may cover several related fingerprints (consolidated by hand).
+    # Prefer open issues; never revive issues closed as duplicates/not planned.
+    rank = lambda i: 0 if i["state"] == "OPEN" else 1
     by_fp = {}
     for i in existing:
-        # One issue may cover several related fingerprints (consolidated by hand).
-        for fp in re.findall(r"<!-- log-fingerprint:([0-9a-f]{12}) -->", i.get("body") or ""):
-            by_fp[fp] = i
+        if i["state"] == "CLOSED" and i["reason"] == "not_planned":
+            continue
+        for fp in re.findall(r"<!-- log-fingerprint:([0-9a-f]{12}) -->", i["body"]):
+            if fp not in by_fp or rank(i) < rank(by_fp[fp]):
+                by_fp[fp] = i
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    updates = {}  # issue number -> lines, so each issue gets one comment per run
     for fp, g in ordered:
         seen = f"{g['count']}x between {g['first'][:19]} and {g['last'][:19]} (UTC)"
         if fp in by_fp:
-            n = by_fp[fp]["number"]
-            if by_fp[fp]["state"] == "CLOSED":
-                gh("issue", "reopen", str(n))
-            gh("issue", "comment", str(n), "--body", f"Seen again ({now}): {seen}.")
-            print(f"updated #{n} ({fp})")
+            updates.setdefault(by_fp[fp]["number"], (by_fp[fp], []))[1].append(f"- `{fp}` {g['msg'][:120]}: {seen}")
             continue
         title = f"[logs] {g['service']}: {g['msg'][:90]}"
         body = f"""Found automatically in the runtime logs by `scripts/log-triage.py` (redacted).
@@ -219,6 +231,11 @@ def main():
 <!-- log-fingerprint:{fp} -->"""
         url = gh("issue", "create", "--title", title, "--label", f"bug,{LABEL}", "--body-file", "-", input_text=body).strip()
         print(f"created {url} ({fp})")
+    for n, (issue, lines) in updates.items():
+        if issue["state"] == "CLOSED":  # closed as fixed, but it happens again
+            gh("issue", "reopen", str(n))
+        gh("issue", "comment", str(n), "--body", f"Seen again in the logs ({now}):\n" + "\n".join(lines))
+        print(f"updated #{n} ({len(lines)} fingerprint(s))")
 
 
 if __name__ == "__main__":
