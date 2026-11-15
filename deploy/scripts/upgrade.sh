@@ -6,8 +6,8 @@
 # Run it after checking out (or downloading) the new release:
 #   1. validates the compose configuration
 #   2. takes a backup (deploy/scripts/backup.sh) unless --no-backup
-#   3. builds the images, or pulls them with --pull (registry deployments
-#      set PATHOS_VERSION in .env)
+#   3. builds the images, or pulls signed release images with --pull
+#      (set PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/ and PATHOS_VERSION in .env)
 #   4. recreates the services; the one-shot "migrate" service applies new
 #      database migrations before api/jobs/scheduler start
 #   5. waits for every health check and prints the version change
@@ -47,8 +47,10 @@ if [ "$backup" = 1 ]; then
 fi
 
 if [ "$pull" = 1 ]; then
-  log "pulling images"
-  compose pull --ignore-buildable
+  [ -n "$(envval PATHOS_IMAGE_PREFIX)" ] || die "--pull needs PATHOS_IMAGE_PREFIX (e.g. ghcr.io/quditmind/) and PATHOS_VERSION in .env"
+  log "pulling images $(envval PATHOS_IMAGE_PREFIX)*:$(envval PATHOS_VERSION)"
+  # Not --ignore-buildable: every PATHOS image also has a build section.
+  compose pull
 else
   log "building images"
   compose build -q

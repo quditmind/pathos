@@ -20,7 +20,8 @@ cd "$ROOT"
 GOSEC=v2.30.0
 GOVULNCHECK=v1.9.0
 ZAP_IMAGE="zaproxy/zap-stable@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af"
-IMAGES=("pathos:${PATHOS_VERSION:-dev}" "pathos-proxy:${PATHOS_VERSION:-dev}" "pathos-worker-core:${PATHOS_VERSION:-dev}")
+P="${PATHOS_IMAGE_PREFIX:-}"
+IMAGES=("${P}pathos:${PATHOS_VERSION:-dev}" "${P}pathos-proxy:${PATHOS_VERSION:-dev}" "${P}pathos-worker-core:${PATHOS_VERSION:-dev}")
 
 code=1 images=1 zap=1 target="https://localhost/"
 while [ $# -gt 0 ]; do
@@ -70,7 +71,7 @@ if [ "$images" = 1 ]; then
     name="$(echo "$img" | tr ':/' '__')"
     echo "== trivy $img"
     docker save "$img" -o "$tmp/$name.tar" && chmod 644 "$tmp/$name.tar"
-    docker run --rm --entrypoint trivy -v "$tmp:/scan:ro" -v pathos_security_cache:/cache "pathos-worker-core:${PATHOS_VERSION:-dev}" \
+    docker run --rm --entrypoint trivy -v "$tmp:/scan:ro" -v pathos_security_cache:/cache "${P}pathos-worker-core:${PATHOS_VERSION:-dev}" \
       image --cache-dir /cache --input "/scan/$name.tar" --severity HIGH,CRITICAL --scanners vuln --format json --quiet > "$out/trivy-$name.json" 2>/dev/null
     rm -f "$tmp/$name.tar"
     summary="$(python3 - "$out/trivy-$name.json" <<'PY'

@@ -30,6 +30,34 @@ Day-2 operations for a PATHOS installation deployed with Docker Compose. Every c
 
 The deploy scripts (`backup.sh`, `upgrade.sh`, `restore.sh`) pick up the production override automatically when `PATHOS_COMPOSE_PROD=1`.
 
+## Installing a release (signed images)
+
+Each tagged release publishes three images to the GitHub Container Registry, built and tested by the release workflow:
+- `ghcr.io/quditmind/pathos`
+- `ghcr.io/quditmind/pathos-proxy`
+- `ghcr.io/quditmind/pathos-worker-core`
+
+Use them instead of building locally:
+
+```bash
+git clone --branch v0.9.0 https://github.com/quditmind/pathos.git && cd pathos
+./deploy/scripts/install.sh                 # new installs only
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=0.9.0
+deploy/scripts/upgrade.sh --pull
+```
+
+Upgrading to a later release works the same way: check out the new tag, set `PATHOS_VERSION`, and run `upgrade.sh --pull`.
+
+**Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
+
+```bash
+cosign verify ghcr.io/quditmind/pathos:0.9.0 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v0.9.0" \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+```
+
+The images also carry an SBOM and SLSA provenance attestations. Inspect them with `docker buildx imagetools inspect <image> --format '{{json .SBOM}}'` (or `.Provenance`). The images are built for `linux/amd64`.
+
 ## Backup
 
 ```bash
