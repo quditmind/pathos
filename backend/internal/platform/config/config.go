@@ -44,6 +44,10 @@ type Config struct {
 	SessionIdleTTL     time.Duration
 	SessionAbsoluteTTL time.Duration
 
+	// SCM network policy (see internal/scm/safehttp.go).
+	SCMAllowPrivate bool
+	SCMAllowHTTP    bool
+
 	OrgName            string
 	OrgSlug            string
 	BootstrapAdminEmail string
@@ -116,6 +120,8 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 		RedisURL:            get("PATHOS_REDIS_URL", ""),
 		SessionIdleTTL:      dur("PATHOS_SESSION_IDLE_TTL", "8h"),
 		SessionAbsoluteTTL:  dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		SCMAllowPrivate:     get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		SCMAllowHTTP:        get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
 		OrgName:             get("PATHOS_ORG_NAME", "Default Organization"),
 		OrgSlug:             get("PATHOS_ORG_SLUG", "default"),
 		BootstrapAdminEmail: strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
@@ -151,6 +157,9 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("PATHOS_DATABASE_URL is required"))
+	}
+	if c.SCMAllowHTTP && c.IsProduction() {
+		errs = append(errs, errors.New("PATHOS_SCM_ALLOW_HTTP is only allowed in development"))
 	}
 	if c.SessionIdleTTL > c.SessionAbsoluteTTL {
 		errs = append(errs, errors.New("PATHOS_SESSION_IDLE_TTL must not exceed PATHOS_SESSION_ABSOLUTE_TTL"))

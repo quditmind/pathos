@@ -59,6 +59,24 @@ The API, jobs and migrate containers use a distroless static image as non-root U
 
 slog JSON with redaction of sensitive keys (password, secret, token, cookie, authorization, …) and of token-shaped values (JWTs, bearer tokens, GitHub/Anthropic/OpenAI/xAI/AWS keys, private-key headers, credentials in URLs), including inside error strings.
 
+## SCM integration (Phase 3)
+
+- **Credentials:** PATs and GitHub App private keys are envelope-encrypted (kind `scm`). They are write-only in the API: never returned, never logged, and wiped when a connection is deleted. GitHub Apps are preferred, because PATHOS only ever holds installation tokens that expire within an hour.
+- **SSRF protection:** SCM base URLs are administrator input.
+  - Outbound requests use a dialer that checks the *resolved* IP at connect time, which defeats DNS rebinding.
+  - Loopback, link-local and cloud metadata addresses (`169.254.169.254`, `fd00:ec2::254`) are always refused, as are CGNAT, multicast and reserved ranges.
+  - RFC 1918 / ULA ranges are refused unless `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true` (needed for self-hosted GitHub Enterprise or Azure DevOps Server).
+  - Only `https` is accepted (`http` only in development). Redirects to other hosts and pagination links to other hosts are not followed.
+- **Webhooks:** `/api/webhooks/*` are unauthenticated endpoints that require proof of origin:
+  - GitHub: HMAC-SHA256 `X-Hub-Signature-256` over the raw body, constant-time compared.
+  - Azure DevOps: basic-auth password equal to the webhook secret.
+  - Secrets are per connection, random 256-bit, rotatable and shown once.
+  - Bodies are capped at 5 MB. Deliveries are de-duplicated by delivery ID, so replays are ignored, and rejected deliveries are audited (`webhook.rejected`).
+- **Authorization:** repository access follows the scope hierarchy (repository → business unit chain → region of its country → organization).
+  - Moving a repository needs `repos.manage` at both the source and the destination.
+  - Out-of-scope repositories return 404, not 403, so their existence is not disclosed.
+- **Input hygiene:** scan branches are validated as git ref names and cannot start with `-` (option injection when workers clone in Phase 4). CSV **export** in the UI prefixes formula-leading cells (`= + - @`) to prevent spreadsheet formula injection.
+
 ## Known gaps (tracked)
 
 - The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.

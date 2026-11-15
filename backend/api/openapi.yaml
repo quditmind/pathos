@@ -1,9 +1,9 @@
 openapi: 3.1.0
 info:
   title: PATHOS API
-  version: 0.1.0
+  version: 0.3.0
   description: |
-    PATHOS REST API (Phase 1: identity, RBAC, organization structure, audit).
+    PATHOS REST API (Phases 1-3: identity, RBAC, organization, audit, dashboard, search, SCM connections, repositories, applications, tags, webhooks).
 
     **Authentication.** Browser clients authenticate through the BFF login flow
     (`GET /api/auth/login`), which sets an opaque, HttpOnly session cookie.
@@ -391,3 +391,123 @@ paths:
                 properties:
                   items: { type: array, items: { $ref: "#/components/schemas/AuditRecord" } }
                   next_cursor: { type: [string, "null"] }
+  /api/v1/scm-connections:
+    get:
+      summary: List SCM connections (repos.read anywhere; webhook URLs only with scm.manage). Credentials are never returned.
+      responses: { "200": { description: OK } }
+    post:
+      summary: Create a connection (scm.manage). Credentials are envelope-encrypted; the connection is tested immediately.
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, provider, auth_type]
+              additionalProperties: false
+              properties:
+                name: { type: string }
+                provider: { type: string, enum: [github, github_enterprise, azure_devops, azure_devops_server] }
+                base_url: { type: string, description: "https only; loopback, link-local and (by default) private addresses are rejected" }
+                auth_type: { type: string, enum: [pat, github_app] }
+                owner: { type: string, description: GitHub org/user or Azure DevOps organization/project }
+                token: { type: string, writeOnly: true }
+                private_key: { type: string, writeOnly: true, description: GitHub App PEM }
+                github_app_id: { type: integer }
+                github_installation_id: { type: integer }
+      responses: { "201": { description: Created }, "400": { $ref: "#/components/responses/Error" } }
+  /api/v1/scm-connections/{id}:
+    get: { summary: Get a connection (scm.manage), parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+    patch: { summary: "Rename, change owner or rotate credentials (scm.manage)", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+    delete: { summary: Delete a connection without repositories; credentials are destroyed, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted }, "409": { description: Has repositories } } }
+  /api/v1/scm-connections/{id}/test:
+    post: { summary: Test credentials and record status, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/scm-connections/{id}/webhook-secret:
+    post: { summary: Generate a new webhook secret (returned once), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "webhook_url and webhook_secret" } } }
+  /api/v1/scm-connections/{id}/discover:
+    get: { summary: "List remote repositories with import state (repos.manage anywhere)", parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK }, "502": { description: SCM error } } }
+  /api/v1/repositories:
+    get:
+      summary: List repositories within the caller's repos.read scopes
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: scm_connection_id, in: query, schema: { type: string, format: uuid } }
+        - { name: application_id, in: query, schema: { type: string, format: uuid } }
+        - { name: business_unit_id, in: query, schema: { type: string, format: uuid }, description: Includes descendant business units }
+        - { name: region_id, in: query, schema: { type: string, format: uuid } }
+        - { name: country_id, in: query, schema: { type: string, format: uuid } }
+        - { name: tag_id, in: query, schema: { type: string, format: uuid } }
+        - { name: criticality, in: query, schema: { type: string, enum: [low, medium, high, critical] } }
+        - { name: environment, in: query, schema: { type: string, enum: [production, staging, development, test, other] } }
+        - { name: owner, in: query, schema: { type: string, enum: [none] } }
+        - { name: status, in: query, schema: { type: string, enum: [active, archived, all], default: active } }
+        - { name: limit, in: query, schema: { type: integer, maximum: 200 } }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses: { "200": { description: OK } }
+  /api/v1/repositories/import:
+    post:
+      summary: Import repositories from a connection (repos.manage at each placement). Per-repository results; mandatory tags enforced.
+      parameters: [{ $ref: "#/components/parameters/CSRF" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scm_connection_id, repositories]
+              properties:
+                scm_connection_id: { type: string, format: uuid }
+                repositories: { type: array, maxItems: 1000, items: { type: object, properties: { external_id: { type: string } } } }
+                defaults: { type: object, description: "application_id, business_unit_id, country_id, environment, criticality, scan_branch, tag_ids" }
+                dry_run: { type: boolean }
+      responses: { "200": { description: "results[] with status imported | would_import | already_imported | error" } }
+  /api/v1/repositories/import-csv:
+    post:
+      summary: CSV bulk onboarding (text/csv, max 2 MB). Columns repository, application, business_unit, country, environment, criticality, tags, scan_branch
+      parameters:
+        - { name: scm_connection_id, in: query, required: true, schema: { type: string, format: uuid } }
+        - { name: dry_run, in: query, schema: { type: boolean } }
+        - { $ref: "#/components/parameters/CSRF" }
+      responses: { "200": { description: Per-line results } }
+  /api/v1/repositories/bulk-tags:
+    post: { summary: "Add/remove tags on up to 500 repositories atomically", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK }, "400": { description: Rule violation }, "422": { description: Mandatory tag missing } } }
+  /api/v1/repositories/{id}:
+    get: { summary: Get a repository (404 when out of scope), parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+    patch: { summary: "Update placement, classification, scan branch, technologies, tags (moves need permission at the destination)", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+    delete: { summary: Permanently delete an archived repository, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted }, "409": { description: Not archived } } }
+  /api/v1/repositories/{id}/branches:
+    get: { summary: Live branch list from the SCM, parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+  /api/v1/repositories/{id}/archive:
+    post: { summary: Archive, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/repositories/{id}/unarchive:
+    post: { summary: Unarchive, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/applications:
+    get: { summary: Applications visible to the caller, responses: { "200": { description: OK } } }
+    post: { summary: "Create (repos.manage at the business unit, or org-wide)", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/applications/{id}:
+    patch: { summary: Update, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/applications/{id}/archive:
+    post: { summary: Archive (repositories are unlinked), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Archived } } }
+  /api/v1/tag-categories:
+    get: { summary: Categories with tags and mandatory-tag compliance counts, responses: { "200": { description: OK } } }
+    post: { summary: Create a category (repos.manage org-wide), parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/tag-categories/{id}:
+    patch: { summary: Update name / mandatory / allow_multiple, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Updated } } }
+    delete: { summary: Delete a category and its tags, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted } } }
+  /api/v1/tag-categories/{id}/tags:
+    post: { summary: Create a tag, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/tags/{id}:
+    delete: { summary: Delete a tag, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted } } }
+  /api/webhooks/github/{id}:
+    post:
+      summary: GitHub webhook receiver (no session; X-Hub-Signature-256 HMAC required; deliveries de-duplicated by X-GitHub-Delivery)
+      security: []
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "202": { description: Accepted }, "200": { description: Duplicate delivery }, "401": { description: Invalid signature } }
+  /api/webhooks/azure-devops/{id}:
+    post:
+      summary: Azure DevOps service hook receiver (Basic auth password = webhook secret)
+      security: []
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses: { "202": { description: Accepted }, "401": { description: Invalid credentials } }

@@ -83,7 +83,7 @@ var KPIs = []KPIDef{
 
 // CurrentPhase is the last completed roadmap phase; KPIs with Phase <= it
 // have a data source.
-const CurrentPhase = 1
+const CurrentPhase = 3
 
 // ChartDef defines one chart panel.
 type ChartDef struct {
@@ -99,6 +99,7 @@ var Charts = []ChartDef{
 	{"findings_trend", "Open findings by severity", "stacked_bar", 6, authz.PermFindingsRead, "/findings"},
 	{"severity_distribution", "Severity distribution", "donut", 6, authz.PermFindingsRead, "/findings"},
 	{"top_repositories", "Riskiest repositories", "bar", 6, authz.PermFindingsRead, "/repositories"},
+	{"repos_by_criticality", "Repositories by criticality", "bar", 3, authz.PermReposRead, "/repositories"},
 	{"scanner_activity", "Scans by scanner", "bar", 4, authz.PermScansRead, "/scans"},
 	{"sign_ins", "Sign-ins per day", "line", 1, authz.PermAuditRead, "/admin/audit?action=auth.login"},
 	{"admin_activity", "Administrative changes", "bar", 1, authz.PermAuditRead, "/admin/audit"},

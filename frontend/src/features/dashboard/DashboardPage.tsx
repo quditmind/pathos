@@ -3,7 +3,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { BarChart3, Lock } from "lucide-react";
 import { api } from "@/api/client";
-import { splitHref } from "@/lib/utils";
+import { isAppRoute, splitHref } from "@/lib/utils";
 import type { Chart, Dashboard } from "@/api/types";
 import { FilterBar, type FilterDef } from "@/components/data/FilterBar";
 import { KpiCard } from "@/components/data/KpiCard";
@@ -163,7 +163,7 @@ function ChartPanel({ chart }: { chart: Chart }) {
     <Card className="p-4">
       <div className="mb-2 flex items-center justify-between">
         <h3 className="text-[13px] font-semibold">{chart.title}</h3>
-        {chart.status === "ok" && chart.drill.startsWith("/admin/") && (
+        {chart.status === "ok" && isAppRoute(chart.drill) && (
           <Link {...(splitHref(chart.drill) as { to: string })} className="text-[12px] text-primary hover:underline">
             View details
           </Link>

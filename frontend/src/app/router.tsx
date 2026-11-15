@@ -9,6 +9,11 @@ import { DashboardPage, validateDashboardSearch } from "@/features/dashboard/Das
 import { UsersPage } from "@/features/users/UsersPage";
 import { OrganizationPage } from "@/features/users/OrganizationPage";
 import { AuditPage } from "@/features/audit/AuditPage";
+import { RepositoriesPage, validateRepoSearch } from "@/features/repos/RepositoriesPage";
+import { ImportPage } from "@/features/repos/ImportPage";
+import { ApplicationsPage } from "@/features/repos/ApplicationsPage";
+import { ScmConnectionsPage } from "@/features/settings/ScmConnectionsPage";
+import { TagsPage } from "@/features/settings/TagsPage";
 
 function Authenticated() {
   const me = useMe();
@@ -74,7 +79,21 @@ const auditRoute = createRoute({
   }),
 });
 
-const routeTree = rootRoute.addChildren([loginRoute, appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute])]);
+const reposRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories", component: RepositoriesPage, validateSearch: validateRepoSearch });
+const importRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/import", component: ImportPage });
+const appsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/applications",
+  component: ApplicationsPage,
+  validateSearch: (s: Record<string, unknown>): { app?: string } => ({ app: typeof s.app === "string" ? s.app : undefined }),
+});
+const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsPage });
+const tagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/tags", component: TagsPage });
+
+const routeTree = rootRoute.addChildren([
+  loginRoute,
+  appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute]),
+]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

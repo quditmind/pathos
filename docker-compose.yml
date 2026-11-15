@@ -82,7 +82,13 @@ services:
       PATHOS_KEYCLOAK_PROVISIONER_CLIENT_ID: pathos-provisioner
       PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET:?run deploy/scripts/install.sh}
       PATHOS_BOOTSTRAP_ADMIN_EMAIL: ${PATHOS_BOOTSTRAP_ADMIN_EMAIL:?run deploy/scripts/install.sh}
-    networks: [app, data]
+      # Self-hosted GitHub Enterprise / Azure DevOps Server on a private network.
+      PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
+      # Outbound proxy for SCM API calls (optional).
+      HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
+      NO_PROXY: keycloak,localhost
+    # edge: outbound HTTPS to SCM APIs (GitHub, Azure DevOps).
+    networks: [app, data, edge]
     depends_on:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }

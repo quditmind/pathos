@@ -16,7 +16,9 @@ import {
   Search,
   ShieldAlert,
   SlidersHorizontal,
+  Plug,
   Sun,
+  Tags,
   Users,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
@@ -33,8 +35,8 @@ const groups: NavGroup[] = [
   {
     label: "Assets",
     items: [
-      { label: "Repositories", icon: <GitBranch />, phase: 3 },
-      { label: "Applications", icon: <Boxes />, phase: 3 },
+      { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
+      { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
     ],
   },
   {
@@ -51,6 +53,8 @@ const groups: NavGroup[] = [
     items: [
       { label: "Users", to: "/admin/users", icon: <Users />, perm: "users.read" },
       { label: "Organization", to: "/admin/organization", icon: <Building2 />, perm: "org.read" },
+      { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
+      { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
   },
@@ -86,7 +90,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
-  const visible = (it: NavItem) => !it.perm || (it.perm === "org.read" ? can(it.perm) : canOrgWide(it.perm));
+  // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
+  const scopedPerms = new Set(["org.read", "repos.read"]);
+  const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (
     <div className="flex h-full">

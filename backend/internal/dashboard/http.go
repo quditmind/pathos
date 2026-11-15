@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"pathos/internal/authz"
+	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
 )
 
@@ -166,6 +168,7 @@ func (h *Handlers) summary(w http.ResponseWriter, r *http.Request) {
 	resp := Response{Filters: f, PeriodStart: start, PeriodEnd: end, Groups: Groups}
 
 	q := &queries{db: h.DB, org: p.OrganizationID, start: start, end: end}
+	q.repoWhere, q.repoArgs = repoFilter(p, f)
 	for _, def := range KPIs {
 		k := KPI{Key: def.Key, Label: def.Label, Group: def.Group, Description: def.Description, Unit: def.Unit,
 			Polarity: def.Polarity, Drill: def.Drill, Phase: def.Phase, OrgWide: f.geo() && !def.GeoScoped}
@@ -206,6 +209,39 @@ type queries struct {
 	db         *pgxpool.Pool
 	org        uuid.UUID
 	start, end time.Time
+	// repoWhere restricts repositories (alias r, countries alias co) to the
+	// caller's scope and the geo filters; placeholders start at $2.
+	repoWhere string
+	repoArgs  []any
+}
+
+// repoFilter combines the caller's repos.read scope with the dashboard's
+// region / country / business unit filters.
+func repoFilter(p *authz.Principal, f Filters) (string, []any) {
+	scope, args := org.ScopeSQL(authz.FilterFor(p, authz.PermReposRead), "r.id", "r.business_unit_id", "r.country_id", 2)
+	where := []string{"r.archived_at IS NULL", scope}
+	add := func(cond string, v any) {
+		args = append(args, v)
+		where = append(where, strings.ReplaceAll(cond, "?", "$"+strconv.Itoa(len(args)+1)))
+	}
+	if f.RegionID != nil {
+		add("co.region_id = ?", *f.RegionID)
+	}
+	if f.CountryID != nil {
+		add("r.country_id = ?", *f.CountryID)
+	}
+	if f.BusinessUnitID != nil {
+		add(`r.business_unit_id IN (WITH RECURSIVE d AS (SELECT id FROM business_units WHERE id = ?
+			UNION ALL SELECT b.id FROM business_units b JOIN d ON b.parent_id = d.id) SELECT id FROM d)`, *f.BusinessUnitID)
+	}
+	return strings.Join(where, " AND "), args
+}
+
+func (q *queries) repoCount(ctx context.Context, extra string) (int64, error) {
+	var n int64
+	err := q.db.QueryRow(ctx, `SELECT count(*) FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
+		WHERE r.organization_id = $1 AND `+q.repoWhere+extra, append([]any{q.org}, q.repoArgs...)...).Scan(&n)
+	return n, err
 }
 
 func f64(v int64) *float64 { x := float64(v); return &x }
@@ -213,6 +249,20 @@ func f64(v int64) *float64 { x := float64(v); return &x }
 func (q *queries) kpi(ctx context.Context, k *KPI) error {
 	prevStart := q.start.Add(-q.end.Sub(q.start))
 	switch k.Key {
+	case "repositories":
+		n, err := q.repoCount(ctx, "")
+		k.Value = f64(n)
+		return err
+	case "unowned_repositories":
+		n, err := q.repoCount(ctx, " AND r.application_id IS NULL")
+		k.Value = f64(n)
+		return err
+	case "applications":
+		var n int64
+		err := q.db.QueryRow(ctx, `SELECT count(DISTINCT r.application_id) FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
+			WHERE r.organization_id = $1 AND r.application_id IS NOT NULL AND `+q.repoWhere, append([]any{q.org}, q.repoArgs...)...).Scan(&n)
+		k.Value = f64(n)
+		return err
 	case "active_users":
 		var now, before int64
 		err := q.db.QueryRow(ctx, `
@@ -273,6 +323,21 @@ func (q *queries) daily(ctx context.Context, sql string) ([]Point, error) {
 
 func (q *queries) chart(ctx context.Context, c *Chart) error {
 	switch c.Key {
+	case "repos_by_criticality":
+		rows, err := q.db.Query(ctx, `SELECT r.criticality, count(*) FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
+			WHERE r.organization_id = $1 AND `+q.repoWhere+` GROUP BY 1
+			ORDER BY array_position(ARRAY['critical','high','medium','low'], r.criticality)`, append([]any{q.org}, q.repoArgs...)...)
+		if err != nil {
+			return err
+		}
+		c.Categories, err = pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
+			var cat Category
+			var n int64
+			err := r.Scan(&cat.Label, &n)
+			cat.Value = float64(n)
+			return cat, err
+		})
+		return err
 	case "sign_ins":
 		ok, err := q.daily(ctx, `
 			SELECT d::date, count(a.id) FROM generate_series($2::date, $3::date, interval '1 day') d

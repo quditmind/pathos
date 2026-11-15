@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased] — Phase 2: Premium UI & dashboard (2026-11-15)
+## [Unreleased] — Phase 3: Repository & asset management (2026-11-15)
+
+### Added
+- SCM connections: GitHub (PAT or GitHub App), GitHub Enterprise Server, Azure DevOps Services and Server. Credentials are encrypted and write-only; outbound calls are SSRF-protected.
+- Repository discovery and import (selection with defaults, CSV bulk onboarding with dry run), live branch selection, placement and classification, archive/delete, and bulk tagging.
+- Tag categories with mandatory and single-value rules; applications with owners.
+- Signature-verified GitHub and Azure DevOps webhook receivers with replay protection.
+- Repository-scoped RBAC through the BU → region → organization hierarchy.
+- Dashboard KPIs Repositories, Applications and Without owner, plus a criticality chart; repositories and applications in global search.
+
+## Phase 2: Premium UI & dashboard (2026-11-15)
 
 ### Added
 - Dashboard API with the 24-KPI catalog and chart panels. KPIs that have no data source yet are reported as "not yet available", never with placeholder numbers. Values are permission-aware, with period and geography filters.

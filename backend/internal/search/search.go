@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"pathos/internal/authz"
+	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
 )
 
@@ -29,7 +30,7 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 
 // Result is one search hit.
 type Result struct {
-	Type     string `json:"type"` // user | business_unit | region | country
+	Type     string `json:"type"` // repository | application | user | business_unit | region | country
 	ID       string `json:"id"`
 	Title    string `json:"title"`
 	Subtitle string `json:"subtitle"`
@@ -80,6 +81,36 @@ func (h *Handlers) search(w http.ResponseWriter, r *http.Request) {
 			FROM countries c JOIN regions r ON r.id = c.region_id
 			WHERE c.organization_id = $1 AND (lower(c.name) LIKE $2 OR lower(c.code) LIKE $2)
 			ORDER BY c.name LIMIT $3`},
+	}
+	// Repositories and applications, filtered to the caller's repos.read scope.
+	if f := authz.FilterFor(p, authz.PermReposRead); !f.None() {
+		scope, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 4)
+		base := []any{p.OrganizationID, like, perType}
+		for _, sql := range []string{`
+			SELECT 'repository', r.id::text, r.full_name, 'Repository · ' || r.criticality || ' · ' || r.environment,
+			       '/repositories?repo=' || r.id::text
+			FROM repositories r WHERE r.organization_id = $1 AND r.archived_at IS NULL AND lower(r.full_name) LIKE $2 AND ` + scope + `
+			ORDER BY lower(r.full_name) LIMIT $3`, `
+			SELECT 'application', a.id::text, a.name, 'Application · ' || a.criticality, '/applications?app=' || a.id::text
+			FROM applications a WHERE a.organization_id = $1 AND a.archived_at IS NULL AND lower(a.name) LIKE $2
+			  AND EXISTS (SELECT 1 FROM repositories r WHERE r.application_id = a.id AND ` + scope + `)
+			ORDER BY lower(a.name) LIMIT $3`} {
+			if f.All {
+				// Applications without repositories are still visible org-wide.
+				sql = strings.Replace(sql, "AND EXISTS (SELECT 1 FROM repositories r WHERE r.application_id = a.id AND true)", "", 1)
+			}
+			rows, err := h.DB.Query(ctx, sql, append(base, args...)...)
+			if err != nil {
+				httpx.WriteError(w, r, h.Log, err)
+				return
+			}
+			res, err := pgx.CollectRows(rows, pgx.RowToStructByPos[Result])
+			if err != nil {
+				httpx.WriteError(w, r, h.Log, err)
+				return
+			}
+			out = append(out, res...)
+		}
 	}
 	for _, s := range sources {
 		if !s.ok {

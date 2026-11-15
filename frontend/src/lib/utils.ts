@@ -25,3 +25,9 @@ export function splitHref(href: string): { to: string; search: Record<string, st
   const [to, qs] = href.split("?", 2) as [string, string | undefined];
   return { to, search: Object.fromEntries(new URLSearchParams(qs ?? "")) };
 }
+
+/** Routes that exist today; drill-down links to later-phase pages are suppressed. */
+const appRoutes = ["/admin/", "/repositories", "/applications"];
+export function isAppRoute(href: string) {
+  return appRoutes.some((r) => href.startsWith(r));
+}

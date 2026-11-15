@@ -3,7 +3,7 @@ import { Command } from "cmdk";
 import * as D from "@radix-ui/react-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Building2, FileClock, Globe2, LayoutDashboard, LogOut, MapPin, Moon, Search, UserRound, Users } from "lucide-react";
+import { Boxes, Building2, FileClock, GitBranch, Globe2, LayoutDashboard, LogOut, MapPin, Moon, Plug, Search, Tags, UserRound, Users } from "lucide-react";
 import { api } from "@/api/client";
 import { splitHref } from "@/lib/utils";
 import type { SearchResult } from "@/api/types";
@@ -11,6 +11,8 @@ import { useSession } from "@/features/auth/session";
 import { Spinner } from "@/components/ui/primitives";
 
 const typeIcon: Record<SearchResult["type"], ReactNode> = {
+  repository: <GitBranch />,
+  application: <Boxes />,
   user: <UserRound />,
   business_unit: <Building2 />,
   region: <Globe2 />,
@@ -18,6 +20,8 @@ const typeIcon: Record<SearchResult["type"], ReactNode> = {
 };
 
 const typeLabel: Record<SearchResult["type"], string> = {
+  repository: "Repositories",
+  application: "Applications",
   user: "Users",
   business_unit: "Business units",
   region: "Regions",
@@ -67,7 +71,12 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
 
   const pages = [
     { label: "Dashboard", to: "/", icon: <LayoutDashboard />, show: true },
+    { label: "Repositories", to: "/repositories", icon: <GitBranch />, show: can("repos.read") },
+    { label: "Import repositories", to: "/repositories/import", icon: <GitBranch />, show: can("repos.manage") },
+    { label: "Applications", to: "/applications", icon: <Boxes />, show: can("repos.read") },
     { label: "Users", to: "/admin/users", icon: <Users />, show: canOrgWide("users.read") },
+    { label: "SCM connections", to: "/admin/scm", icon: <Plug />, show: canOrgWide("scm.manage") },
+    { label: "Tags", to: "/admin/tags", icon: <Tags />, show: can("repos.read") },
     { label: "Organization", to: "/admin/organization", icon: <Building2 />, show: can("org.read") },
     { label: "Audit log", to: "/admin/audit", icon: <FileClock />, show: canOrgWide("audit.read") },
   ].filter((p) => p.show);

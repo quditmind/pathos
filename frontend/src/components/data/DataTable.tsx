@@ -71,6 +71,8 @@ export function DataTable<T>({
   onLoadMore,
   toolbar,
   exportName,
+  selection,
+  onSelectionChange,
 }: {
   tableId: string;
   columns: Column<T>[];
@@ -85,7 +87,19 @@ export function DataTable<T>({
   onLoadMore?: () => void;
   toolbar?: ReactNode;
   exportName?: string;
+  /** Enables row checkboxes when provided. */
+  selection?: Set<string>;
+  onSelectionChange?: (next: Set<string>) => void;
 }) {
+  const selectable = !!selection && !!onSelectionChange;
+  const allSelected = selectable && rows.length > 0 && rows.every((r) => selection!.has(rowKey(r)));
+  const toggleRow = (key: string) => {
+    const next = new Set(selection);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    onSelectionChange!(next);
+  };
+  const toggleAll = () => onSelectionChange!(allSelected ? new Set() : new Set(rows.map(rowKey)));
   const [hidden, setHidden] = useState(() => loadHidden(tableId, columns));
   const visible = columns.filter((c) => !hidden.has(c.id));
 
@@ -166,6 +180,11 @@ export function DataTable<T>({
         <Table>
           <thead>
             <tr>
+              {selectable && (
+                <Th className="w-8">
+                  <input type="checkbox" aria-label="Select all loaded rows" checked={allSelected} onChange={toggleAll} className="size-3.5 accent-[var(--primary)]" />
+                </Th>
+              )}
               {visible.map((c) => (
                 <Th key={c.id} className={c.className}>
                   {c.header}
@@ -182,6 +201,18 @@ export function DataTable<T>({
                 onKeyDown={onRowClick ? (e) => e.key === "Enter" && onRowClick(r) : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
               >
+                {selectable && (
+                  <Td className="w-8" >
+                    <input
+                      type="checkbox"
+                      aria-label="Select row"
+                      checked={selection!.has(rowKey(r))}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleRow(rowKey(r))}
+                      className="size-3.5 accent-[var(--primary)]"
+                    />
+                  </Td>
+                )}
                 {visible.map((c) => (
                   <Td key={c.id} className={c.className}>
                     {c.cell(r)}

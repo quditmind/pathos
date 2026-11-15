@@ -227,6 +227,36 @@ def main():
     s, res = admin.api("GET", "/api/v1/search?q=germ")
     check("global search finds Germany", s == 200 and any(r["title"] == "Germany" for r in res["items"]), res)
 
+    print("\nRepositories & SCM (Phase 3)")
+    sfx = secrets.token_hex(3)
+    s, cat = admin.api("POST", "/api/v1/tag-categories", {"name": f"Smoke{sfx}", "allow_multiple": False})
+    check("create tag category -> 201", s == 201, s)
+    if s == 201:
+        s, _ = admin.api("POST", f"/api/v1/tag-categories/{cat['id']}/tags", {"name": "Alpha", "color": "teal"})
+        check("create tag -> 201", s == 201, s)
+    s, conn = admin.api("POST", "/api/v1/scm-connections",
+                        {"name": f"Smoke GitHub {sfx}", "provider": "github", "auth_type": "pat", "token": "ghp_" + "x" * 36})
+    check("create GitHub connection -> 201", s == 201, s)
+    if s == 201:
+        check("credential never returned", "ghp_" not in json.dumps(conn))
+        # A bogus token proves egress to api.github.com and the error path.
+        check("connection test reaches GitHub and reports bad credentials",
+              conn["status"] == "error" and "authentication failed" in conn["status_message"], conn.get("status_message"))
+        hook = f"/api/webhooks/github/{conn['id']}"
+        st, _, _ = anon.req("POST", hook, {"zen": "x"}, {"X-GitHub-Event": "ping", "X-Hub-Signature-256": "sha256=" + "0" * 64})
+        check("unsigned webhook rejected through the proxy -> 401", st == 401, st)
+        s, _ = admin.api("DELETE", f"/api/v1/scm-connections/{conn['id']}")
+        check("delete empty connection -> 204", s == 204, s)
+    s, _ = admin.api("POST", "/api/v1/scm-connections", {"name": "meta", "provider": "github_enterprise",
+                     "base_url": "https://169.254.169.254/api/v3", "auth_type": "pat", "token": "x"})
+    check("SSRF: metadata address rejected -> 400", s == 400, s)
+    s, lst = admin.api("GET", "/api/v1/repositories")
+    check("repository list -> 200", s == 200 and "items" in lst, s)
+    s, dash = admin.api("GET", "/api/v1/dashboard")
+    if s == 200:
+        st = {k["key"]: k for k in dash["kpis"]}
+        check("repositories KPI is live", st["repositories"]["status"] == "ok", st["repositories"]["status"])
+
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")
     check("logout returns Keycloak end-session URL", s == 200 and "/protocol/openid-connect/logout" in out.get("logout_url", ""), out)

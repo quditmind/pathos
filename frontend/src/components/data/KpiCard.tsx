@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowDownRight, ArrowUpRight, Lock, Minus } from "lucide-react";
 import type { Kpi, Point } from "@/api/types";
-import { cn, splitHref } from "@/lib/utils";
+import { cn, isAppRoute, splitHref } from "@/lib/utils";
 
 const nf = new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 });
 
@@ -104,7 +104,7 @@ export function KpiCard({ kpi, period }: { kpi: Kpi; period: string }) {
 
   // Drill-down only for routes that exist (Phase 1 admin routes); later
   // phases add their own pages.
-  return available && kpi.drill.startsWith("/admin/") ? (
+  return available && isAppRoute(kpi.drill) ? (
     <Link {...(splitHref(kpi.drill) as { to: string })} className="block rounded-lg focus-visible:outline-2 focus-visible:outline-ring" aria-label={`${kpi.label}: view details`}>
       {body}
     </Link>

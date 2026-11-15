@@ -18,6 +18,10 @@ export function setCsrfToken(t: string) {
   csrfToken = t;
 }
 
+export function getCsrfToken() {
+  return csrfToken;
+}
+
 type Options = { method?: string; body?: unknown; signal?: AbortSignal };
 
 export async function api<T>(path: string, opts: Options = {}): Promise<T> {

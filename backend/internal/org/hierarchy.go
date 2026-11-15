@@ -3,6 +3,7 @@ package org
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -20,11 +21,9 @@ type Hierarchy struct {
 	OrgID uuid.UUID
 }
 
-// Ancestors implements authz.Hierarchy.
-//
-// Repository scopes are resolved once the repositories table exists
-// (Phase 3); until then a repository scope resolves to itself plus the
-// organization.
+// Ancestors implements authz.Hierarchy. A repository's chain is
+// [repository, its business unit and that unit's ancestors, the region of
+// its country, organization].
 func (h *Hierarchy) Ancestors(ctx context.Context, s authz.Scope) ([]authz.Scope, error) {
 	orgScope := authz.Scope{Type: authz.ScopeOrganization, ID: h.OrgID}
 	switch s.Type {
@@ -39,7 +38,29 @@ func (h *Hierarchy) Ancestors(ctx context.Context, s authz.Scope) ([]authz.Scope
 		}
 		return append(chain, orgScope), nil
 	case authz.ScopeRepository:
-		return []authz.Scope{s, orgScope}, nil
+		var bu, region *uuid.UUID
+		err := h.DB.QueryRow(ctx, `
+			SELECT r.business_unit_id, c.region_id FROM repositories r
+			LEFT JOIN countries c ON c.id = r.country_id
+			WHERE r.id = $1 AND r.organization_id = $2`, s.ID, h.OrgID).Scan(&bu, &region)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrScopeNotFound
+		}
+		if err != nil {
+			return nil, err
+		}
+		chain := []authz.Scope{s}
+		if bu != nil {
+			buChain, err := h.businessUnitChain(ctx, *bu)
+			if err != nil {
+				return nil, err
+			}
+			chain = append(chain, buChain...)
+		}
+		if region != nil {
+			chain = append(chain, authz.Scope{Type: authz.ScopeRegion, ID: *region})
+		}
+		return append(chain, orgScope), nil
 	}
 	return nil, ErrScopeNotFound
 }
@@ -82,12 +103,37 @@ func ScopeExists(ctx context.Context, q db.Querier, orgID uuid.UUID, s authz.Sco
 	case authz.ScopeBusinessUnit:
 		query = `SELECT EXISTS (SELECT 1 FROM business_units WHERE id = $1 AND organization_id = $2 AND archived_at IS NULL)`
 	case authz.ScopeRepository:
-		// Repositories arrive in Phase 3.
-		return false, nil
+		query = `SELECT EXISTS (SELECT 1 FROM repositories WHERE id = $1 AND organization_id = $2 AND archived_at IS NULL)`
 	default:
 		return false, nil
 	}
 	var ok bool
 	err := q.QueryRow(ctx, query, s.ID, orgID).Scan(&ok)
 	return ok, err
+}
+
+// ScopeSQL returns a SQL boolean expression restricting rows to the
+// filter's scopes, plus its arguments. Columns are given for the row's
+// repository id, business unit and country; argument placeholders start
+// at $first. BU grants include all descendant business units; region
+// grants match through the country's region.
+func ScopeSQL(f authz.Filter, repoCol, buCol, countryCol string, first int) (string, []any) {
+	if f.All {
+		return "true", nil
+	}
+	if f.None() {
+		return "false", nil
+	}
+	p := func(i int) string { return "$" + strconv.Itoa(first+i) }
+	expr := "(" + repoCol + " = ANY(" + p(0) + "::uuid[])" +
+		" OR " + buCol + " IN (WITH RECURSIVE d AS (SELECT id FROM business_units WHERE id = ANY(" + p(1) + "::uuid[])" +
+		" UNION ALL SELECT b.id FROM business_units b JOIN d ON b.parent_id = d.id) SELECT id FROM d)" +
+		" OR " + countryCol + " IN (SELECT id FROM countries WHERE region_id = ANY(" + p(2) + "::uuid[])))"
+	nz := func(ids []uuid.UUID) []uuid.UUID {
+		if ids == nil {
+			return []uuid.UUID{}
+		}
+		return ids
+	}
+	return expr, []any{nz(f.RepositoryIDs), nz(f.BusinessUnits), nz(f.RegionIDs)}
 }

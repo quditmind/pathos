@@ -21,8 +21,11 @@ import (
 	"pathos/internal/identity"
 	"pathos/internal/org"
 	"pathos/internal/platform/config"
+	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
+	"pathos/internal/scm"
+	"pathos/internal/secrets"
 	"pathos/internal/server"
 )
 
@@ -95,9 +98,16 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		log.Info("keycloak user provisioning enabled")
 	}
 
+	keys, err := crypto.NewKeyring(cfg.MasterKeys)
+	if err != nil {
+		return err
+	}
+
 	srv := &http.Server{
 		Addr: cfg.HTTPAddr,
-		Handler: server.Handler(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log}),
+		Handler: server.Handler(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
+			Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
+			PublicURL: cfg.PublicURL.String()}),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,

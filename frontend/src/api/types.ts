@@ -133,9 +133,139 @@ export interface Dashboard {
 }
 
 export interface SearchResult {
-  type: "user" | "business_unit" | "region" | "country";
+  type: "repository" | "application" | "user" | "business_unit" | "region" | "country";
   id: string;
   title: string;
   subtitle: string;
   href: string;
+}
+
+export type Criticality = "low" | "medium" | "high" | "critical";
+export type Environment = "production" | "staging" | "development" | "test" | "other";
+export type TagColor = "slate" | "blue" | "green" | "amber" | "red" | "purple" | "teal" | "pink";
+
+export interface Ref {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+export interface TagRef {
+  id: string;
+  name: string;
+  color: TagColor;
+  category_id: string;
+  category_name: string;
+}
+
+export interface Repository {
+  id: string;
+  scm_connection_id: string;
+  scm_connection_name: string;
+  provider: string;
+  external_id: string;
+  full_name: string;
+  name: string;
+  url: string;
+  default_branch: string;
+  scan_branch: string;
+  visibility: "public" | "private" | "internal";
+  description: string;
+  technologies: string[];
+  application: Ref | null;
+  business_unit: Ref | null;
+  country: Ref | null;
+  region: Ref | null;
+  environment: Environment;
+  criticality: Criticality;
+  scan_enabled: boolean;
+  remote_archived: boolean;
+  last_pushed_at: string | null;
+  archived_at: string | null;
+  created_at: string;
+  tags: TagRef[];
+}
+
+export interface UserRef {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface Application {
+  id: string;
+  name: string;
+  description: string;
+  business_unit: Ref | null;
+  owner: UserRef | null;
+  security_owner: UserRef | null;
+  criticality: Criticality;
+  repository_count: number;
+  archived_at: string | null;
+  created_at: string;
+}
+
+export interface Tag {
+  id: string;
+  name: string;
+  color: TagColor;
+  repository_count: number;
+}
+
+export interface TagCategory {
+  id: string;
+  name: string;
+  description: string;
+  is_mandatory: boolean;
+  allow_multiple: boolean;
+  tags: Tag[];
+  noncompliant_repositories: number;
+}
+
+export type Provider = "github" | "github_enterprise" | "azure_devops" | "azure_devops_server";
+
+export interface ScmConnection {
+  id: string;
+  name: string;
+  provider: Provider;
+  base_url: string;
+  auth_type: "pat" | "github_app";
+  owner: string;
+  github_app_id: number | null;
+  github_installation_id: number | null;
+  status: "untested" | "ok" | "error";
+  status_message: string;
+  last_checked_at: string | null;
+  webhook_url: string;
+  repository_count: number;
+  created_at: string;
+}
+
+export interface DiscoveredRepo {
+  external_id: string;
+  full_name: string;
+  name: string;
+  url: string;
+  default_branch: string;
+  visibility: string;
+  description: string;
+  language: string;
+  archived: boolean;
+  pushed_at: string | null;
+  imported_id: string | null;
+}
+
+export interface ImportResult {
+  line?: number;
+  external_id: string;
+  full_name: string;
+  status: "imported" | "would_import" | "already_imported" | "error";
+  error?: string;
+  repository_id?: string;
+}
+
+export interface ImportResponse {
+  results: ImportResult[];
+  imported: number;
+  dry_run: boolean;
 }

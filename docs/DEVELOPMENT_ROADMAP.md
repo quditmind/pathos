@@ -7,7 +7,7 @@ Each phase ends with: working features, automated tests passing, `docker compose
 | 0 Environment & architecture | **Done (2026-11-15)** |
 | 1 Foundation | **Done (2026-11-15)**: see milestone report below |
 | 2 Premium UI & dashboard | **Done (2026-11-15)**: see milestone report below |
-| 3 Repository & asset management | Not started |
+| 3 Repository & asset management | **Done (2026-11-15)**: see milestone report below |
 | 4 Scanning engine | Not started |
 | 5 AI & MCP | Not started |
 | 6 Vulnerability management | Not started |
@@ -94,3 +94,34 @@ docker compose up -d --build --wait && make smoke
 **Deviations:** OpenAPI code generation is still deferred (spec updated by hand). Saved table views are not implemented; column choices persist per browser.
 
 **Next:** Phase 3, repository and asset management.
+
+## Phase 3 milestone report (2026-11-15)
+
+**Implemented:**
+- **Schema** (migration 00002): `scm_connections`, `applications`, `repositories`, `tag_categories`, `tags`, `repository_tags`, `webhook_deliveries`. Same-organization integrity uses composite foreign keys throughout.
+- **SCM clients** (`internal/scm`):
+  - GitHub: github.com and Enterprise Server; PAT or GitHub App, with an RS256 app JWT and a cached installation token; Link-header pagination restricted to the same host.
+  - Azure DevOps: Services and Server, PAT.
+  - An SSRF-safe HTTP client sits underneath both.
+- **Connections:** create (tested immediately), test, rename, change owner, rotate credentials, rotate webhook secret (shown once), delete (credentials destroyed).
+- **Repositories:**
+  - Discovery with import state; import by selection (with defaults) or CSV (dry run, per-line results); re-import is idempotent.
+  - Live branch selection; placement (application, business unit, country), classification (criticality, environment), technologies and scan toggle.
+  - Archive/unarchive, delete (archived only), bulk tagging (atomic, up to 500).
+- **Scoped access:** repository-scope grants work end to end. Region grants match through the repository's country; BU grants include descendants; moves require permission at the destination.
+- **Tags:** categories with *mandatory* and *single-value* rules, enforced on import, edit and bulk tag. Non-compliance is counted when a rule is tightened later.
+- **Applications:** create/update/archive with owner and security owner, scoped by business unit.
+- **Webhooks:** GitHub (HMAC) and Azure DevOps (basic auth) receivers normalise push / pull request / merge events, de-duplicate deliveries and expose an `OnEvent` hook for Phase 4.
+- **Dashboard and search:** the *Repositories*, *Applications* and *Without owner* KPIs plus a *Repositories by criticality* chart are now live, scope- and geo-filtered. Global search covers repositories and applications.
+- **UI:** Repositories (filters, bulk actions, drawer editor with branch picker), Import (selection + CSV), Applications, SCM connections, Tags.
+
+**Tests:**
+- SCM unit tests against fake GitHub and Azure DevOps servers: pagination, cross-host link refusal, App JWT signature and token caching, auth failure mapping, branches.
+- SSRF policy and dial-time blocking; webhook signature and event parsing.
+- An integration test of the full lifecycle: taxonomy, connection, discovery, mandatory tags, import/CSV dry run, BU/region/repository scoping, destination checks, bulk-tag rules, applications, webhooks (signature, replay, provider mismatch), archive/delete.
+- Smoke test now has 50 checks, including a live call to `api.github.com` that confirms egress and credential-failure handling.
+- A Playwright pass over every new screen.
+
+**Deviations:** repository metadata (default branch, archived flag, last push) is captured at import time; periodic re-sync with the SCM moves to the Phase 7 scheduler. Webhook events are recorded but trigger nothing until Phase 4.
+
+**Next:** Phase 4, the scanning engine.

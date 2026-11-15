@@ -52,6 +52,20 @@ All settings live in `.env`; `.env.example` documents each one. The common chang
 
 > Keycloak imports the realm only on **first** start. After the first start, change the public URL, SMTP settings or client secrets in the Keycloak admin console (`https://<host>/auth/admin`, master realm, user `KEYCLOAK_ADMIN_USER`), or reset the install.
 
+## Connecting GitHub or Azure DevOps
+
+1. **Administration → SCM connections → Add connection.**
+   - **GitHub (recommended): a GitHub App** with repository permissions *Contents: read* and *Metadata: read*, installed on the organization. Enter the App ID, the installation ID (from the installation URL) and the private key PEM.
+   - **GitHub PAT:** a fine-grained token with *Contents: read* and *Metadata: read*. Set *Owner* to limit discovery to one organization.
+   - **GitHub Enterprise Server:** base URL `https://<host>/api/v3`.
+   - **Azure DevOps Services:** set *Organization*, and use a PAT with *Code: Read*. **Azure DevOps Server:** base URL `https://<host>/<collection>`.
+   - Self-hosted servers on private IPs need `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true` in `.env`. The API reaches the internet through the `edge` network; set `PATHOS_HTTPS_PROXY` if outbound traffic must use a proxy.
+2. **Webhooks (optional, used for scan triggers from Phase 4):** choose *New webhook secret* on the connection and copy the URL and secret.
+   - GitHub: content type `application/json`, events *Pushes* and *Pull requests*.
+   - Azure DevOps: create service hooks for *Code pushed*, *Pull request created/updated/merged*, with basic authentication (any username, the secret as password).
+   - The webhook URL must be reachable from the SCM, so set `PATHOS_PUBLIC_URL` to a public hostname.
+3. **Administration → Tags:** create tag categories (for example a mandatory *Team*), then go to **Repositories → Import repositories** and select repositories or upload a CSV. Validate CSV imports with a dry run first.
+
 ## Day-2 operations
 
 ```bash

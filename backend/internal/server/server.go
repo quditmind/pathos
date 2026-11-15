@@ -18,7 +18,10 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/repos"
+	"pathos/internal/scm"
 	"pathos/internal/search"
+	"pathos/internal/secrets"
 )
 
 // Version is set at build time with -ldflags.
@@ -31,6 +34,9 @@ type Deps struct {
 	Provisioner identity.Provisioner
 	OrgID       uuid.UUID
 	Log         *slog.Logger
+	Secrets     *secrets.Store
+	SCMNet      scm.NetPolicy
+	PublicURL   string
 }
 
 // Handler builds the root handler.
@@ -44,6 +50,10 @@ func Handler(d Deps) http.Handler {
 	public.HandleFunc("GET /readyz", readiness(d))
 	public.HandleFunc("GET /api/auth/login", d.Auth.HandleLogin)
 	public.HandleFunc("GET /api/auth/callback", d.Auth.HandleCallback)
+
+	repoSvc := &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log,
+		Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+	repoSvc.RegisterPublic(public)
 
 	protected := http.NewServeMux()
 	protected.HandleFunc("POST /api/auth/logout", d.Auth.HandleLogout)
@@ -60,6 +70,7 @@ func Handler(d Deps) http.Handler {
 	(&org.Handlers{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	repoSvc.Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})
