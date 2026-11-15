@@ -1,0 +1,5 @@
+# Deliberately fake credentials used as test fixtures (redaction and SMTP
+# tests). Fingerprints are commit:file:rule:line, as reported by gitleaks.
+3e065f095da51e08d114c9b2bc87e0facca40a25:backend/test/integration/schedule_notify_test.go:generic-api-key:426
+2aca40c82c833d2eddab55a572f3549eaa2bb865:backend/internal/platform/logging/logging_test.go:aws-access-token:31
+2aca40c82c833d2eddab55a572f3549eaa2bb865:backend/internal/platform/logging/logging_test.go:jwt:28
