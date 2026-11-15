@@ -1,6 +1,20 @@
 # Changelog
 
-## [Unreleased] — Phase 5: AI review & MCP (2026-11-15)
+## [Unreleased] — Phase 6: Vulnerability management (2026-11-15)
+
+### Added
+- Finding lifecycle enforced by a database trigger: append-only status history with actor/source/reason, SLA deadline on detection, recurrence counter when a fixed finding reappears.
+- Manual triage API and UI: status changes with required reasons, assignment, atomic bulk status/assign, history timeline, SLA and assignee columns and filters.
+- Risk acceptance workflow: time-boxed (≤ 365 days), approved by a different person with `findings.accept_risk`, revocable, findings reopen automatically at expiry (jobs role, every 10 minutes).
+- SLA policies per severity (default 7/30/90/180 days) with recomputation; license policy (deny/review by SPDX id).
+- SBOM inventory: Syft CycloneDX components stored per scan, component search across repositories with license-policy matches and open vulnerability counts, CycloneDX download per repository.
+- UI pages: Risk acceptances, SBOM inventory, Policies. All 24 dashboard KPIs are now live.
+
+### Fixed
+- Client disconnects are no longer logged as internal errors.
+- `openapi.yaml` is valid YAML again (an unquoted description broke parsing).
+
+## Phase 5: AI review & MCP (2026-11-15)
 
 ### Added
 - AI providers: Anthropic (official Go SDK, default `claude-opus-5-5`, structured output, prompt caching, refusal fallbacks), OpenAI and xAI. Keys are encrypted and tested.

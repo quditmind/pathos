@@ -83,7 +83,7 @@ var KPIs = []KPIDef{
 
 // CurrentPhase is the last completed roadmap phase; KPIs with Phase <= it
 // have a data source.
-const CurrentPhase = 5
+const CurrentPhase = 6
 
 // ChartDef defines one chart panel.
 type ChartDef struct {

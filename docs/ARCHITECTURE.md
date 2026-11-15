@@ -1,6 +1,6 @@
 # PATHOS Architecture
 
-Status: **Phase 5 implemented** for §6 (AI review, interactive MCP mode). **Phase 4 implemented** for §5 (scanner isolation: worker pools, lease API, egress proxy; raw reports are stored in PostgreSQL until object storage lands in Phase 8). **Phase 1 implemented** for §1 (api/jobs roles; scheduler is Phase 7), §3 (layout), §4 (authentication and authorization), §7 (deployment, minus SeaweedFS, workers and egress, which come in Phase 4), §8 (UI shell) and the envelope encryption in §9. Everything else is still design.
+Status: **Phase 6 implemented** for the vulnerability lifecycle (DB-enforced history, SLAs, risk acceptance, SBOM inventory). **Phase 5 implemented** for §6 (AI review, interactive MCP mode). **Phase 4 implemented** for §5 (scanner isolation: worker pools, lease API, egress proxy; raw reports are stored in PostgreSQL until object storage lands in Phase 8). **Phase 1 implemented** for §1 (api/jobs roles; scheduler is Phase 7), §3 (layout), §4 (authentication and authorization), §7 (deployment, minus SeaweedFS, workers and egress, which come in Phase 4), §8 (UI shell) and the envelope encryption in §9. Everything else is still design.
 
 ## 1. Architectural style
 

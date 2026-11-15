@@ -330,6 +330,14 @@ export interface Finding {
   first_seen_at: string;
   last_seen_at: string;
   resolved_at: string | null;
+  assignee_id: string | null;
+  assignee_name: string | null;
+  sla_due_at: string | null;
+  recurrence_count: number;
+  accepted_until: string | null;
+  ai_status: string;
+  snippet?: string;
+  snippet_start_line?: number | null;
   occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];
 }
 
@@ -478,4 +486,40 @@ export interface McpServer {
   decision_note: string;
   tools: { tool: string; access: "read" | "write"; allowed: boolean }[];
   created_at: string;
+}
+
+export interface HistoryEntry {
+  from_status: string | null;
+  to_status: string;
+  actor: string | null;
+  source: string;
+  reason: string;
+  created_at: string;
+}
+
+export interface RiskAcceptance {
+  id: string;
+  finding_id: string;
+  finding_title: string;
+  finding_severity: Severity;
+  repository_name: string;
+  requested_by: string;
+  justification: string;
+  expires_at: string;
+  status: "pending" | "approved" | "rejected" | "expired" | "revoked" | "withdrawn";
+  decided_by: string | null;
+  decided_at: string | null;
+  decision_note: string;
+  created_at: string;
+}
+
+export interface ComponentGroup {
+  name: string;
+  version: string;
+  purl: string;
+  type: string;
+  licenses: string[];
+  license_policy: "" | "deny" | "review";
+  repositories: string[];
+  open_vulnerabilities: number;
 }

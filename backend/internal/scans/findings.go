@@ -48,6 +48,14 @@ type FindingView struct {
 	FirstSeenAt    time.Time  `json:"first_seen_at"`
 	LastSeenAt     time.Time  `json:"last_seen_at"`
 	ResolvedAt     *time.Time `json:"resolved_at"`
+	AssigneeID     *uuid.UUID `json:"assignee_id"`
+	AssigneeName   *string    `json:"assignee_name"`
+	SLADueAt       *time.Time `json:"sla_due_at"`
+	Recurrence     int        `json:"recurrence_count"`
+	AcceptedUntil  *time.Time `json:"accepted_until"`
+	AIStatus       string     `json:"ai_status"`
+	Snippet        string     `json:"snippet,omitempty"`
+	SnippetStart   *int       `json:"snippet_start_line,omitempty"`
 	Occurrences    []Occurrence `json:"occurrences,omitempty"`
 }
 
@@ -64,14 +72,16 @@ type Occurrence struct {
 const findingSelect = `
 	SELECT f.id, f.repository_id, r.full_name, f.category, f.scanner_keys, f.rule_id, f.title, f.description, f.severity,
 	       f.cwe, f.cve, f.cvss::float8, f.package_name, f.package_version, f.fixed_version, f.file_path, f.start_line,
-	       f.status, f.first_seen_at, f.last_seen_at, f.resolved_at
-	FROM findings f JOIN repositories r ON r.id = f.repository_id`
+	       f.status, f.first_seen_at, f.last_seen_at, f.resolved_at, f.assignee_id,
+	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status
+	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id`
 
 func scanFinding(row pgx.Row) (FindingView, error) {
 	var f FindingView
 	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
 		&f.Severity, &f.CWE, &f.CVE, &f.CVSS, &f.PackageName, &f.PackageVersion, &f.FixedVersion, &f.FilePath, &f.StartLine,
-		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt)
+		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
+		&f.AcceptedUntil, &f.AIStatus)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -134,6 +144,28 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 			return nil, nil, httpx.BadRequest("invalid repository_id")
 		}
 		add("f.repository_id = ?", id)
+	}
+	switch v := q.Get("assignee"); v {
+	case "":
+	case "me":
+		add("f.assignee_id = ?", s.Principal(r.Context()).UserID)
+	case "none":
+		where = append(where, "f.assignee_id IS NULL")
+	default:
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return nil, nil, httpx.BadRequest("assignee must be me, none or a user id")
+		}
+		add("f.assignee_id = ?", id)
+	}
+	switch q.Get("sla") {
+	case "":
+	case "breached":
+		where = append(where, "f.sla_due_at < now() AND f.status IN ('open', 'in_progress', 'needs_review')")
+	case "due_soon":
+		where = append(where, "f.sla_due_at BETWEEN now() AND now() + interval '7 days' AND f.status IN ('open', 'in_progress', 'needs_review')")
+	default:
+		return nil, nil, httpx.BadRequest("sla must be breached or due_soon")
 	}
 	if v := strings.TrimSpace(q.Get("q")); v != "" {
 		like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(v)) + "%"
@@ -224,6 +256,7 @@ func (s *Service) getFinding(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	_ = s.DB.QueryRow(ctx, `SELECT snippet, snippet_start_line FROM findings WHERE id = $1`, f.ID).Scan(&f.Snippet, &f.SnippetStart)
 	rows, err := s.DB.Query(ctx, `SELECT sr.scan_job_id, sr.scanner_key, o.commit_sha, o.file_path, o.start_line, o.created_at
 		FROM finding_occurrences o JOIN scan_results sr ON sr.id = o.scan_result_id
 		WHERE o.finding_id = $1 ORDER BY o.created_at DESC LIMIT 50`, f.ID)

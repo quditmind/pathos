@@ -25,6 +25,7 @@ import (
 	"pathos/internal/scm"
 	"pathos/internal/search"
 	"pathos/internal/secrets"
+	"pathos/internal/vuln"
 )
 
 // Version is set at build time with -ldflags.
@@ -95,6 +96,7 @@ func Build(d Deps) Handlers {
 	repoSvc.Register(protected)
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
+	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	mcpSvc.Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)

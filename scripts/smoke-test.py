@@ -219,8 +219,8 @@ def main():
     check("dashboard returns 24 KPIs", s == 200 and len(dash.get("kpis", [])) == 24, s)
     if s == 200:
         st = {k["key"]: k for k in dash["kpis"]}
-        check("future KPIs are not_yet_available without values",
-              st["mttr_days"]["status"] == "not_yet_available" and st["mttr_days"]["value"] is None)
+        check("every KPI has a live data source (phases 1-6)", all(k["status"] == "ok" for k in dash["kpis"]),
+              [k["key"] for k in dash["kpis"] if k["status"] != "ok"])
         check("active_users has a value", st["active_users"]["status"] == "ok" and st["active_users"]["value"] >= 1)
     s, _ = admin.api("GET", "/api/v1/dashboard?days=3")
     check("invalid dashboard period -> 400", s == 400, s)
@@ -302,6 +302,33 @@ def main():
         check("revoked token stops working -> 401", st == 401, st)
     s, reg = admin.api("GET", "/api/v1/mcp-servers")
     check("MCP registry has the built-in PATHOS server", s == 200 and any(x["built_in"] and x["status"] == "approved" for x in reg["items"]), s)
+
+    print("\nVulnerability management (Phase 6)")
+    s, sla = admin.api("GET", "/api/v1/sla-policies")
+    check("default SLA policy seeded (critical 7 days)", s == 200 and sla.get("critical") == 7, sla)
+    s, lic = admin.api("GET", "/api/v1/license-policies")
+    check("default license policy denies AGPL-3.0", s == 200 and any(x["spdx_id"].startswith("AGPL-3.0") and x["decision"] == "deny" for x in lic["items"]), s)
+    s, comps = admin.api("GET", "/api/v1/sbom/components?license=violations")
+    check("SBOM component inventory -> 200", s == 200 and "items" in comps, s)
+    s, fs = admin.api("GET", "/api/v1/findings?sla=breached&assignee=none")
+    check("findings SLA/assignee filters -> 200", s == 200, s)
+    s, fs = admin.api("GET", "/api/v1/findings?severity=low,medium,high")
+    if s == 200 and fs["items"]:
+        f = fs["items"][0]
+        s, _ = admin.api("POST", f"/api/v1/findings/{f['id']}/status", {"status": "false_positive"})
+        check("false positive without a reason -> 400", s == 400, s)
+        s, _ = admin.api("POST", f"/api/v1/findings/{f['id']}/status", {"status": "accepted_risk", "reason": "smoke"})
+        check("accepted_risk only via the approval workflow -> 409", s == 409, s)
+        s, _ = admin.api("POST", f"/api/v1/findings/{f['id']}/assign", {"assignee_id": admin.api("GET", "/api/v1/me")[1]["user"]["id"]})
+        check("assign finding -> 204", s == 204, s)
+        s, ra = admin.api("POST", f"/api/v1/findings/{f['id']}/risk-acceptance",
+                          {"justification": "Smoke test: compensating WAF rule in place", "expires_at": "2099-01-01T00:00:00Z"})
+        check("risk acceptance beyond 365 days rejected -> 400", s == 400, s)
+        s, h = admin.api("GET", f"/api/v1/findings/{f['id']}/history")
+        check("status history recorded", s == 200 and len(h["items"]) >= 1, s)
+        admin.api("POST", f"/api/v1/findings/{f['id']}/assign", {"assignee_id": None})
+    else:
+        print("  (no open findings to exercise triage; run a scan first)")
 
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")

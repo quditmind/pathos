@@ -16,6 +16,7 @@ import (
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
 	"pathos/internal/scanners"
+	"pathos/internal/vuln"
 )
 
 // maxRawReport caps a decompressed report.
@@ -65,6 +66,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	}
 
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "detected again by "+up.Scanner); err != nil {
+			return err
+		}
 		resultID := uuid.Must(uuid.NewV7())
 		if _, err := tx.Exec(ctx, `INSERT INTO scan_results (id, organization_id, scan_job_id, scanner_key, scanner_version, status,
 			duration_ms, findings_count, error) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
@@ -87,6 +91,11 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, uuid.Must(uuid.NewV7()), orgID, resultID, kind, ct,
 				hex.EncodeToString(sum[:]), len(raw), recompress(gz, raw)); err != nil {
 				return err
+			}
+		}
+		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 {
+			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			}
 		}
 		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, findings)
@@ -181,6 +190,9 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 func (s *Service) Finalize(ctx context.Context, jobID uuid.UUID, workerFailed bool, workerErr string) (Job, error) {
 	var job Job
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "no longer detected by a successful scan"); err != nil {
+			return err
+		}
 		var repoID uuid.UUID
 		var failOnCritical bool
 		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical FROM scan_jobs j

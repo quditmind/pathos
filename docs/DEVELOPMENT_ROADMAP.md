@@ -205,3 +205,25 @@ docker compose up -d --build --wait && make smoke
 **Not verified:** a real review against a live provider, because no API key is available in this environment. Everything up to the HTTP call is covered with the fake provider, and the SDK path is verified up to authentication.
 
 **Next:** Phase 6, vulnerability management.
+
+## Phase 6 milestone report (2026-11-15)
+
+**Implemented:**
+- **Lifecycle in the database:** the `pathos_finding_lifecycle` trigger records every status change in an append-only history, with actor, source (`user` / `scanner` / `ai` / `expiry` / `system`) and reason. It sets SLA deadlines at detection, counts recurrences (fixed → open) and maintains `resolved_at` / `accepted_until`. Scanner auto-fix, AI decisions and manual triage all pass through it.
+- **Triage:** a manual transition map (accepted risk only via the workflow), reasons required for false positive and fixed, Critical false positives require `findings.accept_risk`, assignment, and atomic bulk status/assign of up to 1000 findings within scope.
+- **Risk acceptance:** request with justification and an expiry of at most 365 days, then approval or rejection by a different person (service check plus DB CHECK constraint), revocation, withdrawal, and automatic expiry that reopens the finding.
+- **Policies:** SLA days per severity (7/30/90/180/none by default, with deadline recomputation) and a license policy (deny AGPL/SSPL/CC-BY-NC, review GPL/LGPL-3/BUSL by default).
+- **SBOM:** Syft CycloneDX components are stored per scan. A cross-repository component search shows license-policy matches and open vulnerability counts, and each repository has a CycloneDX download.
+- **UI:**
+  - The findings page gained SLA and assignee columns, status/assignee/SLA filters and a bulk action bar.
+  - The finding drawer has a lifecycle panel (status, assignee, risk acceptance, history timeline) and a code snippet with the matched line highlighted.
+  - New pages: Risk acceptances, SBOM inventory and Policies.
+- All 24 dashboard KPIs are now live.
+
+**Tests:**
+- Integration (`TestVulnerabilityManagement`): trigger history and sources, SLA on insert and recomputation, recurrence, transition and reason rules, Critical FP guard, bulk atomicity, permission denial (viewer, analyst without accept_risk), self-approval refused, the approve → expire → reopen cycle, append-only history for the app role, CycloneDX parsing and storage, and license filters.
+- Frontend unit tests for SLA state and transition rules.
+- The smoke test now has 76 checks, adding the policy seeds, SBOM API, filters, the reason/workflow guards, assignment and history.
+- Live end to end: a rescan of `snyk-labs/nodejs-goof` stored 572 SBOM components (251 with licenses) and ranked vulnerable components (handlebars 4.0.11: 21 open). SLA deadlines were backfilled for all 337 existing findings.
+
+**Next:** Phase 7, scheduling and notifications.

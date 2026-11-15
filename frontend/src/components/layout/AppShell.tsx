@@ -24,6 +24,9 @@ import {
   Sun,
   Tags,
   Users,
+  Package,
+  Scale,
+  ShieldOff,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -50,7 +53,14 @@ const groups: NavGroup[] = [
       { label: "Scan profiles", to: "/scans/profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
     ],
   },
-  { label: "Findings", items: [{ label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" }] },
+  {
+    label: "Vulnerabilities",
+    items: [
+      { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
+      { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
+      { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "findings.read" },
+    ],
+  },
   {
     label: "AI & MCP",
     items: [
@@ -67,6 +77,7 @@ const groups: NavGroup[] = [
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
       { label: "Scanners & workers", to: "/admin/scanners", icon: <Server />, perm: "scanners.read" },
+      { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
   },

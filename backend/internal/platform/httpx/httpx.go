@@ -3,6 +3,7 @@
 package httpx
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -54,6 +55,12 @@ func WriteJSON(w http.ResponseWriter, status int, v any) {
 func WriteError(w http.ResponseWriter, r *http.Request, log *slog.Logger, err error) {
 	var e *Error
 	if !errors.As(err, &e) {
+		if errors.Is(err, context.Canceled) && r.Context().Err() != nil {
+			// The client went away (navigation, aborted fetch); nothing to report.
+			log.Debug("request canceled by client", "path", r.URL.Path, "request_id", RequestID(r))
+			w.WriteHeader(499)
+			return
+		}
 		log.Error("internal error", "err", err, "path", r.URL.Path, "request_id", RequestID(r))
 		e = E(http.StatusInternalServerError, "internal", "internal server error")
 	}

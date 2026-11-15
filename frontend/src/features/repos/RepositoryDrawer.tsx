@@ -167,6 +167,9 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {can("findings.read") && (
               <Link to="/findings" search={{ repository_id: r.id } as never} className="text-primary hover:underline">Findings →</Link>
             )}
+            {can("findings.read") && (
+              <a href={`/api/v1/repositories/${r.id}/sbom`} className="text-primary hover:underline" download>SBOM (CycloneDX)</a>
+            )}
           </div>
           {scan.isError && <Alert>{scan.error.message}</Alert>}
           {r.description && <p className="text-muted-foreground">{r.description}</p>}

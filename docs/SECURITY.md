@@ -104,9 +104,14 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - **Guardrails:** AI never closes a Critical finding and never overrides a human decision. Approval policy is per configuration, with four-eyes for interactive reviews and a written justification for closing Critical findings.
 - **MCP:** personal tokens are random 256-bit values, stored hashed with the prefix `pathos_pat_` (recognisable by secret scanners), limited to 90 days, revocable, and scoped to the MCP endpoint only. They carry the owner's live permissions. Every tool call is audited (`mcp.tool_call`). The registry can disable the server or individual tools at once.
 
+## Vulnerability management (Phase 6)
+
+- **Tamper-evident lifecycle:** status history is written by a database trigger, not application code. The app role has no UPDATE/DELETE/TRUNCATE on `finding_status_history`.
+- **Separation of duties:** risk acceptances need an approver other than the requester, enforced both in the service and by a CHECK constraint. Acceptances are capped at 365 days and expire automatically. Closing a Critical finding as a false positive requires `findings.accept_risk`.
+- **Scope:** every triage, bulk and SBOM query is filtered by the caller's scoped permissions. A bulk action fails as a whole if any finding is out of scope.
+
 ## Known gaps (tracked)
 
 - The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.
 - MFA is available in Keycloak but not enforced by default. Enforce it per realm in the Keycloak admin console.
 - Rate limiting on PATHOS endpoints is not implemented yet. Keycloak's brute-force protection covers credential guessing.
-- Personal API tokens (needed for the MCP server) arrive in Phase 5.

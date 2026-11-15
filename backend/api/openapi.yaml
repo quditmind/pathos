@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PATHOS API
-  version: 0.4.0
+  version: 0.6.0
   description: |
     PATHOS REST API (Phases 1-3: identity, RBAC, organization, audit, dashboard, search, SCM connections, repositories, applications, tags, webhooks).
 
@@ -144,7 +144,7 @@ paths:
       summary: OIDC redirect URI (sets the session cookie)
       security: []
       responses:
-        "302": { description: Redirect to return_to, or to /login?error=... on failure }
+        "302": { description: "Redirect to return_to, or to /login?error=... on failure" }
   /api/auth/logout:
     post:
       summary: End the PATHOS session
@@ -550,6 +550,8 @@ paths:
         - { name: category, in: query, schema: { type: string, enum: [secrets, sast, sca, iac, container, license, other] } }
         - { name: scanner, in: query, schema: { type: string } }
         - { name: repository_id, in: query, schema: { type: string, format: uuid } }
+        - { name: assignee, in: query, description: "me, none or a user id", schema: { type: string } }
+        - { name: sla, in: query, schema: { type: string, enum: [breached, due_soon] } }
         - { name: q, in: query, schema: { type: string } }
         - { $ref: "#/components/parameters/Cursor" }
       responses: { "200": { description: OK } }
@@ -563,6 +565,84 @@ paths:
     post: { summary: Revoke a worker (scanners.manage), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
   /api/v1/workers/{id}:
     delete: { summary: Delete a worker record, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
+  # Phase 5: AI review and MCP
+  /api/v1/ai/providers:
+    get: { summary: AI providers (keys never returned), responses: { "200": { description: OK } } }
+    post: { summary: "Create a provider (anthropic, openai, xai); the key is tested on save", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/ai/providers/{id}:
+    delete: { summary: Delete a provider, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted } } }
+  /api/v1/ai/providers/{id}/test:
+    post: { summary: Re-test the provider key, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: Status } } }
+  /api/v1/ai/configurations:
+    get: { summary: AI review configurations with versions, responses: { "200": { description: OK } } }
+    post: { summary: Create a configuration (ai.configure), parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/ai/configurations/{id}:
+    put: { summary: New immutable configuration version, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/ai/reviews:
+    get: { summary: AI reviews (filter status=pending_approval for the approval queue), responses: { "200": { description: OK } } }
+  /api/v1/ai/reviews/{id}/approve:
+    post: { summary: "Apply a review's verdict (justification required for Critical; four-eyes for interactive reviews)", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Applied }, "409": { description: Guardrail } } }
+  /api/v1/ai/reviews/{id}/reject:
+    post: { summary: Reject a review, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Rejected } } }
+  /api/v1/findings/{id}/ai-review:
+    post: { summary: Queue an AI review (ai.review), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "202": { description: Queued } } }
+  /api/v1/findings/{id}/ai-reviews:
+    get: { summary: Reviews of one finding, parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+  /api/v1/me/tokens:
+    get: { summary: Caller's personal API tokens, responses: { "200": { description: OK } } }
+    post: { summary: "Create a token (pathos_pat_…, 1–90 days, secret shown once)", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/me/tokens/{id}:
+    delete: { summary: Revoke a token, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Revoked } } }
+  /api/v1/mcp-servers:
+    get: { summary: MCP server registry, responses: { "200": { description: OK } } }
+    post: { summary: Request an MCP server, parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Requested } } }
+  /api/v1/mcp-servers/{id}/decision:
+    post: { summary: "Approve, reject or disable a server", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
+  /api/v1/mcp-servers/{id}/tools:
+    put: { summary: Tool allow-list, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
+  /api/v1/mcp-servers/{id}:
+    delete: { summary: Delete a requested server, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
+  /mcp:
+    post: { summary: "PATHOS MCP server (JSON-RPC 2.0, Streamable HTTP). Authorization: Bearer pathos_pat_…", responses: { "200": { description: JSON-RPC response }, "401": { description: Invalid token } } }
+  # Phase 6: Vulnerability management
+  /api/v1/findings/{id}/status:
+    post: { summary: "Change status {status, reason}; accepted_risk only through the risk-acceptance workflow; reason required for false_positive and fixed; Critical false positives need findings.accept_risk", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Changed }, "400": { description: Reason missing }, "409": { description: Transition not allowed } } }
+  /api/v1/findings/{id}/assign:
+    post: { summary: "Assign {assignee_id} (null unassigns)", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Assigned } } }
+  /api/v1/findings/bulk:
+    post: { summary: "Atomic bulk action {finding_ids, action: status|assign, status, reason, assignee_id} (max 1000)", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "updated count" } } }
+  /api/v1/findings/{id}/history:
+    get: { summary: Status history (append-only), parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+  /api/v1/findings/{id}/risk-acceptance:
+    post: { summary: "Request a time-boxed risk acceptance {justification, expires_at ≤ 365 days}", parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Requested }, "409": { description: Already pending/active } } }
+  /api/v1/risk-acceptances:
+    get:
+      summary: Risk acceptances in scope
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, approved, rejected, revoked, withdrawn, expired] } }
+        - { name: finding_id, in: query, schema: { type: string, format: uuid } }
+      responses: { "200": { description: OK } }
+  /api/v1/risk-acceptances/{id}/{action}:
+    post:
+      summary: "approve | reject | revoke (findings.accept_risk; approver must differ from requester) or withdraw (requester)"
+      parameters: [{ $ref: "#/components/parameters/Id" }, { name: action, in: path, required: true, schema: { type: string, enum: [approve, reject, revoke, withdraw] } }, { $ref: "#/components/parameters/CSRF" }]
+      responses: { "204": { description: OK }, "409": { description: Self-approval or wrong state } }
+  /api/v1/sla-policies:
+    get: { summary: SLA days per severity (null = none), responses: { "200": { description: OK } } }
+    put: { summary: Replace SLA days (settings.manage); recomputes open deadlines, parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Saved } } }
+  /api/v1/license-policies:
+    get: { summary: License policy (SPDX id → deny/review), responses: { "200": { description: OK } } }
+    put: { summary: Replace the license policy (settings.manage), parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Saved } } }
+  /api/v1/sbom/components:
+    get:
+      summary: Component inventory from the latest SBOM per repository, with license policy and open vulnerability counts
+      parameters:
+        - { name: q, in: query, schema: { type: string } }
+        - { name: repository_id, in: query, schema: { type: string, format: uuid } }
+        - { name: license, in: query, schema: { type: string, enum: [deny, review, violations] } }
+      responses: { "200": { description: OK } }
+  /api/v1/repositories/{id}/sbom:
+    get: { summary: Download the latest CycloneDX SBOM, parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: application/vnd.cyclonedx+json }, "404": { description: No SBOM yet } } }
 # Internal worker API (separate listener :8081, internal network only, not
 # routed by the proxy): POST /internal/worker/v1/register (bootstrap token),
 # /lease, /jobs/{id}/heartbeat, /jobs/{id}/results, /jobs/{id}/complete

@@ -33,6 +33,7 @@ import (
 	"pathos/internal/scanners"
 	"pathos/internal/scans"
 	"pathos/internal/secrets"
+	"pathos/internal/vuln"
 )
 
 var (
@@ -83,6 +84,7 @@ func TestMain(m *testing.M) {
 	orgID, _, err = org.EnsureOrganization(ctx, ownerPool, "Acme", "acme")
 	must(err)
 	must(scans.EnsureDefaultProfile(ctx, ownerPool, orgID))
+	must(vuln.EnsureDefaults(ctx, ownerPool, orgID))
 	_, err = ownerPool.Exec(ctx, `SELECT pathos_apply_app_grants()`)
 	must(err)
 	appPool, err = db.Connect(ctx, withDB(base, dbName, "pathos_app", "app"), log)

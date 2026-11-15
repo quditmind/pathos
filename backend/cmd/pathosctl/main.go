@@ -27,6 +27,7 @@ import (
 	"pathos/internal/platform/logging"
 	"pathos/internal/scanners"
 	"pathos/internal/scans"
+	"pathos/internal/vuln"
 	"pathos/internal/secrets"
 )
 
@@ -114,6 +115,9 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *s
 	id, created, err := org.EnsureOrganization(ctx, pool, cfg.OrgName, cfg.OrgSlug)
 	if err != nil {
 		return fmt.Errorf("ensure organization: %w", err)
+	}
+	if err := vuln.EnsureDefaults(ctx, pool, id); err != nil {
+		return fmt.Errorf("seed SLA and license policies: %w", err)
 	}
 	if err := scans.EnsureDefaultProfile(ctx, pool, id); err != nil {
 		return fmt.Errorf("ensure default scan profile: %w", err)

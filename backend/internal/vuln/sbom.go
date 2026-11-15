@@ -1,0 +1,233 @@
+package vuln
+
+import (
+	"bytes"
+	"compress/gzip"
+	"context"
+	"encoding/json"
+	"errors"
+	"io"
+	"net/http"
+	"slices"
+	"strings"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"pathos/internal/authz"
+	"pathos/internal/org"
+	"pathos/internal/platform/httpx"
+)
+
+// Component is one SBOM entry.
+type Component struct {
+	Name     string   `json:"name"`
+	Version  string   `json:"version"`
+	PURL     string   `json:"purl"`
+	Type     string   `json:"type"`
+	Licenses []string `json:"licenses"`
+}
+
+// ParseCycloneDX extracts components from a CycloneDX JSON document.
+func ParseCycloneDX(raw []byte) ([]Component, error) {
+	var doc struct {
+		BOMFormat  string `json:"bomFormat"`
+		Components []struct {
+			Name     string `json:"name"`
+			Group    string `json:"group"`
+			Version  string `json:"version"`
+			PURL     string `json:"purl"`
+			Type     string `json:"type"`
+			Licenses []struct {
+				License struct {
+					ID   string `json:"id"`
+					Name string `json:"name"`
+				} `json:"license"`
+				Expression string `json:"expression"`
+			} `json:"licenses"`
+		} `json:"components"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	if doc.BOMFormat != "CycloneDX" {
+		return nil, errors.New("not a CycloneDX document")
+	}
+	out := make([]Component, 0, len(doc.Components))
+	seen := map[string]bool{}
+	for _, c := range doc.Components {
+		name := c.Name
+		if c.Group != "" {
+			name = c.Group + "/" + c.Name
+		}
+		if name == "" || c.Type == "file" {
+			continue
+		}
+		key := name + "@" + c.Version + "|" + c.PURL
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		var lic []string
+		for _, l := range c.Licenses {
+			v := firstNonEmpty(l.License.ID, l.Expression, l.License.Name)
+			if v != "" && !slices.Contains(lic, v) && len(v) <= 200 {
+				lic = append(lic, v)
+			}
+		}
+		if lic == nil {
+			lic = []string{}
+		}
+		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(c.Type, 50), Licenses: lic})
+		if len(out) >= 50000 {
+			break
+		}
+	}
+	return out, nil
+}
+
+func firstNonEmpty(v ...string) string {
+	for _, s := range v {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func clip(s string, n int) string {
+	if len(s) > n {
+		return s[:n]
+	}
+	return s
+}
+
+// StoreSBOM replaces a repository's component inventory with the latest
+// SBOM (called from scan ingestion for Syft output).
+func StoreSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, raw []byte) (int, error) {
+	comps, err := ParseCycloneDX(raw)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1`, repoID); err != nil {
+		return 0, err
+	}
+	rows := make([][]any, len(comps))
+	for i, c := range comps {
+		rows[i] = []any{orgID, repoID, jobID, c.Name, c.Version, c.PURL, c.Type, c.Licenses}
+	}
+	_, err = tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
+		[]string{"organization_id", "repository_id", "scan_job_id", "name", "version", "purl", "type", "licenses"}, pgx.CopyFromRows(rows))
+	return len(comps), err
+}
+
+// ComponentGroup aggregates a component across repositories.
+type ComponentGroup struct {
+	Name         string   `json:"name"`
+	Version      string   `json:"version"`
+	PURL         string   `json:"purl"`
+	Type         string   `json:"type"`
+	Licenses     []string `json:"licenses"`
+	LicensePolicy string   `json:"license_policy"` // "", review, deny (deny wins: min() sorts deny first)
+	Repositories []string `json:"repositories"`
+	OpenVulns    int      `json:"open_vulnerabilities"`
+}
+
+// components searches the inventory (scoped to sbom.read).
+func (s *Service) components(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	p := s.Principal(ctx)
+	f := authz.FilterFor(p, authz.PermSBOMRead)
+	if f.None() {
+		s.fail(w, r, authz.ErrForbidden)
+		return
+	}
+	q := r.URL.Query()
+	scope, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 5)
+	like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(strings.TrimSpace(q.Get("q")))) + "%"
+	var repo *uuid.UUID
+	if v := q.Get("repository_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			s.fail(w, r, httpx.BadRequest("invalid repository_id"))
+			return
+		}
+		repo = &id
+	}
+	policy := q.Get("license")
+	if policy != "" && policy != "deny" && policy != "review" && policy != "violations" {
+		s.fail(w, r, httpx.BadRequest("license must be deny, review or violations"))
+		return
+	}
+	args = append([]any{p.OrganizationID, like, repo, policy}, args...)
+	rows, err := s.DB.Query(ctx, `
+		WITH c AS (
+		  SELECT sc.name, sc.version, sc.purl, sc.type, sc.licenses, r.full_name, r.id AS repo_id,
+		         (SELECT min(lp.decision) FROM license_policies lp WHERE lp.organization_id = $1 AND lp.spdx_id = ANY(sc.licenses)) AS policy
+		  FROM sbom_components sc JOIN repositories r ON r.id = sc.repository_id LEFT JOIN countries co ON co.id = r.country_id
+		  WHERE sc.organization_id = $1 AND r.archived_at IS NULL AND (lower(sc.name) LIKE $2 OR lower(sc.purl) LIKE $2)
+		    AND ($3::uuid IS NULL OR r.id = $3) AND `+scope+`)
+		SELECT c.name, c.version, max(c.purl), max(c.type),
+		       (SELECT COALESCE(array_agg(DISTINCT l), '{}') FROM c c2, unnest(c2.licenses) l WHERE c2.name = c.name AND c2.version = c.version),
+		       COALESCE(min(c.policy), ''), array_agg(DISTINCT c.full_name ORDER BY c.full_name),
+		       (SELECT count(*) FROM findings f WHERE f.repository_id = ANY(array_agg(c.repo_id)) AND f.category = 'sca'
+		          AND f.status IN ('open', 'in_progress', 'needs_review') AND f.package_name = c.name AND f.package_version = c.version)
+		FROM c
+		WHERE $4 = '' OR ($4 = 'violations' AND c.policy IS NOT NULL) OR c.policy = $4
+		GROUP BY c.name, c.version ORDER BY lower(c.name), c.version LIMIT 500`, args...)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	out, err := pgx.CollectRows(rows, pgx.RowToStructByPos[ComponentGroup])
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if out == nil {
+		out = []ComponentGroup{}
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+}
+
+// repoSBOM downloads the latest CycloneDX SBOM of a repository.
+func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	p := s.Principal(ctx)
+	id, err := pathID(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err := s.Authz.Require(ctx, p, authz.PermSBOMRead, authz.Scope{Type: authz.ScopeRepository, ID: id}); err != nil {
+		if errors.Is(err, authz.ErrForbidden) && p.HasAnywhere(authz.PermSBOMRead) {
+			err = errNotFound
+		}
+		s.fail(w, r, err)
+		return
+	}
+	var data []byte
+	var name string
+	err = s.DB.QueryRow(ctx, `SELECT a.data_gzip, r.name FROM scan_artifacts a JOIN scan_results sr ON sr.id = a.scan_result_id
+		JOIN scan_jobs j ON j.id = sr.scan_job_id JOIN repositories r ON r.id = j.repository_id
+		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID).Scan(&data, &name)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	zr, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	defer zr.Close()
+	w.Header().Set("Content-Type", "application/vnd.cyclonedx+json")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+strings.Map(func(r rune) rune {
+		if r == '"' || r == '\\' || r < 0x20 {
+			return '_'
+		}
+		return r
+	}, name)+`.cdx.json"`)
+	_, _ = io.Copy(w, io.LimitReader(zr, 512<<20))
+}
+

@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Bot, Search, ShieldCheck } from "lucide-react";
+import { Bot, Search, ShieldCheck, X } from "lucide-react";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session";
@@ -8,18 +8,20 @@ import { useAIMutation, useFindingReviews } from "@/features/ai/api";
 import { ReviewCard } from "@/features/ai/ReviewCard";
 import type { Finding, Severity } from "@/api/types";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Card, EmptyState, Input, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { Alert, Badge, Card, EmptyState, Input, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
 import { FilterBar, type FilterDef } from "@/components/data/FilterBar";
 import { severityColor, SeverityBadge } from "@/components/data/Severity";
 import { useRepositories } from "@/features/repos/api";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useCatalog, useFinding, useFindings, useFindingSummary } from "@/features/scans/api";
+import { LifecyclePanel, slaState } from "@/features/vuln/LifecyclePanel";
+import { needsReason, statusLabel, useVulnMutation } from "@/features/vuln/api";
 
-type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; q?: string; finding?: string };
+type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; q?: string; finding?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["status", "severity", "category", "scanner", "repository_id", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -48,8 +50,14 @@ const columns: Column<Finding>[] = [
   },
   { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
   { id: "rule", header: "Rule / CVE", cell: (f) => <span className="whitespace-nowrap font-mono text-[11.5px]">{f.cve || f.rule_id}</span>, csv: (f) => f.cve || f.rule_id },
-  { id: "scanners", header: "Detected by", cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
-  { id: "status", header: "Status", cell: (f) => <span className="text-[12px] capitalize">{f.status.replace("_", " ")}</span>, csv: (f) => f.status },
+  { id: "scanners", header: "Detected by", defaultHidden: true, cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
+  { id: "status", header: "Status", cell: (f) => <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.status },
+  {
+    id: "sla", header: "SLA",
+    cell: (f) => { const s = slaState(f); return s ? <Badge tone={s.tone}>{s.label.replace("SLA ", "")}</Badge> : <span className="text-muted-foreground">—</span>; },
+    csv: (f) => f.sla_due_at,
+  },
+  { id: "assignee", header: "Assignee", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.assignee_name ?? <span className="text-muted-foreground">—</span>}</span>, csv: (f) => f.assignee_name },
   { id: "first", header: "First seen", className: "tabular whitespace-nowrap text-[12px] text-muted-foreground", cell: (f) => formatDateTime(f.first_seen_at), csv: (f) => f.first_seen_at },
   { id: "fix", header: "Fixed version", defaultHidden: true, className: "text-[12px]", cell: (f) => f.fixed_version || "—", csv: (f) => f.fixed_version },
   { id: "path", header: "Location", defaultHidden: true, className: "font-mono text-[11.5px]", cell: location, csv: location },
@@ -71,17 +79,22 @@ export function FindingsPage() {
   const rows = findings.data?.pages.flatMap((p) => p.items) ?? [];
 
   const filterDefs: FilterDef[] = [
-    { key: "status", label: "Status", allLabel: "Open", options: [{ value: "fixed", label: "Fixed" }, { value: "all", label: "All statuses" }] },
+    { key: "status", label: "Status", allLabel: "Open", options: [...["in_progress", "needs_review", "fixed", "false_positive", "accepted_risk"].map((value) => ({ value, label: statusLabel[value]! })), { value: "all", label: "All statuses" }] },
+    { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
+    { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
     { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.full_name })) },
   ];
   const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
   const active = search.severity?.split(",") ?? [];
+  const { can } = useSession();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  useEffect(() => setSelected(new Set()), [JSON.stringify(filters)]);
 
   return (
     <>
-      <PageHeader title="Findings" description="Normalized, de-duplicated results from every scanner. Triage, assignment and SLAs arrive in phase 6." />
+      <PageHeader title="Findings" description="Normalized, de-duplicated results from every scanner. Select rows for bulk triage; open a finding for its lifecycle, risk acceptance and history." />
       <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
         {sevs.map((s) => (
           <button key={s} onClick={() => set({ severity: active.length === 1 && active[0] === s ? undefined : s })}
@@ -97,9 +110,12 @@ export function FindingsPage() {
         <FilterBar filters={filterDefs} values={rest as Record<string, string | undefined>} onChange={(k, v) => set({ [k]: v })}
           onReset={() => { setQ(""); void navigate({ to: "/findings", search: {} as never, replace: true }); }} />
       </Card>
+      {can("findings.triage") && selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => setSelected(new Set())} />}
       <Card>
         <DataTable
           tableId="findings"
+          selection={can("findings.triage") ? selected : undefined}
+          onSelectionChange={can("findings.triage") ? setSelected : undefined}
           exportName="pathos-findings"
           columns={columns}
           rows={rows}
@@ -134,9 +150,10 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
         <div className="space-y-5 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge value={d.severity} />
-            <span className="text-[12px] capitalize text-muted-foreground">{d.status.replace("_", " ")}</span>
+            <span className="text-[12px] text-muted-foreground">{statusLabel[d.status] ?? d.status}</span>
             {d.cvss != null && <span className="tabular text-[12px] text-muted-foreground">CVSS {d.cvss.toFixed(1)}</span>}
           </div>
+          <LifecyclePanel f={d} />
           {d.description && <p className="whitespace-pre-wrap break-words text-muted-foreground">{d.description}</p>}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div><dt className="text-[12px] text-muted-foreground">Type</dt><dd>{categoryLabel[d.category] ?? d.category}</dd></div>
@@ -151,6 +168,18 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
           </dl>
+          {d.snippet && (
+            <div>
+              <h3 className="mb-2 text-[13px] font-semibold">Code</h3>
+              <pre className="max-h-72 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11.5px] leading-5">
+                {d.snippet.split("\n").map((l, i) => {
+                  const n = (d.snippet_start_line ?? 1) + i;
+                  const hit = d.start_line != null && n === d.start_line;
+                  return <div key={i} className={cn("px-1", hit && "bg-warning/15")}><span className="mr-3 inline-block w-8 select-none text-right text-muted-foreground">{n}</span>{l}</div>;
+                })}
+              </pre>
+            </div>
+          )}
           <AISection id={d.id} />
           <div>
             <h3 className="mb-2 text-[13px] font-semibold">Sightings</h3>
@@ -191,5 +220,29 @@ function AISection({ id }: { id: string }) {
         <p className="text-[12px] text-muted-foreground">{reviews.data?.ai_status === "failed" ? "The last AI review failed; see AI settings." : "Not reviewed yet."}</p>
       )}
     </div>
+  );
+}
+
+function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
+  const { me } = useSession();
+  const [status, setStatus] = useState("");
+  const [reason, setReason] = useState("");
+  const bulk = useVulnMutation((body: unknown) => api<{ updated: number }>("/api/v1/findings/bulk", { method: "POST", body: { finding_ids: ids, ...(body as object) } }));
+  const done = { onSuccess: () => { setStatus(""); setReason(""); onDone(); } };
+  return (
+    <Card className="mb-3 flex flex-wrap items-center gap-2 border-primary/40 p-2.5">
+      <span className="text-[13px] font-medium">{ids.length} selected</span>
+      <Select aria-label="Bulk status" value={status} onChange={(e) => setStatus(e.target.value)}>
+        <option value="">Set status…</option>
+        {["open", "in_progress", "needs_review", "false_positive", "fixed"].map((s) => <option key={s} value={s}>{statusLabel[s]}</option>)}
+      </Select>
+      {status && <Input aria-label="Bulk reason" className="max-w-xs" placeholder={needsReason(status) ? "Reason (required)" : "Reason (optional)"} value={reason} onChange={(e) => setReason(e.target.value)} />}
+      {status && <Button size="sm" disabled={bulk.isPending || (needsReason(status) && reason.trim().length < 5)} onClick={() => bulk.mutate({ action: "status", status, reason }, done)}>Apply</Button>}
+      <span className="mx-1 h-5 w-px bg-border" />
+      <Button size="sm" variant="secondary" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: me.user.id }, done)}>Assign to me</Button>
+      <Button size="sm" variant="ghost" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: null }, done)}>Unassign</Button>
+      <Button size="sm" variant="ghost" className="ml-auto" aria-label="Clear selection" onClick={onDone}><X /></Button>
+      {bulk.isError && <div className="w-full"><Alert>{bulk.error.message}</Alert></div>}
+    </Card>
   );
 }

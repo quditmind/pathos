@@ -120,3 +120,19 @@ func IsForeignKeyViolation(err error) bool {
 	var pg *pgconn.PgError
 	return errors.As(err, &pg) && pg.Code == "23503"
 }
+
+// SetChangeContext attributes finding status changes made later in tx (read
+// by the pathos_finding_lifecycle trigger). source is one of user, scanner,
+// ai, expiry or system.
+func SetChangeContext(ctx context.Context, tx pgx.Tx, actor *[16]byte, source, reason string) error {
+	a := ""
+	if actor != nil {
+		a = fmt.Sprintf("%x-%x-%x-%x-%x", actor[0:4], actor[4:6], actor[6:8], actor[8:10], actor[10:16])
+	}
+	if len(reason) > 2000 {
+		reason = reason[:2000]
+	}
+	_, err := tx.Exec(ctx, `SELECT set_config('pathos.actor', $1, true), set_config('pathos.source', $2, true), set_config('pathos.reason', $3, true)`,
+		a, source, reason)
+	return err
+}

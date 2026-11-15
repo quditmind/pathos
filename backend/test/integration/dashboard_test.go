@@ -53,8 +53,10 @@ func TestDashboardSummary(t *testing.T) {
 	for _, k := range resp.KPIs {
 		byKey[k.Key] = k
 	}
-	if k := byKey["mttr_days"]; k.Status != "not_yet_available" || k.Value != nil || k.Phase != 6 {
-		t.Errorf("future KPI must not carry a value: %+v", k)
+	for _, k := range resp.KPIs {
+		if k.Status != "ok" || k.Value == nil {
+			t.Errorf("with phases 1-6 delivered every KPI has data: %+v", k)
+		}
 	}
 	if k := byKey["security_events"]; k.Status != "ok" || k.Value == nil || *k.Value < 1 || len(k.Sparkline) < 7 {
 		t.Errorf("security_events should count denied events: %+v", k)

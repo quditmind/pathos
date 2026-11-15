@@ -691,6 +691,14 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 	}
 	raw, _ := json.Marshal(out)
 	return db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		var actor *[16]byte
+		if reviewer != nil {
+			a := [16]byte(*reviewer)
+			actor = &a
+		}
+		if err := db.SetChangeContext(ctx, tx, actor, "ai", "AI review ("+source+"): "+out.Verdict); err != nil {
+			return err
+		}
 		if _, err := tx.Exec(ctx, `UPDATE ai_reviews SET status = 'superseded' WHERE finding_id = $1 AND status = 'pending_approval'`, findingID); err != nil {
 			return err
 		}
@@ -929,6 +937,10 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 			return err
 		}
 		if approve {
+			uid := [16]byte(p.UserID)
+			if err := db.SetChangeContext(ctx, tx, &uid, "ai", "AI review approved: "+req.Note); err != nil {
+				return err
+			}
 			target := map[string]string{FalsePositive: "false_positive", NeedsReview: "needs_review"}[verdict]
 			if err := applyStatus(ctx, tx, findingID, target); err != nil {
 				return err

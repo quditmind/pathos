@@ -275,6 +275,50 @@ func (q *queries) kpi(ctx context.Context, k *KPI) error {
 		return err
 	}
 	switch k.Key {
+	case "sla_breaches":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom+` AND f.sla_due_at < now()`))
+	case "accepted_risks":
+		w, args := q.scoped(authz.PermFindingsRead)
+		var n float64
+		err := q.db.QueryRow(ctx, `SELECT count(*) FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE f.organization_id = $1 AND f.status = 'accepted_risk' AND `+w, args...).Scan(&n)
+		return setF(n, err)
+	case "findings_resolved", "mttr_days":
+		w, args := q.scoped(authz.PermFindingsRead)
+		prevStart := q.start.Add(-q.end.Sub(q.start))
+		args = append(args, q.start, prevStart)
+		n := len(args)
+		var cur, prev float64
+		var mttr, mttrPrev *float64
+		err := q.db.QueryRow(ctx, fmt.Sprintf(`SELECT count(*) FILTER (WHERE f.resolved_at >= $%[1]d), count(*) FILTER (WHERE f.resolved_at < $%[1]d),
+			  round(avg(extract(epoch FROM f.resolved_at - f.first_seen_at) / 86400) FILTER (WHERE f.resolved_at >= $%[1]d)::numeric, 1)::float8,
+			  round(avg(extract(epoch FROM f.resolved_at - f.first_seen_at) / 86400) FILTER (WHERE f.resolved_at < $%[1]d)::numeric, 1)::float8
+			FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE f.organization_id = $1 AND `+w+` AND f.status = 'fixed' AND f.resolved_at >= $%[2]d`, n-1, n), args...).Scan(&cur, &prev, &mttr, &mttrPrev)
+		if err != nil {
+			return err
+		}
+		if k.Key == "findings_resolved" {
+			k.Value, k.Previous = &cur, &prev
+		} else {
+			if mttr == nil {
+				z := 0.0
+				mttr = &z
+			}
+			k.Value, k.Previous = mttr, mttrPrev
+		}
+		return nil
+	case "sbom_components", "license_violations":
+		w, args := q.scoped(authz.PermSBOMRead)
+		extra := ""
+		if k.Key == "license_violations" {
+			extra = ` AND EXISTS (SELECT 1 FROM license_policies lp WHERE lp.organization_id = $1 AND lp.decision = 'deny' AND lp.spdx_id = ANY(sc.licenses))`
+		}
+		var n float64
+		err := q.db.QueryRow(ctx, `SELECT count(DISTINCT lower(sc.name) || '@' || sc.version) FROM sbom_components sc
+			JOIN repositories r ON r.id = sc.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE sc.organization_id = $1 AND `+w+extra, args...).Scan(&n)
+		return setF(n, err)
 	case "ai_reviews", "ai_false_positive_rate", "pending_human_review":
 		w, args := q.scoped(authz.PermFindingsRead)
 		args = append(args, q.start)

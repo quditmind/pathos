@@ -100,14 +100,21 @@ erDiagram
 | `findings` | repository_id, fingerprint, scanner_key, rule_id, title, severity, cwe[], cve, cvss, file_path, status, assignee_id, first_seen_at, last_seen_at, sla_due_at, resolved_at, ai_status | Unique (repository_id, fingerprint) gives deduplication across scans |
 | `finding_occurrences` | finding_id, scan_result_id, commit_sha, line, ... | Append-only: history is never overwritten |
 | `finding_evidence` | occurrence_id, snippet (redacted), raw_ref | |
-| `finding_status_history` | finding_id, from, to, actor, reason | Lifecycle audit |
+| `finding_status_history` | finding_id, from_status, to_status, actor_id, source (`user`,`scanner`,`ai`,`expiry`,`system`), reason | Written only by the `pathos_finding_lifecycle` trigger; append-only for the app role |
+| `sla_policies` | severity, days (null = no SLA) | Trigger sets `findings.sla_due_at` on insert; edits recompute open findings |
+| `risk_acceptances` | finding_id, justification, expires_at, status (`pending`,`approved`,`rejected`,`revoked`,`withdrawn`,`expired`), requested_by, decided_by | CHECK decided_by <> requested_by; one pending/active per finding |
+| `license_policies` | spdx_id, decision (`deny`,`review`) | Applied to SBOM components at query time |
 | `ai_providers` / `ai_configurations` / `ai_configuration_versions` | provider, model, mode, instructions, thresholds, redaction policy, limits, human_approval | |
 | `ai_reviews` | finding_id, config_version_id, provider, model, model_version, verdict, confidence, output jsonb, transmitted_sha256, source (`automated`,`interactive_mcp`), approved_by | |
 | `mcp_servers` / `mcp_tool_permissions` | transport (`stdio`,`streamable_http`), endpoint, approved_by, enabled / tool, access (`read`,`write`), repo restrictions | |
 | `scan_schedules` | cadence (cron), target_type (`repository`,`region`,`business_unit`,`profile`), target_id, next_run_at | |
-| `sbom_artifacts` / `sbom_components` | format, object_key / purl, name, version, licenses | |
+| `sbom_components` | repository_id, scan_job_id, purl, name, version, type, licenses[] | Replaced per repository on each SBOM-producing scan; the raw CycloneDX stays with the scan result |
 | `notification_channels` / `notification_rules` / `notifications` | SMTP config ref / event, recipients / delivery status, attempts | |
 | `audit_logs` | actor_id, action, target_type, target_id, ip, user_agent, metadata, created_at | Append-only (app role has no UPDATE/DELETE grant) and monthly partitioning |
+
+## Finding lifecycle trigger
+
+`pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.
 
 ## Fingerprinting
 

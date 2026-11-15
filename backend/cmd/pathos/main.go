@@ -30,6 +30,7 @@ import (
 	"pathos/internal/scm"
 	"pathos/internal/secrets"
 	"pathos/internal/server"
+	"pathos/internal/vuln"
 )
 
 func main() {
@@ -202,9 +203,19 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate}}, az)
 	go aiSvc.RunWorker(ctx)
 
+	expire := func() {
+		if n, err := vuln.ExpireAcceptances(ctx, pool); err != nil {
+			log.Error("risk acceptance expiry failed", "err", err)
+		} else if n > 0 {
+			log.Info("expired risk acceptances; findings reopened", "count", n)
+		}
+	}
 	tick()
+	expire()
 	t := time.NewTicker(6 * time.Hour)
 	defer t.Stop()
+	te := time.NewTicker(10 * time.Minute)
+	defer te.Stop()
 	log.Info("jobs runner started")
 	for {
 		select {
@@ -212,6 +223,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			return ctx.Err()
 		case <-t.C:
 			tick()
+		case <-te.C:
+			expire()
 		}
 	}
 }

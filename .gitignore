@@ -26,3 +26,7 @@ coverage/
 
 # Toolchain caches (scripts/go.sh, scripts/npm.sh use ~/.cache by default)
 frontend/node_modules/
+
+# Generated caches
+__pycache__/
+*.tsbuildinfo
