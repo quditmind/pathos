@@ -1,0 +1,318 @@
+package worker
+
+import (
+	"bytes"
+	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io/fs"
+	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"syscall"
+	"time"
+)
+
+// RunInput is what a tool needs for one run.
+type RunInput struct {
+	Src    string
+	Out    string
+	SBOM   string // Syft output, for Grype
+	Config json.RawMessage
+}
+
+// Tool is one scanner binary.
+type Tool interface {
+	Version(ctx context.Context) (string, error)
+	// Run writes the tool's report to in.Out. A non-empty skipped reason
+	// means the tool deliberately did not run.
+	Run(ctx context.Context, in RunInput) (skipped string, err error)
+}
+
+// command runs a binary in its own process group (so a timeout kills every
+// child), with a scrubbed environment and bounded output capture.
+func command(ctx context.Context, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
+	cmd := exec.Command(name, args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	cmd.Env = append(baseEnv(), env...)
+	var stderr bytes.Buffer
+	cmd.Stdout = &limitedBuffer{max: 64 << 10}
+	cmd.Stderr = &limitedWriter{buf: &stderr, max: 64 << 10}
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case <-ctx.Done():
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+		<-done
+		return stderr.Bytes(), ctx.Err()
+	case err := <-done:
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			for _, c := range okCodes {
+				if ee.ExitCode() == c {
+					return stderr.Bytes(), nil
+				}
+			}
+			return stderr.Bytes(), fmt.Errorf("%s exited with %d: %s", filepath.Base(name), ee.ExitCode(), lastLine(stderr.String()))
+		}
+		return stderr.Bytes(), err
+	}
+}
+
+// baseEnv passes only what tools need; the worker's own token is never
+// visible to scanners.
+func baseEnv() []string {
+	keep := []string{"PATH", "HTTPS_PROXY", "HTTP_PROXY", "NO_PROXY", "https_proxy", "http_proxy", "no_proxy", "SSL_CERT_FILE", "TZ", "LANG"}
+	env := []string{"HOME=/tmp/home", "TMPDIR=/tmp"}
+	for _, k := range keep {
+		if v, ok := os.LookupEnv(k); ok {
+			env = append(env, k+"="+v)
+		}
+	}
+	return env
+}
+
+type limitedBuffer struct {
+	bytes.Buffer
+	max int
+}
+
+func (l *limitedBuffer) Write(p []byte) (int, error) {
+	if l.Len() < l.max {
+		l.Buffer.Write(p[:min(len(p), l.max-l.Len())])
+	}
+	return len(p), nil
+}
+
+type limitedWriter struct {
+	buf *bytes.Buffer
+	max int
+}
+
+func (l *limitedWriter) Write(p []byte) (int, error) {
+	if l.buf.Len() < l.max {
+		l.buf.Write(p[:min(len(p), l.max-l.buf.Len())])
+	}
+	return len(p), nil
+}
+
+var credRe = regexp.MustCompile(`(?i)(authorization:\s*\S+\s+)\S+|(https?://)[^@/\s]+@`)
+
+func lastLine(s string) string {
+	s = strings.TrimSpace(credRe.ReplaceAllString(s, "$1$2[REDACTED]"))
+	if i := strings.LastIndexByte(s, '\n'); i >= 0 {
+		s = s[i+1:]
+	}
+	if len(s) > 500 {
+		s = s[:500]
+	}
+	return s
+}
+
+var versionRe = regexp.MustCompile(`v?(\d+\.\d+\.\d+[\w.+-]*)`)
+
+func versionOf(ctx context.Context, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+	if m := versionRe.FindStringSubmatch(string(out)); m != nil {
+		return m[1], nil
+	}
+	return strings.TrimSpace(string(out)), nil
+}
+
+// ensureReport writes an empty SARIF log when a tool produced none (for
+// example when there was nothing to scan).
+func ensureReport(path, tool string) error {
+	if st, err := os.Stat(path); err == nil && st.Size() > 0 {
+		return nil
+	}
+	empty := fmt.Sprintf(`{"version":"2.1.0","runs":[{"tool":{"driver":{"name":%q}},"results":[]}]}`, tool)
+	return os.WriteFile(path, []byte(empty), 0o600)
+}
+
+type simpleTool struct {
+	bin         string
+	versionArgs []string
+	run         func(ctx context.Context, bin string, in RunInput) (string, error)
+}
+
+func (t simpleTool) Version(ctx context.Context) (string, error) {
+	if _, err := exec.LookPath(t.bin); err != nil {
+		return "", err
+	}
+	return versionOf(ctx, t.bin, t.versionArgs...)
+}
+
+func (t simpleTool) Run(ctx context.Context, in RunInput) (string, error) {
+	return t.run(ctx, t.bin, in)
+}
+
+// Tools returns the core worker tool set.
+func Tools(cfg Config) map[string]Tool {
+	cache := func(sub string) string { return filepath.Join(cfg.CacheDir, sub) }
+	return map[string]Tool{
+		"gitleaks": simpleTool{"gitleaks", []string{"version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			// --redact keeps secret values out of the report entirely.
+			_, err := command(ctx, nil, []int{0}, bin, "dir", in.Src, "--no-banner", "--redact", "--exit-code", "0",
+				"--report-format", "sarif", "--report-path", in.Out, "--log-level", "warn")
+			if err != nil {
+				return "", err
+			}
+			return "", ensureReport(in.Out, "gitleaks")
+		}},
+		"opengrep": simpleTool{"opengrep", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			args := []string{"scan", "--sarif", "--output", in.Out, "--quiet", "--timeout", "30", "--max-target-bytes", "1000000"}
+			n := 0
+			for _, d := range cfg.RulesDirs {
+				if hasRules(d) {
+					args = append(args, "--config", d)
+					n++
+				}
+			}
+			if n == 0 {
+				return "no rule sets available", nil
+			}
+			_, err := command(ctx, []string{"XDG_CACHE_HOME=/tmp/home/.cache"}, []int{0, 1}, bin, append(args, in.Src)...)
+			if err != nil {
+				return "", err
+			}
+			return "", ensureReport(in.Out, "opengrep")
+		}},
+		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			_, err := command(ctx, nil, []int{0}, bin, "fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
+				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", in.Src)
+			if err != nil {
+				return "", err
+			}
+			return "", ensureReport(in.Out, "trivy")
+		}},
+		"syft": simpleTool{"syft", []string{"version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			_, err := command(ctx, []string{"SYFT_CHECK_FOR_APP_UPDATE=false"}, []int{0}, bin, "scan", "dir:"+in.Src,
+				"-o", "cyclonedx-json="+in.Out, "--quiet")
+			return "", err
+		}},
+		"grype": simpleTool{"grype", []string{"version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			target := "dir:" + in.Src
+			if in.SBOM != "" {
+				target = "sbom:" + in.SBOM
+			}
+			_, err := command(ctx, []string{"GRYPE_CHECK_FOR_APP_UPDATE=false", "GRYPE_DB_CACHE_DIR=" + cache("grype")}, []int{0}, bin,
+				target, "-o", "json", "--file", in.Out, "--quiet")
+			if err != nil {
+				return "", err
+			}
+			if st, err := os.Stat(in.Out); err != nil || st.Size() == 0 {
+				return "", os.WriteFile(in.Out, []byte(`{"matches":[]}`), 0o600)
+			}
+			return "", nil
+		}},
+		"osv-scanner": simpleTool{"osv-scanner", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			// Exit 1 = vulnerabilities found; 128 = no packages found.
+			_, err := command(ctx, nil, []int{0, 1, 128}, bin, "scan", "source", "-r", "--format", "sarif", "--output-file", in.Out, in.Src)
+			if err != nil {
+				return "", err
+			}
+			return "", ensureReport(in.Out, "osv-scanner")
+		}},
+		"checkov": simpleTool{"checkov", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			dir := filepath.Dir(in.Out)
+			_, err := command(ctx, []string{"BC_SKIP_MAPPING=TRUE", "CHECKOV_RUN_SCA_PACKAGE_SCAN_V2=false"}, []int{0, 1}, bin,
+				"-d", in.Src, "-o", "sarif", "--output-file-path", filepath.Join(dir, "checkov"), "--quiet", "--soft-fail",
+				"--skip-download", "--download-external-modules", "false", "--framework",
+				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines")
+			if err != nil {
+				return "", err
+			}
+			if b, err := os.ReadFile(filepath.Join(dir, "checkov", "results_sarif.sarif")); err == nil {
+				return "", os.WriteFile(in.Out, b, 0o600)
+			}
+			return "", ensureReport(in.Out, "checkov")
+		}},
+	}
+}
+
+func hasRules(dir string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil || found {
+			return filepath.SkipDir
+		}
+		if !d.IsDir() && (strings.HasSuffix(p, ".yml") || strings.HasSuffix(p, ".yaml")) {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
+var refRe = regexp.MustCompile(`^[A-Za-z0-9._/+@-]{1,255}$`)
+var shaRe = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
+
+// clone performs a shallow, hardened clone of one ref. The credential is
+// passed through GIT_CONFIG_* environment variables, never in argv or the
+// remote URL, and git hooks, file:// and ext:: transports and symlinks are
+// disabled.
+func clone(ctx context.Context, job Job, dst string, maxBytes int64) error {
+	u, err := url.Parse(job.CloneURL)
+	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
+		return errors.New("clone URL must be http(s) without embedded credentials")
+	}
+	if !refRe.MatchString(job.Ref) || strings.HasPrefix(job.Ref, "-") || strings.Contains(job.Ref, "..") {
+		return errors.New("invalid ref")
+	}
+	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
+	if job.Credential != nil && job.Credential.Token != "" {
+		basic := base64.StdEncoding.EncodeToString([]byte(job.Credential.Username + ":" + job.Credential.Token))
+		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
+	}
+	hardening := []string{
+		"-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
+		"-c", "core.fsmonitor=false", "-c", "core.symlinks=false", "-c", "submodule.recurse=false",
+		"-c", "transfer.fsckObjects=true", "-c", "http.followRedirects=false",
+	}
+	args := append(append([]string{}, hardening...), "clone", "--depth", "1", "--single-branch", "--no-tags",
+		"--branch", job.Ref, "--", job.CloneURL, dst)
+	if _, err := command(ctx, env, []int{0}, "git", args...); err != nil {
+		return err
+	}
+	if job.CommitSHA != "" && shaRe.MatchString(job.CommitSHA) {
+		head, _ := exec.CommandContext(ctx, "git", "-C", dst, "rev-parse", "HEAD").Output()
+		if !strings.HasPrefix(strings.TrimSpace(string(head)), job.CommitSHA) {
+			fetch := append(append([]string{}, hardening...), "-C", dst, "fetch", "--depth", "1", "origin", job.CommitSHA)
+			if _, err := command(ctx, env, []int{0}, "git", fetch...); err == nil {
+				_, _ = command(ctx, nil, []int{0}, "git", "-C", dst, "-c", "core.hooksPath=/dev/null", "checkout", "--detach", "--quiet", job.CommitSHA)
+			}
+		}
+	}
+	// History is not needed by the scanners; removing it also removes the
+	// remote configuration.
+	if err := os.RemoveAll(filepath.Join(dst, ".git")); err != nil {
+		return err
+	}
+	var size int64
+	err = filepath.WalkDir(dst, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if info, err := d.Info(); err == nil && !d.IsDir() {
+			size += info.Size()
+			if size > maxBytes {
+				return fmt.Errorf("repository exceeds the %d MB size limit", maxBytes>>20)
+			}
+		}
+		return nil
+	})
+	return err
+}

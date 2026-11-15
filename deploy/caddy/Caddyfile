@@ -22,8 +22,11 @@
 		reverse_proxy api:8080
 	}
 
-	# Health endpoints are not exposed publicly.
+	# Health endpoints and the internal worker API are never exposed.
 	handle /healthz {
+		respond 404
+	}
+	handle /internal/* {
 		respond 404
 	}
 

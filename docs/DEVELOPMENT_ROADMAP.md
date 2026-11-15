@@ -8,7 +8,7 @@ Each phase ends with: working features, automated tests passing, `docker compose
 | 1 Foundation | **Done (2026-11-15)**: see milestone report below |
 | 2 Premium UI & dashboard | **Done (2026-11-15)**: see milestone report below |
 | 3 Repository & asset management | **Done (2026-11-15)**: see milestone report below |
-| 4 Scanning engine | Not started |
+| 4 Scanning engine | **Done (2026-11-15)**: see milestone report below |
 | 5 AI & MCP | Not started |
 | 6 Vulnerability management | Not started |
 | 7 Scheduling & notifications | Not started |
@@ -125,3 +125,48 @@ docker compose up -d --build --wait && make smoke
 **Deviations:** repository metadata (default branch, archived flag, last push) is captured at import time; periodic re-sync with the SCM moves to the Phase 7 scheduler. Webhook events are recorded but trigger nothing until Phase 4.
 
 **Next:** Phase 4, the scanning engine.
+
+## Phase 4 milestone report (2026-11-15)
+
+**Implemented:**
+- **Catalog:** all 52 integrations (plus Syft), synced from `internal/scanners/catalog.go`. The seven `worker-core` tools are runnable today; the rest are marked *planned* with their worker family.
+- **Scan profiles:** immutable versions (settings plus scanners, with a version history and change notes). Gitleaks is locked on, enforced by the API and by a deferred database constraint trigger. Also: a default profile, per-repository assignment, severity threshold, glob exclusions, timeout, raw-report retention and a security gate on new critical findings.
+- **Jobs:**
+  - Manual, bulk and webhook-triggered (push/merge to the scan branch).
+  - Each repository has at most one queued job, which absorbs new triggers, and one running job.
+  - Priority queue with `SKIP LOCKED` leasing, lease heartbeats, expiry/retry (3 attempts) and cancellation, delivered to the worker through its heartbeat.
+- **Worker API** (`:8081`, internal network only, 404 at the proxy):
+  - The bootstrap token is exchanged for a per-worker token (hashed, revocable). A revoked worker name cannot re-register.
+  - Workers receive a clone credential per job: a ≤1 h installation token for GitHub Apps, otherwise the PAT.
+- **`worker-core` image:**
+  - Gitleaks 8.30.1, Opengrep 2.0.0, Trivy 0.76.2, Syft 1.57.1, Grype 0.121.3, OSV-Scanner 2.7.1, Checkov 3.4.5. Every binary is pinned by SHA-256.
+  - Runs non-root with a read-only root filesystem, `cap_drop: ALL`, a tmpfs workspace, and memory and PID limits. No Docker socket and no platform secrets.
+  - Hardened shallow clone: credential via environment only, no hooks, no `file://`/`ext::`, no symlinks, fsck, no redirects, size cap. `.git` is deleted before scanning.
+  - Each tool runs in its own process group, so a timeout kills every child.
+- **Egress proxy** (Squid): workers can only reach the allowlisted SCM hosts and vulnerability databases. Private ranges and cloud metadata are denied, and access is logged to a volume.
+- **Normalization** (server-side): a SARIF parser plus the Grype JSON parser (for CVE aliases, fixes and CVSS); severity mapping; repository-relative paths; and line-independent fingerprints.
+  - Cross-tool SCA de-duplication: the same CVE in the same package from Trivy, Grype and OSV is one finding listing all three tools.
+  - Findings below the threshold and in excluded paths are dropped.
+  - Findings no longer reported are auto-fixed, but only when every scanner that detected them succeeded.
+- **Raw reports and SBOMs** stored gzip-compressed and downloadable; a nightly retention prune.
+- **PATHOS baseline Opengrep rules** (12 original rules, Apache-2.0). Community rule packs with Commons Clause terms are not bundled (D5); administrators mount their own at `workers/rules-extra`.
+- **Dashboard:** open/critical/high findings, risk score, exposed secrets, vulnerable dependencies, scan coverage, scans completed and success rate, plus the severity trend, distribution, riskiest repositories and scans-by-scanner charts are live.
+- **UI:** Scans (live polling, per-scanner results, raw downloads, cancel), Findings (read-only, severity summary, filters, sightings), Scan profiles (editor with locked Gitleaks and history), Scanners & workers, and *Scan now* / bulk scan / profile selection on repositories.
+
+**Verified end to end:**
+- A live scan of the public `snyk-labs/nodejs-goof` through the egress proxy: all 7 tools succeeded in about 2 minutes on a cold cache.
+- 814 raw SCA results were de-duplicated into 336 findings.
+- The rescan took 24 s with cached databases, and fingerprints were stable (1 new finding from an updated rule, 0 spuriously fixed).
+
+**Tests:**
+- Parser unit tests on real tool output: counts, redaction, Opengrep normalization, cross-tool fingerprint equality, Grype enrichment, exclusions and malformed input.
+- The `TestScanPipeline` integration test: profiles, coalescing, RBAC, worker auth and isolation between workers, fixture ingestion, dedup, auto-fix with a failed scanner, cancel, lease expiry, revocation and default-profile protection.
+- Smoke test now has 58 checks.
+
+**Deviations:**
+- Raw reports and SBOMs are stored in PostgreSQL (`scan_artifacts`, gzip) behind one code path, instead of SeaweedFS/S3. Moving them to object storage is scheduled for Phase 8.
+- Pull-request webhooks are recorded but do not trigger scans (findings are tracked per scan branch).
+- Only the `core` worker family is built.
+- Public repositories fall back to an anonymous clone when the stored credential is rejected; private ones never do.
+
+**Next:** Phase 5, AI review and MCP.

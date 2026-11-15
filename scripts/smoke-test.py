@@ -220,7 +220,7 @@ def main():
     if s == 200:
         st = {k["key"]: k for k in dash["kpis"]}
         check("future KPIs are not_yet_available without values",
-              st["open_findings"]["status"] == "not_yet_available" and st["open_findings"]["value"] is None)
+              st["mttr_days"]["status"] == "not_yet_available" and st["mttr_days"]["value"] is None)
         check("active_users has a value", st["active_users"]["status"] == "ok" and st["active_users"]["value"] >= 1)
     s, _ = admin.api("GET", "/api/v1/dashboard?days=3")
     check("invalid dashboard period -> 400", s == 400, s)
@@ -256,6 +256,27 @@ def main():
     if s == 200:
         st = {k["key"]: k for k in dash["kpis"]}
         check("repositories KPI is live", st["repositories"]["status"] == "ok", st["repositories"]["status"])
+
+    print("\nScanning engine (Phase 4)")
+    s, cat = admin.api("GET", "/api/v1/scanners")
+    check("scanner catalog lists 52 integrations + Syft", s == 200 and len(cat["items"]) == 53, s)
+    if s == 200:
+        avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
+        check("7 core scanners runnable", avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft"]), avail)
+    s, profs = admin.api("GET", "/api/v1/scan-profiles")
+    check("default scan profile seeded", s == 200 and any(p["is_default"] for p in profs["items"]), s)
+    if s == 200:
+        d = next(p for p in profs["items"] if p["is_default"])
+        check("default profile includes Gitleaks", any(x["key"] == "gitleaks" for x in d["current"]["scanners"]))
+    s, workers = admin.api("GET", "/api/v1/workers")
+    online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
+    check("at least one scan worker online", len(online) >= 1, workers)
+    if online:
+        check("worker reports all core tool versions", len(online[0]["scanners"]) == 7, online[0]["scanners"])
+    st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
+    check("internal worker API not reachable through the proxy -> 404", st == 404, st)
+    s, fs = admin.api("GET", "/api/v1/findings")
+    check("findings API -> 200", s == 200 and "items" in fs, s)
 
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")

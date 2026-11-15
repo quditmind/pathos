@@ -192,3 +192,19 @@ func (s *Service) client(ctx context.Context, c Connection) (scm.Client, error) 
 	}
 	return scm.New(cfg)
 }
+
+// CloneCredential returns a clone credential for a repository's connection.
+// Used by the scan service when handing a job to a worker.
+func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.UUID) (scm.Credential, error) {
+	c, err := s.getConn(ctx, s.DB, orgID, connectionID)
+	if err != nil {
+		return scm.Credential{}, err
+	}
+	cl, err := s.client(ctx, c)
+	if err != nil {
+		return scm.Credential{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	return cl.CloneCredential(ctx)
+}

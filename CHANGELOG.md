@@ -1,6 +1,16 @@
 # Changelog
 
-## [Unreleased] — Phase 3: Repository & asset management (2026-11-15)
+## [Unreleased] — Phase 4: Scanning engine (2026-11-15)
+
+### Added
+- Scanner catalog (52 integrations), versioned scan profiles with mandatory Gitleaks, scan jobs with priority leasing, retries, cancellation and webhook triggers.
+- `worker-core` image (Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov; checksum-pinned) and the `pathos-worker` agent with a hardened clone. Internal worker API with per-worker revocable tokens.
+- Squid egress proxy with an allowlist and denial of private and metadata destinations.
+- Server-side normalization: SARIF and Grype JSON parsing, cross-tool de-duplication, line-independent fingerprints, auto-resolution and a security gate. Raw report/SBOM storage with retention.
+- PATHOS baseline Opengrep rules (Apache-2.0).
+- UI: Scans, Findings (read-only), Scan profiles, Scanners & workers, Scan now / bulk scan; live scanning KPIs and charts.
+
+## Phase 3: Repository & asset management (2026-11-15)
 
 ### Added
 - SCM connections: GitHub (PAT or GitHub App), GitHub Enterprise Server, Azure DevOps Services and Server. Credentials are encrypted and write-only; outbound calls are SSRF-protected.

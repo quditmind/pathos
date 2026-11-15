@@ -24,6 +24,7 @@ import (
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
+	"pathos/internal/scans"
 	"pathos/internal/scm"
 	"pathos/internal/secrets"
 	"pathos/internal/server"
@@ -103,27 +104,46 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 
+	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
+		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
+		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken})
 	srv := &http.Server{
-		Addr: cfg.HTTPAddr,
-		Handler: server.Handler(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
-			Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
-			PublicURL: cfg.PublicURL.String()}),
+		Addr:              cfg.HTTPAddr,
+		Handler:           handlers.Public,
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      60 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    64 << 10,
 	}
-	errc := make(chan error, 1)
+	// Internal worker API on its own listener and network; never proxied.
+	workerSrv := &http.Server{
+		Addr:              cfg.WorkerAPIAddr,
+		Handler:           handlers.Worker,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       5 * time.Minute, // large result uploads
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
+	}
+	errc := make(chan error, 2)
 	go func() {
 		log.Info("listening", "addr", cfg.HTTPAddr)
 		errc <- srv.ListenAndServe()
 	}()
+	if cfg.WorkerBootstrapToken != "" {
+		go func() {
+			log.Info("worker API listening", "addr", cfg.WorkerAPIAddr)
+			errc <- workerSrv.ListenAndServe()
+		}()
+	} else {
+		log.Warn("PATHOS_WORKER_BOOTSTRAP_TOKEN not set: worker API disabled, scans will stay queued")
+	}
 	select {
 	case err := <-errc:
 		return err
 	case <-ctx.Done():
 	}
+	defer workerSrv.Close()
 	log.Info("shutting down")
 	sctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
@@ -141,6 +161,11 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	tick := func() {
 		if err := org.EnsureAuditPartitions(ctx, pool); err != nil {
 			log.Error("audit partition maintenance failed", "err", err)
+		}
+		if n, err := scans.PruneArtifacts(ctx, pool); err != nil {
+			log.Error("artifact retention failed", "err", err)
+		} else if n > 0 {
+			log.Info("pruned scan artifacts past retention", "count", n)
 		}
 	}
 	// Minimal health listener for container health checks.

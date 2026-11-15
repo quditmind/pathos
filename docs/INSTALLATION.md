@@ -66,6 +66,16 @@ All settings live in `.env`; `.env.example` documents each one. The common chang
    - The webhook URL must be reachable from the SCM, so set `PATHOS_PUBLIC_URL` to a public hostname.
 3. **Administration → Tags:** create tag categories (for example a mandatory *Team*), then go to **Repositories → Import repositories** and select repositories or upload a CSV. Validate CSV imports with a dry run first.
 
+## Scan workers
+
+`docker compose up -d` starts one `worker-core` (Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov) and the `egress` proxy.
+
+- **Scale:** `docker compose up -d --scale worker-core=4`. Each worker runs one scan at a time; plan 1–4 GB of RAM per worker (`PATHOS_WORKER_MEMORY`, `PATHOS_WORKER_TMPFS`).
+- **First scans** download vulnerability databases (~1 GB) into the `scanner_cache` volume through the proxy; later scans reuse them.
+- **Egress:** allowed destinations are in `deploy/egress/allowlist.txt`. For GitHub Enterprise Server or Azure DevOps Server on a private network, add a file in `deploy/egress/conf.d/` (example inside) and restart `egress`. Access log: `docker compose exec egress tail -f /var/log/squid/access.log`.
+- **Opengrep rules:** PATHOS ships its own baseline rules. Mount additional rule sets as `*.yml` in `workers/rules-extra/`; they are read-only at `/rules` in every worker.
+- **Workers page:** *Administration → Scanners & workers* shows online workers and tool versions. Revoking a worker stops it immediately.
+
 ## Day-2 operations
 
 ```bash

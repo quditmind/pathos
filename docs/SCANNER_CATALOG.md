@@ -1,6 +1,6 @@
 # Scanner Catalog
 
-Status: **preliminary (Phase 0)**. Each entry is verified again when its adapter is built (Phase 4+): license text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15. Entries marked *unverified* were not checked because of an API rate limit.
+Status: **Phase 4**. The seven `worker-core` tools (Gitleaks, Opengrep, Trivy fs, Syft, Grype, OSV-Scanner, Checkov) are implemented and pinned. The others are catalogued in `backend/internal/scanners/catalog.go` as *planned* until their worker family image ships. Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. Each entry is verified again when its adapter is built (Phase 4+): license text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15. Entries marked *unverified* were not checked because of an API rate limit.
 
 Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** = excluded (reason given). Build = requires building the target code (disabled by default, see ARCHITECTURE.md §5).
 

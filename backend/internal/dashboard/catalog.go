@@ -49,10 +49,10 @@ var Groups = []string{"Risk posture", "Remediation", "Assets & coverage", "Scann
 
 // KPIs is the 24-card catalog (6×4 grid on desktop).
 var KPIs = []KPIDef{
-	{"open_findings", "Open findings", "Risk posture", "Findings not resolved, accepted or marked false positive", UnitCount, LowerIsBetter, 6, "/findings?status=open", authz.PermFindingsRead, true},
-	{"critical_findings", "Critical open", "Risk posture", "Open findings with Critical severity", UnitCount, LowerIsBetter, 6, "/findings?status=open&severity=critical", authz.PermFindingsRead, true},
-	{"high_findings", "High open", "Risk posture", "Open findings with High severity", UnitCount, LowerIsBetter, 6, "/findings?status=open&severity=high", authz.PermFindingsRead, true},
-	{"risk_score", "Risk score", "Risk posture", "Severity-weighted open findings per 10 repositories", UnitScore, LowerIsBetter, 6, "/findings?status=open", authz.PermFindingsRead, true},
+	{"open_findings", "Open findings", "Risk posture", "Findings not resolved, accepted or marked false positive", UnitCount, LowerIsBetter, 4, "/findings?status=open", authz.PermFindingsRead, true},
+	{"critical_findings", "Critical open", "Risk posture", "Open findings with Critical severity", UnitCount, LowerIsBetter, 4, "/findings?status=open&severity=critical", authz.PermFindingsRead, true},
+	{"high_findings", "High open", "Risk posture", "Open findings with High severity", UnitCount, LowerIsBetter, 4, "/findings?status=open&severity=high", authz.PermFindingsRead, true},
+	{"risk_score", "Risk score", "Risk posture", "Severity-weighted open findings per repository (critical 10, high 5, medium 2, low 0.5)", UnitScore, LowerIsBetter, 4, "/findings?status=open", authz.PermFindingsRead, true},
 	{"secrets_exposed", "Exposed secrets", "Risk posture", "Open secret findings (Gitleaks, TruffleHog, …)", UnitCount, LowerIsBetter, 4, "/findings?status=open&category=secrets", authz.PermFindingsRead, true},
 	{"vulnerable_dependencies", "Vulnerable dependencies", "Risk posture", "Distinct packages with open SCA findings", UnitCount, LowerIsBetter, 4, "/findings?status=open&category=sca", authz.PermFindingsRead, true},
 
@@ -83,7 +83,7 @@ var KPIs = []KPIDef{
 
 // CurrentPhase is the last completed roadmap phase; KPIs with Phase <= it
 // have a data source.
-const CurrentPhase = 3
+const CurrentPhase = 4
 
 // ChartDef defines one chart panel.
 type ChartDef struct {
@@ -96,9 +96,9 @@ type ChartDef struct {
 }
 
 var Charts = []ChartDef{
-	{"findings_trend", "Open findings by severity", "stacked_bar", 6, authz.PermFindingsRead, "/findings"},
-	{"severity_distribution", "Severity distribution", "donut", 6, authz.PermFindingsRead, "/findings"},
-	{"top_repositories", "Riskiest repositories", "bar", 6, authz.PermFindingsRead, "/repositories"},
+	{"findings_trend", "Open findings by severity", "stacked_bar", 4, authz.PermFindingsRead, "/findings"},
+	{"severity_distribution", "Severity distribution", "donut", 4, authz.PermFindingsRead, "/findings"},
+	{"top_repositories", "Riskiest repositories", "bar", 4, authz.PermFindingsRead, "/repositories"},
 	{"repos_by_criticality", "Repositories by criticality", "bar", 3, authz.PermReposRead, "/repositories"},
 	{"scanner_activity", "Scans by scanner", "bar", 4, authz.PermScansRead, "/scans"},
 	{"sign_ins", "Sign-ins per day", "line", 1, authz.PermAuditRead, "/admin/audit?action=auth.login"},

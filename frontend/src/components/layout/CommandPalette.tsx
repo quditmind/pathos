@@ -3,7 +3,7 @@ import { Command } from "cmdk";
 import * as D from "@radix-ui/react-dialog";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Boxes, Building2, FileClock, GitBranch, Globe2, LayoutDashboard, LogOut, MapPin, Moon, Plug, Search, Tags, UserRound, Users } from "lucide-react";
+import { Boxes, Building2, Radar, ShieldAlert, FileClock, GitBranch, Globe2, LayoutDashboard, LogOut, MapPin, Moon, Plug, Search, Tags, UserRound, Users } from "lucide-react";
 import { api } from "@/api/client";
 import { splitHref } from "@/lib/utils";
 import type { SearchResult } from "@/api/types";
@@ -74,6 +74,10 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
     { label: "Repositories", to: "/repositories", icon: <GitBranch />, show: can("repos.read") },
     { label: "Import repositories", to: "/repositories/import", icon: <GitBranch />, show: can("repos.manage") },
     { label: "Applications", to: "/applications", icon: <Boxes />, show: can("repos.read") },
+    { label: "Findings", to: "/findings", icon: <ShieldAlert />, show: can("findings.read") },
+    { label: "Scans", to: "/scans", icon: <Radar />, show: can("scans.read") },
+    { label: "Scan profiles", to: "/scans/profiles", icon: <Radar />, show: can("scans.read") },
+    { label: "Scanners & workers", to: "/admin/scanners", icon: <Radar />, show: can("scanners.read") },
     { label: "Users", to: "/admin/users", icon: <Users />, show: canOrgWide("users.read") },
     { label: "SCM connections", to: "/admin/scm", icon: <Plug />, show: canOrgWide("scm.manage") },
     { label: "Tags", to: "/admin/tags", icon: <Tags />, show: can("repos.read") },

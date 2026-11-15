@@ -44,6 +44,10 @@ type Config struct {
 	SessionIdleTTL     time.Duration
 	SessionAbsoluteTTL time.Duration
 
+	// Worker API (internal listener for scan workers).
+	WorkerAPIAddr        string
+	WorkerBootstrapToken string
+
 	// SCM network policy (see internal/scm/safehttp.go).
 	SCMAllowPrivate bool
 	SCMAllowHTTP    bool
@@ -120,6 +124,8 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 		RedisURL:            get("PATHOS_REDIS_URL", ""),
 		SessionIdleTTL:      dur("PATHOS_SESSION_IDLE_TTL", "8h"),
 		SessionAbsoluteTTL:  dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		WorkerAPIAddr:        get("PATHOS_WORKER_API_ADDR", ":8081"),
+		WorkerBootstrapToken: get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
 		SCMAllowPrivate:     get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
 		SCMAllowHTTP:        get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
 		OrgName:             get("PATHOS_ORG_NAME", "Default Organization"),
@@ -157,6 +163,9 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 	if c.DatabaseURL == "" {
 		errs = append(errs, errors.New("PATHOS_DATABASE_URL is required"))
+	}
+	if c.WorkerBootstrapToken != "" && len(c.WorkerBootstrapToken) < 32 {
+		errs = append(errs, errors.New("PATHOS_WORKER_BOOTSTRAP_TOKEN must be at least 32 characters"))
 	}
 	if c.SCMAllowHTTP && c.IsProduction() {
 		errs = append(errs, errors.New("PATHOS_SCM_ALLOW_HTTP is only allowed in development"))

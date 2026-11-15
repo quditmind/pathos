@@ -25,6 +25,8 @@ import (
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
+	"pathos/internal/scanners"
+	"pathos/internal/scans"
 	"pathos/internal/secrets"
 )
 
@@ -106,9 +108,15 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *s
 	if err := org.SyncCatalog(ctx, pool); err != nil {
 		return fmt.Errorf("sync rbac catalog: %w", err)
 	}
+	if err := scanners.Sync(ctx, pool); err != nil {
+		return fmt.Errorf("sync scanner catalog: %w", err)
+	}
 	id, created, err := org.EnsureOrganization(ctx, pool, cfg.OrgName, cfg.OrgSlug)
 	if err != nil {
 		return fmt.Errorf("ensure organization: %w", err)
+	}
+	if err := scans.EnsureDefaultProfile(ctx, pool, id); err != nil {
+		return fmt.Errorf("ensure default scan profile: %w", err)
 	}
 	if err := org.EnsureAuditPartitions(ctx, pool); err != nil {
 		return err

@@ -74,6 +74,7 @@ type Repository struct {
 	Environment    string     `json:"environment"`
 	Criticality    string     `json:"criticality"`
 	ScanEnabled    bool       `json:"scan_enabled"`
+	ScanProfileID  *uuid.UUID `json:"scan_profile_id"`
 	RemoteArchived bool       `json:"remote_archived"`
 	LastPushedAt   *time.Time `json:"last_pushed_at"`
 	ArchivedAt     *time.Time `json:"archived_at"`
@@ -85,7 +86,7 @@ const repoSelect = `
 	SELECT r.id, r.scm_connection_id, c.name, c.provider, r.external_id, r.full_name, r.name, r.url,
 	       r.default_branch, r.scan_branch, r.visibility, r.description, r.technologies,
 	       a.id, a.name, b.id, b.name, co.id, co.name, co.code, rg.id, rg.name,
-	       r.environment, r.criticality, r.scan_enabled, r.remote_archived, r.last_pushed_at, r.archived_at, r.created_at,
+	       r.environment, r.criticality, r.scan_enabled, r.scan_profile_id, r.remote_archived, r.last_pushed_at, r.archived_at, r.created_at,
 	       COALESCE((SELECT json_agg(json_build_object('id', t.id, 'name', t.name, 'color', t.color,
 	                   'category_id', tc.id, 'category_name', tc.name) ORDER BY tc.name, t.name)
 	                 FROM repository_tags rt JOIN tags t ON t.id = rt.tag_id JOIN tag_categories tc ON tc.id = t.category_id
@@ -112,7 +113,7 @@ func scanRepo(row pgx.Row) (Repository, error) {
 	err := row.Scan(&r.ID, &r.ConnectionID, &r.ConnectionName, &r.Provider, &r.ExternalID, &r.FullName, &r.Name, &r.URL,
 		&r.DefaultBranch, &r.ScanBranch, &r.Visibility, &r.Description, &r.Technologies,
 		&appID, &appName, &buID, &buName, &coID, &coName, &coCode, &rgID, &rgName,
-		&r.Environment, &r.Criticality, &r.ScanEnabled, &r.RemoteArchived, &r.LastPushedAt, &r.ArchivedAt, &r.CreatedAt, &tags)
+		&r.Environment, &r.Criticality, &r.ScanEnabled, &r.ScanProfileID, &r.RemoteArchived, &r.LastPushedAt, &r.ArchivedAt, &r.CreatedAt, &tags)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, errNotFound
 	}

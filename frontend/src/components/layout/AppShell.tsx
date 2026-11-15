@@ -14,6 +14,7 @@ import {
   Moon,
   Radar,
   Search,
+  Server,
   ShieldAlert,
   SlidersHorizontal,
   Plug,
@@ -42,11 +43,11 @@ const groups: NavGroup[] = [
   {
     label: "Scanning",
     items: [
-      { label: "Scans", icon: <Radar />, phase: 4 },
-      { label: "Scan profiles", icon: <SlidersHorizontal />, phase: 4 },
+      { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
+      { label: "Scan profiles", to: "/scans/profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
     ],
   },
-  { label: "Findings", items: [{ label: "Findings", icon: <ShieldAlert />, phase: 6 }] },
+  { label: "Findings", items: [{ label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" }] },
   { label: "AI & MCP", items: [{ label: "AI reviews", icon: <Bot />, phase: 5 }] },
   {
     label: "Administration",
@@ -55,6 +56,7 @@ const groups: NavGroup[] = [
       { label: "Organization", to: "/admin/organization", icon: <Building2 />, perm: "org.read" },
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
+      { label: "Scanners & workers", to: "/admin/scanners", icon: <Server />, perm: "scanners.read" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
   },
@@ -91,7 +93,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (
@@ -113,7 +115,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
                 {items.map((it) => {
-                  const active = it.to && (it.to === "/" ? path === "/" : path.startsWith(it.to));
+                  const active =
+                    it.to &&
+                    (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));
                   const cls = cn(
                     "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] [&_svg]:size-4 [&_svg]:shrink-0",
                     active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",

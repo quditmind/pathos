@@ -30,6 +30,8 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
+	"pathos/internal/scanners"
+	"pathos/internal/scans"
 	"pathos/internal/secrets"
 )
 
@@ -74,8 +76,10 @@ func TestMain(m *testing.M) {
 	must(err)
 	must(db.Migrate(ctx, ownerPool, log))
 	must(org.SyncCatalog(ctx, ownerPool))
+	must(scanners.Sync(ctx, ownerPool))
 	orgID, _, err = org.EnsureOrganization(ctx, ownerPool, "Acme", "acme")
 	must(err)
+	must(scans.EnsureDefaultProfile(ctx, ownerPool, orgID))
 	_, err = ownerPool.Exec(ctx, `SELECT pathos_apply_app_grants()`)
 	must(err)
 	appPool, err = db.Connect(ctx, withDB(base, dbName, "pathos_app", "app"), log)

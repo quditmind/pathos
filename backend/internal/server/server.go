@@ -19,6 +19,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/repos"
+	"pathos/internal/scans"
 	"pathos/internal/scm"
 	"pathos/internal/search"
 	"pathos/internal/secrets"
@@ -37,10 +38,21 @@ type Deps struct {
 	Secrets     *secrets.Store
 	SCMNet      scm.NetPolicy
 	PublicURL   string
+	// WorkerBootstrapToken enables worker registration.
+	WorkerBootstrapToken string
 }
 
-// Handler builds the root handler.
-func Handler(d Deps) http.Handler {
+// Handlers bundles the public handler and the internal worker handler.
+type Handlers struct {
+	Public http.Handler
+	Worker http.Handler
+}
+
+// Handler builds the public handler (kept for tests and simple callers).
+func Handler(d Deps) http.Handler { return Build(d).Public }
+
+// Build assembles the public API and the internal worker API.
+func Build(d Deps) Handlers {
 	az := &authz.Authorizer{H: &org.Hierarchy{DB: d.DB, OrgID: d.OrgID}}
 
 	public := http.NewServeMux()
@@ -53,6 +65,9 @@ func Handler(d Deps) http.Handler {
 
 	repoSvc := &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log,
 		Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
+		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID}
+	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
 
 	protected := http.NewServeMux()
@@ -71,12 +86,16 @@ func Handler(d Deps) http.Handler {
 	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	repoSvc.Register(protected)
+	scanSvc.Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})
 
 	public.Handle("/api/", d.Auth.RequireAuth(protected))
-	return httpx.Middleware(d.Log, d.Auth.Authenticate(public))
+	return Handlers{
+		Public: httpx.Middleware(d.Log, d.Auth.Authenticate(public)),
+		Worker: httpx.Middleware(d.Log, scanSvc.InternalHandler()),
+	}
 }
 
 func readiness(d Deps) http.HandlerFunc {

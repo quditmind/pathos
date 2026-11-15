@@ -2,6 +2,7 @@ package dashboard
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -167,8 +168,8 @@ func (h *Handlers) summary(w http.ResponseWriter, r *http.Request) {
 	start := end.AddDate(0, 0, -f.Days)
 	resp := Response{Filters: f, PeriodStart: start, PeriodEnd: end, Groups: Groups}
 
-	q := &queries{db: h.DB, org: p.OrganizationID, start: start, end: end}
-	q.repoWhere, q.repoArgs = repoFilter(p, f)
+	q := &queries{db: h.DB, org: p.OrganizationID, start: start, end: end, p: p, f: f}
+	q.repoWhere, q.repoArgs = repoFilter(p, f, authz.PermReposRead)
 	for _, def := range KPIs {
 		k := KPI{Key: def.Key, Label: def.Label, Group: def.Group, Description: def.Description, Unit: def.Unit,
 			Polarity: def.Polarity, Drill: def.Drill, Phase: def.Phase, OrgWide: f.geo() && !def.GeoScoped}
@@ -213,12 +214,31 @@ type queries struct {
 	// caller's scope and the geo filters; placeholders start at $2.
 	repoWhere string
 	repoArgs  []any
+	p         *authz.Principal
+	f         Filters
 }
+
+// scoped returns the repository filter for perm with $1 = organization.
+func (q *queries) scoped(perm authz.Permission) (string, []any) {
+	w, a := repoFilter(q.p, q.f, perm)
+	return w, append([]any{q.org}, a...)
+}
+
+func (q *queries) count(ctx context.Context, perm authz.Permission, sql string) (float64, error) {
+	w, args := q.scoped(perm)
+	var n float64
+	err := q.db.QueryRow(ctx, strings.ReplaceAll(sql, "{scope}", w), args...).Scan(&n)
+	return n, err
+}
+
+const openStatuses = "f.status IN ('open', 'in_progress', 'needs_review')"
+const findingsFrom = ` FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN countries co ON co.id = r.country_id
+	WHERE f.organization_id = $1 AND {scope} AND ` + openStatuses
 
 // repoFilter combines the caller's repos.read scope with the dashboard's
 // region / country / business unit filters.
-func repoFilter(p *authz.Principal, f Filters) (string, []any) {
-	scope, args := org.ScopeSQL(authz.FilterFor(p, authz.PermReposRead), "r.id", "r.business_unit_id", "r.country_id", 2)
+func repoFilter(p *authz.Principal, f Filters, perm authz.Permission) (string, []any) {
+	scope, args := org.ScopeSQL(authz.FilterFor(p, perm), "r.id", "r.business_unit_id", "r.country_id", 2)
 	where := []string{"r.archived_at IS NULL", scope}
 	add := func(cond string, v any) {
 		args = append(args, v)
@@ -248,7 +268,77 @@ func f64(v int64) *float64 { x := float64(v); return &x }
 
 func (q *queries) kpi(ctx context.Context, k *KPI) error {
 	prevStart := q.start.Add(-q.end.Sub(q.start))
+	setF := func(v float64, err error) error {
+		if err == nil {
+			k.Value = &v
+		}
+		return err
+	}
 	switch k.Key {
+	case "open_findings":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom))
+	case "critical_findings":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom+` AND f.severity = 'critical'`))
+	case "high_findings":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom+` AND f.severity = 'high'`))
+	case "secrets_exposed":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(*)`+findingsFrom+` AND f.category = 'secrets'`))
+	case "vulnerable_dependencies":
+		return setF(q.count(ctx, authz.PermFindingsRead, `SELECT count(DISTINCT lower(f.package_name || '@' || f.package_version))`+findingsFrom+` AND f.category = 'sca' AND f.package_name <> ''`))
+	case "risk_score":
+		w, args := q.scoped(authz.PermFindingsRead)
+		var score float64
+		err := q.db.QueryRow(ctx, `SELECT COALESCE(round((
+			  SELECT sum(CASE f.severity WHEN 'critical' THEN 10 WHEN 'high' THEN 5 WHEN 'medium' THEN 2 WHEN 'low' THEN 0.5 ELSE 0 END)
+			  FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			  WHERE f.organization_id = $1 AND `+w+` AND `+openStatuses+`)::numeric
+			/ NULLIF((SELECT count(*) FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
+			          WHERE r.organization_id = $1 AND `+w+`), 0), 1), 0)`, args...).Scan(&score)
+		return setF(score, err)
+	case "scan_coverage":
+		w, args := q.scoped(authz.PermReposRead)
+		args = append(args, q.start)
+		var pct float64
+		err := q.db.QueryRow(ctx, fmt.Sprintf(`SELECT COALESCE(round(100.0 * count(*) FILTER (WHERE EXISTS (
+			  SELECT 1 FROM scan_jobs j WHERE j.repository_id = r.id AND j.status IN ('succeeded', 'partial') AND j.finished_at >= $%d))
+			/ NULLIF(count(*), 0), 1), 0)
+			FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
+			WHERE r.organization_id = $1 AND r.scan_enabled AND `+w, len(args)), args...).Scan(&pct)
+		return setF(pct, err)
+	case "scans_completed", "scan_success_rate":
+		w, args := q.scoped(authz.PermScansRead)
+		prevStart := q.start.Add(-q.end.Sub(q.start))
+		args = append(args, q.start, prevStart)
+		n := len(args)
+		var cur, curOK, prev, prevOK float64
+		err := q.db.QueryRow(ctx, fmt.Sprintf(`SELECT
+			  count(*) FILTER (WHERE j.finished_at >= $%[1]d),
+			  count(*) FILTER (WHERE j.finished_at >= $%[1]d AND j.status IN ('succeeded', 'partial')),
+			  count(*) FILTER (WHERE j.finished_at < $%[1]d),
+			  count(*) FILTER (WHERE j.finished_at < $%[1]d AND j.status IN ('succeeded', 'partial'))
+			FROM scan_jobs j JOIN repositories r ON r.id = j.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE j.organization_id = $1 AND `+w+` AND j.status IN ('succeeded', 'partial', 'failed') AND j.finished_at >= $%[2]d`, n-1, n),
+			args...).Scan(&cur, &curOK, &prev, &prevOK)
+		if err != nil {
+			return err
+		}
+		if k.Key == "scans_completed" {
+			k.Value, k.Previous = &cur, &prev
+			return nil
+		}
+		rate := func(ok, all float64) *float64 {
+			if all == 0 {
+				return nil
+			}
+			v := float64(int(1000*ok/all)) / 10
+			return &v
+		}
+		k.Value, k.Previous = rate(curOK, cur), rate(prevOK, prev)
+		if k.Value == nil {
+			z := 0.0
+			k.Value = &z
+		}
+		return nil
 	case "repositories":
 		n, err := q.repoCount(ctx, "")
 		k.Value = f64(n)
@@ -323,6 +413,66 @@ func (q *queries) daily(ctx context.Context, sql string) ([]Point, error) {
 
 func (q *queries) chart(ctx context.Context, c *Chart) error {
 	switch c.Key {
+	case "severity_distribution":
+		w, args := q.scoped(authz.PermFindingsRead)
+		rows, err := q.db.Query(ctx, `SELECT f.severity, count(*) FROM findings f JOIN repositories r ON r.id = f.repository_id
+			LEFT JOIN countries co ON co.id = r.country_id WHERE f.organization_id = $1 AND `+w+` AND `+openStatuses+`
+			GROUP BY 1 ORDER BY array_position(ARRAY['critical','high','medium','low','info'], f.severity)`, args...)
+		if err != nil {
+			return err
+		}
+		c.Categories, err = collectCategories(rows)
+		return err
+	case "top_repositories":
+		w, args := q.scoped(authz.PermFindingsRead)
+		rows, err := q.db.Query(ctx, `SELECT r.full_name,
+			  sum(CASE f.severity WHEN 'critical' THEN 10 WHEN 'high' THEN 5 WHEN 'medium' THEN 2 WHEN 'low' THEN 0.5 ELSE 0 END)::bigint
+			FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE f.organization_id = $1 AND `+w+` AND `+openStatuses+`
+			GROUP BY r.full_name HAVING sum(CASE f.severity WHEN 'critical' THEN 10 WHEN 'high' THEN 5 WHEN 'medium' THEN 2 WHEN 'low' THEN 0.5 ELSE 0 END) > 0
+			ORDER BY 2 DESC LIMIT 8`, args...)
+		if err != nil {
+			return err
+		}
+		c.Categories, err = collectCategories(rows)
+		return err
+	case "scanner_activity":
+		w, args := q.scoped(authz.PermScansRead)
+		args = append(args, q.start)
+		rows, err := q.db.Query(ctx, fmt.Sprintf(`SELECT sr.scanner_key, count(*) FROM scan_results sr
+			JOIN scan_jobs j ON j.id = sr.scan_job_id JOIN repositories r ON r.id = j.repository_id LEFT JOIN countries co ON co.id = r.country_id
+			WHERE j.organization_id = $1 AND `+w+` AND sr.created_at >= $%d GROUP BY 1 ORDER BY 2 DESC LIMIT 10`, len(args)), args...)
+		if err != nil {
+			return err
+		}
+		c.Categories, err = collectCategories(rows)
+		return err
+	case "findings_trend":
+		w, args := q.scoped(authz.PermFindingsRead)
+		args = append(args, q.start, q.end)
+		n := len(args)
+		for _, sev := range []string{"critical", "high", "medium", "low"} {
+			rows, err := q.db.Query(ctx, fmt.Sprintf(`SELECT d::date, (SELECT count(*) FROM findings f JOIN repositories r ON r.id = f.repository_id
+				  LEFT JOIN countries co ON co.id = r.country_id
+				  WHERE f.organization_id = $1 AND `+w+` AND f.severity = '%s'
+				    AND f.status NOT IN ('false_positive', 'accepted_risk')
+				    AND f.first_seen_at < d + interval '1 day' AND (f.resolved_at IS NULL OR f.resolved_at >= d + interval '1 day'))
+				FROM generate_series($%d::date, $%d::date, interval '1 day') d ORDER BY 1`, sev, n-1, n), args...)
+			if err != nil {
+				return err
+			}
+			pts, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (Point, error) {
+				var d time.Time
+				var v int64
+				err := r.Scan(&d, &v)
+				return Point{Date: d.Format("2006-01-02"), Value: float64(v)}, err
+			})
+			if err != nil {
+				return err
+			}
+			c.Series = append(c.Series, Series{Name: sev, Points: pts})
+		}
+		return nil
 	case "repos_by_criticality":
 		rows, err := q.db.Query(ctx, `SELECT r.criticality, count(*) FROM repositories r LEFT JOIN countries co ON co.id = r.country_id
 			WHERE r.organization_id = $1 AND `+q.repoWhere+` GROUP BY 1
@@ -376,4 +526,14 @@ func (q *queries) chart(ctx context.Context, c *Chart) error {
 		return err
 	}
 	return nil
+}
+
+func collectCategories(rows pgx.Rows) ([]Category, error) {
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Category, error) {
+		var cat Category
+		var n int64
+		err := r.Scan(&cat.Label, &n)
+		cat.Value = float64(n)
+		return cat, err
+	})
 }

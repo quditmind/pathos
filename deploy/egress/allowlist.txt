@@ -1,0 +1,17 @@
+# Destinations scan workers may reach (Squid dstdomain syntax; leading dot
+# matches subdomains). Keep this list short.
+# Source code hosting
+.github.com
+.githubusercontent.com
+dev.azure.com
+.visualstudio.com
+# Trivy vulnerability database
+mirror.gcr.io
+ghcr.io
+pkg-containers.githubusercontent.com
+# Grype vulnerability database
+grype.anchore.io
+# OSV-Scanner
+api.osv.dev
+api.deps.dev
+osv-vulnerabilities.storage.googleapis.com

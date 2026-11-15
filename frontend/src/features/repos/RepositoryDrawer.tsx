@@ -10,6 +10,10 @@ import { useSession } from "@/features/auth/session";
 import { useBusinessUnits, useRegions } from "@/features/users/api";
 import { formatDateTime } from "@/lib/utils";
 import { useApplications, useBranches, useRepoMutation, useRepository, useTagCategories } from "./api";
+import { Link } from "@tanstack/react-router";
+import { Radar } from "lucide-react";
+import { JobStatusPill } from "@/components/data/Severity";
+import { scanRepo, useProfiles, useScanMutation, useScans } from "@/features/scans/api";
 
 interface Draft {
   application_id: string;
@@ -57,6 +61,11 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
   const action = useRepoMutation((path: string) => api(`/api/v1/repositories/${id}/${path}`, { method: "POST" }));
   const del = useRepoMutation(() => api(`/api/v1/repositories/${id}`, { method: "DELETE" }));
   const canManage = can("repos.manage");
+  const scan = useScanMutation(() => scanRepo(id!));
+  const scans = useScans({ repository_id: id }, !!id);
+  const profiles = useProfiles();
+  const setProfile = useRepoMutation((profile_id: string | null) => api(`/api/v1/repositories/${id}/scan-profile`, { method: "PUT", body: { profile_id } }));
+  const recent = scans.data?.pages[0]?.items.slice(0, 5) ?? [];
   const error = save.error ?? action.error ?? del.error;
 
   const submit = () => {
@@ -146,9 +155,20 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
         <div className="space-y-5 text-[13px]">
           {error && <Alert>{error.message}</Alert>}
           {r.remote_archived && <Alert tone="warning">This repository is archived in the SCM.</Alert>}
-          <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
-            Open in SCM <ExternalLink className="size-3.5" />
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={r.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-primary hover:underline">
+              Open in SCM <ExternalLink className="size-3.5" />
+            </a>
+            {can("scans.run") && !r.archived_at && (
+              <Button size="sm" variant="secondary" disabled={scan.isPending} onClick={() => scan.mutate(undefined)}>
+                <Radar /> {scan.isSuccess ? (scan.data.coalesced ? "Already queued" : "Scan queued") : "Scan now"}
+              </Button>
+            )}
+            {can("findings.read") && (
+              <Link to="/findings" search={{ repository_id: r.id } as never} className="text-primary hover:underline">Findings →</Link>
+            )}
+          </div>
+          {scan.isError && <Alert>{scan.error.message}</Alert>}
           {r.description && <p className="text-muted-foreground">{r.description}</p>}
 
           {!editing ? (
@@ -165,6 +185,29 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
                 <Field label="Imported">{formatDateTime(r.created_at)}</Field>
                 <Field label="Last push">{formatDateTime(r.last_pushed_at)}</Field>
               </dl>
+              <div>
+                <Label htmlFor="repo-profile">Scan profile</Label>
+                <Select id="repo-profile" className="w-full" disabled={!canManage || setProfile.isPending}
+                  value={r.scan_profile_id ?? ""}
+                  onChange={(e) => setProfile.mutate(e.target.value || null)}>
+                  <option value="">Organization default</option>
+                  {(profiles.data ?? []).filter((p) => !p.is_default).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
+              </div>
+              {recent.length > 0 && (
+                <div>
+                  <div className="mb-1.5 text-[12px] text-muted-foreground">Recent scans</div>
+                  <ul className="divide-y divide-border rounded-md border border-border">
+                    {recent.map((j) => (
+                      <li key={j.id} className="flex items-center justify-between gap-2 px-3 py-1.5 text-[12px]">
+                        <JobStatusPill status={j.status} />
+                        <span className="tabular text-muted-foreground">+{j.findings_new} / −{j.findings_fixed}</span>
+                        <Link to="/scans" search={{ job: j.id } as never} className="tabular text-primary hover:underline">{formatDateTime(j.queued_at)}</Link>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               <div>
                 <div className="mb-1.5 text-[12px] text-muted-foreground">Tags</div>
                 <div className="flex flex-wrap gap-1">

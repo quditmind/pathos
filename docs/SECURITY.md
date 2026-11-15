@@ -77,6 +77,25 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - Out-of-scope repositories return 404, not 403, so their existence is not disclosed.
 - **Input hygiene:** scan branches are validated as git ref names and cannot start with `-` (option injection when workers clone in Phase 4). CSV **export** in the UI prefixes formula-leading cells (`= + - @`) to prevent spreadsheet formula injection.
 
+## Scanning (Phase 4)
+
+- **Trust boundary:** repository content is untrusted. Workers run in separate containers on two internal networks: `scan`, which reaches only the egress proxy, and `worker-api`, which reaches only the API's worker listener.
+  - Workers never reach PostgreSQL, Valkey, Keycloak or the user API, and never hold platform secrets.
+  - The worker container runs non-root with a read-only root filesystem, `cap_drop: ALL`, `no-new-privileges`, a tmpfs workspace, and memory and PID limits.
+- **Worker identity:** `PATHOS_WORKER_BOOTSTRAP_TOKEN` only registers a worker; each registration gets a fresh random token, stored as SHA-256. Revoking a worker invalidates its token immediately, and the name cannot re-register until an administrator deletes the record. The bootstrap token is removed from the agent's environment before any scanner runs, and scanners get a scrubbed environment.
+- **Clone hardening:**
+  - The credential travels in `GIT_CONFIG_*` environment variables (an HTTP header), never in argv, the URL or `.git/config`.
+  - Hooks are disabled, `file://` and `ext::` transports are forbidden, symlinks are not checked out, objects are fsck'd, redirects are not followed, refs are validated against option injection, and repository size is capped.
+  - `.git` is deleted before scanners run, and the workspace is removed after every job.
+  - Repository code is never built or executed.
+- **Process control:** each tool runs in its own process group; on timeout or cancellation the whole group is killed. Tool output and stderr captures are size-limited, and credentials in error text are redacted.
+- **Egress:** Squid allows only the domains in `deploy/egress/allowlist.txt`. It denies RFC 1918, loopback, link-local/metadata, CGNAT and multicast destinations whatever DNS returns, strips `Via`/`X-Forwarded-For`, and logs every request to the `egress_logs` volume.
+- **Ingestion:**
+  - Uploads are size-limited (96 MB request, 256 MB decompressed, zip-bomb safe) and accepted only from the worker holding the job's lease, once per scanner.
+  - Parsing happens in the API, not the worker. Secret values are never stored: Gitleaks runs with `--redact`, and finding text passes through the log redactor.
+  - Raw reports are downloadable only with `scans.read` on the repository.
+- **Integrity:** every scan records the immutable profile version and the scanner versions it ran with.
+
 ## Known gaps (tracked)
 
 - The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.

@@ -87,8 +87,10 @@ services:
       # Outbound proxy for SCM API calls (optional).
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: keycloak,localhost
-    # edge: outbound HTTPS to SCM APIs (GitHub, Azure DevOps).
-    networks: [app, data, edge]
+      PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN:?run deploy/scripts/install.sh}
+    # edge: outbound HTTPS to SCM APIs. worker-api: internal listener (:8081)
+    # that scan workers use; it is not reachable through the proxy.
+    networks: [app, data, edge, worker-api]
     depends_on:
       migrate: { condition: service_completed_successfully }
       valkey: { condition: service_healthy }
@@ -198,6 +200,59 @@ services:
       retries: 30
       start_period: 30s
 
+  egress:
+    image: ubuntu/squid:7.2-26.04_edge@sha256:385450caa9d4d97cb6f98736964884918445241e1489a8eefbbc7c48086db2e3
+    restart: unless-stopped
+    volumes:
+      - ./deploy/egress/squid.conf:/etc/squid/squid.conf:ro
+      - ./deploy/egress/allowlist.txt:/etc/squid/allowlist.txt:ro
+      - ./deploy/egress/conf.d:/etc/squid/conf.d:ro
+      # Access log of every proxied request (audit trail of scanner egress).
+      - egress_logs:/var/log/squid
+    # scan: reachable by workers. edge: the only route to the internet.
+    networks: [scan, edge]
+    healthcheck:
+      test: ["CMD", "perl", "-MIO::Socket::INET", "-e", "exit(IO::Socket::INET->new(PeerAddr => q(127.0.0.1:3128), Timeout => 2) ? 0 : 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker-core:
+    build:
+      context: .
+      dockerfile: workers/core/Dockerfile
+      args: { VERSION: "${PATHOS_VERSION:-dev}" }
+    image: pathos-worker-core:${PATHOS_VERSION:-dev}
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "10001:10001"
+    environment:
+      PATHOS_API_URL: http://api:8081
+      PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+      PATHOS_WORKER_FAMILY: core
+      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+      HTTPS_PROXY: http://egress:3128
+      HTTP_PROXY: http://egress:3128
+      https_proxy: http://egress:3128
+      http_proxy: http://egress:3128
+      NO_PROXY: api
+      no_proxy: api
+    tmpfs:
+      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
+      - /tmp:size=1g,mode=1777
+    volumes:
+      - scanner_cache:/cache
+      - ./workers/rules-extra:/rules:ro
+    # scan: egress proxy only. worker-api: the API's worker listener only.
+    networks: [scan, worker-api]
+    mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
+    pids_limit: 1024
+    depends_on:
+      api: { condition: service_healthy }
+      egress: { condition: service_healthy }
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
@@ -217,8 +272,14 @@ networks:
     internal: true
   data:
     internal: true
+  worker-api:
+    internal: true
+  scan:
+    internal: true
 
 volumes:
+  scanner_cache:
+  egress_logs:
   pg_data:
   redis_data:
   caddy_data:

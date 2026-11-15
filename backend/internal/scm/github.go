@@ -121,9 +121,21 @@ func (g *gitHub) token(ctx context.Context) (string, error) {
 	return out.Token, nil
 }
 
-// InstallationToken returns a short-lived token (GitHub App) or the PAT;
-// Phase 4 workers receive it for cloning.
-func (g *gitHub) InstallationToken(ctx context.Context) (string, error) { return g.token(ctx) }
+// CloneCredential implements Client.
+func (g *gitHub) CloneCredential(ctx context.Context) (Credential, error) {
+	tok, err := g.token(ctx)
+	if err != nil {
+		return Credential{}, err
+	}
+	c := Credential{Username: "x-access-token", Token: tok}
+	if g.cfg.AuthType == "github_app" {
+		g.mu.Lock()
+		exp := g.instTokX
+		g.mu.Unlock()
+		c.ExpiresAt = &exp
+	}
+	return c, nil
+}
 
 func (g *gitHub) get(ctx context.Context, path string, out any) (*http.Response, error) {
 	u := path

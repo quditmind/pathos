@@ -124,10 +124,12 @@ export function DashboardPage() {
         <>
           {(() => {
             const live = data.kpis.filter((k) => k.status === "ok").length;
-            return live < data.kpis.length ? (
+            const pending = [...new Set(data.kpis.filter((k) => k.status === "not_yet_available").map((k) => k.phase))].sort();
+            const names: Record<number, string> = { 3: "repository onboarding", 4: "scanning", 5: "AI review", 6: "vulnerability management", 7: "scheduling" };
+            return pending.length ? (
               <p className="mb-4 text-[12px] text-muted-foreground">
-                {live} of {data.kpis.length} indicators have data today. The others light up as repository onboarding (phase 3), scanning (phase 4), AI review (phase 5) and
-                vulnerability management (phase 6) are delivered; no placeholder numbers are shown.
+                {live} of {data.kpis.length} indicators have data today. The rest light up with{" "}
+                {pending.map((p) => `${names[p] ?? "a later phase"} (phase ${p})`).join(", ")}; no placeholder numbers are shown.
               </p>
             ) : null;
           })()}

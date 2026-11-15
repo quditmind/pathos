@@ -1,6 +1,6 @@
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Archive, GitBranch, Plus, Search, Tags } from "lucide-react";
+import { Archive, GitBranch, Plus, Radar, Search, Tags } from "lucide-react";
 import type { Repository } from "@/api/types";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
@@ -153,6 +153,7 @@ export function RepositoriesPage() {
           <Button size="sm" variant="secondary" onClick={() => setBulkOpen(true)}>
             <Tags /> Edit tags
           </Button>
+          <BulkScan ids={[...selection]} />
           <BulkArchive ids={[...selection]} onDone={() => setSelection(new Set())} />
           <Button size="sm" variant="ghost" onClick={() => setSelection(new Set())}>
             Clear
@@ -200,6 +201,22 @@ export function RepositoriesPage() {
       </Card>
       <BulkTagDialog open={bulkOpen} onOpenChange={setBulkOpen} ids={[...selection]} />
       <RepositoryDrawer id={repo} onClose={() => set({ repo: undefined })} />
+    </>
+  );
+}
+
+function BulkScan({ ids }: { ids: string[] }) {
+  const { can } = useSession();
+  const [msg, setMsg] = useState<string | null>(null);
+  const m = useRepoMutation((body: unknown) => api<{ items: { error?: string }[] }>("/api/v1/scans", { method: "POST", body }));
+  if (!can("scans.run")) return null;
+  return (
+    <>
+      <Button size="sm" variant="secondary" disabled={m.isPending}
+        onClick={() => m.mutate({ repository_ids: ids }, { onSuccess: (r) => setMsg(`${r.items.filter((i) => !i.error).length} scans queued`) })}>
+        <Radar /> Scan
+      </Button>
+      {msg && <span className="text-[12px] text-success">{msg}</span>}
     </>
   );
 }

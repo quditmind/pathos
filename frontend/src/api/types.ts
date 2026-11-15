@@ -179,6 +179,7 @@ export interface Repository {
   environment: Environment;
   criticality: Criticality;
   scan_enabled: boolean;
+  scan_profile_id: string | null;
   remote_archived: boolean;
   last_pushed_at: string | null;
   archived_at: string | null;
@@ -268,4 +269,123 @@ export interface ImportResponse {
   results: ImportResult[];
   imported: number;
   dry_run: boolean;
+}
+
+export type Severity = "critical" | "high" | "medium" | "low" | "info";
+export type JobStatus = "queued" | "running" | "succeeded" | "partial" | "failed" | "cancelled";
+
+export interface ScanResult {
+  scanner_key: string;
+  scanner_version: string;
+  status: "succeeded" | "failed" | "skipped" | "timed_out";
+  duration_ms: number;
+  findings_count: number;
+  error: string;
+  has_artifact: boolean;
+}
+
+export interface ScanJob {
+  id: string;
+  repository_id: string;
+  repository_name: string;
+  profile_name: string;
+  profile_version: number;
+  trigger: string;
+  priority: number;
+  status: JobStatus;
+  ref: string;
+  commit_sha: string;
+  attempts: number;
+  worker_name: string | null;
+  requested_by: string | null;
+  error: string;
+  findings_new: number;
+  findings_fixed: number;
+  gate_failed: boolean;
+  queued_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+  results?: ScanResult[];
+}
+
+export interface Finding {
+  id: string;
+  repository_id: string;
+  repository_name: string;
+  category: string;
+  scanner_keys: string[];
+  rule_id: string;
+  title: string;
+  description: string;
+  severity: Severity;
+  cwe: string[];
+  cve: string;
+  cvss: number | null;
+  package_name: string;
+  package_version: string;
+  fixed_version: string;
+  file_path: string;
+  start_line: number | null;
+  status: string;
+  first_seen_at: string;
+  last_seen_at: string;
+  resolved_at: string | null;
+  occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];
+}
+
+export interface CatalogScanner {
+  key: string;
+  name: string;
+  category: string;
+  license_spdx: string;
+  decision: "use" | "optional" | "restricted";
+  worker_family: string;
+  requires_build: boolean;
+  mandatory: boolean;
+  adapter_available: boolean;
+  default_enabled: boolean;
+  output_format: string;
+  homepage: string;
+  notes: string;
+}
+
+export interface ProfileSettings {
+  severity_threshold: Severity;
+  exclusions: string[];
+  timeout_seconds: number;
+  sbom: boolean;
+  fail_on_critical: boolean;
+  retention_days: number;
+  scanners: { key: string; config?: unknown }[];
+}
+
+export interface ProfileVersion extends ProfileSettings {
+  id: string;
+  version: number;
+  change_note: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface ScanProfile {
+  id: string;
+  name: string;
+  description: string;
+  is_default: boolean;
+  repository_count: number;
+  current: ProfileVersion;
+  history?: ProfileVersion[];
+}
+
+export interface Worker {
+  id: string;
+  name: string;
+  family: string;
+  version: string;
+  scanners: Record<string, string>;
+  last_seen_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+  online: boolean;
+  active_jobs: number;
 }

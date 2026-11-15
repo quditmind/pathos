@@ -14,6 +14,10 @@ import { ImportPage } from "@/features/repos/ImportPage";
 import { ApplicationsPage } from "@/features/repos/ApplicationsPage";
 import { ScmConnectionsPage } from "@/features/settings/ScmConnectionsPage";
 import { TagsPage } from "@/features/settings/TagsPage";
+import { ScansPage, validateScanSearch } from "@/features/scans/ScansPage";
+import { ProfilesPage } from "@/features/scans/ProfilesPage";
+import { ScannersPage } from "@/features/scans/ScannersPage";
+import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
 
 function Authenticated() {
   const me = useMe();
@@ -90,9 +94,15 @@ const appsRoute = createRoute({
 const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsPage });
 const tagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/tags", component: TagsPage });
 
+const scansRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans", component: ScansPage, validateSearch: validateScanSearch });
+const profilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/profiles", component: ProfilesPage });
+const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", component: ScannersPage });
+const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
+
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute]),
+  appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute,
+    scansRoute, profilesRoute, scannersRoute, findingsRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });

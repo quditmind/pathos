@@ -36,6 +36,9 @@ func (f *fakeSCM) ListRepositories(context.Context) ([]scm.RemoteRepo, error) {
 func (f *fakeSCM) ListBranches(context.Context, scm.RemoteRepo) ([]string, error) {
 	return []string{"main", "release"}, nil
 }
+func (f *fakeSCM) CloneCredential(context.Context) (scm.Credential, error) {
+	return scm.Credential{Username: "x-access-token", Token: "ghs_fake"}, nil
+}
 
 type harness struct {
 	t      *testing.T

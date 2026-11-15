@@ -102,3 +102,8 @@ func (a *azureDevOps) ListBranches(ctx context.Context, repo RemoteRepo) ([]stri
 	}
 	return branches, nil
 }
+
+// CloneCredential implements Client (Azure DevOps accepts any username with a PAT).
+func (a *azureDevOps) CloneCredential(context.Context) (Credential, error) {
+	return Credential{Username: "pathos", Token: string(a.cfg.Secret)}, nil
+}

@@ -46,6 +46,17 @@ type Client interface {
 	Check(ctx context.Context) (string, error)
 	ListRepositories(ctx context.Context) ([]RemoteRepo, error)
 	ListBranches(ctx context.Context, repo RemoteRepo) ([]string, error)
+	// CloneCredential returns the narrowest credential available for
+	// cloning: a short-lived installation token for GitHub Apps, otherwise
+	// the PAT.
+	CloneCredential(ctx context.Context) (Credential, error)
+}
+
+// Credential is an HTTPS git credential handed to a worker for one job.
+type Credential struct {
+	Username  string     `json:"username"`
+	Token     string     `json:"token"`
+	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 
 // Config describes a connection.
