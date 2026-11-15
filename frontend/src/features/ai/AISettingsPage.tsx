@@ -7,7 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useAIConfigs, useAIMutation, useAIProviders } from "./api";
 
-const kindLabel = { anthropic: "Anthropic (Claude)", openai: "OpenAI", xai: "xAI (Grok)" };
+const kindLabel = { anthropic: "Anthropic (Claude)", openai: "OpenAI", xai: "xAI (Grok)", self_hosted: "Self-hosted (Ollama, vLLM, LM Studio…)" };
 
 export function AISettingsPage() {
   const providers = useAIProviders();
@@ -70,11 +70,15 @@ function ProviderDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
               {Object.entries(kindLabel).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </Select></div>
         </div>
-        <div><Label htmlFor="pv-key">API key</Label><Input id="pv-key" required type="password" autoComplete="off" value={f.api_key} onChange={(e) => setF({ ...f, api_key: e.target.value })} /></div>
+        {f.kind === "self_hosted" && (
+          <Alert tone="warning">Runs on your own hardware: code never leaves your network. Any OpenAI-compatible server works. For Ollama on this host use <code>http://host.docker.internal:11434/v1</code>; with the bundled profile use <code>http://ollama:11434/v1</code>. Pull the model first (<code>ollama pull qwen2.5-coder:14b</code>).</Alert>
+        )}
+        <div><Label htmlFor="pv-key" hint={f.kind === "self_hosted" ? "(optional; most local servers need none)" : undefined}>API key</Label><Input id="pv-key" required={f.kind !== "self_hosted"} type="password" autoComplete="off" value={f.api_key} onChange={(e) => setF({ ...f, api_key: e.target.value })} /></div>
         {f.kind !== "anthropic" && (
           <div><Label htmlFor="pv-model" hint="(used for the connection test)">Model</Label><Input id="pv-model" required value={f.test_model} onChange={(e) => setF({ ...f, test_model: e.target.value })} /></div>
         )}
-        <div><Label htmlFor="pv-url" hint="(optional: API gateway or regional endpoint, https)">Base URL</Label><Input id="pv-url" value={f.base_url} onChange={(e) => setF({ ...f, base_url: e.target.value })} /></div>
+        <div><Label htmlFor="pv-url" hint={f.kind === "self_hosted" ? "(required: the OpenAI-compatible endpoint, usually ending in /v1)" : "(optional: API gateway or regional endpoint, https)"}>Base URL</Label>
+          <Input id="pv-url" required={f.kind === "self_hosted"} placeholder={f.kind === "self_hosted" ? "http://host.docker.internal:11434/v1" : undefined} value={f.base_url} onChange={(e) => setF({ ...f, base_url: e.target.value })} /></div>
       </form>
     </Dialog>
   );
@@ -91,6 +95,7 @@ function ConfigEditor({ config, providers }: { config?: AIConfiguration; provide
     categories: config?.current.categories ?? ["sast", "sca", "iac"],
     min_severity: config?.current.min_severity ?? "medium",
     approval_policy: config?.current.approval_policy ?? "always",
+    allow_self_approval: config?.current.allow_self_approval ?? false,
     daily_limit: config?.current.daily_limit ?? 200,
     send_code_context: config?.current.send_code_context ?? true,
     redaction_patterns: (config?.current.redaction_patterns ?? []).join("\n"),
@@ -141,6 +146,10 @@ function ConfigEditor({ config, providers }: { config?: AIConfiguration; provide
           <div><Label htmlFor="c-limit">Automated reviews per day</Label><Input id="c-limit" type="number" min={1} value={f.daily_limit} onChange={(e) => setF({ ...f, daily_limit: Number(e.target.value) })} /></div>
         </div>
         <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.send_code_context} onChange={(e) => setF({ ...f, send_code_context: e.target.checked })} /> Send redacted code context (never sent for secret findings)</label>
+        <div>
+          <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.allow_self_approval} onChange={(e) => setF({ ...f, allow_self_approval: e.target.checked })} /> Allow self-approval of interactive (MCP) reviews</label>
+          <p className="ml-6 text-[12px] text-muted-foreground">For single-person installations: the person whose own assistant (e.g. Claude Code with a Pro/Max plan) submitted a review may approve it. Leave off when a team can provide a second reviewer. Every self-approval is marked in the audit log; Critical false positives still need a written note.</p>
+        </div>
         <div><Label htmlFor="c-ins" hint="(trusted guidance appended to the system prompt)">Organization instructions</Label>
           <textarea id="c-ins" rows={3} maxLength={8000} value={f.instructions} onChange={(e) => setF({ ...f, instructions: e.target.value })} className="w-full rounded-md border border-border bg-surface p-2 text-[13px] focus-visible:outline-2 focus-visible:outline-ring" /></div>
         <div><Label htmlFor="c-red" hint="(one regular expression per line, in addition to built-in secret patterns)">Extra redaction patterns</Label>

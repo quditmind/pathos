@@ -21,6 +21,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/scanners"
+	"pathos/internal/scm"
 	"pathos/internal/secrets"
 )
 
@@ -32,6 +33,9 @@ type Service struct {
 	Log       *slog.Logger
 	Principal func(context.Context) *authz.Principal
 	HTTP      *http.Client
+	// LocalHTTP is used for self-hosted providers: it may reach private
+	// networks (but never loopback, link-local or metadata addresses).
+	LocalHTTP *http.Client
 	// NewProvider builds providers; tests replace it.
 	NewProvider func(Config) (Provider, error)
 }
@@ -110,7 +114,7 @@ type ProviderView struct {
 	StatusMessage string    `json:"status_message"`
 	DefaultModel  string    `json:"default_model"`
 	CreatedAt     time.Time `json:"created_at"`
-	secretID      uuid.UUID
+	secretID      *uuid.UUID
 }
 
 func (s *Service) loadProviders(ctx context.Context, orgID uuid.UUID, id *uuid.UUID) ([]ProviderView, error) {
@@ -153,11 +157,18 @@ type providerRequest struct {
 }
 
 func (s *Service) provider(ctx context.Context, orgID uuid.UUID, pv ProviderView) (Provider, error) {
-	key, err := s.Secrets.Reveal(ctx, s.DB, orgID, pv.secretID, secrets.KindAI)
-	if err != nil {
-		return nil, err
+	var key []byte
+	if pv.secretID != nil {
+		var err error
+		if key, err = s.Secrets.Reveal(ctx, s.DB, orgID, *pv.secretID, secrets.KindAI); err != nil {
+			return nil, err
+		}
 	}
-	cfg := Config{Kind: pv.Kind, APIKey: string(key), BaseURL: pv.BaseURL, HTTP: s.HTTP}
+	client := s.HTTP
+	if pv.Kind == SelfHosted && s.LocalHTTP != nil {
+		client = s.LocalHTTP
+	}
+	cfg := Config{Kind: pv.Kind, APIKey: string(key), BaseURL: pv.BaseURL, HTTP: client}
 	if s.NewProvider != nil {
 		return s.NewProvider(cfg)
 	}
@@ -193,23 +204,35 @@ func (s *Service) createProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	req.Name, req.APIKey, req.BaseURL = strings.TrimSpace(req.Name), strings.TrimSpace(req.APIKey), strings.TrimSpace(req.BaseURL)
-	if req.Name == "" || len(req.Name) > 200 || req.APIKey == "" || len(req.APIKey) > 1000 {
+	if req.Name == "" || len(req.Name) > 200 || len(req.APIKey) > 1000 || (req.APIKey == "" && req.Kind != SelfHosted) {
 		s.fail(w, r, httpx.BadRequest("name and api_key are required"))
 		return
 	}
-	if req.Kind != Anthropic && req.Kind != OpenAI && req.Kind != XAI {
-		s.fail(w, r, httpx.BadRequest("kind must be anthropic, openai or xai"))
-		return
-	}
-	if req.BaseURL != "" && !strings.HasPrefix(req.BaseURL, "https://") {
-		s.fail(w, r, httpx.BadRequest("base_url must use https"))
+	switch req.Kind {
+	case Anthropic, OpenAI, XAI:
+		if req.BaseURL != "" && !strings.HasPrefix(req.BaseURL, "https://") {
+			s.fail(w, r, httpx.BadRequest("base_url must use https"))
+			return
+		}
+	case SelfHosted:
+		// Local servers usually speak plain http on a private network.
+		if _, err := (scm.NetPolicy{AllowPrivate: true, AllowHTTP: true}).ValidateBaseURL(req.BaseURL); err != nil {
+			s.fail(w, r, httpx.BadRequest("base_url: "+err.Error()+" (e.g. http://host.docker.internal:11434/v1 for Ollama on this host)"))
+			return
+		}
+	default:
+		s.fail(w, r, httpx.BadRequest("kind must be anthropic, openai, xai or self_hosted"))
 		return
 	}
 	id := uuid.Must(uuid.NewV7())
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
-		sec, err := s.Secrets.Create(ctx, tx, p.OrganizationID, secrets.KindAI, "ai:"+req.Name, []byte(req.APIKey), &p.UserID)
-		if err != nil {
-			return err
+		var sec *uuid.UUID
+		if req.APIKey != "" {
+			id, err := s.Secrets.Create(ctx, tx, p.OrganizationID, secrets.KindAI, "ai:"+req.Name, []byte(req.APIKey), &p.UserID)
+			if err != nil {
+				return err
+			}
+			sec = &id
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO ai_providers (id, organization_id, name, kind, base_url, secret_id, created_by)
 			VALUES ($1, $2, $3, $4, $5, $6, $7)`, id, p.OrganizationID, req.Name, req.Kind, req.BaseURL, sec, p.UserID); err != nil {
@@ -270,13 +293,15 @@ func (s *Service) deleteProvider(w http.ResponseWriter, r *http.Request) {
 		if inUse {
 			return httpx.Conflict("a configuration uses this provider")
 		}
-		var sec uuid.UUID
+		var sec *uuid.UUID
 		if err := tx.QueryRow(ctx, `UPDATE ai_providers SET archived_at = now() WHERE organization_id = $1 AND id = $2 AND archived_at IS NULL RETURNING secret_id`,
 			p.OrganizationID, id).Scan(&sec); err != nil {
 			return err
 		}
-		if err := s.Secrets.Update(ctx, tx, p.OrganizationID, sec, secrets.KindAI, []byte("revoked")); err != nil {
-			return err
+		if sec != nil { // self-hosted providers may have no key
+			if err := s.Secrets.Update(ctx, tx, p.OrganizationID, *sec, secrets.KindAI, []byte("revoked")); err != nil {
+				return err
+			}
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "ai_provider.delete", TargetType: "ai_provider", TargetID: id.String()})
@@ -292,16 +317,19 @@ func (s *Service) deleteProvider(w http.ResponseWriter, r *http.Request) {
 
 // ConfigVersion is one immutable AI configuration version.
 type ConfigVersion struct {
-	ID                uuid.UUID `json:"id"`
-	Version           int       `json:"version"`
-	ProviderID        uuid.UUID `json:"provider_id"`
-	Model             string    `json:"model"`
-	Effort            string    `json:"effort"`
-	Instructions      string    `json:"instructions"`
-	AutoReview        bool      `json:"auto_review"`
-	Categories        []string  `json:"categories"`
-	MinSeverity       string    `json:"min_severity"`
-	ApprovalPolicy    string    `json:"approval_policy"`
+	ID             uuid.UUID `json:"id"`
+	Version        int       `json:"version"`
+	ProviderID     uuid.UUID `json:"provider_id"`
+	Model          string    `json:"model"`
+	Effort         string    `json:"effort"`
+	Instructions   string    `json:"instructions"`
+	AutoReview     bool      `json:"auto_review"`
+	Categories     []string  `json:"categories"`
+	MinSeverity    string    `json:"min_severity"`
+	ApprovalPolicy string    `json:"approval_policy"`
+	// AllowSelfApproval lets the submitter of an interactive (MCP) review
+	// approve it (single-person installations).
+	AllowSelfApproval bool      `json:"allow_self_approval"`
 	DailyLimit        int       `json:"daily_limit"`
 	SendCodeContext   bool      `json:"send_code_context"`
 	RedactionPatterns []string  `json:"redaction_patterns"`
@@ -320,12 +348,12 @@ type Configuration struct {
 }
 
 const cvSelect = `SELECT v.id, v.version, v.provider_id, v.model, v.effort, v.instructions, v.auto_review, v.categories, v.min_severity,
-	v.approval_policy, v.daily_limit, v.send_code_context, v.redaction_patterns, v.change_note, v.created_at FROM ai_configuration_versions v`
+	v.approval_policy, v.daily_limit, v.send_code_context, v.redaction_patterns, v.change_note, v.created_at, v.allow_self_approval FROM ai_configuration_versions v`
 
 func scanCV(r pgx.Row) (ConfigVersion, error) {
 	var v ConfigVersion
 	err := r.Scan(&v.ID, &v.Version, &v.ProviderID, &v.Model, &v.Effort, &v.Instructions, &v.AutoReview, &v.Categories,
-		&v.MinSeverity, &v.ApprovalPolicy, &v.DailyLimit, &v.SendCodeContext, &v.RedactionPatterns, &v.ChangeNote, &v.CreatedAt)
+		&v.MinSeverity, &v.ApprovalPolicy, &v.DailyLimit, &v.SendCodeContext, &v.RedactionPatterns, &v.ChangeNote, &v.CreatedAt, &v.AllowSelfApproval)
 	return v, err
 }
 
@@ -484,10 +512,12 @@ func (s *Service) saveConfig(w http.ResponseWriter, r *http.Request) {
 		vid := uuid.Must(uuid.NewV7())
 		v := req.ConfigVersion
 		if _, err := tx.Exec(ctx, `INSERT INTO ai_configuration_versions (id, organization_id, configuration_id, version, provider_id, model, effort,
-			instructions, auto_review, categories, min_severity, approval_policy, daily_limit, send_code_context, redaction_patterns, change_note, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+			instructions, auto_review, categories, min_severity, approval_policy, daily_limit, send_code_context, redaction_patterns, change_note, created_by,
+			allow_self_approval)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
 			vid, p.OrganizationID, id, version, v.ProviderID, v.Model, v.Effort, v.Instructions, v.AutoReview, v.Categories,
-			v.MinSeverity, v.ApprovalPolicy, v.DailyLimit, v.SendCodeContext, v.RedactionPatterns, v.ChangeNote, p.UserID); err != nil {
+			v.MinSeverity, v.ApprovalPolicy, v.DailyLimit, v.SendCodeContext, v.RedactionPatterns, v.ChangeNote, p.UserID,
+			v.AllowSelfApproval); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE ai_configurations SET current_version_id = $2 WHERE id = $1`, id, vid); err != nil {
@@ -500,7 +530,8 @@ func (s *Service) saveConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "ai_configuration.save", TargetType: "ai_configuration", TargetID: id.String(),
-			Metadata: map[string]any{"version": version, "model": v.Model, "auto_review": v.AutoReview, "approval_policy": v.ApprovalPolicy}})
+			Metadata: map[string]any{"version": version, "model": v.Model, "auto_review": v.AutoReview, "approval_policy": v.ApprovalPolicy,
+				"allow_self_approval": v.AllowSelfApproval}})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -912,9 +943,11 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 		var findingID uuid.UUID
 		var verdict, status, severity string
 		var reviewer *uuid.UUID
-		if err := tx.QueryRow(ctx, `SELECT ar.finding_id, ar.verdict, ar.status, f.severity, ar.reviewed_by FROM ai_reviews ar
-			JOIN findings f ON f.id = ar.finding_id WHERE ar.organization_id = $1 AND ar.id = $2 FOR UPDATE OF ar`, p.OrganizationID, id).
-			Scan(&findingID, &verdict, &status, &severity, &reviewer); err != nil {
+		var selfOK bool
+		if err := tx.QueryRow(ctx, `SELECT ar.finding_id, ar.verdict, ar.status, f.severity, ar.reviewed_by,
+			COALESCE((SELECT v.allow_self_approval FROM ai_configuration_versions v WHERE v.id = ar.config_version_id), false)
+			FROM ai_reviews ar JOIN findings f ON f.id = ar.finding_id WHERE ar.organization_id = $1 AND ar.id = $2 FOR UPDATE OF ar`, p.OrganizationID, id).
+			Scan(&findingID, &verdict, &status, &severity, &reviewer, &selfOK); err != nil {
 			return errNotFound
 		}
 		for _, perm := range []authz.Permission{authz.PermAIReview, authz.PermFindingsTriage} {
@@ -925,8 +958,9 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 		if status != "pending_approval" {
 			return httpx.Conflict("review is " + status)
 		}
-		if approve && reviewer != nil && *reviewer == p.UserID {
-			return httpx.Conflict("a different person must approve a review you submitted")
+		self := approve && reviewer != nil && *reviewer == p.UserID
+		if self && !selfOK {
+			return httpx.Conflict("a different person must approve a review you submitted (single-person installs: enable self-approval in the AI configuration)")
 		}
 		if approve && verdict == FalsePositive && severity == "critical" && strings.TrimSpace(req.Note) == "" {
 			return httpx.BadRequest("closing a Critical finding as a false positive requires a note")
@@ -951,7 +985,7 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "ai_review." + map[bool]string{true: "approve", false: "reject"}[approve], TargetType: "finding", TargetID: findingID.String(),
-			Metadata: map[string]any{"review_id": id, "verdict": verdict, "note": req.Note}})
+			Metadata: map[string]any{"review_id": id, "verdict": verdict, "note": req.Note, "self_approved": self}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

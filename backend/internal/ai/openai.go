@@ -21,6 +21,15 @@ type chatCompletions struct {
 
 func (c *chatCompletions) Kind() string { return c.kind }
 
+// maxTokensField: OpenAI and xAI use max_completion_tokens; self-hosted
+// OpenAI-compatible servers (Ollama, vLLM, llama.cpp) understand max_tokens.
+func (c *chatCompletions) maxTokensField() string {
+	if c.kind == SelfHosted {
+		return "max_tokens"
+	}
+	return "max_completion_tokens"
+}
+
 func (c *chatCompletions) client() *http.Client {
 	if c.cfg.HTTP != nil {
 		return c.cfg.HTTP
@@ -45,7 +54,9 @@ func (c *chatCompletions) post(ctx context.Context, body any, out any) error {
 			return err
 		}
 		req.Header.Set("Content-Type", "application/json")
-		req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
+		if c.cfg.APIKey != "" {
+			req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
+		}
 		resp, err := c.client().Do(req)
 		if err != nil {
 			return fmt.Errorf("ai: %s request failed: %w", c.kind, err)
@@ -67,6 +78,9 @@ func (c *chatCompletions) post(ctx context.Context, body any, out any) error {
 			}
 			continue
 		case resp.StatusCode >= 300:
+			if c.kind == SelfHosted && resp.StatusCode == http.StatusNotFound {
+				return fmt.Errorf("ai: the self-hosted server returned 404: check the base URL (it usually ends in /v1) and that the model is pulled (e.g. ollama pull <model>)")
+			}
 			return fmt.Errorf("ai: %s rejected the request (%d): check the model name and configuration", c.kind, resp.StatusCode)
 		}
 		return json.Unmarshal(data, out)
@@ -105,7 +119,11 @@ func (c *chatCompletions) Review(ctx context.Context, req Request) (Response, er
 		},
 	}
 	if req.MaxOutputTokens > 0 {
-		body["max_completion_tokens"] = req.MaxOutputTokens
+		body[c.maxTokensField()] = req.MaxOutputTokens
+	}
+	if c.kind == SelfHosted {
+		// Deterministic triage; local servers otherwise default to sampling.
+		body["temperature"] = 0
 	}
 	var out ccResponse
 	if err := c.post(ctx, body, &out); err != nil {
@@ -134,7 +152,7 @@ func (c *chatCompletions) Validate(ctx context.Context, model string) error {
 	}
 	var out ccResponse
 	return c.post(ctx, map[string]any{
-		"model": model, "max_completion_tokens": 16,
+		"model": model, c.maxTokensField(): 16,
 		"messages": []ccMessage{{Role: "user", Content: "Reply with OK."}},
 	}, &out)
 }

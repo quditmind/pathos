@@ -144,6 +144,17 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   Re-run `make security` with each release.
 - **Defence in depth in workers:** report context is read only from paths whose fully resolved location (`EvalSymlinks`) stays inside the checkout, in addition to the clone running with `core.symlinks=false`.
 
+## Local AI and single-person installs
+
+- **Self-hosted providers:**
+  - The provider type `self_hosted` accepts plain `http` and private addresses, since model servers usually run on the local network. The cloud providers keep their `https`-only rules and public-address SSRF policy.
+  - Loopback, link-local and cloud metadata addresses stay blocked for every provider.
+  - The API key is optional and encrypted when given.
+- **Self-approval:**
+  - `allow_self_approval` is a property of the versioned AI configuration and off by default. Enabling it creates a new configuration version and an audit entry.
+  - Each self-approved review is recorded with `self_approved: true`.
+  - Critical false positives still require a written note.
+
 ## Known gaps (tracked)
 
 - MFA enforcement applies to newly invited users. Existing accounts need an administrator to require OTP in Keycloak.

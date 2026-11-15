@@ -1,0 +1,16 @@
+# NVIDIA GPU for the bundled Ollama service. Requires the NVIDIA Container
+# Toolkit on the host (https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/).
+#
+#   COMPOSE_PROFILES=dev,ollama docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Without the toolkit, run Ollama natively on the host instead (it uses the GPU
+# directly) and point the provider at http://host.docker.internal:11434/v1.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

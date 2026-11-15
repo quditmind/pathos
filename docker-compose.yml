@@ -114,6 +114,9 @@ services:
       PATHOS_RATE_LIMIT_SCALE: ${PATHOS_RATE_LIMIT_SCALE:-1}
       # New users must enrol a TOTP authenticator at first login.
       PATHOS_REQUIRE_MFA: ${PATHOS_REQUIRE_MFA:-false}
+    # Lets a self-hosted AI provider point at a model server running natively
+    # on this host (e.g. Ollama with GPU): http://host.docker.internal:11434/v1
+    extra_hosts: ["host.docker.internal:host-gateway"]
     # edge: outbound HTTPS to SCM APIs. worker-api: internal listener (:8081)
     # that scan workers use; it is not reachable through the proxy.
     networks: [app, data, edge, worker-api]
@@ -139,6 +142,7 @@ services:
     # edge: outbound HTTPS to AI providers and SCM APIs (nightly metadata
     # re-sync) and SMTP to the relay.
     networks: [data, edge]
+    extra_hosts: ["host.docker.internal:host-gateway"]
     depends_on:
       migrate: { condition: service_completed_successfully }
     healthcheck:
@@ -346,6 +350,27 @@ services:
       retries: 12
       start_period: 10s
 
+  # Local LLM server for self-hosted AI review (opt-in, CPU by default; add
+  # docker-compose.gpu.yml for NVIDIA GPUs). Provider base URL:
+  # http://ollama:11434/v1. Pull a model once:
+  #   docker compose exec ollama ollama pull qwen2.5-coder:7b
+  ollama:
+    profiles: [ollama]
+    image: ollama/ollama:0.40.12@sha256:20d1bbfbabe1c97ba4b16301f08a20d8484bcf77047742a3cb71c613d8e12d0b
+    restart: unless-stopped
+    environment:
+      OLLAMA_KEEP_ALIVE: 30m
+    volumes:
+      - ollama_models:/root/.ollama
+    # data: reachable by api/jobs only. edge: model downloads.
+    networks: [data, edge]
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+
   # Local observability backend (Grafana, Tempo, Prometheus/Mimir, Loki)
   # for development and evaluation. Use your own collector in production.
   otel-lgtm:
@@ -368,6 +393,7 @@ networks:
     internal: true
 
 volumes:
+  ollama_models:
   s3_data:
   scanner_cache:
   egress_logs:

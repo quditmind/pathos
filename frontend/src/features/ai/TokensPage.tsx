@@ -65,6 +65,12 @@ export function TokensPage() {
             <p className="text-muted-foreground">Add PATHOS to Claude Code:</p>
             <pre className="overflow-x-auto rounded-md bg-surface-muted p-2 text-[11.5px]">{command}</pre>
             <p className="text-[12px] text-muted-foreground">Then ask, for example: “List my pending high-severity findings in PATHOS and review them.” Your reviews are attributed to you and follow the approval policy.</p>
+            <p className="text-[12px] text-muted-foreground">
+              Works with a Claude Pro or Max plan: Claude Code does the review on your subscription; PATHOS only stores the result.
+              If PATHOS uses its own local certificate (the default <code>https://localhost</code> install), start Claude Code with
+              <code className="mx-1">NODE_EXTRA_CA_CERTS=pathos-local-ca.crt claude</code> after exporting the CA with
+              <code className="mx-1">docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt pathos-local-ca.crt</code>.
+            </p>
           </div>
         )}
       </Dialog>

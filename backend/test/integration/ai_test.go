@@ -255,6 +255,52 @@ func TestAIReviewAndMCP(t *testing.T) {
 		t.Errorf("second reviewer approves: %d", code)
 	}
 
+	// Single-person installs: with allow_self_approval on the configuration,
+	// the submitter may approve their own interactive review (audited).
+	call(admin, "PUT", "/api/v1/ai/configurations/"+cfg["id"].(string), map[string]any{"provider_id": prov["id"], "approval_policy": "always",
+		"categories": []string{"sast"}, "allow_self_approval": true, "change_note": "single-person install"})
+	f3 := insertFinding(t, repo, "high", "")
+	rpc(secret, "tools/call", map[string]any{"name": "submit_review", "arguments": map[string]any{
+		"finding_id": f3.String(), "verdict": "true_positive", "confidence": 0.9, "suggested_severity": "high",
+		"rationale": "User input reaches eval.", "remediation": "Remove eval."}})
+	_, revs3 := call(analyst, "GET", "/api/v1/findings/"+f3.String()+"/ai-reviews", nil)
+	r3 := revs3["items"].([]any)[0].(map[string]any)
+	if code, out := call(analyst, "POST", "/api/v1/ai/reviews/"+r3["id"].(string)+"/approve", nil); code != 204 {
+		t.Errorf("self-approval when allowed: %d %v", code, out)
+	}
+	var selfFlag bool
+	_ = appPool.QueryRow(ctx, `SELECT (metadata->>'self_approved')::boolean FROM audit_logs
+		WHERE action = 'ai_review.approve' AND target_id = $1`, f3.String()).Scan(&selfFlag)
+	if !selfFlag {
+		t.Error("self-approval must be marked in the audit log")
+	}
+
+	// Self-hosted (OpenAI-compatible) providers: plain http on a private
+	// network and no key are accepted only for this kind.
+	for name, tc := range map[string]struct {
+		body map[string]any
+		want int
+	}{
+		"ollama on host":         {map[string]any{"name": "Ollama", "kind": "self_hosted", "base_url": "http://host.docker.internal:11434/v1", "test_model": "qwen2.5-coder:7b"}, 201},
+		"self-hosted needs url":  {map[string]any{"name": "x1", "kind": "self_hosted", "test_model": "m"}, 400},
+		"metadata address":       {map[string]any{"name": "x2", "kind": "self_hosted", "base_url": "http://169.254.169.254/v1", "test_model": "m"}, 400},
+		"cloud provider no http": {map[string]any{"name": "x3", "kind": "openai", "api_key": "k", "base_url": "http://10.0.0.5/v1", "test_model": "m"}, 400},
+		"cloud provider no key":  {map[string]any{"name": "x4", "kind": "openai", "test_model": "m"}, 400},
+	} {
+		code, out := call(admin, "POST", "/api/v1/ai/providers", tc.body)
+		if code != tc.want {
+			t.Errorf("%s: want %d, got %d %v", name, tc.want, code, out)
+		}
+		if code == 201 {
+			if out["kind"] != "self_hosted" {
+				t.Errorf("%s: kind %v", name, out["kind"])
+			}
+			if code, _ := call(admin, "DELETE", "/api/v1/ai/providers/"+out["id"].(string), nil); code != 204 {
+				t.Errorf("delete keyless provider: %d", code)
+			}
+		}
+	}
+
 	// Registry controls: disallowing a tool hides it; disabling the server blocks the endpoint.
 	_, servers := call(admin, "GET", "/api/v1/mcp-servers", nil)
 	builtin := servers["items"].([]any)[0].(map[string]any)

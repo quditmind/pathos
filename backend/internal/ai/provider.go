@@ -17,6 +17,9 @@ const (
 	Anthropic = "anthropic"
 	OpenAI    = "openai"
 	XAI       = "xai"
+	// SelfHosted is any OpenAI-compatible server run by the organization
+	// (Ollama, vLLM, LM Studio, llama.cpp server). The key is optional.
+	SelfHosted = "self_hosted"
 )
 
 // Request is one review call.
@@ -73,10 +76,15 @@ type Config struct {
 
 // New returns a provider for cfg.
 func New(cfg Config) (Provider, error) {
-	if cfg.APIKey == "" {
+	if cfg.APIKey == "" && cfg.Kind != SelfHosted {
 		return nil, errors.New("ai: API key required")
 	}
 	switch cfg.Kind {
+	case SelfHosted:
+		if cfg.BaseURL == "" {
+			return nil, errors.New("ai: a base URL is required for a self-hosted provider")
+		}
+		return &chatCompletions{cfg: cfg, kind: SelfHosted}, nil
 	case Anthropic:
 		return newAnthropic(cfg), nil
 	case OpenAI:

@@ -401,7 +401,7 @@ export interface Worker {
 export interface AIProvider {
   id: string;
   name: string;
-  kind: "anthropic" | "openai" | "xai";
+  kind: "anthropic" | "openai" | "xai" | "self_hosted";
   base_url: string;
   status: "untested" | "ok" | "error";
   status_message: string;
@@ -420,6 +420,7 @@ export interface AIConfigVersion {
   categories: string[];
   min_severity: Severity;
   approval_policy: "always" | "false_positives" | "never";
+  allow_self_approval: boolean;
   daily_limit: number;
   send_code_context: boolean;
   redaction_patterns: string[];

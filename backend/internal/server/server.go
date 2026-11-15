@@ -167,5 +167,8 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {
 	client := d.SCMNet.Client()
 	client.Timeout = 5 * time.Minute
-	return &ai.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client}
+	// Self-hosted model servers (Ollama, vLLM) live on private networks.
+	local := scm.NetPolicy{AllowPrivate: true, AllowHTTP: true}.Client()
+	local.Timeout = 10 * time.Minute // CPU inference can be slow
+	return &ai.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client, LocalHTTP: local}
 }

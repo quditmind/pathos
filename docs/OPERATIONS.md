@@ -151,6 +151,41 @@ By default, raw scanner reports and SBOMs are stored compressed in PostgreSQL. F
 
 Retention deletes the database row first, then the object. A failure leaves an unreferenced object, never a dangling reference.
 
+## AI review options
+
+| Option | Cost model | Code leaves your network? | Setup |
+|---|---|---|---|
+| Cloud API (Anthropic, OpenAI, xAI) | Pay per use (API key) | Yes, redacted evidence only | AI settings → Add provider |
+| **Claude Pro/Max with Claude Code** (interactive) | Your subscription | Only to your own Claude Code session | API tokens → `claude mcp add …` |
+| **Self-hosted model** (Ollama, vLLM, LM Studio, llama.cpp) | Your hardware | No | Provider type "Self-hosted" |
+
+**Claude Pro/Max.** A subscription cannot be used as an API key, so automated reviews need one of the other two options. Interactive review works with the plan you already have:
+1. Create a personal API token (user menu → API tokens).
+2. Run the `claude mcp add` command shown there. With the default local certificate, start Claude Code with `NODE_EXTRA_CA_CERTS=pathos-local-ca.crt claude` after exporting the CA:
+
+   ```bash
+   docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt pathos-local-ca.crt
+   ```
+
+3. Ask Claude Code to review pending findings.
+
+Interactive reviews need a second person to approve them. On a single-person installation, enable **Allow self-approval of interactive reviews** in the AI configuration. Each self-approval is marked in the audit log.
+
+**Self-hosted models.** Choose one of these setups:
+- **Native Ollama with GPU (recommended):** install Ollama on the host and make it listen on all interfaces (`OLLAMA_HOST=0.0.0.0`, e.g. a systemd override). Then add a Self-hosted provider with base URL `http://host.docker.internal:11434/v1`.
+- **Bundled profile:** add `ollama` to `COMPOSE_PROFILES`, pull a model with `docker compose exec ollama ollama pull qwen2.5-coder:7b`, and use base URL `http://ollama:11434/v1`. It runs on CPU unless you add `-f docker-compose.gpu.yml`, which needs the NVIDIA Container Toolkit.
+
+Then create an AI configuration with that provider and the model name. Model guidance (4-bit quantized):
+
+| Hardware | Suggested model | Notes |
+|---|---|---|
+| CPU only | `qwen2.5-coder:3b` / `7b` | Phase 8+ test: about 30 s per finding with the 3B model on a 20-core CPU |
+| 12 GB GPU | `qwen2.5-coder:14b` | Good balance |
+| 24 GB GPU | `qwen2.5-coder:32b` | Strong |
+| 48 GB+ | 70B-class models | Closest to cloud models |
+
+The same guardrails apply as for cloud models: strict validation of the output schema, the human approval policy, and Critical findings never closed without a person. Smaller models are less consistent, so keep approval at **Always** until you trust their verdicts.
+
 ## Security self-tests
 
 ```bash

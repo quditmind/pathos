@@ -1,5 +1,19 @@
 # Changelog
 
+## [Unreleased] — Local AI and Claude subscriptions (2026-11-15)
+
+### Added
+- Self-hosted AI provider (any OpenAI-compatible server: Ollama, vLLM, LM Studio, llama.cpp):
+  - plain `http` on private networks, with an optional key;
+  - `max_tokens` and temperature 0 for deterministic triage;
+  - helpful errors when the base URL or model is wrong.
+- Optional `ollama` compose profile, `docker-compose.gpu.yml` for NVIDIA GPUs, and a `host.docker.internal` mapping for a model server running natively on the host.
+- `allow_self_approval` on AI configurations, so a single person can approve the interactive (MCP) reviews made with their own Claude Code (Pro/Max). Audited.
+- Claude Code setup notes, including the local-CA tip, on the API tokens page. AI options guide in OPERATIONS.md.
+
+### Verified
+- A live review of a real command-injection finding by `qwen2.5-coder:3b` on CPU through Ollama: correct verdict and remediation in 30 s, accepted by strict schema validation.
+
 ## [Unreleased] — Continuous integration (2026-11-15)
 
 ### Added

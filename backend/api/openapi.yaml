@@ -575,7 +575,7 @@ paths:
   # Phase 5: AI review and MCP
   /api/v1/ai/providers:
     get: { summary: AI providers (keys never returned), responses: { "200": { description: OK } } }
-    post: { summary: "Create a provider (anthropic, openai, xai); the key is tested on save", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+    post: { summary: "Create a provider (anthropic, openai, xai, self_hosted). self_hosted = any OpenAI-compatible server: base_url required (http allowed, private networks), api_key optional. Tested on save", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
   /api/v1/ai/providers/{id}:
     delete: { summary: Delete a provider, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted } } }
   /api/v1/ai/providers/{id}/test:
