@@ -59,7 +59,8 @@ func TestMiddlewareRecoversAndSetsHeaders(t *testing.T) {
 	if rec.Code != 500 || strings.Contains(rec.Body.String(), "boom") {
 		t.Fatalf("panic must yield a generic 500, got %d %s", rec.Code, rec.Body)
 	}
-	if rec.Header().Get("X-Content-Type-Options") != "nosniff" || rec.Header().Get("Cache-Control") != "no-store" {
+	if rec.Header().Get("X-Content-Type-Options") != "nosniff" || rec.Header().Get("Cache-Control") != "no-store" ||
+		rec.Header().Get("Cross-Origin-Resource-Policy") != "same-origin" {
 		t.Error("security headers missing")
 	}
 	if id := rec.Header().Get("X-Request-Id"); id == "" || strings.Contains(id, " ") {

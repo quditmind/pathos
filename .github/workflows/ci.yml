@@ -5,7 +5,8 @@
 #   frontend     typecheck, unit tests, production build, npm audit
 #   stack        builds every image, starts the full Compose stack from a fresh
 #                install, then: smoke test, Playwright browser tests, Trivy on
-#                our images and an OWASP ZAP baseline (scripts/security-scan.sh)
+#                our images and an OWASP ZAP baseline (scripts/security-scan.sh);
+#                outside pull requests also an authenticated active ZAP API scan
 #
 # Third-party actions are pinned to commit SHAs; Dependabot keeps them current.
 name: CI
@@ -15,6 +16,9 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Weekly run catches new advisories (Trivy, govulncheck) and runs the DAST.
+  schedule:
+    - cron: "17 3 * * 1"
   # The release workflow runs the full CI before publishing anything.
   workflow_call:
 
@@ -126,6 +130,14 @@ jobs:
           CI: "true"
       - name: Image scan (Trivy) and DAST baseline (ZAP)
         run: scripts/security-scan.sh --no-code
+      # Active, authenticated scan of every API endpoint. It modifies data, so
+      # it runs on this disposable stack only, and not on pull requests (they
+      # get the passive baseline). Runs on main, releases, weekly and manually.
+      - name: Authenticated DAST (ZAP API scan)
+        if: github.event_name != 'pull_request'
+        run: |
+          PATHOS_RATE_LIMIT_SCALE=0 docker compose up -d --wait api
+          scripts/dast.sh --destructive-ok --minutes 20
       - name: Service logs
         if: failure()
         run: docker compose logs --no-color --timestamps > compose-logs.txt

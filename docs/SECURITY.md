@@ -135,6 +135,7 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - All images are pinned by digest and all downloaded binaries by SHA-256.
   - Gitleaks and Caddy are rebuilt from checksum-verified Go modules with a current toolchain and patched dependencies.
   - The worker runtime contains no package manager.
+- **Authenticated DAST:** `scripts/dast.sh` signs in as an administrator and runs OWASP ZAP's active API scan against every endpoint in `backend/api/openapi.yaml`, sending the session cookie, CSRF token and `Origin`. CI runs it on a disposable stack for every push to `main`, before every release and weekly. Any High alert that isn't in the reviewed list (`deploy/security/zap-api.conf`) fails the run. On the first run against 0.9.0, about 9,500 attack requests produced no High or Medium findings beyond one reviewed false positive, and the two Low findings were fixed: a CORP header on API responses, and `/api` answering with JSON.
 - **Self-tests:** `make security` gates on gosec, govulncheck, npm audit, fixable HIGH/CRITICAL image vulnerabilities (Trivy) and ZAP baseline failures. Accepted ZAP warnings are documented in `deploy/security/zap-baseline.conf`.
 - **Accepted residual risk:** vulnerabilities with no upstream fix are reported but not gated. As of Phase 8:
   - 118 Debian base packages in the worker image (the worker is sandboxed; see "Scanning").
@@ -158,5 +159,4 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 ## Known gaps (tracked)
 
 - MFA enforcement applies to newly invited users. Existing accounts need an administrator to require OTP in Keycloak.
-- Authenticated active DAST is not automated. Run ZAP's API scan (`zap-api-scan.py` with `backend/api/openapi.yaml` and a session cookie) against a disposable environment before major releases.
 - Vulnerabilities without an upstream fix in base images (see "Accepted residual risk").
