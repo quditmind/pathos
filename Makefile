@@ -45,6 +45,13 @@ e2e: ## Browser end-to-end tests (Playwright) against the running stack
 dast: ## Authenticated active ZAP API scan. DESTRUCTIVE: disposable stacks only
 	scripts/dast.sh --destructive-ok
 
+SINCE ?= 3h
+triage: ## Draft: grouped, redacted errors from the last SINCE (3h) of logs
+	scripts/log-triage.py --since $(SINCE)
+
+triage-create: ## File the reviewed triage findings as GitHub issues (bug, from-logs)
+	scripts/log-triage.py --since $(SINCE) --create
+
 smoke: ## End-to-end test against the running stack
 	python3 scripts/smoke-test.py
 
