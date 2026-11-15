@@ -57,7 +57,7 @@ func newHarness(t *testing.T) *harness {
 		DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}},
 		Secrets: &secrets.Store{Keys: kr}, Log: log, Principal: auth.PrincipalFrom, PublicURL: "https://pathos.test",
 		NewClient: func(scm.Config) (scm.Client, error) { return fake, nil },
-		OnEvent: func(_ context.Context, _, _ uuid.UUID, ev scm.WebhookEvent) { h.events = append(h.events, ev) },
+		OnEvent:   func(_ context.Context, _, _ uuid.UUID, ev scm.WebhookEvent) { h.events = append(h.events, ev) },
 	}
 	svc.Register(h.mux)
 	svc.RegisterPublic(h.mux)

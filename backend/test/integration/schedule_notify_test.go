@@ -4,11 +4,11 @@ package integration
 
 import (
 	"bufio"
-	"io"
-	"mime/quotedprintable"
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"mime/quotedprintable"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -487,8 +487,8 @@ func TestNotifications(t *testing.T) {
 	// repository with an explicit address does, with the custom template.
 	other := createRepo(t, "nt-other-"+uuid.NewString()[:6])
 	for _, rr := range []struct {
-		scope  uuid.UUID
-		email  string
+		scope uuid.UUID
+		email string
 	}{{other, "other@ext.test"}, {repo, "oncall@ext.test"}} {
 		if code, out := call(admin, "POST", "/api/v1/notifications/rules", map[string]any{
 			"name": "On-call " + rr.email, "event_key": "scan.failed", "scope_type": "repository", "scope_id": rr.scope,

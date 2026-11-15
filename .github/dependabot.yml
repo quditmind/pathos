@@ -1,0 +1,25 @@
+# Weekly dependency updates, grouped per ecosystem to keep PR noise low.
+# CI (including the security gate) runs on every update PR.
+version: 2
+updates:
+  - package-ecosystem: gomod
+    directory: /backend
+    schedule: { interval: weekly }
+    groups: { go: { patterns: ["*"] } }
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule: { interval: weekly }
+    groups: { frontend: { patterns: ["*"] } }
+  - package-ecosystem: npm
+    directory: /e2e
+    schedule: { interval: monthly }
+  - package-ecosystem: docker
+    directories: [/backend, /workers/core, /deploy/caddy]
+    schedule: { interval: weekly }
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule: { interval: weekly }
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups: { actions: { patterns: ["*"] } }

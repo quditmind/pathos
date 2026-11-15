@@ -29,7 +29,7 @@ type fakeProvider struct {
 	response string
 }
 
-func (f *fakeProvider) Kind() string                          { return ai.Anthropic }
+func (f *fakeProvider) Kind() string                           { return ai.Anthropic }
 func (f *fakeProvider) Validate(context.Context, string) error { return nil }
 func (f *fakeProvider) Review(_ context.Context, req ai.Request) (ai.Response, error) {
 	f.mu.Lock()

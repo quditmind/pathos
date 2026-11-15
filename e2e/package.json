@@ -1,0 +1,11 @@
+{
+  "name": "pathos-e2e",
+  "private": true,
+  "description": "Browser end-to-end tests against a running PATHOS stack (scripts/e2e.sh)",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.1"
+  }
+}

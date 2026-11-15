@@ -54,7 +54,8 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
   const navigate = useNavigate();
   const { can, canOrgWide, logout } = useSession();
   const [q, setQ] = useState("");
-  const dq = useDebounced(q.trim(), 200);
+  const dq = useDebounced(q.trim(), 200); // server search
+  const lq = q.trim(); // local page/command matching: immediate, so Enter right after typing picks the right page
 
   const results = useQuery({
     queryKey: ["search", dq],
@@ -101,7 +102,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
   // select anything by itself: select the first visible item.
   const [selected, setSelected] = useState("");
   const firstResult = [...groups.values()][0]?.[0];
-  const firstPage = pages.find((p) => !dq || p.label.toLowerCase().includes(dq.toLowerCase()));
+  const firstPage = pages.find((p) => !lq || p.label.toLowerCase().includes(lq.toLowerCase()));
   const firstValue = firstResult ? `${firstResult.type}-${firstResult.id}` : firstPage ? `page-${firstPage.to}` : "";
   useEffect(() => setSelected(firstValue), [firstValue]);
 
@@ -141,10 +142,10 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
                   ))}
                 </Command.Group>
               ))}
-              {(!dq || pages.some((p) => p.label.toLowerCase().includes(dq.toLowerCase()))) && (
+              {(!lq || pages.some((p) => p.label.toLowerCase().includes(lq.toLowerCase()))) && (
                 <Command.Group heading="Go to">
                   {pages
-                    .filter((p) => !dq || p.label.toLowerCase().includes(dq.toLowerCase()))
+                    .filter((p) => !lq || p.label.toLowerCase().includes(lq.toLowerCase()))
                     .map((p) => (
                       <Command.Item key={p.to} value={`page-${p.to}`} onSelect={() => go(p.to)} className={item}>
                         {p.icon}
@@ -153,7 +154,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
                     ))}
                 </Command.Group>
               )}
-              {!dq && (
+              {!lq && (
                 <Command.Group heading="Actions">
                   <Command.Item value="action-theme" onSelect={() => { onToggleTheme(); onOpenChange(false); }} className={item}>
                     <Moon /> Toggle light / dark theme

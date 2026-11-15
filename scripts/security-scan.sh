@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # PATHOS security self-tests. Everything runs in containers.
 #
-#   scripts/security-scan.sh [--no-images] [--no-zap] [--target https://localhost/]
+#   scripts/security-scan.sh [--no-code] [--no-images] [--no-zap] [--target https://localhost/]
 #
 #   gosec        static analysis of the Go code (justified #nosec only)
 #   govulncheck  known vulnerabilities in reachable Go dependencies
@@ -22,9 +22,10 @@ GOVULNCHECK=v1.9.0
 ZAP_IMAGE="zaproxy/zap-stable@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af"
 IMAGES=("pathos:${PATHOS_VERSION:-dev}" "pathos-proxy:${PATHOS_VERSION:-dev}" "pathos-worker-core:${PATHOS_VERSION:-dev}")
 
-images=1 zap=1 target="https://localhost/"
+code=1 images=1 zap=1 target="https://localhost/"
 while [ $# -gt 0 ]; do
   case "$1" in
+    --no-code) code=0; shift ;;
     --no-images) images=0; shift ;;
     --no-zap) zap=0; shift ;;
     --target) target="$2"; shift 2 ;;
@@ -39,6 +40,7 @@ declare -A result
 failed=0
 gate() { result[$1]="$2"; [ "$3" = ok ] || failed=1; }
 
+if [ "$code" = 1 ]; then
 echo "== gosec $GOSEC"
 if "$ROOT/scripts/go.sh" run "github.com/securego/gosec/v2/cmd/gosec@$GOSEC" -fmt=text -exclude-dir=test ./... > "$out/gosec.txt" 2>&1; then
   gate gosec "$(grep -E '^ +(Issues|Nosec)' "$out/gosec.txt" | tr -s ' ' | tr '\n' ' ')" ok
@@ -58,6 +60,7 @@ if (cd frontend && "$ROOT/scripts/npm.sh" audit --audit-level=high) > "$out/npm-
   gate npm "$(grep -Eo 'found [0-9]+ vulnerabilities|[0-9]+ vulnerabilities.*' "$out/npm-audit.txt" | tail -1)" ok
 else
   gate npm "high/critical advisories, see $out/npm-audit.txt" fail
+fi
 fi
 
 if [ "$images" = 1 ]; then

@@ -31,10 +31,13 @@ The only host requirement is Docker Engine with the Compose plugin. For producti
 ```bash
 make test               # Go and frontend unit tests (in containers)
 make test-integration   # Go integration tests against a throwaway PostgreSQL
-make smoke              # end-to-end checks against the running stack
+make smoke              # end-to-end API checks against the running stack
+make e2e                # Playwright browser tests against the running stack
 make security           # gosec, govulncheck, npm audit, Trivy, ZAP baseline
 make load-test          # k6 load test (see docs/OPERATIONS.md)
 ```
+
+CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It starts with fast checks (gofmt, vet, race-enabled unit and integration tests, gosec, govulncheck, the frontend build and npm audit), then does a fresh install of the full Compose stack, followed by the smoke test, the browser tests, Trivy on the built images and a ZAP baseline. Dependabot proposes weekly dependency updates.
 
 ## Documentation
 

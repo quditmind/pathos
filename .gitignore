@@ -4,7 +4,7 @@
 !.env.example
 *.pem
 *.key
-secrets/
+/secrets/
 
 # Build output
 /backend/bin/
@@ -33,3 +33,9 @@ __pycache__/
 
 # Generated reports (security scans, load tests)
 /reports/
+
+# Browser tests
+e2e/node_modules/
+e2e/.auth/
+e2e/test-results/
+e2e/playwright-report/

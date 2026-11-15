@@ -40,7 +40,7 @@ import (
 var (
 	// testKey is the one master key all tests use, so global operations
 	// (key rotation) see consistent ciphertexts.
-	testKey = func() []byte { k := make([]byte, 32); _, _ = rand.Read(k); return k }()
+	testKey   = func() []byte { k := make([]byte, 32); _, _ = rand.Read(k); return k }()
 	ownerPool *pgxpool.Pool // migration owner
 	appPool   *pgxpool.Pool // least-privilege runtime role
 	orgID     uuid.UUID

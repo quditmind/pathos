@@ -1,6 +1,22 @@
 # Changelog
 
-## [Unreleased] — Phase 8: Enterprise hardening (2026-11-15)
+## [Unreleased] — Continuous integration (2026-11-15)
+
+### Added
+- GitHub Actions CI:
+  - Backend: gofmt, vet, race-enabled unit tests, gosec, govulncheck.
+  - Integration tests against PostgreSQL 18.
+  - Frontend: typecheck, tests, build, npm audit.
+  - Full-stack job from a fresh install: smoke test, Playwright, Trivy, ZAP baseline.
+- Actions are pinned to commit SHAs. Dependabot updates Go, npm, Docker, Compose and Actions.
+- Playwright browser test suite (`e2e/`, `make e2e`): every page renders without page errors or CSP violations, plus the command palette, security headers, schedule lifecycle, notification administration, policies, the finding drawer and the notification centre.
+
+### Fixed
+- `backend/internal/secrets` was never committed: the unanchored `secrets/` pattern in `.gitignore` excluded it, so a fresh clone could not build. The pattern is now `/secrets/`. Found by the fresh-install CI dry run.
+- Command palette: typing a page name and pressing Enter right away opened the Dashboard, because page matching used the debounced query. It now uses the live input.
+- Integration test files were not gofmt-formatted (`go fmt ./...` skips build-tagged files); CI now checks with `gofmt -l`.
+
+## Phase 8: Enterprise hardening (2026-11-15)
 
 ### Added
 - API rate limiting (GCRA in Valkey) with `429` and `Retry-After`; tuned with `PATHOS_RATE_LIMIT_SCALE`.
