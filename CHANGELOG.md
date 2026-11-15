@@ -1,6 +1,15 @@
 # Changelog
 
-## [Unreleased] — Phase 1: Foundation (2026-11-15)
+## [Unreleased] — Phase 2: Premium UI & dashboard (2026-11-15)
+
+### Added
+- Dashboard API with the 24-KPI catalog and chart panels. KPIs that have no data source yet are reported as "not yet available", never with placeholder numbers. Values are permission-aware, with period and geography filters.
+- Global search API and the ⌘K command palette.
+- UI components: KpiCard, FilterBar and DataTable (column chooser, CSV export). Also a notification centre shell, a dashboard page with lazy-loaded charts, and deep-linkable filters on the Users and Audit pages.
+- Keycloak login theme `pathos`.
+- Audit log `outcome` filter.
+
+## Phase 1: Foundation (2026-11-15)
 
 ### Added
 - Go backend (`pathos` with `api` and `jobs` roles, `pathosctl`): validated configuration (with `_FILE` secret support), slog JSON logging with secret redaction, and `/healthz` and `/readyz`.

@@ -48,6 +48,8 @@ All settings live in `.env`; `.env.example` documents each one. The common chang
 | Non-standard port | `PATHOS_HTTPS_PORT=8443` **and** `PATHOS_PUBLIC_URL=https://host:8443` |
 | Real SMTP relay | `PATHOS_SMTP_HOST`, `PATHOS_SMTP_PORT`, `PATHOS_SMTP_FROM`; set `COMPOSE_PROFILES=` |
 
+> After editing the login theme in `deploy/keycloak/themes/pathos`, run `docker compose up -d --force-recreate keycloak` (Keycloak caches compressed theme files inside the container).
+
 > Keycloak imports the realm only on **first** start. After the first start, change the public URL, SMTP settings or client secrets in the Keycloak admin console (`https://<host>/auth/admin`, master realm, user `KEYCLOAK_ADMIN_USER`), or reset the install.
 
 ## Day-2 operations

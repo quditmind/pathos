@@ -13,10 +13,12 @@ import (
 
 	"pathos/internal/auth"
 	"pathos/internal/authz"
+	"pathos/internal/dashboard"
 	"pathos/internal/identity"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/search"
 )
 
 // Version is set at build time with -ldflags.
@@ -56,6 +58,8 @@ func Handler(d Deps) http.Handler {
 		},
 	}).Register(protected)
 	(&org.Handlers{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})

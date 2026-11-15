@@ -19,3 +19,9 @@ export function initials(nameOrEmail: string): string {
   const letters = parts.length >= 2 ? parts[0]![0]! + parts[1]![0]! : base.slice(0, 2);
   return letters.toUpperCase();
 }
+
+/** Splits an app route like "/admin/audit?outcome=denied" for router links. */
+export function splitHref(href: string): { to: string; search: Record<string, string> } {
+  const [to, qs] = href.split("?", 2) as [string, string | undefined];
+  return { to, search: Object.fromEntries(new URLSearchParams(qs ?? "")) };
+}

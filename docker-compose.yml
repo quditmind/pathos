@@ -180,6 +180,7 @@ services:
       PATHOS_SMTP_FROM: ${PATHOS_SMTP_FROM:-pathos@localhost}
     volumes:
       - ./deploy/keycloak/pathos-realm.json:/opt/keycloak/data/import/pathos-realm.json:ro
+      - ./deploy/keycloak/themes/pathos:/opt/keycloak/themes/pathos:ro
     # edge: outbound access for identity federation (Entra ID, SAML IdPs).
     networks: [app, data, edge]
     depends_on:

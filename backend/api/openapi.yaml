@@ -330,6 +330,47 @@ paths:
       responses:
         "201": { description: Created }
         "409": { description: Name already used under the same parent }
+  /api/v1/dashboard:
+    get:
+      summary: Dashboard KPIs and charts (dashboard.read)
+      description: |
+        Returns all 24 KPI cards and the chart panels. Each item has `status`:
+        `ok` (value present), `not_yet_available` (data source arrives in roadmap `phase`)
+        or `restricted` (caller lacks the permission; no value is returned).
+        Values are filtered to the caller's scopes. When geo filters are set, KPIs that
+        are not geo-scoped carry `org_wide: true`.
+      parameters:
+        - { name: days, in: query, schema: { type: integer, enum: [7, 30, 90, 365], default: 30 } }
+        - { name: region_id, in: query, schema: { type: string, format: uuid } }
+        - { name: country_id, in: query, schema: { type: string, format: uuid } }
+        - { name: business_unit_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        "200": { description: OK }
+        "400": { $ref: "#/components/responses/Error" }
+        "403": { $ref: "#/components/responses/Error" }
+  /api/v1/search:
+    get:
+      summary: Global search across entities the caller may read
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 2, maxLength: 100 } }
+      responses:
+        "200":
+          description: Up to 5 results per entity type.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type: { type: string, enum: [user, business_unit, region, country] }
+                        id: { type: string }
+                        title: { type: string }
+                        subtitle: { type: string }
+                        href: { type: string }
   /api/v1/audit-logs:
     get:
       summary: Audit log, newest first (audit.read)
@@ -338,6 +379,7 @@ paths:
         - { name: actor_id, in: query, schema: { type: string, format: uuid } }
         - { name: target_type, in: query, schema: { type: string } }
         - { name: target_id, in: query, schema: { type: string } }
+        - { name: outcome, in: query, schema: { type: string, enum: [success, denied, failure] } }
         - { $ref: "#/components/parameters/Cursor" }
       responses:
         "200":

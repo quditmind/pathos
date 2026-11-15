@@ -13,12 +13,15 @@ import {
   LogOut,
   Moon,
   Radar,
+  Search,
   ShieldAlert,
   SlidersHorizontal,
   Sun,
   Users,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
+import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
+import { NotificationCentre } from "./NotificationCentre";
 import { useSession } from "@/features/auth/session";
 import { cn, initials } from "@/lib/utils";
 
@@ -78,6 +81,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { me, canOrgWide, can, logout } = useSession();
   const [collapsed, setCollapsed] = useState(false);
   const [dark, setDark] = useTheme();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  useCommandPaletteHotkey(setPaletteOpen);
+  const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   const visible = (it: NavItem) => !it.perm || (it.perm === "org.read" ? can(it.perm) : canOrgWide(it.perm));
@@ -141,7 +147,18 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center justify-end gap-2 border-b border-border bg-surface px-5">
+        <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface px-5">
+          <button
+            onClick={() => setPaletteOpen(true)}
+            className="flex h-8 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-surface-muted/50 px-2.5 text-[13px] text-muted-foreground hover:bg-surface-muted"
+            aria-label="Search (Ctrl+K)"
+          >
+            <Search className="size-4" />
+            <span className="flex-1 text-left">Search…</span>
+            <kbd className="rounded border border-border bg-surface px-1.5 text-[11px] font-medium">{isMac ? "⌘" : "Ctrl"} K</kbd>
+          </button>
+          <div className="flex-1" />
+          <NotificationCentre />
           <button
             onClick={() => setDark(!dark)}
             className="rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -173,6 +190,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </DM.Portal>
           </DM.Root>
         </header>
+        <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onToggleTheme={() => setDark(!dark)} />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-6 py-6">{children}</div>
         </main>

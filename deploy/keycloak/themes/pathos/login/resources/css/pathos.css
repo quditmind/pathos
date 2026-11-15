@@ -1,0 +1,63 @@
+/* PATHOS branding over keycloak.v2. Colours match frontend/src/index.css. */
+:root {
+  --keycloak-card-top-color: #1f5fd6;
+  --pf-v5-global--primary-color--100: #1f5fd6;
+  --pf-v5-global--primary-color--200: #1a50b5;
+  --pf-v5-global--link--Color: #1f5fd6;
+  --pf-v5-global--link--Color--hover: #1a50b5;
+  --pf-v5-global--FontFamily--text: "Inter", "Segoe UI", system-ui, sans-serif;
+  --pf-v5-global--FontFamily--heading: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+.login-pf body {
+  background: #f7f8fa;
+}
+
+.pf-v5-c-login__main {
+  border: 1px solid #e3e6eb;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
+  overflow: hidden;
+}
+
+.pf-v5-c-login__main-header {
+  border-top-width: 3px;
+}
+
+/* keycloak.v2 renders the realm display name as the header; add the mark above it. */
+#kc-header-wrapper {
+  color: #111827 !important;
+  padding: 8px 0 4px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+}
+#kc-header-wrapper::before {
+  content: "";
+  display: block;
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 12px;
+  background: url("../img/pathos-mark.svg") no-repeat center / contain;
+}
+
+.pf-v5-c-button.pf-m-primary {
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+#kc-page-title {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+/* Dark mode follows the OS, as in the PATHOS UI. */
+.pf-v5-theme-dark.login-pf body,
+.pf-v5-theme-dark body {
+  background: #0d1117;
+}
+.pf-v5-theme-dark .pf-v5-c-login__main {
+  border-color: #2a3340;
+}
+.pf-v5-theme-dark #kc-header-wrapper {
+  color: #e6e9ef !important;
+}

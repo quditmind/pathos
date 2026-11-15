@@ -88,3 +88,54 @@ export interface CreateUserResponse {
   role_assignments: RoleAssignment[];
   provisioning: { status: "created" | "linked_existing" | "skipped" | "failed"; message?: string };
 }
+
+export type KpiStatus = "ok" | "not_yet_available" | "restricted";
+
+export interface Point {
+  date: string;
+  value: number;
+}
+
+export interface Kpi {
+  key: string;
+  label: string;
+  group: string;
+  description: string;
+  unit: "count" | "percent" | "days" | "score";
+  polarity: "higher_is_better" | "lower_is_better" | "neutral";
+  drill: string;
+  status: KpiStatus;
+  phase: number;
+  value: number | null;
+  previous: number | null;
+  sparkline?: Point[];
+  org_wide?: boolean;
+}
+
+export interface Chart {
+  key: string;
+  title: string;
+  kind: "line" | "bar" | "stacked_bar" | "donut";
+  status: KpiStatus;
+  phase: number;
+  drill: string;
+  series?: { name: string; points: Point[] }[];
+  categories?: { label: string; value: number }[];
+}
+
+export interface Dashboard {
+  filters: { days: number; region_id?: string; country_id?: string; business_unit_id?: string };
+  period_start: string;
+  period_end: string;
+  groups: string[];
+  kpis: Kpi[];
+  charts: Chart[];
+}
+
+export interface SearchResult {
+  type: "user" | "business_unit" | "region" | "country";
+  id: string;
+  title: string;
+  subtitle: string;
+  href: string;
+}

@@ -22,7 +22,8 @@
   "ssoSessionIdleTimeout": 28800,
   "ssoSessionMaxLifespan": 86400,
   "internationalizationEnabled": false,
-  "loginTheme": "keycloak.v2",
+  "loginTheme": "pathos",
+  "emailTheme": "keycloak",
   "smtpServer": {
     "host": "${PATHOS_SMTP_HOST:mailpit}",
     "port": "${PATHOS_SMTP_PORT:1025}",

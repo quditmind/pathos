@@ -113,6 +113,7 @@ type ListParams struct {
 	ActorID        *uuid.UUID
 	TargetType     string
 	TargetID       string
+	Outcome        string
 	Before         *time.Time // cursor: created_at of the last row seen
 	BeforeID       *uuid.UUID
 	Limit          int
@@ -133,9 +134,10 @@ func List(ctx context.Context, q db.Querier, p ListParams) ([]Record, error) {
 		  AND ($4 = '' OR target_type = $4)
 		  AND ($5 = '' OR target_id = $5)
 		  AND ($6::timestamptz IS NULL OR (created_at, id) < ($6, $7::uuid))
+		  AND ($9 = '' OR outcome = $9)
 		ORDER BY created_at DESC, id DESC
 		LIMIT $8`,
-		p.OrganizationID, p.Action, p.ActorID, p.TargetType, p.TargetID, p.Before, p.BeforeID, p.Limit)
+		p.OrganizationID, p.Action, p.ActorID, p.TargetType, p.TargetID, p.Before, p.BeforeID, p.Limit, p.Outcome)
 	if err != nil {
 		return nil, err
 	}

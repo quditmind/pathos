@@ -6,7 +6,7 @@ Each phase ends with: working features, automated tests passing, `docker compose
 |---|---|
 | 0 Environment & architecture | **Done (2026-11-15)** |
 | 1 Foundation | **Done (2026-11-15)**: see milestone report below |
-| 2 Premium UI & dashboard | Not started |
+| 2 Premium UI & dashboard | **Done (2026-11-15)**: see milestone report below |
 | 3 Repository & asset management | Not started |
 | 4 Scanning engine | Not started |
 | 5 AI & MCP | Not started |
@@ -74,3 +74,23 @@ docker compose up -d --build --wait && make smoke
 **Open issues:** see "Known gaps" in [SECURITY.md](SECURITY.md). Keycloak realm changes after first start must be made in the Keycloak admin console (the import is first-start only).
 
 **Next:** Phase 2, the premium UI and dashboard.
+
+## Phase 2 milestone report (2026-11-15)
+
+**Implemented:**
+- **Dashboard API** (`GET /api/v1/dashboard`). The 24-KPI catalog plus 6 chart panels are defined once in `backend/internal/dashboard/catalog.go`, each tagged with its data-source phase and required permission. Every item returns one of three states: `ok` with values, `not_yet_available` (no number, shows the phase that delivers it) or `restricted` (no value is sent). Filters: period (7/30/90/365 days), region, country, business unit. KPIs that are not geo-scoped are labelled `org_wide` when a geo filter is set.
+- **Live today:** Active users (with trend and sparkline), Pending invitations, Security events (denied/failed actions vs the previous period), Sign-ins per day, Administrative changes.
+- **Global search** (`GET /api/v1/search`) across users, business units, regions and countries, permission-aware, 5 results per type.
+- **UI:**
+  - ⌘K / Ctrl+K command palette (search, navigation, theme, sign out) and a notification centre shell.
+  - `KpiCard` (value, polarity-aware delta, sparkline, drill-down), `FilterBar` and `DataTable` (column chooser saved per browser, CSV export with formula-injection protection, load more).
+  - Users and Audit pages rebuilt on `DataTable`, with URL-driven filters so drill-downs and search results deep-link. Charts are lazy-loaded (Recharts kept out of the main bundle).
+- **Keycloak login theme** `pathos` (`deploy/keycloak/themes/pathos`): PATHOS mark and colours over `keycloak.v2`.
+
+**Upgrading a Phase 1 install:** the realm import runs only on first start. In the Keycloak admin console set *Realm settings → Themes → Login theme* to `pathos`. After any theme change, run `docker compose up -d --force-recreate keycloak`, because Keycloak keeps a gzip cache of theme files inside the container.
+
+**Tests:** dashboard catalog and filter unit tests; integration tests for dashboard values, permission restrictions and search scoping; frontend tests for KpiCard states, delta polarity, CSV escaping and href splitting; smoke test now has 40 checks; Playwright run of login, dashboard, palette, drill-down, notifications and dark mode.
+
+**Deviations:** OpenAPI code generation is still deferred (spec updated by hand). Saved table views are not implemented; column choices persist per browser.
+
+**Next:** Phase 3, repository and asset management.

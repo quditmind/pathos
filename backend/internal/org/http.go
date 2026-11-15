@@ -201,7 +201,13 @@ func (h *Handlers) listAudit(w http.ResponseWriter, r *http.Request) {
 	}
 	q := r.URL.Query()
 	params := audit.ListParams{OrganizationID: p.OrganizationID, Action: q.Get("action"),
-		TargetType: q.Get("target_type"), TargetID: q.Get("target_id"), Limit: 50}
+		TargetType: q.Get("target_type"), TargetID: q.Get("target_id"), Outcome: q.Get("outcome"), Limit: 50}
+	switch params.Outcome {
+	case "", audit.Success, audit.Denied, audit.Failure:
+	default:
+		httpx.WriteError(w, r, h.Log, httpx.BadRequest("outcome must be success, denied or failure"))
+		return
+	}
 	if a := q.Get("actor_id"); a != "" {
 		id, err := uuid.Parse(a)
 		if err != nil {

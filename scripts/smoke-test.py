@@ -214,6 +214,19 @@ def main():
     for act in ("auth.login", "user.invite", "role_assignment.create", "role_assignment.delete", "user.deactivate", "user.reactivate"):
         check(f"audit entry {act}", act in actions)
 
+    print("\nDashboard & search")
+    s, dash = admin.api("GET", "/api/v1/dashboard?days=7")
+    check("dashboard returns 24 KPIs", s == 200 and len(dash.get("kpis", [])) == 24, s)
+    if s == 200:
+        st = {k["key"]: k for k in dash["kpis"]}
+        check("future KPIs are not_yet_available without values",
+              st["open_findings"]["status"] == "not_yet_available" and st["open_findings"]["value"] is None)
+        check("active_users has a value", st["active_users"]["status"] == "ok" and st["active_users"]["value"] >= 1)
+    s, _ = admin.api("GET", "/api/v1/dashboard?days=3")
+    check("invalid dashboard period -> 400", s == 400, s)
+    s, res = admin.api("GET", "/api/v1/search?q=germ")
+    check("global search finds Germany", s == 200 and any(r["title"] == "Germany" for r in res["items"]), res)
+
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")
     check("logout returns Keycloak end-session URL", s == 200 and "/protocol/openid-connect/logout" in out.get("logout_url", ""), out)
