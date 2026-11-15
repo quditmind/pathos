@@ -49,6 +49,17 @@ type EnqueueResult struct {
 // A repository has at most one queued job: a new trigger while one is
 // queued updates its commit and raises its priority instead.
 func Enqueue(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger, ref, commit string, by *uuid.UUID) (EnqueueResult, error) {
+	return EnqueueWith(ctx, q, orgID, repoID, trigger, ref, commit, by, EnqueueOpts{})
+}
+
+// EnqueueOpts carries optional scheduling metadata.
+type EnqueueOpts struct {
+	Priority   int        // overrides the trigger's default priority when > 0
+	ScheduleID *uuid.UUID // schedule that produced the job
+}
+
+// EnqueueWith is Enqueue with scheduling options.
+func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger, ref, commit string, by *uuid.UUID, opt EnqueueOpts) (EnqueueResult, error) {
 	var res EnqueueResult
 	var scanBranch, defaultBranch string
 	var enabled bool
@@ -82,11 +93,14 @@ func Enqueue(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger
 		return res, errors.New("repository has no default branch; set a scan branch")
 	}
 	prio := priorities[trigger]
+	if opt.Priority > 0 {
+		prio = min(opt.Priority, 100)
+	}
 	err = q.QueryRow(ctx, `
 		UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
-		       priority = GREATEST(priority, $4), ref = $5
+		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6)
 		WHERE repository_id = $1 AND organization_id = $2 AND status = 'queued' RETURNING id`,
-		repoID, orgID, commit, prio, ref).Scan(&res.JobID)
+		repoID, orgID, commit, prio, ref, opt.ScheduleID).Scan(&res.JobID)
 	if err == nil {
 		res.Coalesced = true
 		return res, nil
@@ -96,8 +110,8 @@ func Enqueue(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger
 	}
 	res.JobID = uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `
-		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by)
+		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID)
 	if db.IsUniqueViolation(err) {
 		// Lost a race with a concurrent trigger: use its queued job.
 		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND status = 'queued'`, repoID).Scan(&res.JobID); err != nil {
@@ -307,6 +321,14 @@ func (s *Service) listJobs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		add("j.repository_id = ?", id)
+	}
+	if v := q.Get("schedule_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			s.fail(w, r, httpx.BadRequest("invalid schedule_id"))
+			return
+		}
+		add("j.schedule_id = ?", id)
 	}
 	if v := q.Get("status"); v != "" {
 		if v == "active" {

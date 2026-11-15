@@ -99,8 +99,8 @@ Respond only with the JSON object described by the schema.`
 
 var genericSecretRe = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)((?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|client[_-]?secret|auth)["']?\s*[:=]\s*["']?)([^\s"',;]{6,})`),
-	regexp.MustCompile(`(?i)\b[a-f0-9]{40,}\b`),                               // long hex (tokens, keys)
-	regexp.MustCompile(`\b[A-Za-z0-9+/]{48,}={0,2}`),                           // long base64 blobs
+	regexp.MustCompile(`(?i)\b[a-f0-9]{40,}\b`),      // long hex (tokens, keys)
+	regexp.MustCompile(`\b[A-Za-z0-9+/]{48,}={0,2}`), // long base64 blobs
 	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----`),
 	regexp.MustCompile(`(?i)\b(?:xox[abpors]-[A-Za-z0-9-]{10,}|AIza[0-9A-Za-z_-]{35}|sk_live_[0-9A-Za-z]{20,})`),
 }

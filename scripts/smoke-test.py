@@ -15,6 +15,7 @@ deployment uses Caddy's internal CA.
 import html
 import http.cookiejar
 import json
+import time
 import os
 import re
 import secrets
@@ -329,6 +330,49 @@ def main():
         admin.api("POST", f"/api/v1/findings/{f['id']}/assign", {"assignee_id": None})
     else:
         print("  (no open findings to exercise triage; run a scan first)")
+
+    print("\nScheduling & notifications (Phase 7)")
+    deadline = time.time() + 45
+    while True:
+        s, st = admin.api("GET", "/api/v1/scheduler/status")
+        if (s == 200 and st.get("healthy")) or time.time() > deadline:
+            break
+        time.sleep(3)
+    check("scheduler elected leader and heartbeating", s == 200 and st.get("healthy") and st.get("leader"), st)
+    s, _ = admin.api("POST", "/api/v1/schedules", {"name": "too fast", "cron": "*/5 * * * *", "target_type": "organization"})
+    check("schedule more often than hourly rejected -> 400", s == 400, s)
+    s, sch = admin.api("POST", "/api/v1/schedules", {"name": f"Smoke nightly {sfx}", "cron": "0 3 * * *", "timezone": "Europe/Berlin",
+                                                   "target_type": "organization", "enabled": False})
+    check("create schedule -> 201", s == 201 and sch.get("next_run_at"), s)
+    if s == 201:
+        s, pv = admin.api("POST", "/api/v1/schedules/preview", {"cron": "0 3 * * *", "timezone": "Europe/Berlin", "target_type": "organization"})
+        check("schedule preview lists next runs", s == 200 and len(pv.get("next_runs", [])) == 5, s)
+        s, _ = admin.api("DELETE", f"/api/v1/schedules/{sch['id']}")
+        check("delete schedule -> 204", s == 204, s)
+    s, rules = admin.api("GET", "/api/v1/notifications/rules")
+    check("8 built-in notification rules seeded", s == 200 and sum(1 for r in rules["items"] if r["system"]) == 8, s)
+    s, smtp = admin.api("GET", "/api/v1/notifications/smtp")
+    check("SMTP seeded from environment (Mailpit in dev)", s == 200 and smtp.get("enabled") and smtp.get("host"), smtp)
+    s, tst = admin.api("POST", "/api/v1/notifications/smtp/test", {})
+    check("queue test email -> 202", s == 202, s)
+    if s == 202:
+        deadline, status = time.time() + 45, ""
+        while time.time() < deadline:
+            s, d = admin.api("GET", f"/api/v1/notifications/deliveries/{tst['id']}")
+            status = d.get("status", "") if s == 200 else ""
+            if status in ("sent", "failed", "suppressed"):
+                break
+            time.sleep(3)
+        check("jobs service delivered the test email over SMTP", status == "sent", d.get("last_error") or status)
+        mp = os.environ.get("MAILPIT_URL", f"http://127.0.0.1:{ENV.get('MAILPIT_UI_PORT', '8025')}")
+        try:
+            with urllib.request.urlopen(mp + "/api/v1/search?query=" + urllib.parse.quote('subject:"[PATHOS] Test email"'), timeout=5) as r:
+                found = json.loads(r.read().decode()).get("messages_count", 0)
+            check("test email arrived in Mailpit", found >= 1, found)
+        except Exception as e:  # Mailpit only runs with the dev profile
+            print(f"  (Mailpit not reachable, skipped: {e})")
+    s, inbox = admin.api("GET", "/api/v1/me/notifications")
+    check("in-app inbox -> 200", s == 200 and "unread" in inbox, s)
 
     print("\nLogout")
     s, out = admin.api("POST", "/api/auth/logout")

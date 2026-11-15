@@ -29,7 +29,8 @@ docker compose cp proxy:/data/caddy/pki/authorities/local/root.crt ./pathos-root
 | `proxy` | Caddy: TLS, security headers, serves the UI, routes `/api` → api and `/auth` → Keycloak |
 | `migrate` | One-shot: applies migrations, syncs the RBAC catalog, creates the organization, then exits |
 | `api` | PATHOS API (role `api`) |
-| `jobs` | Background maintenance (role `jobs`) |
+| `jobs` | Background work (role `jobs`): AI reviews, notification delivery (SMTP), SLA breach detection, risk-acceptance expiry, nightly SCM metadata re-sync, retention |
+| `scheduler` | Scan scheduler (role `scheduler`). Leader-elected through a Postgres advisory lock, so `--scale scheduler=2` gives a hot standby |
 | `postgres` | PostgreSQL 18 (databases `pathos` and `keycloak`) |
 | `valkey` | Sessions and (later) the job queue |
 | `keycloak` | Identity: login, MFA, password policy, federation |
@@ -46,9 +47,11 @@ All settings live in `.env`; `.env.example` documents each one. The common chang
 | Public hostname | `PATHOS_PUBLIC_URL=https://pathos.example.com`, `PATHOS_DOMAIN=pathos.example.com` |
 | Public certificate (Let's Encrypt) | `CADDY_TLS=you@example.com` (ports 80/443 must be reachable) |
 | Non-standard port | `PATHOS_HTTPS_PORT=8443` **and** `PATHOS_PUBLIC_URL=https://host:8443` |
-| Real SMTP relay | `PATHOS_SMTP_HOST`, `PATHOS_SMTP_PORT`, `PATHOS_SMTP_FROM`; set `COMPOSE_PROFILES=` |
+| Real SMTP relay | `PATHOS_SMTP_HOST`, `PATHOS_SMTP_PORT`, `PATHOS_SMTP_FROM`, `PATHOS_SMTP_STARTTLS=true`, and `PATHOS_SMTP_AUTH=true` with `PATHOS_SMTP_USER`/`PATHOS_SMTP_PASSWORD`; set `COMPOSE_PROFILES=` |
 
 > After editing the login theme in `deploy/keycloak/themes/pathos`, run `docker compose up -d --force-recreate keycloak` (Keycloak caches compressed theme files inside the container).
+
+> The `PATHOS_SMTP_*` variables configure both Keycloak (invitation and password emails) and, on the first `migrate`, PATHOS notifications. After that, manage PATHOS email in **Administration → Notifications → Email**. There you can send a test email and watch its delivery. The `jobs` service sends the mail, so it must be able to reach the relay. It sits on the `edge` network, which also carries its HTTPS calls to AI providers and SCM APIs.
 
 > Keycloak imports the realm only on **first** start. After the first start, change the public URL, SMTP settings or client secrets in the Keycloak admin console (`https://<host>/auth/admin`, master realm, user `KEYCLOAK_ADMIN_USER`), or reset the install.
 

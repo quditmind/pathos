@@ -110,6 +110,14 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - **Separation of duties:** risk acceptances need an approver other than the requester, enforced both in the service and by a CHECK constraint. Acceptances are capped at 365 days and expire automatically. Closing a Critical finding as a false positive requires `findings.accept_risk`.
 - **Scope:** every triage, bulk and SBOM query is filtered by the caller's scoped permissions. A bulk action fails as a whole if any finding is out of scope.
 
+## Scheduling and notifications (Phase 7)
+
+- **Email transport:** `starttls` mode refuses to send if the server does not offer STARTTLS; there is no silent clear-text fallback. Credentials are never sent without TLS, and the relay password is envelope-encrypted (kind `smtp`) and write-only. The SMTP dialer refuses loopback, link-local and metadata addresses. Private relays are allowed.
+- **Header injection:** recipient and sender addresses are validated as bare addresses. Subjects are collapsed to one sanitized line and MIME-encoded, and bodies are quoted-printable. Untrusted text (finding titles, scanner errors) can reach only the body. Messages carry `Auto-Submitted: auto-generated`.
+- **Templates:** administrators edit Go `text/template` (no code execution, no file or network access). Templates are validated against sample data on save, rendering is capped at 64 KiB, and a broken template falls back to the default rather than dropping the notification.
+- **Recipients:** role-based recipients only include users whose assignment scope covers the event's repository. Approval requests go to users who may accept risk there, never to the requester. Explicit addresses are an administrator decision (`notifications.manage` is organization-only). Each email has a single recipient, so recipient lists are never disclosed.
+- **Scheduling:** schedules need `schedules.manage` at the target's scope, and scoped users see only schedules in their scope. A schedule may run at most once per hour, and priority 100 is reserved for emergency scans.
+
 ## Known gaps (tracked)
 
 - The Keycloak admin console is reachable at `/auth/admin` through the proxy. Production overrides that restrict it by network arrive in Phase 8.

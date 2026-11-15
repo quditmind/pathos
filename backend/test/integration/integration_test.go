@@ -27,6 +27,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/identity"
+	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
@@ -85,6 +86,7 @@ func TestMain(m *testing.M) {
 	must(err)
 	must(scans.EnsureDefaultProfile(ctx, ownerPool, orgID))
 	must(vuln.EnsureDefaults(ctx, ownerPool, orgID))
+	must(notify.EnsureDefaults(ctx, ownerPool, nil, orgID))
 	_, err = ownerPool.Exec(ctx, `SELECT pathos_apply_app_grants()`)
 	must(err)
 	appPool, err = db.Connect(ctx, withDB(base, dbName, "pathos_app", "app"), log)

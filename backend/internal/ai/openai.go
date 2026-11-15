@@ -100,7 +100,7 @@ func (c *chatCompletions) Review(ctx context.Context, req Request) (Response, er
 			{Role: "user", Content: req.User},
 		},
 		"response_format": map[string]any{
-			"type": "json_schema",
+			"type":        "json_schema",
 			"json_schema": map[string]any{"name": "finding_review", "strict": true, "schema": req.Schema},
 		},
 	}

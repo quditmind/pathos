@@ -36,11 +36,11 @@ type Request struct {
 
 // Response is the raw provider result before validation.
 type Response struct {
-	JSON          []byte
-	Model         string // model version reported by the provider
-	InputTokens   int64
-	OutputTokens  int64
-	CacheReadTok  int64
+	JSON         []byte
+	Model        string // model version reported by the provider
+	InputTokens  int64
+	OutputTokens int64
+	CacheReadTok int64
 }
 
 // Provider is implemented per vendor. The review pipeline never imports a

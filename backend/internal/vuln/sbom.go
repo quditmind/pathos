@@ -123,14 +123,14 @@ func StoreSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, r
 
 // ComponentGroup aggregates a component across repositories.
 type ComponentGroup struct {
-	Name         string   `json:"name"`
-	Version      string   `json:"version"`
-	PURL         string   `json:"purl"`
-	Type         string   `json:"type"`
-	Licenses     []string `json:"licenses"`
+	Name          string   `json:"name"`
+	Version       string   `json:"version"`
+	PURL          string   `json:"purl"`
+	Type          string   `json:"type"`
+	Licenses      []string `json:"licenses"`
 	LicensePolicy string   `json:"license_policy"` // "", review, deny (deny wins: min() sorts deny first)
-	Repositories []string `json:"repositories"`
-	OpenVulns    int      `json:"open_vulnerabilities"`
+	Repositories  []string `json:"repositories"`
+	OpenVulns     int      `json:"open_vulnerabilities"`
 }
 
 // components searches the inventory (scoped to sbom.read).
@@ -230,4 +230,3 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 	}, name)+`.cdx.json"`)
 	_, _ = io.Copy(w, io.LimitReader(zr, 512<<20))
 }
-

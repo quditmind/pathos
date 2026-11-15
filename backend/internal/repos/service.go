@@ -123,20 +123,20 @@ func (s *Service) targetScope(ctx context.Context, p *authz.Principal, buID, cou
 
 // Connection is an SCM connection (credentials are never returned).
 type Connection struct {
-	ID             uuid.UUID  `json:"id"`
-	Name           string     `json:"name"`
-	Provider       string     `json:"provider"`
-	BaseURL        string     `json:"base_url"`
-	AuthType       string     `json:"auth_type"`
-	Owner          string     `json:"owner"`
-	AppID          *int64     `json:"github_app_id"`
-	InstallationID *int64     `json:"github_installation_id"`
-	Status         string     `json:"status"`
-	StatusMessage  string     `json:"status_message"`
-	LastCheckedAt  *time.Time `json:"last_checked_at"`
-	WebhookURL     string     `json:"webhook_url"`
-	RepositoryCount int       `json:"repository_count"`
-	CreatedAt      time.Time  `json:"created_at"`
+	ID              uuid.UUID  `json:"id"`
+	Name            string     `json:"name"`
+	Provider        string     `json:"provider"`
+	BaseURL         string     `json:"base_url"`
+	AuthType        string     `json:"auth_type"`
+	Owner           string     `json:"owner"`
+	AppID           *int64     `json:"github_app_id"`
+	InstallationID  *int64     `json:"github_installation_id"`
+	Status          string     `json:"status"`
+	StatusMessage   string     `json:"status_message"`
+	LastCheckedAt   *time.Time `json:"last_checked_at"`
+	WebhookURL      string     `json:"webhook_url"`
+	RepositoryCount int        `json:"repository_count"`
+	CreatedAt       time.Time  `json:"created_at"`
 
 	secretID        uuid.UUID
 	webhookSecretID uuid.UUID

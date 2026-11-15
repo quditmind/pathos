@@ -132,4 +132,3 @@ func (s *Service) recordDelivery(ctx context.Context, w http.ResponseWriter, r *
 	}
 	httpx.WriteJSON(w, http.StatusAccepted, map[string]string{"status": status, "event": ev.Kind})
 }
-

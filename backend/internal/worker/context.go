@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	contextLines   = 5       // lines before and after a finding
+	contextLines   = 5 // lines before and after a finding
 	maxLineLen     = 300
 	maxContextSize = 4 << 20 // per report
 )

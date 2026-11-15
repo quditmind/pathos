@@ -19,6 +19,8 @@ import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import { ScannersPage } from "@/features/scans/ScannersPage";
 import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
 import { RiskPage } from "@/features/vuln/RiskPage";
+import { SchedulesPage } from "@/features/schedule/SchedulesPage";
+import { NotificationsPage } from "@/features/notify/NotificationsPage";
 import { SbomPage } from "@/features/vuln/SbomPage";
 import { PoliciesPage } from "@/features/vuln/PoliciesPage";
 import { AIReviewsPage } from "@/features/ai/AIReviewsPage";
@@ -106,6 +108,8 @@ const profilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scan
 const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", component: ScannersPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
+const schedulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/schedules", component: SchedulesPage });
+const notifyRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/notifications", component: NotificationsPage });
 const riskRoute = createRoute({ getParentRoute: () => appRoute, path: "/risk", component: RiskPage });
 const sbomRoute = createRoute({ getParentRoute: () => appRoute, path: "/sbom", component: SbomPage });
 const policiesRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/policies", component: PoliciesPage });
@@ -118,7 +122,7 @@ const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settin
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, profilesRoute, scannersRoute, findingsRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
+    scansRoute, profilesRoute, scannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });

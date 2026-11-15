@@ -319,14 +319,18 @@ func (h *Handlers) createUser(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = audit.Write(ctx, h.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "user.provision", TargetType: "user", TargetID: resp.User.ID.String(),
-			Outcome: map[bool]string{true: audit.Success, false: audit.Failure}[resp.Provisioning.Status != "failed"],
+			Outcome:  map[bool]string{true: audit.Success, false: audit.Failure}[resp.Provisioning.Status != "failed"],
 			Metadata: map[string]any{"status": resp.Provisioning.Status}})
 	}
 	httpx.WriteJSON(w, http.StatusCreated, resp)
 }
 
-func (h *Handlers) deactivate(w http.ResponseWriter, r *http.Request) { h.setStatus(w, r, StatusDeactivated) }
-func (h *Handlers) reactivate(w http.ResponseWriter, r *http.Request) { h.setStatus(w, r, StatusActive) }
+func (h *Handlers) deactivate(w http.ResponseWriter, r *http.Request) {
+	h.setStatus(w, r, StatusDeactivated)
+}
+func (h *Handlers) reactivate(w http.ResponseWriter, r *http.Request) {
+	h.setStatus(w, r, StatusActive)
+}
 
 func (h *Handlers) setStatus(w http.ResponseWriter, r *http.Request, status string) {
 	ctx := r.Context()

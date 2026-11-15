@@ -28,6 +28,7 @@ func (s *Service) registerConnections(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/scm-connections/{id}/test", s.testConnection)
 	mux.HandleFunc("POST /api/v1/scm-connections/{id}/webhook-secret", s.rotateWebhookSecret)
 	mux.HandleFunc("GET /api/v1/scm-connections/{id}/discover", s.discover)
+	mux.HandleFunc("POST /api/v1/scm-connections/{id}/resync", s.resyncConnection)
 }
 
 func pathID(r *http.Request) (uuid.UUID, error) {
@@ -93,8 +94,8 @@ type connectionRequest struct {
 	BaseURL        *string `json:"base_url"`
 	AuthType       string  `json:"auth_type"`
 	Owner          *string `json:"owner"`
-	Token          *string `json:"token"`           // PAT
-	PrivateKey     *string `json:"private_key"`     // GitHub App PEM
+	Token          *string `json:"token"`       // PAT
+	PrivateKey     *string `json:"private_key"` // GitHub App PEM
 	AppID          *int64  `json:"github_app_id"`
 	InstallationID *int64  `json:"github_installation_id"`
 }

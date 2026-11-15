@@ -107,9 +107,14 @@ erDiagram
 | `ai_providers` / `ai_configurations` / `ai_configuration_versions` | provider, model, mode, instructions, thresholds, redaction policy, limits, human_approval | |
 | `ai_reviews` | finding_id, config_version_id, provider, model, model_version, verdict, confidence, output jsonb, transmitted_sha256, source (`automated`,`interactive_mcp`), approved_by | |
 | `mcp_servers` / `mcp_tool_permissions` | transport (`stdio`,`streamable_http`), endpoint, approved_by, enabled / tool, access (`read`,`write`), repo restrictions | |
-| `scan_schedules` | cadence (cron), target_type (`repository`,`region`,`business_unit`,`profile`), target_id, next_run_at | |
+| `scan_schedules` | name, cron, timezone, target_type (`organization`,`region`,`business_unit`,`repository`,`profile`), target_id, priority (0–90), next_run_at, last_run_at, last_status, missed_runs | At most hourly. `scan_jobs.schedule_id` links runs |
+| `scheduler_state` | name, holder, heartbeat_at, stats | Written by the scheduler leader |
 | `sbom_components` | repository_id, scan_job_id, purl, name, version, type, licenses[] | Replaced per repository on each SBOM-producing scan; the raw CycloneDX stays with the scan result |
-| `notification_channels` / `notification_rules` / `notifications` | SMTP config ref / event, recipients / delivery status, attempts | |
+| `smtp_settings` | host, port, tls_mode (`starttls`,`tls`,`none`), username, secret_id (kind `smtp`), from_address | One row per organization |
+| `notification_rules` | event_key, min_severity, scope_type/scope_id, recipients jsonb (roles, users, emails, dynamic), email, in_app, system_key | Built-in rules can be edited or disabled but not deleted |
+| `notification_templates` | event_key, subject, body | Organization overrides of the built-in Go `text/template` defaults |
+| `notification_events` | event_key, repository_id, severity, subject_id, payload, processed_at | Outbox written by triggers (`scan_jobs`, `risk_acceptances`, `findings.assignee_id`) and detectors |
+| `notifications` | event_id, rule_id, channel (`email`,`in_app`), user_id/email, subject, body, link, status, attempts, next_attempt_at, read_at | Delivery history and in-app inbox. Deduplicated per event, channel and recipient. The app role cannot delete rows |
 | `audit_logs` | actor_id, action, target_type, target_id, ip, user_agent, metadata, created_at | Append-only (app role has no UPDATE/DELETE grant) and monthly partitioning |
 
 ## Finding lifecycle trigger

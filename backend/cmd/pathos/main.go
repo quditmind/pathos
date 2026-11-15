@@ -21,12 +21,14 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/identity"
 	"pathos/internal/mcp"
+	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
 	"pathos/internal/scans"
+	"pathos/internal/schedule"
 	"pathos/internal/scm"
 	"pathos/internal/secrets"
 	"pathos/internal/server"
@@ -59,7 +61,7 @@ func main() {
 	case config.RoleJobs:
 		runErr = runJobs(ctx, cfg, log)
 	case config.RoleScheduler:
-		runErr = errors.New("the scheduler role arrives in Phase 7")
+		runErr = runScheduler(ctx, cfg, log)
 	}
 	if runErr != nil && !errors.Is(runErr, context.Canceled) {
 		log.Error("exiting", "err", runErr)
@@ -156,8 +158,8 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	return srv.Shutdown(sctx)
 }
 
-// runJobs runs background maintenance. AI review, ingestion and
-// notification workers join this role in later phases.
+// runJobs runs background work: maintenance, AI review, notification
+// delivery, risk-acceptance expiry and nightly SCM metadata re-sync.
 func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	pool, err := db.Connect(ctx, cfg.DatabaseURL, log)
 	if err != nil {
@@ -203,6 +205,13 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate}}, az)
 	go aiSvc.RunWorker(ctx)
 
+	// Notifications: outbox dispatch, email delivery, SLA breach detection.
+	store := &secrets.Store{Keys: keys}
+	go (&notify.Dispatcher{Pool: pool, Secrets: store, Sender: notify.SMTPSender{}, BaseURL: cfg.PublicURL.String(), Log: log}).Run(ctx)
+
+	reposSvc := server.NewReposService(server.Deps{DB: pool, Log: log, Secrets: store,
+		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP}, PublicURL: cfg.PublicURL.String()}, az)
+
 	expire := func() {
 		if n, err := vuln.ExpireAcceptances(ctx, pool); err != nil {
 			log.Error("risk acceptance expiry failed", "err", err)
@@ -216,6 +225,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	defer t.Stop()
 	te := time.NewTicker(10 * time.Minute)
 	defer te.Stop()
+	tr := time.NewTicker(24 * time.Hour)
+	defer tr.Stop()
 	log.Info("jobs runner started")
 	for {
 		select {
@@ -225,8 +236,40 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			tick()
 		case <-te.C:
 			expire()
+		case <-tr.C:
+			reposSvc.ResyncAll(ctx)
 		}
 	}
+}
+
+// runScheduler runs the leader-elected scan scheduler. Replicas are safe:
+// one holds a Postgres advisory lock, the others wait as standbys.
+func runScheduler(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
+	pool, err := db.Connect(ctx, cfg.DatabaseURL, log)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+	host, _ := os.Hostname()
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
+		pctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		if err := pool.Ping(pctx); err != nil {
+			http.Error(w, "db unreachable", http.StatusServiceUnavailable)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
+	hs := &http.Server{Addr: cfg.HTTPAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	go func() {
+		if err := hs.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Error("health listener", "err", err)
+		}
+	}()
+	defer hs.Close()
+	log.Info("scheduler started", "holder", host)
+	return (&schedule.Scheduler{Pool: pool, Log: log, Holder: host, Interval: 15 * time.Second}).Run(ctx)
 }
 
 func healthcheck(args []string) int {

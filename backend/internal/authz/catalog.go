@@ -27,12 +27,12 @@ const (
 	PermReposManage Permission = "repos.manage"
 	PermSCMManage   Permission = "scm.manage"
 
-	PermScannersRead     Permission = "scanners.read"
-	PermScannersManage   Permission = "scanners.manage"
-	PermProfilesManage   Permission = "profiles.manage"
-	PermScansRead        Permission = "scans.read"
-	PermScansRun         Permission = "scans.run"
-	PermSchedulesManage  Permission = "schedules.manage"
+	PermScannersRead    Permission = "scanners.read"
+	PermScannersManage  Permission = "scanners.manage"
+	PermProfilesManage  Permission = "profiles.manage"
+	PermScansRead       Permission = "scans.read"
+	PermScansRun        Permission = "scans.run"
+	PermSchedulesManage Permission = "schedules.manage"
 
 	PermFindingsRead       Permission = "findings.read"
 	PermFindingsTriage     Permission = "findings.triage"

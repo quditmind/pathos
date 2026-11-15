@@ -27,35 +27,35 @@ func (s *Service) registerFindings(mux *http.ServeMux) {
 
 // FindingView is the API representation.
 type FindingView struct {
-	ID             uuid.UUID  `json:"id"`
-	RepositoryID   uuid.UUID  `json:"repository_id"`
-	RepositoryName string     `json:"repository_name"`
-	Category       string     `json:"category"`
-	ScannerKeys    []string   `json:"scanner_keys"`
-	RuleID         string     `json:"rule_id"`
-	Title          string     `json:"title"`
-	Description    string     `json:"description"`
-	Severity       string     `json:"severity"`
-	CWE            []string   `json:"cwe"`
-	CVE            string     `json:"cve"`
-	CVSS           *float64   `json:"cvss"`
-	PackageName    string     `json:"package_name"`
-	PackageVersion string     `json:"package_version"`
-	FixedVersion   string     `json:"fixed_version"`
-	FilePath       string     `json:"file_path"`
-	StartLine      *int       `json:"start_line"`
-	Status         string     `json:"status"`
-	FirstSeenAt    time.Time  `json:"first_seen_at"`
-	LastSeenAt     time.Time  `json:"last_seen_at"`
-	ResolvedAt     *time.Time `json:"resolved_at"`
-	AssigneeID     *uuid.UUID `json:"assignee_id"`
-	AssigneeName   *string    `json:"assignee_name"`
-	SLADueAt       *time.Time `json:"sla_due_at"`
-	Recurrence     int        `json:"recurrence_count"`
-	AcceptedUntil  *time.Time `json:"accepted_until"`
-	AIStatus       string     `json:"ai_status"`
-	Snippet        string     `json:"snippet,omitempty"`
-	SnippetStart   *int       `json:"snippet_start_line,omitempty"`
+	ID             uuid.UUID    `json:"id"`
+	RepositoryID   uuid.UUID    `json:"repository_id"`
+	RepositoryName string       `json:"repository_name"`
+	Category       string       `json:"category"`
+	ScannerKeys    []string     `json:"scanner_keys"`
+	RuleID         string       `json:"rule_id"`
+	Title          string       `json:"title"`
+	Description    string       `json:"description"`
+	Severity       string       `json:"severity"`
+	CWE            []string     `json:"cwe"`
+	CVE            string       `json:"cve"`
+	CVSS           *float64     `json:"cvss"`
+	PackageName    string       `json:"package_name"`
+	PackageVersion string       `json:"package_version"`
+	FixedVersion   string       `json:"fixed_version"`
+	FilePath       string       `json:"file_path"`
+	StartLine      *int         `json:"start_line"`
+	Status         string       `json:"status"`
+	FirstSeenAt    time.Time    `json:"first_seen_at"`
+	LastSeenAt     time.Time    `json:"last_seen_at"`
+	ResolvedAt     *time.Time   `json:"resolved_at"`
+	AssigneeID     *uuid.UUID   `json:"assignee_id"`
+	AssigneeName   *string      `json:"assignee_name"`
+	SLADueAt       *time.Time   `json:"sla_due_at"`
+	Recurrence     int          `json:"recurrence_count"`
+	AcceptedUntil  *time.Time   `json:"accepted_until"`
+	AIStatus       string       `json:"ai_status"`
+	Snippet        string       `json:"snippet,omitempty"`
+	SnippetStart   *int         `json:"snippet_start_line,omitempty"`
 	Occurrences    []Occurrence `json:"occurrences,omitempty"`
 }
 

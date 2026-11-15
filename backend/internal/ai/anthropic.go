@@ -130,9 +130,9 @@ func (a *anthropicProvider) Validate(ctx context.Context, model string) error {
 		model = DefaultModel(Anthropic)
 	}
 	_, err := a.client.Beta.Messages.New(ctx, anthropic.BetaMessageNewParams{
-		Model:     anthropic.Model(model),
-		MaxTokens: 16,
-		Messages:  []anthropic.BetaMessageParam{anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock("Reply with OK."))},
+		Model:        anthropic.Model(model),
+		MaxTokens:    16,
+		Messages:     []anthropic.BetaMessageParam{anthropic.NewBetaUserMessage(anthropic.NewBetaTextBlock("Reply with OK."))},
 		OutputConfig: anthropic.BetaOutputConfigParam{Effort: anthropic.BetaOutputConfigEffortLow},
 	})
 	if err != nil {

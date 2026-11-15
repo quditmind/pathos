@@ -523,3 +523,105 @@ export interface ComponentGroup {
   repositories: string[];
   open_vulnerabilities: number;
 }
+
+// Phase 7: scheduling and notifications
+
+export type ScheduleTarget = "organization" | "region" | "business_unit" | "repository" | "profile";
+
+export interface Schedule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  cron: string;
+  timezone: string;
+  target_type: ScheduleTarget;
+  target_id: string | null;
+  target_name: string;
+  priority: number;
+  next_run_at: string | null;
+  last_run_at: string | null;
+  last_status: string;
+  last_queued: number;
+  missed_runs: number;
+  created_at: string;
+  can_manage: boolean;
+}
+
+export interface SchedulerStatus {
+  leader: string;
+  heartbeat_at: string | null;
+  healthy: boolean;
+  workers_online: number;
+  workers_offline: number;
+  queued: number;
+  running: number;
+  oldest_queued_at: string | null;
+  schedules: number;
+  missed_runs: number;
+}
+
+export interface NotificationEvent {
+  key: string;
+  label: string;
+  description: string;
+  severity: boolean;
+  repository: boolean;
+  dynamic: string[];
+  default_subject: string;
+  default_body: string;
+}
+
+export interface NotificationRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  event_key: string;
+  min_severity: Severity | null;
+  scope_type: "organization" | "region" | "business_unit" | "repository";
+  scope_id: string | null;
+  scope_name: string;
+  recipients: { roles: string[]; users: string[]; emails: string[]; dynamic: string[] };
+  email: boolean;
+  in_app: boolean;
+  system: boolean;
+  updated_at: string;
+}
+
+export interface SmtpSettings {
+  enabled: boolean;
+  host: string;
+  port: number;
+  tls_mode: "starttls" | "tls" | "none";
+  username: string;
+  has_password: boolean;
+  from_address: string;
+  from_name: string;
+  updated_at: string | null;
+}
+
+export interface NotificationTemplate {
+  event_key: string;
+  label: string;
+  subject: string;
+  body: string;
+  default_subject: string;
+  default_body: string;
+  customized: boolean;
+}
+
+export interface Delivery {
+  id: string;
+  event_key: string;
+  channel: "email" | "in_app";
+  recipient: string;
+  subject: string;
+  body?: string;
+  link: string;
+  status: "pending" | "sent" | "failed" | "suppressed";
+  attempts: number;
+  last_error: string;
+  rule_name: string | null;
+  sent_at: string | null;
+  read_at: string | null;
+  created_at: string;
+}

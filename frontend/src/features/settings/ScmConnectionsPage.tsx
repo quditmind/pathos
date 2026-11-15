@@ -24,8 +24,10 @@ export function ScmConnectionsPage() {
   const test = useRepoMutation((id: string) => api<ScmConnection>(`/api/v1/scm-connections/${id}/test`, { method: "POST" }));
   const rotate = useRepoMutation((id: string) => api<{ webhook_url: string; webhook_secret: string }>(`/api/v1/scm-connections/${id}/webhook-secret`, { method: "POST" }));
   const del = useRepoMutation((id: string) => api(`/api/v1/scm-connections/${id}`, { method: "DELETE" }));
+  const resync = useRepoMutation((id: string) => api<{ checked: number; updated: number; missing: number; archived_upstream: number }>(`/api/v1/scm-connections/${id}/resync`, { method: "POST" }));
+  const [synced, setSynced] = useState<Record<string, string>>({});
   const manage = canOrgWide("scm.manage");
-  const error = test.error ?? rotate.error ?? del.error;
+  const error = test.error ?? rotate.error ?? del.error ?? resync.error;
 
   return (
     <>
@@ -58,6 +60,7 @@ export function ScmConnectionsPage() {
               {c.status === "ok" && c.status_message && <p className="mt-2 text-[12px] text-muted-foreground">{c.status_message}</p>}
               <div className="mt-3 text-[12px] text-muted-foreground">
                 {c.repository_count} repositories · checked {formatDateTime(c.last_checked_at)}
+                {synced[c.id] && <span className="text-success"> · re-synced: {synced[c.id]}</span>}
               </div>
               {manage && (
                 <>
@@ -67,6 +70,10 @@ export function ScmConnectionsPage() {
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Button size="sm" variant="secondary" disabled={test.isPending} onClick={() => test.mutate(c.id)}><RefreshCw /> Test</Button>
+                    <Button size="sm" variant="secondary" disabled={resync.isPending || c.repository_count === 0} title="Refresh names, default branches, visibility and archive state of imported repositories (also runs nightly)"
+                      onClick={() => resync.mutate(c.id, { onSuccess: (r) => setSynced({ ...synced, [c.id]: `${r.checked} checked, ${r.updated} updated${r.missing ? `, ${r.missing} no longer visible` : ""}` }) })}>
+                      <RefreshCw /> Re-sync metadata
+                    </Button>
                     <Button size="sm" variant="secondary" disabled={rotate.isPending}
                       onClick={() => rotate.mutate(c.id, { onSuccess: (r) => setSecret({ url: r.webhook_url, secret: r.webhook_secret }) })}>
                       <KeyRound /> New webhook secret

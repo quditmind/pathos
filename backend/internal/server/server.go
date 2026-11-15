@@ -11,17 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 
+	"pathos/internal/ai"
 	"pathos/internal/auth"
 	"pathos/internal/authz"
 	"pathos/internal/dashboard"
 	"pathos/internal/identity"
+	"pathos/internal/mcp"
+	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
-	"pathos/internal/ai"
-	"pathos/internal/mcp"
 	"pathos/internal/repos"
 	"pathos/internal/scans"
+	"pathos/internal/schedule"
 	"pathos/internal/scm"
 	"pathos/internal/search"
 	"pathos/internal/secrets"
@@ -98,6 +100,8 @@ func Build(d Deps) Handlers {
 	aiSvc.Register(protected)
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	mcpSvc.Register(protected)
+	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})
@@ -136,6 +140,12 @@ func readiness(d Deps) http.HandlerFunc {
 }
 
 // NewAIService builds the AI review service (also used by the jobs role).
+// NewReposService builds the repository service for background use (jobs
+// role: nightly metadata re-sync).
+func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
+	return &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+}
+
 func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {
 	client := d.SCMNet.Client()
 	client.Timeout = 5 * time.Minute

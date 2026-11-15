@@ -348,7 +348,9 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-func safeMethod(m string) bool { return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions }
+func safeMethod(m string) bool {
+	return m == http.MethodGet || m == http.MethodHead || m == http.MethodOptions
+}
 
 func (s *Service) checkCSRF(r *http.Request, sess *Session) error {
 	if origin := r.Header.Get("Origin"); origin != "" {

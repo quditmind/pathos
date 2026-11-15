@@ -38,7 +38,9 @@ type Filters struct {
 	BusinessUnitID *uuid.UUID `json:"business_unit_id,omitempty"`
 }
 
-func (f Filters) geo() bool { return f.RegionID != nil || f.CountryID != nil || f.BusinessUnitID != nil }
+func (f Filters) geo() bool {
+	return f.RegionID != nil || f.CountryID != nil || f.BusinessUnitID != nil
+}
 
 // Point is one sparkline/series value.
 type Point struct {

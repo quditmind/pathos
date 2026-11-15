@@ -52,8 +52,8 @@ type Config struct {
 	SCMAllowPrivate bool
 	SCMAllowHTTP    bool
 
-	OrgName            string
-	OrgSlug            string
+	OrgName             string
+	OrgSlug             string
 	BootstrapAdminEmail string
 }
 
@@ -116,21 +116,21 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 
 	c := &Config{
-		Env:                 get("PATHOS_ENV", "production"),
-		Role:                Role(get("PATHOS_ROLE", string(RoleAPI))),
-		HTTPAddr:            get("PATHOS_HTTP_ADDR", ":8080"),
-		LogLevel:            get("PATHOS_LOG_LEVEL", "info"),
-		DatabaseURL:         get("PATHOS_DATABASE_URL", ""),
-		RedisURL:            get("PATHOS_REDIS_URL", ""),
-		SessionIdleTTL:      dur("PATHOS_SESSION_IDLE_TTL", "8h"),
-		SessionAbsoluteTTL:  dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		Env:                  get("PATHOS_ENV", "production"),
+		Role:                 Role(get("PATHOS_ROLE", string(RoleAPI))),
+		HTTPAddr:             get("PATHOS_HTTP_ADDR", ":8080"),
+		LogLevel:             get("PATHOS_LOG_LEVEL", "info"),
+		DatabaseURL:          get("PATHOS_DATABASE_URL", ""),
+		RedisURL:             get("PATHOS_REDIS_URL", ""),
+		SessionIdleTTL:       dur("PATHOS_SESSION_IDLE_TTL", "8h"),
+		SessionAbsoluteTTL:   dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
 		WorkerAPIAddr:        get("PATHOS_WORKER_API_ADDR", ":8081"),
 		WorkerBootstrapToken: get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
-		SCMAllowPrivate:     get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
-		SCMAllowHTTP:        get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
-		OrgName:             get("PATHOS_ORG_NAME", "Default Organization"),
-		OrgSlug:             get("PATHOS_ORG_SLUG", "default"),
-		BootstrapAdminEmail: strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
+		SCMAllowPrivate:      get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		SCMAllowHTTP:         get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
+		OrgName:              get("PATHOS_ORG_NAME", "Default Organization"),
+		OrgSlug:              get("PATHOS_ORG_SLUG", "default"),
+		BootstrapAdminEmail:  strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
 		OIDC: OIDCConfig{
 			Issuer:                  get("PATHOS_OIDC_ISSUER", ""),
 			DiscoveryURL:            get("PATHOS_OIDC_DISCOVERY_URL", ""),
@@ -183,11 +183,9 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 	c.MasterKeys = keys
 
-	if c.Role == RoleAPI {
-		if c.RedisURL == "" {
-			errs = append(errs, errors.New("PATHOS_REDIS_URL is required for role api"))
-		}
-		pub := get("PATHOS_PUBLIC_URL", "")
+	// The public URL is needed by the API (redirects) and the jobs role
+	// (links in notifications).
+	if pub := get("PATHOS_PUBLIC_URL", ""); pub != "" || c.Role == RoleAPI || c.Role == RoleJobs {
 		u, err := url.Parse(pub)
 		if pub == "" || err != nil || u.Host == "" || (u.Scheme != "https" && u.Scheme != "http") {
 			errs = append(errs, fmt.Errorf("PATHOS_PUBLIC_URL must be an absolute http(s) URL, got %q", pub))
@@ -197,6 +195,11 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 			}
 			u.Path = strings.TrimRight(u.Path, "/")
 			c.PublicURL = u
+		}
+	}
+	if c.Role == RoleAPI {
+		if c.RedisURL == "" {
+			errs = append(errs, errors.New("PATHOS_REDIS_URL is required for role api"))
 		}
 		if c.OIDC.Issuer == "" {
 			errs = append(errs, errors.New("PATHOS_OIDC_ISSUER is required for role api"))

@@ -227,3 +227,45 @@ docker compose up -d --build --wait && make smoke
 - Live end to end: a rescan of `snyk-labs/nodejs-goof` stored 572 SBOM components (251 with licenses) and ranked vulnerable components (handlebars 4.0.11: 21 open). SLA deadlines were backfilled for all 337 existing findings.
 
 **Next:** Phase 7, scheduling and notifications.
+
+## Phase 7 milestone report (2026-11-15)
+
+**Implemented:**
+- **Scheduler role:**
+  - Leader election through `pg_try_advisory_lock` on a dedicated connection; standbys poll and take over when the leader's connection drops. Verified live: stopping the leader container moved leadership within one interval.
+  - Every 15 seconds it runs due schedules (row locks with `SKIP LOCKED`), detects missed runs (catch-up once plus a `schedule.missed` event), requeues expired leases (previously only on the next lease call) and emits `worker.offline` once per outage. A heartbeat goes to `scheduler_state`.
+- **Schedules:**
+  - A dependency-free five-field cron parser with names, steps and macros, standard day-of-month/day-of-week OR semantics and DST handling (a time skipped at spring-forward runs right after the jump).
+  - Schedules use IANA time zones (tzdata embedded) and can target the organization, a region, a business unit (with descendants), a repository or a scan profile.
+  - Priority is 0–90, and at most one run per hour is allowed.
+  - Scheduled jobs coalesce with queued ones and record `schedule_id`.
+  - Authorization is scope-aware for create, edit, run, delete and list.
+- **Notifications:**
+  - Triggers on `scan_jobs`, `risk_acceptances` and `findings.assignee_id` write a `notification_events` outbox; the SLA detector feeds it too.
+  - The dispatcher in `jobs` matches rules by event, severity and scope (repository, business-unit ancestry, region) and resolves recipients: roles at a covering scope, users, external addresses, and dynamic assignee, requester, eligible approvers (excluding the requester) and application owners. It renders templates (organization override, falling back to the default if broken) and writes deduplicated in-app and email deliveries.
+  - The sender claims emails with a lease, sends one recipient per message and retries with backoff. STARTTLS is strict, and credentials are never sent without TLS.
+  - SMTP is seeded from the same `PATHOS_SMTP_*` variables as Keycloak.
+- **SCM metadata re-sync:** names, URLs, default branch, visibility, description, upstream archive state and last push are refreshed nightly or on demand. Placement and classification are never touched.
+- **UI:**
+  - New pages: Scan schedules (with scheduler, worker and queue health) and Administration → Notifications (rules, SMTP with test email, templates with live preview, delivery history with retry and message view).
+  - The notification centre is live (unread badge, deep links, mark read), and SCM connections have **Re-sync metadata**.
+- **Fixes found on the way:**
+  - `jobs` had no route to AI providers (internal network only), so automated reviews could not have worked in compose.
+  - Assignment did not record the actor, so self-assignment generated a notification.
+  - The rule list returned `null` recipient lists, which crashed the page. This was found by the Playwright pass and is now covered by an integration assertion.
+
+**Tests:**
+- Unit:
+  - Cron: fields, macros, DOM/DOW OR, steps, leap day, never-firing expressions, time zones, DST both ways, minimum interval.
+  - Templates: every default renders without missing fields; broken and oversized templates are rejected.
+  - Header-injection-proof message building, SMTP host policy, and config per role.
+- Integration:
+  - `TestSchedulesAndScheduler`: validation, scope authorization and visibility, BU descendants, tick execution with priority and `schedule_id`, no double run, missed-run catch-up without stacking, run now, lease recovery, one offline event per outage, and advisory-lock exclusivity and release.
+  - `TestNotifications`, against an in-test SMTP server:
+    - built-in rules, SMTP validation and the write-only password, the STARTTLS downgrade refusal, and delivery;
+    - a scan failure reaching role recipients in-app and by email, repository-scoped rules and custom templates, and header injection from scanner error text;
+    - approvers excluding the requester and out-of-scope managers, decision notices, and self-assignment suppression through the real API;
+    - one SLA breach event per breach, the inbox and read state, history and retry, append-only history, and suppression when email is disabled.
+- The smoke test now has 87 checks, including leader health, schedule CRUD and preview, the seeded rules and SMTP, and a real test email delivered by `jobs` to Mailpit and verified through Mailpit's API.
+
+**Next:** Phase 8, enterprise hardening.

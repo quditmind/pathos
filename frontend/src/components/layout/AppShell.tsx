@@ -25,6 +25,8 @@ import {
   Tags,
   Users,
   Package,
+  CalendarClock,
+  BellRing,
   Scale,
   ShieldOff,
 } from "lucide-react";
@@ -51,6 +53,7 @@ const groups: NavGroup[] = [
     items: [
       { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
       { label: "Scan profiles", to: "/scans/profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
+      { label: "Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
     ],
   },
   {
@@ -58,7 +61,7 @@ const groups: NavGroup[] = [
     items: [
       { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
       { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
-      { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "findings.read" },
+      { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
     ],
   },
   {
@@ -78,6 +81,7 @@ const groups: NavGroup[] = [
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
       { label: "Scanners & workers", to: "/admin/scanners", icon: <Server />, perm: "scanners.read" },
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
+      { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
   },
@@ -114,7 +118,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read", "ai.review"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read", "ai.review", "sbom.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (

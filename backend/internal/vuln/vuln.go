@@ -213,6 +213,10 @@ func (s *Service) setAssignee(ctx context.Context, tx pgx.Tx, p *authz.Principal
 			return httpx.BadRequest("assignee must be an active user")
 		}
 	}
+	// The actor lets the notification trigger skip self-assignment.
+	if err := db.SetChangeContext(ctx, tx, uid(p), "user", ""); err != nil {
+		return err
+	}
 	if _, err := tx.Exec(ctx, `UPDATE findings SET assignee_id = $2, updated_at = now() WHERE id = $1`, id, assignee); err != nil {
 		return err
 	}

@@ -11,10 +11,11 @@ import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useScan, useScanMutation, useScans, useWorkers } from "./api";
 
-export type ScanSearch = { status?: string; repository_id?: string; job?: string };
+export type ScanSearch = { status?: string; repository_id?: string; schedule_id?: string; job?: string };
 export const validateScanSearch = (s: Record<string, unknown>): ScanSearch => ({
   status: typeof s.status === "string" ? s.status : undefined,
   repository_id: typeof s.repository_id === "string" ? s.repository_id : undefined,
+  schedule_id: typeof s.schedule_id === "string" ? s.schedule_id : undefined,
   job: typeof s.job === "string" ? s.job : undefined,
 });
 
@@ -60,7 +61,7 @@ export function ScansPage() {
   const search = useSearch({ strict: false }) as ScanSearch;
   const navigate = useNavigate();
   const set = (n: Partial<ScanSearch>) => void navigate({ to: "/scans", search: { ...search, ...n } as never, replace: true });
-  const scans = useScans({ status: search.status, repository_id: search.repository_id });
+  const scans = useScans({ status: search.status, repository_id: search.repository_id, schedule_id: search.schedule_id });
   const workers = useWorkers();
   const online = (workers.data ?? []).filter((w) => w.online).length;
   const rows = scans.data?.pages.flatMap((p) => p.items) ?? [];

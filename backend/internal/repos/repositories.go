@@ -620,8 +620,12 @@ func (s *Service) setArchived(w http.ResponseWriter, r *http.Request, archive bo
 	httpx.WriteJSON(w, http.StatusOK, out)
 }
 
-func (s *Service) archiveRepository(w http.ResponseWriter, r *http.Request)   { s.setArchived(w, r, true) }
-func (s *Service) unarchiveRepository(w http.ResponseWriter, r *http.Request) { s.setArchived(w, r, false) }
+func (s *Service) archiveRepository(w http.ResponseWriter, r *http.Request) {
+	s.setArchived(w, r, true)
+}
+func (s *Service) unarchiveRepository(w http.ResponseWriter, r *http.Request) {
+	s.setArchived(w, r, false)
+}
 
 // deleteRepository permanently removes an archived repository.
 func (s *Service) deleteRepository(w http.ResponseWriter, r *http.Request) {

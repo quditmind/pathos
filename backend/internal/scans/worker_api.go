@@ -189,7 +189,15 @@ type LeasedJob struct {
 	Public bool `json:"public"`
 }
 
-// requeueExpired returns expired leases to the queue (or fails them).
+// WorkerOnlineWindow is how recently a worker must have polled to count as
+// online. Workers poll every few seconds while idle.
+const WorkerOnlineWindow = 2 * time.Minute
+
+// RequeueExpired returns expired leases to the queue (or fails them). The
+// lease handler and the scheduler both call it, so jobs held by a dead worker
+// recover even when no other worker is polling.
+func RequeueExpired(ctx context.Context, q db.Querier) error { return requeueExpired(ctx, q) }
+
 func requeueExpired(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `
 		UPDATE scan_jobs j SET
@@ -455,7 +463,7 @@ func (s *Service) listWorkers(w http.ResponseWriter, r *http.Request) {
 		var sc []byte
 		err := row.Scan(&wk.ID, &wk.Name, &wk.Family, &wk.Version, &sc, &wk.LastSeenAt, &wk.RevokedAt, &wk.CreatedAt, &wk.ActiveJobs)
 		_ = json.Unmarshal(sc, &wk.Scanners)
-		wk.Online = wk.RevokedAt == nil && wk.LastSeenAt != nil && time.Since(*wk.LastSeenAt) < 2*time.Minute
+		wk.Online = wk.RevokedAt == nil && wk.LastSeenAt != nil && time.Since(*wk.LastSeenAt) < WorkerOnlineWindow
 		return wk, err
 	})
 	if err != nil {

@@ -1,6 +1,6 @@
 # PATHOS Architecture
 
-Status: **Phase 6 implemented** for the vulnerability lifecycle (DB-enforced history, SLAs, risk acceptance, SBOM inventory). **Phase 5 implemented** for §6 (AI review, interactive MCP mode). **Phase 4 implemented** for §5 (scanner isolation: worker pools, lease API, egress proxy; raw reports are stored in PostgreSQL until object storage lands in Phase 8). **Phase 1 implemented** for §1 (api/jobs roles; scheduler is Phase 7), §3 (layout), §4 (authentication and authorization), §7 (deployment, minus SeaweedFS, workers and egress, which come in Phase 4), §8 (UI shell) and the envelope encryption in §9. Everything else is still design.
+Status: **Phase 7 implemented** for scheduling (leader-elected `scheduler` role) and notifications (outbox, rules, SMTP, in-app). **Phase 6 implemented** for the vulnerability lifecycle (DB-enforced history, SLAs, risk acceptance, SBOM inventory). **Phase 5 implemented** for §6 (AI review, interactive MCP mode). **Phase 4 implemented** for §5 (scanner isolation: worker pools, lease API, egress proxy; raw reports are stored in PostgreSQL until object storage lands in Phase 8). **Phase 1 implemented** for §1 (api/jobs roles; scheduler is Phase 7), §3 (layout), §4 (authentication and authorization), §7 (deployment, minus SeaweedFS, workers and egress, which come in Phase 4), §8 (UI shell) and the envelope encryption in §9. Everything else is still design.
 
 ## 1. Architectural style
 
@@ -171,8 +171,8 @@ Most tools emit SARIF, so a shared SARIF parser covers the majority of adapters.
 | `proxy` | Caddy 2.x | edge, app | 443/80 | `caddy_data` |
 | `frontend` | built into proxy image (static) | — | — | — |
 | `api` | `pathos` (distroless static) | app, data, worker-api | — | — |
-| `jobs` | `pathos` | app, data | — | — |
-| `scheduler` | `pathos` | app, data | — | — |
+| `jobs` | `pathos` | data, edge (AI providers, SCM APIs, SMTP) | — | — |
+| `scheduler` | `pathos` (leader-elected; replicas are standbys) | data | — | — |
 | `migrate` | `pathos` (one-shot `pathosctl migrate`) | data | — | — |
 | `keycloak` | Keycloak 26.x | app, kc-data | — | — |
 | `postgres` | PostgreSQL (two databases: `pathos`, `keycloak`) | data, kc-data | — | `pg_data` |
@@ -227,3 +227,31 @@ Secrets at rest use **envelope encryption**: AES-256-GCM data keys wrapped by a 
 Baseline footprint without workers is about 3 GB (Keycloak ~1 GB, PostgreSQL ~0.5–1 GB, API ~200 MB, Valkey/SeaweedFS ~300 MB). Each concurrent scan needs 1–4 GB (Opengrep and JVM tools at the high end). Vulnerability DB cache is about 5 GB.
 
 This host (20 CPUs, 30 GB RAM, 862 GB free) comfortably runs the full stack plus 4–6 concurrent scans.
+
+## Scheduling and notifications (Phase 7)
+
+```mermaid
+flowchart LR
+  subgraph scheduler[scheduler role: advisory-lock leader]
+    T[tick every 15s] --> D[due schedules -> scans.EnqueueWith]
+    T --> M[missed runs -> schedule.missed]
+    T --> W[silent workers -> worker.offline]
+    T --> L[expired leases -> requeue]
+  end
+  subgraph db[(PostgreSQL)]
+    J[scan_jobs] -- trigger --> E[notification_events]
+    R[risk_acceptances] -- trigger --> E
+    F[findings.assignee_id] -- trigger --> E
+  end
+  subgraph jobs[jobs role]
+    S[SLA detector] --> E
+    E --> X[dispatcher: rules, scope, severity, recipients, templates]
+    X --> N[notifications: in-app + email outbox]
+    N --> SM[SMTP sender: claim, send, backoff x5]
+  end
+  D --> J
+```
+
+- **One writer per concern.** Database triggers emit the events that follow data changes (scan finished or failed, risk requested or decided, assignment), so every code path is covered. Detectors emit time-based events: SLA breaches in `jobs`, missed runs and offline workers in `scheduler`.
+- **Leader election:** `pg_try_advisory_lock` held on a dedicated connection. If the leader's connection dies, the lock is released and a standby takes over within one interval. `scheduler_state` records the holder and heartbeat for the UI.
+- **Delivery:** emails are claimed with a short lease, so no transaction stays open during SMTP I/O. Delivery is retried with backoff (1 m, 5 m, 30 m, 2 h) and marked failed after five attempts. In-app notifications are rows in the same table, filtered by user.

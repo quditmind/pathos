@@ -24,13 +24,13 @@ var sensitiveKeyParts = []string{
 var valuePatterns = []*regexp.Regexp{
 	regexp.MustCompile(`(?i)bearer\s+[a-z0-9._~+/=-]{8,}`),
 	regexp.MustCompile(`eyJ[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}`), // JWT
-	regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{20,}`),                                  // GitHub tokens
+	regexp.MustCompile(`gh[pousr]_[A-Za-z0-9]{20,}`),                                 // GitHub tokens
 	regexp.MustCompile(`github_pat_[A-Za-z0-9_]{20,}`),
-	regexp.MustCompile(`sk-(ant-)?[A-Za-z0-9_-]{20,}`),                                // Anthropic / OpenAI style keys
+	regexp.MustCompile(`sk-(ant-)?[A-Za-z0-9_-]{20,}`), // Anthropic / OpenAI style keys
 	regexp.MustCompile(`xai-[A-Za-z0-9]{20,}`),
-	regexp.MustCompile(`AKIA[0-9A-Z]{16}`),                                            // AWS access key id
+	regexp.MustCompile(`AKIA[0-9A-Z]{16}`), // AWS access key id
 	regexp.MustCompile(`-----BEGIN [A-Z ]*PRIVATE KEY-----`),
-	regexp.MustCompile(`(?i)(postgres(ql)?|redis|rediss|amqp)://[^:/\s]+:[^@\s]+@`),  // URL credentials
+	regexp.MustCompile(`(?i)(postgres(ql)?|redis|rediss|amqp)://[^:/\s]+:[^@\s]+@`), // URL credentials
 }
 
 // IsSensitiveKey reports whether an attribute key looks like it holds a secret.

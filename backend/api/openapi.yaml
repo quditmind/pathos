@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: PATHOS API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     PATHOS REST API (Phases 1-3: identity, RBAC, organization, audit, dashboard, search, SCM connections, repositories, applications, tags, webhooks).
 
@@ -643,6 +643,59 @@ paths:
       responses: { "200": { description: OK } }
   /api/v1/repositories/{id}/sbom:
     get: { summary: Download the latest CycloneDX SBOM, parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: application/vnd.cyclonedx+json }, "404": { description: No SBOM yet } } }
+  # Phase 7: Scheduling and notifications
+  /api/v1/schedules:
+    get: { summary: "Scan schedules visible in the caller's scans.read scope (can_manage per item)", responses: { "200": { description: OK } } }
+    post: { summary: "Create {name, cron, timezone, target_type: organization|region|business_unit|repository|profile, target_id, priority 0-90, enabled} (schedules.manage at the target; at most hourly)", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created }, "400": { description: Invalid cron, zone, target or too frequent } } }
+  /api/v1/schedules/preview:
+    post: { summary: Next five runs and the number of target repositories, parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+  /api/v1/schedules/{id}:
+    put: { summary: Replace a schedule (pause with enabled=false), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+    delete: { summary: Delete a schedule, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted } } }
+  /api/v1/schedules/{id}/run:
+    post: { summary: Queue the schedule's scans now, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "queued, coalesced, skipped, failed" } } }
+  /api/v1/scheduler/status:
+    get: { summary: "Scheduler leader and heartbeat, worker health, queue depth, missed runs", responses: { "200": { description: OK } } }
+  /api/v1/scm-connections/{id}/resync:
+    post: { summary: Refresh metadata of imported repositories from the SCM (scm.manage), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "checked, updated, missing, archived_upstream" } } }
+  /api/v1/notifications/events:
+    get: { summary: Event catalog with default templates and dynamic recipients (notifications.manage), responses: { "200": { description: OK } } }
+  /api/v1/notifications/smtp:
+    get: { summary: SMTP settings (password never returned; has_password), responses: { "200": { description: OK } } }
+    put: { summary: "Replace SMTP settings; password omitted keeps, empty clears", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK }, "400": { description: Invalid host, address or auth without TLS } } }
+  /api/v1/notifications/smtp/test:
+    post: { summary: "Queue a test email {to?} (defaults to the caller); delivered by the jobs role", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "202": { description: "id, to" } } }
+  /api/v1/notifications/rules:
+    get: { summary: Notification rules, responses: { "200": { description: OK } } }
+    post: { summary: "Create {name, event_key, min_severity, scope_type, scope_id, recipients: {roles, users, emails, dynamic}, email, in_app, enabled}", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "201": { description: Created } } }
+  /api/v1/notifications/rules/{id}:
+    put: { summary: Replace a rule (built-in rules keep their event), parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: OK } } }
+    delete: { summary: Delete a custom rule, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Deleted }, "409": { description: Built-in rule } } }
+  /api/v1/notifications/templates:
+    get: { summary: Templates per event with defaults, responses: { "200": { description: OK } } }
+  /api/v1/notifications/templates/{event}:
+    put: { summary: "Override {subject, body} (Go text/template, validated on sample data)", parameters: [{ name: event, in: path, required: true, schema: { type: string } }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Saved }, "400": { description: Template error } } }
+    delete: { summary: Reset to default, parameters: [{ name: event, in: path, required: true, schema: { type: string } }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Reset } } }
+  /api/v1/notifications/templates/{event}/preview:
+    post: { summary: Render a draft against sample data, parameters: [{ name: event, in: path, required: true, schema: { type: string } }, { $ref: "#/components/parameters/CSRF" }], responses: { "200": { description: "subject, body" } } }
+  /api/v1/notifications/deliveries:
+    get:
+      summary: Delivery history (newest first, 100 per page) with 7-day email totals
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [pending, sent, failed, suppressed] } }
+        - { name: channel, in: query, schema: { type: string, enum: [email, in_app] } }
+        - { name: event_key, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { name: before, in: query, description: next_cursor of the previous page, schema: { type: string, format: date-time } }
+      responses: { "200": { description: OK } }
+  /api/v1/notifications/deliveries/{id}:
+    get: { summary: One delivery including its body, parameters: [{ $ref: "#/components/parameters/Id" }], responses: { "200": { description: OK } } }
+  /api/v1/notifications/deliveries/{id}/retry:
+    post: { summary: Retry a failed or suppressed email, parameters: [{ $ref: "#/components/parameters/Id" }, { $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: Queued }, "409": { description: Not retryable } } }
+  /api/v1/me/notifications:
+    get: { summary: "Caller's in-app notifications (latest 50; ?unread=1) and unread count", responses: { "200": { description: OK } } }
+  /api/v1/me/notifications/read:
+    post: { summary: "Mark read {ids} or {all: true}", parameters: [{ $ref: "#/components/parameters/CSRF" }], responses: { "204": { description: OK } } }
 # Internal worker API (separate listener :8081, internal network only, not
 # routed by the proxy): POST /internal/worker/v1/register (bootstrap token),
 # /lease, /jobs/{id}/heartbeat, /jobs/{id}/results, /jobs/{id}/complete

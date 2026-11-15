@@ -108,12 +108,31 @@ func TestFileVariables(t *testing.T) {
 }
 
 func TestJobsRoleDoesNotNeedWebSettings(t *testing.T) {
-	_, err := LoadFrom(env(map[string]string{
+	base := map[string]string{
 		"PATHOS_ROLE":         "jobs",
+		"PATHOS_DATABASE_URL": "postgres://x",
+		"PATHOS_MASTER_KEY":   testKey,
+	}
+	if _, err := LoadFrom(env(base)); err == nil || !strings.Contains(err.Error(), "PATHOS_PUBLIC_URL") {
+		t.Fatalf("jobs role needs the public URL for notification links, got %v", err)
+	}
+	base["PATHOS_PUBLIC_URL"] = "https://pathos.example.com/"
+	c, err := LoadFrom(env(base))
+	if err != nil {
+		t.Fatalf("jobs role should not require OIDC/Redis: %v", err)
+	}
+	if c.PublicURL.String() != "https://pathos.example.com" {
+		t.Fatalf("public URL not normalized: %s", c.PublicURL)
+	}
+}
+
+func TestSchedulerRoleNeedsOnlyTheDatabase(t *testing.T) {
+	_, err := LoadFrom(env(map[string]string{
+		"PATHOS_ROLE":         "scheduler",
 		"PATHOS_DATABASE_URL": "postgres://x",
 		"PATHOS_MASTER_KEY":   testKey,
 	}))
 	if err != nil {
-		t.Fatalf("jobs role should not require OIDC/public URL: %v", err)
+		t.Fatalf("scheduler role: %v", err)
 	}
 }

@@ -62,7 +62,9 @@ type Meta struct {
 type metaKey struct{}
 
 // WithMeta stores request metadata in ctx.
-func WithMeta(ctx context.Context, m Meta) context.Context { return context.WithValue(ctx, metaKey{}, m) }
+func WithMeta(ctx context.Context, m Meta) context.Context {
+	return context.WithValue(ctx, metaKey{}, m)
+}
 
 // MetaFrom returns request metadata from ctx.
 func MetaFrom(ctx context.Context) Meta { m, _ := ctx.Value(metaKey{}).(Meta); return m }

@@ -369,8 +369,8 @@ func (s *Service) listConfigs(w http.ResponseWriter, r *http.Request) {
 }
 
 type configRequest struct {
-	Name       string `json:"name"`
-	IsDefault  *bool  `json:"is_default"`
+	Name      string `json:"name"`
+	IsDefault *bool  `json:"is_default"`
 	ConfigVersion
 }
 
@@ -983,4 +983,3 @@ func (s *Service) SubmitInteractive(ctx context.Context, p *authz.Principal, fin
 	_ = s.DB.QueryRow(ctx, `SELECT status FROM ai_reviews WHERE finding_id = $1 ORDER BY created_at DESC LIMIT 1`, findingID).Scan(&st)
 	return st, nil
 }
-

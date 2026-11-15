@@ -62,8 +62,8 @@ func hashToken(t string) string {
 	return hex.EncodeToString(h[:])
 }
 
-func sessKey(hash string) string        { return "pathos:sess:" + hash }
-func userSessKey(u uuid.UUID) string    { return "pathos:user_sess:" + u.String() }
+func sessKey(hash string) string     { return "pathos:sess:" + hash }
+func userSessKey(u uuid.UUID) string { return "pathos:user_sess:" + u.String() }
 
 // Create stores a new session and returns the cookie token.
 func (s *SessionStore) Create(ctx context.Context, userID, orgID uuid.UUID, idToken string) (string, *Session, error) {

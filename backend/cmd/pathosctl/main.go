@@ -20,6 +20,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"pathos/internal/authz"
+	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/crypto"
@@ -27,8 +28,8 @@ import (
 	"pathos/internal/platform/logging"
 	"pathos/internal/scanners"
 	"pathos/internal/scans"
-	"pathos/internal/vuln"
 	"pathos/internal/secrets"
+	"pathos/internal/vuln"
 )
 
 func usage() {
@@ -61,9 +62,10 @@ func main() {
 		return
 	}
 
-	// Admin commands reuse the jobs-role configuration (no web settings).
+	// Admin commands need only the database and master key, which is the
+	// scheduler role's configuration (no web settings, no public URL).
 	if os.Getenv("PATHOS_ROLE") == "" {
-		os.Setenv("PATHOS_ROLE", "jobs")
+		os.Setenv("PATHOS_ROLE", "scheduler")
 	}
 	cfg, err := config.Load()
 	if err != nil {
@@ -118,6 +120,13 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *s
 	}
 	if err := vuln.EnsureDefaults(ctx, pool, id); err != nil {
 		return fmt.Errorf("seed SLA and license policies: %w", err)
+	}
+	kr, err := crypto.NewKeyring(cfg.MasterKeys)
+	if err != nil {
+		return err
+	}
+	if err := notify.EnsureDefaults(ctx, pool, &secrets.Store{Keys: kr}, id); err != nil {
+		return fmt.Errorf("seed notification rules: %w", err)
 	}
 	if err := scans.EnsureDefaultProfile(ctx, pool, id); err != nil {
 		return fmt.Errorf("ensure default scan profile: %w", err)

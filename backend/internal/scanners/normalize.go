@@ -30,11 +30,11 @@ type Finding struct {
 	FixedVersion   string
 	FilePath       string
 	// Snippet is code context captured by the worker (redacted).
-	Snippet        string
-	SnippetStart   *int
-	StartLine      *int
-	EndLine        *int
-	Fingerprint    string
+	Snippet      string
+	SnippetStart *int
+	StartLine    *int
+	EndLine      *int
+	Fingerprint  string
 }
 
 // Severities in descending order.
@@ -80,7 +80,7 @@ func NormalizePath(p string) string {
 var (
 	workspacePrefix = regexp.MustCompile(`^/?work/[^/]+/src/`)
 	cweRe           = regexp.MustCompile(`(?i)CWE-(\d{1,5})`)
-	cveRe = regexp.MustCompile(`(?i)\b(CVE-\d{4}-\d{4,})\b`)
+	cveRe           = regexp.MustCompile(`(?i)\b(CVE-\d{4}-\d{4,})\b`)
 )
 
 // Fingerprint computes the stable identity of a finding. Line numbers are
@@ -146,10 +146,10 @@ type sarifMsg struct {
 }
 
 type sarifResult struct {
-	RuleID    string    `json:"ruleId"`
-	RuleIndex *int      `json:"ruleIndex"`
-	Level     string    `json:"level"`
-	Message   sarifMsg  `json:"message"`
+	RuleID    string   `json:"ruleId"`
+	RuleIndex *int     `json:"ruleIndex"`
+	Level     string   `json:"level"`
+	Message   sarifMsg `json:"message"`
 	Locations []struct {
 		PhysicalLocation struct {
 			ArtifactLocation struct {

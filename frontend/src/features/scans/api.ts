@@ -2,7 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import { api } from "@/api/client";
 import type { CatalogScanner, Finding, Page, ScanJob, ScanProfile, Worker } from "@/api/types";
 
-export function useScans(f: { status?: string; repository_id?: string }, live = true) {
+export function useScans(f: { status?: string; repository_id?: string; schedule_id?: string }, live = true) {
   return useInfiniteQuery({
     queryKey: ["scans", f],
     initialPageParam: "",

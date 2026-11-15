@@ -1,6 +1,19 @@
 # Changelog
 
-## [Unreleased] — Phase 6: Vulnerability management (2026-11-15)
+## [Unreleased] — Phase 7: Scheduling & notifications (2026-11-15)
+
+### Added
+- `scheduler` role and compose service. A Postgres advisory lock elects the leader, so replicas are hot standbys. It runs cron schedules (with time zones) targeting the organization, a region, a business unit (including children), a repository or a scan profile, with per-schedule priority. It catches up missed runs once and reports them, recovers expired worker leases and reports offline workers.
+- Schedules API and UI: create, edit, pause, run now, delete, cadence presets with a live preview of the next runs and repository count, scheduler and queue health, and a "Last run" link to the schedule's scan jobs.
+- Notification engine: a trigger-fed outbox, eight built-in rules, custom rules (event, minimum severity, region, business unit or repository scope, role/user/email/dynamic recipients, email and in-app channels), editable templates with a live preview, SMTP settings with a test email, delivery history with retry, and an in-app notification centre with an unread badge.
+- Events: new findings, scan failed, SLA breached, finding assigned, risk acceptance requested and decided, schedule missed, worker offline.
+- SCM metadata re-sync: nightly in `jobs`, or **Re-sync metadata** per connection.
+
+### Fixed
+- The `jobs` service was on the internal `data` network only, so automated AI reviews could not reach the provider. It now also joins `edge` (with `HTTPS_PROXY` support), which notification email also needs.
+- Assignments now record the acting user, so self-assignment is not notified.
+
+## Phase 6: Vulnerability management (2026-11-15)
 
 ### Added
 - Finding lifecycle enforced by a database trigger: append-only status history with actor/source/reason, SLA deadline on detection, recurrence counter when a fixed finding reappears.

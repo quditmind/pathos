@@ -359,9 +359,9 @@ func (s *Service) loadLookups(ctx context.Context, orgID uuid.UUID) (*lookups, e
 		return rows.Err()
 	}
 	for sql, m := range map[string]map[string]uuid.UUID{
-		`SELECT name, id FROM applications WHERE organization_id = $1 AND archived_at IS NULL`:   lk.apps,
-		`SELECT name, id FROM business_units WHERE organization_id = $1 AND archived_at IS NULL`: lk.bus,
-		`SELECT code, id FROM countries WHERE organization_id = $1`:                               lk.countries,
+		`SELECT name, id FROM applications WHERE organization_id = $1 AND archived_at IS NULL`:                                           lk.apps,
+		`SELECT name, id FROM business_units WHERE organization_id = $1 AND archived_at IS NULL`:                                         lk.bus,
+		`SELECT code, id FROM countries WHERE organization_id = $1`:                                                                      lk.countries,
 		`SELECT tc.name || ':' || t.name, t.id FROM tags t JOIN tag_categories tc ON tc.id = t.category_id WHERE t.organization_id = $1`: lk.tags,
 	} {
 		if err := load(sql, m); err != nil {

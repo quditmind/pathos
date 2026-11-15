@@ -172,12 +172,12 @@ func (a *Agent) Run(ctx context.Context) error {
 
 // Job is a leased scan job.
 type Job struct {
-	JobID          string     `json:"job_id"`
-	FullName       string     `json:"full_name"`
-	CloneURL       string     `json:"clone_url"`
-	Ref            string     `json:"ref"`
-	CommitSHA      string     `json:"commit_sha"`
-	TimeoutSeconds int        `json:"timeout_seconds"`
+	JobID          string       `json:"job_id"`
+	FullName       string       `json:"full_name"`
+	CloneURL       string       `json:"clone_url"`
+	Ref            string       `json:"ref"`
+	CommitSHA      string       `json:"commit_sha"`
+	TimeoutSeconds int          `json:"timeout_seconds"`
 	Scanners       []JobScanner `json:"scanners"`
 	Credential     *struct {
 		Username string `json:"username"`
