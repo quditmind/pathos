@@ -40,6 +40,10 @@ var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pu
 // ErrNotScannable means the repository is archived or scanning is disabled.
 var ErrNotScannable = errors.New("repository is archived or scanning is disabled")
 
+// ErrScanPrerequisite means something must be configured before scanning
+// (a scan profile, a snapshot or a branch).
+var ErrScanPrerequisite = errors.New("cannot scan yet")
+
 // EnqueueResult describes what Enqueue did.
 type EnqueueResult struct {
 	JobID     uuid.UUID `json:"job_id"`
@@ -65,13 +69,14 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	var scanBranch, defaultBranch string
 	var enabled bool
 	var archived *time.Time
-	var profileVersion *uuid.UUID
+	var profileVersion, snapshotID *uuid.UUID
+	var sourceType string
 	err := q.QueryRow(ctx, `
-		SELECT r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
+		SELECT r.source_type, r.current_snapshot_id, r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
 		       COALESCE((SELECT current_version_id FROM scan_profiles WHERE id = r.scan_profile_id AND archived_at IS NULL),
 		                (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND is_default AND archived_at IS NULL))
 		FROM repositories r WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID).
-		Scan(&scanBranch, &defaultBranch, &enabled, &archived, &profileVersion)
+		Scan(&sourceType, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &profileVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return res, errNotFound
 	}
@@ -82,7 +87,14 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		return res, ErrNotScannable
 	}
 	if profileVersion == nil {
-		return res, errors.New("no scan profile available; create a default profile")
+		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
+	}
+	if sourceType == "upload" {
+		// Uploaded repositories are scanned from their current snapshot.
+		if snapshotID == nil {
+			return res, fmt.Errorf("%w: repository has no source snapshot yet", ErrScanPrerequisite)
+		}
+		ref, commit = "snapshot", ""
 	}
 	if ref == "" {
 		ref = scanBranch
@@ -91,7 +103,7 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		ref = defaultBranch
 	}
 	if ref == "" {
-		return res, errors.New("repository has no default branch; set a scan branch")
+		return res, fmt.Errorf("%w: repository has no default branch; set a scan branch", ErrScanPrerequisite)
 	}
 	prio := priorities[trigger]
 	if opt.Priority > 0 {
@@ -99,9 +111,9 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	err = q.QueryRow(ctx, `
 		UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
-		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6)
+		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7
 		WHERE repository_id = $1 AND organization_id = $2 AND status = 'queued' RETURNING id`,
-		repoID, orgID, commit, prio, ref, opt.ScheduleID).Scan(&res.JobID)
+		repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID).Scan(&res.JobID)
 	if err == nil {
 		res.Coalesced = true
 		return res, nil
@@ -111,8 +123,8 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	res.JobID = uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `
-		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID)
+		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id, snapshot_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID, snapshotID)
 	if db.IsUniqueViolation(err) {
 		// Lost a race with a concurrent trigger: use its queued job.
 		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND status = 'queued'`, repoID).Scan(&res.JobID); err != nil {
@@ -180,7 +192,7 @@ func (s *Service) scanRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := s.enqueueAs(r.Context(), p, id, "manual")
-	if errors.Is(err, ErrNotScannable) {
+	if errors.Is(err, ErrNotScannable) || errors.Is(err, ErrScanPrerequisite) {
 		err = httpx.Conflict(err.Error())
 	}
 	if err != nil {
@@ -226,6 +238,9 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 		it := item{RepositoryID: id}
 		if err != nil {
 			it.Error = "not scannable or not permitted"
+			if errors.Is(err, ErrScanPrerequisite) {
+				it.Error = err.Error()
+			}
 			if errors.Is(err, ErrNotScannable) {
 				it.Error = ErrNotScannable.Error()
 			}
@@ -242,6 +257,7 @@ type Job struct {
 	ID             uuid.UUID  `json:"id"`
 	RepositoryID   uuid.UUID  `json:"repository_id"`
 	RepositoryName string     `json:"repository_name"`
+	RepositoryKey  string     `json:"repository_key"`
 	ProfileName    string     `json:"profile_name"`
 	ProfileVersion int        `json:"profile_version"`
 	Trigger        string     `json:"trigger"`
@@ -274,7 +290,7 @@ type Result struct {
 }
 
 const jobSelect = `
-	SELECT j.id, j.repository_id, r.full_name, sp.name, v.version, j.trigger, j.priority, j.status, j.ref, j.commit_sha,
+	SELECT j.id, j.repository_id, r.full_name, r.repository_key, sp.name, v.version, j.trigger, j.priority, j.status, j.ref, j.commit_sha,
 	       j.attempts, wk.name, COALESCE(NULLIF(u.display_name, ''), u.email), j.error, j.findings_new, j.findings_fixed,
 	       j.gate_failed, j.queued_at, j.started_at, j.finished_at
 	FROM scan_jobs j
@@ -287,7 +303,7 @@ const jobSelect = `
 
 func scanJob(row pgx.Row) (Job, error) {
 	var j Job
-	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
+	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.RepositoryKey, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
 		&j.Status, &j.Ref, &j.CommitSHA, &j.Attempts, &j.WorkerName, &j.RequestedBy, &j.Error, &j.FindingsNew,
 		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -433,7 +449,7 @@ func (s *Service) cancelJob(w http.ResponseWriter, r *http.Request) {
 			return httpx.Conflict("only queued or running scans can be cancelled")
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "scan.cancel", TargetType: "scan_job", TargetID: j.ID.String(), Metadata: map[string]any{"repository": j.RepositoryName}})
+			Action: "scan.cancel", TargetType: "scan_job", TargetID: j.ID.String(), Metadata: map[string]any{"repository": j.RepositoryName, "repository_key": j.RepositoryKey}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

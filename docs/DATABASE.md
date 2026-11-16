@@ -118,6 +118,22 @@ erDiagram
 | `notifications` | event_id, rule_id, channel (`email`,`in_app`), user_id/email, subject, body, link, status, attempts, next_attempt_at, read_at | Delivery history and in-app inbox. Deduplicated per event, channel and recipient. The app role cannot delete rows |
 | `audit_logs` | actor_id, action, target_type, target_id, ip, user_agent, metadata, created_at | Append-only (app role has no UPDATE/DELETE grant) and monthly partitioning |
 
+## Repository onboarding (migration 00009)
+
+| Table | Purpose |
+|---|---|
+| `repositories` (extended) | Asset metadata: owners, teams, department, regions, hosting region, data classification, internet exposure, lifecycle, colour; `source_type` (`scm` / `upload`), head commit, sync state, current snapshot |
+| `asset_classifications`, `asset_settings` | Per-organization catalogs and required-field policy |
+| `repository_compliance_scopes` | Compliance scope (applicability) per repository |
+| `scm_oauth_apps`, `scm_oauth_states` | OAuth applications and in-flight authorizations |
+| `source_uploads`, `source_upload_parts`, `source_snapshots` | Resumable uploads and immutable source versions |
+| `repository_import_jobs`, `repository_import_items` | Background import engine |
+| `repository_sync_runs` | Synchronization history (180 days) |
+| `repositories.repository_key` (00010) | Permanent Repository ID (`QD-REPO-000001`), trigger-assigned from `repository_key_seq`, immutable |
+| `repository_public_endpoints` (00010) | Public URLs, domains and IPs of exposed assets |
+
+`docs/REPOSITORY_ONBOARDING.md` describes the design.
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

@@ -4,7 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
 	"net/http"
+	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -29,6 +33,11 @@ func (s *Service) registerConnections(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/scm-connections/{id}/webhook-secret", s.rotateWebhookSecret)
 	mux.HandleFunc("GET /api/v1/scm-connections/{id}/discover", s.discover)
 	mux.HandleFunc("POST /api/v1/scm-connections/{id}/resync", s.resyncConnection)
+	mux.HandleFunc("GET /api/v1/scm-connections/{id}/organizations", s.remoteOrganizations)
+	mux.HandleFunc("GET /api/v1/scm-connections/{id}/projects", s.remoteProjects)
+	mux.HandleFunc("GET /api/v1/scm-connections/{id}/remote-repositories", s.remoteRepositories)
+	mux.HandleFunc("GET /api/v1/scm-connections/{id}/remote-repositories/details", s.remoteRepositoryDetails)
+	s.registerOAuth(mux)
 }
 
 func pathID(r *http.Request) (uuid.UUID, error) {
@@ -98,6 +107,110 @@ type connectionRequest struct {
 	PrivateKey     *string `json:"private_key"` // GitHub App PEM
 	AppID          *int64  `json:"github_app_id"`
 	InstallationID *int64  `json:"github_installation_id"`
+	// Bitbucket API token: Atlassian account e-mail.
+	Username *string `json:"username"`
+	// Azure DevOps service principal.
+	TenantID       *string `json:"tenant_id"`
+	ClientID       *string `json:"client_id"`
+	ClientSecret   *string `json:"client_secret"`
+	CertificatePEM *string `json:"certificate_pem"`
+	PrivateKeyPEM  *string `json:"private_key_pem"`
+	// Azure DevOps: organizations to discover (required for service principals).
+	Organizations *[]string `json:"organizations"`
+}
+
+var orgNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`)
+
+func validOrganizations(in []string) ([]string, error) {
+	out := []string{}
+	for _, o := range in {
+		o = strings.TrimSpace(o)
+		if o == "" {
+			continue
+		}
+		if !orgNameRe.MatchString(o) {
+			return nil, httpx.BadRequest("invalid organization name " + o)
+		}
+		if !slices.Contains(out, o) {
+			out = append(out, o)
+		}
+	}
+	if len(out) > 100 {
+		return nil, httpx.BadRequest("at most 100 organizations")
+	}
+	return out, nil
+}
+
+// credentialFor builds the stored secret for a non-OAuth auth type from
+// the request, validating the method's required fields.
+func credentialFor(provider, authType string, req connectionRequest) ([]byte, error) {
+	switch authType {
+	case scm.AuthPAT:
+		if str(req.Token) == "" {
+			return nil, httpx.BadRequest("token is required")
+		}
+		return []byte(str(req.Token)), nil
+	case scm.AuthGitHubApp:
+		if provider != scm.GitHub && provider != scm.GitHubEnterprise {
+			return nil, httpx.BadRequest("GitHub App authentication is only available for GitHub")
+		}
+		if _, err := scm.ParseRSAPrivateKey([]byte(str(req.PrivateKey))); err != nil {
+			return nil, httpx.BadRequest(err.Error())
+		}
+		return []byte(str(req.PrivateKey)), nil
+	case scm.AuthAPIToken:
+		if provider != scm.Bitbucket {
+			return nil, httpx.BadRequest("API token authentication is only available for Bitbucket")
+		}
+		if str(req.Username) == "" || str(req.Token) == "" {
+			return nil, httpx.BadRequest("username (Atlassian account e-mail) and token are required")
+		}
+		// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
+		return json.Marshal(scm.APITokenCredential{Username: str(req.Username), Token: str(req.Token)})
+	case scm.AuthServicePrincipal:
+		if provider != scm.AzureDevOps {
+			return nil, httpx.BadRequest("service principal authentication is only available for Azure DevOps Services")
+		}
+		sp := scm.ServicePrincipalCredential{TenantID: str(req.TenantID), ClientID: str(req.ClientID),
+			ClientSecret: str(req.ClientSecret), CertificatePEM: str(req.CertificatePEM), PrivateKeyPEM: str(req.PrivateKeyPEM)}
+		if sp.TenantID == "" || sp.ClientID == "" {
+			return nil, httpx.BadRequest("tenant_id and client_id are required")
+		}
+		if (sp.ClientSecret == "") == (sp.CertificatePEM == "") {
+			return nil, httpx.BadRequest("provide either client_secret or certificate_pem with private_key_pem")
+		}
+		if sp.CertificatePEM != "" && sp.PrivateKeyPEM == "" {
+			return nil, httpx.BadRequest("private_key_pem is required with certificate_pem")
+		}
+		// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
+		return json.Marshal(sp)
+	case scm.AuthOAuth:
+		return nil, httpx.BadRequest("OAuth connections are created with POST /api/v1/scm-connections/oauth/start")
+	}
+	return nil, httpx.BadRequest("auth_type must be pat, github_app, api_token, service_principal or oauth")
+}
+
+// providerDefaults returns the catalog entry for a provider.
+func providerInfo(provider string) (scm.ProviderInfo, bool) {
+	for _, p := range scm.Providers() {
+		if p.Key == provider {
+			return p, true
+		}
+	}
+	return scm.ProviderInfo{}, false
+}
+
+func authMethodAllowed(provider, authType string) bool {
+	p, ok := providerInfo(provider)
+	if !ok {
+		return false
+	}
+	for _, m := range p.AuthMethods {
+		if m.Key == authType {
+			return true
+		}
+	}
+	return false
 }
 
 func randomSecret() string {
@@ -130,10 +243,13 @@ func (s *Service) createConnection(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("name is required (max 200 characters)"))
 		return
 	}
-	switch req.Provider {
-	case scm.GitHub, scm.GitHubEnterprise, scm.AzureDevOps, scm.AzureDevOpsServer:
-	default:
-		s.fail(w, r, httpx.BadRequest("provider must be github, github_enterprise, azure_devops or azure_devops_server"))
+	info, ok := providerInfo(req.Provider)
+	if !ok {
+		s.fail(w, r, httpx.BadRequest("unknown provider"))
+		return
+	}
+	if !authMethodAllowed(req.Provider, req.AuthType) {
+		s.fail(w, r, httpx.BadRequest("auth_type "+req.AuthType+" is not available for "+info.Label))
 		return
 	}
 	base := str(req.BaseURL)
@@ -141,7 +257,10 @@ func (s *Service) createConnection(w http.ResponseWriter, r *http.Request) {
 		base = scm.DefaultBaseURL(req.Provider, owner)
 	}
 	if base == "" {
-		s.fail(w, r, httpx.BadRequest("base_url is required for this provider (Azure DevOps Services: set owner to the organization name)"))
+		base = info.DefaultBaseURL
+	}
+	if base == "" {
+		s.fail(w, r, httpx.BadRequest("base_url is required for this provider"))
 		return
 	}
 	u, err := s.Net.ValidateBaseURL(base)
@@ -153,31 +272,24 @@ func (s *Service) createConnection(w http.ResponseWriter, r *http.Request) {
 	if req.Provider == scm.AzureDevOps && owner != "" && strings.HasSuffix(strings.ToLower(base), "/"+strings.ToLower(owner)) {
 		owner = "" // owner was the organization, already part of the base URL
 	}
-
-	var secret []byte
-	switch req.AuthType {
-	case "pat":
-		if str(req.Token) == "" {
-			s.fail(w, r, httpx.BadRequest("token is required"))
+	orgs := []string{}
+	if req.Organizations != nil {
+		if orgs, err = validOrganizations(*req.Organizations); err != nil {
+			s.fail(w, r, err)
 			return
 		}
-		secret = []byte(str(req.Token))
-	case "github_app":
-		if req.Provider != scm.GitHub && req.Provider != scm.GitHubEnterprise {
-			s.fail(w, r, httpx.BadRequest("GitHub App authentication is only available for GitHub"))
-			return
-		}
-		if req.AppID == nil || req.InstallationID == nil || *req.AppID <= 0 || *req.InstallationID <= 0 {
-			s.fail(w, r, httpx.BadRequest("github_app_id and github_installation_id are required"))
-			return
-		}
-		if _, err := scm.ParseRSAPrivateKey([]byte(str(req.PrivateKey))); err != nil {
-			s.fail(w, r, httpx.BadRequest(err.Error()))
-			return
-		}
-		secret = []byte(str(req.PrivateKey))
-	default:
-		s.fail(w, r, httpx.BadRequest("auth_type must be pat or github_app"))
+	}
+	if req.AuthType == scm.AuthGitHubApp && (req.AppID == nil || req.InstallationID == nil || *req.AppID <= 0 || *req.InstallationID <= 0) {
+		s.fail(w, r, httpx.BadRequest("github_app_id and github_installation_id are required"))
+		return
+	}
+	if req.AuthType == scm.AuthServicePrincipal && len(orgs) == 0 && strings.EqualFold(strings.TrimRight(base, "/"), "https://dev.azure.com") {
+		s.fail(w, r, httpx.BadRequest("list the Azure DevOps organizations the service principal was added to"))
+		return
+	}
+	secret, err := credentialFor(req.Provider, req.AuthType, req)
+	if err != nil {
+		s.fail(w, r, err)
 		return
 	}
 
@@ -194,9 +306,9 @@ func (s *Service) createConnection(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO scm_connections (id, organization_id, name, provider, base_url, auth_type, owner,
-			  github_app_id, github_installation_id, secret_id, webhook_secret_id, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, p.OrganizationID, name, req.Provider, base, req.AuthType, owner, req.AppID, req.InstallationID, secID, whID, p.UserID); err != nil {
+			  github_app_id, github_installation_id, secret_id, webhook_secret_id, created_by, organizations)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+			id, p.OrganizationID, name, req.Provider, base, req.AuthType, owner, req.AppID, req.InstallationID, secID, whID, p.UserID, orgs); err != nil {
 			return err
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -230,9 +342,16 @@ func (s *Service) check(ctx context.Context, c Connection) Connection {
 		status, msg = "error", err.Error()
 	}
 	now := time.Now()
-	_, _ = s.DB.Exec(ctx, `UPDATE scm_connections SET status = $2, status_message = $3, last_checked_at = $4, updated_at = now() WHERE id = $1`,
-		c.ID, status, msg, now)
-	c.Status, c.StatusMessage, c.LastCheckedAt = status, msg, &now
+	if errors.Is(err, scm.ErrTokenExpired) {
+		status = "expired"
+	}
+	account := c.Account
+	if status == "ok" {
+		account = accountFrom(msg)
+	}
+	_, _ = s.DB.Exec(ctx, `UPDATE scm_connections SET status = $2, status_message = $3, last_checked_at = $4, account = $5, updated_at = now() WHERE id = $1`,
+		c.ID, status, truncate(msg, 500), now, truncate(account, 200))
+	c.Status, c.StatusMessage, c.LastCheckedAt, c.Account = status, truncate(msg, 500), &now, truncate(account, 200)
 	return c
 }
 
@@ -299,23 +418,32 @@ func (s *Service) updateConnection(w http.ResponseWriter, r *http.Request) {
 			}
 			changed = append(changed, "owner")
 		}
-		var newSecret []byte
-		switch {
-		case req.Token != nil && cur.AuthType == "pat":
-			newSecret = []byte(str(req.Token))
-		case req.PrivateKey != nil && cur.AuthType == "github_app":
-			if _, err := scm.ParseRSAPrivateKey([]byte(str(req.PrivateKey))); err != nil {
-				return httpx.BadRequest(err.Error())
+		if req.Organizations != nil {
+			orgs, err := validOrganizations(*req.Organizations)
+			if err != nil {
+				return err
 			}
-			newSecret = []byte(str(req.PrivateKey))
-		case req.Token != nil || req.PrivateKey != nil:
-			return httpx.BadRequest("credential type does not match the connection's auth_type")
+			if _, err := tx.Exec(ctx, `UPDATE scm_connections SET organizations = $2, updated_at = now() WHERE id = $1`, id, orgs); err != nil {
+				return err
+			}
+			changed = append(changed, "organizations")
+		}
+		var newSecret []byte
+		rotating := req.Token != nil || req.PrivateKey != nil || req.Username != nil || req.TenantID != nil ||
+			req.ClientID != nil || req.ClientSecret != nil || req.CertificatePEM != nil || req.PrivateKeyPEM != nil
+		if rotating {
+			if cur.AuthType == scm.AuthOAuth {
+				return httpx.BadRequest("OAuth connections are renewed with Reconnect (POST /api/v1/scm-connections/oauth/start with connection_id)")
+			}
+			if newSecret, err = credentialFor(cur.Provider, cur.AuthType, req); err != nil {
+				return err
+			}
 		}
 		if len(newSecret) > 0 {
 			if err := s.Secrets.Update(ctx, tx, p.OrganizationID, cur.secretID, secrets.KindSCM, newSecret); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `UPDATE scm_connections SET status = 'untested', status_message = '' WHERE id = $1`, id); err != nil {
+			if _, err := tx.Exec(ctx, `UPDATE scm_connections SET status = 'untested', status_message = '', token_expires_at = NULL WHERE id = $1`, id); err != nil {
 				return err
 			}
 			changed = append(changed, "credential")
@@ -357,6 +485,20 @@ func (s *Service) deleteConnection(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	revoked := "not_applicable"
+	if c, err := s.getConn(ctx, s.DB, p.OrganizationID, id); err == nil && c.RepositoryCount == 0 {
+		// Best effort: invalidate OAuth tokens at the provider before the
+		// stored credential is destroyed.
+		if cl, err := s.client(ctx, c); err == nil {
+			rctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+			if err := cl.Revoke(rctx); err != nil {
+				revoked = "failed: " + truncate(err.Error(), 200)
+			} else if c.AuthType == scm.AuthOAuth {
+				revoked = "revoked"
+			}
+			cancel()
+		}
+	}
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		c, err := s.getConn(ctx, tx, p.OrganizationID, id)
 		if err != nil {
@@ -367,7 +509,7 @@ func (s *Service) deleteConnection(w http.ResponseWriter, r *http.Request) {
 		}
 		// Keep the row (historical repositories reference it) but destroy
 		// the credentials.
-		if _, err := tx.Exec(ctx, `UPDATE scm_connections SET archived_at = now(), updated_at = now() WHERE id = $1`, id); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE scm_connections SET archived_at = now(), status = 'revoked', token_expires_at = NULL, updated_at = now() WHERE id = $1`, id); err != nil {
 			return err
 		}
 		if err := s.Secrets.Update(ctx, tx, p.OrganizationID, c.secretID, secrets.KindSCM, []byte("revoked")); err != nil {
@@ -377,7 +519,8 @@ func (s *Service) deleteConnection(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "scm_connection.delete", TargetType: "scm_connection", TargetID: id.String(), Metadata: map[string]any{"name": c.Name}})
+			Action: "scm_connection.delete", TargetType: "scm_connection", TargetID: id.String(),
+			Metadata: map[string]any{"name": c.Name, "provider": c.Provider, "auth_type": c.AuthType, "provider_revocation": revoked}})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -441,7 +584,7 @@ func (s *Service) listRemote(ctx context.Context, c Connection) ([]scm.RemoteRep
 func (s *Service) discover(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
-	if !p.HasAnywhere(authz.PermReposManage) {
+	if !canDiscover(p) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}

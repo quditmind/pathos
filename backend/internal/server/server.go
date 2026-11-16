@@ -50,6 +50,10 @@ type Deps struct {
 	WorkerBootstrapToken string
 	// Artifacts is the object store for scan artifacts (nil: PostgreSQL).
 	Artifacts objstore.Store
+	// Sources stores uploads and source snapshots (nil disables uploads).
+	Sources repos.SourceStore
+	// Limits bounds uploads and imports.
+	Limits repos.Limits
 	// RateLimiter enables API rate limiting with RateLimitPolicy (nil: off).
 	RateLimiter     ratelimit.Limiter
 	RateLimitPolicy ratelimit.Policy
@@ -76,10 +80,10 @@ func Build(d Deps) Handlers {
 	public.HandleFunc("GET /api/auth/login", d.Auth.HandleLogin)
 	public.HandleFunc("GET /api/auth/callback", d.Auth.HandleCallback)
 
-	repoSvc := &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log,
-		Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+	repoSvc := NewReposService(d, az)
 	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
-		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID, Artifacts: d.Artifacts}
+		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID, Artifacts: d.Artifacts,
+		OpenSnapshot: repoSvc.OpenSnapshot}
 	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
@@ -165,7 +169,23 @@ func readiness(d Deps) http.HandlerFunc {
 // NewReposService builds the repository service for background use (jobs
 // role: nightly metadata re-sync).
 func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
-	return &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
+	lim := d.Limits
+	def := repos.DefaultLimits()
+	if lim.UploadMaxBytes == 0 {
+		lim.UploadMaxBytes = def.UploadMaxBytes
+	}
+	if lim.ImportTimeout == 0 {
+		lim.ImportTimeout = def.ImportTimeout
+	}
+	if lim.WorkDir == "" {
+		lim.WorkDir = def.WorkDir
+	}
+	return &repos.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Net: d.SCMNet, Log: d.Log, Principal: auth.PrincipalFrom,
+		PublicURL: d.PublicURL, Sources: d.Sources, Limits: lim,
+		EnqueueScan: func(ctx context.Context, orgID, repoID uuid.UUID, trigger string, by *uuid.UUID) error {
+			_, err := scans.Enqueue(ctx, d.DB, orgID, repoID, trigger, "", "", by)
+			return err
+		}}
 }
 
 func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {

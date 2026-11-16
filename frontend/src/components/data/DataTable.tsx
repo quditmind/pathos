@@ -16,12 +16,20 @@ export interface Column<T> {
   defaultHidden?: boolean;
   /** Cannot be hidden. */
   required?: boolean;
+  /** Included in the CSV export even while hidden in the table. */
+  exportAlways?: boolean;
 }
 
 function loadHidden<T>(tableId: string, columns: Column<T>[]): Set<string> {
   try {
     const raw = localStorage.getItem(`pathos-columns:${tableId}`);
-    if (raw) return new Set(JSON.parse(raw) as string[]);
+    if (raw) {
+      const saved = JSON.parse(raw) as string[] | { hidden: string[]; known: string[] };
+      if (Array.isArray(saved)) return new Set(saved);
+      // Columns added after the choice was saved keep their default visibility.
+      const known = new Set(saved.known);
+      return new Set([...saved.hidden, ...columns.filter((c) => c.defaultHidden && !known.has(c.id)).map((c) => c.id)]);
+    }
   } catch {
     /* storage unavailable or corrupt */
   }
@@ -109,7 +117,7 @@ export function DataTable<T>({
     else next.add(id);
     setHidden(next);
     try {
-      localStorage.setItem(`pathos-columns:${tableId}`, JSON.stringify([...next]));
+      localStorage.setItem(`pathos-columns:${tableId}`, JSON.stringify({ hidden: [...next], known: columns.map((c) => c.id) }));
     } catch {
       /* storage unavailable */
     }
@@ -125,7 +133,7 @@ export function DataTable<T>({
               variant="ghost"
               size="sm"
               disabled={!rows.length}
-              onClick={() => download(`${exportName}-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(visible, rows))}
+              onClick={() => download(`${exportName}-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(columns.filter((c) => !hidden.has(c.id) || c.exportAlways), rows))}
               title="Export loaded rows as CSV"
             >
               <Download /> Export

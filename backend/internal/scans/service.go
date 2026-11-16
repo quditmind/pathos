@@ -5,6 +5,7 @@ package scans
 import (
 	"context"
 	"errors"
+	"io"
 	"log/slog"
 	"net/http"
 	"pathos/internal/platform/objstore"
@@ -33,6 +34,8 @@ type Service struct {
 	OrgID          uuid.UUID
 	// Artifacts stores raw reports and SBOMs; nil keeps them in PostgreSQL.
 	Artifacts objstore.Store
+	// OpenSnapshot opens a decrypted source snapshot (uploaded repositories).
+	OpenSnapshot func(ctx context.Context, orgID, snapshotID uuid.UUID) (io.ReadCloser, string, int64, error)
 	// OnScanFinished runs after a job completes (AI auto-review enqueue).
 	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
 }

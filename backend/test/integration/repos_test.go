@@ -26,9 +26,14 @@ import (
 	"pathos/internal/secrets"
 )
 
-type fakeSCM struct{ repos []scm.RemoteRepo }
+type fakeSCM struct {
+	repos []scm.RemoteRepo
+	// commits maps external ID → head SHA; missing repositories are "deleted".
+	commits map[string]string
+	deny    map[string]bool // external IDs the credential may not read
+}
 
-func (f *fakeSCM) Check(context.Context) (string, error) { return "fake ok", nil }
+func (f *fakeSCM) Check(context.Context) (string, error) { return "authenticated as fake-bot", nil }
 func (f *fakeSCM) ListRepositories(context.Context) ([]scm.RemoteRepo, error) {
 	return f.repos, nil
 }
@@ -38,6 +43,60 @@ func (f *fakeSCM) ListBranches(context.Context, scm.RemoteRepo) ([]string, error
 func (f *fakeSCM) CloneCredential(context.Context) (scm.Credential, error) {
 	return scm.Credential{Username: "x-access-token", Token: "ghs_fake"}, nil
 }
+func (f *fakeSCM) ListOrganizations(context.Context) ([]scm.Organization, error) {
+	return []scm.Organization{{ID: "1", Name: "acme", DisplayName: "Acme", Kind: "organization"}}, nil
+}
+func (f *fakeSCM) ListProjects(context.Context, string) ([]scm.Project, error) {
+	return nil, scm.ErrNotSupported
+}
+func (f *fakeSCM) ListRepositoriesPage(_ context.Context, q scm.RepoQuery) (scm.RepoPage, error) {
+	var out []scm.RemoteRepo
+	for _, r := range f.repos {
+		if q.Search == "" || strings.Contains(strings.ToLower(r.FullName), strings.ToLower(q.Search)) {
+			out = append(out, r)
+		}
+	}
+	return scm.RepoPage{Items: out}, nil
+}
+func (f *fakeSCM) find(ref scm.RepoRef) (scm.RemoteRepo, error) {
+	for _, r := range f.repos {
+		if r.ExternalID == ref.ExternalID || ref.ExternalID == "" && strings.EqualFold(r.FullName, ref.FullName) {
+			if f.deny[r.ExternalID] {
+				return r, scm.ErrForbidden
+			}
+			return r, nil
+		}
+	}
+	return scm.RemoteRepo{}, scm.ErrNotFound
+}
+func (f *fakeSCM) GetRepository(_ context.Context, ref scm.RepoRef) (scm.RemoteRepo, error) {
+	return f.find(ref)
+}
+func (f *fakeSCM) ListBranchHeads(_ context.Context, ref scm.RepoRef) ([]scm.Branch, error) {
+	if _, err := f.find(ref); err != nil {
+		return nil, err
+	}
+	return []scm.Branch{{Name: "main", CommitSHA: f.head(ref.ExternalID)}, {Name: "release", CommitSHA: f.head(ref.ExternalID)}}, nil
+}
+func (f *fakeSCM) head(id string) string {
+	if c, ok := f.commits[id]; ok {
+		return c
+	}
+	return "1111111111111111111111111111111111111111"
+}
+func (f *fakeSCM) LatestCommit(_ context.Context, ref scm.RepoRef, branch string) (scm.Commit, error) {
+	if _, err := f.find(ref); err != nil {
+		return scm.Commit{}, err
+	}
+	if branch != "" && branch != "main" && branch != "release" {
+		return scm.Commit{}, scm.ErrNotFound
+	}
+	return scm.Commit{SHA: f.head(ref.ExternalID), Message: "initial"}, nil
+}
+func (f *fakeSCM) Languages(context.Context, scm.RepoRef) (map[string]int64, error) {
+	return map[string]int64{"Go": 1000}, nil
+}
+func (f *fakeSCM) Revoke(context.Context) error { return nil }
 
 type harness struct {
 	t      *testing.T
@@ -56,7 +115,7 @@ func newHarness(t *testing.T) *harness {
 	svc := &repos.Service{
 		DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}},
 		Secrets: &secrets.Store{Keys: kr}, Log: log, Principal: auth.PrincipalFrom, PublicURL: "https://pathos.test",
-		NewClient: func(scm.Config) (scm.Client, error) { return fake, nil },
+		NewClient: func(scm.Config) (scm.FullClient, error) { return fake, nil },
 		OnEvent:   func(_ context.Context, _, _ uuid.UUID, ev scm.WebhookEvent) { h.events = append(h.events, ev) },
 	}
 	svc.Register(h.mux)
@@ -208,6 +267,9 @@ func TestRepositoryLifecycle(t *testing.T) {
 	// Scoped visibility: a Finance analyst sees only Finance repositories.
 	analyst := scoped("security_analyst", authz.Scope{Type: authz.ScopeBusinessUnit, ID: finance})
 	code, list := h.do(analyst, "GET", "/api/v1/repositories?scm_connection_id="+connID, nil)
+	if code != 200 {
+		t.Fatalf("finance analyst list: %d %v", code, list)
+	}
 	items := list["items"].([]any)
 	if code != 200 || len(items) != 1 || items[0].(map[string]any)["full_name"] != "acme/payments-api" {
 		t.Fatalf("finance analyst list: %d %v", code, list)

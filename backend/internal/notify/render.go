@@ -59,6 +59,13 @@ type Data struct {
 		Name, Family, LastSeen string
 		Queued                 int
 	}
+	Sync struct {
+		Status, Error string
+	}
+	Import struct {
+		Status, RequestedBy string
+		Total, Failed       int
+	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
 	assignees []uuid.UUID
@@ -277,6 +284,26 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.Schedule.DueAt = fmtTime(&t)
 		}
 		d.Link = baseURL + "/scans/schedules"
+	case "repository.sync_failed":
+		d.Sync.Status, d.Sync.Error = payloadString(p, "status"), payloadString(p, "error")
+		if ev.Repository != nil {
+			_ = q.QueryRow(ctx, `SELECT COALESCE(NULLIF(display_name, ''), full_name) FROM repositories WHERE id = $1`, *ev.Repository).Scan(&d.Repository)
+			d.Link = baseURL + "/repositories?repo=" + ev.Repository.String()
+		}
+	case "import.failed":
+		if ev.SubjectID != nil {
+			var by uuid.UUID
+			err := q.QueryRow(ctx, `SELECT j.status, j.total_items, j.requested_by,
+				(SELECT count(*) FROM repository_import_items i WHERE i.job_id = j.id AND i.status IN ('failed', 'needs_attention'))
+				FROM repository_import_jobs j WHERE j.id = $1`, *ev.SubjectID).Scan(&d.Import.Status, &d.Import.Total, &by, &d.Import.Failed)
+			if err != nil {
+				return nil, fmt.Errorf("load import job: %w", err)
+			}
+			d.Import.Status = strings.ReplaceAll(d.Import.Status, "_", " ")
+			d.Import.RequestedBy = userName(ctx, q, &by)
+			d.requester = &by
+			d.Link = baseURL + "/repositories/imports/" + ev.SubjectID.String()
+		}
 	case "worker.offline":
 		d.Worker.Name, d.Worker.Family = payloadString(p, "name"), payloadString(p, "family")
 		if t, err := time.Parse(time.RFC3339Nano, payloadString(p, "last_seen_at")); err == nil {
@@ -325,6 +352,8 @@ func Sample(key, baseURL string) *Data {
 	d.Risk.RequestedBy, d.Risk.DecidedBy, d.Risk.Note = "Sam Developer", "Riley Manager", "Re-assess after the Q1 migration."
 	d.Schedule.Name, d.Schedule.DueAt, d.Schedule.Missed = "Nightly EMEA", "2026-11-15 02:00 UTC", 2
 	d.Worker.Name, d.Worker.Family, d.Worker.LastSeen, d.Worker.Queued = "worker-core-1", "core", "2026-11-15 09:41 UTC", 12
+	d.Sync.Status, d.Sync.Error = "permission_denied", "scm: the credential does not have permission for this operation"
+	d.Import.Status, d.Import.RequestedBy, d.Import.Total, d.Import.Failed = "failed", "Sam Developer", 4, 1
 	return d
 }
 

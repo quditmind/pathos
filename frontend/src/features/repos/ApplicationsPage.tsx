@@ -25,6 +25,7 @@ const columns: Column<Application>[] = [
     ),
     csv: (a) => a.name,
   },
+  { id: "ref", header: "Application ID", className: "font-mono text-[12px]", cell: (a) => a.external_ref || <span className="text-muted-foreground">—</span>, csv: (a) => a.external_ref },
   { id: "criticality", header: "Criticality", cell: (a) => <CriticalityBadge value={a.criticality} />, csv: (a) => a.criticality },
   { id: "bu", header: "Business unit", cell: (a) => a.business_unit?.name ?? "—", csv: (a) => a.business_unit?.name },
   { id: "owner", header: "Owner", cell: (a) => a.owner?.name ?? <span className="text-muted-foreground">Unassigned</span>, csv: (a) => a.owner?.email },
@@ -93,11 +94,12 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
   const bus = useBusinessUnits();
   const users = useUsers("", "active");
   const userList: User[] = users.data?.pages.flatMap((p) => p.items) ?? [];
-  const [f, setF] = useState({ name: "", description: "", business_unit_id: "", owner_user_id: "", security_owner_user_id: "", criticality: "medium" });
+  const [f, setF] = useState({ name: "", external_ref: "", description: "", business_unit_id: "", owner_user_id: "", security_owner_user_id: "", criticality: "medium" });
   useEffect(() => {
     setF({
       name: existing?.name ?? "",
       description: existing?.description ?? "",
+      external_ref: existing?.external_ref ?? "",
       business_unit_id: existing?.business_unit?.id ?? "",
       owner_user_id: existing?.owner?.id ?? "",
       security_owner_user_id: existing?.security_owner?.id ?? "",
@@ -113,7 +115,7 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
     e.preventDefault();
     const nul = (v: string) => v || null;
     save.mutate(
-      { name: f.name.trim(), description: f.description, business_unit_id: nul(f.business_unit_id), criticality: f.criticality,
+      { name: f.name.trim(), external_ref: f.external_ref.trim(), description: f.description, business_unit_id: nul(f.business_unit_id), criticality: f.criticality,
         ...(canPickUsers ? { owner_user_id: nul(f.owner_user_id), security_owner_user_id: nul(f.security_owner_user_id) } : {}) },
       { onSuccess: () => { save.reset(); onClose(); } },
     );
@@ -147,6 +149,10 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
         <div>
           <Label htmlFor="app-name">Name</Label>
           <Input id="app-name" required maxLength={200} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
+        </div>
+        <div>
+          <Label htmlFor="app-ref" hint="(optional, e.g. CMDB ID)">Application ID</Label>
+          <Input id="app-ref" maxLength={100} value={f.external_ref} onChange={(e) => setF({ ...f, external_ref: e.target.value })} />
         </div>
         <div>
           <Label htmlFor="app-desc" hint="(optional)">Description</Label>

@@ -7,6 +7,7 @@
 #   pathos.dump, keycloak.dump   pg_dump custom format (consistent snapshots)
 #   caddy_data.tgz               TLS certificates and the local CA
 #   objectstore.tgz              scan artifacts, when the objectstore profile runs
+#   sources.tgz                  encrypted uploads and source snapshots (sources volume)
 #   manifest.json                versions and SHA-256 checksums
 #   env                          only with --with-env (contains every secret)
 #
@@ -54,6 +55,20 @@ if compose ps --status running --services | grep -qx objectstore; then
   # consistent for every artifact the database dump references.
   log "archiving object storage (scan artifacts)"
   compose exec -T objectstore tar -C /data -czf - . > "$out/objectstore.tgz"
+fi
+
+# Uploaded repositories: encrypted snapshots in the "sources" volume (when
+# the S3 store is used they are in objectstore.tgz instead). Objects are
+# written once via an atomic rename, so an online copy is consistent for
+# every snapshot the database dump references. The pathos image has no
+# shell, so tar runs in the proxy image with the api container's volumes.
+api_ctr="$(compose ps -q api 2>/dev/null || true)"
+proxy_img="$(docker inspect -f '{{.Config.Image}}' "$(compose ps -q proxy 2>/dev/null)" 2>/dev/null || true)"
+if [ -n "$api_ctr" ] && [ -n "$proxy_img" ]; then
+  log "archiving source snapshots (encrypted)"
+  docker run --rm --volumes-from "$api_ctr" --entrypoint tar "$proxy_img" -C /var/lib/pathos/sources -czf - . > "$out/sources.tgz"
+else
+  log "api or proxy not running; skipping source snapshots"
 fi
 
 if [ "$with_env" = 1 ]; then

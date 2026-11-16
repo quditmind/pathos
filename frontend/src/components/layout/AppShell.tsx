@@ -9,6 +9,8 @@ import {
   ChevronsRight,
   FileClock,
   GitBranch,
+  History,
+  Settings2,
   LayoutDashboard,
   LogOut,
   Moon,
@@ -29,6 +31,7 @@ import {
   BellRing,
   Scale,
   ShieldOff,
+  HelpCircle,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -45,6 +48,7 @@ const groups: NavGroup[] = [
     label: "Assets",
     items: [
       { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
+      { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
     ],
   },
@@ -79,6 +83,7 @@ const groups: NavGroup[] = [
       { label: "Organization", to: "/admin/organization", icon: <Building2 />, perm: "org.read" },
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
+      { label: "Asset settings", to: "/admin/assets", icon: <Settings2 />, perm: "assets.configure" },
       { label: "Scanners & workers", to: "/admin/scanners", icon: <Server />, perm: "scanners.read" },
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
@@ -194,6 +199,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <div className="flex-1" />
           <NotificationCentre />
+          <Link
+            to="/help"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+            aria-label="Help"
+          >
+            <HelpCircle className="size-4" />
+            <span className="hidden sm:inline">Help</span>
+          </Link>
           <button
             onClick={() => setDark(!dark)}
             className="rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"

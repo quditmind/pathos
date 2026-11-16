@@ -30,6 +30,7 @@ type FindingView struct {
 	ID             uuid.UUID    `json:"id"`
 	RepositoryID   uuid.UUID    `json:"repository_id"`
 	RepositoryName string       `json:"repository_name"`
+	RepositoryKey  string       `json:"repository_key"`
 	Category       string       `json:"category"`
 	ScannerKeys    []string     `json:"scanner_keys"`
 	RuleID         string       `json:"rule_id"`
@@ -70,7 +71,7 @@ type Occurrence struct {
 }
 
 const findingSelect = `
-	SELECT f.id, f.repository_id, r.full_name, f.category, f.scanner_keys, f.rule_id, f.title, f.description, f.severity,
+	SELECT f.id, f.repository_id, r.full_name, r.repository_key, f.category, f.scanner_keys, f.rule_id, f.title, f.description, f.severity,
 	       f.cwe, f.cve, f.cvss::float8, f.package_name, f.package_version, f.fixed_version, f.file_path, f.start_line,
 	       f.status, f.first_seen_at, f.last_seen_at, f.resolved_at, f.assignee_id,
 	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status
@@ -78,7 +79,7 @@ const findingSelect = `
 
 func scanFinding(row pgx.Row) (FindingView, error) {
 	var f FindingView
-	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
+	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.RepositoryKey, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
 		&f.Severity, &f.CWE, &f.CVE, &f.CVSS, &f.PackageName, &f.PackageVersion, &f.FixedVersion, &f.FilePath, &f.StartLine,
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
 		&f.AcceptedUntil, &f.AIStatus)

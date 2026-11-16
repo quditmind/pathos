@@ -23,12 +23,12 @@ export function ImportPage() {
   return (
     <>
       <PageHeader
-        title="Import repositories"
-        description="Discover repositories from an SCM connection and bring them under management."
+        title="Bulk import"
+        description="Select repositories from an SCM connection or onboard them from a CSV file."
         actions={
           <Button variant="ghost" asChild>
-            <Link to="/repositories">
-              <ArrowLeft /> Back to repositories
+            <Link to="/repositories/import">
+              <ArrowLeft /> All import methods
             </Link>
           </Button>
         }

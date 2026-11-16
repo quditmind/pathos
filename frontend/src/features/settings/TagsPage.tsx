@@ -1,23 +1,34 @@
-import { useState, type FormEvent } from "react";
-import { Plus, Tags, Trash2, X } from "lucide-react";
-import { api } from "@/api/client";
-import type { TagCategory, TagColor } from "@/api/types";
+import { useState } from "react";
+import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
+import { api, ApiError } from "@/api/client";
+import type { Tag, TagCategory, TagColor } from "@/api/types";
 import { Button } from "@/components/ui/button";
+import { ColorPicker } from "@/components/ui/color-picker";
+import { ConfirmDialog } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
-import { TagChip, tagColorNames } from "@/components/data/TagChip";
+import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { TagChip } from "@/components/data/TagChip";
+import { useCreateTag, useDeleteTag, useUpdateTag } from "@/features/assets/api";
 import { useSession } from "@/features/auth/session";
 import { useRepoMutation, useTagCategories } from "@/features/repos/api";
+import { FormField } from "@/features/repos/metadata/fields";
+import { tagSwatches } from "@/features/repos/metadata/TagPicker";
 
 export function TagsPage() {
   const { canOrgWide } = useSession();
   const cats = useTagCategories();
-  const manage = canOrgWide("repos.manage");
+  // Categories: repository managers; tags themselves: tags.manage.
+  // Categories and tags both require tags.manage (enforced by the API).
+  const manage = canOrgWide("tags.manage");
+  const manageTags = canOrgWide("tags.manage");
   const [creating, setCreating] = useState(false);
+  const [tagDialog, setTagDialog] = useState<{ category: TagCategory; tag: Tag | null } | null>(null);
+  const [deleting, setDeleting] = useState<Tag | null>(null);
+  const [deletingCat, setDeletingCat] = useState<TagCategory | null>(null);
   const update = useRepoMutation(({ id, body }: { id: string; body: unknown }) => api(`/api/v1/tag-categories/${id}`, { method: "PATCH", body }));
   const delCat = useRepoMutation((id: string) => api(`/api/v1/tag-categories/${id}`, { method: "DELETE" }));
-  const delTag = useRepoMutation((id: string) => api(`/api/v1/tags/${id}`, { method: "DELETE" }));
-  const error = update.error ?? delCat.error ?? delTag.error;
+  const delTag = useDeleteTag();
+  const error = update.error ?? delCat.error;
 
   return (
     <>
@@ -49,28 +60,38 @@ export function TagsPage() {
                 </div>
                 {manage && (
                   <Button variant="ghost" size="icon" aria-label={`Delete category ${c.name}`}
-                    onClick={() => confirm(`Delete "${c.name}" and remove its tags from all repositories?`) && delCat.mutate(c.id)}>
+                    onClick={() => setDeletingCat(c)}>
                     <Trash2 />
                   </Button>
                 )}
               </div>
-              <div className="mt-3 flex flex-wrap gap-1.5">
+              <ul className="mt-3 space-y-1">
                 {c.tags.map((t) => (
-                  <span key={t.id} className="inline-flex items-center gap-0.5">
-                    <TagChip name={`${t.name} · ${t.repository_count}`} color={t.color} />
-                    {manage && (
-                      <button aria-label={`Delete tag ${t.name}`} className="rounded p-0.5 text-muted-foreground hover:text-danger"
-                        onClick={() => confirm(`Delete tag "${t.name}"? It is removed from ${t.repository_count} repositories.`) && delTag.mutate(t.id)}>
-                        <X className="size-3" />
-                      </button>
+                  <li key={t.id} className="group flex items-center gap-2 text-[12px]">
+                    <TagChip name={t.name} color={t.color} />
+                    <span className="tabular text-muted-foreground">{t.repository_count} repos</span>
+                    {t.description && <span className="min-w-0 flex-1 truncate text-muted-foreground" title={t.description}>{t.description}</span>}
+                    {manageTags && (
+                      <span className="ml-auto flex gap-0.5">
+                        <Button size="icon" variant="ghost" className="size-6" aria-label={`Edit tag ${t.name}`} onClick={() => setTagDialog({ category: c, tag: t })}>
+                          <Pencil />
+                        </Button>
+                        <Button size="icon" variant="ghost" className="size-6 text-danger" aria-label={`Delete tag ${t.name}`} onClick={() => setDeleting(t)}>
+                          <Trash2 />
+                        </Button>
+                      </span>
                     )}
-                  </span>
+                  </li>
                 ))}
-                {!c.tags.length && <span className="text-[12px] text-muted-foreground">No tags yet</span>}
-              </div>
+                {!c.tags.length && <li className="text-[12px] text-muted-foreground">No tags yet</li>}
+              </ul>
+              {manageTags && (
+                <Button size="sm" variant="secondary" className="mt-3" onClick={() => setTagDialog({ category: c, tag: null })}>
+                  <Plus /> Add tag
+                </Button>
+              )}
               {manage && (
                 <>
-                  <AddTag category={c} />
                   <div className="mt-3 flex gap-4 text-[12px]">
                     <label className="flex items-center gap-1.5">
                       <input type="checkbox" className="accent-[var(--primary)]" checked={c.is_mandatory}
@@ -90,27 +111,74 @@ export function TagsPage() {
         </div>
       )}
       <CreateCategory open={creating} onOpenChange={setCreating} />
+      {tagDialog && <TagDialog category={tagDialog.category} tag={tagDialog.tag} onClose={() => setTagDialog(null)} />}
+      <ConfirmDialog
+        open={!!deleting}
+        onOpenChange={(o) => !o && setDeleting(null)}
+        title={`Delete tag “${deleting?.name}”?`}
+        confirmLabel="Delete tag"
+        pending={delTag.isPending}
+        error={delTag.error?.message}
+        onConfirm={() => deleting && delTag.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
+      >
+        <p>It is removed from {deleting?.repository_count ?? 0} repositories. This cannot be undone.</p>
+      </ConfirmDialog>
+      <ConfirmDialog
+        open={!!deletingCat}
+        onOpenChange={(o) => !o && setDeletingCat(null)}
+        title={`Delete category “${deletingCat?.name}”?`}
+        confirmLabel="Delete category"
+        pending={delCat.isPending}
+        error={delCat.error?.message}
+        onConfirm={() => deletingCat && delCat.mutate(deletingCat.id, { onSuccess: () => setDeletingCat(null) })}
+      >
+        <p>All {deletingCat?.tags.length ?? 0} tags in it are deleted and removed from every repository.</p>
+      </ConfirmDialog>
     </>
   );
 }
 
-function AddTag({ category }: { category: TagCategory }) {
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<TagColor>("blue");
-  const add = useRepoMutation((body: unknown) => api(`/api/v1/tag-categories/${category.id}/tags`, { method: "POST", body }));
-  const submit = (e: FormEvent) => {
-    e.preventDefault();
-    add.mutate({ name: name.trim(), color }, { onSuccess: () => setName("") });
+function TagDialog({ category, tag, onClose }: { category: TagCategory; tag: Tag | null; onClose: () => void }) {
+  const [f, setF] = useState({ name: tag?.name ?? "", color: (tag?.color ?? "blue") as string, description: tag?.description ?? "" });
+  const create = useCreateTag();
+  const update = useUpdateTag();
+  const m = tag ? update : create;
+  const fields = m.error instanceof ApiError ? m.error.fields : undefined;
+  const submit = () => {
+    const body = { name: f.name.trim(), color: f.color as TagColor, description: f.description.trim() };
+    if (tag) update.mutate({ id: tag.id, body }, { onSuccess: onClose });
+    else create.mutate({ categoryId: category.id, body }, { onSuccess: onClose });
   };
   return (
-    <form onSubmit={submit} className="mt-3 flex items-center gap-2">
-      <Input aria-label={`New tag in ${category.name}`} placeholder="New tag" value={name} onChange={(e) => setName(e.target.value)} className="max-w-48" maxLength={100} />
-      <Select aria-label="Tag colour" value={color} onChange={(e) => setColor(e.target.value as TagColor)} className="capitalize">
-        {tagColorNames.map((c) => <option key={c} value={c}>{c}</option>)}
-      </Select>
-      <Button size="sm" type="submit" variant="secondary" disabled={!name.trim() || add.isPending}>Add</Button>
-      {add.isError && <span className="text-[12px] text-danger">{add.error.message}</span>}
-    </form>
+    <Dialog
+      open
+      onOpenChange={(o) => !o && onClose()}
+      title={tag ? `Edit tag “${tag.name}”` : `New tag in ${category.name}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button onClick={submit} disabled={!f.name.trim() || m.isPending}>{m.isPending ? "Saving…" : "Save"}</Button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        {m.isError && !fields && <Alert>{m.error.message}</Alert>}
+        <FormField label="Name" required error={fields?.name}>
+          <Input autoFocus maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+        </FormField>
+        <FormField label="Description" error={fields?.description}>
+          <Input maxLength={500} value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} />
+        </FormField>
+        <div>
+          <div className="mb-1 text-[12px] font-medium">Colour</div>
+          <ColorPicker label="Tag colour" value={f.color} onChange={(color) => setF({ ...f, color })} swatches={tagSwatches} />
+          {fields?.color && <p className="mt-1 text-[12px] text-danger">{fields.color}</p>}
+        </div>
+        <div className="text-[12px] text-muted-foreground">
+          Preview: <TagChip name={f.name || "Tag"} category={category.name} color={(f.color || "slate") as TagColor} />
+        </div>
+      </div>
+    </Dialog>
   );
 }
 

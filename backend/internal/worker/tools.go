@@ -24,6 +24,9 @@ type RunInput struct {
 	Out    string
 	SBOM   string // Syft output, for Grype
 	Config json.RawMessage
+	// GitHistory means Src is a full-history checkout (Src/.git points to
+	// the object store); history-aware tools scan the commits.
+	GitHistory bool
 }
 
 // Tool is one scanner binary.
@@ -167,7 +170,15 @@ func Tools(cfg Config) map[string]Tool {
 	return map[string]Tool{
 		"gitleaks": simpleTool{"gitleaks", []string{"version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			// --redact keeps secret values out of the report entirely.
-			_, err := command(ctx, nil, []int{0}, bin, "dir", in.Src, "--no-banner", "--redact", "--exit-code", "0",
+			// Full-history checkouts are scanned commit by commit
+			// ("gitleaks git"); otherwise the working tree ("gitleaks dir").
+			mode := "dir"
+			if in.GitHistory {
+				if _, err := os.Stat(filepath.Join(in.Src, ".git")); err == nil {
+					mode = "git"
+				}
+			}
+			_, err := command(ctx, nil, []int{0}, bin, mode, in.Src, "--no-banner", "--redact", "--exit-code", "0",
 				"--report-format", "sarif", "--report-path", in.Out, "--log-level", "warn")
 			if err != nil {
 				return "", err
@@ -269,50 +280,80 @@ func hasRules(dir string) bool {
 var refRe = regexp.MustCompile(`^[A-Za-z0-9._/+@-]{1,255}$`)
 var shaRe = regexp.MustCompile(`^[0-9a-f]{7,64}$`)
 
-// clone performs a shallow, hardened clone of one ref. The credential is
-// passed through GIT_CONFIG_* environment variables, never in argv or the
-// remote URL, and git hooks, file:// and ext:: transports and symlinks are
-// disabled.
-func clone(ctx context.Context, job Job, dst string, maxBytes int64) error {
+var fullSHARe = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
+
+// clone performs a hardened clone of one ref and returns the commit
+// checked out. By default the clone is shallow and the history is removed
+// afterwards. With job.FullHistory the complete history is fetched into
+// gitDir (outside dst; dst/.git is a "gitdir:" pointer file) so that
+// history-aware scanners can read it while the others see only the working
+// tree. The credential is passed through GIT_CONFIG_* environment
+// variables, never in argv or the remote URL, and git hooks, file:// and
+// ext:: transports and symlinks are disabled.
+func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (string, error) {
 	u, err := url.Parse(job.CloneURL)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
-		return errors.New("clone URL must be http(s) without embedded credentials")
+		return "", errors.New("clone URL must be http(s) without embedded credentials")
 	}
 	if !refRe.MatchString(job.Ref) || strings.HasPrefix(job.Ref, "-") || strings.Contains(job.Ref, "..") {
-		return errors.New("invalid ref")
+		return "", errors.New("invalid ref")
 	}
 	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
 	if job.Credential != nil && job.Credential.Token != "" {
-		basic := base64.StdEncoding.EncodeToString([]byte(job.Credential.Username + ":" + job.Credential.Token))
-		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
+		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(job.Credential.Username+":"+job.Credential.Token))
+		if job.Credential.Scheme == "bearer" {
+			header = "Authorization: Bearer " + job.Credential.Token
+		}
+		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0="+header)
 	}
 	hardening := []string{
 		"-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
 		"-c", "core.fsmonitor=false", "-c", "core.symlinks=false", "-c", "submodule.recurse=false",
 		"-c", "transfer.fsckObjects=true", "-c", "http.followRedirects=false",
 	}
-	args := append(append([]string{}, hardening...), "clone", "--depth", "1", "--single-branch", "--no-tags",
-		"--branch", job.Ref, "--", job.CloneURL, dst)
+	args := append(append([]string{}, hardening...), "clone")
+	if job.FullHistory {
+		args = append(args, "--separate-git-dir", gitDir)
+	} else {
+		args = append(args, "--depth", "1", "--single-branch")
+	}
+	args = append(args, "--no-tags", "--branch", job.Ref, "--", job.CloneURL, dst)
 	if _, err := command(ctx, env, []int{0}, "git", args...); err != nil {
-		return err
+		return "", err
 	}
 	if job.CommitSHA != "" && shaRe.MatchString(job.CommitSHA) {
-		// #nosec G204 -- fixed binary and arguments; dst is the worker's own checkout directory
-		head, _ := exec.CommandContext(ctx, "git", "-C", dst, "rev-parse", "HEAD").Output()
-		if !strings.HasPrefix(strings.TrimSpace(string(head)), job.CommitSHA) {
-			fetch := append(append([]string{}, hardening...), "-C", dst, "fetch", "--depth", "1", "origin", job.CommitSHA)
-			if _, err := command(ctx, env, []int{0}, "git", fetch...); err == nil {
-				_, _ = command(ctx, nil, []int{0}, "git", "-C", dst, "-c", "core.hooksPath=/dev/null", "checkout", "--detach", "--quiet", job.CommitSHA)
+		head, _ := gitHead(ctx, dst)
+		if !strings.HasPrefix(head, job.CommitSHA) {
+			checkout := func() error {
+				_, err := command(ctx, nil, []int{0}, "git", "-C", dst, "-c", "core.hooksPath=/dev/null", "checkout", "--detach", "--quiet", job.CommitSHA)
+				return err
+			}
+			// A full clone usually has the commit already.
+			if !job.FullHistory || checkout() != nil {
+				fetch := append(append([]string{}, hardening...), "-C", dst, "fetch")
+				if !job.FullHistory {
+					fetch = append(fetch, "--depth", "1")
+				}
+				fetch = append(fetch, "origin", job.CommitSHA)
+				if _, err := command(ctx, env, []int{0}, "git", fetch...); err == nil {
+					_ = checkout()
+				}
 			}
 		}
 	}
-	// History is not needed by the scanners; removing it also removes the
-	// remote configuration.
-	if err := os.RemoveAll(filepath.Join(dst, ".git")); err != nil {
-		return err
+	commit, err := gitHead(ctx, dst)
+	if err != nil {
+		return "", err
+	}
+	if !job.FullHistory {
+		// History is not needed by the scanners; removing it also removes
+		// the remote configuration.
+		if err := os.RemoveAll(filepath.Join(dst, ".git")); err != nil {
+			return "", err
+		}
 	}
 	var size int64
-	err = filepath.WalkDir(dst, func(_ string, d fs.DirEntry, err error) error {
+	walk := func(_ string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -323,6 +364,30 @@ func clone(ctx context.Context, job Job, dst string, maxBytes int64) error {
 			}
 		}
 		return nil
-	})
-	return err
+	}
+	if err := filepath.WalkDir(dst, walk); err != nil {
+		return "", err
+	}
+	if job.FullHistory {
+		if err := filepath.WalkDir(gitDir, walk); err != nil {
+			return "", err
+		}
+	}
+	return commit, nil
+}
+
+// gitHead returns the full commit ID checked out in dir.
+func gitHead(ctx context.Context, dir string) (string, error) {
+	// #nosec G204 -- fixed binary and arguments; dir is the worker's own checkout directory
+	cmd := exec.CommandContext(ctx, "git", "-C", dir, "-c", "core.hooksPath=/dev/null", "rev-parse", "--verify", "HEAD^{commit}")
+	cmd.Env = append(baseEnv(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null")
+	out, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("reading the checked-out commit: %w", err)
+	}
+	sha := strings.TrimSpace(string(out))
+	if !fullSHARe.MatchString(sha) {
+		return "", errors.New("reading the checked-out commit: unexpected output")
+	}
+	return sha, nil
 }

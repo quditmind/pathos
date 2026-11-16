@@ -87,9 +87,9 @@ func (h *Handlers) search(w http.ResponseWriter, r *http.Request) {
 		scope, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 4)
 		base := []any{p.OrganizationID, like, perType}
 		for _, sql := range []string{`
-			SELECT 'repository', r.id::text, r.full_name, 'Repository · ' || r.criticality || ' · ' || r.environment,
+			SELECT 'repository', r.id::text, r.full_name, r.repository_key || ' · ' || r.criticality || ' · ' || r.environment,
 			       '/repositories?repo=' || r.id::text
-			FROM repositories r WHERE r.organization_id = $1 AND r.archived_at IS NULL AND lower(r.full_name) LIKE $2 AND ` + scope + `
+			FROM repositories r WHERE r.organization_id = $1 AND r.archived_at IS NULL AND (lower(r.full_name) LIKE $2 OR lower(r.repository_key) LIKE $2) AND ` + scope + `
 			ORDER BY lower(r.full_name) LIMIT $3`, `
 			SELECT 'application', a.id::text, a.name, 'Application · ' || a.criticality, '/applications?app=' || a.id::text
 			FROM applications a WHERE a.organization_id = $1 AND a.archived_at IS NULL AND lower(a.name) LIKE $2

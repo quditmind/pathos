@@ -17,5 +17,5 @@ for _ in $(seq 1 60); do
   sleep 1
 done
 
-GO_DOCKER_ARGS="--network $NET -e PATHOS_TEST_DATABASE_URL=postgres://postgres:it@$PG:5432/postgres?sslmode=disable" \
+GO_DOCKER_ARGS="${GO_DOCKER_ARGS:-} --network $NET -e PATHOS_TEST_DATABASE_URL=postgres://postgres:it@$PG:5432/postgres?sslmode=disable" \
   "$ROOT/scripts/go.sh" test -tags integration -count=1 "${@:-./test/integration/...}"

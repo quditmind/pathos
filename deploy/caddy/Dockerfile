@@ -6,6 +6,8 @@ WORKDIR /web
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
+# Help Center content (docs/user-guide, docs/api-reference) is bundled at build time.
+COPY docs/ /docs/
 RUN npm run build
 
 # Caddy rebuilt from the v2.11.9 release with golang.org/x/net v0.62.0
