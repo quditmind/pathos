@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -50,33 +51,46 @@ type EnqueueResult struct {
 	Coalesced bool      `json:"coalesced"` // merged into an already queued job
 }
 
-// Enqueue creates (or coalesces into) the repository's queued scan job.
-// A repository has at most one queued job: a new trigger while one is
-// queued updates its commit and raises its priority instead.
+// Enqueue creates (or coalesces into) the repository's queued scan job for
+// its own profile. A repository has at most one queued job per profile
+// version: a new trigger while one is queued updates its commit and raises
+// its priority instead.
 func Enqueue(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger, ref, commit string, by *uuid.UUID) (EnqueueResult, error) {
 	return EnqueueWith(ctx, q, orgID, repoID, trigger, ref, commit, by, EnqueueOpts{})
 }
 
-// EnqueueOpts carries optional scheduling metadata.
+// EnqueueOpts carries optional execution metadata.
 type EnqueueOpts struct {
-	Priority   int        // overrides the trigger's default priority when > 0
-	ScheduleID *uuid.UUID // schedule that produced the job
+	Priority      int        // overrides the trigger's default priority when > 0
+	ScheduleID    *uuid.UUID // schedule that produced the job
+	ScheduleRunID *uuid.UUID // schedule activation that produced the job
+	// ProfileID selects a scan profile (its current version) instead of
+	// the repository's own or the default profile.
+	ProfileID *uuid.UUID
+	Name      string     // execution name; generated when empty
+	RetryOf   *uuid.UUID // the failed execution this one retries
 }
 
-// EnqueueWith is Enqueue with scheduling options.
+// ErrProfileUnavailable means the requested profile does not exist or is archived.
+var ErrProfileUnavailable = errors.New("scan profile not found or archived")
+
+// EnqueueWith is Enqueue with execution options.
 func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, trigger, ref, commit string, by *uuid.UUID, opt EnqueueOpts) (EnqueueResult, error) {
 	var res EnqueueResult
-	var scanBranch, defaultBranch string
+	var scanBranch, defaultBranch, repoName string
 	var enabled bool
 	var archived *time.Time
 	var profileVersion, snapshotID *uuid.UUID
 	var sourceType string
 	err := q.QueryRow(ctx, `
 		SELECT r.source_type, r.current_snapshot_id, r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
-		       COALESCE((SELECT current_version_id FROM scan_profiles WHERE id = r.scan_profile_id AND archived_at IS NULL),
-		                (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND is_default AND archived_at IS NULL))
-		FROM repositories r WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID).
-		Scan(&sourceType, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &profileVersion)
+		       COALESCE(NULLIF(r.display_name, ''), r.full_name),
+		       CASE WHEN $3::uuid IS NOT NULL THEN
+		         (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND id = $3 AND archived_at IS NULL)
+		       ELSE COALESCE((SELECT current_version_id FROM scan_profiles WHERE id = r.scan_profile_id AND archived_at IS NULL),
+		                (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND is_default AND archived_at IS NULL)) END
+		FROM repositories r WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID, opt.ProfileID).
+		Scan(&sourceType, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &repoName, &profileVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return res, errNotFound
 	}
@@ -87,6 +101,9 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		return res, ErrNotScannable
 	}
 	if profileVersion == nil {
+		if opt.ProfileID != nil {
+			return res, fmt.Errorf("%w: %w", ErrScanPrerequisite, ErrProfileUnavailable)
+		}
 		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
 	}
 	if sourceType == "upload" {
@@ -109,31 +126,87 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	if opt.Priority > 0 {
 		prio = min(opt.Priority, 100)
 	}
-	err = q.QueryRow(ctx, `
-		UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
-		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7
-		WHERE repository_id = $1 AND organization_id = $2 AND status = 'queued' RETURNING id`,
-		repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID).Scan(&res.JobID)
-	if err == nil {
-		res.Coalesced = true
-		return res, nil
+	// Retries are distinct executions; everything else coalesces into a
+	// queued execution of the same profile version.
+	if opt.RetryOf == nil {
+		err = q.QueryRow(ctx, `
+			UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
+			       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7,
+			       schedule_run_id = COALESCE(schedule_run_id, $9)
+			WHERE repository_id = $1 AND organization_id = $2 AND profile_version_id = $8 AND status = 'queued' RETURNING id`,
+			repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID)
+		if err == nil {
+			res.Coalesced = true
+			return res, nil
+		}
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return res, err
+		}
 	}
-	if !errors.Is(err, pgx.ErrNoRows) {
+	snapshot, profileName, err := configSnapshot(ctx, q, *profileVersion)
+	if err != nil {
 		return res, err
+	}
+	name := strings.TrimSpace(opt.Name)
+	if name == "" {
+		name = truncate(repoName+" · "+profileName, 200)
+	}
+	retryCount := 0
+	if opt.RetryOf != nil {
+		_ = q.QueryRow(ctx, `SELECT retry_count + 1 FROM scan_jobs WHERE id = $1`, *opt.RetryOf).Scan(&retryCount)
 	}
 	res.JobID = uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `
-		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id, snapshot_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID, snapshotID)
+		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by,
+		  schedule_id, snapshot_id, name, config_snapshot, retry_of, retry_count, schedule_run_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+		res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID, snapshotID, name, snapshot,
+		opt.RetryOf, retryCount, opt.ScheduleRunID)
 	if db.IsUniqueViolation(err) {
-		// Lost a race with a concurrent trigger: use its queued job.
-		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND status = 'queued'`, repoID).Scan(&res.JobID); err != nil {
+		// Lost a race with a concurrent trigger, or this schedule run
+		// already created the execution: use the existing one.
+		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND profile_version_id = $2
+			AND (status = 'queued' OR ($3::uuid IS NOT NULL AND schedule_run_id = $3)) ORDER BY queued_at DESC LIMIT 1`,
+			repoID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID); err != nil {
 			return res, err
 		}
 		res.Coalesced = true
 		return res, nil
 	}
+	if err != nil {
+		return res, err
+	}
+	err = AddEvent(ctx, q, orgID, res.JobID, "queued", "", "info", "queued by "+trigger)
 	return res, err
+}
+
+// configSnapshot captures the effective configuration of a profile version
+// (stored immutably on each execution).
+func configSnapshot(ctx context.Context, q db.Querier, versionID uuid.UUID) ([]byte, string, error) {
+	var profileID uuid.UUID
+	var profileName string
+	if err := q.QueryRow(ctx, `SELECT p.id, p.name FROM scan_profile_versions v JOIN scan_profiles p ON p.id = v.profile_id WHERE v.id = $1`,
+		versionID).Scan(&profileID, &profileName); err != nil {
+		return nil, "", err
+	}
+	v, err := scanVersion(q.QueryRow(ctx, versionSelect+` WHERE v.id = $1`, versionID))
+	if err != nil {
+		return nil, "", err
+	}
+	b, err := json.Marshal(map[string]any{
+		"profile_id": profileID, "profile_name": profileName, "profile_version_id": v.ID, "profile_version": v.Version,
+		"change_note": v.ChangeNote, "severity_threshold": v.SeverityThreshold, "exclusions": v.Exclusions,
+		"timeout_seconds": v.TimeoutSeconds, "sbom": v.SBOM, "fail_on_critical": v.FailOnCritical,
+		"retention_days": v.RetentionDays, "scanners": v.Scanners, "captured_at": time.Now().UTC(),
+	})
+	return b, profileName, err
+}
+
+// AddEvent records a stage event of an execution.
+func AddEvent(ctx context.Context, q db.Querier, orgID, jobID uuid.UUID, stage, scanner, status, message string) error {
+	_, err := q.Exec(ctx, `INSERT INTO scan_job_events (organization_id, scan_job_id, stage, scanner_key, status, message)
+		VALUES ($1, $2, $3, $4, $5, $6)`, orgID, jobID, stage, scanner, status, truncate(message, 2000))
+	return err
 }
 
 // OnWebhookEvent queues scans for pushes and merges to the scan branch.
@@ -447,6 +520,12 @@ func (s *Service) cancelJob(w http.ResponseWriter, r *http.Request) {
 		}
 		if tag.RowsAffected() == 0 {
 			return httpx.Conflict("only queued or running scans can be cancelled")
+		}
+		if err := AddEvent(ctx, tx, p.OrganizationID, j.ID, "cancel", "", "info", "cancelled by "+p.Email); err != nil {
+			return err
+		}
+		if err := updateProgress(ctx, tx, j.ID); err != nil {
+			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan.cancel", TargetType: "scan_job", TargetID: j.ID.String(), Metadata: map[string]any{"repository": j.RepositoryName, "repository_key": j.RepositoryKey}})

@@ -25,6 +25,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/logging"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
 )
@@ -68,6 +69,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/results", s.uploadResult)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/complete", s.complete)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
+	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
 	return mux
@@ -291,6 +293,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		job.Credential = &cred
 	}
+	if err := AddEvent(ctx, s.DB, wk.orgID, job.JobID, "leased", "", "info", "picked up by worker "+wk.Name); err == nil {
+		_ = updateProgress(ctx, s.DB, job.JobID)
+	}
 	s.Log.Info("scan leased", "job_id", job.JobID, "repository", job.FullName, "worker", wk.Name)
 	httpx.WriteJSON(w, http.StatusOK, job)
 }
@@ -395,6 +400,19 @@ func (s *Service) uploadResult(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	n, err := s.Ingest(ctx, wk.orgID, id, up, gz)
+	if err == nil {
+		st := map[string]string{"succeeded": "succeeded", "failed": "failed", "skipped": "skipped", "timed_out": "timed_out"}[up.Status]
+		if st == "" {
+			st = "info"
+		}
+		msg := up.Error
+		if msg == "" {
+			msg = up.Scanner + " " + up.Status
+		}
+		if err := AddEvent(ctx, s.DB, wk.orgID, id, "scanner", up.Scanner, st, logging.RedactString(msg)); err == nil {
+			_ = updateProgress(ctx, s.DB, id)
+		}
+	}
 	if err != nil {
 		var he *httpx.Error
 		if !errors.As(err, &he) {
@@ -498,6 +516,9 @@ func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
+	_ = AddEvent(ctx, s.DB, wk.orgID, id, "finalize", "", map[bool]string{true: "failed", false: "succeeded"}[job.Status == "failed"],
+		"scan "+job.Status)
+	_ = updateProgress(ctx, s.DB, id)
 	s.Log.Info("scan finished", "job_id", id, "status", job.Status, "new", job.FindingsNew, "fixed", job.FindingsFixed)
 	if s.OnScanFinished != nil && job.Status != "failed" {
 		s.OnScanFinished(context.WithoutCancel(ctx), wk.orgID, id)
