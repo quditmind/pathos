@@ -124,8 +124,8 @@ var defaultClassifications = map[string][]classificationSeed{
 
 // systemKeys cannot be archived.
 var systemKeys = map[string][]string{
-	KindCriticality:      {"critical", "high", "medium", "low"},
-	KindEnvironment:      {"production", "staging", "test", "development", "other"},
+	KindCriticality: {"critical", "high", "medium", "low"},
+	KindEnvironment: {"production", "staging", "test", "development", "other"},
 	// The public exposure answer maps onto these keys.
 	KindInternetExposure: {"public", "internal", "private", "unknown"},
 	KindLifecycleStatus:  {"active", "retired"},
