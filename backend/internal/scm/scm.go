@@ -38,6 +38,12 @@ type RemoteRepo struct {
 	Language      string     `json:"language"`
 	Archived      bool       `json:"archived"`
 	PushedAt      *time.Time `json:"pushed_at"`
+	// Organization and Project locate the repository for providers whose
+	// APIs are addressed by path (GitLab group, Bitbucket workspace and
+	// project, Azure DevOps organization and project).
+	Organization string `json:"organization"`
+	Project      string `json:"project"`
+	SizeBytes    int64  `json:"size_bytes"` // 0 = unknown
 }
 
 // Client is implemented per provider.
@@ -63,12 +69,21 @@ type Credential struct {
 type Config struct {
 	Provider       string
 	BaseURL        string
-	AuthType       string // pat | github_app
-	Owner          string // optional org/user (GitHub) or project (Azure DevOps)
-	Secret         []byte // PAT, or PEM private key for a GitHub App
+	AuthType       string // pat | github_app | oauth | api_token | service_principal
+	Owner          string // optional org/user (GitHub), group (GitLab), workspace (Bitbucket) or project (Azure DevOps)
+	// Secret is the stored credential: a PAT, a GitHub App PEM key, or JSON
+	// (OAuthToken, APITokenCredential, ServicePrincipalCredential).
+	Secret         []byte
 	AppID          int64
 	InstallationID int64
-	HTTP           *http.Client
+	// OAuth is the registered application (auth type oauth); Tokens
+	// persists refreshed tokens.
+	OAuth  *OAuthApp
+	Tokens TokenStore
+	// Organizations limits Azure DevOps discovery (service principals
+	// cannot enumerate organizations).
+	Organizations []string
+	HTTP          *http.Client
 }
 
 // ErrAuth means the SCM rejected the credentials.
