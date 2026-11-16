@@ -237,7 +237,25 @@ export interface Repository {
   can_edit: boolean;
   /** True when the caller may change placement (business unit, country) — requires repos.manage. */
   can_manage: boolean;
+
+  /** Permanent, unique, human-readable Repository ID (e.g. "QD-REPO-000042"); never editable. */
+  repository_key: string;
+  staging_url: string;
+  production_url: string;
+  public_exposure: PublicExposure;
+  public_urls: string[];
+  public_domains: string[];
+  public_ips: string[];
+  exposure_notes: string;
+  /** User who registered the repository. */
+  registered_by: UserRef | null;
+  updated_at: string;
+  last_scan_status: JobStatus | null;
+  last_scan_at: string | null;
 }
+
+/** "Is this application or asset publicly exposed to the internet?" (mandatory). */
+export type PublicExposure = "yes" | "no" | "unknown";
 
 export interface SnapshotSummary {
   id: string;
@@ -328,6 +346,17 @@ export interface AssetMetadata {
   lifecycle_status?: string;
   go_live_date?: string | null;
   retirement_date?: string | null;
+  /** Absolute http(s) URLs, "" = not applicable. Normalized by the server. Never fetched. */
+  staging_url?: string;
+  production_url?: string;
+  /** Mandatory. "yes" requires at least one public URL, domain or IP; "no" allows none. */
+  public_exposure?: PublicExposure;
+  public_urls?: string[];
+  /** Domain names; "*.example.com" allowed. */
+  public_domains?: string[];
+  /** Public IPv4/IPv6 addresses (private, loopback and link-local are rejected). */
+  public_ips?: string[];
+  exposure_notes?: string;
 }
 
 /** Field keys usable in AssetSettings.required_fields. */
@@ -337,7 +366,7 @@ export type AssetField =
   | "responsible_team" | "supporting_team" | "cost_centre"
   | "business_region" | "country" | "hosting_region" | "data_residency_region" | "operational_location"
   | "criticality" | "data_classification" | "environment" | "internet_exposure" | "compliance_scopes"
-  | "tags" | "lifecycle_status";
+  | "tags" | "lifecycle_status" | "staging_url" | "production_url" | "public_exposure";
 
 export type ClassificationKind =
   | "criticality" | "data_classification" | "environment" | "application_type"
@@ -361,6 +390,8 @@ export interface AssetSettings {
   /** Fields that are always required regardless of policy. */
   always_required: AssetField[];
   scan_on_import: boolean;
+  /** Prefix for newly generated Repository IDs (PATCH-able with assets.configure); existing IDs never change. */
+  repository_key_prefix: string;
   classifications: Record<ClassificationKind, Classification[]>;
   upload: { max_bytes: number; chunk_size: number; formats: ("zip" | "tar" | "tar.gz")[] };
   /** Colour suggestions keyed by criticality / lifecycle, for the colour picker. */
@@ -726,6 +757,12 @@ export interface RepositoryInsights {
     failed_imports: number;
     sync_failures: number;
     last_successful_sync_at: string | null;
+    publicly_exposed: number;
+    not_public: number;
+    exposure_unknown: number;
+    missing_production_url: number;
+    /** Active repositories without a business or a technical owner. */
+    missing_ownership: number;
   };
   by_provider: InsightBucket[];
   by_business_region: InsightBucket[];
@@ -736,6 +773,7 @@ export interface RepositoryInsights {
   by_environment: InsightBucket[];
   by_compliance: InsightBucket[];
   by_lifecycle: InsightBucket[];
+  by_public_exposure: InsightBucket[];
 }
 
 export interface InsightBucket {
@@ -779,6 +817,8 @@ export interface ScanJob {
   id: string;
   repository_id: string;
   repository_name: string;
+  /** Permanent Repository ID, e.g. QD-REPO-000042. */
+  repository_key: string;
   profile_name: string;
   profile_version: number;
   trigger: string;
@@ -803,6 +843,8 @@ export interface Finding {
   id: string;
   repository_id: string;
   repository_name: string;
+  /** Permanent Repository ID, e.g. QD-REPO-000042. */
+  repository_key: string;
   category: string;
   scanner_keys: string[];
   rule_id: string;
