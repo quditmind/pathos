@@ -165,6 +165,7 @@ func credentialFor(provider, authType string, req connectionRequest) ([]byte, er
 		if str(req.Username) == "" || str(req.Token) == "" {
 			return nil, httpx.BadRequest("username (Atlassian account e-mail) and token are required")
 		}
+		// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
 		return json.Marshal(scm.APITokenCredential{Username: str(req.Username), Token: str(req.Token)})
 	case scm.AuthServicePrincipal:
 		if provider != scm.AzureDevOps {
@@ -181,6 +182,7 @@ func credentialFor(provider, authType string, req connectionRequest) ([]byte, er
 		if sp.CertificatePEM != "" && sp.PrivateKeyPEM == "" {
 			return nil, httpx.BadRequest("private_key_pem is required with certificate_pem")
 		}
+		// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
 		return json.Marshal(sp)
 	case scm.AuthOAuth:
 		return nil, httpx.BadRequest("OAuth connections are created with POST /api/v1/scm-connections/oauth/start")

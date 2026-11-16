@@ -508,6 +508,7 @@ func (s *Service) oauthCallback(w http.ResponseWriter, r *http.Request) {
 		fail(st.returnTo, "token exchange failed: "+err.Error())
 		return
 	}
+	// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
 	secret, _ := json.Marshal(tok)
 
 	var connID uuid.UUID
@@ -641,6 +642,7 @@ func (t *tokenStore) refresh(ctx context.Context, skew time.Duration, refresh fu
 		if next.RefreshToken == "" {
 			next.RefreshToken = cur.RefreshToken // providers that do not rotate
 		}
+		// #nosec G117 -- serialized only to be envelope-encrypted into the secrets store
 		b, _ := json.Marshal(next)
 		if err := t.s.Secrets.Update(ctx, tx, t.conn.orgID, t.conn.secretID, secrets.KindSCM, b); err != nil {
 			return err

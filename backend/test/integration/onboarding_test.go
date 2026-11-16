@@ -3,9 +3,9 @@
 package integration
 
 import (
-	"context"
 	"archive/zip"
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"

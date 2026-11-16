@@ -46,7 +46,9 @@ func (f *fakeSCM) CloneCredential(context.Context) (scm.Credential, error) {
 func (f *fakeSCM) ListOrganizations(context.Context) ([]scm.Organization, error) {
 	return []scm.Organization{{ID: "1", Name: "acme", DisplayName: "Acme", Kind: "organization"}}, nil
 }
-func (f *fakeSCM) ListProjects(context.Context, string) ([]scm.Project, error) { return nil, scm.ErrNotSupported }
+func (f *fakeSCM) ListProjects(context.Context, string) ([]scm.Project, error) {
+	return nil, scm.ErrNotSupported
+}
 func (f *fakeSCM) ListRepositoriesPage(_ context.Context, q scm.RepoQuery) (scm.RepoPage, error) {
 	var out []scm.RemoteRepo
 	for _, r := range f.repos {
@@ -67,7 +69,9 @@ func (f *fakeSCM) find(ref scm.RepoRef) (scm.RemoteRepo, error) {
 	}
 	return scm.RemoteRepo{}, scm.ErrNotFound
 }
-func (f *fakeSCM) GetRepository(_ context.Context, ref scm.RepoRef) (scm.RemoteRepo, error) { return f.find(ref) }
+func (f *fakeSCM) GetRepository(_ context.Context, ref scm.RepoRef) (scm.RemoteRepo, error) {
+	return f.find(ref)
+}
 func (f *fakeSCM) ListBranchHeads(_ context.Context, ref scm.RepoRef) ([]scm.Branch, error) {
 	if _, err := f.find(ref); err != nil {
 		return nil, err
