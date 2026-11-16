@@ -52,7 +52,8 @@ type Organization struct {
 // Project is an Azure DevOps project or Bitbucket project.
 type Project struct {
 	ID          string `json:"id"`
-	Name        string `json:"name"`
+	Name        string `json:"name"` // identifier used in API paths (Bitbucket: project key)
+	DisplayName string `json:"display_name,omitempty"`
 	Description string `json:"description"`
 }
 
@@ -129,6 +130,13 @@ type Discoverer interface {
 	Revoke(ctx context.Context) error
 }
 
+// PermissionChecker is implemented by clients whose API reports the
+// credential's permission on a repository (GitHub PAT/OAuth, GitLab,
+// Bitbucket user credentials). It returns read | write | admin | unknown.
+type PermissionChecker interface {
+	Permission(ctx context.Context, ref RepoRef) (string, error)
+}
+
 // FullClient is what New returns for every provider.
 type FullClient interface {
 	Client
@@ -153,6 +161,12 @@ func (t OAuthToken) Expired(now time.Time, skew time.Duration) bool {
 // implementation (internal/repos) locks the connection row, reloads the
 // stored token, and only calls refresh if the stored token is still stale,
 // so concurrent processes never spend the same refresh token twice.
+//
+// The refresh callback passed by this package is idempotent: if current is
+// a valid token other than the one the provider rejected, it returns
+// current unchanged without contacting the provider. A store may therefore
+// always invoke it; after a 401 the client needs it invoked even when the
+// stored token has not reached its expiry time.
 type TokenStore interface {
 	Current(ctx context.Context) (OAuthToken, error)
 	RefreshLocked(ctx context.Context, refresh func(ctx context.Context, current OAuthToken) (OAuthToken, error)) (OAuthToken, error)
