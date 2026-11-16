@@ -8,6 +8,8 @@ import {
   ChevronsLeft,
   ChevronsRight,
   FileClock,
+  Gauge,
+  GitCompareArrows,
   GitBranch,
   History,
   Settings2,
@@ -39,10 +41,10 @@ import { NotificationCentre } from "./NotificationCentre";
 import { useSession } from "@/features/auth/session";
 import { cn, initials } from "@/lib/utils";
 
-type NavItem = { label: string; to?: string; icon: ReactNode; perm?: string; phase?: number };
-type NavGroup = { label: string; items: NavItem[] };
+export type NavItem = { label: string; to?: string; icon: ReactNode; perm?: string; phase?: number };
+export type NavGroup = { label: string; items: NavItem[] };
 
-const groups: NavGroup[] = [
+export const groups: NavGroup[] = [
   { label: "Overview", items: [{ label: "Dashboard", to: "/", icon: <LayoutDashboard /> }] },
   {
     label: "Assets",
@@ -55,9 +57,17 @@ const groups: NavGroup[] = [
   {
     label: "Scanning",
     items: [
+      { label: "Scan Overview", to: "/scans/overview", icon: <Gauge />, perm: "scans.read" },
       { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
-      { label: "Scan profiles", to: "/scans/profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
-      { label: "Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
+      { label: "Scan Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
+      { label: "Scan Comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
+    ],
+  },
+  {
+    label: "Configurations",
+    items: [
+      { label: "Scan profiles", to: "/configurations/scan-profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
+      { label: "Scanners & workers", to: "/configurations/scanners", icon: <Server />, perm: "scanners.read" },
     ],
   },
   {
@@ -84,7 +94,6 @@ const groups: NavGroup[] = [
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
       { label: "Asset settings", to: "/admin/assets", icon: <Settings2 />, perm: "assets.configure" },
-      { label: "Scanners & workers", to: "/admin/scanners", icon: <Server />, perm: "scanners.read" },
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
@@ -123,7 +132,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "findings.read", "scanners.read", "ai.review", "sbom.read"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (

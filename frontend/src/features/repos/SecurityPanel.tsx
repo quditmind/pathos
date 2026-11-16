@@ -82,7 +82,7 @@ export function SecurityPanel({ r }: { r: Repository }) {
                   <JobStatusPill status={s.latest_scan.status} />
                   <span className="text-muted-foreground">{s.latest_scan.trigger}</span>
                   <span className="text-muted-foreground">· profile {s.latest_scan.profile_name}</span>
-                  <Link to="/scans" search={{ job: s.latest_scan.id } as never} className="ml-auto text-primary hover:underline">
+                  <Link to="/scans/$id" params={{ id: s.latest_scan.id }} className="ml-auto text-primary hover:underline">
                     {formatDateTime(s.latest_scan.finished_at ?? s.latest_scan.queued_at)}
                   </Link>
                 </div>

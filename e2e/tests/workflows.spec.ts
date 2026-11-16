@@ -6,19 +6,21 @@ test("schedule lifecycle: create with preview, pause, delete", async ({ page }) 
   await expect(page.getByText("Workers online")).toBeVisible();
   await page.getByRole("button", { name: "New schedule" }).click();
   await page.fill("#s-name", name);
-  await expect(page.getByText(/^Next:/)).toBeVisible();
+  await expect(page.getByText(/Next:/)).toBeVisible();
   // A too-frequent cadence is rejected in the preview.
+  await page.locator("#s-kind").selectOption("cron");
   await page.fill("#s-cron", "*/5 * * * *");
   await expect(page.getByText(/at most once per hour/)).toBeVisible();
   await page.fill("#s-cron", "0 3 * * *");
-  await expect(page.getByText(/Daily at 03:00/)).toBeVisible();
+  await expect(page.getByText(/Next:/)).toBeVisible();
   await page.getByRole("button", { name: "Create schedule" }).click();
   const row = page.locator("tr", { hasText: name });
   await expect(row).toBeVisible();
+  await expect(row).toContainText("Daily at 03:00");
   await row.getByRole("button", { name: "Pause" }).click();
   await expect(row.getByText("paused")).toBeVisible();
-  page.once("dialog", (d) => d.accept());
   await row.getByRole("button", { name: "Delete" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Delete schedule" }).click();
   await expect(row).toHaveCount(0);
 });
 
