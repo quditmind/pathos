@@ -129,6 +129,8 @@ erDiagram
 | `source_uploads`, `source_upload_parts`, `source_snapshots` | Resumable uploads and immutable source versions |
 | `repository_import_jobs`, `repository_import_items` | Background import engine |
 | `repository_sync_runs` | Synchronization history (180 days) |
+| `repositories.repository_key` (00010) | Permanent Repository ID (`QD-REPO-000001`), trigger-assigned from `repository_key_seq`, immutable |
+| `repository_public_endpoints` (00010) | Public URLs, domains and IPs of exposed assets |
 
 `docs/REPOSITORY_ONBOARDING.md` describes the design.
 

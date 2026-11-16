@@ -221,6 +221,18 @@ rows, indexes for the list filters, and a reversible `Down` section.
 Row-level security is not used: PATHOS runs one organization per install and
 enforces scope in every query, as the rest of the schema does.
 
+### 3.1 Repository identity and exposure (`00010_repository_identity_exposure.sql`)
+
+| Object | Purpose |
+|---|---|
+| `repositories.repository_key` | Permanent human-readable Repository ID such as `QD-REPO-000042`. Assigned by a `BEFORE INSERT` trigger from the `repository_key_seq` sequence (concurrency-safe, never reused, numbers may have gaps), unique index, and a `BEFORE UPDATE` trigger that rejects any change. The UUID stays the primary key. The prefix is `asset_settings.repository_key_prefix` (default `QD-REPO`) and only affects new IDs. Existing repositories were numbered in registration order. |
+| `repositories.staging_url`, `production_url` | Application URLs (absolute http(s), normalized), separate from the repository URL |
+| `repositories.public_exposure` | Mandatory answer `yes` / `no` / `unknown`; backfilled from `internet_exposure` (`public` → yes, `internal`/`private` → no). `internet_exposure` remains the optional network-reachability detail and must not contradict it |
+| `repositories.exposure_notes` | Free-text notes |
+| `repository_public_endpoints` | Public-facing URLs, domains (`*.example.com` allowed) and public IP addresses, one row each (`kind`, `value`, order), unique per repository |
+
+Rules: `yes` needs at least one public URL, domain or IP; `no` allows none; IPs must be public. URLs, domains and IPs are metadata only: PATHOS never fetches, resolves or scans them, so registering them creates no SSRF surface. Verifying exposure is a separate, authorized assessment. The Repository ID appears in the inventory, details, dashboards, scan jobs, findings, CSV exports, global search and the audit log (`metadata.repository_key`).
+
 ## 4. API
 
 Existing conventions are kept: `/api/v1`, JSON, cursor pagination
@@ -237,7 +249,7 @@ endpoints, `import-jobs` → `repository-imports`).
 | Discovery | `GET /scm-connections/{id}/organizations`, `/projects?organization=`, `/remote-repositories?organization=&project=&q=&page_token=`, `/remote-repositories/details?…` |
 | Uploads | `POST /source-uploads`, `GET/DELETE /source-uploads/{id}`, `PUT /source-uploads/{id}/parts/{n}`, `POST /source-uploads/{id}/complete` |
 | Imports | `POST /repository-imports/validate`, `POST/GET /repository-imports`, `GET /repository-imports/{id}`, `POST /repository-imports/{id}/cancel`, `POST /repository-imports/{id}/retry` |
-| Repositories | existing list (new filters and sorting), get, patch (all metadata), archive, delete; `GET /repositories/insights`, `POST /repositories/{id}/sync`, `GET /repositories/{id}/sync-runs`, `GET /repositories/{id}/snapshots`, `GET /repositories/{id}/security` |
+| Repositories | existing list (new filters and sorting, including `repository_key`, `public_exposure`, `production_url`, `staging_url`, `missing_production_url`), get, patch (all metadata), archive, delete; `GET /repositories/insights`, `POST /repositories/{id}/sync`, `GET /repositories/{id}/sync-runs`, `GET /repositories/{id}/snapshots`, `GET /repositories/{id}/security` |
 | Settings | `GET/PATCH /asset-settings`, `POST /asset-classifications`, `PATCH /asset-classifications/{id}` |
 | Tags | existing endpoints + `GET /tags?q=`, `PATCH /tags/{id}` |
 | Directory | `GET /directory/users?q=`, `GET /directory/teams?q=` (owner pickers for importers without `users.read`) |
