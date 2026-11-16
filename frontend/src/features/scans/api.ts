@@ -1,8 +1,30 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { CatalogScanner, Finding, Page, ScanJob, ScanProfile, Worker } from "@/api/types";
+import type {
+  CatalogScanner,
+  Finding,
+  Page,
+  ScanComparison,
+  ScanEvent,
+  ScanFinding,
+  ScanJob,
+  ScanLogLine,
+  ScanOverview,
+  ScanProfile,
+  ScanStage,
+  StartScanItem,
+  StartScanRequest,
+  Worker,
+} from "@/api/types";
 
-export function useScans(f: { status?: string; repository_id?: string; schedule_id?: string }, live = true) {
+/** Query parameters of GET /api/v1/scans (see types.ts). */
+export type ScanListFilters = Partial<
+  Record<"q" | "scan_key" | "repository_key" | "repository_id" | "profile_id" | "schedule_id" | "trigger" | "scanner" | "status" | "asset_type" | "from" | "to", string>
+>;
+
+export const isActive = (j: Pick<ScanJob, "status">) => j.status === "queued" || j.status === "running";
+
+export function useScans(f: ScanListFilters, live = true, interval = 5000) {
   return useInfiniteQuery({
     queryKey: ["scans", f],
     initialPageParam: "",
@@ -15,7 +37,7 @@ export function useScans(f: { status?: string; repository_id?: string; schedule_
     getNextPageParam: (last) => last.next_cursor ?? undefined,
     // Poll while jobs are active.
     refetchInterval: (q) =>
-      live && q.state.data?.pages.some((pg) => pg.items.some((j) => j.status === "queued" || j.status === "running")) ? 4000 : false,
+      live && q.state.data?.pages.some((pg) => pg.items.some(isActive)) ? interval : false,
   });
 }
 
@@ -24,8 +46,78 @@ export function useScan(id: string | undefined) {
     queryKey: ["scan", id],
     queryFn: () => api<ScanJob>(`/api/v1/scans/${id}`),
     enabled: !!id,
-    refetchInterval: (q) => (q.state.data && (q.state.data.status === "queued" || q.state.data.status === "running") ? 3000 : false),
+    refetchInterval: (q) => (q.state.data && isActive(q.state.data) ? 3000 : false),
   });
+}
+
+export function useScanStages(id: string, live: boolean) {
+  return useQuery({
+    queryKey: ["scan", id, "stages"],
+    queryFn: () => api<{ stages: ScanStage[]; events: ScanEvent[] }>(`/api/v1/scans/${id}/stages`),
+    refetchInterval: live ? 3000 : false,
+  });
+}
+
+export function useScanFindings(id: string, f: { severity?: string; scanner?: string }, enabled = true) {
+  return useQuery({
+    queryKey: ["scan", id, "findings", f],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      for (const [k, v] of Object.entries(f)) if (v) p.set(k, v);
+      return api<{ items: ScanFinding[] }>(`/api/v1/scans/${id}/findings?${p}`).then((r) => r.items);
+    },
+    enabled,
+  });
+}
+
+export function useScanHistory(id: string) {
+  return useQuery({ queryKey: ["scan", id, "history"], queryFn: () => api<{ items: ScanJob[] }>(`/api/v1/scans/${id}/history`).then((r) => r.items) });
+}
+
+export type LogPage = { items: ScanLogLine[]; sources: string[]; next_after_id: number | null };
+
+export const fetchScanLogs = (id: string, f: { source?: string; level?: string; after_id?: number }, signal?: AbortSignal) => {
+  const p = new URLSearchParams();
+  if (f.source) p.set("source", f.source);
+  if (f.level) p.set("level", f.level);
+  if (f.after_id) p.set("after_id", String(f.after_id));
+  return api<LogPage>(`/api/v1/scans/${id}/logs?${p}`, { signal });
+};
+
+export function useScanOverview(days: number) {
+  return useQuery({
+    queryKey: ["scans-overview", days],
+    queryFn: () => api<ScanOverview>(`/api/v1/scans/overview?days=${days}`),
+    refetchInterval: (q) => (q.state.data && (q.state.data.scans.running > 0 || q.state.data.scans.queued > 0 || q.state.data.recent.some(isActive)) ? 10_000 : false),
+  });
+}
+
+export function useScanComparison(ids: string[]) {
+  return useQuery({
+    queryKey: ["scans-compare", ids],
+    queryFn: () => api<ScanComparison>(`/api/v1/scans/compare?ids=${ids.map(encodeURIComponent).join(",")}`),
+    enabled: ids.length >= 2 && ids.length <= 10,
+  });
+}
+
+export const startScans = (body: StartScanRequest) => api<{ items: StartScanItem[] }>("/api/v1/scans", { method: "POST", body });
+export const cancelScan = (id: string) => api<ScanJob>(`/api/v1/scans/${id}/cancel`, { method: "POST" });
+export const retryScan = (id: string) => api<ScanJob>(`/api/v1/scans/${id}/retry`, { method: "POST" });
+
+/** Human label of an execution stage ("scanning:semgrep" → "Scanning (semgrep)"). */
+export function stageLabel(stage: string): string {
+  if (!stage) return "—";
+  const [head, rest] = stage.split(":", 2) as [string, string | undefined];
+  const base: Record<string, string> = {
+    queued: "Queued",
+    starting: "Starting",
+    fetching_source: "Fetching source",
+    scanning: "Scanning",
+    finalizing: "Finalizing",
+    finished: "Finished",
+  };
+  const label = base[head] ?? head.replace(/_/g, " ");
+  return rest ? `${label} (${rest})` : label;
 }
 
 export function useFindings(f: Record<string, string | undefined>) {
@@ -78,7 +170,7 @@ export function useScanMutation<T, V>(fn: (v: V) => Promise<T>) {
   return useMutation({
     mutationFn: fn,
     onSuccess: () => {
-      for (const k of ["scans", "scan", "scan-profiles", "scan-profile", "workers", "findings", "dashboard", "repository"]) void qc.invalidateQueries({ queryKey: [k] });
+      for (const k of ["scans", "scan", "scans-overview", "scan-profiles", "scan-profile", "workers", "findings", "dashboard", "repository"]) void qc.invalidateQueries({ queryKey: [k] });
     },
   });
 }

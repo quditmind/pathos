@@ -1,92 +1,189 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Download, Radar, Server } from "lucide-react";
-import type { ScanJob } from "@/api/types";
+import { ExternalLink, Play, Radar, RotateCcw, Search, Server, Square } from "lucide-react";
 import { api } from "@/api/client";
+import type { Page, Repository, ScanJob } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Combobox, type ComboOption } from "@/components/ui/combobox";
+import { Alert, Card, EmptyState, Input, PageHeader } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
-import { between, duration, JobStatusPill } from "@/components/data/Severity";
+import { FilterBar, type FilterDef } from "@/components/data/FilterBar";
+import { JobStatusPill } from "@/components/data/Severity";
 import { useSession } from "@/features/auth/session";
+import { useRepository } from "@/features/repos/api";
+import { useSchedules } from "@/features/schedule/api";
+import { useDebounced } from "@/lib/useDebounced";
 import { formatDateTime } from "@/lib/utils";
-import { useScan, useScanMutation, useScans, useWorkers } from "./api";
+import { cancelScan, isActive, retryScan, useCatalog, useProfiles, useScanMutation, useScans, useWorkers, type ScanListFilters } from "./api";
+import { jobDuration, ScanIdLink, ScanProgress, SeverityBar, statusOptions, triggerLabel } from "./shared";
+import { StartScanDialog } from "./StartScanDialog";
 
-export type ScanSearch = { status?: string; repository_id?: string; schedule_id?: string; job?: string };
-export const validateScanSearch = (s: Record<string, unknown>): ScanSearch => ({
-  status: typeof s.status === "string" ? s.status : undefined,
-  repository_id: typeof s.repository_id === "string" ? s.repository_id : undefined,
-  schedule_id: typeof s.schedule_id === "string" ? s.schedule_id : undefined,
-  job: typeof s.job === "string" ? s.job : undefined,
-});
+const filterKeys = ["q", "status", "profile_id", "trigger", "scanner", "from", "to", "schedule_id", "repository_id", "repository_key", "asset_type"] as const;
+export type ScanSearch = ScanListFilters & { start?: string; job?: string };
 
-const columns: Column<ScanJob>[] = [
-  {
-    id: "repo",
-    header: "Repository",
-    required: true,
-    cell: (j) => (
-      <div>
-        <div className="flex flex-wrap items-baseline gap-x-2 font-medium">
-          {j.repository_name}
-          {j.repository_key && <span className="font-mono text-[11.5px] font-normal text-muted-foreground">{j.repository_key}</span>}
+export const validateScanSearch = (s: Record<string, unknown>): ScanSearch => {
+  const out: ScanSearch = {};
+  for (const k of [...filterKeys, "start", "job"] as const) if (typeof s[k] === "string" && s[k]) out[k] = (s[k] as string).slice(0, 200);
+  if (s.start === 1 || s.start === true) out.start = "1";
+  return out;
+};
+
+const retryable = (j: ScanJob) => j.status === "failed" || j.status === "partial" || j.status === "cancelled";
+
+export function scanColumns(actions?: (j: ScanJob) => React.ReactNode): Column<ScanJob>[] {
+  const cols: Column<ScanJob>[] = [
+    { id: "scan_key", header: "Scan ID", required: true, cell: (j) => <ScanIdLink job={j} />, csv: (j) => j.scan_key },
+    { id: "name", header: "Scan name", cell: (j) => <span className="text-[12.5px]">{j.name || <span className="text-muted-foreground">—</span>}</span>, csv: (j) => j.name },
+    {
+      id: "asset",
+      header: "Asset",
+      required: true,
+      cell: (j) => (
+        <div className="min-w-0">
+          <div className="max-w-64 truncate font-medium" title={j.repository_name}>{j.repository_name}</div>
+          <div className="font-mono text-[11px] text-muted-foreground">{j.repository_key || "—"}</div>
         </div>
-        <div className="text-[12px] text-muted-foreground">
-          {j.ref}
-          {j.commit_sha && ` @ ${j.commit_sha.slice(0, 8)}`}
-        </div>
-      </div>
-    ),
-    csv: (j) => j.repository_name,
-  },
-  { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (j) => j.repository_key || "—", csv: (j) => j.repository_key },
-  { id: "status", header: "Status", cell: (j) => <JobStatusPill status={j.status} />, csv: (j) => j.status },
-  {
-    id: "findings",
-    header: "Findings",
-    cell: (j) =>
-      j.finished_at ? (
-        <span className="tabular text-[12px]">
-          <span className="text-danger">+{j.findings_new}</span> <span className="text-success">−{j.findings_fixed}</span>
-          {j.gate_failed && <Badge tone="danger" className="ml-1.5">gate failed</Badge>}
-        </span>
-      ) : (
-        "—"
       ),
-    csv: (j) => `+${j.findings_new} -${j.findings_fixed}`,
-  },
-  { id: "trigger", header: "Trigger", cell: (j) => <span className="text-[12px] capitalize">{j.trigger}</span>, csv: (j) => j.trigger },
-  { id: "profile", header: "Profile", cell: (j) => <span className="text-[12px]">{j.profile_name} v{j.profile_version}</span>, csv: (j) => `${j.profile_name} v${j.profile_version}` },
-  { id: "queued", header: "Queued", className: "tabular text-[12px] text-muted-foreground", cell: (j) => formatDateTime(j.queued_at), csv: (j) => j.queued_at },
-  { id: "duration", header: "Duration", className: "tabular text-[12px]", cell: (j) => between(j.started_at, j.finished_at), csv: (j) => between(j.started_at, j.finished_at) },
-  { id: "worker", header: "Worker", defaultHidden: true, className: "text-[12px]", cell: (j) => j.worker_name ?? "—", csv: (j) => j.worker_name },
-];
+      csv: (j) => j.repository_name,
+    },
+    { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (j) => j.repository_key || "—", csv: (j) => j.repository_key },
+    { id: "asset_type", header: "Asset type", className: "text-[12px] capitalize", cell: (j) => j.asset_type || "repository", csv: (j) => j.asset_type || "repository" },
+    {
+      id: "profile",
+      header: "Scan profile",
+      cell: (j) => (
+        <span className="whitespace-nowrap text-[12px]">
+          {j.profile_name} <span className="text-muted-foreground">v{j.profile_version}</span>
+        </span>
+      ),
+      csv: (j) => `${j.profile_name} v${j.profile_version}`,
+    },
+    { id: "status", header: "Execution status", cell: (j) => <JobStatusPill status={j.status} />, csv: (j) => j.status },
+    { id: "progress", header: "Progress", cell: (j) => <ScanProgress job={j} />, csv: (j) => j.progress },
+    { id: "findings", header: "Findings", className: "tabular text-right", cell: (j) => j.findings_total ?? 0, csv: (j) => j.findings_total },
+    { id: "severity", header: "Severity", cell: (j) => <SeverityBar severity={j.severity} />, csv: (j) => (j.severity ? Object.entries(j.severity).map(([k, v]) => `${k}:${v}`).join(" ") : "") },
+    { id: "started", header: "Started at", className: "tabular whitespace-nowrap text-[12px] text-muted-foreground", cell: (j) => (j.started_at ? formatDateTime(j.started_at) : <span title={`Queued ${formatDateTime(j.queued_at)}`}>—</span>), csv: (j) => j.started_at },
+    { id: "duration", header: "Duration", className: "tabular whitespace-nowrap text-[12px]", cell: (j) => jobDuration(j), csv: (j) => j.duration_ms },
+    { id: "trigger", header: "Trigger source", className: "whitespace-nowrap text-[12px]", cell: (j) => triggerLabel[j.trigger] ?? j.trigger, csv: (j) => j.trigger },
+    { id: "worker", header: "Worker", defaultHidden: true, className: "text-[12px]", cell: (j) => j.worker_name ?? "—", csv: (j) => j.worker_name },
+  ];
+  if (actions) cols.push({ id: "actions", header: "Actions", required: true, cell: actions });
+  return cols;
+}
+
+/** Repository filter: server-side search showing name + Repository ID. */
+function RepositoryFilter({ id, onChange }: { id?: string; onChange: (id: string | undefined) => void }) {
+  const [picked, setPicked] = useState<ComboOption | null>(null);
+  const repo = useRepository(id && picked?.value !== id ? id : undefined);
+  const value = id ? (picked?.value === id ? picked : { value: id, label: repo.data?.full_name ?? "Selected repository" }) : null;
+  return (
+    <Combobox
+      ariaLabel="Filter by repository"
+      className="w-56"
+      placeholder="Repository…"
+      queryKey="scan-filter-repo"
+      value={value}
+      load={(q, signal) => {
+        const p = new URLSearchParams({ limit: "20" });
+        if (q) p.set("q", q);
+        return api<Page<Repository>>(`/api/v1/repositories?${p}`, { signal }).then((r) => r.items.map((x) => ({ value: x.id, label: x.full_name, description: x.repository_key })));
+      }}
+      onChange={(o) => {
+        setPicked(o);
+        onChange(o?.value);
+      }}
+    />
+  );
+}
 
 export function ScansPage() {
   const search = useSearch({ strict: false }) as ScanSearch;
   const navigate = useNavigate();
+  const { can } = useSession();
   const set = (n: Partial<ScanSearch>) => void navigate({ to: "/scans", search: { ...search, ...n } as never, replace: true });
-  const scans = useScans({ status: search.status, repository_id: search.repository_id, schedule_id: search.schedule_id });
-  const workers = useWorkers();
-  const online = (workers.data ?? []).filter((w) => w.online).length;
+
+  // Legacy links (/scans?job=…) open the execution details.
+  useEffect(() => {
+    if (search.job) void navigate({ to: "/scans/$id", params: { id: search.job }, replace: true });
+  }, [search.job, navigate]);
+
+  const [q, setQ] = useState(search.q ?? "");
+  const dq = useDebounced(q.trim(), 300);
+  useEffect(() => setQ(search.q ?? ""), [search.q]);
+  useEffect(() => {
+    if ((dq || undefined) !== search.q) set({ q: dq || undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dq]);
+
+  const filters: ScanListFilters = {};
+  for (const k of filterKeys) if (search[k]) filters[k] = search[k];
+  const scans = useScans(filters, true, 5000);
   const rows = scans.data?.pages.flatMap((p) => p.items) ?? [];
+
+  const workers = useWorkers();
+  const profiles = useProfiles();
+  const catalog = useCatalog();
+  const schedules = useSchedules();
+  const online = (workers.data ?? []).filter((w) => w.online).length;
+
+  const cancel = useScanMutation(cancelScan);
+  const retry = useScanMutation(retryScan);
+  const mutError = cancel.error ?? retry.error;
+
+  const filterDefs: FilterDef[] = [
+    { key: "status", label: "Execution status", allLabel: "All statuses", options: statusOptions },
+    { key: "profile_id", label: "Scan profile", allLabel: "All profiles", options: (profiles.data ?? []).map((p) => ({ value: p.id, label: p.name })) },
+    { key: "trigger", label: "Trigger source", allLabel: "All triggers", options: Object.entries(triggerLabel).map(([value, label]) => ({ value, label })) },
+    { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).map((s) => ({ value: s.key, label: s.name })) },
+    { key: "schedule_id", label: "Schedule", allLabel: "All schedules", options: (schedules.data ?? []).map((s) => ({ value: s.id, label: s.name })) },
+    { key: "asset_type", label: "Asset type", allLabel: "All asset types", options: [{ value: "repository", label: "Repository" }] },
+  ];
+
+  const actions = (j: ScanJob) => (
+    <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
+      <Button asChild size="sm" variant="ghost" aria-label={`Open ${j.scan_key}`} title="Open">
+        <Link to="/scans/$id" params={{ id: j.id }}><ExternalLink /></Link>
+      </Button>
+      {can("scans.run") && isActive(j) && (
+        <Button size="sm" variant="ghost" className="text-danger" aria-label={`Cancel ${j.scan_key}`} title="Cancel" disabled={cancel.isPending} onClick={() => cancel.mutate(j.id)}>
+          <Square />
+        </Button>
+      )}
+      {can("scans.run") && retryable(j) && (
+        <Button size="sm" variant="ghost" aria-label={`Retry ${j.scan_key}`} title="Retry" disabled={retry.isPending} onClick={() => retry.mutate(j.id)}>
+          <RotateCcw />
+        </Button>
+      )}
+    </div>
+  );
+
+  const anyFilter = filterKeys.some((k) => search[k]);
 
   return (
     <>
       <PageHeader
         title="Scans"
-        description="Scan jobs run by isolated workers. Scans are queued manually, from webhooks or by schedules."
+        description="Every scan execution with its permanent Scan ID, progress, findings and trigger. Executions are queued manually, by webhooks or by schedules."
         actions={
-          <Link to="/admin/scanners" className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
-            <Server className="size-4" />
-            {workers.isPending ? "…" : online ? `${online} worker${online === 1 ? "" : "s"} online` : <span className="text-warning">No workers online</span>}
-          </Link>
+          <>
+            <Link to="/configurations/scanners" className="flex items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground">
+              <Server className="size-4" />
+              {workers.isPending ? "…" : online ? `${online} worker${online === 1 ? "" : "s"} online` : <span className="text-warning">No workers online</span>}
+            </Link>
+            {can("scans.run") && (
+              <Button onClick={() => set({ start: "1" })}>
+                <Play /> Start scan
+              </Button>
+            )}
+          </>
         }
       />
+      {mutError && <div className="mb-3"><Alert>{mutError.message}</Alert></div>}
       <Card>
         <DataTable
-          tableId="scans-v2"
+          tableId="scans-v3"
           exportName="pathos-scans"
-          columns={columns}
+          columns={scanColumns(actions)}
           rows={rows}
           rowKey={(j) => j.id}
           isPending={scans.isPending}
@@ -94,87 +191,44 @@ export function ScansPage() {
           hasMore={scans.hasNextPage}
           loadingMore={scans.isFetchingNextPage}
           onLoadMore={() => void scans.fetchNextPage()}
-          onRowClick={(j) => set({ job: j.id })}
-          empty={<EmptyState icon={<Radar />} title="No scans yet">Open a repository and choose “Scan now”, or select several repositories and scan them together.</EmptyState>}
+          onRowClick={(j) => void navigate({ to: "/scans/$id", params: { id: j.id } })}
+          empty={
+            <EmptyState icon={<Radar />} title={anyFilter ? "No executions match" : "No scans yet"}>
+              {anyFilter ? "Change or clear the filters." : "Start a scan for one or more repositories, or create a schedule."}
+            </EmptyState>
+          }
           toolbar={
-            <Select aria-label="Filter by status" value={search.status ?? ""} onChange={(e) => set({ status: e.target.value || undefined })}>
-              <option value="">All statuses</option>
-              <option value="active">Queued or running</option>
-              {["succeeded", "partial", "failed", "cancelled"].map((s) => <option key={s} value={s}>{s[0]!.toUpperCase() + s.slice(1)}</option>)}
-            </Select>
+            <div className="flex w-full flex-col gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="pointer-events-none absolute left-2 top-2 size-4 text-muted-foreground" aria-hidden />
+                  <Input aria-label="Search scans" className="pl-8" placeholder="Scan ID, name, repository…" value={q} onChange={(e) => setQ(e.target.value)} />
+                </div>
+                <RepositoryFilter id={search.repository_id} onChange={(id) => set({ repository_id: id })} />
+                <Input aria-label="Repository ID" className="w-40 font-mono" placeholder="Repository ID" value={search.repository_key ?? ""} onChange={(e) => set({ repository_key: e.target.value.trim() || undefined })} />
+                <label className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                  From
+                  <Input type="date" aria-label="Started from" className="w-36" value={search.from ?? ""} max={search.to} onChange={(e) => set({ from: e.target.value || undefined })} />
+                </label>
+                <label className="flex items-center gap-1 text-[12px] text-muted-foreground">
+                  To
+                  <Input type="date" aria-label="Started to" className="w-36" value={search.to ?? ""} min={search.from} onChange={(e) => set({ to: e.target.value || undefined })} />
+                </label>
+              </div>
+              <FilterBar
+                filters={filterDefs}
+                values={search as Record<string, string | undefined>}
+                onChange={(k, v) => set({ [k]: v })}
+                onReset={() => {
+                  setQ("");
+                  void navigate({ to: "/scans", search: {} as never, replace: true });
+                }}
+              />
+            </div>
           }
         />
       </Card>
-      <ScanDrawer id={search.job} onClose={() => set({ job: undefined })} />
+      <StartScanDialog open={search.start === "1"} onOpenChange={(o) => set({ start: o ? "1" : undefined })} />
     </>
-  );
-}
-
-export function ScanDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
-  const { can } = useSession();
-  const scan = useScan(id);
-  const cancel = useScanMutation(() => api(`/api/v1/scans/${id}/cancel`, { method: "POST" }));
-  const j = scan.data;
-  return (
-    <Dialog side open={!!id} onOpenChange={(o) => !o && onClose()} title={j?.repository_name ?? "Scan"}
-      description={j ? `${j.repository_key ? `${j.repository_key} · ` : ""}${j.ref}${j.commit_sha ? ` @ ${j.commit_sha.slice(0, 12)}` : ""} · ${j.profile_name} v${j.profile_version}` : undefined}
-      footer={j && can("scans.run") && (j.status === "queued" || j.status === "running") ? (
-        <Button variant="danger-outline" disabled={cancel.isPending} onClick={() => cancel.mutate(undefined)}>Cancel scan</Button>
-      ) : undefined}>
-      {!j ? <Skeleton className="h-40" /> : (
-        <div className="space-y-5 text-[13px]">
-          {cancel.isError && <Alert>{cancel.error.message}</Alert>}
-          {j.error && <Alert tone={j.status === "partial" ? "warning" : "danger"}>{j.error}</Alert>}
-          {j.gate_failed && <Alert>Security gate failed: new critical findings were introduced.</Alert>}
-          <dl className="grid grid-cols-3 gap-3">
-            <div><dt className="text-[12px] text-muted-foreground">Status</dt><dd className="mt-0.5"><JobStatusPill status={j.status} /></dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">New findings</dt><dd className="tabular mt-0.5 text-lg font-semibold">{j.findings_new}</dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">Fixed</dt><dd className="tabular mt-0.5 text-lg font-semibold">{j.findings_fixed}</dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">Trigger</dt><dd className="mt-0.5 capitalize">{j.trigger}</dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">Duration</dt><dd className="tabular mt-0.5">{between(j.started_at, j.finished_at)}</dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">Worker</dt><dd className="mt-0.5">{j.worker_name ?? "—"}</dd></div>
-          </dl>
-          <div>
-            <h3 className="mb-2 text-[13px] font-semibold">Scanners</h3>
-            {j.results?.length ? (
-              <Card>
-                <Table>
-                  <thead><tr><Th>Scanner</Th><Th>Status</Th><Th>Findings</Th><Th>Time</Th><Th /></tr></thead>
-                  <tbody>
-                    {j.results.map((r) => (
-                      <tr key={r.scanner_key}>
-                        <Td>
-                          <div className="font-medium">{r.scanner_key}</div>
-                          <div className="text-[11px] text-muted-foreground">{r.scanner_version}</div>
-                          {r.error && <div className="mt-0.5 max-w-64 text-[11px] text-danger">{r.error}</div>}
-                        </Td>
-                        <Td className="text-[12px] capitalize">{r.status.replace("_", " ")}</Td>
-                        <Td className="tabular">{r.scanner_key === "syft" ? "SBOM" : r.findings_count}</Td>
-                        <Td className="tabular text-[12px]">{duration(r.duration_ms)}</Td>
-                        <Td>
-                          {r.has_artifact && (
-                            <a className="text-primary" href={`/api/v1/scans/${j.id}/results/${r.scanner_key}/artifact`} title="Download raw report" aria-label={`Download ${r.scanner_key} report`}>
-                              <Download className="size-4" />
-                            </a>
-                          )}
-                        </Td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              </Card>
-            ) : (
-              <p className="text-muted-foreground">{j.status === "queued" ? "Waiting for a worker…" : j.status === "running" ? "Scanning…" : "No scanner results."}</p>
-            )}
-          </div>
-          {j.finished_at && (
-            <Link to="/findings" search={{ repository_id: j.repository_id } as never} className="inline-block text-primary hover:underline">
-              View findings for this repository →
-            </Link>
-          )}
-          <p className="text-[12px] text-muted-foreground">Queued {formatDateTime(j.queued_at)}{j.requested_by && ` by ${j.requested_by}`} · attempt {j.attempts}</p>
-        </div>
-      )}
-    </Dialog>
   );
 }

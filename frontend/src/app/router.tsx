@@ -1,5 +1,5 @@
 import { HelpDocPage, HelpHomePage, validateHelpSearch } from "@/features/help/HelpPages";
-import { createRootRoute, createRoute, createRouter, Outlet } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
 import { ApiError, loginUrl } from "@/api/client";
 import type { AuditRecord, UserStatus } from "@/api/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -21,6 +21,9 @@ import { ImportJobPage } from "@/features/repos/onboarding/ImportJobPage";
 import { AssetSettingsPage } from "@/features/assets/AssetSettingsPage";
 import { TagsPage } from "@/features/settings/TagsPage";
 import { ScansPage, validateScanSearch } from "@/features/scans/ScansPage";
+import { ScanOverviewPage, validateOverviewSearch } from "@/features/scans/overview/ScanOverviewPage";
+import { ScanDetailsPage, validateDetailsSearch } from "@/features/scans/details/ScanDetailsPage";
+import { ComparePage, validateCompareSearch } from "@/features/scans/compare/ComparePage";
 import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import { ScannersPage } from "@/features/scans/ScannersPage";
 import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
@@ -120,8 +123,14 @@ const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm
 const tagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/tags", component: TagsPage });
 
 const scansRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans", component: ScansPage, validateSearch: validateScanSearch });
-const profilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/profiles", component: ProfilesPage });
-const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", component: ScannersPage });
+const scanOverviewRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/overview", component: ScanOverviewPage, validateSearch: validateOverviewSearch });
+const scanCompareRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/compare", component: ComparePage, validateSearch: validateCompareSearch });
+const scanDetailsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/$id", component: ScanDetailsPage, validateSearch: validateDetailsSearch });
+// Configurations: scan profiles and scanners & workers (old URLs redirect).
+const profilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/scan-profiles", component: ProfilesPage });
+const oldProfilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/profiles", beforeLoad: () => { throw redirect({ to: "/configurations/scan-profiles", replace: true }); } });
+const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/scanners", component: ScannersPage });
+const oldScannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", beforeLoad: () => { throw redirect({ to: "/configurations/scanners", replace: true }); } });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
 const schedulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/schedules", component: SchedulesPage });
@@ -141,7 +150,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, profilesRoute, scannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
