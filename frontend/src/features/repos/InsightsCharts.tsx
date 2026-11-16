@@ -15,6 +15,7 @@ const tooltipStyle = {
 export type InsightKey = Exclude<keyof RepositoryInsights, "totals">;
 
 export const insightCharts: { key: InsightKey; title: string; filter?: string }[] = [
+  { key: "by_public_exposure", title: "Public exposure", filter: "public_exposure" },
   { key: "by_provider", title: "By source / provider", filter: "provider" },
   { key: "by_business_region", title: "By business region", filter: "business_region_id" },
   { key: "by_business_unit", title: "By business unit", filter: "business_unit_id" },

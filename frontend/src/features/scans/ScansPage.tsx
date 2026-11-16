@@ -26,7 +26,10 @@ const columns: Column<ScanJob>[] = [
     required: true,
     cell: (j) => (
       <div>
-        <div className="font-medium">{j.repository_name}</div>
+        <div className="flex flex-wrap items-baseline gap-x-2 font-medium">
+          {j.repository_name}
+          {j.repository_key && <span className="font-mono text-[11.5px] font-normal text-muted-foreground">{j.repository_key}</span>}
+        </div>
         <div className="text-[12px] text-muted-foreground">
           {j.ref}
           {j.commit_sha && ` @ ${j.commit_sha.slice(0, 8)}`}
@@ -35,6 +38,7 @@ const columns: Column<ScanJob>[] = [
     ),
     csv: (j) => j.repository_name,
   },
+  { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (j) => j.repository_key || "—", csv: (j) => j.repository_key },
   { id: "status", header: "Status", cell: (j) => <JobStatusPill status={j.status} />, csv: (j) => j.status },
   {
     id: "findings",
@@ -80,7 +84,7 @@ export function ScansPage() {
       />
       <Card>
         <DataTable
-          tableId="scans"
+          tableId="scans-v2"
           exportName="pathos-scans"
           columns={columns}
           rows={rows}
@@ -113,7 +117,7 @@ export function ScanDrawer({ id, onClose }: { id?: string; onClose: () => void }
   const j = scan.data;
   return (
     <Dialog side open={!!id} onOpenChange={(o) => !o && onClose()} title={j?.repository_name ?? "Scan"}
-      description={j ? `${j.ref}${j.commit_sha ? ` @ ${j.commit_sha.slice(0, 12)}` : ""} · ${j.profile_name} v${j.profile_version}` : undefined}
+      description={j ? `${j.repository_key ? `${j.repository_key} · ` : ""}${j.ref}${j.commit_sha ? ` @ ${j.commit_sha.slice(0, 12)}` : ""} · ${j.profile_name} v${j.profile_version}` : undefined}
       footer={j && can("scans.run") && (j.status === "queued" || j.status === "running") ? (
         <Button variant="danger-outline" disabled={cancel.isPending} onClick={() => cancel.mutate(undefined)}>Cancel scan</Button>
       ) : undefined}>

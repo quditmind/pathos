@@ -50,6 +50,8 @@ test("local PC onboarding: upload, classify, import in the background, metadata 
   // General
   await next();
   await page.getByLabel("Description").fill("Uploaded by the end-to-end test");
+  // Application URL (metadata only; PATHOS never contacts it).
+  await page.getByRole("textbox", { name: "Production URL" }).fill("https://e2e.example.com");
   // Business ownership: required fields block the step until filled.
   await next();
   await next();
@@ -61,8 +63,13 @@ test("local PC onboarding: upload, classify, import in the background, metadata 
   await next();
   await page.getByLabel("Business region").selectOption({ index: 1 });
   await page.getByLabel("Hosting region").selectOption({ label: "Europe" });
-  // Classification
+  // Classification: the public exposure question is mandatory (no default).
   await next();
+  await next();
+  await expect(page.getByText(/Answer whether the application or asset is publicly exposed/)).toBeVisible();
+  const exposure = page.getByRole("radiogroup", { name: /Is this application or asset publicly exposed to the internet\?/ });
+  await exposure.getByRole("radio", { name: /^Yes/ }).check();
+  await page.getByRole("textbox", { name: "Public-facing URL 1" }).fill("https://e2e.example.com");
   await page.getByText("High", { exact: true }).click();
   await page.getByLabel("GDPR").check();
   await page.getByLabel("Data classification").selectOption({ label: "Confidential" });
@@ -93,8 +100,22 @@ test("local PC onboarding: upload, classify, import in the background, metadata 
   expect(repo.business_unit?.name).toBe(`E2E unit ${sfx}`);
   expect(repo.business_owner).not.toBeNull();
   expect(repo.current_snapshot?.file_count).toBe(2);
+  // Permanent Repository ID, application URL and exposure answer.
+  expect(repo.repository_key).toMatch(/^[A-Z][A-Z0-9-]*-\d{6,}$/);
+  expect(repo.public_exposure).toBe("yes");
+  expect(repo.production_url).toBe("https://e2e.example.com");
+  expect(repo.public_urls).toEqual(["https://e2e.example.com"]);
+  expect(repo.internet_exposure).toBe("public");
   await page.goto(`/repositories?repo=${repo.id}`);
   await page.reload();
+  // The drawer shows the Repository ID read-only with a copy button.
+  const idGroup = page.getByRole("group", { name: "Repository ID" });
+  await expect(idGroup.getByText(repo.repository_key, { exact: true })).toBeVisible();
+  await expect(idGroup.getByRole("button", { name: `Copy Repository ID ${repo.repository_key}` })).toBeVisible();
+  // ...and so does the inventory, also when searching by the ID.
+  await page.goto(`/repositories?q=${encodeURIComponent(repo.repository_key)}`);
+  await expect(page.getByRole("cell", { name: new RegExp(repo.repository_key) }).first()).toBeVisible();
+  await page.goto(`/repositories?repo=${repo.id}`);
   await expect(page.getByText("Uploaded by the end-to-end test").first()).toBeVisible();
 
   // Clean up: archive then delete (also removes the encrypted snapshot).

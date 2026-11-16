@@ -31,6 +31,14 @@ export const colorSwatches = [
   "#b42318", "#d9480f", "#b7791f", "#1e7b45", "#0f766e", "#1f5fd6", "#6d28d9", "#be185d", "#52667a",
 ].map((c) => ({ value: c, label: c }));
 
+/** Mirrors the server rule for Repository ID prefixes. */
+export function repositoryKeyPrefixProblem(v: string): string | null {
+  if (!v) return "Enter a prefix, e.g. QD-REPO";
+  if (v.length > 20) return "At most 20 characters";
+  if (!/^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$/.test(v)) return "Start with a letter; use upper-case letters, digits and single hyphens (no trailing hyphen)";
+  return null;
+}
+
 export function AssetSettingsPage() {
   const { canOrgWide } = useSession();
   const manage = canOrgWide("assets.configure");
@@ -38,6 +46,7 @@ export function AssetSettingsPage() {
   const update = useUpdateAssetSettings();
   const [req, setReq] = useState<Set<AssetField>>(new Set());
   const [scanOnImport, setScanOnImport] = useState(false);
+  const [prefix, setPrefix] = useState("");
   const [saved, setSaved] = useState(false);
   const [kind, setKind] = useState<ClassificationKind>("criticality");
 
@@ -45,6 +54,7 @@ export function AssetSettingsPage() {
     if (settings.data) {
       setReq(new Set(settings.data.required_fields));
       setScanOnImport(settings.data.scan_on_import);
+      setPrefix(settings.data.repository_key_prefix ?? "");
     }
   }, [settings.data]);
 
@@ -59,8 +69,11 @@ export function AssetSettingsPage() {
       </Alert>
     );
   const s = settings.data;
-  const always = new Set(s.always_required);
-  const dirty = scanOnImport !== s.scan_on_import || [...req].sort().join() !== [...s.required_fields].sort().join();
+  // The public exposure question is mandatory regardless of policy.
+  const always = new Set<AssetField>([...s.always_required, "public_exposure"]);
+  const prefixChanged = prefix !== (s.repository_key_prefix ?? "");
+  const prefixError = prefixChanged ? repositoryKeyPrefixProblem(prefix) : null;
+  const dirty = scanOnImport !== s.scan_on_import || prefixChanged || [...req].sort().join() !== [...s.required_fields].sort().join();
 
   return (
     <>
@@ -120,6 +133,36 @@ export function AssetSettingsPage() {
               </span>
             </label>
           </div>
+          <div className="mt-5 border-t border-border pt-4">
+            <FormField
+              label="Repository ID prefix"
+              error={prefixError ?? undefined}
+              hint={
+                <>
+                  Applies to repositories registered from now on; existing IDs never change. Starts with a letter; upper-case letters, digits and single hyphens (max 20).
+                  {!prefixError && prefix && (
+                    <>
+                      {" "}
+                      Next IDs look like <span className="font-mono">{prefix}-000123</span>.
+                    </>
+                  )}
+                </>
+              }
+            >
+              <Input
+                className="max-w-56 font-mono"
+                disabled={!manage}
+                value={prefix}
+                maxLength={20}
+                spellCheck={false}
+                autoCapitalize="characters"
+                onChange={(e) => {
+                  setPrefix(e.target.value.toUpperCase());
+                  setSaved(false);
+                }}
+              />
+            </FormField>
+          </div>
           {update.isError && (
             <div className="mt-3">
               <Alert>{update.error.message}</Alert>
@@ -138,13 +181,19 @@ export function AssetSettingsPage() {
                 onClick={() => {
                   setReq(new Set(s.required_fields));
                   setScanOnImport(s.scan_on_import);
+                  setPrefix(s.repository_key_prefix ?? "");
                 }}
               >
                 Reset
               </Button>
               <Button
-                disabled={!dirty || update.isPending}
-                onClick={() => update.mutate({ required_fields: [...req], scan_on_import: scanOnImport }, { onSuccess: () => setSaved(true) })}
+                disabled={!dirty || !!prefixError || update.isPending}
+                onClick={() =>
+                  update.mutate(
+                    { required_fields: [...req].filter((f) => !always.has(f)), scan_on_import: scanOnImport, ...(prefixChanged ? { repository_key_prefix: prefix } : {}) },
+                    { onSuccess: () => setSaved(true) },
+                  )
+                }
               >
                 {update.isPending ? "Saving…" : "Save"}
               </Button>
