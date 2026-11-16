@@ -31,6 +31,7 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/scans", s.listJobs)
 	mux.HandleFunc("GET /api/v1/scans/{id}", s.getJob)
 	mux.HandleFunc("POST /api/v1/scans/{id}/cancel", s.cancelJob)
+	s.registerExecutions(mux)
 	mux.HandleFunc("GET /api/v1/scans/{id}/results/{scanner}/artifact", s.downloadArtifact)
 	mux.HandleFunc("PUT /api/v1/repositories/{id}/scan-profile", s.setRepoProfile)
 }
@@ -237,14 +238,18 @@ func (s *Service) OnWebhookEvent(ctx context.Context, orgID, repoID uuid.UUID, e
 	}
 }
 
-func (s *Service) enqueueAs(ctx context.Context, p *authz.Principal, repoID uuid.UUID, trigger string) (EnqueueResult, error) {
+func (s *Service) enqueueAs(ctx context.Context, p *authz.Principal, repoID uuid.UUID, trigger string, opts ...EnqueueOpts) (EnqueueResult, error) {
+	var opt EnqueueOpts
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
 	if err := s.requireRepo(ctx, p, authz.PermScansRun, repoID); err != nil {
 		return EnqueueResult{}, err
 	}
 	var res EnqueueResult
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var err error
-		res, err = Enqueue(ctx, tx, p.OrganizationID, repoID, trigger, "", "", &p.UserID)
+		res, err = EnqueueWith(ctx, tx, p.OrganizationID, repoID, trigger, "", "", &p.UserID, opt)
 		if err != nil {
 			return err
 		}
@@ -252,7 +257,8 @@ func (s *Service) enqueueAs(ctx context.Context, p *authz.Principal, repoID uuid
 			return nil
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "scan.request", TargetType: "repository", TargetID: repoID.String(), Metadata: map[string]any{"job_id": res.JobID, "trigger": trigger}})
+			Action: "scan.request", TargetType: "repository", TargetID: repoID.String(),
+			Metadata: map[string]any{"job_id": res.JobID, "trigger": trigger, "profile_id": opt.ProfileID}})
 	})
 	return res, err
 }
@@ -278,6 +284,9 @@ func (s *Service) scanRepository(w http.ResponseWriter, r *http.Request) {
 type bulkScanRequest struct {
 	RepositoryIDs []uuid.UUID `json:"repository_ids"`
 	Trigger       string      `json:"trigger"`
+	// ProfileID runs an existing scan profile instead of each repository's own.
+	ProfileID *uuid.UUID `json:"profile_id"`
+	Name      string     `json:"name"`
 }
 
 func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
@@ -299,6 +308,19 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("select 1-1000 repositories"))
 		return
 	}
+	if req.Name = strings.TrimSpace(req.Name); len(req.Name) > 200 {
+		s.fail(w, r, httpx.BadRequest("name must be at most 200 characters"))
+		return
+	}
+	if req.ProfileID != nil {
+		var ok bool
+		_ = s.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM scan_profiles WHERE organization_id = $1 AND id = $2 AND archived_at IS NULL)`,
+			p.OrganizationID, *req.ProfileID).Scan(&ok)
+		if !ok {
+			s.fail(w, r, httpx.BadRequest("unknown or archived scan profile"))
+			return
+		}
+	}
 	type item struct {
 		RepositoryID uuid.UUID  `json:"repository_id"`
 		JobID        *uuid.UUID `json:"job_id,omitempty"`
@@ -307,7 +329,7 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 	}
 	out := make([]item, 0, len(req.RepositoryIDs))
 	for _, id := range req.RepositoryIDs {
-		res, err := s.enqueueAs(ctx, p, id, req.Trigger)
+		res, err := s.enqueueAs(ctx, p, id, req.Trigger, EnqueueOpts{ProfileID: req.ProfileID, Name: req.Name})
 		it := item{RepositoryID: id}
 		if err != nil {
 			it.Error = "not scannable or not permitted"
@@ -349,6 +371,23 @@ type Job struct {
 	StartedAt      *time.Time `json:"started_at"`
 	FinishedAt     *time.Time `json:"finished_at"`
 	Results        []Result   `json:"results,omitempty"`
+
+	// Scanning module fields.
+	ScanKey        string         `json:"scan_key"` // permanent Scan ID, e.g. QD-SCAN-000042
+	Name           string         `json:"name"`
+	AssetType      string         `json:"asset_type"` // "repository"
+	ProfileID      uuid.UUID      `json:"profile_id"`
+	Progress       int            `json:"progress"`
+	Stage          string         `json:"stage"`
+	RetryOf        *uuid.UUID     `json:"retry_of"`
+	RetryCount     int            `json:"retry_count"`
+	ScheduleID     *uuid.UUID     `json:"schedule_id"`
+	ScheduleRunID  *uuid.UUID     `json:"schedule_run_id"`
+	SnapshotID     *uuid.UUID     `json:"snapshot_id"`
+	DurationMS     *int64         `json:"duration_ms"`
+	FindingsTotal  int            `json:"findings_total"`
+	Severity       map[string]int `json:"severity"` // distinct findings observed in this execution
+	ConfigSnapshot map[string]any `json:"config_snapshot,omitempty"`
 }
 
 // Result is one scanner's outcome within a job.
@@ -365,7 +404,13 @@ type Result struct {
 const jobSelect = `
 	SELECT j.id, j.repository_id, r.full_name, r.repository_key, sp.name, v.version, j.trigger, j.priority, j.status, j.ref, j.commit_sha,
 	       j.attempts, wk.name, COALESCE(NULLIF(u.display_name, ''), u.email), j.error, j.findings_new, j.findings_fixed,
-	       j.gate_failed, j.queued_at, j.started_at, j.finished_at
+	       j.gate_failed, j.queued_at, j.started_at, j.finished_at,
+	       j.scan_key, j.name, sp.id, j.progress, j.stage, j.retry_of, j.retry_count, j.schedule_id, j.schedule_run_id, j.snapshot_id,
+	       (EXTRACT(EPOCH FROM (COALESCE(j.finished_at, CASE WHEN j.status = 'running' THEN now() END) - j.started_at)) * 1000)::bigint,
+	       COALESCE((SELECT jsonb_object_agg(x.severity, x.n) FROM (
+	         SELECT f.severity, count(DISTINCT f.id) AS n FROM finding_occurrences o
+	         JOIN scan_results sr ON sr.id = o.scan_result_id JOIN findings f ON f.id = o.finding_id
+	         WHERE sr.scan_job_id = j.id GROUP BY f.severity) x), '{}'::jsonb)
 	FROM scan_jobs j
 	JOIN repositories r ON r.id = j.repository_id
 	LEFT JOIN countries co ON co.id = r.country_id
@@ -378,9 +423,21 @@ func scanJob(row pgx.Row) (Job, error) {
 	var j Job
 	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.RepositoryKey, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
 		&j.Status, &j.Ref, &j.CommitSHA, &j.Attempts, &j.WorkerName, &j.RequestedBy, &j.Error, &j.FindingsNew,
-		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt)
+		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt,
+		&j.ScanKey, &j.Name, &j.ProfileID, &j.Progress, &j.Stage, &j.RetryOf, &j.RetryCount, &j.ScheduleID, &j.ScheduleRunID,
+		&j.SnapshotID, &j.DurationMS, &j.Severity)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return j, errNotFound
+	}
+	j.AssetType = "repository"
+	for _, k := range []string{"critical", "high", "medium", "low", "info"} {
+		if _, ok := j.Severity[k]; !ok {
+			if j.Severity == nil {
+				j.Severity = map[string]int{}
+			}
+			j.Severity[k] = 0
+		}
+		j.FindingsTotal += j.Severity[k]
 	}
 	return j, err
 }
@@ -419,6 +476,59 @@ func (s *Service) listJobs(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		add("j.schedule_id = ?", id)
+	}
+	if v := strings.TrimSpace(q.Get("q")); v != "" {
+		if len(v) > 200 {
+			s.fail(w, r, httpx.BadRequest("q is too long"))
+			return
+		}
+		like := "%" + strings.NewReplacer(`\`, `\\`, "%", `\%`, "_", `\_`).Replace(strings.ToLower(v)) + "%"
+		add("(lower(j.scan_key) LIKE ? OR lower(j.name) LIKE ? OR lower(r.full_name) LIKE ? OR lower(r.repository_key) LIKE ? OR lower(r.display_name) LIKE ?)", like)
+	}
+	if v := strings.TrimSpace(q.Get("scan_key")); v != "" {
+		add("upper(j.scan_key) = upper(?)", v)
+	}
+	if v := strings.TrimSpace(q.Get("repository_key")); v != "" {
+		add("upper(r.repository_key) = upper(?)", v)
+	}
+	if v := q.Get("profile_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			s.fail(w, r, httpx.BadRequest("invalid profile_id"))
+			return
+		}
+		add("v.profile_id = ?", id)
+	}
+	if v := q.Get("trigger"); v != "" {
+		if _, ok := priorities[v]; !ok {
+			s.fail(w, r, httpx.BadRequest("invalid trigger"))
+			return
+		}
+		add("j.trigger = ?", v)
+	}
+	if v := q.Get("scanner"); v != "" {
+		add("EXISTS (SELECT 1 FROM scan_results sr WHERE sr.scan_job_id = j.id AND sr.scanner_key = ?)", v)
+	}
+	if v := q.Get("asset_type"); v != "" && v != "repository" {
+		where = append(where, "false") // repositories are the only asset type with scans
+	}
+	for param, op := range map[string]string{"from": ">=", "to": "<"} {
+		if v := q.Get(param); v != "" {
+			t, err := time.Parse(time.RFC3339, v)
+			if err != nil {
+				if d, derr := time.Parse(time.DateOnly, v); derr == nil {
+					t, err = d, nil
+					if param == "to" {
+						t = t.AddDate(0, 0, 1)
+					}
+				}
+			}
+			if err != nil {
+				s.fail(w, r, httpx.BadRequest(param+" must be a date (YYYY-MM-DD) or RFC 3339 time"))
+				return
+			}
+			add("j.queued_at "+op+" ?", t)
+		}
 	}
 	if v := q.Get("status"); v != "" {
 		if v == "active" {
@@ -501,6 +611,10 @@ func (s *Service) getJob(w http.ResponseWriter, r *http.Request) {
 	}
 	if j.Results == nil {
 		j.Results = []Result{}
+	}
+	if err := s.loadDetail(r.Context(), &j); err != nil {
+		s.fail(w, r, err)
+		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, j)
 }

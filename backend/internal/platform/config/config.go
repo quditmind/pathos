@@ -69,6 +69,9 @@ type Config struct {
 	ImportWorkDir           string
 	ClamAVAddress           string
 	ClamAVRequired          bool
+	// ScanLogRetentionDays keeps execution logs and stage events; scan
+	// executions themselves are never deleted (360-day comparison window).
+	ScanLogRetentionDays int
 
 	// RequireMFA makes new users enrol a TOTP authenticator.
 	RequireMFA bool
@@ -198,6 +201,7 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	c.ImportConcurrency = int(num("PATHOS_IMPORT_CONCURRENCY", "2", 1, 64))
 	c.ImportTimeout = dur("PATHOS_IMPORT_TIMEOUT", "30m")
 	c.ImportWorkDir = get("PATHOS_IMPORT_WORK_DIR", "/tmp/pathos-import")
+	c.ScanLogRetentionDays = int(num("PATHOS_SCAN_LOG_RETENTION_DAYS", "400", 360, 3650))
 	c.ClamAVAddress = get("PATHOS_CLAMAV_ADDRESS", "")
 	c.ClamAVRequired = get("PATHOS_CLAMAV_REQUIRED", "false") == "true"
 	if c.ClamAVRequired && c.ClamAVAddress == "" {

@@ -36,6 +36,8 @@ ALTER TABLE scan_jobs ADD CONSTRAINT scan_jobs_retry_fk FOREIGN KEY (organizatio
 CREATE INDEX scan_jobs_retry_idx ON scan_jobs (retry_of) WHERE retry_of IS NOT NULL;
 CREATE INDEX scan_jobs_finished_idx ON scan_jobs (organization_id, finished_at DESC) WHERE finished_at IS NOT NULL;
 CREATE INDEX scan_jobs_status_idx ON scan_jobs (organization_id, status, queued_at DESC);
+-- Findings observed by one execution (comparison, severity distribution).
+CREATE INDEX finding_occurrences_result_idx ON finding_occurrences (scan_result_id, finding_id);
 
 -- One queued execution per repository AND profile version (previously per
 -- repository), so a repository can be queued for several profiles. Only one
@@ -212,6 +214,7 @@ WHERE j.status = 'queued' AND EXISTS (SELECT 1 FROM scan_jobs k WHERE k.reposito
     AND (k.queued_at, k.id) > (j.queued_at, j.id));
 CREATE UNIQUE INDEX scan_jobs_queued_uq ON scan_jobs (repository_id) WHERE status = 'queued';
 DROP INDEX IF EXISTS scan_jobs_status_idx;
+DROP INDEX IF EXISTS finding_occurrences_result_idx;
 DROP INDEX IF EXISTS scan_jobs_finished_idx;
 DROP INDEX IF EXISTS scan_jobs_retry_idx;
 ALTER TABLE scan_jobs DROP CONSTRAINT IF EXISTS scan_jobs_retry_fk;

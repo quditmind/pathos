@@ -52,8 +52,9 @@ type Data struct {
 		Status, Justification, ExpiresAt, RequestedBy, DecidedBy, Note string
 	}
 	Schedule struct {
-		Name, DueAt string
-		Missed      int
+		Name, DueAt       string
+		Missed            int
+		Succeeded, Failed int
 	}
 	Worker struct {
 		Name, Family, LastSeen string
@@ -304,6 +305,14 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.requester = &by
 			d.Link = baseURL + "/repositories/imports/" + ev.SubjectID.String()
 		}
+	case "schedule.completed", "schedule.failed":
+		if ev.SubjectID != nil {
+			var by *uuid.UUID
+			_ = q.QueryRow(ctx, `SELECT name, created_by FROM scan_schedules WHERE id = $1`, *ev.SubjectID).Scan(&d.Schedule.Name, &by)
+			d.requester = by
+		}
+		d.Schedule.Succeeded, d.Schedule.Failed = payloadInt(p, "succeeded"), payloadInt(p, "failed")
+		d.Link = baseURL + "/scans?schedule_id=" + ev.SubjectID.String()
 	case "worker.offline":
 		d.Worker.Name, d.Worker.Family = payloadString(p, "name"), payloadString(p, "family")
 		if t, err := time.Parse(time.RFC3339Nano, payloadString(p, "last_seen_at")); err == nil {
@@ -351,6 +360,7 @@ func Sample(key, baseURL string) *Data {
 	d.Risk.Status, d.Risk.Justification, d.Risk.ExpiresAt = "approved", "Endpoint is internal only and protected by the WAF rule PAY-12.", "2027-02-15 00:00 UTC"
 	d.Risk.RequestedBy, d.Risk.DecidedBy, d.Risk.Note = "Sam Developer", "Riley Manager", "Re-assess after the Q1 migration."
 	d.Schedule.Name, d.Schedule.DueAt, d.Schedule.Missed = "Nightly EMEA", "2026-11-15 02:00 UTC", 2
+	d.Schedule.Succeeded, d.Schedule.Failed = 41, 1
 	d.Worker.Name, d.Worker.Family, d.Worker.LastSeen, d.Worker.Queued = "worker-core-1", "core", "2026-11-15 09:41 UTC", 12
 	d.Sync.Status, d.Sync.Error = "permission_denied", "scm: the credential does not have permission for this operation"
 	d.Import.Status, d.Import.RequestedBy, d.Import.Total, d.Import.Failed = "failed", "Sam Developer", 4, 1

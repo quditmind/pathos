@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -144,6 +143,11 @@ func Tick(ctx context.Context, pool *pgxpool.Pool, now time.Time, log *slog.Logg
 		st.JobsQueued += queued
 		st.MissedRuns += missed
 	}
+	q, err := advanceRuns(ctx, pool, now, log)
+	if err != nil {
+		return st, err
+	}
+	st.JobsQueued += q
 	n, err := workerHealth(ctx, pool)
 	st.WorkersOffline = n
 	return st, err
@@ -151,18 +155,15 @@ func Tick(ctx context.Context, pool *pgxpool.Pool, now time.Time, log *slog.Logg
 
 func runOneDue(ctx context.Context, pool *pgxpool.Pool, now time.Time, log *slog.Logger) (ran bool, queued, missed int, err error) {
 	err = db.InTx(ctx, pool, func(tx pgx.Tx) error {
-		var (
-			id, orgID     uuid.UUID
-			expr, tz, typ string
-			target        *uuid.UUID
-			priority      int
-			due           time.Time
-		)
+		var sc scheduleRow
+		var tr timingRow
+		var due time.Time
 		err := tx.QueryRow(ctx, `
-			SELECT id, organization_id, cron, timezone, target_type, target_id, priority, next_run_at
-			FROM scan_schedules WHERE enabled AND next_run_at <= $1
-			ORDER BY next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED`, now).
-			Scan(&id, &orgID, &expr, &tz, &typ, &target, &priority, &due)
+			SELECT s.id, s.organization_id, s.name, s.priority, s.max_concurrent, s.next_run_at, `+timingCols+`
+			FROM scan_schedules s WHERE s.enabled AND s.next_run_at <= $1
+			ORDER BY s.next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED`, now).
+			Scan(&sc.ID, &sc.OrgID, &sc.Name, &sc.Priority, &sc.MaxConcurrent, &due,
+				&tr.Kind, &tr.Cron, &tr.Timezone, &tr.RunAt, &tr.Interval, &tr.WindowStart, &tr.WindowEnd, &tr.WindowDays)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -170,36 +171,46 @@ func runOneDue(ctx context.Context, pool *pgxpool.Pool, now time.Time, log *slog
 			return err
 		}
 		ran = true
-		c, perr := ParseCron(expr)
-		loc, lerr := time.LoadLocation(tz)
-		if perr != nil || lerr != nil {
-			_, err := tx.Exec(ctx, `UPDATE scan_schedules SET enabled = false, last_status = 'disabled: invalid cron or time zone' WHERE id = $1`, id)
+		tm, terr := tr.timing()
+		if terr != nil {
+			_, err := tx.Exec(ctx, `UPDATE scan_schedules SET enabled = false, last_status = 'disabled: invalid timing or time zone' WHERE id = $1`, sc.ID)
 			return err
 		}
 		// Activations between the due time and now were missed (scheduler
 		// down or overloaded). Catch up once rather than once per miss.
-		for t := c.Next(due, loc); !t.IsZero() && !t.After(now) && missed < 10000; t = c.Next(t, loc) {
+		for t := tm.Next(due); !t.IsZero() && !t.After(now) && missed < 10000; t = tm.Next(t) {
 			missed++
 		}
-		res, err := execute(ctx, tx, orgID, id, typ, target, priority, nil, log)
+		trigger := "schedule"
+		if missed > 0 {
+			trigger = "catch_up"
+		}
+		inWindow := tm.Window == nil || tm.Window.contains(now.In(tm.Loc))
+		res, created, err := startRun(ctx, tx, sc, due, trigger, inWindow, nil, log)
 		if err != nil {
 			return err
 		}
 		queued = res.Queued
 		status := res.String()
-		if missed > 0 {
+		switch {
+		case !created:
+			status = "activation already processed"
+		case !inWindow:
+			status = "waiting for the approved scan window"
+		}
+		if missed > 0 && created {
 			status += "; caught up after missed runs"
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO notification_events (organization_id, event_key, subject_id, payload)
 				VALUES ($1, 'schedule.missed', $2, jsonb_build_object('missed', $3::int, 'due_at', $4::timestamptz))`,
-				orgID, id, missed, due); err != nil {
+				sc.OrgID, sc.ID, missed, due); err != nil {
 				return err
 			}
 		}
 		_, err = tx.Exec(ctx, `
 			UPDATE scan_schedules SET last_run_at = $2, last_status = $3, last_queued = $4,
 			       missed_runs = missed_runs + $5, next_run_at = $6
-			WHERE id = $1`, id, now, status, res.Queued, missed, nullTime(c.Next(now, loc)))
+			WHERE id = $1`, sc.ID, now, status, res.Queued, missed, nullTime(tm.Next(now)))
 		return err
 	})
 	return ran, queued, missed, err

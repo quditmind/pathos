@@ -124,6 +124,24 @@ Check the repository and its connection: {{.Link}}`,
 Review and retry: {{.Link}}`,
 	},
 	{
+		Key: "schedule.completed", Label: "Scheduled scans completed",
+		Description: "Every execution of a schedule activation finished successfully (only for schedules that ask for it).",
+		Dynamic:     []string{"requester"},
+		Subject:     `[PATHOS] Scheduled scans completed: {{.Schedule.Name}}`,
+		Body: `All {{.Schedule.Succeeded}} scan execution{{if ne .Schedule.Succeeded 1}}s{{end}} of the schedule "{{.Schedule.Name}}" finished.
+
+Details: {{.Link}}`,
+	},
+	{
+		Key: "schedule.failed", Label: "Scheduled scans failed",
+		Description: "A schedule activation finished with failed executions after its retries (only for schedules that ask for it).",
+		Dynamic:     []string{"requester"},
+		Subject:     `[PATHOS] Scheduled scans failed: {{.Schedule.Name}}`,
+		Body: `The schedule "{{.Schedule.Name}}" finished with {{.Schedule.Failed}} failed and {{.Schedule.Succeeded}} successful scan execution{{if ne .Schedule.Succeeded 1}}s{{end}} (after the schedule's retries).
+
+Details: {{.Link}}`,
+	},
+	{
 		Key: "worker.offline", Label: "Scan worker offline",
 		Description: "A scan worker stopped polling for jobs.",
 		Subject:     `[PATHOS] Scan worker offline: {{.Worker.Name}}`,
