@@ -14,7 +14,7 @@ summary: What an application is in PATHOS, how to create one, link repositories 
 | | Repository | Application |
 |---|---|---|
 | What it represents | One code base (Git repository or uploaded archive) | A business application, for example *Payments Platform*, made of one or more code bases |
-| Identifier | Permanent Repository ID (`QD-REPO-000042`) | Name (unique among active applications) and, if created from the wizard, an optional **Application ID** (CMDB reference) |
+| Identifier | Permanent Repository ID (`QD-REPO-000042`) | Name (unique among active applications) and an optional **Application ID** (for example a CMDB reference) |
 | Scanned | Yes | No: findings belong to its repositories |
 | Ownership | Business, technical and application owner, teams | **Owner** and **Security owner** |
 | Placement | Business unit, department, country, regions | **Business unit** |
@@ -35,7 +35,7 @@ Open **Assets → Applications** (`/applications`).
 | Edit name, description, business unit, criticality, owner, security owner | Yes | Select the row |
 | Archive an application | Yes | **Archive** in the edit dialog. Repositories are unlinked, not deleted |
 | Delete an application | **Not available** | Archive it instead |
-| Application ID (CMDB reference) | Partly | Can be entered only when creating an application from the wizard (**Create a new application → Application ID**); it is not shown or editable on the Applications page |
+| Application ID (CMDB reference) | Yes | Enter it in **New application** or **Edit** on the Applications page, or when creating an application from the wizard (**Create a new application → Application ID**). It is shown in the Applications list and in CSV exports. |
 | Link one or many repositories | Yes | In the wizard (**General → Application**) or by editing a repository |
 | View linked repositories | Yes | Select the number in the **Repositories** column; the repository inventory opens filtered by the application |
 | Staging / production URLs, public exposure per application | **Not available** | Recorded per repository; see [Asset registration](asset-registration.md#classification) |
