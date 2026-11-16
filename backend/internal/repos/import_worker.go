@@ -401,6 +401,16 @@ func (s *Service) registerChecks(ctx context.Context, it *importItem) error {
 	if err != nil {
 		return err
 	}
+	// An application requested as "new" may already have been created by
+	// an earlier item of the same job: use it.
+	if na := it.Values.NewApplication; na != nil {
+		var appID uuid.UUID
+		if err := s.DB.QueryRow(ctx, `SELECT a.id FROM applications a WHERE a.organization_id = $1 AND lower(a.name) = lower($2) AND a.archived_at IS NULL
+			AND EXISTS (SELECT 1 FROM repository_import_items i JOIN repositories r ON r.id = i.repository_id
+			            WHERE i.job_id = $3 AND r.application_id = a.id)`, it.OrgID, na.Name, it.JobID).Scan(&appID); err == nil {
+			it.Values.ApplicationID, it.Values.NewApplication = &appID, nil
+		}
+	}
 	if fe := validateValues(ctx, s.DB, it.OrgID, ap, &it.Values, validateOpts{Creating: true}); len(fe) > 0 {
 		parts := []string{}
 		for k, v := range fe {

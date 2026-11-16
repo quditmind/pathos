@@ -606,8 +606,8 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 			}
 			if _, err := tx.Exec(ctx, `INSERT INTO repositories (id, organization_id, scm_connection_id, source_type, external_id, full_name, name,
 				url, clone_url, visibility, technologies, imported_by)
-				VALUES ($1, $2, NULL, 'upload', $1::text, $3, $3, '', '', 'private', $4, $5)`,
-				repoID, it.OrgID, truncate(name, 200), techs, it.RequestedBy); err != nil {
+				VALUES ($1, $2, NULL, 'upload', $6, $3, $3, '', '', 'private', $4, $5)`,
+				repoID, it.OrgID, truncate(name, 200), techs, it.RequestedBy, repoID.String()); err != nil {
 				return err
 			}
 			if err := writeValues(ctx, tx, it.OrgID, repoID, it.RequestedBy, &it.Values); err != nil {
