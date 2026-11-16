@@ -44,7 +44,7 @@ var (
 	ownerPool *pgxpool.Pool // migration owner
 	appPool   *pgxpool.Pool // least-privilege runtime role
 	orgID     uuid.UUID
-	log       = slog.New(slog.NewTextHandler(io.Discard, nil))
+	log       = slog.New(slog.NewTextHandler(testLogOutput(), nil))
 )
 
 func TestMain(m *testing.M) {
@@ -371,4 +371,12 @@ func TestAuditListPagination(t *testing.T) {
 	if page1[0].IP == nil || *page1[0].IP != "10.0.0.1" {
 		t.Errorf("ip not stored: %v", page1[0].IP)
 	}
+}
+
+// testLogOutput discards server logs unless PATHOS_TEST_LOG=1.
+func testLogOutput() io.Writer {
+	if os.Getenv("PATHOS_TEST_LOG") == "1" {
+		return os.Stderr
+	}
+	return io.Discard
 }

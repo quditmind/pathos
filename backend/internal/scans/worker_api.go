@@ -458,6 +458,8 @@ func (s *Service) jobSource(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rc.Close()
+	// Snapshots can be large; extend the listener's write timeout.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(time.Hour))
 	w.Header().Set("Content-Type", "application/gzip")
 	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
 	w.WriteHeader(http.StatusOK)

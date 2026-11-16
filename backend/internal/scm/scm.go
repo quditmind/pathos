@@ -59,8 +59,11 @@ type Client interface {
 
 // Credential is an HTTPS git credential handed to a worker for one job.
 type Credential struct {
-	Username  string     `json:"username"`
-	Token     string     `json:"token"`
+	Username string `json:"username"`
+	Token    string `json:"token"`
+	// Scheme is "basic" (default: username + token) or "bearer"
+	// (Microsoft Entra ID access tokens for Azure DevOps).
+	Scheme    string     `json:"scheme,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
 }
 

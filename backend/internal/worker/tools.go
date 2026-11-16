@@ -300,8 +300,11 @@ func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (st
 	}
 	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
 	if job.Credential != nil && job.Credential.Token != "" {
-		basic := base64.StdEncoding.EncodeToString([]byte(job.Credential.Username + ":" + job.Credential.Token))
-		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0=Authorization: Basic "+basic)
+		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(job.Credential.Username+":"+job.Credential.Token))
+		if job.Credential.Scheme == "bearer" {
+			header = "Authorization: Bearer " + job.Credential.Token
+		}
+		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0="+header)
 	}
 	hardening := []string{
 		"-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",

@@ -165,7 +165,7 @@ const repoSelectTmpl = `
 	               'archive_sha256', ss.archive_sha256, 'snapshot_sha256', ss.snapshot_sha256, 'file_count', ss.file_count,
 	               'uncompressed_bytes', ss.uncompressed_bytes, 'malware_scan', ss.malware_scan)
 	          FROM source_snapshots ss WHERE ss.id = r.current_snapshot_id),
-	       (%[1]s), ((%[1]s) OR (%[2]s))
+	       COALESCE((%[1]s), false), COALESCE((%[1]s) OR (%[2]s), false)
 	FROM repositories r
 	LEFT JOIN scm_connections c ON c.id = r.scm_connection_id
 	LEFT JOIN applications a ON a.id = r.application_id
@@ -176,8 +176,8 @@ const repoSelectTmpl = `
 // ownerSQL is true when the user ($n) owns the repository row r.
 func ownerSQL(n int) string {
 	u := "$" + strconv.Itoa(n)
-	return "(r.business_owner_id = " + u + " OR r.technical_owner_id = " + u + " OR r.application_owner_id = " + u +
-		" OR r.responsible_team_id IN (SELECT tm.team_id FROM team_members tm WHERE tm.user_id = " + u + "))"
+	return "COALESCE(r.business_owner_id = " + u + " OR r.technical_owner_id = " + u + " OR r.application_owner_id = " + u +
+		" OR r.responsible_team_id IN (SELECT tm.team_id FROM team_members tm WHERE tm.user_id = " + u + "), false)"
 }
 
 // repoQuery returns the SELECT (without WHERE) for principal p and its

@@ -194,8 +194,8 @@ func (s *Service) saveSyncRun(ctx context.Context, t syncTarget, run SyncRun, by
 			return err
 		}
 		if !ok && t.SyncStatus != run.Status {
-			if _, err := tx.Exec(ctx, `INSERT INTO notification_events (organization_id, event_key, subject_id, payload)
-				VALUES ($1, 'repository.sync_failed', $2, jsonb_build_object('status', $3::text, 'error', $4::text))`,
+			if _, err := tx.Exec(ctx, `INSERT INTO notification_events (organization_id, event_key, repository_id, subject_id, payload)
+				VALUES ($1, 'repository.sync_failed', $2, $2, jsonb_build_object('status', $3::text, 'error', $4::text))`,
 				t.OrgID, t.ID, run.Status, run.Error); err != nil {
 				return err
 			}

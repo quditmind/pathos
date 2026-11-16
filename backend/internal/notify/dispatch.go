@@ -297,8 +297,10 @@ func resolve(ctx context.Context, q db.Querier, ev eventRow, data *Data, rc Reci
 		case "owners":
 			if ev.Repository != nil {
 				var ids []uuid.UUID
+				// Application owners plus the repository's asset owners.
 				rows, qerr := q.Query(ctx, `SELECT unnest(ARRAY[a.owner_user_id, a.security_owner_user_id]) FROM repositories r
-					JOIN applications a ON a.id = r.application_id WHERE r.id = $1`, *ev.Repository)
+					JOIN applications a ON a.id = r.application_id WHERE r.id = $1
+					UNION SELECT unnest(ARRAY[r.business_owner_id, r.technical_owner_id, r.application_owner_id]) FROM repositories r WHERE r.id = $1`, *ev.Repository)
 				if qerr != nil {
 					return nil, qerr
 				}

@@ -36,34 +36,36 @@ Rules enforced by the API (`backend/internal/authz`):
 
 Generated from `backend/internal/authz/catalog.go` with `scripts/go.sh run ./cmd/pathosctl rbac-matrix`. A unit test fails if this table drifts from the code.
 
-| Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | application_owner | developer | auditor | viewer |
-|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| `dashboard.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `users.read` | yes | ✓ | ✓ | ✓ |  |  |  |  | ✓ |  |
-| `users.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `teams.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `roles.read` | yes | ✓ | ✓ | ✓ |  |  |  |  | ✓ |  |
-| `roles.assign` |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
-| `roles.manage` | yes | ✓ |  |  |  |  |  |  |  |  |
-| `org.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `org.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `audit.read` | yes | ✓ | ✓ | ✓ |  |  |  |  | ✓ |  |
-| `settings.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `notifications.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `repos.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `repos.manage` |  | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |
-| `scm.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `scanners.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `scanners.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `profiles.manage` | yes | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |
-| `scans.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `scans.run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |
-| `schedules.manage` |  | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |
-| `findings.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `findings.triage` |  | ✓ |  | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |
-| `findings.accept_risk` |  | ✓ |  | ✓ |  |  |  |  |  |  |
-| `findings.export` |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  |
-| `sbom.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
-| `ai.review` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |
-| `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
-| `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |
+| Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | repository_contributor | application_owner | developer | auditor | viewer |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| `dashboard.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `users.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  | ✓ |  |
+| `users.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `teams.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `roles.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  | ✓ |  |
+| `roles.assign` |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |
+| `roles.manage` | yes | ✓ |  |  |  |  |  |  |  |  |  |
+| `org.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `org.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `audit.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  | ✓ |  |
+| `settings.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `notifications.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `repos.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `repos.manage` |  | ✓ | ✓ | ✓ |  | ✓ | ✓ |  |  |  |  |
+| `scm.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `tags.manage` | yes | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |  |
+| `assets.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `scanners.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `scanners.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `profiles.manage` | yes | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |  |
+| `scans.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `scans.run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |
+| `schedules.manage` |  | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |  |
+| `findings.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `findings.triage` |  | ✓ |  | ✓ | ✓ | ✓ |  | ✓ | ✓ |  |  |
+| `findings.accept_risk` |  | ✓ |  | ✓ |  |  |  |  |  |  |  |
+| `findings.export` |  | ✓ |  | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |  |
+| `sbom.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `ai.review` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |
+| `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |

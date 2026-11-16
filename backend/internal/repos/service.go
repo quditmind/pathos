@@ -252,7 +252,7 @@ func (s *Service) client(ctx context.Context, c Connection) (scm.FullClient, err
 	if s.NewClient != nil {
 		return s.NewClient(cfg)
 	}
-	return scm.NewFull(cfg)
+	return scm.New(cfg)
 }
 
 // CloneCredential returns a clone credential for a repository's connection.
@@ -268,5 +268,9 @@ func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	return cl.CloneCredential(ctx)
+	cred, err := cl.CloneCredential(ctx)
+	if err == nil && c.Provider == scm.AzureDevOps && (c.AuthType == scm.AuthOAuth || c.AuthType == scm.AuthServicePrincipal) {
+		cred.Scheme = "bearer"
+	}
+	return cred, err
 }

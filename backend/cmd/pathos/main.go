@@ -8,10 +8,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"pathos/internal/platform/sourcestore"
+	"pathos/internal/repos"
 	"syscall"
 	"time"
 
@@ -158,10 +161,18 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err := mcp.EnsureBuiltIn(ctx, pool, orgID, cfg.PublicURL.String()); err != nil {
 		return fmt.Errorf("seed MCP registry: %w", err)
 	}
+	if err := repos.EnsureAssetDefaults(ctx, pool, orgID); err != nil {
+		return fmt.Errorf("seed asset classifications: %w", err)
+	}
+	sources, err := sourceStore(cfg, keys, log)
+	if err != nil {
+		return err
+	}
 	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
 		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
 		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken,
-		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts})
+		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts,
+		Sources: sources, Limits: importLimits(cfg)})
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handlers.Public,
@@ -260,8 +271,47 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	store := &secrets.Store{Keys: keys}
 	go (&notify.Dispatcher{Pool: pool, Secrets: store, Sender: notify.SMTPSender{}, BaseURL: cfg.PublicURL.String(), Log: log}).Run(ctx)
 
+	var orgID uuid.UUID
+	if err := pool.QueryRow(ctx, `SELECT id FROM organizations WHERE slug = $1`, cfg.OrgSlug).Scan(&orgID); err != nil {
+		return fmt.Errorf("organization %q not found; run `pathosctl migrate` first: %w", cfg.OrgSlug, err)
+	}
+	sources, err := sourceStore(cfg, keys, log)
+	if err != nil {
+		return err
+	}
+	// Repository imports authorize placements against the hierarchy.
+	repoAz := &authz.Authorizer{H: &org.Hierarchy{DB: pool, OrgID: orgID}}
 	reposSvc := server.NewReposService(server.Deps{DB: pool, Log: log, Secrets: store,
-		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP}, PublicURL: cfg.PublicURL.String()}, az)
+		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP}, PublicURL: cfg.PublicURL.String(),
+		Sources: sources, Limits: importLimits(cfg)}, repoAz)
+	if err := repos.EnsureAssetDefaults(ctx, pool, orgID); err != nil {
+		return fmt.Errorf("seed asset classifications: %w", err)
+	}
+	host, _ := os.Hostname()
+	go reposSvc.RunImportWorkers(ctx, cfg.ImportConcurrency, host)
+	log.Info("repository import workers started", "concurrency", cfg.ImportConcurrency)
+	go func() {
+		// OAuth tokens are refreshed before they expire; expired uploads
+		// are removed.
+		tk := time.NewTicker(10 * time.Minute)
+		defer tk.Stop()
+		n := 0
+		for {
+			reposSvc.RefreshExpiringTokens(ctx, 30*time.Minute)
+			if n%6 == 0 {
+				reposSvc.CleanupUploads(ctx)
+				if _, err := pool.Exec(ctx, `DELETE FROM repository_sync_runs WHERE started_at < now() - interval '180 days'`); err != nil {
+					log.Warn("sync history retention failed", "err", err)
+				}
+			}
+			n++
+			select {
+			case <-ctx.Done():
+				return
+			case <-tk.C:
+			}
+		}
+	}()
 
 	expire := func() {
 		if n, err := vuln.ExpireAcceptances(ctx, pool); err != nil {
@@ -322,6 +372,37 @@ func artifactStore(ctx context.Context, cfg *config.Config, log *slog.Logger) (o
 		}
 	}
 	return nil, fmt.Errorf("object store %s/%s unavailable: %w", cfg.S3Endpoint, cfg.S3Bucket, lastErr)
+}
+
+// sourceStore opens the encrypted store for uploads and snapshots: S3 when
+// PATHOS_S3_BUCKET is set, otherwise PATHOS_SOURCE_STORE_DIR.
+func sourceStore(cfg *config.Config, keys *crypto.Keyring, log *slog.Logger) (repos.SourceStore, error) {
+	if cfg.S3Bucket != "" {
+		st, err := sourcestore.NewS3(objstore.Config{Endpoint: cfg.S3Endpoint, Region: cfg.S3Region, Bucket: cfg.S3Bucket,
+			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey, PathStyle: cfg.S3PathStyle}, cfg.SourceS3Prefix, keys)
+		if err != nil {
+			return nil, err
+		}
+		st.TempDir = cfg.ImportWorkDir
+		log.Info("source snapshots stored in object storage", "bucket", cfg.S3Bucket, "prefix", cfg.SourceS3Prefix)
+		return st, nil
+	}
+	if cfg.SourceStoreDir == "" {
+		log.Warn("no source store configured: local uploads disabled")
+		return nil, nil
+	}
+	st, err := sourcestore.NewFS(cfg.SourceStoreDir, keys)
+	if err != nil {
+		return nil, fmt.Errorf("PATHOS_SOURCE_STORE_DIR: %w", err)
+	}
+	log.Info("source snapshots stored on disk (encrypted)", "dir", cfg.SourceStoreDir)
+	return st, nil
+}
+
+func importLimits(cfg *config.Config) repos.Limits {
+	return repos.Limits{UploadMaxBytes: cfg.UploadMaxBytes, MaxFiles: cfg.ImportMaxFiles, MaxExtractedBytes: cfg.ImportMaxExtractedBytes,
+		MaxFileBytes: cfg.ImportMaxFileBytes, ImportTimeout: cfg.ImportTimeout, ClamAVAddress: cfg.ClamAVAddress,
+		ClamAVRequired: cfg.ClamAVRequired, WorkDir: cfg.ImportWorkDir}
 }
 
 // rateLimiter returns the shared Valkey limiter, or nil when disabled.

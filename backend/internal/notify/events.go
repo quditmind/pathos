@@ -103,6 +103,27 @@ Open: {{.Link}}`,
 Check that the scheduler service is running: {{.Link}}`,
 	},
 	{
+		Key: "repository.sync_failed", Label: "Repository sync failed", Repository: true,
+		Description: "A repository could not be synchronized with its provider (deleted, access lost or provider error).",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] Repository sync failed: {{.Repository}}`,
+		Body: `PATHOS could not synchronize {{.Repository}} with its source provider.
+
+Status: {{.Sync.Status}}
+Error: {{.Sync.Error}}
+
+Check the repository and its connection: {{.Link}}`,
+	},
+	{
+		Key: "import.failed", Label: "Repository import failed",
+		Description: "A repository import job finished with failed items or items that need attention.",
+		Dynamic:     []string{"requester"},
+		Subject:     `[PATHOS] Repository import {{.Import.Status}}: {{.Import.Failed}} of {{.Import.Total}} item{{if ne .Import.Total 1}}s{{end}}`,
+		Body: `A repository import requested by {{.Import.RequestedBy}} finished with {{.Import.Failed}} of {{.Import.Total}} item{{if ne .Import.Total 1}}s{{end}} failed or needing attention.
+
+Review and retry: {{.Link}}`,
+	},
+	{
 		Key: "worker.offline", Label: "Scan worker offline",
 		Description: "A scan worker stopped polling for jobs.",
 		Subject:     `[PATHOS] Scan worker offline: {{.Worker.Name}}`,

@@ -57,6 +57,19 @@ type Config struct {
 	S3Endpoint, S3Region, S3Bucket, S3AccessKey, S3SecretKey string
 	S3PathStyle                                              bool
 
+	// Repository onboarding (docs/REPOSITORY_ONBOARDING.md section 6).
+	SourceStoreDir          string
+	SourceS3Prefix          string
+	UploadMaxBytes          int64
+	ImportMaxFiles          int
+	ImportMaxExtractedBytes int64
+	ImportMaxFileBytes      int64
+	ImportConcurrency       int
+	ImportTimeout           time.Duration
+	ImportWorkDir           string
+	ClamAVAddress           string
+	ClamAVRequired          bool
+
 	// RequireMFA makes new users enrol a TOTP authenticator.
 	RequireMFA bool
 
@@ -168,6 +181,27 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 	if c.OIDC.DiscoveryURL == "" {
 		c.OIDC.DiscoveryURL = c.OIDC.Issuer
+	}
+	num := func(key, def string, min, max int64) int64 {
+		v, err := strconv.ParseInt(get(key, def), 10, 64)
+		if err != nil || v < min || v > max {
+			errs = append(errs, fmt.Errorf("%s must be an integer between %d and %d", key, min, max))
+		}
+		return v
+	}
+	c.SourceStoreDir = get("PATHOS_SOURCE_STORE_DIR", "/var/lib/pathos/sources")
+	c.SourceS3Prefix = get("PATHOS_SOURCE_S3_PREFIX", "sources/")
+	c.UploadMaxBytes = num("PATHOS_UPLOAD_MAX_BYTES", "2147483648", 1<<20, 64<<30)
+	c.ImportMaxFiles = int(num("PATHOS_IMPORT_MAX_FILES", "200000", 1, 10_000_000))
+	c.ImportMaxExtractedBytes = num("PATHOS_IMPORT_MAX_EXTRACTED_BYTES", "8589934592", 1<<20, 1<<40)
+	c.ImportMaxFileBytes = num("PATHOS_IMPORT_MAX_FILE_BYTES", "1073741824", 1<<10, 1<<40)
+	c.ImportConcurrency = int(num("PATHOS_IMPORT_CONCURRENCY", "2", 1, 64))
+	c.ImportTimeout = dur("PATHOS_IMPORT_TIMEOUT", "30m")
+	c.ImportWorkDir = get("PATHOS_IMPORT_WORK_DIR", "/tmp/pathos-import")
+	c.ClamAVAddress = get("PATHOS_CLAMAV_ADDRESS", "")
+	c.ClamAVRequired = get("PATHOS_CLAMAV_REQUIRED", "false") == "true"
+	if c.ClamAVRequired && c.ClamAVAddress == "" {
+		errs = append(errs, errors.New("PATHOS_CLAMAV_REQUIRED needs PATHOS_CLAMAV_ADDRESS"))
 	}
 
 	switch c.Env {

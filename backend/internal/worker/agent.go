@@ -182,6 +182,7 @@ type Job struct {
 	Credential     *struct {
 		Username string `json:"username"`
 		Token    string `json:"token"`
+		Scheme   string `json:"scheme"` // basic (default) | bearer
 	} `json:"credential"`
 	Public bool `json:"public"`
 	// Source, when set, replaces the clone: the job scans an uploaded
