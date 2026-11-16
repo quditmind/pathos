@@ -18,6 +18,8 @@ This reference covers the Repository and Asset Management module of PATHOS: repo
 | [SCM integrations](integrations.md#providers-and-authentication-methods) | Providers, connections, discovery, OAuth applications, webhooks |
 | [Imports and uploads](imports.md#upload-sessions) | Chunked uploads and asynchronous import jobs |
 | [Applications](applications.md#the-application-object) | Applications and how repositories link to them |
+| [Scans](scans.md#the-execution-object) | Start, list, monitor, retry, cancel and compare scan executions; stages, logs, findings, history, overview |
+| [Scan schedules](schedules.md#the-schedule-object) | Schedules with execution plans, scan windows, retries, concurrency limits and activation history |
 
 ## Base URL
 
@@ -128,6 +130,7 @@ Status codes and codes used by this module:
 | [List remote repositories](integrations.md#list-remote-repositories) | Provider page token: pass `next_page_token` as `page_token`; `""` on the last page. Fixed 50 per page. |
 | [Search tags](assets.md#search-tags), [directory lookups](assets.md#search-users) | `limit` only (no further pages). |
 | [List applications](applications.md#list-applications) | Up to 500 items, no pagination. |
+| [List executions](scans.md#list-executions) | Keyset cursor, fixed 50 per page; `next_cursor`. |
 | Sync runs, snapshots | The 100 most recent. |
 
 Cursors and page tokens are opaque.
@@ -165,7 +168,8 @@ Permissions are granted through roles at a scope: organization, region, business
 | `scm.manage` | yes | Connections, OAuth applications, OAuth flow, webhook secrets, resync. |
 | `tags.manage` | yes | Tag categories and tags. |
 | `assets.configure` | yes | Asset settings and classification catalogs. |
-| `scans.run` | no | Requesting a repository scan. |
+| `scans.run` | no | Starting, retrying and cancelling scans. |
+| `scans.compare` | no | Scan history and comparison. |
 | `findings.read` | no | Open finding counts in the repository security summary. |
 
 "At any scope" in this reference means the caller holds the permission at some scope (used to allow list endpoints). "Organization-wide" means a grant at organization scope.
@@ -249,7 +253,7 @@ Asset owners (business owner, technical owner, application owner, or member of t
 | `PATCH` | `/api/v1/applications/{id}` | [Update an application](applications.md#update-an-application) |
 | `POST` | `/api/v1/applications/{id}/archive` | [Archive an application](applications.md#archive-an-application) |
 
-Related endpoints outside this module (not documented here): `GET /api/v1/repositories/{id}/sbom` (SBOM), `POST /api/v1/scans` and `/api/v1/scans/...` (scan jobs), `GET /api/v1/me` (current user).
+Related endpoints documented elsewhere: [Scans](scans.md) and [Scan schedules](schedules.md). Not documented here: `GET /api/v1/repositories/{id}/sbom` (SBOM), `GET /api/v1/me` (current user).
 
 ## Not available
 
