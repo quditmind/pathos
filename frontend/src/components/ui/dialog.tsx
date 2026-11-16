@@ -11,6 +11,7 @@ export function Dialog({
   children,
   footer,
   side = false,
+  size = "md",
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -20,6 +21,8 @@ export function Dialog({
   footer?: ReactNode;
   /** Render as a right-side drawer instead of a centered modal. */
   side?: boolean;
+  /** Width: md (default), lg or xl. */
+  size?: "md" | "lg" | "xl";
 }) {
   return (
     <D.Root open={open} onOpenChange={onOpenChange}>
@@ -29,8 +32,11 @@ export function Dialog({
           className={cn(
             "fixed z-50 flex flex-col border border-border bg-surface shadow-xl focus:outline-none",
             side
-              ? "inset-y-0 right-0 w-full max-w-xl"
-              : "left-1/2 top-1/2 max-h-[85vh] w-[calc(100vw-32px)] max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-lg",
+              ? cn("inset-y-0 right-0 w-full", { md: "max-w-xl", lg: "max-w-2xl", xl: "max-w-3xl" }[size])
+              : cn(
+                  "left-1/2 top-1/2 max-h-[85vh] w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 rounded-lg",
+                  { md: "max-w-lg", lg: "max-w-2xl", xl: "max-w-4xl" }[size],
+                ),
           )}
         >
           <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">

@@ -7,7 +7,7 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     <input
       ref={ref}
       className={cn(
-        "h-8 w-full rounded-md border border-border bg-surface px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring",
+        "h-8 w-full rounded-md border border-border bg-surface px-2.5 text-[13px] text-foreground placeholder:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring aria-[invalid=true]:border-danger disabled:opacity-60",
         className,
       )}
       {...props}
@@ -21,7 +21,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSel
     <select
       ref={ref}
       className={cn(
-        "h-8 rounded-md border border-border bg-surface px-2 text-[13px] text-foreground focus-visible:outline-2 focus-visible:outline-ring",
+        "h-8 rounded-md border border-border bg-surface px-2 text-[13px] text-foreground focus-visible:outline-2 focus-visible:outline-ring aria-[invalid=true]:border-danger disabled:opacity-60",
         className,
       )}
       {...props}
