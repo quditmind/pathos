@@ -337,7 +337,7 @@ func advanceRun(ctx context.Context, pool *pgxpool.Pool, runID uuid.UUID, now ti
 			rrows, err := tx.Query(ctx, `SELECT j.id, j.repository_id, v.profile_id FROM scan_jobs j
 				JOIN scan_profile_versions v ON v.id = j.profile_version_id
 				WHERE j.schedule_run_id = $1 AND j.status = 'failed' AND j.retry_count < $2
-				  AND j.finished_at < $3 - make_interval(mins => $4)
+				  AND j.finished_at < $3::timestamptz - make_interval(mins => $4)
 				  AND NOT EXISTS (SELECT 1 FROM scan_jobs k WHERE k.retry_of = j.id)`, runID, retryMax, now, retryDelay)
 			if err != nil {
 				return err
