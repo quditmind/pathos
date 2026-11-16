@@ -34,13 +34,15 @@ type UserRef struct {
 
 // Application groups repositories into a business asset.
 type Application struct {
-	ID              uuid.UUID  `json:"id"`
-	Name            string     `json:"name"`
-	Description     string     `json:"description"`
-	BusinessUnit    *Ref       `json:"business_unit"`
-	Owner           *UserRef   `json:"owner"`
-	SecurityOwner   *UserRef   `json:"security_owner"`
-	Criticality     string     `json:"criticality"`
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Description   string    `json:"description"`
+	BusinessUnit  *Ref      `json:"business_unit"`
+	Owner         *UserRef  `json:"owner"`
+	SecurityOwner *UserRef  `json:"security_owner"`
+	Criticality   string    `json:"criticality"`
+	// ExternalRef is the organization's application identifier (e.g. a CMDB ID).
+	ExternalRef     string     `json:"external_ref"`
 	RepositoryCount int        `json:"repository_count"`
 	ArchivedAt      *time.Time `json:"archived_at"`
 	CreatedAt       time.Time  `json:"created_at"`
@@ -50,7 +52,7 @@ const appSelect = `
 	SELECT a.id, a.name, a.description, b.id, b.name,
 	       o.id, COALESCE(NULLIF(o.display_name, ''), o.email), o.email,
 	       so.id, COALESCE(NULLIF(so.display_name, ''), so.email), so.email,
-	       a.criticality,
+	       a.criticality, a.external_ref,
 	       (SELECT count(*) FROM repositories r WHERE r.application_id = a.id AND r.archived_at IS NULL),
 	       a.archived_at, a.created_at
 	FROM applications a
@@ -70,7 +72,7 @@ func scanApp(row pgx.Row) (Application, error) {
 	var buID, oID, soID *uuid.UUID
 	var buName, oName, oEmail, soName, soEmail *string
 	err := row.Scan(&a.ID, &a.Name, &a.Description, &buID, &buName, &oID, &oName, &oEmail, &soID, &soName, &soEmail,
-		&a.Criticality, &a.RepositoryCount, &a.ArchivedAt, &a.CreatedAt)
+		&a.Criticality, &a.ExternalRef, &a.RepositoryCount, &a.ArchivedAt, &a.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, errNotFound
 	}
@@ -132,6 +134,7 @@ type appRequest struct {
 	OwnerUserID     optUUID `json:"owner_user_id"`
 	SecurityOwnerID optUUID `json:"security_owner_user_id"`
 	Criticality     *string `json:"criticality"`
+	ExternalRef     *string `json:"external_ref"`
 }
 
 func (req *appRequest) validate(create bool) error {
@@ -143,6 +146,13 @@ func (req *appRequest) validate(create bool) error {
 	}
 	if req.Description != nil && len(*req.Description) > 2000 {
 		return httpx.BadRequest("description must be at most 2000 characters")
+	}
+	if req.ExternalRef != nil {
+		v := strings.TrimSpace(*req.ExternalRef)
+		if len(v) > 100 || strings.ContainsAny(v, "\x00\r\n") {
+			return httpx.BadRequest("external_ref must be at most 100 characters")
+		}
+		req.ExternalRef = &v
 	}
 	if req.Criticality != nil && !slices.Contains(criticalities, *req.Criticality) {
 		return httpx.BadRequest("invalid criticality")
@@ -184,9 +194,9 @@ func (s *Service) createApplication(w http.ResponseWriter, r *http.Request) {
 	var app Application
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO applications (id, organization_id, name, description, business_unit_id,
-			owner_user_id, security_owner_user_id, criticality) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+			owner_user_id, security_owner_user_id, criticality, external_ref) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 			id, p.OrganizationID, strings.TrimSpace(*req.Name), str(req.Description), req.BusinessUnitID.Val,
-			req.OwnerUserID.Val, req.SecurityOwnerID.Val, crit); err != nil {
+			req.OwnerUserID.Val, req.SecurityOwnerID.Val, crit, str(req.ExternalRef)); err != nil {
 			return err
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -246,10 +256,10 @@ func (s *Service) updateApplication(w http.ResponseWriter, r *http.Request) {
 			business_unit_id = CASE WHEN $4 THEN $5 ELSE business_unit_id END,
 			owner_user_id = CASE WHEN $6 THEN $7 ELSE owner_user_id END,
 			security_owner_user_id = CASE WHEN $8 THEN $9 ELSE security_owner_user_id END,
-			criticality = COALESCE($10, criticality), updated_at = now()
+			criticality = COALESCE($10, criticality), external_ref = COALESCE($11, external_ref), updated_at = now()
 			WHERE id = $1`, app.ID, req.Name, req.Description,
 			req.BusinessUnitID.Set, req.BusinessUnitID.Val, req.OwnerUserID.Set, req.OwnerUserID.Val,
-			req.SecurityOwnerID.Set, req.SecurityOwnerID.Val, req.Criticality)
+			req.SecurityOwnerID.Set, req.SecurityOwnerID.Val, req.Criticality, req.ExternalRef)
 		if err != nil {
 			return err
 		}

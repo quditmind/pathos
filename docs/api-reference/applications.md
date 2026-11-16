@@ -27,7 +27,6 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
 | Unarchive an application | **Not available.** |
 | Delete an application | **Not available.** Applications are archived, never deleted. |
 | Link APIs and other assets | **Not available.** Only repositories can be linked to an application. |
-| Read or set the application reference (`external_ref`) | **Not available** on the application endpoints. `external_ref` can only be set when an application is created through `new_application`, and it is not returned by the API. |
 
 ## The Application object
 
@@ -40,6 +39,7 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
   "owner": { "id": "0190c0de-2222-7000-8000-000000000001", "name": "Dana Owner", "email": "dana.owner@example.com" },
   "security_owner": { "id": "0190c0de-2222-7000-8000-000000000003", "name": "Sam Security", "email": "sam.security@example.com" },
   "criticality": "high",
+  "external_ref": "APP-0193",
   "repository_count": 4,
   "archived_at": null,
   "created_at": "2026-09-20T10:00:00Z"
@@ -50,6 +50,7 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
 |---|---|
 | `business_unit`, `owner`, `security_owner` | `null` when not set. |
 | `criticality` | `low`, `medium`, `high` or `critical`. Default `medium`. |
+| `external_ref` | The organization's application identifier (for example a CMDB ID); `""` when not set. |
 | `repository_count` | Linked active (non-archived) repositories. |
 
 Database entities: `applications` (`owner_user_id`, `security_owner_user_id`, `business_unit_id`, `external_ref`, `archived_at`), `business_units`, `users`, `repositories.application_id`.
@@ -86,6 +87,7 @@ Response `200 OK`:
       "owner": { "id": "0190c0de-2222-7000-8000-000000000001", "name": "Dana Owner", "email": "dana.owner@example.com" },
       "security_owner": null,
       "criticality": "high",
+  "external_ref": "APP-0193",
       "repository_count": 4,
       "archived_at": null,
       "created_at": "2026-09-20T10:00:00Z"
@@ -120,6 +122,7 @@ Database entities: `applications`, `repositories`, `business_units`, `users`.
 | `owner_user_id` | UUID or null | no | Application owner (a user of the organization). |
 | `security_owner_user_id` | UUID or null | no | Security owner (a user of the organization). |
 | `criticality` | string | no | `low`, `medium` (default), `high` or `critical`. |
+| `external_ref` | string | no | Application identifier (for example a CMDB ID), max 100 characters. Also accepted on update. |
 
 ```json
 {

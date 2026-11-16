@@ -40,6 +40,10 @@ var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pu
 // ErrNotScannable means the repository is archived or scanning is disabled.
 var ErrNotScannable = errors.New("repository is archived or scanning is disabled")
 
+// ErrScanPrerequisite means something must be configured before scanning
+// (a scan profile, a snapshot or a branch).
+var ErrScanPrerequisite = errors.New("cannot scan yet")
+
 // EnqueueResult describes what Enqueue did.
 type EnqueueResult struct {
 	JobID     uuid.UUID `json:"job_id"`
@@ -83,12 +87,12 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		return res, ErrNotScannable
 	}
 	if profileVersion == nil {
-		return res, errors.New("no scan profile available; create a default profile")
+		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
 	}
 	if sourceType == "upload" {
 		// Uploaded repositories are scanned from their current snapshot.
 		if snapshotID == nil {
-			return res, errors.New("repository has no source snapshot yet")
+			return res, fmt.Errorf("%w: repository has no source snapshot yet", ErrScanPrerequisite)
 		}
 		ref, commit = "snapshot", ""
 	}
@@ -99,7 +103,7 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		ref = defaultBranch
 	}
 	if ref == "" {
-		return res, errors.New("repository has no default branch; set a scan branch")
+		return res, fmt.Errorf("%w: repository has no default branch; set a scan branch", ErrScanPrerequisite)
 	}
 	prio := priorities[trigger]
 	if opt.Priority > 0 {
@@ -188,7 +192,7 @@ func (s *Service) scanRepository(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := s.enqueueAs(r.Context(), p, id, "manual")
-	if errors.Is(err, ErrNotScannable) {
+	if errors.Is(err, ErrNotScannable) || errors.Is(err, ErrScanPrerequisite) {
 		err = httpx.Conflict(err.Error())
 	}
 	if err != nil {
@@ -234,6 +238,9 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 		it := item{RepositoryID: id}
 		if err != nil {
 			it.Error = "not scannable or not permitted"
+			if errors.Is(err, ErrScanPrerequisite) {
+				it.Error = err.Error()
+			}
 			if errors.Is(err, ErrNotScannable) {
 				it.Error = ErrNotScannable.Error()
 			}

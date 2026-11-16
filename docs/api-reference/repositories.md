@@ -826,7 +826,7 @@ Manual scans run even when `scan_enabled` is `false`. Uploaded repositories are 
 | 403 `forbidden` | No `scans.run` on the repository. |
 | 404 `not_found` | Repository does not exist or is outside every scope of the caller. |
 | 409 `conflict` | "repository is archived or scanning is disabled". |
-| 500 `internal` | No scan profile exists, the uploaded repository has no snapshot, or the repository has no default branch (logged server-side). |
+| 409 `conflict` | The repository cannot be scanned yet: no scan profile exists, the uploaded repository has no snapshot, or it has no default branch (the message says which). |
 
 Bulk scanning (`POST /api/v1/scans`) and scan job endpoints belong to the scanning API and are not covered here.
 

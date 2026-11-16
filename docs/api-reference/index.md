@@ -258,6 +258,5 @@ The following capabilities are not implemented in this version:
 - A separate `/api/v1/assets` resource (assets are repositories).
 - `GET /api/v1/applications/{id}` (retrieve a single application), application unarchive and delete.
 - Linking APIs or other non-repository assets to applications.
-- Reading or editing an application's `external_ref` after creation.
 - Bearer-token (personal API token) access to `/api/v1`; tokens work only for `/mcp`.
 - Reporting the credential's write or admin permission in remote repository details (`permission` is always `read`).

@@ -429,6 +429,8 @@ export interface Application {
   owner: UserRef | null;
   security_owner: UserRef | null;
   criticality: Criticality;
+  /** Organization's application identifier (e.g. CMDB ID); "" when not set. */
+  external_ref: string;
   repository_count: number;
   archived_at: string | null;
   created_at: string;
