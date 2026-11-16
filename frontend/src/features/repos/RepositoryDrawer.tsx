@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
 import { Alert, Input, Label, Select, Skeleton } from "@/components/ui/primitives";
+import { JobStatusPill } from "@/components/data/Severity";
 import { ColorDot, CriticalityBadge } from "@/components/data/TagChip";
 import { catalogEntry, useAssetSettings } from "@/features/assets/api";
 import { useSession } from "@/features/auth/session";
@@ -14,6 +15,7 @@ import { useBranches, useInvalidateRepos, useRepoMutation, useRepository, useTag
 import { MetadataSection } from "./metadata/MetadataSections";
 import { MetadataSummary } from "./metadata/MetadataSummary";
 import { clientErrors, diffMetadata, draftFromRepository, sectionForKey, sections, type MetadataDraft } from "./metadata/model";
+import { PublicExposureBadge, RepositoryKey } from "./badges";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -63,9 +65,15 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
         )
       ) : (
         <div className="space-y-4 text-[13px]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-surface-muted/40 px-3 py-2" aria-label="Repository ID" role="group">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Repository ID</span>
+            <RepositoryKey value={r.repository_key} copy large />
+            <span className="text-[11.5px] text-muted-foreground">Permanent identifier; it never changes.</span>
+          </div>
           <div className="flex flex-wrap items-center gap-2">
             <ColorDot color={r.color} label={r.color ? "Asset colour" : undefined} />
             <CriticalityBadge value={r.criticality} label={c?.label} color={c?.color} />
+            <PublicExposureBadge value={r.public_exposure} />
             {r.archived_at && <span className="rounded bg-surface-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">archived</span>}
             {r.url && (
               <a href={r.url} target="_blank" rel="noopener noreferrer" className="ml-auto inline-flex items-center gap-1 text-primary hover:underline">
@@ -217,9 +225,33 @@ function DetailsPanel({ r, onDeleted }: { r: Repository; onDeleted: () => void }
               <dt className="text-[12px] text-muted-foreground">Technologies</dt>
               <dd>{r.technologies.join(", ") || "—"}</dd>
             </div>
+          </dl>
+        </section>
+        <section aria-label="Record">
+          <h3 className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Record</h3>
+          <dl className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
+            <div>
+              <dt className="text-[12px] text-muted-foreground">Repository ID</dt>
+              <dd className="font-mono text-[12px]">{r.repository_key || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-[12px] text-muted-foreground">Registered by</dt>
+              <dd>{r.registered_by?.name || r.registered_by?.email || "—"}</dd>
+            </div>
             <div>
               <dt className="text-[12px] text-muted-foreground">Registered</dt>
-              <dd>{formatDateTime(r.created_at)}</dd>
+              <dd className="tabular">{formatDateTime(r.created_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-[12px] text-muted-foreground">Last updated</dt>
+              <dd className="tabular">{formatDateTime(r.updated_at)}</dd>
+            </div>
+            <div>
+              <dt className="text-[12px] text-muted-foreground">Last scan</dt>
+              <dd className="flex items-center gap-2">
+                {r.last_scan_status ? <JobStatusPill status={r.last_scan_status} /> : "Never scanned"}
+                {r.last_scan_at && <span className="tabular text-[12px] text-muted-foreground">{formatDateTime(r.last_scan_at)}</span>}
+              </dd>
             </div>
           </dl>
         </section>

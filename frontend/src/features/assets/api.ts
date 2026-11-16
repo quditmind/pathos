@@ -41,7 +41,7 @@ function useInvalidateSettings() {
 export function useUpdateAssetSettings() {
   const invalidate = useInvalidateSettings();
   return useMutation({
-    mutationFn: (body: { required_fields?: AssetField[]; scan_on_import?: boolean }) =>
+    mutationFn: (body: { required_fields?: AssetField[]; scan_on_import?: boolean; repository_key_prefix?: string }) =>
       api<AssetSettings>("/api/v1/asset-settings", { method: "PATCH", body }),
     onSuccess: invalidate,
   });

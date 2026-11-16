@@ -117,6 +117,15 @@ export function OnboardingWizard({
         delete next[`${k.replace(/_id$/, "")}`];
       }
       if ("tag_ids" in patch) delete next.tags;
+      // Exposure is checked as a whole (at least one endpoint for Yes, none for No).
+      if ("public_exposure" in patch || "public_urls" in patch || "public_domains" in patch || "public_ips" in patch) {
+        delete next.public_urls;
+        delete next.internet_exposure;
+        if ("public_exposure" in patch) {
+          delete next.public_domains;
+          delete next.public_ips;
+        }
+      }
       if ("application" in patch || "new_app_name" in patch || "application_mode" in patch) {
         delete next.application;
         delete next.application_id;

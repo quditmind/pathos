@@ -13,7 +13,8 @@ import { useProviders } from "@/features/settings/scmApi";
 import { useBusinessUnits, useRegions } from "@/features/users/api";
 import { formatDateTime } from "@/lib/utils";
 import { repoFilterKeys, repoSorts, useApplications, useConnections, useRepositories, useRepositoryInsights, useTagCategories, type RepoFilters } from "./api";
-import { ProviderIcon, SyncStatusBadge, syncStatusOptions } from "./badges";
+import { JobStatusPill } from "@/components/data/Severity";
+import { ExternalUrl, ProviderIcon, PublicExposureBadge, publicExposureOptions, RepositoryKey, SyncStatusBadge, syncStatusOptions } from "./badges";
 import { BulkArchive, BulkScan, BulkTagDialog } from "./BulkActions";
 import { PersonPicker } from "./metadata/MetadataSections";
 import { buTree } from "./metadata/fields";
@@ -27,7 +28,10 @@ export type RepoSearch = RepoFilters & { repo?: string; view?: "list" | "insight
 export function validateRepoSearch(s: Record<string, unknown>): RepoSearch {
   const out: RepoSearch = {};
   for (const k of [...repoFilterKeys, "repo"] as const) {
-    if (typeof s[k] === "string" && (s[k] as string).length <= 200) out[k] = s[k] as string;
+    const v = s[k];
+    // The router JSON-parses search values: "?missing_production_url=true" arrives as a boolean.
+    if (typeof v === "boolean" || typeof v === "number") out[k] = String(v);
+    else if (typeof v === "string" && v.length <= 200) out[k] = v;
   }
   if (s.view === "insights") out.view = "insights";
   return out;
@@ -37,6 +41,13 @@ const dash = <span className="text-muted-foreground">—</span>;
 
 function buildColumns(settings: AssetSettings | undefined): Column<Repository>[] {
   return [
+    {
+      id: "repository_key",
+      header: "Repository ID",
+      exportAlways: true,
+      cell: (r) => <RepositoryKey value={r.repository_key} copy />,
+      csv: (r) => r.repository_key,
+    },
     {
       id: "name",
       header: "Repository",
@@ -55,6 +66,48 @@ function buildColumns(settings: AssetSettings | undefined): Column<Repository>[]
         </div>
       ),
       csv: (r) => r.display_name || r.full_name,
+    },
+    {
+      id: "production_url",
+      header: "Production URL",
+      exportAlways: true,
+      cell: (r) => (r.production_url ? <ExternalUrl href={r.production_url} className="max-w-56" /> : dash),
+      csv: (r) => r.production_url,
+    },
+    {
+      id: "staging_url",
+      header: "Staging URL",
+      defaultHidden: true,
+      exportAlways: true,
+      cell: (r) => (r.staging_url ? <ExternalUrl href={r.staging_url} className="max-w-56" /> : dash),
+      csv: (r) => r.staging_url,
+    },
+    { id: "public_exposure", header: "Public exposure", exportAlways: true, cell: (r) => <PublicExposureBadge value={r.public_exposure} />, csv: (r) => r.public_exposure },
+    {
+      id: "public_endpoints",
+      header: "Public endpoints",
+      defaultHidden: true,
+      exportAlways: true,
+      className: "text-[12px]",
+      cell: (r) => {
+        const all = [...(r.public_urls ?? []), ...(r.public_domains ?? []), ...(r.public_ips ?? [])];
+        return all.length ? <span className="block max-w-64 truncate font-mono" title={all.join("\n")}>{all.join(", ")}</span> : dash;
+      },
+      csv: (r) => [...(r.public_urls ?? []), ...(r.public_domains ?? []), ...(r.public_ips ?? [])].join(";"),
+    },
+    {
+      id: "last_scan",
+      header: "Last scan",
+      cell: (r) =>
+        r.last_scan_status ? (
+          <span className="flex flex-col">
+            <JobStatusPill status={r.last_scan_status} />
+            {r.last_scan_at && <span className="tabular text-[11px] text-muted-foreground">{formatDateTime(r.last_scan_at)}</span>}
+          </span>
+        ) : (
+          <span className="text-[12px] text-muted-foreground">Never</span>
+        ),
+      csv: (r) => (r.last_scan_status ? `${r.last_scan_status}${r.last_scan_at ? ` ${r.last_scan_at}` : ""}` : ""),
     },
     { id: "source", header: "Source", cell: (r) => <ProviderIcon provider={r.provider} withLabel />, csv: (r) => r.provider },
     {
@@ -110,11 +163,38 @@ function buildColumns(settings: AssetSettings | undefined): Column<Repository>[]
   ];
 }
 
-const primaryFilters = new Set(["provider", "business_unit_id", "business_region_id", "criticality", "data_classification", "lifecycle_status", "sync_status", "status"]);
+const primaryFilters = new Set(["provider", "business_unit_id", "business_region_id", "criticality", "public_exposure", "data_classification", "lifecycle_status", "sync_status", "status"]);
+
+/** Free-text filter committed to the URL on Enter or blur. */
+function TextFilter({ id, label, placeholder, value, onCommit, mono }: { id: string; label: string; placeholder: string; value?: string; onCommit: (v: string | undefined) => void; mono?: boolean }) {
+  const [v, setV] = useState(value ?? "");
+  useEffect(() => setV(value ?? ""), [value]);
+  const commit = () => {
+    const t = v.trim();
+    if (t !== (value ?? "")) onCommit(t || undefined);
+  };
+  return (
+    <div className="w-56">
+      <Input
+        id={id}
+        value={v}
+        placeholder={placeholder}
+        maxLength={200}
+        className={mono ? "font-mono" : undefined}
+        onChange={(e) => setV(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => e.key === "Enter" && commit()}
+      />
+      <label htmlFor={id} className="text-[11px] text-muted-foreground">
+        {label}
+      </label>
+    </div>
+  );
+}
 
 export function RepositoriesPage() {
   const { can } = useSession();
-  const search = useSearch({ strict: false }) as RepoSearch;
+  const search = validateRepoSearch(useSearch({ strict: false }) as Record<string, unknown>);
   const navigate = useNavigate();
   const [q, setQ] = useState(search.q ?? "");
   const dq = useDeferredValue(q.trim());
@@ -151,6 +231,7 @@ export function RepositoriesPage() {
     { key: "business_unit_id", label: "Business unit", allLabel: "All business units", options: buTree(bus.data ?? []).map(({ unit, depth }) => ({ value: unit.id, label: `${"  ".repeat(depth)}${unit.name}` })) },
     { key: "business_region_id", label: "Business region", allLabel: "All business regions", options: (regions.data ?? []).map((r) => ({ value: r.id, label: r.name })) },
     { key: "criticality", label: "Criticality", allLabel: "All criticalities", options: cat("criticality").length ? cat("criticality") : ["critical", "high", "medium", "low"].map((v) => ({ value: v, label: v[0]!.toUpperCase() + v.slice(1) })) },
+    { key: "public_exposure", label: "Public exposure", allLabel: "Any public exposure", options: publicExposureOptions },
     { key: "data_classification", label: "Data classification", allLabel: "All data classifications", options: cat("data_classification") },
     { key: "lifecycle_status", label: "Lifecycle", allLabel: "All lifecycle states", options: cat("lifecycle_status") },
     { key: "sync_status", label: "Sync status", allLabel: "Any sync status", options: syncStatusOptions },
@@ -165,7 +246,7 @@ export function RepositoriesPage() {
       options: (regions.data ?? []).flatMap((r) => r.countries.map((c) => ({ value: c.id, label: `${c.name} · ${r.code}` }))).sort((a, b) => a.label.localeCompare(b.label)),
     },
     { key: "environment", label: "Environment", allLabel: "All environments", options: cat("environment") },
-    { key: "internet_exposure", label: "Internet exposure", allLabel: "Any exposure", options: cat("internet_exposure") },
+    { key: "internet_exposure", label: "Network reachability", allLabel: "Any network reachability", options: cat("internet_exposure") },
     { key: "compliance", label: "Compliance scope", allLabel: "Any compliance scope", options: cat("compliance") },
     { key: "tag_id", label: "Tag", allLabel: "All tags", options: (cats.data ?? []).flatMap((c) => c.tags.map((t) => ({ value: t.id, label: `${c.name}: ${t.name}` }))) },
     {
@@ -181,7 +262,8 @@ export function RepositoriesPage() {
     { key: "owner", label: "Application ownership", allLabel: "Any application", options: [{ value: "none", label: "No application" }] },
   ];
   const shownFilters = filterDefs.filter((f) => more || primaryFilters.has(f.key));
-  const hiddenActive = filterDefs.filter((f) => !primaryFilters.has(f.key) && filters[f.key as keyof RepoFilters]).length + (filters.business_owner_id ? 1 : 0) + (filters.technical_owner_id ? 1 : 0);
+  const extraKeys = ["business_owner_id", "technical_owner_id", "repository_key", "production_url", "staging_url"] as const;
+  const hiddenActive = filterDefs.filter((f) => !primaryFilters.has(f.key) && filters[f.key as keyof RepoFilters]).length + extraKeys.filter((k) => filters[k]).length;
 
   const ownerValue = (key: "business_owner_id" | "technical_owner_id") => {
     const id = filters[key];
@@ -226,13 +308,27 @@ export function RepositoriesPage() {
           onChange={(k, v) => set({ [k]: v })}
           onReset={resetAll}
           trailing={
-            <Button variant="ghost" size="sm" onClick={() => setMore((m) => !m)} aria-expanded={more}>
-              <SlidersHorizontal /> {more ? "Fewer filters" : `More filters${hiddenActive ? ` (${hiddenActive})` : ""}`}
-            </Button>
+            <>
+              <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                <input
+                  type="checkbox"
+                  className="accent-[var(--primary)]"
+                  checked={filters.missing_production_url === "true"}
+                  onChange={(e) => set({ missing_production_url: e.target.checked ? "true" : undefined })}
+                />
+                Missing production URL
+              </label>
+              <Button variant="ghost" size="sm" onClick={() => setMore((m) => !m)} aria-expanded={more}>
+                <SlidersHorizontal /> {more ? "Fewer filters" : `More filters${hiddenActive ? ` (${hiddenActive})` : ""}`}
+              </Button>
+            </>
           }
         />
         {more && (
           <div className="flex flex-wrap gap-2">
+            <TextFilter id="filter-repository-key" label="Repository ID (exact)" placeholder="QD-REPO-000042" mono value={filters.repository_key} onCommit={(v) => set({ repository_key: v })} />
+            <TextFilter id="filter-production-url" label="Production URL contains" placeholder="example.com" value={filters.production_url} onCommit={(v) => set({ production_url: v })} />
+            <TextFilter id="filter-staging-url" label="Staging URL contains" placeholder="staging.example.com" value={filters.staging_url} onCommit={(v) => set({ staging_url: v })} />
             <div className="w-56">
               <PersonPicker
                 id="filter-business-owner"
@@ -323,7 +419,7 @@ export function RepositoriesPage() {
           )}
           <Card>
             <DataTable
-              tableId="repositories-v2"
+              tableId="repositories-v3"
               exportName="pathos-repositories"
               columns={columns}
               rows={rows}

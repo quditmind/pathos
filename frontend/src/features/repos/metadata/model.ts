@@ -2,7 +2,7 @@
 // draft state, conversion to/from the API's AssetMetadata, required-field
 // checks and mapping of server field errors to inputs and wizard sections.
 
-import type { AssetField, AssetMetadata, FieldErrors, Ref, Repository, TagCategory } from "@/api/types";
+import type { AssetField, AssetMetadata, FieldErrors, PublicExposure, Ref, Repository, TagCategory } from "@/api/types";
 
 export interface PersonRef {
   id: string;
@@ -43,7 +43,21 @@ export interface MetadataDraft {
   lifecycle_status: string;
   go_live_date: string;
   retirement_date: string;
+  staging_url: string;
+  production_url: string;
+  /** "" until answered (new assets have no default). */
+  public_exposure: PublicExposure | "";
+  /** Editable rows; blank rows are dropped when sent. */
+  public_urls: string[];
+  public_domains: string[];
+  public_ips: string[];
+  exposure_notes: string;
 }
+
+/** Endpoint list keys of the draft (and of AssetMetadata). */
+export type EndpointListKey = "public_urls" | "public_domains" | "public_ips";
+export const endpointListKeys: EndpointListKey[] = ["public_urls", "public_domains", "public_ips"];
+export const maxEndpoints = 50;
 
 export function emptyDraft(): MetadataDraft {
   return {
@@ -52,6 +66,7 @@ export function emptyDraft(): MetadataDraft {
     department_id: "", responsible_team: null, supporting_team: null, cost_centre: "", business_region_id: "", country_id: "", hosting_region: "",
     data_residency_region_id: "", operational_location: "", criticality: "", data_classification: "", environment: "", internet_exposure: "",
     compliance_scopes: [], tag_ids: [], color: "", lifecycle_status: "", go_live_date: "", retirement_date: "",
+    staging_url: "", production_url: "", public_exposure: "", public_urls: [], public_domains: [], public_ips: [], exposure_notes: "",
   };
 }
 
@@ -89,6 +104,34 @@ export function draftFromRepository(r: Repository): MetadataDraft {
     lifecycle_status: r.lifecycle_status ?? "",
     go_live_date: r.go_live_date?.slice(0, 10) ?? "",
     retirement_date: r.retirement_date?.slice(0, 10) ?? "",
+    staging_url: r.staging_url ?? "",
+    production_url: r.production_url ?? "",
+    // Repositories registered before the question existed count as "unknown".
+    public_exposure: r.public_exposure || "unknown",
+    public_urls: [...(r.public_urls ?? [])],
+    public_domains: [...(r.public_domains ?? [])],
+    public_ips: [...(r.public_ips ?? [])],
+    exposure_notes: r.exposure_notes ?? "",
+  };
+}
+
+const cleanList = (xs: string[]) => xs.map((x) => x.trim()).filter(Boolean);
+
+/**
+ * The exposure part of the payload. Endpoints are only kept for "yes"; the
+ * detailed network exposure follows the answer (yes → public, unknown →
+ * unknown, no → the optional non-public detail).
+ */
+export function exposurePayload(d: MetadataDraft): Pick<AssetMetadata, "public_exposure" | "public_urls" | "public_domains" | "public_ips" | "exposure_notes" | "internet_exposure"> {
+  if (!d.public_exposure) return {};
+  const yes = d.public_exposure === "yes";
+  return {
+    public_exposure: d.public_exposure,
+    public_urls: yes ? cleanList(d.public_urls) : [],
+    public_domains: yes ? cleanList(d.public_domains) : [],
+    public_ips: yes ? cleanList(d.public_ips) : [],
+    exposure_notes: d.exposure_notes.trim(),
+    internet_exposure: yes ? "public" : d.public_exposure === "unknown" ? "unknown" : d.internet_exposure === "public" ? "" : d.internet_exposure.trim(),
   };
 }
 
@@ -124,7 +167,17 @@ export function draftToMetadata(d: MetadataDraft, opts: { includeNames?: boolean
   if (d.criticality) m.criticality = d.criticality as AssetMetadata["criticality"];
   str("data_classification", d.data_classification);
   str("environment", d.environment);
-  str("internet_exposure", d.internet_exposure);
+  str("staging_url", d.staging_url);
+  str("production_url", d.production_url);
+  const exp = exposurePayload(d);
+  if (exp.public_exposure) {
+    m.public_exposure = exp.public_exposure;
+    m.public_urls = exp.public_urls;
+    m.public_domains = exp.public_domains;
+    m.public_ips = exp.public_ips;
+    if (exp.exposure_notes) m.exposure_notes = exp.exposure_notes;
+    if (exp.internet_exposure) m.internet_exposure = exp.internet_exposure;
+  } else str("internet_exposure", d.internet_exposure);
   if (d.compliance_scopes.length) m.compliance_scopes = [...d.compliance_scopes];
   if (d.tag_ids.length) m.tag_ids = [...d.tag_ids];
   str("color", d.color);
@@ -171,7 +224,13 @@ export function diffMetadata(orig: MetadataDraft, d: MetadataDraft): AssetMetada
   if (orig.criticality !== d.criticality && d.criticality) out.criticality = d.criticality;
   s("data_classification");
   s("environment");
-  s("internet_exposure");
+  s("staging_url");
+  s("production_url");
+  // Exposure fields travel together so the server can check them as a whole.
+  const eo = exposurePayload(orig);
+  const en = exposurePayload(d);
+  if (JSON.stringify(eo) !== JSON.stringify(en)) Object.assign(out, en);
+  else s("internet_exposure");
   if ([...orig.compliance_scopes].sort().join() !== [...d.compliance_scopes].sort().join()) out.compliance_scopes = [...d.compliance_scopes];
   if ([...orig.tag_ids].sort().join() !== [...d.tag_ids].sort().join()) out.tag_ids = [...d.tag_ids];
   s("color");
@@ -184,7 +243,7 @@ export function diffMetadata(orig: MetadataDraft, d: MetadataDraft): AssetMetada
 export type SectionKey = "general" | "ownership" | "geography" | "classification" | "tags" | "lifecycle";
 
 export const sections: { key: SectionKey; title: string; description: string; fields: AssetField[] }[] = [
-  { key: "general", title: "General", description: "What this asset is and which application it belongs to.", fields: ["description", "application", "application_type", "business_purpose"] },
+  { key: "general", title: "General", description: "What this asset is and which application it belongs to.", fields: ["description", "application", "application_type", "business_purpose", "staging_url", "production_url"] },
   {
     key: "ownership",
     title: "Business ownership",
@@ -201,7 +260,7 @@ export const sections: { key: SectionKey; title: string; description: string; fi
     key: "classification",
     title: "Classification",
     description: "Criticality, data sensitivity, environment and exposure drive risk prioritisation.",
-    fields: ["criticality", "data_classification", "environment", "internet_exposure", "compliance_scopes"],
+    fields: ["public_exposure", "criticality", "data_classification", "environment", "internet_exposure", "compliance_scopes"],
   },
   { key: "tags", title: "Tags & colour", description: "Tags group assets for reporting; the colour is a visual indicator only.", fields: ["tags"] },
   { key: "lifecycle", title: "Lifecycle", description: "Where the asset is in its life.", fields: ["lifecycle_status"] },
@@ -228,11 +287,69 @@ export const fieldLabels: Record<AssetField, string> = {
   criticality: "Criticality",
   data_classification: "Data classification",
   environment: "Environment",
-  internet_exposure: "Internet exposure",
+  internet_exposure: "Network reachability detail",
   compliance_scopes: "Compliance scope",
   tags: "Tags",
   lifecycle_status: "Lifecycle status",
+  staging_url: "Staging URL",
+  production_url: "Production URL",
+  public_exposure: "Public exposure",
 };
+
+/** Simple client-side checks; the server is authoritative (and normalizes). */
+export function urlProblem(v: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(v.trim());
+  } catch {
+    return "Enter an absolute http:// or https:// URL";
+  }
+  if (u.protocol !== "http:" && u.protocol !== "https:") return "Enter an absolute http:// or https:// URL";
+  if (u.username || u.password) return "URLs must not contain user names or passwords";
+  return null;
+}
+
+export function domainProblem(v: string): string | null {
+  const d = v.trim().replace(/\.$/, "");
+  const body = d.startsWith("*.") ? d.slice(2) : d;
+  if (!body.includes(".") || /[\s/:@*?#]/.test(body) || body.split(".").some((l) => !l || l.length > 63 || l.startsWith("-") || l.endsWith("-")))
+    return `"${v.trim()}" is not a valid domain name`;
+  return null;
+}
+
+export function ipProblem(v: string): string | null {
+  const ip = v.trim();
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(ip);
+  if (m) {
+    const o = m.slice(1).map(Number);
+    if (o.some((n) => n > 255)) return `"${ip}" is not an IP address`;
+    const [a, b] = o as [number, number, number, number];
+    if (a === 10 || a === 127 || a === 0 || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 169 && b === 254) || (a === 100 && b >= 64 && b <= 127))
+      return `${ip} is not a public address (private, loopback and link-local addresses are not allowed)`;
+    return null;
+  }
+  if (/^[0-9a-f:.]+$/i.test(ip) && ip.includes(":") && ip.split("::").length <= 2) {
+    const l = ip.toLowerCase();
+    if (l === "::1" || l === "::" || /^fe[89ab]/.test(l) || /^f[cd]/.test(l)) return `${ip} is not a public address (private, loopback and link-local addresses are not allowed)`;
+    return null;
+  }
+  return `"${ip}" is not an IP address`;
+}
+
+const listChecks: Record<EndpointListKey, (v: string) => string | null> = { public_urls: urlProblem, public_domains: domainProblem, public_ips: ipProblem };
+
+/** First problem of an endpoint row list (blank rows are ignored). */
+export function listProblem(key: EndpointListKey, rows: string[]): string | null {
+  const vals = rows.map((r) => r.trim()).filter(Boolean);
+  if (vals.length > maxEndpoints) return `At most ${maxEndpoints} entries`;
+  for (const v of vals) {
+    const p = listChecks[key](v);
+    if (p) return p;
+  }
+  return null;
+}
+
+export const exposureLabels: Record<PublicExposure, string> = { yes: "Public", no: "Not public", unknown: "Unknown" };
 
 export function isFieldSet(d: MetadataDraft, f: AssetField): boolean {
   switch (f) {
@@ -258,6 +375,11 @@ export function isFieldSet(d: MetadataDraft, f: AssetField): boolean {
       return d.compliance_scopes.length > 0;
     case "tags":
       return d.tag_ids.length > 0;
+    case "public_exposure":
+      return !!d.public_exposure;
+    case "internet_exposure":
+      // Implied by the Yes / Unknown answers; a detail only exists for No.
+      return d.public_exposure === "yes" || d.public_exposure === "unknown" || !!d.internet_exposure.trim();
     default:
       return !!(d[f] as string).trim();
   }
@@ -277,6 +399,25 @@ export function clientErrors(
   const secs = opts.section ? sections.filter((s) => s.key === opts.section) : sections;
   for (const s of secs) {
     for (const f of s.fields) if (required.has(f) && !isFieldSet(d, f)) errs[f] = `${fieldLabels[f]} is required`;
+    if (s.key === "general") {
+      for (const f of ["staging_url", "production_url"] as const) {
+        const p = d[f].trim() ? urlProblem(d[f]) : null;
+        if (p && !errs[f]) errs[f] = p;
+      }
+    }
+    if (s.key === "classification") {
+      // Always mandatory, whatever the policy says: "unknown" is an explicit answer.
+      if (!d.public_exposure) errs.public_exposure = "Answer whether the application or asset is publicly exposed to the internet";
+      if (d.public_exposure === "yes") {
+        for (const k of endpointListKeys) {
+          const p = listProblem(k, d[k]);
+          if (p) errs[k] = p;
+        }
+        if (!errs.public_urls && endpointListKeys.every((k) => !cleanList(d[k]).length))
+          errs.public_urls = "Add at least one public URL, domain name or IP address";
+      }
+      if (d.exposure_notes.length > 2000) errs.exposure_notes = "At most 2000 characters";
+    }
     if (s.key === "general") {
       if (opts.names) {
         if (!d.display_name.trim()) errs.display_name = "Display name is required";
@@ -314,6 +455,7 @@ export function sectionForKey(key: string): SectionKey | null {
   const base = key.replace(/\..*$/, "");
   if (["display_name", "asset_name", "new_application"].includes(base)) return "general";
   if (["go_live_date", "retirement_date"].includes(base)) return "lifecycle";
+  if (["public_urls", "public_domains", "public_ips", "exposure_notes"].includes(base)) return "classification";
   if (base === "color") return "tags";
   for (const s of sections) {
     for (const f of s.fields) {

@@ -18,6 +18,7 @@ export const repoFilterKeys = [
   "q", "scm_connection_id", "application_id", "business_unit_id", "country_id", "criticality", "environment", "tag_id", "status", "owner",
   "provider", "source_type", "business_owner_id", "technical_owner_id", "business_region_id", "data_classification", "lifecycle_status",
   "sync_status", "internet_exposure", "compliance", "missing_owner", "sort",
+  "repository_key", "public_exposure", "production_url", "staging_url", "missing_production_url",
 ] as const;
 
 export type RepoFilters = Partial<Record<(typeof repoFilterKeys)[number], string>>;
@@ -25,6 +26,8 @@ export type RepoFilters = Partial<Record<(typeof repoFilterKeys)[number], string
 export const repoSorts = [
   ["name", "Name (A–Z)"],
   ["-name", "Name (Z–A)"],
+  ["repository_key", "Repository ID (ascending)"],
+  ["-repository_key", "Repository ID (descending)"],
   ["-created_at", "Newest first"],
   ["created_at", "Oldest first"],
   ["-criticality", "Most critical first"],

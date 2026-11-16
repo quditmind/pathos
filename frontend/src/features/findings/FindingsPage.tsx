@@ -42,12 +42,15 @@ const columns: Column<Finding>[] = [
       <div className="min-w-0 max-w-xl">
         <div className="truncate font-medium">{f.title}</div>
         <div className="truncate text-[12px] text-muted-foreground">
-          {f.repository_name} · <span className="font-mono">{location(f)}</span>
+          {f.repository_name}
+          {f.repository_key && <span className="ml-1 font-mono text-[11px]">({f.repository_key})</span>} · <span className="font-mono">{location(f)}</span>
         </div>
       </div>
     ),
     csv: (f) => f.title,
   },
+  { id: "repository", header: "Repository", defaultHidden: true, exportAlways: true, className: "text-[12px]", cell: (f) => f.repository_name, csv: (f) => f.repository_name },
+  { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "whitespace-nowrap font-mono text-[11.5px]", cell: (f) => f.repository_key || "—", csv: (f) => f.repository_key },
   { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
   { id: "rule", header: "Rule / CVE", cell: (f) => <span className="whitespace-nowrap font-mono text-[11.5px]">{f.cve || f.rule_id}</span>, csv: (f) => f.cve || f.rule_id },
   { id: "scanners", header: "Detected by", defaultHidden: true, cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
@@ -84,7 +87,7 @@ export function FindingsPage() {
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
-    { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.full_name })) },
+    { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.repository_key ? `${r.full_name} · ${r.repository_key}` : r.full_name })) },
   ];
   const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
   const active = search.severity?.split(",") ?? [];
@@ -113,7 +116,7 @@ export function FindingsPage() {
       {can("findings.triage") && selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => setSelected(new Set())} />}
       <Card>
         <DataTable
-          tableId="findings"
+          tableId="findings-v2"
           selection={can("findings.triage") ? selected : undefined}
           onSelectionChange={can("findings.triage") ? setSelected : undefined}
           exportName="pathos-findings"
@@ -145,7 +148,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
   const f = useFinding(id);
   const d = f.data;
   return (
-    <Dialog side open={!!id} onOpenChange={(o) => !o && onClose()} title={d?.title ?? "Finding"} description={d ? d.repository_name : undefined}>
+    <Dialog side open={!!id} onOpenChange={(o) => !o && onClose()} title={d?.title ?? "Finding"} description={d ? `${d.repository_name}${d.repository_key ? ` · ${d.repository_key}` : ""}` : undefined}>
       {f.isError ? <Alert>{f.error.message}</Alert> : !d ? <Skeleton className="h-40" /> : (
         <div className="space-y-5 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">

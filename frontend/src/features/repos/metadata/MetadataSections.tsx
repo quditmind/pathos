@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Info } from "lucide-react";
-import type { AssetField, AssetSettings, ClassificationKind, FieldErrors } from "@/api/types";
+import { useId, useState } from "react";
+import { Info, Plus, X } from "lucide-react";
+import type { AssetField, AssetSettings, ClassificationKind, FieldErrors, PublicExposure } from "@/api/types";
+import { Button } from "@/components/ui/button";
 import { Combobox, type ComboOption } from "@/components/ui/combobox";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { Input, Select } from "@/components/ui/primitives";
@@ -9,7 +10,7 @@ import { useBusinessUnits, useRegions } from "@/features/users/api";
 import { cn } from "@/lib/utils";
 import { useApplications } from "../api";
 import { buTree, descendants, FormField, Textarea } from "./fields";
-import { errorFor, fieldLabels, type MetadataDraft, type PersonRef, type SectionKey } from "./model";
+import { errorFor, fieldLabels, maxEndpoints, type EndpointListKey, type MetadataDraft, type PersonRef, type SectionKey } from "./model";
 import { TagPicker } from "./TagPicker";
 
 export interface SectionProps {
@@ -58,9 +59,10 @@ function CatalogSelect({
   settings,
   disabled,
   emptyLabel = "Not set",
+  exclude,
   ...aria
-}: ControlProps & { kind: ClassificationKind; value: string; onChange: (v: string) => void; settings?: AssetSettings; disabled?: boolean; emptyLabel?: string }) {
-  const entries = catalog(settings, kind);
+}: ControlProps & { kind: ClassificationKind; value: string; onChange: (v: string) => void; settings?: AssetSettings; disabled?: boolean; emptyLabel?: string; exclude?: string[] }) {
+  const entries = catalog(settings, kind).filter((c) => !exclude?.includes(c.key));
   const current = settings?.classifications?.[kind]?.find((c) => c.key === value);
   return (
     <Select {...aria} className="w-full" disabled={disabled} value={value} onChange={(e) => onChange(e.target.value)}>
@@ -176,6 +178,20 @@ function GeneralSection(p: SectionProps) {
       <FormField label={fieldLabels.business_purpose} required={req(p, "business_purpose")} error={errorFor(errors, "business_purpose")}>
         <Textarea disabled={p.disabled} value={d.business_purpose} maxLength={2000} rows={2} onChange={(e) => set({ business_purpose: e.target.value })} />
       </FormField>
+      <div className="space-y-2">
+        <div className={grid}>
+          <FormField label={fieldLabels.staging_url} required={req(p, "staging_url")} error={errorFor(errors, "staging_url")}>
+            <Input type="url" inputMode="url" placeholder="https://" disabled={p.disabled} value={d.staging_url} maxLength={2048} onChange={(e) => set({ staging_url: e.target.value })} />
+          </FormField>
+          <FormField label={fieldLabels.production_url} required={req(p, "production_url")} error={errorFor(errors, "production_url")}>
+            <Input type="url" inputMode="url" placeholder="https://" disabled={p.disabled} value={d.production_url} maxLength={2048} onChange={(e) => set({ production_url: e.target.value })} />
+          </FormField>
+        </div>
+        <p className="flex items-start gap-1.5 text-[12px] text-muted-foreground">
+          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          Application URLs are where the running application is reached; they differ from the source repository URL. PATHOS records them as metadata and never contacts them.
+        </p>
+      </div>
     </div>
   );
 }
@@ -334,6 +350,220 @@ const defaultCriticality = [
 ];
 const sevVar: Record<string, string> = { low: "var(--sev-low)", medium: "var(--sev-medium)", high: "var(--sev-high)", critical: "var(--sev-critical)" };
 
+const exposureChoices: { value: PublicExposure; label: string; description: string }[] = [
+  { value: "yes", label: "Yes", description: "Reachable from the internet" },
+  { value: "no", label: "No", description: "Internal or private only" },
+  { value: "unknown", label: "Unknown", description: "Not assessed yet" },
+];
+
+const endpointLists: { key: EndpointListKey; label: string; item: string; add: string; placeholder: string; hint?: string }[] = [
+  { key: "public_urls", label: "Public-facing URLs", item: "Public-facing URL", add: "Add URL", placeholder: "https://app.example.com" },
+  { key: "public_domains", label: "Public domain names", item: "Public domain name", add: "Add domain", placeholder: "app.example.com", hint: "Wildcards such as *.example.com are allowed." },
+  { key: "public_ips", label: "Public IP addresses", item: "Public IP address", add: "Add IP address", placeholder: "203.0.113.10", hint: "Public IPv4 or IPv6 addresses only." },
+];
+
+/** Repeatable text inputs (add / remove rows). */
+export function EndpointList({
+  label,
+  item,
+  addLabel,
+  placeholder,
+  hint,
+  rows,
+  onChange,
+  error,
+  disabled,
+  type = "text",
+}: {
+  label: string;
+  item: string;
+  addLabel: string;
+  placeholder?: string;
+  hint?: string;
+  rows: string[];
+  onChange: (rows: string[]) => void;
+  error?: string;
+  disabled?: boolean;
+  type?: "text" | "url";
+}) {
+  const id = useId();
+  const errId = error ? `${id}-err` : undefined;
+  const hintId = hint ? `${id}-hint` : undefined;
+  return (
+    <div role="group" aria-labelledby={`${id}-label`} aria-describedby={[hintId, errId].filter(Boolean).join(" ") || undefined}>
+      <div id={`${id}-label`} className="mb-1 text-[12px] font-medium">
+        {label}
+      </div>
+      {rows.length === 0 && <p className="mb-1 text-[12px] text-muted-foreground">None added.</p>}
+      <ul className="space-y-1.5">
+        {rows.map((v, i) => (
+          <li key={i} className="flex items-center gap-1.5">
+            <Input
+              type={type}
+              aria-label={`${item} ${i + 1}`}
+              aria-invalid={error && v.trim() ? true : undefined}
+              placeholder={placeholder}
+              disabled={disabled}
+              value={v}
+              maxLength={2048}
+              onChange={(e) => onChange(rows.map((r, j) => (j === i ? e.target.value : r)))}
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              disabled={disabled}
+              aria-label={`Remove ${item} ${i + 1}`}
+              onClick={() => onChange(rows.filter((_, j) => j !== i))}
+            >
+              <X />
+            </Button>
+          </li>
+        ))}
+      </ul>
+      <Button type="button" variant="ghost" size="sm" className="mt-1" disabled={disabled || rows.length >= maxEndpoints} onClick={() => onChange([...rows, ""])}>
+        <Plus /> {addLabel}
+      </Button>
+      {hint && (
+        <p id={hintId} className="text-[11.5px] text-muted-foreground">
+          {hint}
+        </p>
+      )}
+      {error && (
+        <p id={errId} role="alert" className="mt-1 text-[12px] text-danger">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+const hasEndpoints = (d: MetadataDraft) => d.public_urls.some((x) => x.trim()) || d.public_domains.some((x) => x.trim()) || d.public_ips.some((x) => x.trim());
+
+function ExposureQuestion(p: SectionProps) {
+  const { draft: d, set, errors } = p;
+  const id = useId();
+  const err = errors.public_exposure;
+  const detailErr = errorFor(errors, "internet_exposure");
+  const choose = (v: PublicExposure) => {
+    const patch: Partial<MetadataDraft> = { public_exposure: v };
+    if (v === "yes") {
+      patch.internet_exposure = "public";
+      if (!d.public_urls.length && !d.public_domains.length && !d.public_ips.length) patch.public_urls = [""];
+    } else if (v === "unknown") patch.internet_exposure = "unknown";
+    else patch.internet_exposure = d.internet_exposure === "public" || d.internet_exposure === "unknown" ? "" : d.internet_exposure;
+    set(patch);
+  };
+  return (
+    <div className="space-y-3 rounded-md border border-border p-3">
+      <div
+        role="radiogroup"
+        aria-labelledby={`${id}-q`}
+        aria-required
+        aria-invalid={err ? true : undefined}
+        aria-describedby={[`${id}-info`, err ? `${id}-err` : ""].filter(Boolean).join(" ")}
+      >
+        <div id={`${id}-q`} className="mb-1.5 text-[13px] font-medium">
+          Is this application or asset publicly exposed to the internet?
+          <span className="ml-0.5 text-danger" aria-hidden>
+            *
+          </span>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-3">
+          {exposureChoices.map((c) => {
+            const checked = d.public_exposure === c.value;
+            return (
+              <label
+                key={c.value}
+                className={cn(
+                  "flex cursor-pointer items-start gap-2 rounded-md border p-2.5 text-[12px] has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring",
+                  checked ? "border-primary bg-primary/5" : err ? "border-danger" : "border-border hover:bg-surface-muted/60",
+                  p.disabled && "cursor-default opacity-60",
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`${id}-public-exposure`}
+                  value={c.value}
+                  className="mt-0.5 accent-[var(--primary)]"
+                  checked={checked}
+                  disabled={p.disabled}
+                  onChange={() => choose(c.value)}
+                />
+                <span>
+                  <span className="block text-[13px] font-medium">{c.label}</span>
+                  <span className="text-muted-foreground">{c.description}</span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+        <p id={`${id}-info`} className="mt-1.5 flex items-start gap-1.5 text-[12px] text-muted-foreground">
+          <Info className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          Answering Yes records metadata only; PATHOS does not crawl or scan these addresses.
+        </p>
+        {err && (
+          <p id={`${id}-err`} role="alert" className="mt-1 text-[12px] text-danger">
+            {err}
+          </p>
+        )}
+      </div>
+
+      {d.public_exposure === "yes" && (
+        <div className="grid gap-3 lg:grid-cols-3">
+          {endpointLists.map((l) => (
+            <EndpointList
+              key={l.key}
+              label={l.label}
+              item={l.item}
+              addLabel={l.add}
+              placeholder={l.placeholder}
+              hint={l.hint}
+              type={l.key === "public_urls" ? "url" : "text"}
+              rows={d[l.key]}
+              onChange={(rows) => set({ [l.key]: rows } as Partial<MetadataDraft>)}
+              error={errors[l.key]}
+              disabled={p.disabled}
+            />
+          ))}
+        </div>
+      )}
+      {d.public_exposure === "no" && (
+        <div className={grid}>
+          <FormField
+            label={fieldLabels.internet_exposure}
+            required={req(p, "internet_exposure")}
+            error={detailErr}
+            hint={catalogHint(p.settings, "internet_exposure", d.internet_exposure) ?? "Optional: how the asset is reachable inside your network."}
+          >
+            <CatalogSelect
+              kind="internet_exposure"
+              exclude={["public"]}
+              settings={p.settings}
+              disabled={p.disabled}
+              value={d.internet_exposure}
+              onChange={(v) => set({ internet_exposure: v })}
+            />
+          </FormField>
+        </div>
+      )}
+      {d.public_exposure !== "no" && detailErr && (
+        <p role="alert" className="text-[12px] text-danger">
+          {fieldLabels.internet_exposure}: {detailErr}
+        </p>
+      )}
+      {d.public_exposure && d.public_exposure !== "yes" && hasEndpoints(d) && (
+        <p className="text-[12px] text-muted-foreground">The public endpoints entered earlier are removed when you save. Choose Yes to keep them.</p>
+      )}
+      {d.public_exposure && (
+        <FormField label="Exposure notes" error={errors.exposure_notes} hint="Optional context, e.g. WAF or CDN in front, or who confirmed the answer.">
+          <Textarea disabled={p.disabled} value={d.exposure_notes} rows={2} maxLength={2000} onChange={(e) => set({ exposure_notes: e.target.value })} />
+        </FormField>
+      )}
+    </div>
+  );
+}
+
 function ClassificationSection(p: SectionProps) {
   const { draft: d, set, errors } = p;
   const crit = catalog(p.settings, "criticality");
@@ -343,6 +573,7 @@ function ClassificationSection(p: SectionProps) {
   const compErr = errorFor(errors, "compliance_scopes");
   return (
     <div className="space-y-4">
+      <ExposureQuestion {...p} />
       <fieldset disabled={p.disabled} aria-describedby={critErr ? "crit-err" : undefined}>
         <legend className="mb-1.5 text-[12px] font-medium">
           {fieldLabels.criticality}
@@ -380,10 +611,6 @@ function ClassificationSection(p: SectionProps) {
         <FormField label={fieldLabels.environment} required={req(p, "environment")} error={errorFor(errors, "environment")}
           hint={catalogHint(p.settings, "environment", d.environment)}>
           <CatalogSelect kind="environment" settings={p.settings} disabled={p.disabled} value={d.environment} onChange={(v) => set({ environment: v })} />
-        </FormField>
-        <FormField label={fieldLabels.internet_exposure} required={req(p, "internet_exposure")} error={errorFor(errors, "internet_exposure")}
-          hint={catalogHint(p.settings, "internet_exposure", d.internet_exposure)}>
-          <CatalogSelect kind="internet_exposure" settings={p.settings} disabled={p.disabled} value={d.internet_exposure} onChange={(v) => set({ internet_exposure: v })} />
         </FormField>
       </div>
       <fieldset disabled={p.disabled}>

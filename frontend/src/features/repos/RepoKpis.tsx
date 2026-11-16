@@ -5,7 +5,7 @@ import type { RepositoryInsights } from "@/api/types";
 import { Alert, Skeleton } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 
-function Stat({ label, value, to, search, tone, sub }: { label: string; value: ReactNode; to: string; search?: Record<string, string>; tone?: "danger" | "warning"; sub?: ReactNode }) {
+function Stat({ label, value, to, search, tone, sub }: { label: string; value: ReactNode; to: string; search?: Record<string, string | boolean>; tone?: "danger" | "warning"; sub?: ReactNode }) {
   return (
     <Link
       to={to as never}
@@ -19,6 +19,8 @@ function Stat({ label, value, to, search, tone, sub }: { label: string; value: R
     </Link>
   );
 }
+
+const grid = "mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-7";
 
 /** KPI strip for the repository list; each card links to the matching filtered list or import history. */
 export function RepoKpis({ insights }: { insights: UseQueryResult<RepositoryInsights> }) {
@@ -36,8 +38,8 @@ export function RepoKpis({ insights }: { insights: UseQueryResult<RepositoryInsi
   }
   if (!insights.data) {
     return (
-      <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9">
-        {Array.from({ length: 9 }, (_, i) => (
+      <div className={grid}>
+        {Array.from({ length: 14 }, (_, i) => (
           <Skeleton key={i} className="h-[68px]" />
         ))}
       </div>
@@ -46,7 +48,7 @@ export function RepoKpis({ insights }: { insights: UseQueryResult<RepositoryInsi
   const t = insights.data.totals;
   const r = "/repositories";
   return (
-    <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-9" aria-label="Repository indicators">
+    <div className={grid} aria-label="Repository indicators">
       <Stat label="Total" value={t.total} to={r} search={{ status: "all" }} />
       <Stat label="Active" value={t.active} to={r} />
       <Stat label="Archived" value={t.archived} to={r} search={{ status: "archived" }} />
@@ -55,6 +57,11 @@ export function RepoKpis({ insights }: { insights: UseQueryResult<RepositoryInsi
       <Stat label="Critical" value={t.critical} to={r} search={{ criticality: "critical" }} />
       <Stat label="No business owner" value={t.without_business_owner} to={r} search={{ missing_owner: "business" }} tone={t.without_business_owner ? "warning" : undefined} />
       <Stat label="No technical owner" value={t.without_technical_owner} to={r} search={{ missing_owner: "technical" }} tone={t.without_technical_owner ? "warning" : undefined} />
+      <Stat label="Missing ownership" value={t.missing_ownership} to={r} search={{ missing_owner: "any" }} tone={t.missing_ownership ? "warning" : undefined} />
+      <Stat label="Publicly exposed" value={t.publicly_exposed} to={r} search={{ public_exposure: "yes" }} tone={t.publicly_exposed ? "danger" : undefined} />
+      <Stat label="Not public" value={t.not_public} to={r} search={{ public_exposure: "no" }} />
+      <Stat label="Unknown exposure" value={t.exposure_unknown} to={r} search={{ public_exposure: "unknown" }} tone={t.exposure_unknown ? "warning" : undefined} />
+      <Stat label="Missing production URL" value={t.missing_production_url} to={r} search={{ missing_production_url: true }} />
       <Stat
         label="Last successful sync"
         value={<span className="text-[13px]">{formatDateTime(t.last_successful_sync_at)}</span>}
