@@ -332,6 +332,7 @@ verified manually with the steps in section 7.
 | Provider adapters and every sign-in method (token exchange, refresh, rotation, revoke, service-principal assertion, pagination, page-token tampering, webhooks) | `internal/scm` unit tests against recorded API shapes |
 | Archive normalizer, extraction, streaming encryption, ClamAV protocol, worker snapshot download | unit tests (`internal/ingest`, `internal/platform/sourcestore`, `internal/worker`) |
 | Local PC onboarding through the browser, background processing in the `jobs` container, persistence after reload | Playwright (`e2e/tests/onboarding.spec.ts`) against the running stack |
+| Malware scanning | real `clamav/clamav:1.5`: the EICAR test file is rejected (`malware_detected`), clean code is imported with `malware_scan: clean` |
 
 Not yet verified against real provider accounts (no credentials were
 available while building): GitHub, GitLab, Bitbucket and Azure DevOps
@@ -347,4 +348,3 @@ and scan it. Known provider-specific points to watch:
   workspace. Bitbucket has no token revocation API.
 - GitHub search within an organization uses the search API (1,000 result
   cap, lower rate limit).
-- ClamAV was tested against a protocol-level fake, not a real `clamd`.
