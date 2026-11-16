@@ -141,8 +141,11 @@ export interface SearchResult {
 }
 
 export type Criticality = "low" | "medium" | "high" | "critical";
-export type Environment = "production" | "staging" | "development" | "test" | "other";
-export type TagColor = "slate" | "blue" | "green" | "amber" | "red" | "purple" | "teal" | "pink";
+/** Key from the organization's environment catalog (asset_classifications, kind "environment"). */
+export type Environment = string;
+export type TagPaletteColor = "slate" | "blue" | "green" | "amber" | "red" | "purple" | "teal" | "pink";
+/** A palette name or a lower-case hex colour such as "#1f6feb". */
+export type TagColor = TagPaletteColor | `#${string}`;
 
 export interface Ref {
   id: string;
@@ -158,11 +161,19 @@ export interface TagRef {
   category_name: string;
 }
 
+export type SourceType = "scm" | "upload";
+export type SyncStatus = "never" | "ok" | "failed" | "missing" | "permission_denied" | "archived_upstream";
+
 export interface Repository {
   id: string;
-  scm_connection_id: string;
+  /** null for uploaded repositories (source_type "upload"). */
+  scm_connection_id: string | null;
   scm_connection_name: string;
+  /** Connection provider, or "upload". */
   provider: string;
+  source_type: SourceType;
+  scm_organization: string;
+  scm_project: string;
   external_id: string;
   full_name: string;
   name: string;
@@ -185,6 +196,191 @@ export interface Repository {
   archived_at: string | null;
   created_at: string;
   tags: TagRef[];
+
+  // Enterprise asset metadata (AssetMetadata fields, resolved).
+  display_name: string;
+  asset_name: string;
+  business_purpose: string;
+  application_type: string;
+  business_owner: UserRef | null;
+  technical_owner: UserRef | null;
+  application_owner: UserRef | null;
+  responsible_team: Ref | null;
+  supporting_team: Ref | null;
+  department: Ref | null;
+  cost_centre: string;
+  business_region: Ref | null;
+  data_residency_region: Ref | null;
+  hosting_region: string;
+  operational_location: string;
+  data_classification: string;
+  internet_exposure: string;
+  compliance_scopes: string[];
+  lifecycle_status: string;
+  go_live_date: string | null;
+  retirement_date: string | null;
+  color: string;
+  full_history: boolean;
+
+  // Source state.
+  latest_commit_sha: string;
+  latest_commit_at: string | null;
+  size_bytes: number | null;
+  file_count: number | null;
+  languages: Record<string, number>;
+  last_sync_at: string | null;
+  last_sync_ok_at: string | null;
+  sync_status: SyncStatus;
+  sync_error: string;
+  current_snapshot: SnapshotSummary | null;
+  /** True when the caller may edit this repository's metadata (repos.manage or ownership). */
+  can_edit: boolean;
+  /** True when the caller may change placement (business unit, country) — requires repos.manage. */
+  can_manage: boolean;
+}
+
+export interface SnapshotSummary {
+  id: string;
+  created_at: string;
+  archive_filename: string;
+  archive_sha256: string;
+  snapshot_sha256: string;
+  file_count: number;
+  uncompressed_bytes: number;
+  malware_scan: "clean" | "not_configured";
+}
+
+export interface SourceSnapshot extends SnapshotSummary {
+  archive_size: number;
+  snapshot_size: number;
+  languages: Record<string, number>;
+  manifests: string[];
+  skipped: Record<string, number>;
+  malware_engine: string;
+  created_by: UserRef | null;
+}
+
+export interface SyncRun {
+  id: string;
+  trigger: "manual" | "schedule" | "webhook" | "import" | "upload";
+  status: Exclude<SyncStatus, "never">;
+  branch: string;
+  previous_commit_sha: string;
+  commit_sha: string;
+  changed: boolean;
+  error: string;
+  triggered_by: UserRef | null;
+  started_at: string;
+  finished_at: string;
+}
+
+export interface RepositorySecurity {
+  latest_scan: {
+    id: string;
+    status: JobStatus;
+    trigger: string;
+    commit_sha: string;
+    snapshot_id: string | null;
+    profile_name: string;
+    queued_at: string;
+    finished_at: string | null;
+    scanners: { key: string; version: string; status: string; findings: number }[];
+  } | null;
+  open_findings: { critical: number; high: number; medium: number; low: number; info: number };
+  scan_on_import: boolean;
+}
+
+/**
+ * The registration payload shared by every import method and by
+ * PATCH /api/v1/repositories/{id}. Empty strings / null clear optional values.
+ * Which fields are mandatory is AssetSettings.required_fields.
+ */
+export interface AssetMetadata {
+  display_name?: string;
+  asset_name?: string;
+  description?: string;
+  application_id?: string | null;
+  /** Create an application on the fly (requires repos.manage at the business unit). */
+  new_application?: { name: string; external_ref?: string } | null;
+  application_type?: string;
+  business_purpose?: string;
+  business_owner_id?: string | null;
+  technical_owner_id?: string | null;
+  application_owner_id?: string | null;
+  business_unit_id?: string | null;
+  department_id?: string | null;
+  responsible_team_id?: string | null;
+  supporting_team_id?: string | null;
+  cost_centre?: string;
+  business_region_id?: string | null;
+  country_id?: string | null;
+  hosting_region?: string;
+  data_residency_region_id?: string | null;
+  operational_location?: string;
+  criticality?: Criticality;
+  data_classification?: string;
+  environment?: string;
+  internet_exposure?: string;
+  compliance_scopes?: string[];
+  tag_ids?: string[];
+  color?: string;
+  lifecycle_status?: string;
+  go_live_date?: string | null;
+  retirement_date?: string | null;
+}
+
+/** Field keys usable in AssetSettings.required_fields. */
+export type AssetField =
+  | "description" | "application" | "application_type" | "business_purpose"
+  | "business_owner" | "technical_owner" | "application_owner" | "business_unit" | "department"
+  | "responsible_team" | "supporting_team" | "cost_centre"
+  | "business_region" | "country" | "hosting_region" | "data_residency_region" | "operational_location"
+  | "criticality" | "data_classification" | "environment" | "internet_exposure" | "compliance_scopes"
+  | "tags" | "lifecycle_status";
+
+export type ClassificationKind =
+  | "criticality" | "data_classification" | "environment" | "application_type"
+  | "internet_exposure" | "compliance" | "hosting_region" | "lifecycle_status";
+
+export interface Classification {
+  id: string;
+  kind: ClassificationKind;
+  key: string;
+  label: string;
+  description: string;
+  /** "" or "#rrggbb" */
+  color: string;
+  sort_order: number;
+  is_system: boolean;
+  archived: boolean;
+}
+
+export interface AssetSettings {
+  required_fields: AssetField[];
+  /** Fields that are always required regardless of policy. */
+  always_required: AssetField[];
+  scan_on_import: boolean;
+  classifications: Record<ClassificationKind, Classification[]>;
+  upload: { max_bytes: number; chunk_size: number; formats: ("zip" | "tar" | "tar.gz")[] };
+  /** Colour suggestions keyed by criticality / lifecycle, for the colour picker. */
+  suggested_colors: { key: string; label: string; color: string }[];
+}
+
+/** Validation error body: HTTP 422 { error: { code: "validation_failed", message, fields } }. */
+export interface FieldErrors {
+  [field: string]: string;
+}
+
+export interface DirectoryUser {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface DirectoryTeam {
+  id: string;
+  name: string;
+  member_count: number;
 }
 
 export interface UserRef {
@@ -210,7 +406,14 @@ export interface Tag {
   id: string;
   name: string;
   color: TagColor;
+  description: string;
   repository_count: number;
+}
+
+/** GET /api/v1/tags?q= — flat tag search across categories. */
+export interface TagSearchResult extends Tag {
+  category_id: string;
+  category_name: string;
 }
 
 export interface TagCategory {
@@ -223,37 +426,322 @@ export interface TagCategory {
   noncompliant_repositories: number;
 }
 
-export type Provider = "github" | "github_enterprise" | "azure_devops" | "azure_devops_server";
+export type Provider = "github" | "github_enterprise" | "gitlab" | "bitbucket" | "azure_devops" | "azure_devops_server";
+export type AuthType = "pat" | "github_app" | "oauth" | "api_token" | "service_principal";
 
 export interface ScmConnection {
   id: string;
   name: string;
   provider: Provider;
   base_url: string;
-  auth_type: "pat" | "github_app";
+  auth_type: AuthType;
   owner: string;
   github_app_id: number | null;
   github_installation_id: number | null;
-  status: "untested" | "ok" | "error";
+  oauth_app_id: string | null;
+  /** Identity the credential authenticates as (login / e-mail / app). */
+  account: string;
+  organizations: string[];
+  token_expires_at: string | null;
+  status: "untested" | "ok" | "error" | "expired" | "revoked";
   status_message: string;
   last_checked_at: string | null;
   webhook_url: string;
   repository_count: number;
   created_at: string;
+  capabilities: ProviderCapabilities;
+}
+
+export interface ProviderCapabilities {
+  organizations: boolean;
+  projects: boolean;
+  server_search: boolean;
+}
+
+/** GET /api/v1/scm-providers */
+export interface ProviderInfo {
+  key: Provider;
+  label: string;
+  /** "git" providers appear under Import from Git, "devops" under Import from DevOps Project. */
+  category: "git" | "devops";
+  default_base_url: string;
+  base_url_required: boolean;
+  base_url_help: string;
+  owner_label: string;
+  capabilities: ProviderCapabilities;
+  auth_methods: AuthMethod[];
+}
+
+export interface AuthMethod {
+  key: AuthType;
+  label: string;
+  description: string;
+  /** Uses a registered OAuth application and a browser redirect; no secret fields. */
+  oauth: boolean;
+  fields: AuthField[];
+  docs_url: string;
+}
+
+export interface AuthField {
+  /** Request field name in the create/update connection body. */
+  name: string;
+  label: string;
+  type: "text" | "password" | "textarea" | "number" | "list";
+  required: boolean;
+  secret: boolean;
+  help: string;
+}
+
+/** POST /api/v1/scm-connections body (fields depend on the auth method). */
+export interface CreateConnectionRequest {
+  name: string;
+  provider: Provider;
+  base_url?: string;
+  auth_type: Exclude<AuthType, "oauth">;
+  owner?: string;
+  token?: string;
+  private_key?: string;
+  github_app_id?: number;
+  github_installation_id?: number;
+  username?: string;
+  tenant_id?: string;
+  client_id?: string;
+  client_secret?: string;
+  certificate_pem?: string;
+  private_key_pem?: string;
+  organizations?: string[];
+}
+
+/** GET/POST/PATCH /api/v1/scm-oauth-apps — the client secret is write-only. */
+export interface OAuthApp {
+  id: string;
+  provider: Exclude<Provider, "azure_devops_server">;
+  name: string;
+  base_url: string;
+  tenant_id: string;
+  client_id: string;
+  scopes: string;
+  /** Register this exact URL at the provider. */
+  redirect_uri: string;
+  connection_count: number;
+  created_at: string;
+}
+
+export interface OAuthAppRequest {
+  provider?: OAuthApp["provider"];
+  name?: string;
+  base_url?: string;
+  tenant_id?: string;
+  client_id?: string;
+  client_secret?: string;
+  scopes?: string;
+}
+
+/**
+ * POST /api/v1/scm-connections/oauth/start → { authorize_url }.
+ * The browser navigates to authorize_url; the provider redirects to
+ * /api/v1/scm-oauth/callback, which redirects to
+ * /admin/scm?oauth=success&connection=<id> or /admin/scm?oauth=error&message=<text>.
+ * Pass connection_id to reconnect an existing OAuth connection.
+ */
+export interface OAuthStartRequest {
+  oauth_app_id: string;
+  name?: string;
+  owner?: string;
+  connection_id?: string;
+  /** Where to return after success (same-origin path, default /admin/scm). */
+  return_to?: string;
+}
+
+export interface ScmOrganization {
+  id: string;
+  name: string;
+  display_name: string;
+  kind: "user" | "organization" | "group" | "workspace";
+}
+
+export interface ScmProject {
+  id: string;
+  name: string;
+  description: string;
 }
 
 export interface DiscoveredRepo {
   external_id: string;
   full_name: string;
   name: string;
+  organization: string;
+  project: string;
   url: string;
+  clone_url: string;
   default_branch: string;
   visibility: string;
   description: string;
   language: string;
   archived: boolean;
   pushed_at: string | null;
+  size_bytes: number;
   imported_id: string | null;
+}
+
+/** GET /api/v1/scm-connections/{id}/remote-repositories?organization=&project=&q=&page_token= */
+export interface RemoteRepoPage {
+  items: DiscoveredRepo[];
+  next_page_token: string;
+}
+
+/** GET /api/v1/scm-connections/{id}/remote-repositories/details?external_id=&full_name=&organization=&project= */
+export interface RemoteRepoDetails {
+  repository: DiscoveredRepo;
+  branches: { name: string; commit_sha: string; is_default: boolean }[];
+  latest_commit: { sha: string; message: string; author: string; committed_at: string | null } | null;
+  languages: Record<string, number>;
+  permission: "read" | "write" | "admin" | "unknown";
+}
+
+/** POST /api/v1/source-uploads body. */
+export interface CreateUploadRequest {
+  filename: string;
+  size: number;
+  /** Lower-case hex SHA-256 of the whole file. */
+  sha256: string;
+}
+
+export interface SourceUpload {
+  id: string;
+  filename: string;
+  format: "zip" | "tar" | "tar.gz";
+  size: number;
+  sha256: string;
+  chunk_size: number;
+  status: "uploading" | "complete" | "consumed" | "expired" | "cancelled";
+  received_parts: number[];
+  received_bytes: number;
+  expires_at: string;
+}
+// PUT /api/v1/source-uploads/{id}/parts/{n}: body = raw bytes of part n
+// (n = 0..ceil(size/chunk_size)-1), Content-Type application/octet-stream,
+// header X-Content-SHA256 = hex SHA-256 of the part. Re-sending an
+// identical part is idempotent. POST /api/v1/source-uploads/{id}/complete
+// seals it; DELETE cancels.
+
+export type ImportSource = "upload" | "git" | "devops";
+export type ImportStatus =
+  | "draft" | "pending" | "queued" | "validating" | "importing" | "registering"
+  | "completed" | "failed" | "cancelled" | "needs_attention";
+
+/** One repository to import. Exactly one of the ref shapes applies per source. */
+export interface ImportItemRequest {
+  /** git / devops */
+  ref?: { external_id: string; full_name: string; organization?: string; project?: string };
+  /** upload */
+  upload_id?: string;
+  /** upload: add a new snapshot to an existing uploaded repository instead of creating one */
+  target_repository_id?: string;
+  /** Branch to track and scan; "" = default branch. */
+  branch?: string;
+  full_history?: boolean;
+  /** Per-item overrides of the shared metadata (names must be unique per asset). */
+  display_name?: string;
+  asset_name?: string;
+  allow_duplicate?: boolean;
+}
+
+/** POST /api/v1/repository-imports (and /validate with the same body). */
+export interface CreateImportRequest {
+  source: ImportSource;
+  scm_connection_id?: string;
+  /** Random per wizard submission; resubmitting returns the same job. */
+  idempotency_key: string;
+  metadata: AssetMetadata;
+  items: ImportItemRequest[];
+  /** Queue an onboarding scan after registration (only honoured when AssetSettings.scan_on_import). */
+  start_scan?: boolean;
+}
+
+/** POST /api/v1/repository-imports/validate → 200 always (unless the request itself is malformed). */
+export interface ImportValidation {
+  valid: boolean;
+  /** Errors keyed by AssetMetadata field name. */
+  fields: FieldErrors;
+  /** Per-item problems (index into items): duplicates, already imported, invalid branch, name clash. */
+  items: { index: number; code: string; message: string; repository_id?: string }[];
+}
+
+export interface ImportItem {
+  id: string;
+  position: number;
+  display_name: string;
+  status: ImportStatus;
+  result: "" | "imported" | "already_imported" | "snapshot_added";
+  progress: number;
+  progress_message: string;
+  error_code: string;
+  error_message: string;
+  attempts: number;
+  max_attempts: number;
+  repository_id: string | null;
+  snapshot_id: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  can_retry: boolean;
+}
+
+export interface ImportJob {
+  id: string;
+  source_type: ImportSource;
+  scm_connection_id: string | null;
+  scm_connection_name: string;
+  status: ImportStatus;
+  requested_by: UserRef;
+  total_items: number;
+  completed_items: number;
+  failed_items: number;
+  attention_items: number;
+  start_scan: boolean;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  /** Only in GET /repository-imports/{id}. */
+  items?: ImportItem[];
+  can_cancel: boolean;
+  can_retry: boolean;
+}
+
+/** GET /api/v1/repositories/insights (respects the caller's scope and the same filters as the list). */
+export interface RepositoryInsights {
+  totals: {
+    total: number;
+    active: number;
+    archived: number;
+    critical: number;
+    without_business_owner: number;
+    without_technical_owner: number;
+    production: number;
+    confidential_or_restricted: number;
+    pending_imports: number;
+    failed_imports: number;
+    sync_failures: number;
+    last_successful_sync_at: string | null;
+  };
+  by_provider: InsightBucket[];
+  by_business_region: InsightBucket[];
+  by_business_unit: InsightBucket[];
+  by_business_owner: InsightBucket[];
+  by_criticality: InsightBucket[];
+  by_data_classification: InsightBucket[];
+  by_environment: InsightBucket[];
+  by_compliance: InsightBucket[];
+  by_lifecycle: InsightBucket[];
+}
+
+export interface InsightBucket {
+  /** id or key; "" = not set */
+  key: string;
+  label: string;
+  count: number;
+  /** Optional "#rrggbb" from the classification catalog. */
+  color?: string;
 }
 
 export interface ImportResult {
