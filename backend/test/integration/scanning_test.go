@@ -208,6 +208,9 @@ func TestScanningModule(t *testing.T) {
 	if s3["fixed"].(float64) != 0 || s3["not_covered"].(float64) == 0 || s3["unchanged"].(float64) == 0 {
 		t.Errorf("failed scanner must not produce fixes: %v", s3)
 	}
+	if s3["profile_changed"] != false {
+		t.Errorf("same profile version reported as changed: %v", s3["profile_changed"])
+	}
 	if s3["engine_changes"] == nil || len(s3["engine_changes"].([]any)) == 0 {
 		t.Errorf("scanner version change not reported: %v", s3["engine_changes"])
 	}

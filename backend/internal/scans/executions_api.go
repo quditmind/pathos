@@ -710,7 +710,9 @@ func (s *Service) compareScans(w http.ResponseWriter, r *http.Request) {
 		}
 		if i > 0 {
 			prev := jobs[i-1]
-			jobs[i].ProfileChange = configVersion(prev.ConfigSnapshot) != configVersion(jobs[i].ConfigSnapshot) || prev.ProfileID != jobs[i].ProfileID
+			// Every execution records its profile and version (older ones
+			// have no snapshot), so compare those.
+			jobs[i].ProfileChange = prev.ProfileID != jobs[i].ProfileID || prev.ProfileVersion != jobs[i].ProfileVersion
 			jobs[i].EngineChanges = engineChanges(prev.Results, jobs[i].Results)
 			if prev.DurationMS != nil && jobs[i].DurationMS != nil {
 				d := *jobs[i].DurationMS - *prev.DurationMS
@@ -737,10 +739,6 @@ func (s *Service) compareScans(w http.ResponseWriter, r *http.Request) {
 
 func severityIndex(s string) int {
 	return map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}[s]
-}
-
-func configVersion(m map[string]any) string {
-	return fmt.Sprint(m["profile_id"], "/", m["profile_version"])
 }
 
 // engineChanges lists scanners added, removed or with a different version.
