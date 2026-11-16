@@ -31,6 +31,7 @@ import {
   BellRing,
   Scale,
   ShieldOff,
+  HelpCircle,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -198,6 +199,14 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
           <div className="flex-1" />
           <NotificationCentre />
+          <Link
+            to="/help"
+            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+            aria-label="Help"
+          >
+            <HelpCircle className="size-4" />
+            <span className="hidden sm:inline">Help</span>
+          </Link>
           <button
             onClick={() => setDark(!dark)}
             className="rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"

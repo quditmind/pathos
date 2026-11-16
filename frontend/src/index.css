@@ -85,3 +85,33 @@ body {
 .tabular {
   font-variant-numeric: tabular-nums;
 }
+
+/* Help Center articles (rendered Markdown). */
+.help-prose { font-size: 14px; line-height: 1.65; color: var(--foreground); }
+.help-prose > :first-child { margin-top: 0; }
+.help-prose h1 { font-size: 22px; font-weight: 650; margin: 0 0 12px; }
+.help-prose h2 { font-size: 17px; font-weight: 650; margin: 28px 0 10px; padding-top: 8px; border-top: 1px solid var(--border); }
+.help-prose h3 { font-size: 15px; font-weight: 600; margin: 22px 0 8px; }
+.help-prose h4 { font-size: 14px; font-weight: 600; margin: 16px 0 6px; }
+.help-prose h1, .help-prose h2, .help-prose h3, .help-prose h4 { position: relative; scroll-margin-top: 16px; }
+.help-prose .help-anchor { position: absolute; left: -1em; opacity: 0; color: var(--muted-foreground); text-decoration: none; }
+.help-prose :is(h1, h2, h3, h4):hover .help-anchor { opacity: 1; }
+.help-prose p, .help-prose ul, .help-prose ol, .help-prose figure, .help-prose pre, .help-prose blockquote, .help-prose .help-table { margin: 0 0 12px; }
+.help-prose ul { list-style: disc; padding-left: 22px; }
+.help-prose ol { list-style: decimal; padding-left: 22px; }
+.help-prose li { margin: 3px 0; }
+.help-prose li > ul, .help-prose li > ol { margin: 4px 0; }
+.help-prose a { color: var(--primary); text-decoration: underline; text-underline-offset: 2px; }
+.help-prose code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--surface-muted); border-radius: 4px; padding: 1px 4px; }
+.help-prose pre { background: var(--surface-muted); border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow-x: auto; }
+.help-prose pre code { background: none; padding: 0; font-size: 12px; line-height: 1.55; }
+.help-prose blockquote { border-left: 3px solid var(--primary); padding: 4px 12px; color: var(--muted-foreground); background: var(--surface-muted); border-radius: 0 6px 6px 0; }
+.help-prose blockquote p { margin: 4px 0; }
+.help-prose .help-table { overflow-x: auto; }
+.help-prose table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.help-prose th, .help-prose td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; vertical-align: top; }
+.help-prose th { background: var(--surface-muted); font-weight: 600; }
+.help-prose figure img { max-width: 100%; height: auto; border: 1px solid var(--border); border-radius: 6px; }
+.help-prose figcaption { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+.help-prose hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
+.help-prose .help-missing-image { color: var(--danger); font-size: 12px; }
