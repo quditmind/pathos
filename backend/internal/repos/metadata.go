@@ -203,6 +203,9 @@ func (m AssetMetadata) Apply(v *AssetValues) []string {
 	str("data_classification", &v.DataClassification, m.DataClassification)
 	str("environment", &v.Environment, m.Environment)
 	str("internet_exposure", &v.InternetExposure, m.InternetExposure)
+	if m.InternetExposure != nil && v.InternetExposure == "" {
+		v.InternetExposure = "unknown" // "no detail" on the optional reachability field
+	}
 	if m.ComplianceScopes != nil {
 		v.ComplianceScopes = dedupe(*m.ComplianceScopes)
 		changed = append(changed, "compliance_scopes")

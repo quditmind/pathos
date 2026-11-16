@@ -126,7 +126,8 @@ var defaultClassifications = map[string][]classificationSeed{
 var systemKeys = map[string][]string{
 	KindCriticality:      {"critical", "high", "medium", "low"},
 	KindEnvironment:      {"production", "staging", "test", "development", "other"},
-	KindInternetExposure: {"unknown"},
+	// The public exposure answer maps onto these keys.
+	KindInternetExposure: {"public", "internal", "private", "unknown"},
 	KindLifecycleStatus:  {"active", "retired"},
 }
 
