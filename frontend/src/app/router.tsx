@@ -12,7 +12,12 @@ import { AuditPage } from "@/features/audit/AuditPage";
 import { RepositoriesPage, validateRepoSearch } from "@/features/repos/RepositoriesPage";
 import { ImportPage } from "@/features/repos/ImportPage";
 import { ApplicationsPage } from "@/features/repos/ApplicationsPage";
-import { ScmConnectionsPage } from "@/features/settings/ScmConnectionsPage";
+import { ScmConnectionsPage, validateScmSearch } from "@/features/settings/ScmConnectionsPage";
+import { ImportLandingPage } from "@/features/repos/onboarding/ImportLandingPage";
+import { OnboardingPage, validateOnboardingSearch } from "@/features/repos/onboarding/OnboardingPage";
+import { ImportsPage, validateImportsSearch } from "@/features/repos/onboarding/ImportsPage";
+import { ImportJobPage } from "@/features/repos/onboarding/ImportJobPage";
+import { AssetSettingsPage } from "@/features/assets/AssetSettingsPage";
 import { TagsPage } from "@/features/settings/TagsPage";
 import { ScansPage, validateScanSearch } from "@/features/scans/ScansPage";
 import { ProfilesPage } from "@/features/scans/ProfilesPage";
@@ -93,14 +98,24 @@ const auditRoute = createRoute({
 });
 
 const reposRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories", component: RepositoriesPage, validateSearch: validateRepoSearch });
-const importRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/import", component: ImportPage });
+const importRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/import", component: ImportLandingPage });
+const csvImportRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/import/csv", component: ImportPage });
+const onboardingRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/repositories/import/$source",
+  component: OnboardingPage,
+  validateSearch: validateOnboardingSearch,
+});
+const importsRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/imports", component: ImportsPage, validateSearch: validateImportsSearch });
+const importJobRoute = createRoute({ getParentRoute: () => appRoute, path: "/repositories/imports/$id", component: ImportJobPage });
+const assetSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/assets", component: AssetSettingsPage });
 const appsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/applications",
   component: ApplicationsPage,
   validateSearch: (s: Record<string, unknown>): { app?: string } => ({ app: typeof s.app === "string" ? s.app : undefined }),
 });
-const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsPage });
+const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsPage, validateSearch: validateScmSearch });
 const tagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/tags", component: TagsPage });
 
 const scansRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans", component: ScansPage, validateSearch: validateScanSearch });
@@ -121,7 +136,7 @@ const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settin
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, appsRoute, scmRoute, tagsRoute,
+  appRoute.addChildren([overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
     scansRoute, profilesRoute, scannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
 ]);
 

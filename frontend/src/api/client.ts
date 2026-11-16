@@ -7,6 +7,10 @@ export class ApiError extends Error {
     public code: string,
     message: string,
     public requestId?: string,
+    /** Per-field messages of a 422 validation error ({ error: { fields } }). */
+    public fields?: Record<string, string>,
+    /** The whole error object, for endpoint-specific extra fields. */
+    public details?: Record<string, unknown>,
   ) {
     super(message);
   }
@@ -41,7 +45,14 @@ export async function api<T>(path: string, opts: Options = {}): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const err = data?.error ?? {};
-    throw new ApiError(res.status, err.code ?? "error", err.message ?? res.statusText, data?.request_id);
+    throw new ApiError(
+      res.status,
+      err.code ?? "error",
+      err.message ?? res.statusText,
+      data?.request_id,
+      err.fields && typeof err.fields === "object" ? (err.fields as Record<string, string>) : undefined,
+      err,
+    );
   }
   return data as T;
 }
