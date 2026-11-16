@@ -369,8 +369,18 @@ func sha256Hex(s string) string {
 
 // safeReturnTo accepts same-origin absolute paths only.
 func safeReturnTo(v string) string {
-	if v == "" || !strings.HasPrefix(v, "/") || strings.HasPrefix(v, "//") || strings.ContainsAny(v, "\\\r\n") || len(v) > 300 {
-		return "/admin/scm"
+	const def = "/admin/scm"
+	if v == "" || len(v) > 300 || !strings.HasPrefix(v, "/") || strings.HasPrefix(v, "//") || strings.Contains(v, "\\") {
+		return def
+	}
+	for _, c := range v {
+		if c < 0x20 || c == 0x7f {
+			return def // browsers drop tabs and newlines: "/\t/evil" would become "//evil"
+		}
+	}
+	u, err := url.Parse(v)
+	if err != nil || u.Scheme != "" || u.Host != "" || u.User != nil || strings.HasPrefix(u.Path, "//") {
+		return def
 	}
 	return v
 }

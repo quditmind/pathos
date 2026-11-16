@@ -179,6 +179,9 @@ func (s *Service) planImport(ctx context.Context, p *authz.Principal, req *impor
 		pi := plannedItem{values: base, dupOK: it.AllowDuplicate}
 		pi.values.ComplianceScopes, pi.values.TagIDs = slices.Clone(base.ComplianceScopes), slices.Clone(base.TagIDs)
 		problem := func(code, msg string, repoID *uuid.UUID, blocking bool) {
+			if repoID != nil && *repoID == uuid.Nil {
+				repoID = nil // exists, but not visible to the caller
+			}
 			problems = append(problems, ItemProblem{Index: i, Code: code, Message: msg, RepositoryID: repoID})
 			pi.blocked = pi.blocked || blocking
 		}
@@ -232,6 +235,9 @@ func (s *Service) planImport(ctx context.Context, p *authz.Principal, req *impor
 				var existing uuid.UUID
 				if err := s.DB.QueryRow(ctx, `SELECT id FROM repositories WHERE organization_id = $1 AND scm_connection_id = $2 AND external_id = $3`,
 					p.OrganizationID, conn.ID, it.Ref.ExternalID).Scan(&existing); err == nil {
+					if !s.canRead(ctx, p, existing) {
+						existing = uuid.Nil
+					}
 					problem("already_imported", "already imported; it will be skipped", &existing, false)
 				}
 			}
@@ -498,7 +504,7 @@ func canControlImport(p *authz.Principal, requester uuid.UUID) bool {
 
 func (j *ImportJobView) finish(p *authz.Principal) {
 	ctl := canControlImport(p, j.RequestedBy.ID)
-	j.CanCancel = ctl && j.activeItems > 0 && !j.cancelRequested
+	j.CanCancel = ctl && (j.activeItems > 0 && !j.cancelRequested || j.AttentionItems > 0)
 	j.CanRetry = ctl && j.retryableItemCount > 0
 	for i := range j.Items {
 		j.Items[i].CanRetry = ctl && slices.Contains(retryableResults, j.Items[i].Status)
@@ -652,7 +658,7 @@ func (s *Service) cancelImport(w http.ResponseWriter, r *http.Request) {
 		}
 		// Waiting items stop now; running items stop at their next stage.
 		if _, err := tx.Exec(ctx, `UPDATE repository_import_items SET status = 'cancelled', progress_message = 'Cancelled by '||$2::text,
-			completed_at = now(), updated_at = now() WHERE job_id = $1 AND status IN ('draft', 'pending', 'queued')`, job.ID, p.Email); err != nil {
+			completed_at = now(), updated_at = now() WHERE job_id = $1 AND status IN ('draft', 'pending', 'queued', 'needs_attention')`, job.ID, p.Email); err != nil {
 			return err
 		}
 		if err := refreshJobStatus(ctx, tx, job.ID); err != nil {

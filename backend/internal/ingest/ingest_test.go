@@ -256,6 +256,13 @@ func TestZipBombAndRatio(t *testing.T) {
 	tgz := buildTar(t, true, tentry{hdr: tar.Header{Typeflag: tar.TypeReg, Name: "z", Mode: 0o644, Size: int64(len(zeros))}, body: zeros})
 	_, _, err = normalize(t, tgz, "tar.gz", Limits{})
 	expectCode(t, "tar.gz ratio", err, CodeCompressionRatio)
+	// Content of entries that are skipped (unknown type flag) is inflated
+	// too and must count toward the ratio and size limits.
+	hidden := buildTar(t, true, tentry{hdr: tar.Header{Typeflag: 'Q', Name: "hidden", Mode: 0o644, Size: int64(len(zeros))}, body: zeros})
+	_, _, err = normalize(t, hidden, "tar.gz", Limits{})
+	expectCode(t, "hidden entry ratio", err, CodeCompressionRatio)
+	_, _, err = normalize(t, hidden, "tar.gz", Limits{MaxRatio: 1e9, MaxTotalBytes: 1 << 20})
+	expectCode(t, "hidden entry size", err, CodeTooLarge)
 }
 
 // rawZip writes one stored entry whose central directory sizes are chosen

@@ -584,7 +584,7 @@ func (s *Service) listRemote(ctx context.Context, c Connection) ([]scm.RemoteRep
 func (s *Service) discover(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
-	if !p.HasAnywhere(authz.PermReposManage) {
+	if !canDiscover(p) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}

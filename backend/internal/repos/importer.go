@@ -207,6 +207,9 @@ func (s *Service) importOne(ctx context.Context, p *authz.Principal, c Connectio
 	if vis != "public" && vis != "internal" {
 		vis = "private"
 	}
+	if rr.CloneURL, err = normalizeCloneURL(c.Provider, c.BaseURL, rr.CloneURL); err != nil {
+		return nil, "", httpx.BadRequest(err.Error())
+	}
 	var techs []string
 	if rr.Language != "" {
 		techs = []string{rr.Language}

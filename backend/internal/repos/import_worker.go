@@ -218,15 +218,45 @@ func (s *Service) stage(ctx context.Context, it importItem, owner, status string
 	return nil
 }
 
-var errCancelled = errors.New("import cancelled")
+var (
+	errCancelled = errors.New("import cancelled")
+	// errLeaseLost: this worker can no longer prove it owns the item (for
+	// example the database was unreachable); the item is recovered after
+	// its lease expires instead of being finished here.
+	errLeaseLost = errors.New("import lease lost")
+)
+
+// holdLease locks the item and verifies this worker still owns it, so an
+// item recovered by another worker after a stall is never registered twice.
+func holdLease(ctx context.Context, tx pgx.Tx, itemID uuid.UUID, owner string) error {
+	var ok bool
+	err := tx.QueryRow(ctx, `SELECT lease_owner = $2 AND status IN ('validating', 'importing', 'registering')
+		FROM repository_import_items WHERE id = $1 FOR UPDATE`, itemID, owner).Scan(&ok)
+	if err != nil || !ok {
+		return errLeaseLost
+	}
+	return nil
+}
+
+// visibleTo returns id when the requester may read that repository, so
+// duplicate checks do not disclose repositories outside their scope.
+func (s *Service) visibleTo(ctx context.Context, it importItem, id uuid.UUID) *uuid.UUID {
+	p, err := s.requester(ctx, it)
+	if err != nil || !s.canRead(ctx, p, id) {
+		return nil
+	}
+	return &id
+}
 
 func (s *Service) runImportItem(parent context.Context, it importItem, owner string) {
 	timeout := s.Limits.ImportTimeout
 	if timeout <= 0 {
 		timeout = 30 * time.Minute
 	}
-	ctx, cancel := context.WithTimeout(parent, timeout)
-	defer cancel()
+	tctx, tcancel := context.WithTimeout(parent, timeout)
+	defer tcancel()
+	ctx, cancel := context.WithCancelCause(tctx)
+	defer cancel(nil)
 	// Heartbeat: extend the lease and watch for cancellation.
 	go func() {
 		t := time.NewTicker(30 * time.Second)
@@ -241,8 +271,12 @@ func (s *Service) runImportItem(parent context.Context, it importItem, owner str
 					WHERE i.id = $1 AND i.lease_owner = $2
 					RETURNING (SELECT j.cancel_requested_at IS NOT NULL FROM repository_import_jobs j WHERE j.id = i.job_id)`,
 					it.ID, owner, importLease.String()).Scan(&cancelled)
-				if err != nil || cancelled {
-					cancel()
+				switch {
+				case err != nil:
+					cancel(errLeaseLost)
+					return
+				case cancelled:
+					cancel(errCancelled)
 					return
 				}
 			}
@@ -266,8 +300,12 @@ func (s *Service) runImportItem(parent context.Context, it importItem, owner str
 		return
 	}
 	var ie *importError
+	cause := context.Cause(ctx)
 	switch {
-	case errors.Is(err, errCancelled), parent.Err() == nil && errors.Is(ctx.Err(), context.Canceled):
+	case errors.Is(err, errLeaseLost) || errors.Is(cause, errLeaseLost):
+		// Another worker may own the item now; lease recovery decides.
+		log.Warn("import lease lost; the item will be recovered", "err", err)
+	case errors.Is(err, errCancelled), errors.Is(cause, errCancelled):
 		s.finishItem(bg, it, owner, StatusCancelled, res, "cancelled", "cancelled before completion")
 	case errors.Is(ctx.Err(), context.DeadlineExceeded) && parent.Err() == nil:
 		s.finishItem(bg, it, owner, StatusFailed, res, "timeout", fmt.Sprintf("the import did not finish within %s", timeout))
@@ -460,11 +498,16 @@ func (s *Service) processSCM(ctx context.Context, it importItem, owner string) (
 		Scan(&existing); err == nil {
 		return importResult{Result: "already_imported", RepositoryID: &existing}, nil
 	}
+	cleanURL, err := normalizeCloneURL(c.Provider, c.BaseURL, rr.CloneURL)
+	if err != nil {
+		return res, permanent("untrusted_clone_url", err.Error())
+	}
+	rr.CloneURL = cleanURL
 	if !it.AllowDuplicate && rr.CloneURL != "" {
 		var dup uuid.UUID
 		if err := s.DB.QueryRow(ctx, `SELECT id FROM repositories WHERE organization_id = $1 AND lower(clone_url) = lower($2)`,
 			it.OrgID, rr.CloneURL).Scan(&dup); err == nil {
-			res.RepositoryID = &dup
+			res.RepositoryID = s.visibleTo(ctx, it, dup)
 			return res, attention("duplicate", "this repository is already registered through another connection; retry with \"import anyway\" to register it twice")
 		}
 	}
@@ -506,6 +549,9 @@ func (s *Service) processSCM(ctx context.Context, it importItem, owner string) (
 	id := uuid.Must(uuid.NewV7())
 	result := "imported"
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := holdLease(ctx, tx, it.ID, owner); err != nil {
+			return err
+		}
 		tag, err := tx.Exec(ctx, `
 			INSERT INTO repositories (id, organization_id, scm_connection_id, source_type, external_id, full_name, name, url, clone_url,
 			  default_branch, scan_branch, visibility, description, technologies, remote_archived, last_pushed_at, imported_by,

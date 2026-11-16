@@ -418,6 +418,7 @@ func (n *normalizer) tar(src io.ReaderAt, size int64, gz bool, out io.Writer) (R
 		return Result{}, err
 	}
 	n.paths = newPathSet()
+	var inflated int64
 	for {
 		h, err := tr.Next()
 		if err == io.EOF {
@@ -428,15 +429,22 @@ func (n *normalizer) tar(src io.ReaderAt, size int64, gz bool, out io.Writer) (R
 		}
 		k, skip := tarKind(h)
 		e := entry{kind: k, skip: skip, size: h.Size, exec: h.Mode&0o111 != 0, mtime: h.ModTime}
+		// Every entry's content is inflated (and skipped) by the reader,
+		// including entries that are not kept, so all of it counts toward
+		// the size and ratio limits.
+		if h.Size < 0 || inflated+h.Size > n.lim.MaxTotalBytes || inflated+h.Size < inflated {
+			return Result{}, reject(CodeTooLarge, "", "archive content exceeds the size limit")
+		}
+		inflated += h.Size
 		// The content of every earlier entry has been consumed by now.
-		if err := ratio(cr, n.declared); err != nil {
+		if err := ratio(cr, inflated); err != nil {
 			return Result{}, err
 		}
 		if err := n.add(h.Name, e); err != nil {
 			return Result{}, err
 		}
 	}
-	if err := ratio(cr, n.declared); err != nil {
+	if err := ratio(cr, inflated); err != nil {
 		return Result{}, err
 	}
 	if len(n.entries) == 0 && cr.n == 0 {

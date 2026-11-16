@@ -49,6 +49,8 @@ type syncTarget struct {
 	LatestSHA     string
 	SyncStatus    string
 	PushedAt      *time.Time
+	Provider      string
+	BaseURL       string
 }
 
 func (t syncTarget) ref() scm.RepoRef {
@@ -64,9 +66,11 @@ func (t syncTarget) branch() string {
 
 func loadSyncTarget(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID) (syncTarget, error) {
 	t := syncTarget{ID: repoID, OrgID: orgID}
-	err := q.QueryRow(ctx, `SELECT scm_connection_id, full_name, external_id, scm_organization, scm_project, scan_branch, default_branch,
-		latest_commit_sha, sync_status, last_pushed_at FROM repositories WHERE organization_id = $1 AND id = $2`, orgID, repoID).
-		Scan(&t.ConnID, &t.FullName, &t.ExternalID, &t.Org, &t.Project, &t.ScanBranch, &t.DefaultBranch, &t.LatestSHA, &t.SyncStatus, &t.PushedAt)
+	err := q.QueryRow(ctx, `SELECT r.scm_connection_id, r.full_name, r.external_id, r.scm_organization, r.scm_project, r.scan_branch, r.default_branch,
+		r.latest_commit_sha, r.sync_status, r.last_pushed_at, COALESCE(c.provider, ''), COALESCE(c.base_url, '')
+		FROM repositories r LEFT JOIN scm_connections c ON c.id = r.scm_connection_id WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID).
+		Scan(&t.ConnID, &t.FullName, &t.ExternalID, &t.Org, &t.Project, &t.ScanBranch, &t.DefaultBranch, &t.LatestSHA, &t.SyncStatus, &t.PushedAt,
+			&t.Provider, &t.BaseURL)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, errNotFound
 	}
@@ -127,8 +131,13 @@ func (s *Service) syncWith(ctx context.Context, cl scm.FullClient, t syncTarget,
 	if vis != "public" && vis != "internal" {
 		vis = "private"
 	}
+	clean, err := normalizeCloneURL(t.Provider, t.BaseURL, rr.CloneURL)
+	if err != nil {
+		return err
+	}
+	rr.CloneURL = clean
 	if _, err := s.DB.Exec(ctx, `
-		UPDATE repositories SET full_name = $3, name = $4, url = $5, clone_url = $6,
+		UPDATE repositories SET full_name = $3, name = $4, url = $5, clone_url = CASE WHEN $6 <> '' THEN $6 ELSE clone_url END,
 		       default_branch = CASE WHEN $7 <> '' THEN $7 ELSE default_branch END,
 		       visibility = $8, description = CASE WHEN $9 <> '' THEN $9 ELSE description END, remote_archived = $10,
 		       last_pushed_at = COALESCE($11, last_pushed_at), size_bytes = COALESCE(NULLIF($12::bigint, 0), size_bytes),

@@ -19,6 +19,9 @@ func TestSafeReturnTo(t *testing.T) {
 		"/\\evil.example":        "/admin/scm",
 		"/x\r\nSet-Cookie: a=b":  "/admin/scm",
 		"relative/path":          "/admin/scm",
+		"/\t/evil.example":       "/admin/scm",
+		"/\x7f":                  "/admin/scm",
+		"/repositories?x=1":      "/repositories?x=1",
 	} {
 		if got := safeReturnTo(in); got != want {
 			t.Errorf("safeReturnTo(%q) = %q, want %q", in, got, want)
@@ -89,5 +92,28 @@ func TestTopLanguages(t *testing.T) {
 	got := topLanguages(map[string]int64{"Go": 10, "TypeScript": 30, "Shell": 1, "YAML": 30}, 2)
 	if len(got) != 2 || got[0] != "TypeScript" || got[1] != "YAML" {
 		t.Errorf("topLanguages = %v", got)
+	}
+}
+
+func TestNormalizeCloneURL(t *testing.T) {
+	cases := []struct {
+		provider, base, clone, want string
+		ok                          bool
+	}{
+		{"github", "https://api.github.com", "https://github.com/acme/x.git", "https://github.com/acme/x.git", true},
+		{"github_enterprise", "https://ghe.acme.test/api/v3", "https://ghe.acme.test/acme/x.git", "https://ghe.acme.test/acme/x.git", true},
+		{"github_enterprise", "https://ghe.acme.test/api/v3", "https://evil.example/acme/x.git", "", false},
+		{"gitlab", "https://gitlab.com", "https://gitlab.com/g/x.git", "https://gitlab.com/g/x.git", true},
+		{"gitlab", "https://gitlab.acme.test", "http://gitlab.acme.test/g/x.git", "", false},
+		{"bitbucket", "https://api.bitbucket.org/2.0", "https://bitbucket.org/ws/x.git", "https://bitbucket.org/ws/x.git", true},
+		{"azure_devops", "https://dev.azure.com/acme", "https://acme@dev.azure.com/acme/p/_git/x", "https://dev.azure.com/acme/p/_git/x", true},
+		{"azure_devops_server", "https://ado.acme.test/coll", "https://ado.acme.test:8443/coll/_git/x", "", false},
+		{"github", "https://api.github.com", "https://github.com/x.git?token=1", "", false},
+	}
+	for _, c := range cases {
+		got, err := normalizeCloneURL(c.provider, c.base, c.clone)
+		if (err == nil) != c.ok || got != c.want {
+			t.Errorf("%s %s: got %q, %v", c.provider, c.clone, got, err)
+		}
 	}
 }

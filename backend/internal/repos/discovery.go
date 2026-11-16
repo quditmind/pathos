@@ -18,7 +18,7 @@ import (
 func (s *Service) discoveryClient(w http.ResponseWriter, r *http.Request) (*authz.Principal, Connection, scm.FullClient, bool) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
-	if !p.HasAnywhere(authz.PermReposManage) {
+	if !canDiscover(p) {
 		s.fail(w, r, authz.ErrForbidden)
 		return nil, Connection{}, nil, false
 	}
@@ -229,4 +229,16 @@ func (s *Service) remoteRepositoryDetails(w http.ResponseWriter, r *http.Request
 		out["repository"] = DiscoveredRepo{RemoteRepo: d.Repository, ImportedID: &id}
 	}
 	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// canDiscover: browsing a connection shows every repository its credential
+// can see, so it needs repos.manage at business-unit, region or
+// organization scope (not only on individual repositories).
+func canDiscover(p *authz.Principal) bool {
+	for _, g := range p.Grants {
+		if g.Permission == authz.PermReposManage && g.Scope.Type != authz.ScopeRepository {
+			return true
+		}
+	}
+	return false
 }

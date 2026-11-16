@@ -169,14 +169,17 @@ func (s *Service) createUpload(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("sha256 must be the hex SHA-256 of the file"))
 		return
 	}
+	// Per-user bounds on open sessions and staged bytes (uploads that
+	// are not yet consumed, including expired ones awaiting cleanup).
 	var open int
-	if err := s.DB.QueryRow(ctx, `SELECT count(*) FROM source_uploads WHERE created_by = $1 AND status IN ('uploading', 'complete') AND expires_at > now()`,
-		p.UserID).Scan(&open); err != nil {
+	var staged int64
+	if err := s.DB.QueryRow(ctx, `SELECT count(*) FILTER (WHERE expires_at > now()), COALESCE(sum(declared_size), 0)
+		FROM source_uploads WHERE created_by = $1 AND status IN ('uploading', 'complete')`, p.UserID).Scan(&open, &staged); err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	if open >= maxOpenUploads {
-		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "too_many_uploads", "finish or cancel your open uploads first"))
+	if open >= maxOpenUploads || staged+req.Size > 4*s.Limits.UploadMaxBytes {
+		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "too_many_uploads", "finish, import or cancel your open uploads first"))
 		return
 	}
 	id := uuid.Must(uuid.NewV7())
@@ -308,7 +311,7 @@ func (s *Service) deleteUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	var active bool
 	_ = s.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM repository_import_items WHERE source_ref->>'upload_id' = $1
-		AND status NOT IN ('failed', 'cancelled', 'completed'))`, u.ID.String()).Scan(&active)
+		AND status NOT IN ('failed', 'cancelled', 'completed', 'needs_attention'))`, u.ID.String()).Scan(&active)
 	if active {
 		s.fail(w, r, httpx.Conflict("the upload is being imported; cancel the import first"))
 		return
@@ -345,7 +348,7 @@ func (s *Service) CleanupUploads(ctx context.Context) {
 	rows, err := s.DB.Query(ctx, `SELECT organization_id, id FROM source_uploads u
 		WHERE status IN ('uploading', 'complete') AND expires_at < now()
 		  AND NOT EXISTS (SELECT 1 FROM repository_import_items i WHERE i.source_ref->>'upload_id' = u.id::text
-		                  AND i.status NOT IN ('failed', 'cancelled', 'completed'))
+		                  AND i.status NOT IN ('failed', 'cancelled', 'completed', 'needs_attention'))
 		LIMIT 500`)
 	if err != nil {
 		s.Log.Error("upload cleanup", "err", err)
@@ -402,6 +405,9 @@ func (s *Service) checkUploadItem(ctx context.Context, p *authz.Principal, uploa
 	var dup uuid.UUID
 	if err := s.DB.QueryRow(ctx, `SELECT repository_id FROM source_snapshots WHERE organization_id = $1 AND archive_sha256 = $2
 		AND repository_id IS NOT NULL ORDER BY created_at DESC LIMIT 1`, p.OrganizationID, u.SHA256).Scan(&dup); err == nil {
+		if !s.canRead(ctx, p, dup) {
+			return name, &uuid.Nil, "an identical archive was already imported", true
+		}
 		return name, &dup, "an identical archive was already imported", true
 	}
 	return name, nil, "", false
@@ -445,7 +451,7 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 		var dup uuid.UUID
 		if err := s.DB.QueryRow(ctx, `SELECT repository_id FROM source_snapshots WHERE organization_id = $1 AND archive_sha256 = $2
 			AND repository_id IS NOT NULL LIMIT 1`, it.OrgID, u.SHA256).Scan(&dup); err == nil {
-			res.RepositoryID = &dup
+			res.RepositoryID = s.visibleTo(ctx, it, dup)
 			return res, attention("duplicate", "an identical archive was already imported; retry with \"import anyway\" to keep a second copy")
 		}
 	}
@@ -508,6 +514,8 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 		}
 		v, err := ingest.ClamAV{Address: s.Limits.ClamAVAddress, Timeout: 10 * time.Minute}.Scan(ctx, f)
 		switch {
+		case errors.Is(err, ingest.ErrClamAVSizeLimit):
+			return res, permanent("malware_scan_too_large", "the archive exceeds the malware scanner's size limit (clamd StreamMaxLength); raise the limit or split the archive")
 		case err != nil && s.Limits.ClamAVRequired:
 			return res, &importError{Code: "malware_scanner_unavailable", Msg: "the malware scanner is unavailable: " + truncate(err.Error(), 200), Transient: true}
 		case err != nil:
@@ -594,6 +602,14 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 	repoID := uuid.Must(uuid.NewV7())
 	resultKind := "imported"
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := holdLease(ctx, tx, it.ID, owner); err != nil {
+			return err
+		}
+		if tag, err := tx.Exec(ctx, `UPDATE source_uploads SET status = 'consumed' WHERE id = $1 AND status = 'complete'`, u.ID); err != nil {
+			return err
+		} else if tag.RowsAffected() != 1 {
+			return permanent("upload_consumed", "the upload was already imported")
+		}
 		if target != nil {
 			repoID, resultKind = *target, "snapshot_added"
 			if _, err := tx.Exec(ctx, `SELECT 1 FROM repositories WHERE id = $1 FOR UPDATE`, repoID); err != nil {
@@ -634,9 +650,6 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 		if _, err := tx.Exec(ctx, `INSERT INTO repository_sync_runs (id, organization_id, repository_id, trigger, status, previous_commit_sha,
 			commit_sha, changed, triggered_by) VALUES ($1, $2, $3, 'upload', 'ok', $4, $5, true, $6)`,
 			uuid.Must(uuid.NewV7()), it.OrgID, repoID, prevSnap, snapSum, it.RequestedBy); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE source_uploads SET status = 'consumed' WHERE id = $1`, u.ID); err != nil {
 			return err
 		}
 		action := "repository.import"
