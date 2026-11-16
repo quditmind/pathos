@@ -184,6 +184,19 @@ type Job struct {
 		Token    string `json:"token"`
 	} `json:"credential"`
 	Public bool `json:"public"`
+	// Source, when set, replaces the clone: the job scans an uploaded
+	// snapshot served by the worker API.
+	Source *JobSource `json:"source"`
+	// FullHistory clones the complete history and makes Gitleaks scan it
+	// (git mode). Default: shallow clone without history.
+	FullHistory bool `json:"full_history"`
+}
+
+// JobSource identifies a non-Git source for a job.
+type JobSource struct {
+	Type   string `json:"type"`   // "snapshot"
+	SHA256 string `json:"sha256"` // hex SHA-256 of the snapshot as served
+	Size   int64  `json:"size"`   // snapshot bytes (0 = unknown)
 }
 
 // JobScanner is one scanner to run.
@@ -238,29 +251,48 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	}()
 
 	src := filepath.Join(ws, "src")
+	gitDir := filepath.Join(ws, "git") // full-history object store, outside src
 	out := filepath.Join(ws, "out")
 	if err := os.MkdirAll(out, 0o700); err != nil {
-		a.complete(parent, job, "workspace: "+err.Error())
+		a.complete(parent, job, "workspace: "+err.Error(), "")
 		return
 	}
-	cloneStart := time.Now()
-	err := clone(ctx, job, src, a.cfg.MaxRepoBytes)
-	if err != nil && job.Public && job.Credential != nil && ctx.Err() == nil {
-		// An expired or wrong credential should not block scanning public
-		// code; private repositories never fall back.
-		log.Warn("authenticated clone failed; retrying anonymously (public repository)", "err", err)
+	commit := ""
+	if job.Source != nil {
 		job.Credential = nil
-		_ = os.RemoveAll(src)
-		err = clone(ctx, job, src, a.cfg.MaxRepoBytes)
+		if job.Source.Type != "snapshot" {
+			a.complete(parent, job, "unsupported source type", "")
+			return
+		}
+		start := time.Now()
+		if err := a.fetchSnapshot(ctx, job, src); err != nil {
+			log.Warn("snapshot download failed", "err", err)
+			a.complete(parent, job, "snapshot download failed: "+err.Error(), "")
+			return
+		}
+		log.Info("snapshot extracted", "duration_ms", time.Since(start).Milliseconds())
+	} else {
+		cloneStart := time.Now()
+		var err error
+		commit, err = clone(ctx, job, src, gitDir, a.cfg.MaxRepoBytes)
+		if err != nil && job.Public && job.Credential != nil && ctx.Err() == nil {
+			// An expired or wrong credential should not block scanning public
+			// code; private repositories never fall back.
+			log.Warn("authenticated clone failed; retrying anonymously (public repository)", "err", err)
+			job.Credential = nil
+			_ = os.RemoveAll(src)
+			_ = os.RemoveAll(gitDir)
+			commit, err = clone(ctx, job, src, gitDir, a.cfg.MaxRepoBytes)
+		}
+		if err != nil {
+			job.Credential = nil
+			log.Warn("clone failed", "err", err)
+			a.complete(parent, job, "clone failed: "+err.Error(), "")
+			return
+		}
+		job.Credential = nil // not needed past this point
+		log.Info("cloned", "duration_ms", time.Since(cloneStart).Milliseconds(), "commit", commit, "full_history", job.FullHistory)
 	}
-	if err != nil {
-		job.Credential = nil
-		log.Warn("clone failed", "err", err)
-		a.complete(parent, job, "clone failed: "+err.Error())
-		return
-	}
-	job.Credential = nil // not needed past this point
-	log.Info("cloned", "duration_ms", time.Since(cloneStart).Milliseconds())
 
 	sbomPath := ""
 	ordered := orderScanners(job.Scanners)
@@ -279,7 +311,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		} else {
 			res.Version, _ = tool.Version(ctx)
 			outFile := filepath.Join(out, js.Key+".out")
-			skipped, err := tool.Run(ctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config})
+			skipped, err := tool.Run(ctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config, GitHistory: job.FullHistory && job.Source == nil})
 			switch {
 			case skipped != "":
 				res.Status, res.Error = "skipped", skipped
@@ -314,7 +346,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	stop := cancelled
 	mu.Unlock()
 	if !stop {
-		a.complete(parent, job, "")
+		a.complete(parent, job, "", commit)
 	}
 }
 
@@ -334,10 +366,15 @@ func orderScanners(in []JobScanner) []JobScanner {
 	return out
 }
 
-func (a *Agent) complete(ctx context.Context, job Job, failure string) {
+// complete reports the job outcome. commitSHA is the commit actually
+// scanned (empty for snapshots or when unknown).
+func (a *Agent) complete(ctx context.Context, job Job, failure, commitSHA string) {
 	body := map[string]string{"status": "succeeded"}
 	if failure != "" {
 		body = map[string]string{"status": "failed", "error": failure}
+	}
+	if commitSHA != "" {
+		body["commit_sha"] = commitSHA
 	}
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/complete", a.token, body, nil); err != nil {
 		a.log.Error("complete failed", "job_id", job.JobID, "err", err)
