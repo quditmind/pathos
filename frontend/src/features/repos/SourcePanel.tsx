@@ -108,7 +108,7 @@ export function SourcePanel({ r }: { r: Repository }) {
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium">{s.archive_filename}</span>
                     {r.current_snapshot?.id === s.id && <Badge tone="primary">current</Badge>}
-                    <Badge tone={s.malware_scan === "clean" ? "success" : "neutral"}>{s.malware_scan === "clean" ? `malware: clean${s.malware_engine ? ` (${s.malware_engine})` : ""}` : "malware scan not configured"}</Badge>
+                    <Badge tone={s.malware_scan === "clean" ? "success" : "neutral"}>{s.malware_scan === "clean" ? `malware: clean${s.malware_engine ? ` (${s.malware_engine})` : ""}` : s.malware_scan === "unavailable" ? "malware scanner was unavailable" : "malware scan not configured"}</Badge>
                     <span className="ml-auto tabular text-muted-foreground">{formatDateTime(s.created_at)}</span>
                   </div>
                   <div className="text-muted-foreground">

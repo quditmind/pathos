@@ -18,7 +18,8 @@ export function TagsPage() {
   const { canOrgWide } = useSession();
   const cats = useTagCategories();
   // Categories: repository managers; tags themselves: tags.manage.
-  const manage = canOrgWide("repos.manage");
+  // Categories and tags both require tags.manage (enforced by the API).
+  const manage = canOrgWide("tags.manage");
   const manageTags = canOrgWide("tags.manage");
   const [creating, setCreating] = useState(false);
   const [tagDialog, setTagDialog] = useState<{ category: TagCategory; tag: Tag | null } | null>(null);

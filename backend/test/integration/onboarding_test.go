@@ -536,13 +536,18 @@ func TestOnboardingUpload(t *testing.T) {
 	if code != 200 || val["valid"] != false || val["items"].([]any)[0].(map[string]any)["code"] != "duplicate" {
 		t.Errorf("duplicate archive: %v", val)
 	}
+	if code, _ := o.do(admin, "POST", "/api/v1/repository-imports", map[string]any{"source": "upload", "idempotency_key": "u-" + uuid.NewString(),
+		"metadata": md, "items": []any{map[string]any{"upload_id": uid2, "target_repository_id": repoID}}}); code != 400 {
+		t.Errorf("a new version must not carry asset metadata: %d", code)
+	}
+	dupReq["metadata"] = map[string]any{}
 	dupReq["items"] = []any{map[string]any{"upload_id": uid2, "target_repository_id": repoID, "allow_duplicate": true}}
 	code, job = o.do(admin, "POST", "/api/v1/repository-imports", dupReq)
 	if code != 202 {
 		t.Fatalf("new version: %d %v", code, job)
 	}
 	o.drain(t)
-	if it := items(o.job(t, admin, id(job, "id")))[0]; it["result"] != "snapshot_added" {
+	if it := items(o.job(t, admin, id(job, "id")))[0]; it["result"] != "snapshot_added" || it["stage"] != "completed" {
 		t.Errorf("new snapshot: %v", it)
 	}
 	if _, snaps := o.do(admin, "GET", "/api/v1/repositories/"+repoID+"/snapshots", nil); len(snaps["items"].([]any)) != 2 {
@@ -556,7 +561,7 @@ func TestOnboardingUpload(t *testing.T) {
 		"metadata": md, "items": []any{map[string]any{"upload_id": uid3, "display_name": "evil"}}})
 	o.drain(t)
 	it = items(o.job(t, admin, id(job, "id")))[0]
-	if it["status"] != "failed" || it["error_code"] != "archive_rejected" || !strings.Contains(it["error_message"].(string), "path_traversal") || it["repository_id"] != nil {
+	if it["status"] != "failed" || it["stage"] != "importing" || it["error_code"] != "archive_rejected" || !strings.Contains(it["error_message"].(string), "path_traversal") || it["repository_id"] != nil {
 		t.Errorf("malicious archive: %v", it)
 	}
 	// Checksum: the browser-declared SHA-256 must match the reassembled file.

@@ -247,7 +247,8 @@ export interface SnapshotSummary {
   snapshot_sha256: string;
   file_count: number;
   uncompressed_bytes: number;
-  malware_scan: "clean" | "not_configured";
+  /** "unavailable": a scanner is configured but was unreachable (and not required). */
+  malware_scan: "clean" | "not_configured" | "unavailable";
 }
 
 export interface SourceSnapshot extends SnapshotSummary {
@@ -673,6 +674,8 @@ export interface ImportItem {
   position: number;
   display_name: string;
   status: ImportStatus;
+  /** Last stage reached: where a failed / cancelled item stopped. */
+  stage: "queued" | "validating" | "importing" | "registering" | "completed";
   result: "" | "imported" | "already_imported" | "snapshot_added";
   progress: number;
   progress_message: string;

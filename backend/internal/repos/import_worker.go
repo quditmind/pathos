@@ -146,7 +146,7 @@ func (s *Service) claimImport(ctx context.Context, owner string) (importItem, er
 	var ref, md []byte
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
-			UPDATE repository_import_items i SET status = 'validating', attempts = attempts + 1, lease_owner = $1,
+			UPDATE repository_import_items i SET status = 'validating', stage = 'validating', attempts = attempts + 1, lease_owner = $1,
 			       lease_expires_at = now() + $2::interval, started_at = COALESCE(started_at, now()), progress = 5,
 			       progress_message = 'Validating', error_code = '', error_message = '', updated_at = now()
 			WHERE i.id = (
@@ -203,7 +203,7 @@ func (s *Service) recoverImports(ctx context.Context) error {
 // stage records progress; it fails when the item was cancelled or its
 // lease was lost, which stops processing at a stage boundary.
 func (s *Service) stage(ctx context.Context, it importItem, owner, status string, progress int, msg string) error {
-	tag, err := s.DB.Exec(ctx, `UPDATE repository_import_items SET status = $3, progress = $4, progress_message = $5,
+	tag, err := s.DB.Exec(ctx, `UPDATE repository_import_items SET status = $3, stage = $3, progress = $4, progress_message = $5,
 		lease_expires_at = now() + $6::interval, updated_at = now()
 		WHERE id = $1 AND lease_owner = $2 AND status IN ('validating', 'importing', 'registering')
 		  AND NOT EXISTS (SELECT 1 FROM repository_import_jobs j WHERE j.id = job_id AND j.cancel_requested_at IS NOT NULL)`,
@@ -313,6 +313,7 @@ func (s *Service) finishItem(ctx context.Context, it importItem, owner, status s
 			progress = 0
 		}
 		tag, err := tx.Exec(ctx, `UPDATE repository_import_items SET status = $3, result = $4, repository_id = COALESCE($5, repository_id),
+			stage = CASE WHEN $3 = 'completed' THEN 'completed' ELSE stage END,
 			snapshot_id = COALESCE($6, snapshot_id), error_code = $7, error_message = $8, progress = $9, progress_message = $10,
 			lease_owner = '', lease_expires_at = NULL, completed_at = now(), updated_at = now()
 			WHERE id = $1 AND lease_owner = $2`, it.ID, owner, status, res.Result, res.RepositoryID, res.SnapshotID, code,

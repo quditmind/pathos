@@ -7,7 +7,9 @@ import { ImportJobView } from "./ImportJobPage";
 
 function item(status: ImportStatus, over: Partial<ImportItem> = {}): ImportItem {
   return {
-    id: "i1", position: 0, display_name: "payments-api", status, result: status === "completed" ? "imported" : "", progress: 40, progress_message: "Fetching metadata",
+    id: "i1", position: 0, display_name: "payments-api", status,
+    stage: status === "completed" ? "completed" : status === "failed" || status === "cancelled" || status === "needs_attention" ? "importing" : status === "queued" ? "queued" : (status as ImportItem["stage"]),
+    result: status === "completed" ? "imported" : "", progress: 40, progress_message: "Fetching metadata",
     error_code: "", error_message: "", attempts: 1, max_attempts: 3, repository_id: status === "completed" ? "r1" : null, snapshot_id: null, started_at: null,
     completed_at: null, can_retry: false, ...over,
   };

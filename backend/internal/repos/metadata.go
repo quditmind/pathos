@@ -618,3 +618,12 @@ func diffValues(old, cur AssetValues) map[string]any {
 	}
 	return out
 }
+
+// mustBeEmpty rejects metadata on requests that do not create an asset.
+func (m AssetMetadata) mustBeEmpty() error {
+	var v AssetValues
+	if changed := m.Apply(&v); len(changed) > 0 {
+		return httpx.BadRequest("metadata cannot be changed when uploading a new version; edit the repository instead")
+	}
+	return nil
+}

@@ -38,17 +38,18 @@ const stages: { key: ImportStatus; label: string }[] = [
   { key: "completed", label: "Completed" },
 ];
 
-/** Queued → Validating → Importing → Registering → Completed; failures mark the last step. */
-export function StageStepper({ status }: { status: ImportStatus }) {
+/** Queued → Validating → Importing → Registering → Completed; a failure is shown on the stage where it stopped. */
+export function StageStepper({ status, stage }: { status: ImportStatus; stage?: ImportStatus }) {
   const terminalBad = status === "failed" || status === "cancelled" || status === "needs_attention";
   const current = status === "pending" || status === "draft" ? 0 : stages.findIndex((s) => s.key === status);
+  const failedAt = terminalBad ? Math.max(0, stages.findIndex((s) => s.key === (stage ?? "registering"))) : -1;
   return (
     <ol className="flex items-center gap-1" aria-label="Import stages">
       {stages.map((s, i) => {
         const last = i === stages.length - 1;
-        const done = !terminalBad && (status === "completed" || i < current);
+        const done = terminalBad ? i < failedAt : status === "completed" || i < current;
         const active = !terminalBad && i === current && status !== "completed";
-        const bad = terminalBad && last;
+        const bad = terminalBad && i === failedAt;
         return (
           <li key={s.key} className="flex items-center gap-1" aria-current={active ? "step" : undefined}>
             <span
@@ -181,7 +182,7 @@ function ItemRow({ it, job, pending, onRetry }: { it: ImportItem; job: ImportJob
           )}
         </div>
       </div>
-      <StageStepper status={it.status} />
+      <StageStepper status={it.status} stage={it.stage} />
       <div className="min-w-0 space-y-1">
         {active && <ProgressBar value={Math.min(1, Math.max(0, it.progress) / 100)} label={`Progress of ${it.display_name}`} />}
         {it.progress_message && <div className="truncate text-[12px] text-muted-foreground">{it.progress_message}</div>}

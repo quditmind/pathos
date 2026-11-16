@@ -134,6 +134,12 @@ func (s *Service) planImport(ctx context.Context, p *authz.Principal, req *impor
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
+	// New versions of existing uploaded repositories keep the asset's
+	// metadata; authorization is checked per target repository.
+	versionsOnly := req.Source == "upload"
+	for _, it := range req.Items {
+		versionsOnly = versionsOnly && it.TargetRepositoryID != nil
+	}
 	base := defaultValues()
 	base.TagIDs = []uuid.UUID{}
 	req.Metadata.Apply(&base)
@@ -143,19 +149,30 @@ func (s *Service) planImport(ctx context.Context, p *authz.Principal, req *impor
 	if req.Metadata.Criticality == nil {
 		base.Criticality = ""
 	}
-	fe := validateValues(ctx, s.DB, p.OrganizationID, ap, &base, validateOpts{Creating: true})
-	delete(fe, "asset_name") // checked per item below
+	fe := FieldErrors{}
+	if !versionsOnly {
+		fe = validateValues(ctx, s.DB, p.OrganizationID, ap, &base, validateOpts{Creating: true})
+		delete(fe, "asset_name") // checked per item below
 
-	// Authorization: repos.manage at the target placement.
-	target, err := s.targetScope(ctx, p, base.BusinessUnitID, base.CountryID)
-	if err != nil {
-		return nil, nil, nil, nil, err
-	}
-	if err := s.Authz.Require(ctx, p, authz.PermReposManage, target); err != nil {
+		// Authorization: repos.manage at the target placement.
+		target, err := s.targetScope(ctx, p, base.BusinessUnitID, base.CountryID)
+		if err != nil {
+			return nil, nil, nil, nil, err
+		}
+		if err := s.Authz.Require(ctx, p, authz.PermReposManage, target); err != nil {
+			return nil, nil, nil, nil, err
+		}
+	} else if err := req.Metadata.mustBeEmpty(); err != nil {
 		return nil, nil, nil, nil, err
 	}
 
 	var problems []ItemProblem
+	if versionsOnly {
+		// No new asset is created: names are kept.
+		for i := range req.Items {
+			req.Items[i].DisplayName, req.Items[i].AssetName = nil, nil
+		}
+	}
 	planned := make([]plannedItem, 0, len(req.Items))
 	seenRefs, seenNames := map[string]bool{}, map[string]bool{}
 	for i, it := range req.Items {
@@ -410,6 +427,7 @@ type ImportItemView struct {
 	Position        int        `json:"position"`
 	DisplayName     string     `json:"display_name"`
 	Status          string     `json:"status"`
+	Stage           string     `json:"stage"`
 	Result          string     `json:"result"`
 	Progress        int        `json:"progress"`
 	ProgressMessage string     `json:"progress_message"`
@@ -496,7 +514,7 @@ func (s *Service) loadImport(ctx context.Context, p *authz.Principal, id uuid.UU
 		return j, errNotFound
 	}
 	if withItems {
-		rows, err := s.DB.Query(ctx, `SELECT id, position, display_name, status, result, progress, progress_message, error_code, error_message,
+		rows, err := s.DB.Query(ctx, `SELECT id, position, display_name, status, stage, result, progress, progress_message, error_code, error_message,
 			attempts, max_attempts, repository_id, snapshot_id, started_at, completed_at
 			FROM repository_import_items WHERE job_id = $1 ORDER BY position`, id)
 		if err != nil {
@@ -504,7 +522,7 @@ func (s *Service) loadImport(ctx context.Context, p *authz.Principal, id uuid.UU
 		}
 		j.Items, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (ImportItemView, error) {
 			var it ImportItemView
-			return it, row.Scan(&it.ID, &it.Position, &it.DisplayName, &it.Status, &it.Result, &it.Progress, &it.ProgressMessage,
+			return it, row.Scan(&it.ID, &it.Position, &it.DisplayName, &it.Status, &it.Stage, &it.Result, &it.Progress, &it.ProgressMessage,
 				&it.ErrorCode, &it.ErrorMessage, &it.Attempts, &it.MaxAttempts, &it.RepositoryID, &it.SnapshotID, &it.StartedAt, &it.CompletedAt)
 		})
 		if err != nil {
@@ -676,7 +694,7 @@ func (s *Service) retryImport(w http.ResponseWriter, r *http.Request) {
 	var n int64
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		tag, err := tx.Exec(ctx, `UPDATE repository_import_items SET status = 'queued', attempts = 0, next_attempt_at = now(),
-			error_code = '', error_message = '', progress = 0, progress_message = 'Queued for retry', completed_at = NULL,
+			error_code = '', error_message = '', progress = 0, progress_message = 'Queued for retry', completed_at = NULL, stage = 'queued',
 			allow_duplicate = allow_duplicate OR $3, updated_at = now()
 			WHERE job_id = $1 AND status IN ('failed', 'needs_attention', 'cancelled') AND (cardinality($2::uuid[]) = 0 OR id = ANY($2))`,
 			job.ID, nonNil(req.ItemIDs), req.AllowDuplicate)

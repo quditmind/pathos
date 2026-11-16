@@ -290,6 +290,8 @@ CREATE TABLE repository_import_items (
     status            text NOT NULL DEFAULT 'queued' CHECK (status IN ('draft', 'pending', 'queued', 'validating', 'importing',
                                                     'registering', 'completed', 'failed', 'cancelled', 'needs_attention')),
     result            text NOT NULL DEFAULT '' CHECK (result IN ('', 'imported', 'already_imported', 'snapshot_added')),
+    -- Last processing stage reached (shows where a failed item stopped).
+    stage             text NOT NULL DEFAULT 'queued' CHECK (stage IN ('queued', 'validating', 'importing', 'registering', 'completed')),
     progress          int NOT NULL DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
     progress_message  text NOT NULL DEFAULT '',
     repository_id     uuid,
