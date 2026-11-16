@@ -652,13 +652,17 @@ func (s *Service) processUpload(ctx context.Context, it importItem, owner string
 			uuid.Must(uuid.NewV7()), it.OrgID, repoID, prevSnap, snapSum, it.RequestedBy); err != nil {
 			return err
 		}
+		var repoKey string
+		if err := tx.QueryRow(ctx, `SELECT repository_key FROM repositories WHERE id = $1`, repoID).Scan(&repoKey); err != nil {
+			return err
+		}
 		action := "repository.import"
 		if target != nil {
 			action = "repository.snapshot_add"
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: it.OrgID, ActorID: &it.RequestedBy, Action: action,
 			TargetType: "repository", TargetID: repoID.String(),
-			Metadata: map[string]any{"import_job_id": it.JobID, "source": "upload", "filename": u.Filename, "archive_sha256": u.SHA256,
+			Metadata: map[string]any{"repository_key": repoKey, "import_job_id": it.JobID, "source": "upload", "filename": u.Filename, "archive_sha256": u.SHA256,
 				"snapshot_id": snapID, "snapshot_sha256": snapSum, "files": result.Files, "skipped": result.Skipped,
 				"malware_scan": malware, "metadata": it.Values}})
 	})

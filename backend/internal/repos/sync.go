@@ -249,7 +249,7 @@ func (s *Service) syncRepository(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 		Action: "repository.sync", TargetType: "repository", TargetID: repo.ID.String(),
-		Metadata: map[string]any{"name": repo.FullName, "status": run.Status, "commit_sha": run.CommitSHA, "changed": run.Changed}})
+		Metadata: map[string]any{"name": repo.FullName, "repository_key": repo.RepositoryKey, "status": run.Status, "commit_sha": run.CommitSHA, "changed": run.Changed}})
 	out, err := s.getRepo(ctx, s.DB, p, repo.ID)
 	if err != nil {
 		s.fail(w, r, err)

@@ -250,6 +250,7 @@ type Job struct {
 	ID             uuid.UUID  `json:"id"`
 	RepositoryID   uuid.UUID  `json:"repository_id"`
 	RepositoryName string     `json:"repository_name"`
+	RepositoryKey  string     `json:"repository_key"`
 	ProfileName    string     `json:"profile_name"`
 	ProfileVersion int        `json:"profile_version"`
 	Trigger        string     `json:"trigger"`
@@ -282,7 +283,7 @@ type Result struct {
 }
 
 const jobSelect = `
-	SELECT j.id, j.repository_id, r.full_name, sp.name, v.version, j.trigger, j.priority, j.status, j.ref, j.commit_sha,
+	SELECT j.id, j.repository_id, r.full_name, r.repository_key, sp.name, v.version, j.trigger, j.priority, j.status, j.ref, j.commit_sha,
 	       j.attempts, wk.name, COALESCE(NULLIF(u.display_name, ''), u.email), j.error, j.findings_new, j.findings_fixed,
 	       j.gate_failed, j.queued_at, j.started_at, j.finished_at
 	FROM scan_jobs j
@@ -295,7 +296,7 @@ const jobSelect = `
 
 func scanJob(row pgx.Row) (Job, error) {
 	var j Job
-	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
+	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.RepositoryKey, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
 		&j.Status, &j.Ref, &j.CommitSHA, &j.Attempts, &j.WorkerName, &j.RequestedBy, &j.Error, &j.FindingsNew,
 		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -441,7 +442,7 @@ func (s *Service) cancelJob(w http.ResponseWriter, r *http.Request) {
 			return httpx.Conflict("only queued or running scans can be cancelled")
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "scan.cancel", TargetType: "scan_job", TargetID: j.ID.String(), Metadata: map[string]any{"repository": j.RepositoryName}})
+			Action: "scan.cancel", TargetType: "scan_job", TargetID: j.ID.String(), Metadata: map[string]any{"repository": j.RepositoryName, "repository_key": j.RepositoryKey}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

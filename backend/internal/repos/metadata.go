@@ -52,6 +52,13 @@ type AssetMetadata struct {
 	LifecycleStatus       *string      `json:"lifecycle_status"`
 	GoLiveDate            optDate      `json:"go_live_date"`
 	RetirementDate        optDate      `json:"retirement_date"`
+	StagingURL            *string      `json:"staging_url"`
+	ProductionURL         *string      `json:"production_url"`
+	PublicExposure        *string      `json:"public_exposure"`
+	PublicURLs            *[]string    `json:"public_urls"`
+	PublicDomains         *[]string    `json:"public_domains"`
+	PublicIPs             *[]string    `json:"public_ips"`
+	ExposureNotes         *string      `json:"exposure_notes"`
 }
 
 // NewApp creates an application during registration.
@@ -118,12 +125,20 @@ type AssetValues struct {
 	LifecycleStatus       string      `json:"lifecycle_status"`
 	GoLiveDate            *string     `json:"go_live_date"`
 	RetirementDate        *string     `json:"retirement_date"`
+	StagingURL            string      `json:"staging_url"`
+	ProductionURL         string      `json:"production_url"`
+	PublicExposure        string      `json:"public_exposure"`
+	PublicURLs            []string    `json:"public_urls"`
+	PublicDomains         []string    `json:"public_domains"`
+	PublicIPs             []string    `json:"public_ips"`
+	ExposureNotes         string      `json:"exposure_notes"`
 }
 
 // defaultValues are used for fields an import does not set.
 func defaultValues() AssetValues {
 	return AssetValues{Criticality: "medium", Environment: "production", InternetExposure: "unknown",
-		LifecycleStatus: "active", ComplianceScopes: []string{}, TagIDs: []uuid.UUID{}}
+		LifecycleStatus: "active", ComplianceScopes: []string{}, TagIDs: []uuid.UUID{},
+		PublicURLs: []string{}, PublicDomains: []string{}, PublicIPs: []string{}}
 }
 
 func setStr(dst *string, src *string) {
@@ -212,6 +227,28 @@ func (m AssetMetadata) Apply(v *AssetValues) []string {
 		v.RetirementDate = m.RetirementDate.Val
 		changed = append(changed, "retirement_date")
 	}
+	str("staging_url", &v.StagingURL, m.StagingURL)
+	str("production_url", &v.ProductionURL, m.ProductionURL)
+	if m.PublicExposure != nil {
+		v.PublicExposure = strings.ToLower(strings.TrimSpace(*m.PublicExposure))
+		changed = append(changed, "public_exposure")
+	}
+	list := func(name string, dst *[]string, src *[]string) {
+		if src != nil {
+			*dst = slices.Clone(*src)
+			if *dst == nil {
+				*dst = []string{}
+			}
+			changed = append(changed, name)
+		}
+	}
+	list("public_urls", &v.PublicURLs, m.PublicURLs)
+	list("public_domains", &v.PublicDomains, m.PublicDomains)
+	list("public_ips", &v.PublicIPs, m.PublicIPs)
+	if m.ExposureNotes != nil {
+		v.ExposureNotes = strings.TrimSpace(*m.ExposureNotes)
+		changed = append(changed, "exposure_notes")
+	}
 	return changed
 }
 
@@ -236,7 +273,8 @@ var requiredKey = map[string]string{
 	"data_residency_region": "data_residency_region_id", "operational_location": "operational_location",
 	"criticality": "criticality", "data_classification": "data_classification", "environment": "environment",
 	"internet_exposure": "internet_exposure", "compliance_scopes": "compliance_scopes", "tags": "tag_ids",
-	"lifecycle_status": "lifecycle_status",
+	"lifecycle_status": "lifecycle_status", "staging_url": "staging_url", "production_url": "production_url",
+	"public_exposure": "public_exposure",
 }
 
 func (v AssetValues) empty(key string) bool {
@@ -289,6 +327,12 @@ func (v AssetValues) empty(key string) bool {
 		return len(v.TagIDs) == 0
 	case "lifecycle_status":
 		return v.LifecycleStatus == ""
+	case "staging_url":
+		return v.StagingURL == ""
+	case "production_url":
+		return v.ProductionURL == ""
+	case "public_exposure":
+		return v.PublicExposure == ""
 	}
 	return false
 }
@@ -388,6 +432,51 @@ func validateValues(ctx context.Context, q db.Querier, orgID uuid.UUID, ap *asse
 	}
 	if len(v.ComplianceScopes) > 30 {
 		fe.add("compliance_scopes", "at most 30 compliance scopes")
+	}
+
+	// Application URLs and public exposure (metadata only; never fetched).
+	for _, f := range []struct {
+		key string
+		val *string
+	}{{"staging_url", &v.StagingURL}, {"production_url", &v.ProductionURL}} {
+		if n, err := normalizeAppURL(*f.val); err != nil {
+			fe.add(f.key, err.Error())
+		} else {
+			*f.val = n
+		}
+	}
+	if v.PublicExposure != "" && !slices.Contains(publicExposures, v.PublicExposure) {
+		fe.add("public_exposure", "must be yes, no or unknown")
+	}
+	var err error
+	if v.PublicURLs, err = normalizeList(v.PublicURLs, normalizeAppURL); err != nil {
+		fe.add("public_urls", err.Error())
+	}
+	if v.PublicDomains, err = normalizeList(v.PublicDomains, func(d string) (string, error) { return normalizeDomain(d, true) }); err != nil {
+		fe.add("public_domains", err.Error())
+	}
+	if v.PublicIPs, err = normalizeList(v.PublicIPs, normalizePublicIP); err != nil {
+		fe.add("public_ips", err.Error())
+	}
+	if len(v.ExposureNotes) > 2000 {
+		fe.add("exposure_notes", "at most 2000 characters")
+	}
+	endpoints := len(v.PublicURLs) + len(v.PublicDomains) + len(v.PublicIPs)
+	switch v.PublicExposure {
+	case "yes":
+		if endpoints == 0 {
+			fe.add("public_urls", "add at least one public URL, domain or IP address")
+		}
+		if v.InternetExposure == "internal" || v.InternetExposure == "private" {
+			fe.add("internet_exposure", "contradicts the public exposure answer")
+		}
+	case "no":
+		if endpoints > 0 {
+			fe.add("public_urls", "remove the public endpoints or answer Yes")
+		}
+		if v.InternetExposure == "public" {
+			fe.add("internet_exposure", "contradicts the public exposure answer")
+		}
 	}
 
 	if v.GoLiveDate != nil && v.RetirementDate != nil && *v.RetirementDate < *v.GoLiveDate {
@@ -522,13 +611,16 @@ func currentValues(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID) (
 		       data_residency_region_id, operational_location, criticality, data_classification, environment,
 		       internet_exposure, color, lifecycle_status, go_live_date, retirement_date,
 		       COALESCE((SELECT array_agg(scope_key ORDER BY scope_key) FROM repository_compliance_scopes s WHERE s.repository_id = r.id), '{}'),
-		       COALESCE((SELECT array_agg(tag_id) FROM repository_tags t WHERE t.repository_id = r.id), '{}')
+		       COALESCE((SELECT array_agg(tag_id) FROM repository_tags t WHERE t.repository_id = r.id), '{}'),
+		       staging_url, production_url, public_exposure, exposure_notes,
+		       `+endpointArrays+`
 		FROM repositories r WHERE organization_id = $1 AND id = $2`, orgID, repoID).Scan(
 		&v.DisplayName, &v.AssetName, &v.Description, &v.ApplicationID, &v.ApplicationType, &v.BusinessPurpose,
 		&v.BusinessOwnerID, &v.TechnicalOwnerID, &v.ApplicationOwnerID, &v.BusinessUnitID, &v.DepartmentID,
 		&v.ResponsibleTeamID, &v.SupportingTeamID, &v.CostCentre, &v.BusinessRegionID, &v.CountryID, &v.HostingRegion,
 		&v.DataResidencyRegionID, &v.OperationalLocation, &v.Criticality, &v.DataClassification, &v.Environment,
-		&v.InternetExposure, &v.Color, &v.LifecycleStatus, &golive, &retire, &v.ComplianceScopes, &v.TagIDs)
+		&v.InternetExposure, &v.Color, &v.LifecycleStatus, &golive, &retire, &v.ComplianceScopes, &v.TagIDs,
+		&v.StagingURL, &v.ProductionURL, &v.PublicExposure, &v.ExposureNotes, &v.PublicURLs, &v.PublicDomains, &v.PublicIPs)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, errNotFound
 	}
@@ -571,14 +663,19 @@ func writeValues(ctx context.Context, tx pgx.Tx, orgID, repoID, actor uuid.UUID,
 		       business_region_id = $17, country_id = $18, hosting_region = $19, data_residency_region_id = $20,
 		       operational_location = $21, criticality = $22, data_classification = $23, environment = $24,
 		       internet_exposure = $25, color = $26, lifecycle_status = $27, go_live_date = $28::date, retirement_date = $29::date,
-		       updated_by = $30, updated_at = now()
+		       updated_by = $30, updated_at = now(), staging_url = $31, production_url = $32,
+		       public_exposure = COALESCE(NULLIF($33, ''), public_exposure), exposure_notes = $34
 		WHERE organization_id = $1 AND id = $2`,
 		orgID, repoID, v.DisplayName, v.AssetName, truncate(v.Description, 2000), v.ApplicationID, v.ApplicationType,
 		v.BusinessPurpose, v.BusinessOwnerID, v.TechnicalOwnerID, v.ApplicationOwnerID,
 		v.BusinessUnitID, v.DepartmentID, v.ResponsibleTeamID, v.SupportingTeamID, v.CostCentre,
 		v.BusinessRegionID, v.CountryID, v.HostingRegion, v.DataResidencyRegionID,
 		v.OperationalLocation, v.Criticality, v.DataClassification, v.Environment,
-		v.InternetExposure, v.Color, v.LifecycleStatus, v.GoLiveDate, v.RetirementDate, actor); err != nil {
+		v.InternetExposure, v.Color, v.LifecycleStatus, v.GoLiveDate, v.RetirementDate, actor,
+		v.StagingURL, v.ProductionURL, v.PublicExposure, truncate(v.ExposureNotes, 2000)); err != nil {
+		return err
+	}
+	if err := writeEndpoints(ctx, tx, orgID, repoID, actor, v); err != nil {
 		return err
 	}
 	scopes := v.ComplianceScopes
@@ -624,6 +721,27 @@ func (m AssetMetadata) mustBeEmpty() error {
 	var v AssetValues
 	if changed := m.Apply(&v); len(changed) > 0 {
 		return httpx.BadRequest("metadata cannot be changed when uploading a new version; edit the repository instead")
+	}
+	return nil
+}
+
+// endpointArrays selects a repository's public URLs, domains and IPs.
+const endpointArrays = `COALESCE((SELECT array_agg(e.value ORDER BY e.position) FROM repository_public_endpoints e WHERE e.repository_id = r.id AND e.kind = 'url'), '{}'),
+		       COALESCE((SELECT array_agg(e.value ORDER BY e.position) FROM repository_public_endpoints e WHERE e.repository_id = r.id AND e.kind = 'domain'), '{}'),
+		       COALESCE((SELECT array_agg(e.value ORDER BY e.position) FROM repository_public_endpoints e WHERE e.repository_id = r.id AND e.kind = 'ip'), '{}')`
+
+// writeEndpoints replaces the public endpoints of a repository.
+func writeEndpoints(ctx context.Context, tx pgx.Tx, orgID, repoID, actor uuid.UUID, v *AssetValues) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM repository_public_endpoints WHERE repository_id = $1`, repoID); err != nil {
+		return err
+	}
+	for kind, vals := range map[string][]string{"url": v.PublicURLs, "domain": v.PublicDomains, "ip": v.PublicIPs} {
+		for i, val := range vals {
+			if _, err := tx.Exec(ctx, `INSERT INTO repository_public_endpoints (id, organization_id, repository_id, kind, value, position, created_by)
+				VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT DO NOTHING`, uuid.Must(uuid.NewV7()), orgID, repoID, kind, val, i, actor); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

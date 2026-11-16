@@ -71,6 +71,11 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 		FailedImports         int        `json:"failed_imports"`
 		SyncFailures          int        `json:"sync_failures"`
 		LastSuccessfulSyncAt  *time.Time `json:"last_successful_sync_at"`
+		PubliclyExposed       int        `json:"publicly_exposed"`
+		NotPublic             int        `json:"not_public"`
+		ExposureUnknown       int        `json:"exposure_unknown"`
+		MissingProductionURL  int        `json:"missing_production_url"`
+		MissingOwnership      int        `json:"missing_ownership"`
 	}
 	var t totals
 	if err := s.DB.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE r.archived_at IS NULL), count(*) FILTER (WHERE r.archived_at IS NOT NULL),
@@ -80,8 +85,15 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 		count(*) FILTER (WHERE r.archived_at IS NULL AND r.environment = 'production'),
 		count(*) FILTER (WHERE r.archived_at IS NULL AND r.data_classification IN ('confidential', 'restricted')),
 		count(*) FILTER (WHERE r.archived_at IS NULL AND r.sync_status IN ('failed', 'missing', 'permission_denied')),
-		max(r.last_sync_ok_at)`+from, args...).Scan(&t.Total, &t.Active, &t.Archived, &t.Critical, &t.WithoutBusinessOwner,
-		&t.WithoutTechnicalOwner, &t.Production, &t.ConfidentialRestrict, &t.SyncFailures, &t.LastSuccessfulSyncAt); err != nil {
+		max(r.last_sync_ok_at),
+		count(*) FILTER (WHERE r.archived_at IS NULL AND r.public_exposure = 'yes'),
+		count(*) FILTER (WHERE r.archived_at IS NULL AND r.public_exposure = 'no'),
+		count(*) FILTER (WHERE r.archived_at IS NULL AND r.public_exposure = 'unknown'),
+		count(*) FILTER (WHERE r.archived_at IS NULL AND r.production_url = ''),
+		count(*) FILTER (WHERE r.archived_at IS NULL AND (r.business_owner_id IS NULL OR r.technical_owner_id IS NULL))`+from, args...).
+		Scan(&t.Total, &t.Active, &t.Archived, &t.Critical, &t.WithoutBusinessOwner,
+			&t.WithoutTechnicalOwner, &t.Production, &t.ConfidentialRestrict, &t.SyncFailures, &t.LastSuccessfulSyncAt,
+			&t.PubliclyExposed, &t.NotPublic, &t.ExposureUnknown, &t.MissingProductionURL, &t.MissingOwnership); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -142,6 +154,7 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 		{"by_data_classification", "r.data_classification", "r.data_classification", "", KindDataClassification, 20},
 		{"by_environment", "r.environment", "r.environment", "", KindEnvironment, 20},
 		{"by_lifecycle", "r.lifecycle_status", "r.lifecycle_status", "", KindLifecycleStatus, 20},
+		{"by_public_exposure", "r.public_exposure", "r.public_exposure", "", "", 3},
 		{"by_compliance", "cs.scope_key", "cs.scope_key", "JOIN repository_compliance_scopes cs ON cs.repository_id = r.id", KindCompliance, 30},
 	} {
 		b, err := group(bd.key, bd.label, bd.from, bd.limit)
@@ -152,6 +165,11 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case bd.kind != "":
 			b = catalog(bd.kind, b)
+		case bd.name == "by_public_exposure":
+			for i := range b {
+				b[i].Label, b[i].Color = map[string]string{"yes": "Publicly exposed", "no": "Not public", "unknown": "Unknown"}[b[i].Key],
+					map[string]string{"yes": "#cf222e", "no": "#2da44e", "unknown": "#6e7781"}[b[i].Key]
+			}
 		case bd.name == "by_provider":
 			for i := range b {
 				if info, ok := providerInfo(b[i].Key); ok {

@@ -580,9 +580,13 @@ func (s *Service) processSCM(ctx context.Context, it importItem, owner string) (
 			VALUES ($1, $2, $3, 'import', 'ok', $4, $5, true, $6)`, uuid.Must(uuid.NewV7()), it.OrgID, id, firstNonEmpty(branch, rr.DefaultBranch), commit.SHA, it.RequestedBy); err != nil {
 			return err
 		}
+		var repoKey string
+		if err := tx.QueryRow(ctx, `SELECT repository_key FROM repositories WHERE id = $1`, id).Scan(&repoKey); err != nil {
+			return err
+		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: it.OrgID, ActorID: &it.RequestedBy, Action: "repository.import",
 			TargetType: "repository", TargetID: id.String(),
-			Metadata: map[string]any{"name": rr.FullName, "import_job_id": it.JobID, "scm_connection_id": c.ID, "provider": c.Provider,
+			Metadata: map[string]any{"name": rr.FullName, "repository_key": repoKey, "import_job_id": it.JobID, "scm_connection_id": c.ID, "provider": c.Provider,
 				"branch": firstNonEmpty(branch, rr.DefaultBranch), "commit_sha": commit.SHA, "metadata": it.Values}})
 	})
 	if err != nil {

@@ -131,6 +131,20 @@ type Repository struct {
 	CurrentSnapshot     *SnapshotSummary `json:"current_snapshot"`
 	CanEdit             bool             `json:"can_edit"`
 	CanManage           bool             `json:"can_manage"`
+
+	// Permanent human-readable identifier, e.g. QD-REPO-000042.
+	RepositoryKey  string     `json:"repository_key"`
+	StagingURL     string     `json:"staging_url"`
+	ProductionURL  string     `json:"production_url"`
+	PublicExposure string     `json:"public_exposure"` // yes | no | unknown
+	PublicURLs     []string   `json:"public_urls"`
+	PublicDomains  []string   `json:"public_domains"`
+	PublicIPs      []string   `json:"public_ips"`
+	ExposureNotes  string     `json:"exposure_notes"`
+	RegisteredBy   *UserRef   `json:"registered_by"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	LastScanStatus *string    `json:"last_scan_status"`
+	LastScanAt     *time.Time `json:"last_scan_at"`
 }
 
 const userJSON = `json_build_object('id', u.id, 'name', COALESCE(NULLIF(u.display_name, ''), u.email), 'email', u.email)`
@@ -165,13 +179,19 @@ const repoSelectTmpl = `
 	               'archive_sha256', ss.archive_sha256, 'snapshot_sha256', ss.snapshot_sha256, 'file_count', ss.file_count,
 	               'uncompressed_bytes', ss.uncompressed_bytes, 'malware_scan', ss.malware_scan)
 	          FROM source_snapshots ss WHERE ss.id = r.current_snapshot_id),
+	       r.repository_key, r.staging_url, r.production_url, r.public_exposure, r.exposure_notes,
+	       ` + endpointArrays + `,
+	       (SELECT ` + userJSON + ` FROM users u WHERE u.id = r.imported_by), r.updated_at,
+	       ls.status, COALESCE(ls.finished_at, ls.queued_at),
 	       COALESCE((%[1]s), false), COALESCE((%[1]s) OR (%[2]s), false)
 	FROM repositories r
 	LEFT JOIN scm_connections c ON c.id = r.scm_connection_id
 	LEFT JOIN applications a ON a.id = r.application_id
 	LEFT JOIN business_units b ON b.id = r.business_unit_id
 	LEFT JOIN countries co ON co.id = r.country_id
-	LEFT JOIN regions rg ON rg.id = co.region_id`
+	LEFT JOIN regions rg ON rg.id = co.region_id
+	LEFT JOIN LATERAL (SELECT j.status, j.finished_at, j.queued_at FROM scan_jobs j WHERE j.repository_id = r.id
+	                   ORDER BY j.queued_at DESC LIMIT 1) ls ON true`
 
 // ownerSQL is true when the user ($n) owns the repository row r.
 func ownerSQL(n int) string {
@@ -212,7 +232,7 @@ func scanRepo(row pgx.Row) (Repository, error) {
 	var r Repository
 	var appID, buID, coID, rgID *uuid.UUID
 	var appName, buName, coName, coCode, rgName *string
-	var tags, bo, to, ao, rt, st, dep, brg, drg, snap []byte
+	var tags, bo, to, ao, rt, st, dep, brg, drg, snap, regBy []byte
 	var golive, retire *time.Time
 	err := row.Scan(&r.ID, &r.ConnectionID, &r.ConnectionName, &r.Provider, &r.SourceType, &r.SCMOrg, &r.SCMProject,
 		&r.ExternalID, &r.FullName, &r.Name, &r.URL,
@@ -223,7 +243,10 @@ func scanRepo(row pgx.Row) (Repository, error) {
 		&r.CostCentre, &brg, &drg, &r.HostingRegion, &r.OperationalLocation, &r.DataClassification, &r.InternetExposure,
 		&r.ComplianceScopes, &r.LifecycleStatus, &golive, &retire, &r.Color, &r.FullHistory,
 		&r.LatestCommitSHA, &r.LatestCommitAt, &r.SizeBytes, &r.FileCount, &r.Languages,
-		&r.LastSyncAt, &r.LastSyncOKAt, &r.SyncStatus, &r.SyncError, &snap, &r.CanManage, &r.CanEdit)
+		&r.LastSyncAt, &r.LastSyncOKAt, &r.SyncStatus, &r.SyncError, &snap,
+		&r.RepositoryKey, &r.StagingURL, &r.ProductionURL, &r.PublicExposure, &r.ExposureNotes,
+		&r.PublicURLs, &r.PublicDomains, &r.PublicIPs, &regBy, &r.UpdatedAt, &r.LastScanStatus, &r.LastScanAt,
+		&r.CanManage, &r.CanEdit)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return r, errNotFound
 	}
@@ -243,6 +266,11 @@ func scanRepo(row pgx.Row) (Repository, error) {
 	if r.Languages == nil {
 		r.Languages = map[string]int64{}
 	}
+	for _, l := range []*[]string{&r.PublicURLs, &r.PublicDomains, &r.PublicIPs} {
+		if *l == nil {
+			*l = []string{}
+		}
+	}
 	r.GoLiveDate, r.RetirementDate = dateString(golive), dateString(retire)
 	if r.ArchivedAt != nil {
 		r.CanEdit = r.CanManage // archived assets are read-only for owners
@@ -260,6 +288,7 @@ func scanRepo(row pgx.Row) (Repository, error) {
 		{brg, func(b []byte) error { return jsonPtr(b, &r.BusinessRegion) }},
 		{drg, func(b []byte) error { return jsonPtr(b, &r.DataResidencyRegion) }},
 		{snap, func(b []byte) error { return jsonPtr(b, &r.CurrentSnapshot) }},
+		{regBy, func(b []byte) error { return jsonPtr(b, &r.RegisteredBy) }},
 	} {
 		if err := j.set(j.b); err != nil {
 			return r, err
@@ -298,10 +327,11 @@ type repoSort struct {
 }
 
 var repoSorts = map[string]repoSort{
-	"name":         {"lower(COALESCE(NULLIF(r.display_name, ''), r.full_name))", "text", false},
-	"created_at":   {"r.created_at", "timestamptz", false},
-	"criticality":  {"(CASE r.criticality WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END)", "int", false},
-	"last_sync_at": {"COALESCE(r.last_sync_at, 'epoch'::timestamptz)", "timestamptz", false},
+	"name":           {"lower(COALESCE(NULLIF(r.display_name, ''), r.full_name))", "text", false},
+	"created_at":     {"r.created_at", "timestamptz", false},
+	"criticality":    {"(CASE r.criticality WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'medium' THEN 2 ELSE 1 END)", "int", false},
+	"last_sync_at":   {"COALESCE(r.last_sync_at, 'epoch'::timestamptz)", "timestamptz", false},
+	"repository_key": {"r.repository_key", "text", false},
 }
 
 // repoListFilter appends WHERE conditions for the shared list/insights
@@ -322,7 +352,9 @@ func repoListFilter(r *http.Request, where *[]string, args *[]any) error {
 		return httpx.BadRequest("status must be active, archived or all")
 	}
 	if v := strings.TrimSpace(q.Get("q")); v != "" {
-		add("(lower(r.full_name) LIKE ? OR lower(r.description) LIKE ? OR lower(r.display_name) LIKE ? OR lower(r.asset_name) LIKE ?)",
+		add(`(lower(r.full_name) LIKE ? OR lower(r.description) LIKE ? OR lower(r.display_name) LIKE ? OR lower(r.asset_name) LIKE ?
+			OR lower(r.repository_key) LIKE ? OR lower(r.production_url) LIKE ? OR lower(r.staging_url) LIKE ?
+			OR EXISTS (SELECT 1 FROM repository_public_endpoints e WHERE e.repository_id = r.id AND lower(e.value) LIKE ?))`,
 			"%"+escapeLike(strings.ToLower(v))+"%")
 	}
 	for param, col := range map[string]string{
@@ -371,6 +403,35 @@ func repoListFilter(r *http.Request, where *[]string, args *[]any) error {
 			}
 			add(col+" = ?", v)
 		}
+	}
+	if v := strings.TrimSpace(q.Get("repository_key")); v != "" {
+		if len(v) > 40 {
+			return httpx.BadRequest("invalid repository_key")
+		}
+		add("upper(r.repository_key) = upper(?)", v)
+	}
+	if v := q.Get("public_exposure"); v != "" {
+		if !slices.Contains(publicExposures, v) {
+			return httpx.BadRequest("public_exposure must be yes, no or unknown")
+		}
+		add("r.public_exposure = ?", v)
+	}
+	for param, col := range map[string]string{"production_url": "r.production_url", "staging_url": "r.staging_url"} {
+		if v := strings.TrimSpace(q.Get(param)); v != "" {
+			if len(v) > 300 {
+				return httpx.BadRequest("invalid " + param)
+			}
+			add("lower("+col+") LIKE ?", "%"+escapeLike(strings.ToLower(v))+"%")
+		}
+	}
+	switch q.Get("missing_production_url") {
+	case "":
+	case "true":
+		*where = append(*where, "r.production_url = ''")
+	case "false":
+		*where = append(*where, "r.production_url <> ''")
+	default:
+		return httpx.BadRequest("missing_production_url must be true or false")
 	}
 	if v := q.Get("sync_status"); v != "" {
 		if !slices.Contains([]string{"never", "ok", "failed", "missing", "permission_denied", "archived_upstream"}, v) {
@@ -436,7 +497,7 @@ func (s *Service) listRepositories(w http.ResponseWriter, r *http.Request) {
 	}
 	srt, ok := repoSorts[strings.TrimPrefix(sortKey, "-")]
 	if !ok {
-		s.fail(w, r, httpx.BadRequest("sort must be name, created_at, criticality or last_sync_at (prefix - for descending)"))
+		s.fail(w, r, httpx.BadRequest("sort must be name, repository_key, created_at, criticality or last_sync_at (prefix - for descending)"))
 		return
 	}
 	srt.desc = strings.HasPrefix(sortKey, "-")
@@ -596,6 +657,7 @@ var ownerEditable = []string{
 	"business_owner_id", "technical_owner_id", "application_owner_id", "responsible_team_id", "supporting_team_id",
 	"cost_centre", "hosting_region", "operational_location", "data_classification", "internet_exposure",
 	"compliance_scopes", "tag_ids", "color", "lifecycle_status", "go_live_date", "retirement_date",
+	"staging_url", "production_url", "public_exposure", "public_urls", "public_domains", "public_ips", "exposure_notes",
 }
 
 func validTechnologies(t []string) ([]string, error) {
@@ -741,7 +803,7 @@ func (s *Service) updateRepository(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: action, TargetType: "repository", TargetID: repo.ID.String(),
-			Metadata: map[string]any{"name": repo.FullName, "changed": diff}}); err != nil {
+			Metadata: map[string]any{"name": repo.FullName, "repository_key": repo.RepositoryKey, "changed": diff}}); err != nil {
 			return err
 		}
 		out, err = s.getRepo(ctx, tx, p, repo.ID)
@@ -882,7 +944,7 @@ func (s *Service) setArchived(w http.ResponseWriter, r *http.Request, archive bo
 			return err
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: action, TargetType: "repository", TargetID: repo.ID.String(), Metadata: map[string]any{"name": repo.FullName}}); err != nil {
+			Action: action, TargetType: "repository", TargetID: repo.ID.String(), Metadata: map[string]any{"name": repo.FullName, "repository_key": repo.RepositoryKey}}); err != nil {
 			return err
 		}
 		out, err = s.getRepo(ctx, tx, p, repo.ID)
@@ -934,7 +996,7 @@ func (s *Service) deleteRepository(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "repository.delete", TargetType: "repository", TargetID: repo.ID.String(),
-			Metadata: map[string]any{"name": repo.FullName, "source_type": repo.SourceType, "snapshots_deleted": len(snapshotKeys)}})
+			Metadata: map[string]any{"name": repo.FullName, "repository_key": repo.RepositoryKey, "source_type": repo.SourceType, "snapshots_deleted": len(snapshotKeys)}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

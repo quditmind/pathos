@@ -147,11 +147,11 @@ var assetFields = []string{
 	"responsible_team", "supporting_team", "cost_centre",
 	"business_region", "country", "hosting_region", "data_residency_region", "operational_location",
 	"criticality", "data_classification", "environment", "internet_exposure", "compliance_scopes",
-	"tags", "lifecycle_status",
+	"tags", "lifecycle_status", "staging_url", "production_url", "public_exposure",
 }
 
 // alwaysRequired are mandatory regardless of policy (spec 5.2, 5.3).
-var alwaysRequired = []string{"business_owner", "business_unit", "business_region"}
+var alwaysRequired = []string{"business_owner", "business_unit", "business_region", "public_exposure"}
 
 // EnsureAssetDefaults seeds missing catalog entries and the settings row.
 // Idempotent; run at startup.
@@ -185,6 +185,7 @@ func (s *Service) registerAssets(mux *http.ServeMux) {
 type assetPolicy struct {
 	Required     []string
 	ScanOnImport bool
+	KeyPrefix    string
 	Catalog      map[string][]Classification
 }
 
@@ -224,14 +225,13 @@ func (ap *assetPolicy) label(kind, key string) (string, string) {
 
 func (s *Service) loadPolicy(ctx context.Context, q db.Querier, orgID uuid.UUID) (*assetPolicy, error) {
 	ap := &assetPolicy{Catalog: map[string][]Classification{}}
-	err := q.QueryRow(ctx, `SELECT required_fields, scan_on_import FROM asset_settings WHERE organization_id = $1`, orgID).
-		Scan(&ap.Required, &ap.ScanOnImport)
+	const sel = `SELECT required_fields, scan_on_import, repository_key_prefix FROM asset_settings WHERE organization_id = $1`
+	err := q.QueryRow(ctx, sel, orgID).Scan(&ap.Required, &ap.ScanOnImport, &ap.KeyPrefix)
 	if errors.Is(err, pgx.ErrNoRows) {
 		if err := EnsureAssetDefaults(ctx, q, orgID); err != nil {
 			return nil, err
 		}
-		err = q.QueryRow(ctx, `SELECT required_fields, scan_on_import FROM asset_settings WHERE organization_id = $1`, orgID).
-			Scan(&ap.Required, &ap.ScanOnImport)
+		err = q.QueryRow(ctx, sel, orgID).Scan(&ap.Required, &ap.ScanOnImport, &ap.KeyPrefix)
 	}
 	if err != nil {
 		return nil, err
@@ -270,20 +270,25 @@ func (s *Service) getAssetSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{
-		"required_fields":  ap.Required,
-		"always_required":  alwaysRequired,
-		"scan_on_import":   ap.ScanOnImport,
-		"classifications":  ap.Catalog,
-		"suggested_colors": suggestedColors,
+		"required_fields": ap.Required,
+		"always_required": alwaysRequired,
+		"scan_on_import":  ap.ScanOnImport,
+		// Applies to Repository IDs generated from now on; existing IDs never change.
+		"repository_key_prefix": ap.KeyPrefix,
+		"classifications":       ap.Catalog,
+		"suggested_colors":      suggestedColors,
 		"upload": map[string]any{"max_bytes": s.Limits.UploadMaxBytes, "chunk_size": uploadChunkSize,
 			"formats": []string{"zip", "tar", "tar.gz"}},
 	})
 }
 
 type assetSettingsPatch struct {
-	RequiredFields *[]string `json:"required_fields"`
-	ScanOnImport   *bool     `json:"scan_on_import"`
+	RequiredFields      *[]string `json:"required_fields"`
+	ScanOnImport        *bool     `json:"scan_on_import"`
+	RepositoryKeyPrefix *string   `json:"repository_key_prefix"`
 }
+
+var keyPrefixRe = regexp.MustCompile(`^[A-Z][A-Z0-9]*(-[A-Z0-9]+)*$`)
 
 func (s *Service) updateAssetSettings(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -312,8 +317,24 @@ func (s *Service) updateAssetSettings(w http.ResponseWriter, r *http.Request) {
 			fields = []string{}
 		}
 	}
+	if req.RepositoryKeyPrefix != nil {
+		v := strings.ToUpper(strings.TrimSpace(*req.RepositoryKeyPrefix))
+		if len(v) > 20 || !keyPrefixRe.MatchString(v) {
+			s.fail(w, r, httpx.BadRequest("repository_key_prefix must be upper-case letters, digits and single hyphens (max 20), e.g. QD-REPO"))
+			return
+		}
+		req.RepositoryKeyPrefix = &v
+	}
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := EnsureAssetDefaults(ctx, tx, p.OrganizationID); err != nil {
+			return err
+		}
+		var oldPrefix string
+		if err := tx.QueryRow(ctx, `SELECT repository_key_prefix FROM asset_settings WHERE organization_id = $1`, p.OrganizationID).Scan(&oldPrefix); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE asset_settings SET repository_key_prefix = COALESCE($2, repository_key_prefix) WHERE organization_id = $1`,
+			p.OrganizationID, req.RepositoryKeyPrefix); err != nil {
 			return err
 		}
 		var oldFields []string
@@ -329,8 +350,8 @@ func (s *Service) updateAssetSettings(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "asset_settings.update", TargetType: "asset_settings", TargetID: p.OrganizationID.String(),
-			Metadata: map[string]any{"old": map[string]any{"required_fields": oldFields, "scan_on_import": oldScan},
-				"new": map[string]any{"required_fields": fields, "scan_on_import": req.ScanOnImport}}})
+			Metadata: map[string]any{"old": map[string]any{"required_fields": oldFields, "scan_on_import": oldScan, "repository_key_prefix": oldPrefix},
+				"new": map[string]any{"required_fields": fields, "scan_on_import": req.ScanOnImport, "repository_key_prefix": req.RepositoryKeyPrefix}}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

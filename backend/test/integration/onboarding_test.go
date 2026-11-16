@@ -200,7 +200,8 @@ func TestOnboardingSCMImport(t *testing.T) {
 		"metadata": map[string]any{"criticality": "high"}, "items": []any{map[string]any{"ref": map[string]any{"external_id": "201", "full_name": "corp/billing"}}}}
 	code, val := o.do(admin, "POST", "/api/v1/repository-imports/validate", req)
 	fields, _ := val["fields"].(map[string]any)
-	if code != 200 || val["valid"] != false || fields["business_owner_id"] != "required" || fields["business_region_id"] != "required" {
+	if code != 200 || val["valid"] != false || fields["business_owner_id"] != "required" || fields["business_region_id"] != "required" ||
+		fields["public_exposure"] != "required" {
 		t.Fatalf("validation: %d %v", code, val)
 	}
 	if code, _ := o.do(admin, "POST", "/api/v1/repository-imports", req); code != 422 {
@@ -216,7 +217,8 @@ func TestOnboardingSCMImport(t *testing.T) {
 		"business_owner_id": bizOwner.UserID, "technical_owner_id": techOwner.UserID,
 		"business_unit_id": bu, "department_id": dept, "business_region_id": region, "hosting_region": "europe",
 		"data_residency_region_id": region, "criticality": "critical", "data_classification": "confidential", "environment": "production",
-		"internet_exposure": "public", "compliance_scopes": []string{"pci_dss", "gdpr"}, "tag_ids": []string{id(tag, "id")},
+		"internet_exposure": "public", "public_exposure": "yes", "public_urls": []string{"https://billing.example.com"},
+		"production_url": "https://billing.example.com", "compliance_scopes": []string{"pci_dss", "gdpr"}, "tag_ids": []string{id(tag, "id")},
 		"color": "#CF222E", "lifecycle_status": "active", "go_live_date": "2024-01-15",
 		"new_application": map[string]any{"name": "Billing " + sfx, "external_ref": "APP-" + sfx},
 	}
@@ -454,7 +456,8 @@ func TestOnboardingUpload(t *testing.T) {
 		t.Fatal(err)
 	}
 	md := map[string]any{"business_owner_id": owner.UserID, "technical_owner_id": owner.UserID, "business_unit_id": bu,
-		"business_region_id": firstRegion(t), "criticality": "medium", "data_classification": "internal", "environment": "development"}
+		"business_region_id": firstRegion(t), "criticality": "medium", "data_classification": "internal", "environment": "development",
+		"public_exposure": "no"}
 
 	archive := zipOf(t, map[string]string{"app-main/go.mod": "module x\n", "app-main/main.go": "package main\nfunc main() {}\n",
 		"app-main/web/index.ts": "export const a = 1\n"})
@@ -591,7 +594,8 @@ func TestOnboardingOrganizationIsolation(t *testing.T) {
 	uid := o.upload(t, admin, "iso.zip", zipOf(t, map[string]string{"x.py": "print(1)\n"}))
 	_, job := o.do(admin, "POST", "/api/v1/repository-imports", map[string]any{"source": "upload", "idempotency_key": "i-" + uuid.NewString(),
 		"metadata": map[string]any{"business_owner_id": owner.UserID, "technical_owner_id": owner.UserID, "business_unit_id": bu,
-			"business_region_id": firstRegion(t), "criticality": "low", "data_classification": "public", "environment": "sandbox"},
+			"business_region_id": firstRegion(t), "criticality": "low", "data_classification": "public", "environment": "sandbox",
+			"public_exposure": "unknown"},
 		"items": []any{map[string]any{"upload_id": uid}}})
 	o.drain(t)
 	repoID := items(o.job(t, admin, id(job, "id")))[0]["repository_id"].(string)
