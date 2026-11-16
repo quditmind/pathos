@@ -839,6 +839,149 @@ export interface ScanJob {
   started_at: string | null;
   finished_at: string | null;
   results?: ScanResult[];
+
+  /** Permanent Scan ID, e.g. QD-SCAN-000042 (unique, never reused). */
+  scan_key: string;
+  name: string;
+  asset_type: "repository";
+  profile_id: string;
+  /** 0-100, derived from recorded stages (lease, source checkout, finished engine jobs, finalization). */
+  progress: number;
+  /** queued | starting | fetching_source | scanning | scanning:<scanner> | finalizing | finished */
+  stage: string;
+  /** The failed execution this one retries. */
+  retry_of: string | null;
+  retry_count: number;
+  schedule_id: string | null;
+  schedule_run_id: string | null;
+  snapshot_id: string | null;
+  duration_ms: number | null;
+  /** Distinct findings observed by this execution. */
+  findings_total: number;
+  severity: Record<"critical" | "high" | "medium" | "low" | "info", number>;
+  /** Immutable effective configuration (only on GET /scans/{id}). */
+  config_snapshot?: ScanConfigSnapshot;
+}
+
+/** Read-only snapshot of the profile version used by an execution. */
+export interface ScanConfigSnapshot {
+  profile_id: string;
+  profile_name: string;
+  profile_version_id: string;
+  profile_version: number;
+  change_note: string;
+  severity_threshold: string;
+  exclusions: string[];
+  timeout_seconds: number;
+  sbom: boolean;
+  fail_on_critical: boolean;
+  retention_days: number;
+  scanners: { key: string; config?: unknown }[];
+  captured_at: string;
+}
+
+/** POST /api/v1/scans → 202 { items: StartScanItem[] } */
+export interface StartScanRequest {
+  repository_ids: string[];
+  /** An existing scan profile (managed in Configurations); omit for each repository's own profile. */
+  profile_id?: string;
+  name?: string;
+  trigger?: "manual" | "emergency" | "onboarding";
+}
+export interface StartScanItem {
+  repository_id: string;
+  job_id?: string;
+  coalesced?: boolean;
+  error?: string;
+}
+
+/**
+ * GET /api/v1/scans query: q (scan/repository name or key), scan_key, repository_key, repository_id,
+ * profile_id, schedule_id, trigger, scanner, status (queued|running|succeeded|partial|failed|cancelled|active),
+ * asset_type=repository, from, to (YYYY-MM-DD or RFC 3339), cursor. Page size 50.
+ * POST /api/v1/scans/{id}/retry → 202 ScanJob (new execution, retry_of set); only failed/partial/cancelled.
+ * POST /api/v1/scans/{id}/cancel → ScanJob (queued or running).
+ */
+
+/** GET /api/v1/scans/{id}/stages */
+export interface ScanStage {
+  key: string; // queued | source | scanner:<key> | finalize
+  label: string;
+  scanner: string;
+  scanner_version: string;
+  status: "pending" | "running" | "succeeded" | "failed" | "skipped" | "timed_out" | "cancelled";
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  findings: number | null;
+  error: string;
+}
+export interface ScanEvent {
+  stage: string;
+  scanner: string;
+  status: string;
+  message: string;
+  at: string;
+}
+
+/** GET /api/v1/scans/{id}/logs?source=&level=debug|info|warn|error&after_id= → { items, sources, next_after_id } */
+export interface ScanLogLine {
+  id: number;
+  at: string;
+  level: "debug" | "info" | "warn" | "error";
+  /** "worker", "platform" or a scanner key. */
+  source: string;
+  message: string;
+}
+
+/** GET /api/v1/scans/{id}/findings?severity=&scanner= → { items } (findings.read on the repository). */
+export interface ScanFinding extends Finding {
+  scanner: string;
+  /** file:line or package@version */
+  evidence: string;
+  occurrence_commit_sha: string;
+  /** First seen in this execution. */
+  is_new: boolean;
+}
+
+/** GET /api/v1/scans/{id}/history → { items: ScanJob[] } same repository, last 360 days. */
+
+/** GET /api/v1/scans/overview?days=1..360 (default 30) */
+export interface ScanOverview {
+  days: number;
+  scans: { total: number; running: number; queued: number; completed: number; failed: number; cancelled: number };
+  open_findings: Record<"critical" | "high" | "medium" | "low" | "info", number>;
+  open_findings_total: number;
+  critical_high: number;
+  recent: ScanJob[];
+  trend: { day: string; completed: number; failed: number; cancelled: number; new_findings: number }[];
+  upcoming: { schedule_id: string; name: string; next_run_at: string; kind: ScheduleKind }[];
+}
+
+/** GET /api/v1/scans/compare?ids=a,b[,c…] (2-10, scans.compare) — chronological; each compared with the previous. */
+export interface ScanComparison {
+  scans: (ScanJob & {
+    scanners: ScanResult[];
+    succeeded_scanners: string[];
+    complete: boolean;
+    new: number;
+    fixed: number;
+    recurring: number;
+    unchanged: number;
+    /** Absent now, but this execution failed or its covering scanner did not succeed: not counted as fixed. */
+    not_covered: number;
+    profile_changed: boolean;
+    engine_changes: string[];
+    duration_delta_ms: number | null;
+  })[];
+  findings: {
+    id: string;
+    title: string;
+    severity: Severity;
+    scanners: string[];
+    /** scan id → present (first scan) | new | recurring | unchanged | fixed | not_covered | absent */
+    states: Record<string, string>;
+  }[];
 }
 
 export interface Finding {
@@ -1064,10 +1207,87 @@ export interface ComponentGroup {
 
 export type ScheduleTarget = "organization" | "region" | "business_unit" | "repository" | "profile";
 
+export type ScheduleKind = "cron" | "once" | "interval";
+
+/** One execution-plan row: assets (organization / region / business unit / repository) × an existing profile. */
+export interface SchedulePlanEntry {
+  id?: string;
+  target_type: "organization" | "region" | "business_unit" | "repository";
+  target_id: string | null;
+  target_name?: string;
+  /** null = each repository's own (or the default) profile */
+  profile_id: string | null;
+  profile_name?: string;
+}
+
+/** POST /api/v1/schedules, PUT /api/v1/schedules/{id}; POST /api/v1/schedules/preview takes the same body. */
+export interface ScheduleRequest {
+  name: string;
+  enabled?: boolean;
+  kind: ScheduleKind;
+  /** kind cron (daily/weekly/monthly presets are cron expressions); at most once per hour */
+  cron?: string;
+  /** kind once: when; kind interval: optional first run */
+  run_at?: string | null;
+  /** kind interval: 60..525600 */
+  interval_minutes?: number | null;
+  timezone: string;
+  /** Approved scan window "HH:MM" in the schedule's time zone (both or neither); start > end spans midnight. */
+  window_start?: string;
+  window_end?: string;
+  /** 0 = Sunday … 6 = Saturday; empty = every day */
+  window_days?: number[];
+  retry_max?: number; // 0..5
+  retry_delay_minutes?: number; // 5..1440
+  /** Maximum queued+running executions from this schedule; 0 = unlimited */
+  max_concurrent?: number;
+  notify_on?: ("completed" | "failed")[];
+  priority?: number; // 0..90
+  plan: SchedulePlanEntry[];
+}
+
+/** POST /api/v1/schedules/preview → next runs and the number of executions per activation. */
+export interface SchedulePreview {
+  next_runs: string[];
+  repositories: number;
+  executions: number;
+  window: string;
+}
+
+/** GET /api/v1/schedules/{id}/runs → { items } */
+export interface ScheduleRun {
+  id: string;
+  due_at: string;
+  trigger: "schedule" | "manual" | "catch_up";
+  status: "running" | "waiting" | "completed" | "partial" | "failed";
+  queued: number;
+  skipped: number;
+  failed: number;
+  pending: number;
+  message: string;
+  started_at: string;
+  finished_at: string | null;
+  /** execution status → count */
+  jobs: Record<string, number>;
+}
+
+/** POST /api/v1/schedules/{id}/pause and /resume → Schedule; POST /run → RunResult. GET /schedules/{id} → Schedule. */
 export interface Schedule {
   id: string;
   name: string;
+  /** false = paused */
   enabled: boolean;
+  kind: ScheduleKind;
+  run_at: string | null;
+  interval_minutes: number | null;
+  window_start: string;
+  window_end: string;
+  window_days: number[];
+  retry_max: number;
+  retry_delay_minutes: number;
+  max_concurrent: number;
+  notify_on: ("completed" | "failed")[];
+  plan: SchedulePlanEntry[];
   cron: string;
   timezone: string;
   target_type: ScheduleTarget;
