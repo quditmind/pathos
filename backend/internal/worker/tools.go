@@ -3,10 +3,10 @@ package worker
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"net/url"
 	"os"
@@ -47,11 +47,30 @@ func command(ctx context.Context, env []string, okCodes []int, name string, args
 	var stderr bytes.Buffer
 	cmd.Stdout = &limitedBuffer{max: 64 << 10}
 	cmd.Stderr = &limitedWriter{buf: &stderr, max: 64 << 10}
+	// A collector in ctx receives the output line by line as well (stderr
+	// always, stdout only for tools whose stdout carries no findings).
+	var tees []*streamWriter
+	if c := collectorFrom(ctx); c != nil {
+		ew := c.writer()
+		tees = append(tees, ew)
+		cmd.Stderr = io.MultiWriter(cmd.Stderr, ew)
+		if c.stdout {
+			ow := c.writer()
+			tees = append(tees, ow)
+			cmd.Stdout = io.MultiWriter(cmd.Stdout, ow)
+		}
+	}
 	if err := cmd.Start(); err != nil {
 		return nil, err
 	}
 	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
+	go func() {
+		err := cmd.Wait()
+		for _, w := range tees {
+			w.close()
+		}
+		done <- err
+	}()
 	select {
 	case <-ctx.Done():
 		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
@@ -300,7 +319,7 @@ func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (st
 	}
 	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
 	if job.Credential != nil && job.Credential.Token != "" {
-		header := "Authorization: Basic " + base64.StdEncoding.EncodeToString([]byte(job.Credential.Username+":"+job.Credential.Token))
+		header := "Authorization: Basic " + basicAuth(job.Credential.Username, job.Credential.Token)
 		if job.Credential.Scheme == "bearer" {
 			header = "Authorization: Bearer " + job.Credential.Token
 		}
