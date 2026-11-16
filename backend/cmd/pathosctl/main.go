@@ -7,6 +7,7 @@
 package main
 
 import (
+	"strconv"
 	"context"
 	"crypto/rand"
 	"encoding/base64"
@@ -39,6 +40,7 @@ func usage() {
 commands:
   migrate             apply migrations, sync the RBAC catalog, ensure the organization exists
   migrate-status      print current and latest migration versions
+  migrate-down <ver>  roll back migrations above version <ver> (release rollback; may delete data)
   migrate-artifacts   move scan artifacts stored in PostgreSQL to the configured S3 bucket
   gen-key             print a new random 32-byte master key (base64)
   rbac-matrix         print the role/permission matrix as Markdown
@@ -88,6 +90,17 @@ func main() {
 	switch cmd {
 	case "migrate":
 		err = migrate(ctx, pool, cfg, log)
+	case "migrate-down":
+		if len(os.Args) < 3 {
+			usage()
+			os.Exit(2)
+		}
+		var v int64
+		if v, err = strconv.ParseInt(os.Args[2], 10, 64); err != nil || v < 0 {
+			fmt.Fprintln(os.Stderr, "migrate-down: version must be a non-negative integer")
+			os.Exit(2)
+		}
+		err = db.MigrateDownTo(ctx, pool, v, log)
 	case "migrate-status":
 		var cur, latest int64
 		cur, latest, err = db.MigrationStatus(ctx, pool)

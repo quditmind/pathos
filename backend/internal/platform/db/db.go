@@ -85,6 +85,26 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
 	return nil
 }
 
+// MigrateDownTo rolls back migrations above version (rollback of a
+// release). Down migrations may delete data that the older schema cannot
+// represent; each migration documents what.
+func MigrateDownTo(ctx context.Context, pool *pgxpool.Pool, version int64, log *slog.Logger) error {
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	defer sqlDB.Close()
+	provider, err := newProvider(sqlDB)
+	if err != nil {
+		return err
+	}
+	results, err := provider.DownTo(ctx, version)
+	for _, r := range results {
+		log.Info("migration rolled back", "version", r.Source.Version, "file", r.Source.Path, "duration_ms", r.Duration.Milliseconds())
+	}
+	if err != nil {
+		return fmt.Errorf("migrate down: %w", err)
+	}
+	return nil
+}
+
 // MigrationStatus returns (current, latest) versions.
 func MigrationStatus(ctx context.Context, pool *pgxpool.Pool) (int64, int64, error) {
 	sqlDB := stdlib.OpenDBFromPool(pool)
