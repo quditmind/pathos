@@ -34,6 +34,7 @@ const (
 	PermProfilesManage  Permission = "profiles.manage"
 	PermScansRead       Permission = "scans.read"
 	PermScansRun        Permission = "scans.run"
+	PermScansCompare    Permission = "scans.compare"
 	PermSchedulesManage Permission = "schedules.manage"
 
 	PermFindingsRead       Permission = "findings.read"
@@ -88,7 +89,8 @@ var Permissions = []PermissionInfo{
 	{PermScannersManage, "Scanning", "Enable, disable and configure scanners", true},
 	{PermProfilesManage, "Scanning", "Create and edit scan profiles", true},
 	{PermScansRead, "Scanning", "View scan jobs and results", false},
-	{PermScansRun, "Scanning", "Start and cancel scans", false},
+	{PermScansRun, "Scanning", "Start, retry and cancel scans", false},
+	{PermScansCompare, "Scanning", "Compare scan executions and view scan history", false},
 	{PermSchedulesManage, "Scanning", "Manage scan schedules", false},
 
 	{PermFindingsRead, "Findings", "View findings and evidence", false},
@@ -120,7 +122,7 @@ func all() []Permission {
 
 var readOnly = []Permission{
 	PermDashboardRead, PermOrgRead, PermReposRead, PermScannersRead,
-	PermScansRead, PermFindingsRead, PermSBOMRead,
+	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead,
 }
 
 func with(base []Permission, extra ...Permission) []Permission {

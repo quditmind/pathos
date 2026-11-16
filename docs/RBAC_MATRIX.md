@@ -60,6 +60,7 @@ Generated from `backend/internal/authz/catalog.go` with `scripts/go.sh run ./cmd
 | `profiles.manage` | yes | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |  |
 | `scans.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `scans.run` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |  |  |  |
+| `scans.compare` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `schedules.manage` |  | ✓ | ✓ | ✓ |  | ✓ |  |  |  |  |  |
 | `findings.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `findings.triage` |  | ✓ |  | ✓ | ✓ | ✓ |  | ✓ | ✓ |  |  |

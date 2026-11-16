@@ -303,6 +303,12 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 				if _, err := pool.Exec(ctx, `DELETE FROM repository_sync_runs WHERE started_at < now() - interval '180 days'`); err != nil {
 					log.Warn("sync history retention failed", "err", err)
 				}
+				for _, t := range []string{"scan_job_logs", "scan_job_events"} {
+					// t is one of two constants.
+					if _, err := pool.Exec(ctx, `DELETE FROM `+t+` WHERE at < now() - make_interval(days => $1)`, cfg.ScanLogRetentionDays); err != nil {
+						log.Warn("scan log retention failed", "table", t, "err", err)
+					}
+				}
 			}
 			n++
 			select {

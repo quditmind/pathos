@@ -30,7 +30,7 @@ Rules:
 
 ## Scanners
 
-The scanners that actually run today are the seven tools of the `worker-core` image. **Administration → Scanners & workers** lists them with license and **Availability**; the other catalog entries (for example TruffleHog, Semgrep CE, CodeQL, KICS, ZAP) are catalogued as *planned* and **do not run** yet.
+The scanners that actually run today are the seven tools of the `worker-core` image. **Configurations → Scanners & workers** lists them with license and **Availability**; the other catalog entries (for example TruffleHog, Semgrep CE, CodeQL, KICS, ZAP) are catalogued as *planned* and **do not run** yet.
 
 | Scanner (key) | Category | What it does in PATHOS |
 |---|---|---|
@@ -46,7 +46,7 @@ PATHOS does **not** perform dynamic testing (DAST) of the staging or production 
 
 ## Scan profiles
 
-**Scanning → Scan profiles** defines what a scan does. The **Default** profile (all core scanners) applies to repositories without a profile; a different profile can be set per repository on its **Security** tab (**Scan profile**). Profile settings: **Scanners** (Gitleaks always on), **Record severities from**, **Generate an SBOM (Syft, CycloneDX). Required by Grype.**, **Mark the scan's security gate as failed when new critical findings appear**, **Timeout (min)**, **Raw report retention (days)**, **Exclusions** (globs such as `vendor/**`). Every change creates a new profile version with a change note. Managing profiles requires `profiles.manage`.
+**Configurations → Scan profiles** defines what a scan does (profiles and the scanner registry are managed in **Configurations**; the Scanning module only uses them). The **Default** profile (all core scanners) applies to repositories without a profile; a different profile can be set per repository on its **Security** tab (**Scan profile**). Profile settings: **Scanners** (Gitleaks always on), **Record severities from**, **Generate an SBOM (Syft, CycloneDX). Required by Grype.**, **Mark the scan's security gate as failed when new critical findings appear**, **Timeout (min)**, **Raw report retention (days)**, **Exclusions** (globs such as `vendor/**`). Every change creates a new profile version with a change note. Managing profiles requires `profiles.manage`.
 
 ## SBOM and SCA
 
@@ -80,9 +80,7 @@ Columns include **Repository** and **Repository ID** (hidden by default, always 
 
 ## Scan history
 
-**Scanning → Scans** lists scan jobs with repository and Repository ID, status (Queued, Running, Succeeded, Partial, Failed, Cancelled), new and resolved findings (`+n −n`), trigger, profile version, queue time and duration. Select a job to see each scanner's version, status and finding count and to download raw reports.
-
-![Scans](images/scans.png "Scans: one row per scan job; the uploaded example repository was scanned from its snapshot")
+**Scanning → Scans** lists every scan execution with its permanent Scan ID; open one for its Overview, Findings, Execution Logs, Stages, Configuration and History tabs. Comparing executions over time is done in **Scanning → Scan Comparison**. See [Scanning: executions, schedules and comparison](scanning.md) for the full guide.
 
 ## Step-by-step: scan a repository and view its findings
 
@@ -96,7 +94,7 @@ Columns include **Repository** and **Repository ID** (hidden by default, always 
 
 1. Open **Assets → Repositories**, select the repository and open the **Security** tab.
 2. Select **Scan now**. The button shows *Scan queued* (or *Already queued*).
-3. Wait for the scan to finish (refresh **Scanning → Scans**; the example took under two minutes).
+3. Wait for the scan to finish: **Scanning → Scans** shows its progress and stage live; select the Scan ID to follow the stages and execution log (the example took under a minute).
 4. Back on the **Security** tab, check **Open findings** by severity and the **Latest scan**: status, trigger, profile, commit or snapshot, and the table of scanners with versions, status and findings.
    ![Repository Security tab](images/repository-security.png "Security tab: open findings by severity, the latest scan with every scanner's version and result, scan profile and recent scans")
 5. Select **All findings** to open the findings list filtered to this repository, or **Scan history** for its scans.
@@ -111,7 +109,7 @@ Columns include **Repository** and **Repository ID** (hidden by default, always 
 | **Scan now** missing | No `scans.run` permission |
 | *repository is archived or scanning is disabled* | Unarchive the repository; scheduled scans skip repositories excluded from scheduled scans |
 | *repository has no source snapshot yet* | The upload import has not completed |
-| Scan stays **Queued** | No worker online: **Administration → Scanners & workers** must list a worker |
+| Scan stays **Queued** | No worker online: **Configurations → Scanners & workers** must list a worker |
 | Status **Partial** | One or more scanners failed or timed out; the scan details show which |
 | Git scan fails to clone | The connection's credential expired or lost access; **Test** the connection |
 | Opengrep reports *no rule sets available* | Ask an administrator to install rule sets |

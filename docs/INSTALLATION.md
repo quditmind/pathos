@@ -94,7 +94,7 @@ Imports run in the background (**Import history** shows progress, retry and canc
 - **First scans** download vulnerability databases (~1 GB) into the `scanner_cache` volume through the proxy; later scans reuse them.
 - **Egress:** allowed destinations are in `deploy/egress/allowlist.txt`. For GitHub Enterprise Server or Azure DevOps Server on a private network, add a file in `deploy/egress/conf.d/` (example inside) and restart `egress`. Access log: `docker compose exec egress tail -f /var/log/squid/access.log`.
 - **Opengrep rules:** PATHOS ships its own baseline rules. Mount additional rule sets as `*.yml` in `workers/rules-extra/`; they are read-only at `/rules` in every worker.
-- **Workers page:** *Administration → Scanners & workers* shows online workers and tool versions. Revoking a worker stops it immediately.
+- **Workers page:** *Configurations → Scanners & workers* shows online workers and tool versions. Revoking a worker stops it immediately.
 
 ## Day-2 operations
 

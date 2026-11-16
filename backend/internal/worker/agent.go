@@ -45,6 +45,9 @@ type Agent struct {
 	http  *http.Client
 	token string
 	tools map[string]Tool
+	// reportInterval is how often execution events and logs are flushed
+	// (default 3s).
+	reportInterval time.Duration
 }
 
 // New builds an agent with the tools available in this image.
@@ -212,6 +215,26 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	ctx, cancel := context.WithTimeout(parent, time.Duration(job.TimeoutSeconds)*time.Second)
 	defer cancel()
 
+	// The reporter is created while the credential is still known so that
+	// it can be redacted from everything sent; it is closed (flushed)
+	// before the job's complete call.
+	rep := a.newReporter(job)
+	defer rep.close()
+	rep.logf("info", "job started on worker %s (ref %s, %d scanners, timeout %ds)", a.cfg.Name, job.Ref, len(job.Scanners), job.TimeoutSeconds)
+	finish := func(failure, commitSHA string) {
+		if failure != "" {
+			rep.logf("error", "job failed: %s", failure)
+		} else {
+			rep.logf("info", "job finished")
+		}
+		rep.close()
+		a.complete(parent, job, failure, commitSHA)
+	}
+	sourceFailed := func(msg string) {
+		rep.event("source", "", "failed", msg)
+		finish(msg, "")
+	}
+
 	// Heartbeats keep the lease and deliver cancellation.
 	var cancelled bool
 	var mu sync.Mutex
@@ -235,6 +258,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 					cancelled = true
 					mu.Unlock()
 					log.Info("job cancelled or lease lost; stopping")
+					rep.logf("warn", "job cancelled or lease lost; stopping")
 					cancel()
 					return
 				}
@@ -255,31 +279,47 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	gitDir := filepath.Join(ws, "git") // full-history object store, outside src
 	out := filepath.Join(ws, "out")
 	if err := os.MkdirAll(out, 0o700); err != nil {
-		a.complete(parent, job, "workspace: "+err.Error(), "")
+		finish("workspace: "+err.Error(), "")
 		return
 	}
 	commit := ""
 	if job.Source != nil {
 		job.Credential = nil
 		if job.Source.Type != "snapshot" {
-			a.complete(parent, job, "unsupported source type", "")
+			sourceFailed("unsupported source type")
 			return
 		}
 		start := time.Now()
+		rep.event("source", "", "started", "downloading snapshot sha256:"+job.Source.SHA256)
+		rep.logf("info", "downloading snapshot sha256:%s (%d bytes)", job.Source.SHA256, job.Source.Size)
 		if err := a.fetchSnapshot(ctx, job, src); err != nil {
 			log.Warn("snapshot download failed", "err", err)
-			a.complete(parent, job, "snapshot download failed: "+err.Error(), "")
+			sourceFailed("snapshot download failed: " + err.Error())
 			return
 		}
 		log.Info("snapshot extracted", "duration_ms", time.Since(start).Milliseconds())
+		msg := fmt.Sprintf("snapshot sha256:%s verified and extracted in %s", job.Source.SHA256, time.Since(start).Round(time.Millisecond))
+		rep.event("source", "", "succeeded", msg)
+		rep.logf("info", "%s", msg)
 	} else {
 		cloneStart := time.Now()
+		mode := "shallow"
+		if job.FullHistory {
+			mode = "full history"
+		}
+		target := job.Ref
+		if job.CommitSHA != "" {
+			target += " @ " + job.CommitSHA
+		}
+		rep.event("source", "", "started", fmt.Sprintf("cloning %s (%s, %s)", job.FullName, target, mode))
+		rep.logf("info", "cloning %s, ref %s (%s clone)", job.FullName, target, mode)
 		var err error
 		commit, err = clone(ctx, job, src, gitDir, a.cfg.MaxRepoBytes)
 		if err != nil && job.Public && job.Credential != nil && ctx.Err() == nil {
 			// An expired or wrong credential should not block scanning public
 			// code; private repositories never fall back.
 			log.Warn("authenticated clone failed; retrying anonymously (public repository)", "err", err)
+			rep.logf("warn", "authenticated clone failed; retrying anonymously (public repository): %v", err)
 			job.Credential = nil
 			_ = os.RemoveAll(src)
 			_ = os.RemoveAll(gitDir)
@@ -288,15 +328,23 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		if err != nil {
 			job.Credential = nil
 			log.Warn("clone failed", "err", err)
-			a.complete(parent, job, "clone failed: "+err.Error(), "")
+			sourceFailed("clone failed: " + err.Error())
 			return
 		}
 		job.Credential = nil // not needed past this point
 		log.Info("cloned", "duration_ms", time.Since(cloneStart).Milliseconds(), "commit", commit, "full_history", job.FullHistory)
+		msg := fmt.Sprintf("cloned %s at commit %s (%s) in %s", job.Ref, commit, mode, time.Since(cloneStart).Round(time.Millisecond))
+		rep.event("source", "", "succeeded", msg)
+		rep.logf("info", "%s", msg)
 	}
 
 	sbomPath := ""
 	ordered := orderScanners(job.Scanners)
+	keys := make([]string, 0, len(ordered))
+	for _, js := range ordered {
+		keys = append(keys, js.Key)
+	}
+	rep.logf("info", "running scanners: %s", strings.Join(keys, ", "))
 	for _, js := range ordered {
 		mu.Lock()
 		stop := cancelled
@@ -307,12 +355,15 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		tool, ok := a.tools[js.Key]
 		res := ResultUpload{Scanner: js.Key}
 		start := time.Now()
+		rep.event("scanner", js.Key, "started", "")
 		if !ok {
 			res.Status, res.Error = "skipped", "scanner not available in this worker image"
 		} else {
 			res.Version, _ = tool.Version(ctx)
+			rep.logf("info", "%s %s started", js.Key, res.Version)
 			outFile := filepath.Join(out, js.Key+".out")
-			skipped, err := tool.Run(ctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config, GitHistory: job.FullHistory && job.Source == nil})
+			tctx := withCollector(ctx, &lineCollector{rep: rep, source: js.Key, stdout: stdoutSafe[js.Key]})
+			skipped, err := tool.Run(tctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config, GitHistory: job.FullHistory && job.Source == nil})
 			switch {
 			case skipped != "":
 				res.Status, res.Error = "skipped", skipped
@@ -338,8 +389,19 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		if len(res.Error) > 2000 {
 			res.Error = res.Error[:2000]
 		}
+		took := time.Duration(res.DurationMS) * time.Millisecond
+		switch res.Status {
+		case "failed", "timed_out":
+			rep.event("scanner", js.Key, res.Status, res.Error)
+			rep.logf("error", "%s %s after %s: %s", js.Key, strings.ReplaceAll(res.Status, "_", " "), took, res.Error)
+		case "skipped":
+			rep.logf("warn", "%s skipped: %s", js.Key, res.Error)
+		default:
+			rep.logf("info", "%s succeeded in %s", js.Key, took)
+		}
 		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/results", a.token, res, nil); err != nil {
 			log.Error("result upload failed", "scanner", js.Key, "err", err)
+			rep.logf("error", "uploading %s results failed: %v", js.Key, err)
 		}
 		log.Info("scanner finished", "scanner", js.Key, "status", res.Status, "duration_ms", res.DurationMS)
 	}
@@ -347,7 +409,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	stop := cancelled
 	mu.Unlock()
 	if !stop {
-		a.complete(parent, job, "", commit)
+		finish("", commit)
 	}
 }
 

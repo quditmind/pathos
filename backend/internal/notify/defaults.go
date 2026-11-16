@@ -42,6 +42,10 @@ var systemRules = []systemRule{
 		Recipients{Roles: []string{"super_admin", "platform_admin"}, Dynamic: []string{"owners"}}},
 	{"import_failed", "Failed repository imports", "import.failed", "",
 		Recipients{Dynamic: []string{"requester"}}},
+	{"schedule_completed", "Scheduled scans completed", "schedule.completed", "",
+		Recipients{Dynamic: []string{"requester"}}},
+	{"schedule_failed", "Scheduled scans failed", "schedule.failed", "",
+		Recipients{Dynamic: []string{"requester"}}},
 	{"worker_offline", "Offline scan workers", "worker.offline", "",
 		Recipients{Roles: []string{"super_admin", "platform_admin"}}},
 }
