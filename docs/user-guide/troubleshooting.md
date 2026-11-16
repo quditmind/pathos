@@ -62,7 +62,7 @@ The Production URL is optional unless your administrator made it required. Add i
 |---|---|
 | Was a scan requested at all? | Importing does not scan unless **Scan on import** is enabled and *Start onboarding scan* was ticked. Use **Scan now** |
 | Is the repository archived? | Unarchive it |
-| Is a worker online? | **Scanning → Scans** shows the number of workers online; **Administration → Scanners & workers** lists them |
+| Is a worker online? | **Scanning → Scans** shows the number of workers online; **Configurations → Scanners & workers** lists them |
 | Is a scan already queued? | **Scan now** shows *Already queued*; only one queued scan per repository |
 | Uploaded repository without a snapshot | Wait until the import completes (*repository has no source snapshot yet*) |
 | Webhook push did not scan | Only pushes and merges to the **scan branch** trigger a scan, the webhook secret must match, and the repository must be registered through that connection |

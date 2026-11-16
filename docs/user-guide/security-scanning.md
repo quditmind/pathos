@@ -30,7 +30,7 @@ Rules:
 
 ## Scanners
 
-The scanners that actually run today are the seven tools of the `worker-core` image. **Administration → Scanners & workers** lists them with license and **Availability**; the other catalog entries (for example TruffleHog, Semgrep CE, CodeQL, KICS, ZAP) are catalogued as *planned* and **do not run** yet.
+The scanners that actually run today are the seven tools of the `worker-core` image. **Configurations → Scanners & workers** lists them with license and **Availability**; the other catalog entries (for example TruffleHog, Semgrep CE, CodeQL, KICS, ZAP) are catalogued as *planned* and **do not run** yet.
 
 | Scanner (key) | Category | What it does in PATHOS |
 |---|---|---|
@@ -109,7 +109,7 @@ Columns include **Repository** and **Repository ID** (hidden by default, always 
 | **Scan now** missing | No `scans.run` permission |
 | *repository is archived or scanning is disabled* | Unarchive the repository; scheduled scans skip repositories excluded from scheduled scans |
 | *repository has no source snapshot yet* | The upload import has not completed |
-| Scan stays **Queued** | No worker online: **Administration → Scanners & workers** must list a worker |
+| Scan stays **Queued** | No worker online: **Configurations → Scanners & workers** must list a worker |
 | Status **Partial** | One or more scanners failed or timed out; the scan details show which |
 | Git scan fails to clone | The connection's credential expired or lost access; **Test** the connection |
 | Opengrep reports *no rule sets available* | Ask an administrator to install rule sets |
