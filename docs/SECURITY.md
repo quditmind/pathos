@@ -158,6 +158,16 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - Each self-approved review is recorded with `self_approved: true`.
   - Critical false positives still require a written note.
 
+## Repository onboarding
+
+- **Uploads:** only authenticated users with `repos.manage` can upload; upload sessions are private to their uploader. Every 8 MiB part carries its own SHA-256 and the whole archive is verified against the browser-computed SHA-256 before processing. Parts and snapshots are encrypted at rest (AES-256-GCM in 64 KiB chunks with a per-object key wrapped by the master key; truncation, reordering and object swaps are detected).
+- **Archives are never extracted on the API or jobs host and never executed.** The jobs role reads every entry, rejects absolute paths, `..`, drive letters, backslashes, control characters, duplicate paths and encrypted entries, skips symlinks, hard links and devices, and enforces entry-count, size, per-file and compression-ratio limits on the bytes actually read, writing a normalized tar snapshot. Scan workers extract that snapshot into their tmpfs with the same rules (`os.Root`, `O_NOFOLLOW`) after verifying its SHA-256.
+- **Malware scanning:** optional ClamAV (`PATHOS_CLAMAV_ADDRESS`); with `PATHOS_CLAMAV_REQUIRED=true` imports wait instead of proceeding unscanned. The scan result is recorded per snapshot.
+- **Provider credentials:** PATs, API tokens, GitHub App keys, service-principal secrets and certificates, OAuth tokens and OAuth client secrets are envelope-encrypted and write-only. OAuth uses `state` bound to the initiating user (stored hashed, 10-minute lifetime, single use) and PKCE where the provider supports it; the post-login redirect accepts same-origin paths only. Refresh tokens are rotated under a row lock so concurrent processes never reuse one. Deleting a connection revokes OAuth tokens at the provider where an API exists (GitHub, GitLab).
+- **Provider responses are untrusted:** pagination links and page tokens are only followed to the configured host and path, through the SSRF-safe client.
+- **Authorization:** importing needs `repos.manage` at the chosen placement (checked again when each item is registered, so revoked rights stop pending imports); `tags.manage` for tags; `assets.configure` for catalogs and required fields; `scm.manage` for connections and OAuth applications. Business, technical and application owners (and members of the responsible team) may edit descriptive and ownership metadata of their assets but not placement or scan settings. Every change is audited with old and new values.
+- **Compliance scope** records applicability only; PATHOS never marks an asset compliant because a scope is assigned.
+
 ## Known gaps (tracked)
 
 - Vulnerabilities without an upstream fix in base images (see "Accepted residual risk").

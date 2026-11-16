@@ -80,6 +80,16 @@ if [ -f "$src/objectstore.tgz" ]; then
   compose run --rm --no-deps -T --entrypoint sh objectstore -c 'rm -rf /data/* && tar -C /data -xzf -' < "$src/objectstore.tgz"
 fi
 
+if [ -f "$src/sources.tgz" ]; then
+  log "restoring source snapshots"
+  compose stop api jobs >/dev/null 2>&1 || true
+  compose up --no-start api >/dev/null 2>&1 || true
+  api_ctr="$(compose ps -aq api)"
+  proxy_img="$(docker inspect -f '{{.Config.Image}}' "$(compose ps -aq proxy)")"
+  docker run --rm -i --user 65532:65532 --volumes-from "$api_ctr" --entrypoint sh "$proxy_img" \
+    -c 'find /var/lib/pathos/sources -mindepth 1 -delete && tar -C /var/lib/pathos/sources -xzf -' < "$src/sources.tgz"
+fi
+
 log "running migrations and starting services"
 compose up -d --wait
 log "restored from $src (schema now $(schema_version))"

@@ -165,8 +165,10 @@ and stores it with the item; the jobs role processes items:
 
 - `POST /repositories/{id}/sync` (manual), nightly scheduled reconciliation
   in the jobs role, and webhooks (GitHub, Azure DevOps, GitLab, Bitbucket).
-- Each run records a `repository_sync_runs` row: branch, previous and new
-  commit SHA, outcome (`ok`, `failed`, `missing`, `permission_denied`,
+- Manual, webhook and import runs always record a `repository_sync_runs`
+  row; scheduled reconciliation records one only when the commit or status
+  changed (unchanged repositories just update `last_sync_at`). A row holds
+  branch, previous and new commit SHA, and the outcome (`ok`, `failed`, `missing`, `permission_denied`,
   `archived_upstream`).
 - Only metadata and the head commit are fetched; source is not downloaded.
   Changed commits feed the existing scan triggers (push webhooks) and the
@@ -314,7 +316,35 @@ verified manually with the steps in section 7.
 - Backups: the `sources` volume (or the S3 prefix) must be backed up with
   PostgreSQL; snapshots are encrypted with the master key, so the master key
   backup applies to them too.
-- Rollback: `pathosctl migrate-down 8` reverts the schema. Uploaded
+- Rollback: `docker compose run --rm --entrypoint /usr/local/bin/pathosctl migrate migrate-down 8` reverts the schema. Uploaded
   repositories (no SCM connection) are deleted by the down migration because
   the previous schema cannot represent them; export them first if needed.
   New providers' connections are archived by the down migration.
+
+## 10. Implementation status
+
+| Area | Verified by |
+|---|---|
+| Schema, up / down / up with onboarding data | migration replay against PostgreSQL 18 |
+| Metadata validation, required fields, catalogs, owner rights, audit old/new values | Go integration tests (`test/integration/onboarding_test.go`) |
+| Git import engine: idempotency, duplicates, not-found / permission errors, retry, cancel, sync, insights, notifications | Go integration tests with an in-memory provider |
+| Uploads: part checksums, whole-archive SHA-256, traversal rejection, snapshots, new versions, duplicates, cross-organization isolation | Go integration tests, real encrypted file store |
+| Provider adapters and every sign-in method (token exchange, refresh, rotation, revoke, service-principal assertion, pagination, page-token tampering, webhooks) | `internal/scm` unit tests against recorded API shapes |
+| Archive normalizer, extraction, streaming encryption, ClamAV protocol, worker snapshot download | unit tests (`internal/ingest`, `internal/platform/sourcestore`, `internal/worker`) |
+| Local PC onboarding through the browser, background processing in the `jobs` container, persistence after reload | Playwright (`e2e/tests/onboarding.spec.ts`) against the running stack |
+
+Not yet verified against real provider accounts (no credentials were
+available while building): GitHub, GitLab, Bitbucket and Azure DevOps
+connections, OAuth consent flows and Microsoft Entra ID service principals.
+Follow section 7 to register applications, then check each provider once:
+connect, list organizations and repositories, import one repository, sync it
+and scan it. Known provider-specific points to watch:
+
+- Azure DevOps with Entra ID tokens clones with an `Authorization: Bearer`
+  header; VSSPS profile and account calls use API version 6.0.
+- Bitbucket workspaces are listed through `/user/permissions/workspaces`;
+  repository listing without a selected workspace requires a single
+  workspace. Bitbucket has no token revocation API.
+- GitHub search within an organization uses the search API (1,000 result
+  cap, lower rate limit).
+- ClamAV was tested against a protocol-level fake, not a real `clamd`.

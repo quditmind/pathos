@@ -55,19 +55,36 @@ All settings live in `.env`; `.env.example` documents each one. The common chang
 
 > Keycloak imports the realm only on **first** start. After the first start, change the public URL, SMTP settings or client secrets in the Keycloak admin console (`https://<host>/auth/admin`, master realm, user `KEYCLOAK_ADMIN_USER`), or reset the install.
 
-## Connecting GitHub or Azure DevOps
+## Connecting source providers
 
-1. **Administration → SCM connections → Add connection.**
-   - **GitHub (recommended): a GitHub App** with repository permissions *Contents: read* and *Metadata: read*, installed on the organization. Enter the App ID, the installation ID (from the installation URL) and the private key PEM.
-   - **GitHub PAT:** a fine-grained token with *Contents: read* and *Metadata: read*. Set *Owner* to limit discovery to one organization.
-   - **GitHub Enterprise Server:** base URL `https://<host>/api/v3`.
-   - **Azure DevOps Services:** set *Organization*, and use a PAT with *Code: Read*. **Azure DevOps Server:** base URL `https://<host>/<collection>`.
-   - Self-hosted servers on private IPs need `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true` in `.env`. The API reaches the internet through the `edge` network; set `PATHOS_HTTPS_PROXY` if outbound traffic must use a proxy.
-2. **Webhooks (optional, used for scan triggers from Phase 4):** choose *New webhook secret* on the connection and copy the URL and secret.
-   - GitHub: content type `application/json`, events *Pushes* and *Pull requests*.
-   - Azure DevOps: create service hooks for *Code pushed*, *Pull request created/updated/merged*, with basic authentication (any username, the secret as password).
-   - The webhook URL must be reachable from the SCM, so set `PATHOS_PUBLIC_URL` to a public hostname.
-3. **Administration → Tags:** create tag categories (for example a mandatory *Team*), then go to **Repositories → Import repositories** and select repositories or upload a CSV. Validate CSV imports with a dry run first.
+**Administration → SCM connections → Connect provider** walks through provider, sign-in method and credentials. Every method below is supported; choose per connection. See `docs/REPOSITORY_ONBOARDING.md` section 7 for the exact permissions.
+
+| Provider | Sign-in methods |
+|---|---|
+| GitHub / GitHub Enterprise Server (`https://<host>/api/v3`) | GitHub App (recommended, short-lived installation tokens), personal access token (fine-grained: *Contents: read*, *Metadata: read*), OAuth App |
+| GitLab.com / self-managed GitLab | Personal, group or project access token (`read_api`, `read_repository`), OAuth application |
+| Bitbucket Cloud | Workspace, project or repository access token, Atlassian API token (account e-mail + token), OAuth consumer |
+| Azure DevOps Services | Personal access token (*Code: Read*), Microsoft Entra ID sign-in (OAuth), Entra ID service principal (client secret or certificate; list the organizations it was added to) |
+| Azure DevOps Server (`https://<host>/<collection>`) | Personal access token |
+
+- **OAuth sign-in** needs an application registered at the provider. Register it under **SCM connections → OAuth applications** (client ID and secret are stored encrypted) with the redirect URI `<PATHOS_PUBLIC_URL>/api/v1/scm-oauth/callback`, then use **Continue with …** in the connect dialog. Expired or revoked authorizations show **Reconnect**.
+- Self-hosted servers on private IPs need `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true` in `.env`. The API reaches the internet through the `edge` network; set `PATHOS_HTTPS_PROXY` if outbound traffic must use a proxy.
+- **Webhooks (optional; scan triggers and synchronization):** choose *New webhook secret* on the connection and copy the URL and secret.
+  - GitHub: content type `application/json`, events *Pushes* and *Pull requests*.
+  - GitLab: *Push events* and *Merge request events*, the secret as *Secret token*.
+  - Bitbucket Cloud: *Repository push* and *Pull request* triggers, the secret as webhook *Secret*.
+  - Azure DevOps: service hooks for *Code pushed*, *Pull request created/updated/merged*, with basic authentication (any username, the secret as password).
+  - The webhook URL must be reachable from the provider, so set `PATHOS_PUBLIC_URL` to a public hostname.
+
+## Onboarding repositories
+
+**Assets → Repositories → Import** offers three methods that share one registration wizard (general information, ownership, geography, classification, tags and colour, lifecycle):
+
+- **Import from Local PC:** ZIP, TAR or TAR.GZ archives, or a folder (packed in the browser). Uploads are chunked and resumable, verified with SHA-256, optionally scanned by ClamAV (`COMPOSE_PROFILES=…,clamav` and `PATHOS_CLAMAV_ADDRESS=clamav:3310`), and stored encrypted.
+- **Import from Git:** GitHub, GitLab or Bitbucket connections; pick organization, search and select repositories and branches.
+- **Import from DevOps Project:** Azure DevOps connections; pick organization, project, repositories and branches.
+
+Imports run in the background (**Import history** shows progress, retry and cancel). Administrators set which fields are mandatory, the classification catalogs and colours, and whether imported repositories get an onboarding scan under **Administration → Asset settings**. The CSV bulk import remains under **Import → Bulk CSV import**.
 
 ## Scan workers
 

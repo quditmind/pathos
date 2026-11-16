@@ -70,7 +70,8 @@ A backup is an online snapshot (no downtime) written to `backups/pathos-<UTC>/`:
 |---|---|
 | `pathos.dump`, `keycloak.dump` | `pg_dump` custom format, each a consistent snapshot |
 | `caddy_data.tgz` | TLS certificates and the local CA |
-| `objectstore.tgz` | Scan artifacts, when the `objectstore` profile runs |
+| `objectstore.tgz` | Scan artifacts (and source snapshots when S3 is configured), when the `objectstore` profile runs |
+| `sources.tgz` | Uploaded archives and source snapshots from the `sources` volume (encrypted with the master key) |
 | `manifest.json` | PATHOS version, schema version, SHA-256 of every file |
 
 `--with-env` also copies `.env`, which holds every secret including the master key. Store such backups encrypted. Without `--with-env`, restoring needs the original `.env`, or at least the same `PATHOS_MASTER_KEY` and database role passwords.
@@ -151,6 +152,15 @@ Suggested alerts:
 - **Everyone:** set `PATHOS_REQUIRE_MFA=true` and recreate the API (`docker compose up -d api`). Within a minute, and then hourly, every active or invited user without an authenticator is required to enrol one at the next sign-in. That includes your own administrator account, so have your phone's authenticator app ready.
 - **Individual users:** open **Users**, choose the user and click **Require MFA**. The drawer shows whether two-factor is enabled, pending or not set up.
 - **Lost authenticator:** an administrator removes the user's OTP credential in the Keycloak admin console (Users → Credentials). Requiring MFA again then starts a fresh enrolment.
+
+## Repository imports
+
+- Imports run in the `jobs` container: `PATHOS_IMPORT_CONCURRENCY` workers per container (default 2), each item bounded by `PATHOS_IMPORT_TIMEOUT` (default 30m). Scale out by running more `jobs` replicas; items are claimed with `FOR UPDATE SKIP LOCKED` and leases, so a crashed worker's items are picked up again within a few minutes.
+- Transient provider errors are retried with exponential backoff (3 attempts). Failed items stay visible in **Import history** and can be retried; `import.failed` and `repository.sync_failed` notifications go to the requester and the asset owners and platform administrators.
+- Uploads are limited by `PATHOS_UPLOAD_MAX_BYTES` and the archive limits `PATHOS_IMPORT_MAX_FILES`, `PATHOS_IMPORT_MAX_EXTRACTED_BYTES` and `PATHOS_IMPORT_MAX_FILE_BYTES`. Unfinished uploads are deleted after 24 hours; sync history is kept for 180 days.
+- Disk: the `sources` volume holds one encrypted snapshot per uploaded version (roughly the compressed size of the code). The `import_work` volume needs free space for the largest archive being processed at once, per worker.
+- OAuth tokens are refreshed before they expire (every 10 minutes for tokens expiring within 30 minutes). A connection whose refresh is rejected is marked *expired* and must be reconnected.
+- Rollback of this release: `docker compose run --rm --entrypoint /usr/local/bin/pathosctl migrate migrate-down 8` before starting the previous images. It deletes uploaded repositories and GitLab, Bitbucket, OAuth, API-token and service-principal connections (with their repositories), which the older schema cannot represent.
 
 ## Rate limiting
 
