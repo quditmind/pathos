@@ -23,9 +23,11 @@ const (
 
 	PermAuditRead Permission = "audit.read"
 
-	PermReposRead   Permission = "repos.read"
-	PermReposManage Permission = "repos.manage"
-	PermSCMManage   Permission = "scm.manage"
+	PermReposRead       Permission = "repos.read"
+	PermReposManage     Permission = "repos.manage"
+	PermSCMManage       Permission = "scm.manage"
+	PermTagsManage      Permission = "tags.manage"
+	PermAssetsConfigure Permission = "assets.configure"
 
 	PermScannersRead    Permission = "scanners.read"
 	PermScannersManage  Permission = "scanners.manage"
@@ -78,7 +80,9 @@ var Permissions = []PermissionInfo{
 
 	{PermReposRead, "Assets", "View repositories and applications", false},
 	{PermReposManage, "Assets", "Import, edit, tag and archive repositories and applications", false},
-	{PermSCMManage, "Assets", "Manage SCM connections and credentials", true},
+	{PermSCMManage, "Assets", "Manage SCM connections, OAuth applications and credentials", true},
+	{PermTagsManage, "Assets", "Create, edit and delete tags and tag categories", true},
+	{PermAssetsConfigure, "Assets", "Configure asset classifications, required fields and colours", true},
 
 	{PermScannersRead, "Scanning", "View the scanner catalog", false},
 	{PermScannersManage, "Scanning", "Enable, disable and configure scanners", true},
@@ -127,7 +131,7 @@ func with(base []Permission, extra ...Permission) []Permission {
 // RoleSuperAdmin is granted to the bootstrap administrator.
 const RoleSuperAdmin = "super_admin"
 
-// SystemRoles are the nine seeded roles. See docs/RBAC_MATRIX.md.
+// SystemRoles are the ten seeded roles. See docs/RBAC_MATRIX.md.
 var SystemRoles = []SystemRole{
 	{RoleSuperAdmin, "Super Administrator", "Full control of the PATHOS platform", all()},
 	{"platform_admin", "Platform Administrator",
@@ -135,21 +139,24 @@ var SystemRoles = []SystemRole{
 		with(readOnly,
 			PermUsersRead, PermUsersManage, PermTeamsManage, PermRolesRead, PermRolesAssign,
 			PermOrgManage, PermAuditRead, PermSettingsManage, PermNotificationsManage,
-			PermReposManage, PermSCMManage, PermScannersManage, PermProfilesManage,
+			PermReposManage, PermSCMManage, PermTagsManage, PermAssetsConfigure, PermScannersManage, PermProfilesManage,
 			PermScansRun, PermSchedulesManage, PermAIConfigure, PermMCPManage)},
 	{"security_manager", "Security Manager",
 		"Owns the security program for a scope: policy, risk acceptance, scheduling, reporting",
 		with(readOnly,
 			PermUsersRead, PermRolesRead, PermRolesAssign, PermAuditRead,
-			PermReposManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
+			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
 		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
-		with(readOnly, PermReposManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
+		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsExport, PermAIReview)},
+	{"repository_contributor", "Repository Contributor",
+		"Imports and maintains repositories in scope and runs scans; owners of a repository can also edit its descriptive metadata",
+		with(readOnly, PermReposManage, PermScansRun)},
 	{"application_owner", "Application Owner",
 		"Accountable for applications in scope: views posture, assigns and triages findings",
 		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport)},

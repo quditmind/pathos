@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -66,6 +67,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/heartbeat", s.heartbeat)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/results", s.uploadResult)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/complete", s.complete)
+	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
 	return mux
@@ -187,6 +189,17 @@ type LeasedJob struct {
 	Credential     *scm.Credential  `json:"credential,omitempty"`
 	// Public repositories may be cloned anonymously if the credential fails.
 	Public bool `json:"public"`
+	// Source is set for uploaded repositories: the worker downloads the
+	// snapshot from GET /internal/worker/v1/jobs/{id}/source.
+	Source      *JobSource `json:"source,omitempty"`
+	FullHistory bool       `json:"full_history"`
+}
+
+// JobSource describes a snapshot to download instead of cloning.
+type JobSource struct {
+	Type   string `json:"type"` // snapshot
+	SHA256 string `json:"sha256"`
+	Size   int64  `json:"size"`
 }
 
 // WorkerOnlineWindow is how recently a worker must have polled to count as
@@ -218,7 +231,8 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var job LeasedJob
-	var connID, profileVersion uuid.UUID
+	var profileVersion uuid.UUID
+	var connID, snapshotID *uuid.UUID
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
 			UPDATE scan_jobs j SET status = 'running', leased_by = $2, lease_expires_at = now() + $3::interval,
@@ -238,11 +252,21 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		var visibility string
-		if err := tx.QueryRow(ctx, `SELECT full_name, clone_url, scm_connection_id, visibility FROM repositories WHERE id = $1`, job.RepositoryID).
-			Scan(&job.FullName, &job.CloneURL, &connID, &visibility); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT r.full_name, r.clone_url, r.scm_connection_id, r.visibility, r.full_history, j.snapshot_id
+			FROM repositories r JOIN scan_jobs j ON j.id = $2 WHERE r.id = $1`, job.RepositoryID, job.JobID).
+			Scan(&job.FullName, &job.CloneURL, &connID, &visibility, &job.FullHistory, &snapshotID); err != nil {
 			return err
 		}
 		job.Public = visibility == "public"
+		if snapshotID != nil {
+			var src JobSource
+			if err := tx.QueryRow(ctx, `SELECT snapshot_sha256, snapshot_size FROM source_snapshots WHERE id = $1`, *snapshotID).
+				Scan(&src.SHA256, &src.Size); err != nil {
+				return err
+			}
+			src.Type = "snapshot"
+			job.Source, job.CloneURL, job.FullHistory = &src, "", false
+		}
 		v, err := scanVersion(tx.QueryRow(ctx, versionSelect+` WHERE v.id = $1`, profileVersion))
 		if err != nil {
 			return err
@@ -258,8 +282,8 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
-	if s.CloneCredential != nil {
-		cred, err := s.CloneCredential(ctx, wk.orgID, connID)
+	if s.CloneCredential != nil && connID != nil && job.Source == nil {
+		cred, err := s.CloneCredential(ctx, wk.orgID, *connID)
 		if err != nil {
 			s.failJob(ctx, job.JobID, "could not obtain clone credential: "+safeErr(err))
 			w.WriteHeader(http.StatusNoContent)
@@ -402,6 +426,46 @@ func gunzipLimited(gz []byte, limit int64) ([]byte, error) {
 type completeRequest struct {
 	Status string `json:"status"` // succeeded | failed
 	Error  string `json:"error"`
+	// CommitSHA is the commit the worker actually scanned (Git sources).
+	CommitSHA string `json:"commit_sha"`
+}
+
+// jobSource streams the decrypted snapshot of an uploaded repository to
+// the worker that holds the job's lease.
+func (s *Service) jobSource(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	wk := workerFrom(ctx)
+	id, err := pathID(r, "id")
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
+		return
+	}
+	if status, err := s.ownedJob(ctx, wk, id); err != nil || status != "running" {
+		if err == nil {
+			err = httpx.Conflict("job is " + status)
+		}
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	var snapshotID *uuid.UUID
+	if err := s.DB.QueryRow(ctx, `SELECT snapshot_id FROM scan_jobs WHERE id = $1`, id).Scan(&snapshotID); err != nil || snapshotID == nil || s.OpenSnapshot == nil {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusNotFound, "no_snapshot", "this job has no source snapshot"))
+		return
+	}
+	rc, _, size, err := s.OpenSnapshot(ctx, wk.orgID, *snapshotID)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	defer rc.Close()
+	w.Header().Set("Content-Type", "application/gzip")
+	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	w.WriteHeader(http.StatusOK)
+	// Decryption errors surface as a short body; the worker verifies the
+	// SHA-256 and size before scanning.
+	if _, err := io.Copy(w, rc); err != nil {
+		s.Log.Warn("snapshot stream interrupted", "job_id", id, "err", err)
+	}
 }
 
 func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
@@ -423,6 +487,9 @@ func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
 	if err := httpx.DecodeJSON(w, r, &req); err != nil {
 		httpx.WriteError(w, r, s.Log, err)
 		return
+	}
+	if shaRe.MatchString(req.CommitSHA) {
+		_, _ = s.DB.Exec(ctx, `UPDATE scan_jobs SET commit_sha = $2 WHERE id = $1 AND (commit_sha = '' OR $2 LIKE commit_sha || '%')`, id, req.CommitSHA)
 	}
 	job, err := s.Finalize(ctx, id, req.Status == "failed", req.Error)
 	if err != nil {
@@ -516,3 +583,5 @@ func (s *Service) revokeWorker(w http.ResponseWriter, r *http.Request) {
 func (s *Service) deleteWorker(w http.ResponseWriter, r *http.Request) {
 	s.workerAdminAction(w, r, "worker.delete", `DELETE FROM workers WHERE id = $1 AND organization_id = $2 RETURNING name`)
 }
+
+var shaRe = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)

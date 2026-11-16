@@ -167,7 +167,11 @@ func errMessage(err error) string {
 
 // importOne inserts one repository in its own transaction.
 func (s *Service) importOne(ctx context.Context, p *authz.Principal, c Connection, rr scm.RemoteRepo, item ImportItem, dryRun bool) (*uuid.UUID, string, error) {
-	if !slices.Contains(environments, item.Environment) {
+	ap, err := s.loadPolicy(ctx, s.DB, p.OrganizationID)
+	if err != nil {
+		return nil, "", err
+	}
+	if !ap.active(KindEnvironment, item.Environment) {
 		return nil, "", httpx.BadRequest("invalid environment " + item.Environment)
 	}
 	if !slices.Contains(criticalities, item.Criticality) {
@@ -211,11 +215,12 @@ func (s *Service) importOne(ctx context.Context, p *authz.Principal, c Connectio
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO repositories (id, organization_id, scm_connection_id, external_id, full_name, name, url, clone_url,
 		  default_branch, scan_branch, visibility, description, technologies, application_id, business_unit_id, country_id,
-		  environment, criticality, remote_archived, last_pushed_at, imported_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13::text[], '{}'), $14, $15, $16, $17, $18, $19, $20, $21)`,
+		  environment, criticality, remote_archived, last_pushed_at, imported_by, scm_organization, scm_project, business_region_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, COALESCE($13::text[], '{}'), $14, $15, $16, $17, $18, $19, $20, $21,
+		  $22, $23, (SELECT region_id FROM countries WHERE id = $16))`,
 		id, p.OrganizationID, c.ID, rr.ExternalID, rr.FullName, rr.Name, rr.URL, rr.CloneURL, rr.DefaultBranch, item.ScanBranch,
 		vis, truncate(rr.Description, 2000), techs, item.ApplicationID, item.BusinessUnitID, item.CountryID,
-		item.Environment, item.Criticality, rr.Archived, rr.PushedAt, p.UserID); err != nil {
+		item.Environment, item.Criticality, rr.Archived, rr.PushedAt, p.UserID, rr.Organization, rr.Project); err != nil {
 		return nil, "", err
 	}
 	if _, err := tx.Exec(ctx, `INSERT INTO repository_tags (organization_id, repository_id, tag_id)

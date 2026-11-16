@@ -65,13 +65,14 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	var scanBranch, defaultBranch string
 	var enabled bool
 	var archived *time.Time
-	var profileVersion *uuid.UUID
+	var profileVersion, snapshotID *uuid.UUID
+	var sourceType string
 	err := q.QueryRow(ctx, `
-		SELECT r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
+		SELECT r.source_type, r.current_snapshot_id, r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
 		       COALESCE((SELECT current_version_id FROM scan_profiles WHERE id = r.scan_profile_id AND archived_at IS NULL),
 		                (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND is_default AND archived_at IS NULL))
 		FROM repositories r WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID).
-		Scan(&scanBranch, &defaultBranch, &enabled, &archived, &profileVersion)
+		Scan(&sourceType, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &profileVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return res, errNotFound
 	}
@@ -83,6 +84,13 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	if profileVersion == nil {
 		return res, errors.New("no scan profile available; create a default profile")
+	}
+	if sourceType == "upload" {
+		// Uploaded repositories are scanned from their current snapshot.
+		if snapshotID == nil {
+			return res, errors.New("repository has no source snapshot yet")
+		}
+		ref, commit = "snapshot", ""
 	}
 	if ref == "" {
 		ref = scanBranch
@@ -99,9 +107,9 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	err = q.QueryRow(ctx, `
 		UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
-		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6)
+		       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7
 		WHERE repository_id = $1 AND organization_id = $2 AND status = 'queued' RETURNING id`,
-		repoID, orgID, commit, prio, ref, opt.ScheduleID).Scan(&res.JobID)
+		repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID).Scan(&res.JobID)
 	if err == nil {
 		res.Coalesced = true
 		return res, nil
@@ -111,8 +119,8 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	res.JobID = uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `
-		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID)
+		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by, schedule_id, snapshot_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`, res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID, snapshotID)
 	if db.IsUniqueViolation(err) {
 		// Lost a race with a concurrent trigger: use its queued job.
 		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND status = 'queued'`, repoID).Scan(&res.JobID); err != nil {

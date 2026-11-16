@@ -102,6 +102,7 @@ CREATE TABLE scm_oauth_states (
     owner           text NOT NULL DEFAULT '',
     -- Reconnect: refresh the credential of an existing connection.
     connection_id   uuid,
+    return_to       text NOT NULL DEFAULT '/admin/scm',
     expires_at      timestamptz NOT NULL,
     created_at      timestamptz NOT NULL DEFAULT now(),
     FOREIGN KEY (organization_id, user_id) REFERENCES users(organization_id, id) ON DELETE CASCADE,
@@ -156,7 +157,7 @@ CREATE TABLE source_snapshots (
     languages          jsonb NOT NULL DEFAULT '{}'::jsonb,
     manifests          text[] NOT NULL DEFAULT '{}',
     skipped            jsonb NOT NULL DEFAULT '{}'::jsonb,
-    malware_scan       text NOT NULL CHECK (malware_scan IN ('clean', 'not_configured')),
+    malware_scan       text NOT NULL CHECK (malware_scan IN ('clean', 'not_configured', 'unavailable')),
     malware_engine     text NOT NULL DEFAULT '',
     created_by         uuid,
     created_at         timestamptz NOT NULL DEFAULT now(),

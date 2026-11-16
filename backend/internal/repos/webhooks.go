@@ -87,6 +87,54 @@ func (s *Service) azureWebhook(w http.ResponseWriter, r *http.Request) {
 	s.recordDelivery(ctx, w, r, c, deliveryID, ev, body)
 }
 
+func (s *Service) gitlabWebhook(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	c, secret, err := s.webhookConn(ctx, r, scm.GitLab)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	if err := scm.VerifyGitLabToken(secret, r.Header.Get("X-Gitlab-Token")); err != nil {
+		s.rejectWebhook(ctx, w, r, c)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large"))
+		return
+	}
+	ev, _, err := scm.ParseGitLabEvent(r.Header.Get("X-Gitlab-Event"), body)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest(err.Error()))
+		return
+	}
+	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Gitlab-Event-UUID"), ev, body)
+}
+
+func (s *Service) bitbucketWebhook(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	c, secret, err := s.webhookConn(ctx, r, scm.Bitbucket)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large"))
+		return
+	}
+	if err := scm.VerifyBitbucketSignature(secret, body, r.Header.Get("X-Hub-Signature")); err != nil {
+		s.rejectWebhook(ctx, w, r, c)
+		return
+	}
+	ev, _, err := scm.ParseBitbucketEvent(r.Header.Get("X-Event-Key"), body)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest(err.Error()))
+		return
+	}
+	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Request-UUID"), ev, body)
+}
+
 func (s *Service) rejectWebhook(ctx context.Context, w http.ResponseWriter, r *http.Request, c Connection) {
 	_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: c.orgID, Action: "webhook.rejected", Outcome: audit.Denied,
 		TargetType: "scm_connection", TargetID: c.ID.String(), Metadata: map[string]any{"reason": "invalid signature"}})
@@ -126,6 +174,9 @@ func (s *Service) recordDelivery(ctx context.Context, w http.ResponseWriter, r *
 	if tag.RowsAffected() == 0 {
 		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "duplicate"})
 		return
+	}
+	if repoID != nil && ev.Kind == "push" {
+		s.recordPush(ctx, c.orgID, *repoID, ev)
 	}
 	if repoID != nil && (ev.Kind == "push" || ev.Kind == "pull_request" || ev.Kind == "merge") && s.OnEvent != nil {
 		s.OnEvent(ctx, c.orgID, *repoID, ev)

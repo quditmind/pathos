@@ -4,6 +4,7 @@ package repos
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
@@ -31,7 +32,14 @@ type Service struct {
 	Principal func(context.Context) *authz.Principal
 	PublicURL string
 	// NewClient builds SCM clients; tests replace it.
-	NewClient func(cfg scm.Config) (scm.Client, error)
+	NewClient func(cfg scm.Config) (scm.FullClient, error)
+	// Sources stores encrypted uploads and source snapshots (nil disables
+	// local uploads).
+	Sources SourceStore
+	// Limits bounds uploads and archive processing.
+	Limits Limits
+	// EnqueueScan queues an onboarding scan (set by the server wiring).
+	EnqueueScan func(ctx context.Context, orgID, repoID uuid.UUID, trigger string, requestedBy *uuid.UUID) error
 	// HTTP is the outbound client for SCM calls (defaults to Net.Client()).
 	HTTP *http.Client
 	// OnEvent is called for verified push / pull request / merge events on
@@ -53,12 +61,20 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerRepositories(mux)
 	s.registerApplications(mux)
 	s.registerTags(mux)
+	s.registerAssets(mux)
+	s.registerDirectory(mux)
+	s.registerSync(mux)
+	s.registerImports(mux)
+	s.registerUploads(mux)
+	s.registerInsights(mux)
 }
 
 // RegisterPublic mounts the unauthenticated webhook receivers.
 func (s *Service) RegisterPublic(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/webhooks/github/{id}", s.githubWebhook)
 	mux.HandleFunc("POST /api/webhooks/azure-devops/{id}", s.azureWebhook)
+	mux.HandleFunc("POST /api/webhooks/gitlab/{id}", s.gitlabWebhook)
+	mux.HandleFunc("POST /api/webhooks/bitbucket/{id}", s.bitbucketWebhook)
 }
 
 var errNotFound = errors.New("not found")
@@ -73,8 +89,11 @@ func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {
 		err = httpx.Conflict("an item with this name already exists")
 	case db.IsForeignKeyViolation(err):
 		err = httpx.BadRequest("a referenced item (application, business unit, country, user or tag) does not exist")
-	case errors.Is(err, scm.ErrAuth), errors.Is(err, scm.ErrBlockedAddress):
+	case errors.Is(err, scm.ErrAuth), errors.Is(err, scm.ErrBlockedAddress), errors.Is(err, scm.ErrNotFound),
+		errors.Is(err, scm.ErrForbidden), errors.Is(err, scm.ErrRateLimited), errors.Is(err, scm.ErrTokenExpired):
 		err = httpx.E(http.StatusBadGateway, "scm_error", err.Error())
+	case errors.Is(err, scm.ErrNotSupported):
+		err = httpx.BadRequest("not supported by this provider")
 	}
 	httpx.WriteError(w, r, s.Log, err)
 }
@@ -137,6 +156,12 @@ type Connection struct {
 	WebhookURL      string     `json:"webhook_url"`
 	RepositoryCount int        `json:"repository_count"`
 	CreatedAt       time.Time  `json:"created_at"`
+	OAuthAppID      *uuid.UUID `json:"oauth_app_id"`
+	Account         string     `json:"account"`
+	Organizations   []string   `json:"organizations"`
+	TokenExpiresAt  *time.Time `json:"token_expires_at"`
+
+	Capabilities scm.Capabilities `json:"capabilities"`
 
 	secretID        uuid.UUID
 	webhookSecretID uuid.UUID
@@ -145,23 +170,43 @@ type Connection struct {
 
 const connCols = `c.id, c.name, c.provider, c.base_url, c.auth_type, c.owner, c.github_app_id, c.github_installation_id,
 	c.status, c.status_message, c.last_checked_at, c.created_at, c.secret_id, c.webhook_secret_id, c.organization_id,
-	(SELECT count(*) FROM repositories r WHERE r.scm_connection_id = c.id AND r.archived_at IS NULL)`
+	(SELECT count(*) FROM repositories r WHERE r.scm_connection_id = c.id AND r.archived_at IS NULL),
+	c.oauth_app_id, c.account, c.organizations, c.token_expires_at`
 
 func (s *Service) scanConn(row pgx.Row) (Connection, error) {
 	var c Connection
 	err := row.Scan(&c.ID, &c.Name, &c.Provider, &c.BaseURL, &c.AuthType, &c.Owner, &c.AppID, &c.InstallationID,
-		&c.Status, &c.StatusMessage, &c.LastCheckedAt, &c.CreatedAt, &c.secretID, &c.webhookSecretID, &c.orgID, &c.RepositoryCount)
+		&c.Status, &c.StatusMessage, &c.LastCheckedAt, &c.CreatedAt, &c.secretID, &c.webhookSecretID, &c.orgID, &c.RepositoryCount,
+		&c.OAuthAppID, &c.Account, &c.Organizations, &c.TokenExpiresAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return c, errNotFound
 	}
+	if c.Organizations == nil {
+		c.Organizations = []string{}
+	}
 	c.WebhookURL = s.webhookURL(c)
+	c.Capabilities = providerCapabilities(c.Provider)
 	return c, err
+}
+
+// providerCapabilities looks up the provider catalog.
+func providerCapabilities(provider string) scm.Capabilities {
+	for _, p := range scm.Providers() {
+		if p.Key == provider {
+			return p.Capabilities
+		}
+	}
+	return scm.Capabilities{}
 }
 
 func (s *Service) webhookURL(c Connection) string {
 	switch c.Provider {
 	case scm.AzureDevOps, scm.AzureDevOpsServer:
 		return s.PublicURL + "/api/webhooks/azure-devops/" + c.ID.String()
+	case scm.GitLab:
+		return s.PublicURL + "/api/webhooks/gitlab/" + c.ID.String()
+	case scm.Bitbucket:
+		return s.PublicURL + "/api/webhooks/bitbucket/" + c.ID.String()
 	}
 	return s.PublicURL + "/api/webhooks/github/" + c.ID.String()
 }
@@ -172,12 +217,29 @@ func (s *Service) getConn(ctx context.Context, q db.Querier, orgID, id uuid.UUID
 }
 
 // client builds an SCM client for a stored connection.
-func (s *Service) client(ctx context.Context, c Connection) (scm.Client, error) {
+func (s *Service) client(ctx context.Context, c Connection) (scm.FullClient, error) {
 	secret, err := s.Secrets.Reveal(ctx, s.DB, c.orgID, c.secretID, secrets.KindSCM)
 	if err != nil {
 		return nil, err
 	}
-	cfg := scm.Config{Provider: c.Provider, BaseURL: c.BaseURL, AuthType: c.AuthType, Owner: c.Owner, Secret: secret, HTTP: s.httpClient()}
+	cfg := scm.Config{Provider: c.Provider, BaseURL: c.BaseURL, AuthType: c.AuthType, Owner: c.Owner, Secret: secret, HTTP: s.httpClient(),
+		Organizations: c.Organizations}
+	if c.AuthType == scm.AuthOAuth {
+		if c.OAuthAppID == nil {
+			return nil, errors.New("OAuth connection without an OAuth application")
+		}
+		app, err := s.oauthApp(ctx, s.DB, c.orgID, *c.OAuthAppID)
+		if err != nil {
+			return nil, err
+		}
+		cfg.OAuth = app
+		ts := &tokenStore{s: s, conn: c, app: app}
+		var tok scm.OAuthToken
+		if json.Unmarshal(secret, &tok) == nil {
+			ts.seen = tok.AccessToken
+		}
+		cfg.Tokens = ts
+	}
 	if c.AppID != nil {
 		cfg.AppID = *c.AppID
 	}
@@ -190,7 +252,7 @@ func (s *Service) client(ctx context.Context, c Connection) (scm.Client, error) 
 	if s.NewClient != nil {
 		return s.NewClient(cfg)
 	}
-	return scm.New(cfg)
+	return scm.NewFull(cfg)
 }
 
 // CloneCredential returns a clone credential for a repository's connection.

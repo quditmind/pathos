@@ -67,10 +67,10 @@ type Credential struct {
 
 // Config describes a connection.
 type Config struct {
-	Provider       string
-	BaseURL        string
-	AuthType       string // pat | github_app | oauth | api_token | service_principal
-	Owner          string // optional org/user (GitHub), group (GitLab), workspace (Bitbucket) or project (Azure DevOps)
+	Provider string
+	BaseURL  string
+	AuthType string // pat | github_app | oauth | api_token | service_principal
+	Owner    string // optional org/user (GitHub), group (GitLab), workspace (Bitbucket) or project (Azure DevOps)
 	// Secret is the stored credential: a PAT, a GitHub App PEM key, or JSON
 	// (OAuthToken, APITokenCredential, ServicePrincipalCredential).
 	Secret         []byte

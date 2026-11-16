@@ -33,8 +33,8 @@ func TestCatalogIntegrity(t *testing.T) {
 		}
 		seen[p.Key] = true
 	}
-	if len(SystemRoles) != 9 {
-		t.Errorf("want 9 system roles, got %d", len(SystemRoles))
+	if len(SystemRoles) != 10 {
+		t.Errorf("want 10 system roles, got %d", len(SystemRoles))
 	}
 	roles := map[string]bool{}
 	for _, r := range SystemRoles {

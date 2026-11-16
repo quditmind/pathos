@@ -23,18 +23,26 @@ type ResyncResult struct {
 	Archived int `json:"archived_upstream"`
 }
 
-// Resync refreshes metadata (name, URLs, default branch, visibility,
-// description, upstream archive flag, last push) of imported repositories
-// from the SCM. Placement, classification and tags are PATHOS data and are
-// never touched. Repositories the credential can no longer see are counted
-// but not changed.
+// Resync reconciles every repository of a connection with the provider
+// (scheduled synchronization): metadata, head commit of the tracked branch,
+// and deletion / archive / permission changes. Placement, classification and
+// tags are PATHOS data and are never touched. Source code is not
+// downloaded; head commits are only looked up when the listing shows a
+// push since the last known commit. Sync runs are recorded when something
+// changed or failed.
 func (s *Service) Resync(ctx context.Context, orgID, connID uuid.UUID) (ResyncResult, error) {
 	var res ResyncResult
 	c, err := s.getConn(ctx, s.DB, orgID, connID)
 	if err != nil {
 		return res, err
 	}
-	remote, err := s.listRemote(ctx, c)
+	cl, err := s.client(ctx, c)
+	if err != nil {
+		return res, err
+	}
+	lctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	remote, err := cl.ListRepositories(lctx)
+	cancel()
 	if err != nil {
 		return res, err
 	}
@@ -42,48 +50,53 @@ func (s *Service) Resync(ctx context.Context, orgID, connID uuid.UUID) (ResyncRe
 	for _, rr := range remote {
 		byID[rr.ExternalID] = rr
 	}
-	rows, err := s.DB.Query(ctx, `SELECT id, external_id FROM repositories WHERE organization_id = $1 AND scm_connection_id = $2`, orgID, connID)
+	rows, err := s.DB.Query(ctx, `SELECT id FROM repositories WHERE organization_id = $1 AND scm_connection_id = $2 AND archived_at IS NULL`, orgID, connID)
 	if err != nil {
 		return res, err
 	}
-	type local struct {
-		id  uuid.UUID
-		ext string
-	}
-	locals, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (local, error) {
-		var l local
-		return l, row.Scan(&l.id, &l.ext)
-	})
+	ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
 	if err != nil {
 		return res, err
 	}
-	for _, l := range locals {
-		res.Checked++
-		rr, ok := byID[l.ext]
-		if !ok {
-			res.Missing++
-			continue
-		}
-		vis := rr.Visibility
-		if vis != "public" && vis != "internal" {
-			vis = "private"
-		}
-		if rr.Archived {
-			res.Archived++
-		}
-		tag, err := s.DB.Exec(ctx, `
-			UPDATE repositories SET full_name = $3, name = $4, url = $5, clone_url = $6,
-			       default_branch = CASE WHEN $7 <> '' THEN $7 ELSE default_branch END,
-			       visibility = $8, description = $9, remote_archived = $10, last_pushed_at = COALESCE($11, last_pushed_at),
-			       updated_at = now()
-			WHERE organization_id = $1 AND id = $2
-			  AND (full_name, name, url, clone_url, default_branch, visibility, description, remote_archived, last_pushed_at)
-			      IS DISTINCT FROM ($3, $4, $5, $6, CASE WHEN $7 <> '' THEN $7 ELSE default_branch END, $8, $9, $10, COALESCE($11, last_pushed_at))`,
-			orgID, l.id, rr.FullName, rr.Name, rr.URL, rr.CloneURL, rr.DefaultBranch, vis, truncate(rr.Description, 2000), rr.Archived, rr.PushedAt)
+	for _, id := range ids {
+		t, err := loadSyncTarget(ctx, s.DB, orgID, id)
 		if err != nil {
 			return res, err
 		}
-		res.Updated += int(tag.RowsAffected())
+		res.Checked++
+		run := SyncRun{ID: uuid.Must(uuid.NewV7()), Trigger: "schedule", StartedAt: time.Now(), PreviousCommitSHA: t.LatestSHA}
+		rctx, cancel := context.WithTimeout(ctx, time.Minute)
+		var serr error
+		if rr, ok := byID[t.ExternalID]; ok {
+			serr = s.syncWith(rctx, cl, t, &run, &rr)
+		} else {
+			// Not in the listing: confirm whether it was deleted or the
+			// credential lost access.
+			serr = s.syncWith(rctx, cl, t, &run, nil)
+			if serr != nil {
+				res.Missing++
+			}
+		}
+		cancel()
+		if serr != nil {
+			run.Status, run.Error = syncStatusFor(serr), truncate(serr.Error(), 500)
+		}
+		if run.Status == "archived_upstream" {
+			res.Archived++
+		}
+		if run.Changed {
+			res.Updated++
+		}
+		if run.Changed || run.Status != "ok" || t.SyncStatus != run.Status {
+			if err := s.saveSyncRun(ctx, t, run, nil); err != nil {
+				return res, err
+			}
+			continue
+		}
+		if _, err := s.DB.Exec(ctx, `UPDATE repositories SET last_sync_at = now(), last_sync_ok_at = now(), sync_status = 'ok', sync_error = ''
+			WHERE organization_id = $1 AND id = $2`, orgID, id); err != nil {
+			return res, err
+		}
 	}
 	_, err = s.DB.Exec(ctx, `UPDATE scm_connections SET last_synced_at = now() WHERE id = $1`, connID)
 	return res, err
@@ -107,7 +120,7 @@ func (s *Service) ResyncAll(ctx context.Context) {
 		return
 	}
 	for _, c := range conns {
-		cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+		cctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 		res, err := s.Resync(cctx, c.org, c.id)
 		cancel()
 		if err != nil {

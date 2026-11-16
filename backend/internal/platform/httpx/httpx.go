@@ -25,6 +25,8 @@ type Error struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Details any    `json:"details,omitempty"`
+	// Fields carries per-field validation messages (code validation_failed).
+	Fields map[string]string `json:"fields,omitempty"`
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
