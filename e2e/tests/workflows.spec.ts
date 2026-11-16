@@ -18,7 +18,7 @@ test("schedule lifecycle: create with preview, pause, delete", async ({ page }) 
   await expect(row).toBeVisible();
   await expect(row).toContainText("Daily at 03:00");
   await row.getByRole("button", { name: "Pause" }).click();
-  await expect(row.getByText("paused")).toBeVisible();
+  await expect(row.getByText("paused", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Delete" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Delete schedule" }).click();
   await expect(row).toHaveCount(0);

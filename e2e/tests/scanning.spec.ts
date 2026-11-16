@@ -85,9 +85,9 @@ test("a schedule with a two-row plan can be created, previewed, paused, resumed 
   await expect(row).toContainText("2 plan rows");
   await expect(row).toContainText("01:00–06:00");
   await row.getByRole("button", { name: "Pause" }).click();
-  await expect(row.getByText("paused")).toBeVisible();
+  await expect(row.getByText("paused", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Resume" }).click();
-  await expect(row.getByText("paused")).toHaveCount(0);
+  await expect(row.getByText("paused", { exact: true })).toHaveCount(0);
   await row.getByRole("button", { name: "Run history" }).click();
   await expect(page.getByRole("dialog").getByRole("link", { name: /View all executions/ })).toBeVisible();
   await page.keyboard.press("Escape");
