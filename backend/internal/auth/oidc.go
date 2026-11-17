@@ -326,7 +326,9 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = audit.WithMeta(ctx, audit.Meta{IP: httpx.ClientIP(r), UserAgent: r.UserAgent(), RequestID: httpx.RequestID(r)})
 		c, err := r.Cookie(s.SessionCookieName())
-		if err != nil {
+		// The REST API accepts personal API tokens; other endpoints that take
+		// bearer tokens (the MCP server) authenticate them themselves.
+		if err != nil && strings.HasPrefix(r.URL.Path, "/api/") {
 			if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
 				// Personal API token (no cookie, so no CSRF exposure).
 				p, tokenID, terr := s.tokenPrincipal(ctx, strings.TrimSpace(bearer), r)

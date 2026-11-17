@@ -32,6 +32,10 @@ func TestRESTAPITokens(t *testing.T) {
 	})
 	api.HandleFunc("POST /api/v1/things", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 	h := as.Authenticate(as.RequireAuth(api))
+	// Outside /api/ (for example the MCP endpoint) bearer tokens are left to
+	// the endpoint.
+	mcpSeen := ""
+	outside := as.Authenticate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { mcpSeen = r.Header.Get("Authorization") }))
 
 	u, err := identity.CreateUser(ctx, appPool, identity.User{OrganizationID: orgID, Email: "tok-" + uuid.NewString()[:6] + "@acme.test", Status: identity.StatusActive})
 	if err != nil {
@@ -68,6 +72,15 @@ func TestRESTAPITokens(t *testing.T) {
 		return rec.Code, out
 	}
 	read, write, mcpOnly := mint("api:read"), mint("api:read", "api:write"), mint("mcp")
+	{
+		req := httptest.NewRequest("POST", "/mcp", nil)
+		req.Header.Set("Authorization", "Bearer "+mcpOnly)
+		rec := httptest.NewRecorder()
+		outside.ServeHTTP(rec, req)
+		if rec.Code != 200 || mcpSeen != "Bearer "+mcpOnly {
+			t.Errorf("MCP endpoint receives its token untouched: %d", rec.Code)
+		}
+	}
 
 	if code, out := do("GET", "/api/v1/whoami", read); code != 200 || out["email"] != u.Email || out["can_manage_repos"] != false {
 		t.Errorf("read token acts as its owner with the owner's rights: %d %v", code, out)
