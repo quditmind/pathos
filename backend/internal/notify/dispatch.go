@@ -99,6 +99,11 @@ func (d *Dispatcher) step(ctx context.Context, detect bool) {
 	} else if n > 0 {
 		d.Log.Debug("notification events dispatched", "count", n)
 	}
+	if sent, failed, err := d.SendWebhooks(ctx); err != nil {
+		d.Log.Error("webhook delivery failed", "err", err)
+	} else if sent+failed > 0 {
+		d.Log.Info("webhook delivery", "sent", sent, "failed", failed)
+	}
 	if sent, failed, err := d.SendPending(ctx); err != nil {
 		d.Log.Error("email delivery failed", "err", err)
 	} else if sent+failed > 0 {
@@ -160,6 +165,9 @@ func (d *Dispatcher) dispatchOne(ctx context.Context) (bool, error) {
 		}
 		found = true
 		_ = json.Unmarshal(payload, &ev.Payload)
+		if err := enqueueWebhooks(ctx, tx, ev); err != nil {
+			return err
+		}
 		n, derr := d.deliver(ctx, tx, ev)
 		msg := ""
 		if derr != nil {

@@ -23,6 +23,9 @@ const (
 	KindSMTP    = "smtp"
 	KindWebhook = "webhook"
 	KindWorker  = "worker"
+	// KindIntegration: outbound webhook URLs and signing secrets, ticketing
+	// credentials.
+	KindIntegration = "integration"
 )
 
 var ErrNotFound = errors.New("secret not found")

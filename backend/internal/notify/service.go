@@ -50,6 +50,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/notifications/deliveries", s.listDeliveries)
 	mux.HandleFunc("GET /api/v1/notifications/deliveries/{id}", s.getDelivery)
 	mux.HandleFunc("POST /api/v1/notifications/deliveries/{id}/retry", s.retryDelivery)
+	s.registerWebhooks(mux)
 	mux.HandleFunc("GET /api/v1/me/notifications", s.inbox)
 	mux.HandleFunc("POST /api/v1/me/notifications/read", s.markRead)
 }

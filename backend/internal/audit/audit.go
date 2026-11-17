@@ -57,6 +57,9 @@ type Meta struct {
 	IP        string
 	UserAgent string
 	RequestID string
+	// APIToken is the personal API token that authenticated the request
+	// (empty for browser sessions); recorded on every audit entry.
+	APIToken string
 }
 
 type metaKey struct{}
@@ -86,6 +89,11 @@ func Write(ctx context.Context, q db.Querier, e Entry) error {
 	}
 	if e.Metadata == nil {
 		e.Metadata = map[string]any{}
+	}
+	if m.APIToken != "" {
+		if _, set := e.Metadata["api_token_id"]; !set {
+			e.Metadata["api_token_id"] = m.APIToken
+		}
 	}
 	md, err := json.Marshal(e.Metadata)
 	if err != nil {

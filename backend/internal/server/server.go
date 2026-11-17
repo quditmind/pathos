@@ -28,6 +28,7 @@ import (
 	"pathos/internal/platform/ratelimit"
 	"pathos/internal/platform/telemetry"
 	"pathos/internal/policy"
+	"pathos/internal/tickets"
 	"pathos/internal/posture"
 	"pathos/internal/repos"
 	"pathos/internal/review"
@@ -127,6 +128,7 @@ func Build(d Deps) Handlers {
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	(&policy.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&compliance.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&tickets.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}).Register(protected)
 	reviewSvc.Register(protected)
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
