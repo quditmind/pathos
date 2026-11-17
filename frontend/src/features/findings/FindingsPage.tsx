@@ -1,3 +1,4 @@
+import { RelatedFindings } from "@/features/vuln/RelatedFindings";
 import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
@@ -213,7 +214,12 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div><dt className="text-[12px] text-muted-foreground">Type</dt><dd>{categoryLabel[d.category] ?? d.category}</dd></div>
             <div><dt className="text-[12px] text-muted-foreground">Rule</dt><dd className="break-all font-mono text-[12px]">{d.rule_id}</dd></div>
-            {d.cve && <div><dt className="text-[12px] text-muted-foreground">CVE</dt><dd className="font-mono text-[12px]">{d.cve}</dd></div>}
+            {d.cve && (
+              <div>
+                <dt className="text-[12px] text-muted-foreground">CVE</dt>
+                <dd className="font-mono text-[12px]"><Link to="/vulnerabilities/$id" params={{ id: d.cve }} className="text-primary hover:underline">{d.cve}</Link></dd>
+              </div>
+            )}
             {d.cwe.length > 0 && <div><dt className="text-[12px] text-muted-foreground">CWE</dt><dd className="font-mono text-[12px]">{d.cwe.join(", ")}</dd></div>}
             {d.package_name && <div><dt className="text-[12px] text-muted-foreground">Package</dt><dd className="font-mono text-[12px]">{d.package_name}@{d.package_version}</dd></div>}
             {d.fixed_version && <div><dt className="text-[12px] text-muted-foreground">Fixed in</dt><dd className="font-mono text-[12px] text-success">{d.fixed_version}</dd></div>}
@@ -222,7 +228,23 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <div><dt className="text-[12px] text-muted-foreground">First seen</dt><dd className="tabular">{formatDateTime(d.first_seen_at)}</dd></div>
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
+            {d.category === "sca" && d.reachability && (
+              <div className="col-span-2">
+                <dt className="text-[12px] text-muted-foreground">Reachability</dt>
+                <dd>
+                  {{ reachable: "Reachable", not_reachable: "Not reachable", unknown: "Unknown" }[d.reachability]}
+                  {d.reachability_basis && <span className="text-muted-foreground"> — {d.reachability_basis}</span>}
+                </dd>
+              </div>
+            )}
+            {d.suppression_rule_id && (
+              <div className="col-span-2">
+                <dt className="text-[12px] text-muted-foreground">Decided by</dt>
+                <dd><Link to="/suppression-rules" className="text-primary hover:underline">an approved suppression rule</Link></dd>
+              </div>
+            )}
           </dl>
+          <RelatedFindings findingId={d.id} />
           {d.snippet && (
             <div>
               <h3 className="mb-2 text-[13px] font-semibold">Code</h3>

@@ -27,6 +27,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
+	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
 )
@@ -71,6 +72,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/complete", s.complete)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
+	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/imports", s.jobImports)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
@@ -669,4 +671,58 @@ func (s *Service) jobTargetFile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(raw)
+}
+
+// jobImports stores a repository's code inventory (from the worker holding
+// the job) and recomputes the reachability of its dependency findings.
+func (s *Service) jobImports(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	wk := workerFrom(ctx)
+	id, err := pathID(r, "id")
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
+		return
+	}
+	if status, err := s.ownedJob(ctx, wk, id); err != nil || status != "running" {
+		if err == nil {
+			err = httpx.Conflict("job is " + status)
+		}
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, 8<<20)
+	var inv struct {
+		Version      int                 `json:"version"`
+		FilesScanned int                 `json:"files_scanned"`
+		Imports      map[string][]string `json:"imports"`
+		Strings      map[string][]string `json:"strings"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&inv); err != nil || inv.Version != 1 {
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid import inventory"))
+		return
+	}
+	var repoID uuid.UUID
+	var target *uuid.UUID
+	if err := s.DB.QueryRow(ctx, `SELECT repository_id, target_id FROM scan_jobs WHERE id = $1`, id).Scan(&repoID, &target); err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	if target != nil {
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest("scan target jobs have no code inventory"))
+		return
+	}
+	var changed int
+	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := reach.StoreInventory(ctx, tx, wk.orgID, repoID, inv.Imports, inv.Strings, max(inv.FilesScanned, 0)); err != nil {
+			return err
+		}
+		var err error
+		changed, err = reach.Update(ctx, tx, repoID)
+		return err
+	})
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]int{"findings_updated": changed})
 }

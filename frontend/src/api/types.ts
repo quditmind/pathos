@@ -1040,6 +1040,10 @@ export interface Finding {
   kev_due_date?: string | null;
   exploit_available?: boolean;
   reachability?: "reachable" | "not_reachable" | "unknown";
+  /** Why: e.g. "a dependency of express, which the code uses". */
+  reachability_basis?: string;
+  /** The approved suppression rule that decided the status. */
+  suppression_rule_id?: string | null;
   /** Contextual risk score 0-100 (null until scored). */
   risk_score?: number | null;
   application_id?: string | null;
@@ -1117,7 +1121,7 @@ export interface FeedRun {
 }
 
 export interface IntelFeed {
-  feed: "epss" | "kev";
+  feed: "epss" | "kev" | "osv";
   label: string;
   enabled: boolean;
   url: string;

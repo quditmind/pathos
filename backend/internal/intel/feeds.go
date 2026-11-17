@@ -37,7 +37,10 @@ const (
 	MaxExpandedBytes = 512 << 20
 )
 
-var cveRe = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,}$`)
+var (
+	cveRe  = regexp.MustCompile(`^CVE-[0-9]{4}-[0-9]{4,}$`)
+	ghsaRe = regexp.MustCompile(`^GHSA(-[23456789cfghjmpqrvwx]{4}){3}$`)
+)
 
 // EPSSRow is one EPSS score.
 type EPSSRow struct {
@@ -277,6 +280,12 @@ func Load(ctx context.Context, pool *pgxpool.Pool, feed, mode string, by *[16]by
 			asOf, n, err = LoadEPSS(ctx, tx, bytes.NewReader(data))
 		case KEV:
 			asOf, n, err = LoadKEV(ctx, tx, bytes.NewReader(data))
+		case OSV:
+			var vulns []Vuln
+			if vulns, err = ParseOSV(data, "osv-file"); err == nil {
+				n, err = LoadOSV(ctx, tx, vulns)
+				asOf = time.Now().UTC().Format(time.DateOnly)
+			}
 		default:
 			err = fmt.Errorf("unknown feed %q", feed)
 		}

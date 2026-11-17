@@ -85,7 +85,7 @@ function FeedCard({ f, editable }: { f: IntelFeed; editable: boolean }) {
               ref={file}
               type="file"
               className="hidden"
-              accept={f.feed === "epss" ? ".csv,.gz" : ".json,.gz"}
+              accept={f.feed === "epss" ? ".csv,.gz" : f.feed === "osv" ? ".json,.zip" : ".json,.gz"}
               aria-label={`Import ${f.label} file`}
               onChange={(e) => {
                 const fl = e.target.files?.[0];
@@ -238,7 +238,7 @@ export function RiskIntelPage() {
     <>
       <PageHeader
         title="Risk & intelligence"
-        description="Vulnerability intelligence feeds (EPSS, CISA KEV) and the contextual risk model that ranks findings beyond CVSS."
+        description="Vulnerability intelligence feeds (EPSS, CISA KEV, OSV records) and the contextual risk model that ranks findings beyond CVSS. OSV records are looked up for the CVEs and advisories of open findings; offline, import OSV JSON or an OSV zip export."
       />
       <div className="space-y-4">
         {feeds.isError && <Alert>{feeds.error.message}</Alert>}

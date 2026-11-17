@@ -18,11 +18,11 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 |---|---|---|---|
 | A. Code and application scanning (1–15) | 10 | 4 | 1 |
 | B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
-| C. Vulnerability intelligence (31–45) | 11 | 2 | 2 |
+| C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 11 | 3 | 1 |
 | F. Supply chain and DevSecOps (61–75) | 7 | 5 | 3 |
 | G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **68** | **22** | **10** |
+| **Total** | **72** | **20** | **8** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -83,16 +83,16 @@ Cross-cutting requirements:
 |---|---|---|---|---|---|---|---|---|
 | 31 | Central repository | Completed | ✓ | ✓ | ✓ | ✓ | `findings` with occurrences and provenance | — |
 | 32 | Normalisation | Completed | ✓ | ✓ | ✓ | ✓ | SARIF and Grype parsers, severity mapping, CWE and CVE extraction; confidence and CVSS vectors (phase 1) | — |
-| 33 | Duplicate detection | Completed | ✓ | ✓ | ✓ | ✓ | Line-independent fingerprints, cross-tool SCA merge by package and CVE | **Correlation** (not merging) of SAST findings from different tools at the same location and CWE |
-| 34 | False-positive management | Completed | ✓ | ✓ | ✓ | ✓ | Status, AI with approval, Human Review | Suppression rules (fingerprint or path patterns) with expiry |
+| 33 | Duplicate detection | Completed | ✓ | ✓ | ✓ | ✓ | Line-independent fingerprints, cross-tool SCA merge by package and CVE; related findings across tools (same location and CWE, same CVE) without merging (phase 4) | — |
+| 34 | False-positive management | Completed | ✓ | ✓ | ✓ | ✓ | Status, AI with approval, Human Review; four-eyes suppression rules with expiry and automatic reopening (phase 4) | — |
 | 35 | Lifecycle | Completed | ✓ | ✓ | ✓ | ✓ | Trigger-recorded history, recurrence; unified lifecycle status New, Open, In progress, Under review, Confirmed, False positive, Accepted risk, Resolved, Reopened, derived without changing stored values (phase 1) | — |
-| 36 | CVE intelligence | In Progress | ◐ | ◐ | ◐ | ✓ | CVE lookup with EPSS and KEV (`/intel/cves/{id}`) | CVE descriptions and references from NVD or OSV |
-| 37 | CVSS scoring | Completed | ✓ | ✓ | ✓ | ✓ | Scanner score, version and vector per finding; CVSS 3.1 and 4.0 in Human Eye (phase 1) | Vendor vectors from a CVE feed (with 36) |
+| 36 | CVE intelligence | Completed | ✓ | ✓ | ✓ | ✓ | OSV records (online lookups, offline import) with descriptions, references, aliases, affected and fixed versions; vulnerability page with EPSS and KEV (phase 4) | NVD as an additional source |
+| 37 | CVSS scoring | Completed | ✓ | ✓ | ✓ | ✓ | Scanner score, version and vector per finding; vendor vectors from OSV when the scanner gives none; CVSS 3.1 and 4.0 in Human Eye (phases 1, 4) | — |
 | 38 | EPSS | Completed | ✓ | ✓ | ✓ | ✓ | FIRST EPSS feed: daily download or offline import, per finding (phase 1) | — |
 | 39 | CISA KEV | Completed | ✓ | ✓ | ✓ | ✓ | CISA KEV feed: daily download or offline import, flag and due date per finding (phase 1) | — |
-| 40 | Exploitability analysis | In Progress | ◐ | ✓ | ✓ | ✓ | Human Eye questions, AI verdicts; EPSS, KEV and exploit signals in the risk score (phase 1) | Public exploit references beyond KEV |
-| 41 | Dependency reachability | Not Started | — | — | — | — | — | govulncheck (Go, symbol level), Opengrep import-usage rules for other ecosystems; a reachable / unreachable / unknown flag that never hides findings |
-| 42 | Attack path analysis | Not Started | — | — | — | — | — | Paths through the context graph: internet-exposed → application → reachable vulnerable component |
+| 40 | Exploitability analysis | Completed | ✓ | ✓ | ✓ | ✓ | Human Eye questions, AI verdicts; EPSS, KEV and OSV exploit/proof-of-concept references in the risk score (phases 1, 4) | Exploit databases beyond OSV references |
+| 41 | Dependency reachability | Completed | ✓ | ✓ | ✓ | ✓ | Package-level reachability from a code inventory (imports, names, browser assets) and the dependency graph; explained; weights risk only (phase 4) | Function-level reachability (govulncheck call graphs, Java) |
+| 42 | Attack path analysis | Completed | ✓ | ✓ | ✓ | ✓ | Paths from the internet through tested applications or exposed assets to code findings, images and reachable vulnerable packages, ranked by risk (phase 4) | Runtime and cloud network topology |
 | 43 | Risk prioritisation | Completed | ✓ | ✓ | ✓ | ✓ | Configurable, versioned, explainable contextual risk score; sort and filter by risk (phase 1) | — |
 | 44 | SLA tracking | Completed | ✓ | ✓ | ✓ | ✓ | Per-severity policies, breach notifications | SLA by risk score (optional) |
 | 45 | Trend analysis | Completed | ✓ | ✓ | ✓ | ✓ | Dashboard trends, scan comparison | — |

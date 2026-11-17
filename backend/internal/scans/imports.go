@@ -25,6 +25,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/vuln"
 )
@@ -354,7 +355,11 @@ func (s *Service) importSBOM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
-		_, err := vuln.StoreImportedSBOM(ctx, tx, p.OrganizationID, repoID, data)
+		if _, err := vuln.StoreImportedSBOM(ctx, tx, p.OrganizationID, repoID, data); err != nil {
+			return err
+		}
+		// A new dependency graph changes reachability.
+		_, err := reach.Update(ctx, tx, repoID)
 		return err
 	}); err != nil {
 		s.fail(w, r, err)

@@ -210,3 +210,33 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 68 completed, 22 in progress, 10 not started. Module B (ASPM and application intelligence) is complete.
 
 **Next:** phase 4, vulnerability intelligence: CVE detail pages, reachability, attack paths, correlation across tools, suppression rules.
+
+## 10. Phase 4 completion report (2026-11-18)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00017 | `intel_vulns` and the `osv` feed, `repository_code_imports`, `repositories.imports_scanned_at/imports_files`, `findings.reachability_basis`, `suppression_rules` and `findings.suppression_rule_id`; full Down migration (decided findings reopen) |
+| CVE intelligence | OSV lookups for open findings' CVE/GHSA identifiers (weekly refresh, unknown identifiers remembered), offline JSON/zip import, vulnerability page; vendor CVSS fills findings without a vector; EVIDENCE references count as exploits in the risk score |
+| Reachability | Worker code inventory (JS/TS, Python, Go imports; package names in strings; browser assets in templates) uploaded per scan; package-level decision over the dependency graph; "not reachable" only for npm and Go with complete evidence; explained per finding; recomputed on inventory, SBOM import and scan completion |
+| Attack paths | Internet → tested application or exposed asset → code finding, image, or reachable vulnerable package, ranked by risk, with reasons |
+| Correlation | Related findings: same location from another tool (±3 lines, common CWE), same CVE elsewhere, other repositories with the CVE |
+| Suppression rules | Proposal with preview, four-eyes approval (API and CHECK), expiry ≤ 1 year, application to new findings at scan completion, reopening at expiry or revocation, full status history and audit |
+| UI | Vulnerability page, Attack paths, Suppression rules, reachability and related findings in the finding drawer, OSV feed import |
+
+**Verified on the local stack:**
+
+- the OSV feed fetched 229 records for `nodejs-goof`'s vulnerabilities in 19 s (32 with exploit references); 297 of 301 CVE findings have a CVSS vector
+- a real scan inventoried 17 files: 218 dependency findings reachable, 33 not reachable (build tooling, `jquery` declared but never used), 85 unknown; `ejs`, loaded by name as the Express view engine, is reachable
+- with the repository temporarily marked internet-exposed, 100 attack paths were listed, ranked by risk with exploit evidence (the exposure was restored)
+
+**Tests:**
+
+- unit: OSV parsing (record, array, zip), vector choice, code inventory (imports, strings, assets), reachability decisions
+- integration: OSV import, worker inventory and reachability, attack paths, correlation, suppression rules (validation, preview, four eyes, history, later findings, revocation, expiry)
+- Vitest: 147; Playwright: 65; smoke 92/92
+
+**Register:** 72 completed, 20 in progress, 8 not started. Module C (vulnerability intelligence) is complete.
+
+**Next:** phase 5, Human Eye extras: multi-level approval, AI patch proposals with human approval, AI risk explanation and correlation suggestions.

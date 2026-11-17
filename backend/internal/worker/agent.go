@@ -427,6 +427,17 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	mu.Lock()
 	stop := cancelled
 	mu.Unlock()
+	if !stop && job.Target == nil {
+		// Import inventory for dependency reachability (reads source only).
+		inv := collectImports(src)
+		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/imports", a.token, inv, nil); err != nil {
+			log.Warn("import inventory upload failed", "err", err)
+			rep.logf("warn", "import inventory upload failed: %v", err)
+		} else {
+			rep.logf("info", "import inventory: %d source files, %d npm, %d Python, %d Go imports", inv.FilesScanned,
+				len(inv.Imports["npm"]), len(inv.Imports["pypi"]), len(inv.Imports["go"]))
+		}
+	}
 	if !stop {
 		finish("", commit)
 	}

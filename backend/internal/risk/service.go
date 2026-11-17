@@ -253,7 +253,10 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			       k.cve_id IS NOT NULL, k.due_date, f.exploit_available, r.criticality, COALESCE(a.criticality, ''), r.public_exposure,
 			       f.reachability, f.confidence, COALESCE(f.human_disposition, ''), f.fixed_version <> '',
 			       EXISTS (SELECT 1 FROM human_reviews h JOIN human_review_assessments ha ON ha.review_id = h.id AND ha.round = h.round
-			               WHERE h.finding_id = f.id AND ha.answers->>'compensating_controls_present' = 'yes')
+			               WHERE h.finding_id = f.id AND ha.answers->>'compensating_controls_present' = 'yes'),
+			       -- public exploit or proof of concept referenced by the OSV record
+			       f.cve <> '' AND EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND v.exploit_refs > 0
+			               AND (v.id = f.cve OR f.cve = ANY(v.aliases)))
 			FROM findings f
 			JOIN repositories r ON r.id = f.repository_id
 			LEFT JOIN applications a ON a.id = r.application_id
@@ -271,6 +274,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			kev           bool
 			kevDue        *time.Time
 			exploit       bool
+			osvExploit    bool
 		}
 		var list []upd
 		for rows.Next() {
@@ -279,14 +283,14 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			var repoCrit, appCrit string
 			if err := rows.Scan(&u.id, &in.Status, &in.Severity, &in.HumanSeverity, &in.CVSS, &u.epss, &u.epssPct, &u.kev, &u.kevDue,
 				&in.ExploitAvailable, &repoCrit, &appCrit, &in.Exposure, &in.Reachability, &in.Confidence, &in.HumanDisposition,
-				&in.FixAvailable, &in.Compensating); err != nil {
+				&in.FixAvailable, &in.Compensating, &u.osvExploit); err != nil {
 				rows.Close()
 				return err
 			}
 			in.Criticality = higher(repoCrit, appCrit)
 			in.EPSSPercentile, in.KEV = u.epssPct, u.kev
 			// KEV entries are exploited in the wild.
-			in.ExploitAvailable = in.ExploitAvailable || u.kev
+			in.ExploitAvailable = in.ExploitAvailable || u.kev || u.osvExploit
 			u.exploit = in.ExploitAvailable
 			u.res = Compute(in, m.Weights)
 			u.res.Version = m.Version
