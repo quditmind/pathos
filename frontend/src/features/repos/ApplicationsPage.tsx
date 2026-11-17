@@ -25,10 +25,14 @@ const columns: Column<Application>[] = [
     ),
     csv: (a) => a.name,
   },
-  { id: "ref", header: "Application ID", className: "font-mono text-[12px]", cell: (a) => a.external_ref || <span className="text-muted-foreground">—</span>, csv: (a) => a.external_ref },
+  { id: "key", header: "Application ID", required: true, className: "whitespace-nowrap font-mono text-[12px]", cell: (a) => a.application_key, csv: (a) => a.application_key },
+  { id: "ref", header: "External ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (a) => a.external_ref || <span className="text-muted-foreground">—</span>, csv: (a) => a.external_ref },
+  { id: "lifecycle", header: "Lifecycle", className: "text-[12px] capitalize", cell: (a) => a.lifecycle, csv: (a) => a.lifecycle },
+  { id: "environment", header: "Environment", defaultHidden: true, exportAlways: true, className: "text-[12px] capitalize", cell: (a) => a.environment, csv: (a) => a.environment },
   { id: "criticality", header: "Criticality", cell: (a) => <CriticalityBadge value={a.criticality} />, csv: (a) => a.criticality },
   { id: "bu", header: "Business unit", cell: (a) => a.business_unit?.name ?? "—", csv: (a) => a.business_unit?.name },
   { id: "owner", header: "Owner", cell: (a) => a.owner?.name ?? <span className="text-muted-foreground">Unassigned</span>, csv: (a) => a.owner?.email },
+  { id: "techowner", header: "Technical owner", defaultHidden: true, exportAlways: true, cell: (a) => a.technical_owner?.name ?? <span className="text-muted-foreground">Unassigned</span>, csv: (a) => a.technical_owner?.email },
   { id: "secowner", header: "Security owner", cell: (a) => a.security_owner?.name ?? <span className="text-muted-foreground">Unassigned</span>, csv: (a) => a.security_owner?.email },
   {
     id: "repos",
@@ -94,7 +98,7 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
   const bus = useBusinessUnits();
   const users = useUsers("", "active");
   const userList: User[] = users.data?.pages.flatMap((p) => p.items) ?? [];
-  const [f, setF] = useState({ name: "", external_ref: "", description: "", business_unit_id: "", owner_user_id: "", security_owner_user_id: "", criticality: "medium" });
+  const [f, setF] = useState({ name: "", external_ref: "", description: "", business_unit_id: "", owner_user_id: "", security_owner_user_id: "", technical_owner_user_id: "", criticality: "medium", lifecycle: "active", environment: "production" });
   useEffect(() => {
     setF({
       name: existing?.name ?? "",
@@ -103,6 +107,9 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
       business_unit_id: existing?.business_unit?.id ?? "",
       owner_user_id: existing?.owner?.id ?? "",
       security_owner_user_id: existing?.security_owner?.id ?? "",
+      technical_owner_user_id: existing?.technical_owner?.id ?? "",
+      lifecycle: existing?.lifecycle ?? "active",
+      environment: existing?.environment ?? "production",
       criticality: existing?.criticality ?? "medium",
     });
   }, [app]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -116,7 +123,8 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
     const nul = (v: string) => v || null;
     save.mutate(
       { name: f.name.trim(), external_ref: f.external_ref.trim(), description: f.description, business_unit_id: nul(f.business_unit_id), criticality: f.criticality,
-        ...(canPickUsers ? { owner_user_id: nul(f.owner_user_id), security_owner_user_id: nul(f.security_owner_user_id) } : {}) },
+        lifecycle: f.lifecycle, environment: f.environment,
+        ...(canPickUsers ? { owner_user_id: nul(f.owner_user_id), security_owner_user_id: nul(f.security_owner_user_id), technical_owner_user_id: nul(f.technical_owner_user_id) } : {}) },
       { onSuccess: () => { save.reset(); onClose(); } },
     );
   };
@@ -151,7 +159,7 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
           <Input id="app-name" required maxLength={200} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} autoFocus />
         </div>
         <div>
-          <Label htmlFor="app-ref" hint="(optional, e.g. CMDB ID)">Application ID</Label>
+          <Label htmlFor="app-ref" hint="(optional, e.g. CMDB ID)">External ID</Label>
           <Input id="app-ref" maxLength={100} value={f.external_ref} onChange={(e) => setF({ ...f, external_ref: e.target.value })} />
         </div>
         <div>
@@ -172,6 +180,18 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
               {["critical", "high", "medium", "low"].map((v) => <option key={v} value={v}>{v}</option>)}
             </Select>
           </div>
+          <div>
+            <Label htmlFor="app-life">Lifecycle</Label>
+            <Select id="app-life" className="w-full capitalize" value={f.lifecycle} onChange={(e) => setF({ ...f, lifecycle: e.target.value })}>
+              {["planned", "development", "active", "maintenance", "deprecated", "retired"].map((v) => <option key={v} value={v}>{v}</option>)}
+            </Select>
+          </div>
+          <div>
+            <Label htmlFor="app-env">Environment</Label>
+            <Select id="app-env" className="w-full capitalize" value={f.environment} onChange={(e) => setF({ ...f, environment: e.target.value })}>
+              {["production", "staging", "development", "test", "other"].map((v) => <option key={v} value={v}>{v}</option>)}
+            </Select>
+          </div>
           {canPickUsers && (
             <>
               <div>
@@ -181,6 +201,10 @@ function AppDialog({ app, onClose, canPickUsers }: { app: Application | "new" | 
               <div>
                 <Label htmlFor="app-sec">Security owner</Label>
                 <Select id="app-sec" className="w-full" value={f.security_owner_user_id} onChange={(e) => setF({ ...f, security_owner_user_id: e.target.value })}>{userOptions}</Select>
+              </div>
+              <div>
+                <Label htmlFor="app-tech">Technical owner</Label>
+                <Select id="app-tech" className="w-full" value={f.technical_owner_user_id} onChange={(e) => setF({ ...f, technical_owner_user_id: e.target.value })}>{userOptions}</Select>
               </div>
             </>
           )}

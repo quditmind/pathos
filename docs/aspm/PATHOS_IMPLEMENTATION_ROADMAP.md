@@ -70,7 +70,8 @@ reachability= reachable 1.2, unknown 1.0, not reachable 0.6     (not reachable n
 confidence  = scanner confidence (high 1.0, medium 0.9, low 0.75); human-confirmed 1.1
 controls    = compensating controls recorded in a review 0.7
 fixability  = fix available 1.05 (prioritises quick wins slightly)
-score       = clamp(10 × base × (0.5 + likelihood) × context × reachability × confidence × controls × fixability / 2.0, 0, 100)
+score       = clamp(10 × base × (0.5 + likelihood) × context × reachability × confidence × controls × fixability / 1.75, 0, 100)
+bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 ```
 
 - False positives, accepted risks and resolved findings get a score of 0 with the reason recorded.
@@ -88,3 +89,35 @@ score       = clamp(10 × base × (0.5 + likelihood) × context × reachability 
 | New worker families | Same worker API; families are additive images |
 | External network access | Every feed or connector is disabled until configured; egress allow-list |
 | Multi-tenancy | Only behind D3; the default single-organization mode is unchanged |
+
+## 6. Phase 1 completion report (2026-11-17)
+
+**Decisions taken:** D1 rename to Human Eye (labels only); D2 lifecycle statuses derived, stored values unchanged; D3 single organization; D4 EPSS and KEV online daily by default, with offline import.
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00013 | Finding intelligence columns, triggers that mark findings for re-scoring, intel tables, feed configuration and runs, versioned risk models, application IDs and fields, confidence backfill, full Down migration |
+| `internal/risk` | Explainable model, validation, versioning API, background recomputation |
+| `internal/intel` | EPSS and KEV parsers (gzip aware), atomic loaders, daily online updates with failure back-off, offline import, CVE lookup |
+| Ingest | Confidence (category-based, with explicit tool metadata) and CVSS vectors (Trivy, Grype) |
+| Findings API | Lifecycle status, intel fields, application; filters `lifecycle`, `kev`, `epss_min`, `risk_min`, `confidence`, `reachability`, `application_id`; risk ordering with keyset pagination |
+| UI | Risk and lifecycle columns and filters, KEV badge, risk explanation in the finding drawer, **Risk & intelligence** administration page, application fields |
+| Docs | API reference, user guide (Help Center), DATABASE.md, CHANGELOG, register update |
+
+**Verified on the local stack:**
+
+- live feeds loaded 407,165 EPSS scores and 1,781 KEV entries
+- all 337 findings were scored: 30 critical, 114 high, 174 medium, 19 low
+- the top findings are critical CVEs in the 94th–98th EPSS percentile
+
+**Tests:**
+
+- unit tests for the risk model (ordering, calibration, validation), the feed parsers, and confidence and vector parsing
+- an integration test covering offline import, online download over TLS, scoring, explanation, re-scoring when context changes, model versioning and permissions, lifecycle filters, risk ordering and application IDs
+- Vitest for the risk panel, the feeds page and the findings columns
+
+**Register:** 52 completed, 29 in progress, 19 not started (from 47, 32 and 21).
+
+**Next:** phase 2, ingestion (SARIF/JSON and SBOM import) and new engines and targets.

@@ -16,6 +16,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/dashboard"
 	"pathos/internal/identity"
+	"pathos/internal/intel"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
 	"pathos/internal/org"
@@ -26,6 +27,7 @@ import (
 	"pathos/internal/platform/telemetry"
 	"pathos/internal/repos"
 	"pathos/internal/review"
+	"pathos/internal/risk"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
 	"pathos/internal/scm"
@@ -119,6 +121,8 @@ func Build(d Deps) Handlers {
 	aiSvc.Register(protected)
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	reviewSvc.Register(protected)
+	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	NewIntelService(d).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
@@ -194,6 +198,14 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 			_, err := scans.Enqueue(ctx, d.DB, orgID, repoID, trigger, "", "", by)
 			return err
 		}}
+}
+
+// NewIntelService builds the vulnerability intelligence service. Feeds
+// are downloaded from public hosts only.
+func NewIntelService(d Deps) *intel.Service {
+	client := scm.NetPolicy{}.Client()
+	client.Timeout = 5 * time.Minute
+	return &intel.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client}
 }
 
 // NewReviewService builds the Human Eye service (also used by the jobs

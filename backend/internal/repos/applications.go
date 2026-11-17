@@ -34,13 +34,18 @@ type UserRef struct {
 
 // Application groups repositories into a business asset.
 type Application struct {
-	ID            uuid.UUID `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description"`
-	BusinessUnit  *Ref      `json:"business_unit"`
-	Owner         *UserRef  `json:"owner"`
-	SecurityOwner *UserRef  `json:"security_owner"`
-	Criticality   string    `json:"criticality"`
+	ID uuid.UUID `json:"id"`
+	// Key is the permanent application ID (QD-APP-000001).
+	Key            string   `json:"application_key"`
+	Name           string   `json:"name"`
+	Description    string   `json:"description"`
+	BusinessUnit   *Ref     `json:"business_unit"`
+	Owner          *UserRef `json:"owner"`
+	SecurityOwner  *UserRef `json:"security_owner"`
+	TechnicalOwner *UserRef `json:"technical_owner"`
+	Lifecycle      string   `json:"lifecycle"`
+	Environment    string   `json:"environment"`
+	Criticality    string   `json:"criticality"`
 	// ExternalRef is the organization's application identifier (e.g. a CMDB ID).
 	ExternalRef     string     `json:"external_ref"`
 	RepositoryCount int        `json:"repository_count"`
@@ -49,16 +54,18 @@ type Application struct {
 }
 
 const appSelect = `
-	SELECT a.id, a.name, a.description, b.id, b.name,
+	SELECT a.id, a.application_key, a.name, a.description, b.id, b.name,
 	       o.id, COALESCE(NULLIF(o.display_name, ''), o.email), o.email,
 	       so.id, COALESCE(NULLIF(so.display_name, ''), so.email), so.email,
+	       t.id, COALESCE(NULLIF(t.display_name, ''), t.email), t.email, a.lifecycle, a.environment,
 	       a.criticality, a.external_ref,
 	       (SELECT count(*) FROM repositories r WHERE r.application_id = a.id AND r.archived_at IS NULL),
 	       a.archived_at, a.created_at
 	FROM applications a
 	LEFT JOIN business_units b ON b.id = a.business_unit_id
 	LEFT JOIN users o ON o.id = a.owner_user_id
-	LEFT JOIN users so ON so.id = a.security_owner_user_id`
+	LEFT JOIN users so ON so.id = a.security_owner_user_id
+	LEFT JOIN users t ON t.id = a.technical_owner_user_id`
 
 func userRef(id *uuid.UUID, name, email *string) *UserRef {
 	if id == nil {
@@ -69,15 +76,16 @@ func userRef(id *uuid.UUID, name, email *string) *UserRef {
 
 func scanApp(row pgx.Row) (Application, error) {
 	var a Application
-	var buID, oID, soID *uuid.UUID
-	var buName, oName, oEmail, soName, soEmail *string
-	err := row.Scan(&a.ID, &a.Name, &a.Description, &buID, &buName, &oID, &oName, &oEmail, &soID, &soName, &soEmail,
-		&a.Criticality, &a.ExternalRef, &a.RepositoryCount, &a.ArchivedAt, &a.CreatedAt)
+	var buID, oID, soID, tID *uuid.UUID
+	var buName, oName, oEmail, soName, soEmail, tName, tEmail *string
+	err := row.Scan(&a.ID, &a.Key, &a.Name, &a.Description, &buID, &buName, &oID, &oName, &oEmail, &soID, &soName, &soEmail,
+		&tID, &tName, &tEmail, &a.Lifecycle, &a.Environment, &a.Criticality, &a.ExternalRef, &a.RepositoryCount, &a.ArchivedAt, &a.CreatedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return a, errNotFound
 	}
 	a.BusinessUnit = ref(buID, buName)
 	a.Owner, a.SecurityOwner = userRef(oID, oName, oEmail), userRef(soID, soName, soEmail)
+	a.TechnicalOwner = userRef(tID, tName, tEmail)
 	return a, err
 }
 
@@ -135,7 +143,15 @@ type appRequest struct {
 	SecurityOwnerID optUUID `json:"security_owner_user_id"`
 	Criticality     *string `json:"criticality"`
 	ExternalRef     *string `json:"external_ref"`
+	TechnicalOwner  optUUID `json:"technical_owner_user_id"`
+	Lifecycle       *string `json:"lifecycle"`
+	Environment     *string `json:"environment"`
 }
+
+var (
+	appLifecycles   = []string{"planned", "development", "active", "maintenance", "deprecated", "retired"}
+	appEnvironments = []string{"production", "staging", "development", "test", "other"}
+)
 
 func (req *appRequest) validate(create bool) error {
 	if create && (req.Name == nil || strings.TrimSpace(*req.Name) == "") {
@@ -156,6 +172,12 @@ func (req *appRequest) validate(create bool) error {
 	}
 	if req.Criticality != nil && !slices.Contains(criticalities, *req.Criticality) {
 		return httpx.BadRequest("invalid criticality")
+	}
+	if req.Lifecycle != nil && !slices.Contains(appLifecycles, *req.Lifecycle) {
+		return httpx.BadRequest("lifecycle must be one of " + strings.Join(appLifecycles, ", "))
+	}
+	if req.Environment != nil && !slices.Contains(appEnvironments, *req.Environment) {
+		return httpx.BadRequest("environment must be one of " + strings.Join(appEnvironments, ", "))
 	}
 	return nil
 }
@@ -194,9 +216,10 @@ func (s *Service) createApplication(w http.ResponseWriter, r *http.Request) {
 	var app Application
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO applications (id, organization_id, name, description, business_unit_id,
-			owner_user_id, security_owner_user_id, criticality, external_ref) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+			owner_user_id, security_owner_user_id, criticality, external_ref, technical_owner_user_id, lifecycle, environment)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, COALESCE($11, 'active'), COALESCE($12, 'production'))`,
 			id, p.OrganizationID, strings.TrimSpace(*req.Name), str(req.Description), req.BusinessUnitID.Val,
-			req.OwnerUserID.Val, req.SecurityOwnerID.Val, crit, str(req.ExternalRef)); err != nil {
+			req.OwnerUserID.Val, req.SecurityOwnerID.Val, crit, str(req.ExternalRef), req.TechnicalOwner.Val, req.Lifecycle, req.Environment); err != nil {
 			return err
 		}
 		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -256,10 +279,13 @@ func (s *Service) updateApplication(w http.ResponseWriter, r *http.Request) {
 			business_unit_id = CASE WHEN $4 THEN $5 ELSE business_unit_id END,
 			owner_user_id = CASE WHEN $6 THEN $7 ELSE owner_user_id END,
 			security_owner_user_id = CASE WHEN $8 THEN $9 ELSE security_owner_user_id END,
-			criticality = COALESCE($10, criticality), external_ref = COALESCE($11, external_ref), updated_at = now()
+			criticality = COALESCE($10, criticality), external_ref = COALESCE($11, external_ref),
+			technical_owner_user_id = CASE WHEN $12 THEN $13 ELSE technical_owner_user_id END,
+			lifecycle = COALESCE($14, lifecycle), environment = COALESCE($15, environment), updated_at = now()
 			WHERE id = $1`, app.ID, req.Name, req.Description,
 			req.BusinessUnitID.Set, req.BusinessUnitID.Val, req.OwnerUserID.Set, req.OwnerUserID.Val,
-			req.SecurityOwnerID.Set, req.SecurityOwnerID.Val, req.Criticality, req.ExternalRef)
+			req.SecurityOwnerID.Set, req.SecurityOwnerID.Val, req.Criticality, req.ExternalRef,
+			req.TechnicalOwner.Set, req.TechnicalOwner.Val, req.Lifecycle, req.Environment)
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,6 @@
 # PATHOS feature gap analysis and register
 
-The 100 target capabilities compared with PATHOS as of 2026-11-17 (`main` plus PR #29). This is also the **feature register**. Update it as phases land.
+The 100 target capabilities compared with PATHOS as of 2026-11-17 (`main` plus PR #29), updated after phase 1. This is also the **feature register**. Update it as phases land.
 
 **Status** uses the programme's values:
 
@@ -17,12 +17,12 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
 | A. Code and application scanning (1–15) | 4 | 6 | 5 |
-| B. ASPM and application intelligence (16–30) | 6 | 6 | 3 |
-| C. Vulnerability intelligence (31–45) | 7 | 4 | 4 |
+| B. ASPM and application intelligence (16–30) | 7 | 5 | 3 |
+| C. Vulnerability intelligence (31–45) | 11 | 2 | 2 |
 | D. Manual validation and AI (46–60) | 11 | 3 | 1 |
 | F. Supply chain and DevSecOps (61–75) | 6 | 4 | 5 |
 | G. Enterprise and governance (76–100) | 13 | 9 | 3 |
-| **Total** | **47** | **32** | **21** |
+| **Total** | **52** | **29** | **19** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -61,17 +61,17 @@ Cross-cutting requirements:
 
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
-| 16 | Application inventory | In Progress | ✓ | ✓ | ◐ | ✓ | Applications: name, description, business unit, owner, security owner, criticality | Permanent application ID (`QD-APP-…`), technical owner, lifecycle, environment and exposure at application level (aggregated from repositories), last scan, posture |
+| 16 | Application inventory | In Progress | ✓ | ✓ | ✓ | ✓ | Applications: permanent ID (`QD-APP-…`), technical owner, lifecycle, environment (phase 1); business unit, owners, criticality | Last scan, aggregated exposure and posture per application (phase 3) |
 | 17 | Repository discovery | Completed | ✓ | ✓ | ✓ | ✓ | SCM discovery across organizations and projects | — |
 | 18 | Application ↔ repository mapping | Completed | ✓ | ✓ | ✓ | ✓ | `repositories.application_id` | Many-to-many (monorepos serving several applications) is optional |
 | 19 | Ownership | Completed | ✓ | ✓ | ✓ | ✓ | Owners on applications and repositories, teams | — |
 | 20 | Posture dashboard | Completed | ✓ | ✓ | ✓ | ✓ | Live KPIs and trends | Application-level view (with 21) |
-| 21 | Application risk scoring | In Progress | ◐ | ◐ | — | ◐ | Severity-weighted repository score | Contextual score per finding, rolled up per application (see 43 and §4 of the roadmap) |
+| 21 | Application risk scoring | In Progress | ◐ | ◐ | ◐ | ✓ | Contextual risk score per finding (phase 1) | Rollup per application (phase 3) |
 | 22 | Dependency graph | In Progress | ◐ | ◐ | ◐ | ✓ | Flat SBOM components | Dependency edges from CycloneDX `dependencies`, a direct/transitive flag, graph view |
 | 23 | Security context graph | Not Started | — | — | — | — | — | Relational graph (applications, repositories, components, findings, owners, endpoints) with traversal queries and a "blast radius" view |
 | 24 | Business criticality | Completed | ✓ | ✓ | ✓ | ✓ | Application and repository criticality | Used in risk scoring (21) |
 | 25 | Internet exposure | Completed | ✓ | ✓ | ✓ | ✓ | Exposure yes/no/unknown with endpoints | Used in risk scoring |
-| 26 | Lifecycle management | In Progress | ✓ | ✓ | ✓ | ✓ | Repository lifecycle | Application lifecycle |
+| 26 | Lifecycle management | Completed | ✓ | ✓ | ✓ | ✓ | Repository and application lifecycle (phase 1) | — |
 | 27 | Shadow application discovery | Not Started | — | — | — | — | Discovery lists repositories not yet imported | "Unmanaged" report: SCM repositories with recent activity not in PATHOS, repositories without an application or owner |
 | 28 | Coverage mapping | In Progress | ◐ | ◐ | — | ◐ | Scan-coverage KPI | Matrix of applications/repositories × scan categories (SAST, SCA, secrets, IaC, DAST) with last run |
 | 29 | Risk aggregation | In Progress | ◐ | ◐ | — | ◐ | Repository counts | Aggregation by application, business unit, team, owner (with 21) |
@@ -82,22 +82,22 @@ Cross-cutting requirements:
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
 | 31 | Central repository | Completed | ✓ | ✓ | ✓ | ✓ | `findings` with occurrences and provenance | — |
-| 32 | Normalisation | Completed | ✓ | ✓ | ✓ | ✓ | SARIF and Grype parsers, severity mapping, CWE and CVE extraction | Confidence; CVSS version and vector |
+| 32 | Normalisation | Completed | ✓ | ✓ | ✓ | ✓ | SARIF and Grype parsers, severity mapping, CWE and CVE extraction; confidence and CVSS vectors (phase 1) | — |
 | 33 | Duplicate detection | Completed | ✓ | ✓ | ✓ | ✓ | Line-independent fingerprints, cross-tool SCA merge by package and CVE | **Correlation** (not merging) of SAST findings from different tools at the same location and CWE |
 | 34 | False-positive management | Completed | ✓ | ✓ | ✓ | ✓ | Status, AI with approval, Human Review | Suppression rules (fingerprint or path patterns) with expiry |
-| 35 | Lifecycle | Completed | ✓ | ✓ | ✓ | ✓ | Trigger-recorded history, recurrence | Requested status names differ (see roadmap decision D2) |
-| 36 | CVE intelligence | In Progress | ◐ | ◐ | — | ◐ | CVE ID and links | Local CVE records (description, CVSS vectors, references, published date) from NVD or OSV feeds |
-| 37 | CVSS scoring | In Progress | ◐ | ◐ | ◐ | ✓ | Scanner score; CVSS 3.1 and 4.0 in Human Review | Store version and vector per finding; prefer the vendor vector from the CVE feed |
-| 38 | EPSS | Not Started | — | — | — | — | — | Daily FIRST EPSS feed (online, or offline file import) |
-| 39 | CISA KEV | Not Started | — | — | — | — | — | KEV catalogue feed (online or file) with flag and due date |
-| 40 | Exploitability analysis | In Progress | ◐ | ✓ | ✓ | ✓ | Human Review questions, AI verdicts | Automated signals (EPSS, KEV, exploit references) feeding the risk score |
+| 35 | Lifecycle | Completed | ✓ | ✓ | ✓ | ✓ | Trigger-recorded history, recurrence; unified lifecycle status New, Open, In progress, Under review, Confirmed, False positive, Accepted risk, Resolved, Reopened, derived without changing stored values (phase 1) | — |
+| 36 | CVE intelligence | In Progress | ◐ | ◐ | ◐ | ✓ | CVE lookup with EPSS and KEV (`/intel/cves/{id}`) | CVE descriptions and references from NVD or OSV |
+| 37 | CVSS scoring | Completed | ✓ | ✓ | ✓ | ✓ | Scanner score, version and vector per finding; CVSS 3.1 and 4.0 in Human Eye (phase 1) | Vendor vectors from a CVE feed (with 36) |
+| 38 | EPSS | Completed | ✓ | ✓ | ✓ | ✓ | FIRST EPSS feed: daily download or offline import, per finding (phase 1) | — |
+| 39 | CISA KEV | Completed | ✓ | ✓ | ✓ | ✓ | CISA KEV feed: daily download or offline import, flag and due date per finding (phase 1) | — |
+| 40 | Exploitability analysis | In Progress | ◐ | ✓ | ✓ | ✓ | Human Eye questions, AI verdicts; EPSS, KEV and exploit signals in the risk score (phase 1) | Public exploit references beyond KEV |
 | 41 | Dependency reachability | Not Started | — | — | — | — | — | govulncheck (Go, symbol level), Opengrep import-usage rules for other ecosystems; a reachable / unreachable / unknown flag that never hides findings |
 | 42 | Attack path analysis | Not Started | — | — | — | — | — | Paths through the context graph: internet-exposed → application → reachable vulnerable component |
-| 43 | Risk prioritisation | In Progress | ◐ | ◐ | — | ◐ | Severity ordering, SLA | Configurable, explainable contextual risk score (roadmap §4) |
+| 43 | Risk prioritisation | Completed | ✓ | ✓ | ✓ | ✓ | Configurable, versioned, explainable contextual risk score; sort and filter by risk (phase 1) | — |
 | 44 | SLA tracking | Completed | ✓ | ✓ | ✓ | ✓ | Per-severity policies, breach notifications | SLA by risk score (optional) |
 | 45 | Trend analysis | Completed | ✓ | ✓ | ✓ | ✓ | Dashboard trends, scan comparison | — |
 
-Unified finding fields: **present**: ID, title, description, category, CWE, CVE, CVSS score, scanner, repository, path, line, application (through the repository), dependency, code evidence, severity, first and last seen, owner, remediation (status and SLA), reviewer status (PR #29). **Missing**: CVSS version and vector, EPSS, KEV, confidence, exploitability (automated), business impact, risk score.
+Unified finding fields: **present**: ID, title, description, category, CWE, CVE, CVSS score, version and vector, EPSS, KEV, confidence, risk score, lifecycle status, scanner, repository, path, line, application (through the repository), dependency, code evidence, severity, first and last seen, owner, remediation (status and SLA), reviewer status (PR #29). **Missing**: business impact (beyond criticality), automated reachability (phase 4).
 
 ## D. Manual validation (Human Eye = Human Review) and AI assistance
 

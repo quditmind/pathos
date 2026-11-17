@@ -20,6 +20,7 @@ import { needsReason, statusLabel, useVulnMutation } from "@/features/vuln/api";
 import { reviewApi } from "@/features/review/api";
 import { dispositionLabel, statusLabel as reviewStatusLabel } from "@/features/review/shared";
 import type { Disposition, ReviewStatus } from "@/features/review/types";
+import { KevBadge, LifecycleBadge, lifecycleLabel, pct, RiskBadge, RiskPanel } from "@/features/vuln/intel";
 
 /** Human Eye outcome of a finding (link to the assessment workspace). */
 function HumanReviewCell({ f }: { f: Finding }) {
@@ -32,10 +33,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; q?: string; finding?: string };
+type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -48,6 +49,7 @@ function location(f: Finding) {
 
 const columns: Column<Finding>[] = [
   { id: "severity", header: "Severity", required: true, cell: (f) => <SeverityBadge value={f.severity} />, csv: (f) => f.severity },
+  { id: "risk", header: "Risk", cell: (f) => <span className="flex items-center gap-1"><RiskBadge score={f.risk_score} />{f.kev && <KevBadge />}</span>, csv: (f) => f.risk_score ?? "" },
   {
     id: "title",
     header: "Finding",
@@ -68,7 +70,11 @@ const columns: Column<Finding>[] = [
   { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
   { id: "rule", header: "Rule / CVE", cell: (f) => <span className="whitespace-nowrap font-mono text-[11.5px]">{f.cve || f.rule_id}</span>, csv: (f) => f.cve || f.rule_id },
   { id: "scanners", header: "Detected by", defaultHidden: true, cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
-  { id: "status", header: "Status", cell: (f) => <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.status },
+  { id: "status", header: "Status", cell: (f) => f.lifecycle_status ? <LifecycleBadge value={f.lifecycle_status} /> : <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.lifecycle_status ?? f.status },
+  { id: "epss", header: "EPSS", defaultHidden: true, exportAlways: true, className: "tabular text-[12px]", cell: (f) => (f.epss != null ? <span title={`percentile ${pct(f.epss_percentile)}`}>{pct(f.epss)}</span> : "—"), csv: (f) => f.epss ?? "" },
+  { id: "kev", header: "KEV", defaultHidden: true, exportAlways: true, cell: (f) => (f.kev ? "Yes" : "—"), csv: (f) => (f.kev ? "yes" : "no") },
+  { id: "confidence", header: "Confidence", defaultHidden: true, exportAlways: true, className: "text-[12px] capitalize", cell: (f) => f.confidence ?? "—", csv: (f) => f.confidence },
+  { id: "application", header: "Application", defaultHidden: true, exportAlways: true, className: "text-[12px]", cell: (f) => f.application_name ?? "—", csv: (f) => f.application_name },
   {
     id: "sla", header: "SLA",
     cell: (f) => { const s = slaState(f); return s ? <Badge tone={s.tone}>{s.label.replace("SLA ", "")}</Badge> : <span className="text-muted-foreground">—</span>; },
@@ -99,6 +105,10 @@ export function FindingsPage() {
   const filterDefs: FilterDef[] = [
     { key: "status", label: "Status", allLabel: "Open", options: [...["in_progress", "needs_review", "fixed", "false_positive", "accepted_risk"].map((value) => ({ value, label: statusLabel[value]! })), { value: "all", label: "All statuses" }] },
     { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
+    { key: "lifecycle", label: "Lifecycle", allLabel: "Any lifecycle", options: Object.entries(lifecycleLabel).map(([value, label]) => ({ value, label })) },
+    { key: "kev", label: "Exploited (KEV)", allLabel: "Any exploit status", options: [{ value: "true", label: "In CISA KEV" }] },
+    { key: "risk_min", label: "Risk", allLabel: "Any risk", options: [{ value: "75", label: "Critical risk (≥ 75)" }, { value: "50", label: "High risk or more (≥ 50)" }, { value: "25", label: "Medium risk or more (≥ 25)" }] },
+    { key: "sort", label: "Order", options: [{ value: "", label: "Order by severity" }, { value: "risk", label: "Order by contextual risk" }] },
     { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
@@ -169,10 +179,11 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
         <div className="space-y-5 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge value={d.severity} />
-            <span className="text-[12px] text-muted-foreground">{statusLabel[d.status] ?? d.status}</span>
+            {d.lifecycle_status ? <LifecycleBadge value={d.lifecycle_status} /> : <span className="text-[12px] text-muted-foreground">{statusLabel[d.status] ?? d.status}</span>}
             {d.cvss != null && <span className="tabular text-[12px] text-muted-foreground">CVSS {d.cvss.toFixed(1)}</span>}
           </div>
           <LifecyclePanel f={d} />
+          <RiskPanel findingId={d.id} />
           {d.human_review_id && (
             <div className="rounded-md border border-border p-3 text-[12.5px]">
               <span className="font-medium">Human Eye review {d.human_review_key}: </span>

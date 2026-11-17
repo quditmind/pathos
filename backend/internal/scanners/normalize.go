@@ -35,6 +35,54 @@ type Finding struct {
 	StartLine    *int
 	EndLine      *int
 	Fingerprint  string
+	// Confidence is high | medium | low | unknown (see confidenceOf).
+	Confidence string
+	// CVSSVector and CVSSVersion when the tool reports a vector.
+	CVSSVector  string
+	CVSSVersion string
+}
+
+// confidenceOf estimates how likely a result is a true positive. Tools'
+// default "precision: very-high" is not a signal (it is set for every
+// rule), so only explicit lower precisions or confidence metadata count;
+// otherwise the category decides: version matches of known vulnerable
+// packages and policy checks are high, pattern-based secrets and code
+// findings medium.
+func confidenceOf(category string, props map[string]any) string {
+	for _, k := range []string{"confidence", "precision"} {
+		if v, ok := props[k].(string); ok {
+			switch strings.ToLower(v) {
+			case "high":
+				if k == "confidence" {
+					return "high"
+				}
+			case "medium":
+				return "medium"
+			case "low":
+				return "low"
+			}
+		}
+	}
+	switch category {
+	case "sca", "container", "iac", "license":
+		return "high"
+	case "secrets", "sast":
+		return "medium"
+	}
+	return "unknown"
+}
+
+var cvssPrefix = regexp.MustCompile(`^CVSS:(3\.0|3\.1|4\.0)/`)
+
+// vectorVersion returns the CVSS version of a vector ("" if unknown).
+func vectorVersion(v string) string {
+	if m := cvssPrefix.FindStringSubmatch(v); m != nil {
+		return m[1]
+	}
+	if strings.HasPrefix(v, "AV:") {
+		return "2.0"
+	}
+	return ""
 }
 
 // Severities in descending order.
@@ -219,6 +267,13 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 				}
 			}
 			f.Severity = severityOf(sc, rule, res)
+			f.Confidence = confidenceOf(f.Category, rule.Properties)
+			for _, k := range []string{"cvssv3_vector", "cvssv40_vector", "cvss_vector"} {
+				if v, ok := rule.Properties[k].(string); ok && vectorVersion(v) != "" && len(v) <= 300 {
+					f.CVSSVector, f.CVSSVersion = v, vectorVersion(v)
+					break
+				}
+			}
 			f.CWE = cwesOf(rule, res)
 			f.CVE = firstMatch(cveRe, res.RuleID, f.Title, res.Message.Text)
 			if score, ok := scoreOf(rule.Properties, res.Properties); ok {
@@ -504,6 +559,9 @@ type grypeDoc struct {
 				Versions []string `json:"versions"`
 			} `json:"fix"`
 			CVSS []struct {
+				Type    string `json:"type"`
+				Version string `json:"version"`
+				Vector  string `json:"vector"`
 				Metrics struct {
 					BaseScore float64 `json:"baseScore"`
 				} `json:"metrics"`
@@ -546,7 +604,13 @@ func ParseGrypeJSON(raw []byte) ([]Finding, error) {
 		var score float64
 		for _, c := range v.CVSS {
 			score = max(score, c.Metrics.BaseScore)
+			// Prefer the primary source's vector, then the newest version.
+			if ver := vectorVersion(c.Vector); ver != "" && len(c.Vector) <= 300 &&
+				(f.CVSSVector == "" || (c.Type == "Primary" && ver >= f.CVSSVersion)) {
+				f.CVSSVector, f.CVSSVersion = c.Vector, ver
+			}
 		}
+		f.Confidence = "high"
 		for _, rv := range m.RelatedVulnerabilities {
 			if f.CVE == "" {
 				f.CVE = firstMatch(cveRe, rv.ID)
