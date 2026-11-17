@@ -27,6 +27,7 @@ const (
 	reasonAINeeds     = "AI review could not decide (verdict: needs review)"
 	reasonAIFalsePos  = "AI review suggested a false positive; a human must confirm"
 	reasonRules       = "New finding matching the automatic review rules"
+	reasonPolicy      = "Required by security policy: "
 )
 
 // coverSQL lists active users holding a permission that covers repository
@@ -110,6 +111,57 @@ func (s *Service) Ingest(ctx context.Context, orgID uuid.UUID) (int, error) {
 	if err != nil {
 		return 0, err
 	}
+	// Security policies that require a review apply whether or not
+	// automatic queuing is on.
+	byPolicy, err := s.ingestPolicyRequired(ctx, orgID, st)
+	if err != nil {
+		return 0, err
+	}
+	n, err := s.ingestAuto(ctx, orgID, st)
+	return byPolicy + n, err
+}
+
+func (s *Service) ingestPolicyRequired(ctx context.Context, orgID uuid.UUID, st Settings) (int, error) {
+	rows, err := s.DB.Query(ctx, `
+		SELECT DISTINCT ON (v.finding_id) v.finding_id, p.name FROM policy_violations v
+		JOIN security_policies p ON p.id = v.policy_id AND p.enabled AND (p.actions->>'require_review')::boolean
+		JOIN findings f ON f.id = v.finding_id
+		WHERE v.organization_id = $1 AND v.resolved_at IS NULL AND f.status IN ('open', 'in_progress', 'needs_review')
+		  AND NOT EXISTS (SELECT 1 FROM human_reviews h WHERE h.finding_id = v.finding_id)
+		ORDER BY v.finding_id, p.name LIMIT 2000`, orgID)
+	if err != nil {
+		return 0, err
+	}
+	var ids []uuid.UUID
+	var reasons []string
+	for rows.Next() {
+		var id uuid.UUID
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		ids, reasons = append(ids, id), append(reasons, reasonPolicy+name)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil || len(ids) == 0 {
+		return 0, err
+	}
+	var created []uuid.UUID
+	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		var err error
+		if created, err = insertReviews(ctx, tx, orgID, ids, reasons, "automatic", nil, nil, nil); err != nil {
+			return err
+		}
+		return s.autoAssign(ctx, tx, orgID, st, created)
+	})
+	if err == nil && len(created) > 0 {
+		s.Log.Info("findings queued for human review by policy", "count", len(created))
+	}
+	return len(created), err
+}
+
+func (s *Service) ingestAuto(ctx context.Context, orgID uuid.UUID, st Settings) (int, error) {
 	if !st.AutoQueue || len(st.AutoTriggers) == 0 {
 		return 0, nil
 	}

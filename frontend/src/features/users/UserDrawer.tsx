@@ -5,7 +5,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
-import { useAssignments, useGrantRole, useRequireMFA, useRevokeRole, useSetUserStatus, useUser, useUserMFA, type RoleGrant } from "./api";
+import { useAssignments, useGrantRole, useRequireMFA, useRequireRecoveryCodes, useRevokeRole, useSetUserStatus, useUser, useUserMFA, type RoleGrant } from "./api";
 import { RoleScopePicker, grantIsComplete, scopeLabels } from "./RoleScopePicker";
 import { statusTone } from "./UsersPage";
 
@@ -20,12 +20,13 @@ export function UserDrawer({ userId, onClose }: { userId: string | null; onClose
   const [confirmDeactivate, setConfirmDeactivate] = useState(false);
   const mfa = useUserMFA(userId);
   const requireMFA = useRequireMFA();
+  const requireCodes = useRequireRecoveryCodes();
 
   const u = user.data;
   const isSelf = u?.id === me.user.id;
   const canManage = canOrgWide("users.manage");
   const canAssign = can("roles.assign");
-  const error = setStatus.error ?? grant.error ?? revoke.error ?? requireMFA.error;
+  const error = setStatus.error ?? grant.error ?? revoke.error ?? requireMFA.error ?? requireCodes.error;
 
   return (
     <Dialog
@@ -81,6 +82,22 @@ export function UserDrawer({ userId, onClose }: { userId: string | null; onClose
                   )}
                 </dd>
               </div>
+              {mfa.data && (
+                <div>
+                  <dt className="text-[12px] text-muted-foreground">Recovery codes</dt>
+                  <dd className="mt-0.5 flex flex-wrap items-center gap-2">
+                    {mfa.data.recovery_pending ? <Badge tone="warning">new codes at next sign-in</Badge>
+                      : mfa.data.recovery_codes ? <Badge tone="success">set up</Badge>
+                      : <Badge tone="neutral">not set up</Badge>}
+                    {canManage && !mfa.data.recovery_pending && u.status !== "deactivated" && (
+                      <Button size="sm" variant="secondary" disabled={requireCodes.isPending} onClick={() => requireCodes.mutate(u.id)}
+                        title="The user gets a new set of one-time codes at the next sign-in; any old codes stop working">
+                        {mfa.data.recovery_codes ? "Issue new codes" : "Require recovery codes"}
+                      </Button>
+                    )}
+                  </dd>
+                </div>
+              )}
               {u.deactivated_at && (
                 <div>
                   <dt className="text-[12px] text-muted-foreground">Deactivated</dt>

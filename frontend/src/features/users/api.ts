@@ -93,6 +93,17 @@ export function useInviteUser() {
 export interface MFAStatus {
   configured: boolean;
   pending: boolean;
+  recovery_codes?: boolean;
+  recovery_pending?: boolean;
+}
+
+/** Make a user generate new recovery codes at the next sign-in. */
+export function useRequireRecoveryCodes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<{ changed: boolean; mfa: MFAStatus }>(`/api/v1/users/${id}/recovery-codes`, { method: "POST" }),
+    onSuccess: (_, id) => void qc.invalidateQueries({ queryKey: ["user-mfa", id] }),
+  });
 }
 
 /** MFA state from Keycloak; errors (e.g. no Keycloak account yet) are shown inline. */

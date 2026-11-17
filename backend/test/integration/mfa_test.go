@@ -17,7 +17,7 @@ import (
 )
 
 // fakeIdP implements identity.Provisioner and identity.MFAManager.
-type fakeIdP struct{ pending, configured map[string]bool }
+type fakeIdP struct{ pending, configured, codes map[string]bool }
 
 func (f *fakeIdP) EnsureUser(context.Context, string, string) (string, bool, error) {
 	return uuid.NewString(), true, nil
@@ -25,7 +25,14 @@ func (f *fakeIdP) EnsureUser(context.Context, string, string) (string, bool, err
 func (f *fakeIdP) SetEnabled(context.Context, string, bool) error { return nil }
 func (f *fakeIdP) Logout(context.Context, string) error           { return nil }
 func (f *fakeIdP) MFAStatus(_ context.Context, sub string) (identity.MFAStatus, error) {
-	return identity.MFAStatus{Configured: f.configured[sub], Pending: f.pending[sub]}, nil
+	return identity.MFAStatus{Configured: f.configured[sub], Pending: f.pending[sub], RecoveryPending: f.codes[sub]}, nil
+}
+func (f *fakeIdP) RequireRecoveryCodes(_ context.Context, sub string) (bool, error) {
+	if f.codes[sub] {
+		return false, nil
+	}
+	f.codes[sub] = true
+	return true, nil
 }
 func (f *fakeIdP) RequireMFA(_ context.Context, sub string) (bool, error) {
 	if f.configured[sub] || f.pending[sub] {
@@ -37,7 +44,7 @@ func (f *fakeIdP) RequireMFA(_ context.Context, sub string) (bool, error) {
 
 func TestMFAManagement(t *testing.T) {
 	ctx := t.Context()
-	idp := &fakeIdP{pending: map[string]bool{}, configured: map[string]bool{}}
+	idp := &fakeIdP{pending: map[string]bool{}, configured: map[string]bool{}, codes: map[string]bool{}}
 	h := &identity.Handlers{DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}}, Provisioner: idp, Log: log,
 		Principal: auth.PrincipalFrom, CSRFToken: func(context.Context) string { return "" }}
 	mux := newMux(h.Register)
@@ -81,6 +88,32 @@ func TestMFAManagement(t *testing.T) {
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE action = 'user.require_mfa' AND target_id = $1`, linked.String()).Scan(&n)
 	if n != 2 {
 		t.Errorf("each require-mfa call is audited, got %d", n)
+	}
+
+	// Recovery codes: administrators for anyone, everyone for themselves.
+	if code, _ := call(viewer, "POST", "/api/v1/users/"+linked.String()+"/recovery-codes"); code != 403 {
+		t.Errorf("viewer cannot require codes for others: %d", code)
+	}
+	if code, out := call(admin, "POST", "/api/v1/users/"+linked.String()+"/recovery-codes"); code != 200 || out["changed"] != true ||
+		out["mfa"].(map[string]any)["recovery_pending"] != true {
+		t.Errorf("admin recovery codes: %d %v", code, out)
+	}
+	selfSub := "kc-" + uuid.NewString()
+	self := mk(&selfSub)
+	me := &authz.Principal{UserID: self, OrganizationID: orgID, Email: "self@acme.test"}
+	if code, st := call(me, "GET", "/api/v1/me/mfa"); code != 200 || st["recovery_pending"] != false {
+		t.Errorf("own status: %d %v", code, st)
+	}
+	if code, out := call(me, "POST", "/api/v1/me/recovery-codes"); code != 200 || out["changed"] != true || !idp.codes[selfSub] {
+		t.Errorf("own recovery codes: %d %v", code, out)
+	}
+	unlinkedMe := &authz.Principal{UserID: unlinked, OrganizationID: orgID}
+	if code, _ := call(unlinkedMe, "POST", "/api/v1/me/recovery-codes"); code != 409 {
+		t.Errorf("account without Keycloak: %d", code)
+	}
+	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE action = 'user.recovery_codes' AND target_id = $1`, self.String()).Scan(&n)
+	if n != 1 {
+		t.Errorf("self-service is audited: %d", n)
 	}
 
 	// Bulk enforcement covers every linked active/invited user once.

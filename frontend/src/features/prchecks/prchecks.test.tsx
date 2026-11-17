@@ -12,8 +12,8 @@ const check: PRCheck = {
   status_posted: "final", status_error: "", created_at: "2026-11-18T01:00:00Z", finished_at: "2026-11-18T01:05:00Z",
 };
 const findings = [
-  { id: "p1", title: "SQL injection", severity: "high", category: "sast", scanner_key: "opengrep", rule_id: "sqli", file_path: "api/db.go", start_line: 12, cve: null, is_new: true, existing_finding_id: null },
-  { id: "p2", title: "lodash prototype pollution", severity: "critical", category: "sca", scanner_key: "trivy-fs", rule_id: "CVE-2021-23337", file_path: "package-lock.json", start_line: null, cve: "CVE-2021-23337", is_new: false, existing_finding_id: "f9" },
+  { id: "p1", title: "SQL injection", severity: "high", category: "sast", scanner_key: "opengrep", rule_id: "sqli", file_path: "api/db.go", start_line: 12, cve: null, is_new: true, existing_finding_id: null, policies: ["No SQL injection"] },
+  { id: "p2", title: "lodash prototype pollution", severity: "critical", category: "sca", scanner_key: "trivy-fs", rule_id: "CVE-2021-23337", file_path: "package-lock.json", start_line: null, cve: "CVE-2021-23337", is_new: false, existing_finding_id: "f9", policies: [] },
 ];
 
 describe("pull request checks", () => {
@@ -28,6 +28,7 @@ describe("pull request checks", () => {
     expect(screen.getAllByText("Blocked").length).toBeGreaterThan(0);
     expect(await screen.findByText("Introduced by this pull request (1)")).toBeInTheDocument();
     expect(screen.getByText("SQL injection")).toBeInTheDocument();
+    expect(screen.getByText("policy: No SQL injection")).toBeInTheDocument();
     expect(screen.getByText("Already known on the scan branch (1)")).toBeInTheDocument();
     expect(screen.getByText("Result posted to the pull request")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /Post status again/ }));

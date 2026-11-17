@@ -21,8 +21,8 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
 | F. Supply chain and DevSecOps (61–75) | 12 | 3 | 0 |
-| G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **81** | **15** | **4** |
+| G. Enterprise and governance (76–100) | 17 | 5 | 3 |
+| **Total** | **84** | **12** | **4** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -165,13 +165,13 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | # | Feature | Status | Evidence today | Gap |
 |---|---|---|---|---|
 | 76 | RBAC | Completed | Scoped roles, custom roles | — |
-| 77 | MFA | Completed | Keycloak TOTP, enforcement | Recovery codes: enable Keycloak's recovery-codes authenticator |
-| 78 | SSO | In Progress | OIDC through Keycloak | SAML 2.0 and external OIDC identity providers through Keycloak brokering: configuration, guide and tests |
+| 77 | MFA | Completed | Keycloak TOTP, enforcement; recovery codes (self-service and administrators, sign-in with a code; phase 8) | — |
+| 78 | SSO | Completed | OIDC through Keycloak; SAML 2.0 and external OIDC identity providers brokered by Keycloak: guide and end-to-end test of both (phase 8) | — |
 | 79 | User management | Completed | | — |
 | 80 | Team management | Completed | Teams and members | — |
 | 81 | Audit logging | Completed | Partitioned, append-only | — |
-| 82 | Policy engine | In Progress | SLA, licence policy, critical-finding gate | General policies (conditions on finding attributes and context → actions: block gate, require review, SLA, notify) |
-| 83 | Compliance mapping | In Progress | Compliance scope per repository | Control mapping (OWASP ASVS, PCI DSS, ISO 27001, SOC 2 ↔ CWE and categories) and compliance views |
+| 82 | Policy engine | Completed | Security policies: conditions on findings (severity, type, CWE, risk, KEV, malicious, reachability, age) and context (criticality, exposure, environment, data, compliance scope, repositories) → block scan and PR gates, require a Human Eye review, tighten the SLA, notify; dry-run preview, violations, versions, audit (phase 8) | — |
+| 83 | Compliance mapping | Completed | OWASP Top 10 2021, OWASP ASVS 4.0.3, PCI DSS 4.0.1, ISO/IEC 27001:2022 Annex A, SOC 2 controls mapped by category, CWE and malicious packages; per-framework views over the repositories in scope; findings filter by control (phase 8). Indicative evidence, not a verdict | — |
 | 84 | Executive dashboard | In Progress | Dashboard | Executive view: risk by application or business unit, trend, MTTR, SLA compliance; printable |
 | 85 | Custom reporting | Not Started | CSV exports | Saved report definitions (filters, grouping, columns), scheduled delivery, CSV and print layout |
 | 86 | Scheduled scanning | Completed | | — |
@@ -195,8 +195,8 @@ Authentication requirements:
 | Requirement | State |
 |---|---|
 | Local accounts, secure hashing (Keycloak's built-in password hashing), TOTP, sessions, logout, revocation, password policy, RBAC, local admin recovery, authentication audit | ✓ |
-| Recovery codes | ◐ (configuration) |
-| SAML 2.0 and OIDC identity providers | ◐ (Keycloak supports them; not configured or tested) |
+| Recovery codes | ✓ (phase 8) |
+| SAML 2.0 and OIDC identity providers | ✓ (Keycloak brokering; guide and end-to-end test, phase 8) |
 | No external SMS, email or domain needed locally | ✓ (Mailpit for development; email optional) |
 
 ## Biggest gaps by value

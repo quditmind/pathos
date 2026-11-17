@@ -30,6 +30,8 @@ var systemRules = []systemRule{
 		Recipients{Roles: []string{"platform_admin", "security_manager"}}},
 	{"sla_breached", "SLA breaches", "finding.sla_breached", "",
 		Recipients{Roles: []string{"security_manager"}, Dynamic: []string{"assignee"}}},
+	{"policy_violated", "Security policy violations", "policy.violated", "",
+		Recipients{Roles: []string{"security_manager"}, Dynamic: []string{"owners"}}},
 	{"assigned", "Assigned to me", "finding.assigned", "",
 		Recipients{Dynamic: []string{"assignee"}}},
 	{"risk_requested", "Risk acceptance approvals", "risk.requested", "",

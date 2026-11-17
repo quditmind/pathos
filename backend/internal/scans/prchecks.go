@@ -19,6 +19,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
+	"pathos/internal/policy"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
 )
@@ -85,21 +86,25 @@ func insertPRFindings(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, fs []scan
 			cve = &c
 		}
 		// The same finding reported by two scanners keeps the higher severity.
-		b.Queue(`INSERT INTO pr_findings (id, pr_check_id, fingerprint, scanner_key, category, rule_id, title, severity, file_path, start_line, cve)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		cwe := f.CWE
+		if cwe == nil {
+			cwe = []string{}
+		}
+		b.Queue(`INSERT INTO pr_findings (id, pr_check_id, fingerprint, scanner_key, category, rule_id, title, severity, file_path, start_line, cve, cwe)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 			ON CONFLICT (pr_check_id, fingerprint) DO UPDATE SET severity = CASE
 			  WHEN array_position(ARRAY['critical','high','medium','low','info'], EXCLUDED.severity)
 			     < array_position(ARRAY['critical','high','medium','low','info'], pr_findings.severity) THEN EXCLUDED.severity
 			  ELSE pr_findings.severity END`,
 			uuid.Must(uuid.NewV7()), checkID, f.Fingerprint, f.ScannerKey, f.Category, truncate(f.RuleID, 500),
-			truncate(logging.RedactString(f.Title), 500), f.Severity, truncate(f.FilePath, 1000), f.StartLine, cve)
+			truncate(logging.RedactString(f.Title), 500), f.Severity, truncate(f.FilePath, 1000), f.StartLine, cve, cwe)
 	}
 	return tx.SendBatch(ctx, b).Close()
 }
 
 // finalizePR classifies a PR scan's findings as new or existing, applies
 // the gate and records the check result.
-func finalizePR(ctx context.Context, tx pgx.Tx, jobID, repoID uuid.UUID, status, workerErr string, bad []string, job *Job) error {
+func finalizePR(ctx context.Context, tx pgx.Tx, orgID, jobID, repoID uuid.UUID, status, workerErr string, bad []string, job *Job) error {
 	var checkID uuid.UUID
 	var gate string
 	var pr int
@@ -146,6 +151,17 @@ func finalizePR(ctx context.Context, tx pgx.Tx, jobID, repoID uuid.UUID, status,
 		}
 	}
 	checkStatus, summary := prOutcome(status, gate, newCount, blocking, bySev)
+	// Security policies that the new findings violate.
+	if status != "failed" {
+		pols, err := policy.EvaluatePR(ctx, tx, orgID, checkID)
+		if err != nil {
+			return err
+		}
+		if len(pols) > 0 {
+			checkStatus = "failed"
+			summary = truncate("Blocked by policy "+strings.Join(pols, ", ")+": "+strings.TrimPrefix(strings.TrimPrefix(summary, "Passed: "), "Blocked: "), 500)
+		}
+	}
 	errText := logging.RedactString(truncate(workerErr, 2000))
 	if errText == "" && len(bad) > 0 {
 		errText = "scanners failed: " + joinSorted(bad)
@@ -286,6 +302,8 @@ type PRFinding struct {
 	CVE               *string    `json:"cve"`
 	IsNew             bool       `json:"is_new"`
 	ExistingFindingID *uuid.UUID `json:"existing_finding_id"`
+	// Policies this finding violates.
+	Policies []string `json:"policies"`
 }
 
 func (s *Service) registerPRChecks(mux *http.ServeMux) {
@@ -382,7 +400,8 @@ func (s *Service) getPRCheck(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	rows, err := s.DB.Query(ctx, `SELECT id, title, severity, category, scanner_key, rule_id, file_path, start_line, cve, is_new, existing_finding_id
+	rows, err := s.DB.Query(ctx, `SELECT id, title, severity, category, scanner_key, rule_id, file_path, start_line, cve, is_new, existing_finding_id,
+		  COALESCE((SELECT array_agg(p.name ORDER BY p.name) FROM security_policies p WHERE p.id = ANY(pr_findings.policy_ids)), '{}')
 		FROM pr_findings WHERE pr_check_id = $1
 		ORDER BY is_new DESC, array_position(ARRAY['critical','high','medium','low','info'], severity), file_path, start_line LIMIT 1000`, id)
 	if err != nil {
@@ -391,7 +410,7 @@ func (s *Service) getPRCheck(w http.ResponseWriter, r *http.Request) {
 	}
 	fs, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (PRFinding, error) {
 		var f PRFinding
-		return f, r.Scan(&f.ID, &f.Title, &f.Severity, &f.Category, &f.ScannerKey, &f.RuleID, &f.FilePath, &f.StartLine, &f.CVE, &f.IsNew, &f.ExistingFindingID)
+		return f, r.Scan(&f.ID, &f.Title, &f.Severity, &f.Category, &f.ScannerKey, &f.RuleID, &f.FilePath, &f.StartLine, &f.CVE, &f.IsNew, &f.ExistingFindingID, &f.Policies)
 	})
 	if err != nil {
 		s.fail(w, r, err)

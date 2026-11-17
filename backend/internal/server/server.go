@@ -15,6 +15,7 @@ import (
 	"pathos/internal/analyst"
 	"pathos/internal/auth"
 	"pathos/internal/authz"
+	"pathos/internal/compliance"
 	"pathos/internal/dashboard"
 	"pathos/internal/identity"
 	"pathos/internal/intel"
@@ -26,6 +27,7 @@ import (
 	"pathos/internal/platform/objstore"
 	"pathos/internal/platform/ratelimit"
 	"pathos/internal/platform/telemetry"
+	"pathos/internal/policy"
 	"pathos/internal/posture"
 	"pathos/internal/repos"
 	"pathos/internal/review"
@@ -123,6 +125,8 @@ func Build(d Deps) Handlers {
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
+	(&policy.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&compliance.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	reviewSvc.Register(protected)
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}

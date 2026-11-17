@@ -25,6 +25,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/policy"
 )
 
 // Service holds dependencies.
@@ -656,6 +657,10 @@ func (s *Service) putSLA(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := tx.Exec(ctx, `UPDATE findings f SET sla_due_at = CASE WHEN p.days IS NULL THEN NULL ELSE f.first_seen_at + make_interval(days => p.days) END
 			FROM sla_policies p WHERE p.organization_id = f.organization_id AND p.severity = f.severity AND f.organization_id = $1`, p.OrganizationID); err != nil {
+			return err
+		}
+		// Security policies that tighten deadlines apply again.
+		if _, err := policy.Evaluate(ctx, tx, p.OrganizationID, nil); err != nil {
 			return err
 		}
 		md, _ := json.Marshal(req)
