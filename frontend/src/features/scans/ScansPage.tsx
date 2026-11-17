@@ -47,7 +47,7 @@ export function scanColumns(actions?: (j: ScanJob) => React.ReactNode): Column<S
       csv: (j) => j.repository_name,
     },
     { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (j) => j.repository_key || "—", csv: (j) => j.repository_key },
-    { id: "asset_type", header: "Asset type", className: "text-[12px] capitalize", cell: (j) => j.asset_type || "repository", csv: (j) => j.asset_type || "repository" },
+    { id: "asset_type", header: "Asset type", className: "text-[12px] capitalize", cell: (j) => (j.target_name ? <span title={j.target_reference ?? undefined}>{j.asset_type} · {j.target_name}</span> : j.asset_type || "repository"), csv: (j) => j.asset_type || "repository" },
     {
       id: "profile",
       header: "Scan profile",
@@ -136,7 +136,7 @@ export function ScansPage() {
     { key: "trigger", label: "Trigger source", allLabel: "All triggers", options: Object.entries(triggerLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).map((s) => ({ value: s.key, label: s.name })) },
     { key: "schedule_id", label: "Schedule", allLabel: "All schedules", options: (schedules.data ?? []).map((s) => ({ value: s.id, label: s.name })) },
-    { key: "asset_type", label: "Asset type", allLabel: "All asset types", options: [{ value: "repository", label: "Repository" }] },
+    { key: "asset_type", label: "Asset type", allLabel: "All asset types", options: [{ value: "repository", label: "Repository" }, { value: "image", label: "Container image" }, { value: "url", label: "Web application" }, { value: "api", label: "API" }, { value: "sbom", label: "SBOM" }] },
   ];
 
   const actions = (j: ScanJob) => (

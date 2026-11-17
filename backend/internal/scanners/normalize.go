@@ -279,7 +279,7 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 			if score, ok := scoreOf(rule.Properties, res.Properties); ok {
 				f.CVSS = &score
 			}
-			if f.Category == "sca" {
+			if f.Category == "sca" || key == TrivyImage {
 				f.PackageName, f.PackageVersion, f.FixedVersion = packageOf(key, res)
 			}
 			applyToolRules(&f, res)
@@ -287,6 +287,8 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 			switch {
 			case f.Category == "sca":
 				// Identity is package@version|vulnerability (+ manifest path).
+			case key == TrivyImage && f.PackageName != "":
+				snippetKey = hashOf(strings.ToLower(f.PackageName + "@" + f.PackageVersion))
 			case f.Category == "secrets":
 				// Secrets are redacted; distinguish by the (redacted) message
 				// and gitleaks' fingerprint-relevant fields.
@@ -412,7 +414,7 @@ var (
 func packageOf(key string, res sarifResult) (name, version, fixed string) {
 	msg := res.Message.Text
 	switch key {
-	case TrivyFS:
+	case TrivyFS, TrivyImage:
 		if m := trivyPkgRe.FindStringSubmatch(msg); m != nil {
 			return m[1], m[2], m[3]
 		}
@@ -452,10 +454,32 @@ func applyToolRules(f *Finding, res sarifResult) {
 			f.Title = msg
 		}
 	}
-	if f.Category == "sca" && f.CVE == "" {
+	if f.ScannerKey == Zizmor {
+		// zizmor reports its own severity and confidence per result.
+		switch strings.ToLower(fmt.Sprint(res.Properties["zizmor/severity"])) {
+		case "high":
+			f.Severity = "high"
+		case "medium":
+			f.Severity = "medium"
+		case "low":
+			f.Severity = "low"
+		case "informational", "unknown":
+			f.Severity = "info"
+		}
+		switch c := strings.ToLower(fmt.Sprint(res.Properties["zizmor/confidence"])); c {
+		case "high", "medium", "low":
+			f.Confidence = c
+		}
+		// "<audit summary>: <detail>" makes a better title than the audit name.
+		if msg, _, ok := strings.Cut(res.Message.Text, ": "); ok && msg != "" {
+			f.Title = msg
+		}
+	}
+	pkgFinding := f.Category == "sca" || f.ScannerKey == TrivyImage
+	if pkgFinding && f.CVE == "" {
 		f.CVE = firstMatch(cveRe, f.Description)
 	}
-	if f.Category == "sca" && f.Title == f.RuleID && f.PackageName != "" {
+	if pkgFinding && f.Title == f.RuleID && f.PackageName != "" {
 		f.Title = fmt.Sprintf("%s in %s %s", f.RuleID, f.PackageName, f.PackageVersion)
 	}
 	f.Title = truncate(logging.RedactString(f.Title), 300)
@@ -548,6 +572,9 @@ func Parse(key string, raw []byte) ([]Finding, error) {
 	}
 	if IsImportKey(key) {
 		return parseImported(key, raw)
+	}
+	if key == Nuclei {
+		return ParseNucleiJSONL(raw)
 	}
 	return ParseSARIF(key, raw)
 }

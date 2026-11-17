@@ -27,6 +27,10 @@ type RunInput struct {
 	// GitHistory means Src is a full-history checkout (Src/.git points to
 	// the object store); history-aware tools scan the commits.
 	GitHistory bool
+	// Target is set for scan-target jobs (image, URL, API, SBOM);
+	// TargetFile is the OpenAPI document or SBOM written for it.
+	Target     *JobTarget
+	TargetFile string
 }
 
 // Tool is one scanner binary.
@@ -40,12 +44,21 @@ type Tool interface {
 // command runs a binary in its own process group (so a timeout kills every
 // child), with a scrubbed environment and bounded output capture.
 func command(ctx context.Context, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
+	return commandTo(ctx, nil, env, okCodes, name, args...)
+}
+
+// commandTo is command with stdout written to w (for tools that print their
+// report to stdout).
+func commandTo(ctx context.Context, w io.Writer, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
 	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
 	cmd := exec.Command(name, args...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(baseEnv(), env...)
 	var stderr bytes.Buffer
 	cmd.Stdout = &limitedBuffer{max: 64 << 10}
+	if w != nil {
+		cmd.Stdout = w
+	}
 	cmd.Stderr = &limitedWriter{buf: &stderr, max: 64 << 10}
 	// A collector in ctx receives the output line by line as well (stderr
 	// always, stdout only for tools whose stdout carries no findings).
@@ -186,7 +199,7 @@ func (t simpleTool) Run(ctx context.Context, in RunInput) (string, error) {
 // Tools returns the core worker tool set.
 func Tools(cfg Config) map[string]Tool {
 	cache := func(sub string) string { return filepath.Join(cfg.CacheDir, sub) }
-	return map[string]Tool{
+	tools := map[string]Tool{
 		"gitleaks": simpleTool{"gitleaks", []string{"version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			// --redact keeps secret values out of the report entirely.
 			// Full-history checkouts are scanned commit by commit
@@ -288,6 +301,10 @@ func Tools(cfg Config) map[string]Tool {
 			return "", ensureReport(in.Out, "checkov")
 		}},
 	}
+	for k, t := range targetTools(cache) {
+		tools[k] = t
+	}
+	return tools
 }
 
 func hasRules(dir string) bool {

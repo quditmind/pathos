@@ -137,6 +137,40 @@ The comparison also shows severity counts, duration and its change, whether the 
 
 **Related APIs.** [Scans: comparison](../api-reference/scans.md).
 
+## Scan targets
+
+**Scanning → Scan targets** scans what is deployed, not only the source code:
+
+| Kind | Scanner | Use it for |
+|---|---|---|
+| **Container image** | Trivy | Vulnerable OS and language packages in an image in a registry |
+| **Web application (DAST)** | Nuclei | Misconfigurations, exposed files and panels, known vulnerabilities of a running application |
+| **API (OpenAPI)** | Nuclei DAST templates | Injection and similar flaws in each operation of your OpenAPI document |
+| **SBOM** | Grype | Vulnerabilities in software you receive but cannot scan as source (vendor products, appliances) |
+
+Each target belongs to a repository, so its findings reach that repository's application, owners and teams.
+
+### Step-by-step: scan a staging application
+
+1. Ask your PATHOS administrator to allow the application's host in the egress proxy (see the installation guide). Without that, the scan fails and says which host to add.
+2. Select **Add target**, choose **Web application (DAST)**, the repository, a name and the base URL.
+3. If the application needs a login, choose **Request header** and enter, for example, `Authorization` with a test account's token. The value is encrypted and never shown again.
+4. Tick **I am authorized to security-test this application** and add a reference (change ticket, owner's approval). Your name and the time are recorded.
+5. Select **Scan**. Follow the execution from the link, or open the target's findings from **Open findings**.
+
+Scans send real requests, at most the configured rate (default 20 per second). They never run intrusive, brute-force or denial-of-service checks, and web application scans do not fuzz. API scans test the operations in your OpenAPI document, which must point at the same host.
+
+### Notes
+
+- **Container images:** for private registries choose **Registry username and token**. `ghcr.io` is allowed out of the box; Docker Hub and other registries need their hosts in the egress allowlist.
+- **Findings** of a target are kept apart from the repository's own findings. Filter them with **Asset** on the Findings page. Only a successful scan of the same target marks them fixed.
+- **Changing the address** of a web or API target needs a new authorization statement.
+- **Targets with findings** cannot be deleted (their evidence is kept). Disable them instead.
+
+## CI/CD workflow security
+
+The **zizmor** scanner audits GitHub Actions workflows and actions in the repository: template injection, dangerous triggers such as `pull_request_target`, unpinned actions, excessive permissions and credential persistence. It works offline and runs only when the repository has workflows. Add **zizmor** to a scan profile (**Configurations → Scan profiles**) to use it; existing profiles are not changed automatically.
+
 ## Importing results from other tools
 
 **Scanning → Import Results** brings in findings from tools PATHOS does not run: other SAST or SCA products, DAST and IAST tools, fuzzers, or your CI pipeline.

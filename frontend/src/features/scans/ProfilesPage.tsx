@@ -76,7 +76,7 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
   const enabled = new Set(st.scanners.map((s) => s.key));
   const toggle = (key: string) =>
     setSt({ ...st, scanners: enabled.has(key) ? st.scanners.filter((s) => s.key !== key) : [...st.scanners, { key }] });
-  const runnable = (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft");
+  const runnable = (catalog.data ?? []).filter((s) => s.adapter_available && !s.target_only && s.key !== "syft");
   const error = save.error ?? makeDefault.error ?? archive.error;
 
   const submit = () =>

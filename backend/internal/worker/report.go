@@ -85,6 +85,10 @@ func (a *Agent) newReporter(job Job) *reporter {
 			r.secrets = append(r.secrets, basicAuth(c.Username, c.Token))
 		}
 	}
+	r.secrets = append(r.secrets, job.Target.secrets()...)
+	if t := job.Target; t != nil && t.AuthType == "basic" && t.Password != "" {
+		r.secrets = append(r.secrets, basicAuth(t.Username, t.Password))
+	}
 	interval := a.reportInterval
 	if interval <= 0 {
 		interval = 3 * time.Second

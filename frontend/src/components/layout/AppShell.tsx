@@ -40,6 +40,7 @@ import {
   UsersRound,
   FileBarChart,
   FileUp,
+  Container,
   FileCode2,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
@@ -68,6 +69,7 @@ export const groups: NavGroup[] = [
       { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
       { label: "Scan Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
       { label: "Scan Comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
+      { label: "Scan targets", to: "/scans/targets", icon: <Container />, perm: "scans.read" },
       { label: "Import Results", to: "/scans/imports", icon: <FileUp />, perm: "scans.read" },
     ],
   },

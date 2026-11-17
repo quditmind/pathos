@@ -66,21 +66,25 @@ type FindingView struct {
 	// resolved, reopened.
 	Lifecycle string `json:"lifecycle_status"`
 	// Vulnerability intelligence and contextual risk.
-	CVSSVersion      string       `json:"cvss_version"`
-	CVSSVector       string       `json:"cvss_vector"`
-	Confidence       string       `json:"confidence"`
-	EPSS             *float64     `json:"epss"`
-	EPSSPercentile   *float64     `json:"epss_percentile"`
-	KEV              bool         `json:"kev"`
-	KEVDueDate       *time.Time   `json:"kev_due_date"`
-	ExploitAvailable bool         `json:"exploit_available"`
-	Reachability     string       `json:"reachability"`
-	RiskScore        *float64     `json:"risk_score"`
-	ApplicationID    *uuid.UUID   `json:"application_id"`
-	ApplicationName  *string      `json:"application_name"`
-	Snippet          string       `json:"snippet,omitempty"`
-	SnippetStart     *int         `json:"snippet_start_line,omitempty"`
-	Occurrences      []Occurrence `json:"occurrences,omitempty"`
+	CVSSVersion      string     `json:"cvss_version"`
+	CVSSVector       string     `json:"cvss_vector"`
+	Confidence       string     `json:"confidence"`
+	EPSS             *float64   `json:"epss"`
+	EPSSPercentile   *float64   `json:"epss_percentile"`
+	KEV              bool       `json:"kev"`
+	KEVDueDate       *time.Time `json:"kev_due_date"`
+	ExploitAvailable bool       `json:"exploit_available"`
+	Reachability     string     `json:"reachability"`
+	RiskScore        *float64   `json:"risk_score"`
+	ApplicationID    *uuid.UUID `json:"application_id"`
+	ApplicationName  *string    `json:"application_name"`
+	// Scan target the finding belongs to (nil: the repository's code).
+	TargetID     *uuid.UUID   `json:"scan_target_id"`
+	TargetKind   *string      `json:"scan_target_kind"`
+	TargetName   *string      `json:"scan_target_name"`
+	Snippet      string       `json:"snippet,omitempty"`
+	SnippetStart *int         `json:"snippet_start_line,omitempty"`
+	Occurrences  []Occurrence `json:"occurrences,omitempty"`
 }
 
 // Occurrence is one sighting of a finding.
@@ -100,9 +104,10 @@ const findingSelect = `
 	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status,
 	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity, ` + LifecycleExpr + `,
 	       f.cvss_version, f.cvss_vector, f.confidence, f.epss_score::float8, f.epss_percentile::float8, f.kev, f.kev_due_date,
-	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name
+	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name
 	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
-	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id`
+	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id
+	LEFT JOIN scan_targets stg ON stg.id = f.scan_target_id`
 
 // LifecycleExpr derives the unified lifecycle status from the stored
 // status, Human Eye state, recurrence and triage activity. Stored statuses
@@ -139,7 +144,7 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
 		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity,
 		&f.Lifecycle, &f.CVSSVersion, &f.CVSSVector, &f.Confidence, &f.EPSS, &f.EPSSPercentile, &f.KEV, &f.KEVDueDate, &f.ExploitAvailable,
-		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName)
+		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -278,6 +283,22 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 			return nil, nil, httpx.BadRequest("invalid application_id")
 		}
 		add("r.application_id = ?", id)
+	}
+	if v := q.Get("scan_target_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return nil, nil, httpx.BadRequest("invalid scan_target_id")
+		}
+		add("f.scan_target_id = ?", id)
+	}
+	switch v := q.Get("target_kind"); v {
+	case "":
+	case "repository":
+		where = append(where, "f.scan_target_id IS NULL")
+	case "image", "url", "api", "sbom":
+		add("f.scan_target_id IN (SELECT id FROM scan_targets WHERE kind = ?)", v)
+	default:
+		return nil, nil, httpx.BadRequest("invalid target_kind")
 	}
 	switch v := q.Get("human_review"); v {
 	case "":

@@ -148,3 +148,34 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 56 completed, 28 in progress, 16 not started.
 
 **Next:** phase 2b, scan targets for container images, URLs (DAST) and API specs on workers; vulnerability matching of imported SBOMs; CI/CD pipeline scanning.
+
+## 8. Phase 2b completion report (2026-11-17)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00015 | `scan_targets` (image, url, api, sbom; encrypted credentials; authorization statement), `scan_jobs.target_id/target_kind`, `findings.scan_target_id`, `scan_target` secret kind, full Down migration |
+| Scan targets API | CRUD, SBOM upload, scan, filters on findings (`scan_target_id`, `target_kind`) and scans (`asset_type`, `target_id`); retries of target scans |
+| Workers | Target jobs without a clone; `trivy image` with registry credentials; Nuclei for URL and OpenAPI targets (reviewed template subset, no intrusive/brute-force/DoS, no interactsh, rate-limited); Grype on downloaded, SHA-256-verified SBOMs; zizmor for GitHub Actions; egress reachability preflight; target credentials redacted from logs |
+| Worker image | zizmor 1.32.0 and the Nuclei templates 10.5.1 pinned by SHA-256; Nuclei 3.11.1 built from its Go module (checksum database) with Go 1.27.4 and patched dependencies, like Gitleaks |
+| Pipeline | Target-namespaced fingerprints; auto-resolve scoped to the same target; profiles cannot include target scanners |
+| UI | **Scanning → Scan targets** (add, edit, authorize, scan, findings and last scan); Findings **Asset** filter and target names; Scans asset types |
+
+**Verified on the local stack:**
+
+- an image target (`ghcr.io/containerd/alpine:3.14.0`) produced 48 container findings with packages and risk scores
+- an SBOM target produced 5 Grype findings
+- web and API targets against a throwaway local application: blocked by the egress proxy, the scan failed with the allowlist explanation (the first run, before the preflight existed, showed the proxy's error page producing false findings, which is why the preflight was added); allowed, about 10,500 requests went through the proxy and the scan completed
+- zizmor found 18 issues in `nodejs-goof`'s workflows; a profile with Nuclei was rejected
+- test targets and their findings were removed afterwards
+
+**Tests:**
+
+- unit: Nuclei JSONL, zizmor and Trivy image parsing, target scanners, image/URL/OpenAPI validation, Nuclei arguments, workflow detection, preflight, credential redaction
+- integration: targets (authorization, validation, coalescing, lease payload with decrypted credential, SBOM download checksum, per-target resolution, delete/disable, audit)
+- Vitest: 135
+
+**Register:** 60 completed, 27 in progress, 13 not started.
+
+**Next:** phase 3, ASPM inventory: application posture rollup, coverage matrix, unmanaged repository report, dependency edges and the context graph.

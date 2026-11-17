@@ -5,6 +5,8 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ## [Unreleased]
 
 ### Added
+- **Scan targets** (**Scanning → Scan targets**): container images (Trivy), running web applications (Nuclei DAST, non-intrusive templates only), APIs from an OpenAPI document (Nuclei DAST templates) and SBOMs of software you receive (Grype). Targets belong to a repository; web and API targets need a recorded authorization statement; credentials are encrypted and redacted from logs; the worker checks the egress proxy lets it reach a target before scanning. Target findings are kept apart from source findings and filterable by asset. Scans can be filtered by asset type.
+- **CI/CD workflow security**: zizmor audits GitHub Actions workflows offline (add it to a scan profile).
 - **Result imports** (**Scanning → Import Results**): SARIF 2.1, Grype JSON and the PATHOS findings JSON format from any tool (other SAST and SCA products, DAST, IAST, fuzzers, CI pipelines). Each import is a scan execution whose findings keep the tool's name and go through de-duplication, risk scoring and review. Partial imports never resolve findings; complete imports can.
 - **SBOM import**: CycloneDX and SPDX 2.x JSON into the repository's component inventory.
 - **Custom rules** (**Configurations → Custom rules**): Opengrep rule files with validation, versions and enable/disable. Each scan pins the versions it used.

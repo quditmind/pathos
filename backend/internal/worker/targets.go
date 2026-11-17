@@ -1,0 +1,307 @@
+package worker
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/tls"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+)
+
+// JobTarget is a non-repository scan target: a container image, a web
+// application URL (DAST), an API (OpenAPI) or an imported SBOM.
+type JobTarget struct {
+	Kind      string `json:"kind"` // image | url | api | sbom
+	Reference string `json:"reference"`
+	// Spec is the OpenAPI document of an api target.
+	Spec string `json:"spec,omitempty"`
+	// SBOM targets are downloaded from the worker API and verified.
+	SHA256 string `json:"sha256,omitempty"`
+	Size   int64  `json:"size,omitempty"`
+	// Credentials: basic (registry or HTTP) or a header (DAST).
+	AuthType    string `json:"auth_type,omitempty"`
+	Username    string `json:"username,omitempty"`
+	Password    string `json:"password,omitempty"`
+	HeaderName  string `json:"header_name,omitempty"`
+	HeaderValue string `json:"header_value,omitempty"`
+	// DAST tuning.
+	RateLimit   int    `json:"rate_limit,omitempty"`
+	MinSeverity string `json:"min_severity,omitempty"`
+}
+
+// secrets lists credential values the reporter must never log.
+func (t *JobTarget) secrets() []string {
+	if t == nil {
+		return nil
+	}
+	var out []string
+	for _, s := range []string{t.Password, t.HeaderValue} {
+		if len(s) >= 4 {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// prepareTarget writes the files a target scan needs into dir and returns
+// the target file path (OpenAPI document or SBOM).
+func (a *Agent) prepareTarget(ctx context.Context, job Job, dir string) (string, error) {
+	t := job.Target
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	switch t.Kind {
+	case "image":
+		return "", nil
+	case "url":
+		return "", checkReachable(ctx, t.Reference)
+	case "api":
+		if err := checkReachable(ctx, t.Reference); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(t.Spec) == "" {
+			return "", errors.New("the API target has no OpenAPI document")
+		}
+		p := filepath.Join(dir, "openapi.yaml")
+		return p, os.WriteFile(p, []byte(t.Spec), 0o600)
+	case "sbom":
+		return a.fetchTargetFile(ctx, job, filepath.Join(dir, "target.sbom.json"))
+	}
+	return "", fmt.Errorf("unsupported target kind %q", t.Kind)
+}
+
+// checkReachable makes one request to a web target through the egress
+// proxy before scanning. Without it, a target the proxy blocks would be
+// "scanned" against the proxy's error page and produce false findings.
+func checkReachable(ctx context.Context, target string) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	if err != nil {
+		return err
+	}
+	host := req.URL.Hostname()
+	client := &http.Client{
+		Transport: &http.Transport{
+			// The worker's egress proxy (read per call, like the tools do).
+			Proxy: func(*http.Request) (*url.URL, error) {
+				if p := proxyURL(); p != "" {
+					return url.Parse(p)
+				}
+				return nil, nil
+			},
+			// Reachability only: staging targets often use private CAs, and
+			// Nuclei does not verify certificates either.
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, // #nosec G402 -- reachability probe; no data is sent or trusted
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		msg := err.Error()
+		if strings.Contains(msg, "403") || strings.Contains(strings.ToLower(msg), "forbidden") {
+			return egressDenied(host)
+		}
+		return fmt.Errorf("%s is not reachable: %s", host, lastLine(msg))
+	}
+	defer resp.Body.Close()
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
+	switch e := resp.Header.Get("X-Squid-Error"); {
+	case strings.HasPrefix(e, "ERR_ACCESS_DENIED"):
+		return egressDenied(host)
+	case strings.HasPrefix(e, "ERR_DNS_FAIL"):
+		return fmt.Errorf("%s does not resolve (DNS lookup by the egress proxy failed)", host)
+	case e != "":
+		return fmt.Errorf("the egress proxy could not reach %s (%s)", host, e)
+	}
+	return nil
+}
+
+func egressDenied(host string) error {
+	return fmt.Errorf("the egress proxy denied access to %s: add it to deploy/egress/allowlist.txt "+
+		"(private addresses also need an override in deploy/egress/conf.d) and restart the egress service", host)
+}
+
+// fetchTargetFile downloads an SBOM target and verifies its SHA-256.
+func (a *Agent) fetchTargetFile(ctx context.Context, job Job, dst string) (string, error) {
+	want := strings.ToLower(job.Target.SHA256)
+	if !sha256Re.MatchString(want) {
+		return "", errors.New("job has no valid SBOM SHA-256")
+	}
+	u := strings.TrimRight(a.cfg.APIURL, "/") + "/internal/worker/v1/jobs/" + url.PathEscape(job.JobID) + "/target-file"
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Authorization", "Bearer "+a.token)
+	client := *a.http
+	client.Timeout = 0
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		return "", &apiError{Status: resp.StatusCode, Body: strings.TrimSpace(string(msg))}
+	}
+	const maxSBOM = 512 << 20
+	// #nosec G304 -- path is created by the worker inside its job directory
+	f, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
+	if err != nil {
+		return "", err
+	}
+	h := sha256.New()
+	n, err := io.Copy(io.MultiWriter(f, h), io.LimitReader(resp.Body, maxSBOM+1))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		return "", err
+	}
+	if n > maxSBOM {
+		return "", errors.New("the SBOM is too large")
+	}
+	if got := hex.EncodeToString(h.Sum(nil)); got != want {
+		return "", fmt.Errorf("SBOM checksum mismatch: got %s, expected %s", got, want)
+	}
+	return dst, nil
+}
+
+// proxyURL returns the egress proxy for tools that need it as a flag.
+func proxyURL() string {
+	for _, k := range []string{"HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"} {
+		if v := os.Getenv(k); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// nucleiTemplates is where the image installs the reviewed template sets.
+var nucleiTemplates = "/opt/pathos/nuclei-templates"
+
+// nucleiArgs builds a Nuclei command line. DAST never runs denial-of-service,
+// brute-force or intrusive templates; URL scans also skip fuzzing.
+func nucleiArgs(t *JobTarget, out, specFile string) []string {
+	args := []string{"-jsonl", "-o", out, "-or", "-ot", "-silent", "-nc", "-duc", "-ni", "-timeout", "10", "-retries", "1"}
+	rate := t.RateLimit
+	if rate <= 0 || rate > 100 {
+		rate = 20
+	}
+	args = append(args, "-rl", strconv.Itoa(rate))
+	if p := proxyURL(); p != "" {
+		args = append(args, "-proxy", p)
+	}
+	switch t.Kind {
+	case "api":
+		args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
+			"-etags", "dos,intrusive,bruteforce")
+	default:
+		args = append(args, "-u", t.Reference, "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
+			"-etags", "dos,intrusive,bruteforce,fuzz")
+	}
+	switch t.MinSeverity {
+	case "low", "medium", "high", "critical":
+		var sev []string
+		for _, s := range []string{"low", "medium", "high", "critical"} {
+			if severityAtLeast(s, t.MinSeverity) {
+				sev = append(sev, s)
+			}
+		}
+		args = append(args, "-s", strings.Join(sev, ","))
+	}
+	switch t.AuthType {
+	case "header":
+		if t.HeaderName != "" {
+			args = append(args, "-H", t.HeaderName+": "+t.HeaderValue)
+		}
+	case "basic":
+		if t.Username != "" {
+			args = append(args, "-H", "Authorization: Basic "+basicAuth(t.Username, t.Password))
+		}
+	}
+	return args
+}
+
+func severityAtLeast(s, min string) bool {
+	rank := map[string]int{"low": 1, "medium": 2, "high": 3, "critical": 4}
+	return rank[s] >= rank[min]
+}
+
+// targetTools are the adapters for non-repository targets and CI/CD.
+func targetTools(cache func(string) string) map[string]Tool {
+	return map[string]Tool{
+		"trivy-image": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			if in.Target == nil || in.Target.Kind != "image" {
+				return "only runs for container image targets", nil
+			}
+			var env []string
+			if in.Target.AuthType == "basic" && in.Target.Username != "" {
+				env = append(env, "TRIVY_USERNAME="+in.Target.Username, "TRIVY_PASSWORD="+in.Target.Password)
+			}
+			_, err := command(ctx, env, []int{0}, bin, "image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
+				"--output", in.Out, "--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", in.Target.Reference)
+			return "", err
+		}},
+		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api") {
+				return "only runs for web application and API targets", nil
+			}
+			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, in.TargetFile)...); err != nil {
+				return "", err
+			}
+			// No findings: an empty JSONL report.
+			if _, err := os.Stat(in.Out); errors.Is(err, os.ErrNotExist) {
+				return "", os.WriteFile(in.Out, nil, 0o600)
+			}
+			return "", nil
+		}},
+		"zizmor": simpleTool{"zizmor", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			if !hasWorkflows(in.Src) {
+				return "no GitHub Actions workflows or actions in the repository", nil
+			}
+			// zizmor prints SARIF to stdout. Offline: no GitHub API calls.
+			// Exit codes 10-14 mean findings at increasing severity.
+			// #nosec G304 -- report path is created by the worker in its job directory
+			f, err := os.OpenFile(in.Out, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+			if err != nil {
+				return "", err
+			}
+			_, err = commandTo(ctx, f, nil, []int{0, 10, 11, 12, 13, 14}, bin,
+				"--offline", "--format", "sarif", "--no-progress", in.Src)
+			if cerr := f.Close(); err == nil {
+				err = cerr
+			}
+			if err != nil {
+				return "", err
+			}
+			return "", ensureReport(in.Out, "zizmor")
+		}},
+	}
+}
+
+// hasWorkflows reports whether src has GitHub Actions workflows or actions.
+func hasWorkflows(src string) bool {
+	if src == "" {
+		return false
+	}
+	if entries, err := os.ReadDir(filepath.Join(src, ".github", "workflows")); err == nil && len(entries) > 0 {
+		return true
+	}
+	for _, f := range []string{"action.yml", "action.yaml"} {
+		if _, err := os.Stat(filepath.Join(src, f)); err == nil {
+			return true
+		}
+	}
+	return false
+}

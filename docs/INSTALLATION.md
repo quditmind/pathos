@@ -93,6 +93,7 @@ Imports run in the background (**Import history** shows progress, retry and canc
 - **Scale:** `docker compose up -d --scale worker-core=4`. Each worker runs one scan at a time; plan 1–4 GB of RAM per worker (`PATHOS_WORKER_MEMORY`, `PATHOS_WORKER_TMPFS`).
 - **First scans** download vulnerability databases (~1 GB) into the `scanner_cache` volume through the proxy; later scans reuse them.
 - **Egress:** allowed destinations are in `deploy/egress/allowlist.txt`. For GitHub Enterprise Server or Azure DevOps Server on a private network, add a file in `deploy/egress/conf.d/` (example inside) and restart `egress`. Access log: `docker compose exec egress tail -f /var/log/squid/access.log`.
+- **Scan targets:** container registries, web applications and APIs scanned from *Scanning → Scan targets* must be reachable through the proxy. Add each host to `deploy/egress/allowlist.txt` (for example `registry-1.docker.io`, `auth.docker.io` and `production.cloudflare.docker.com` for Docker Hub; `ghcr.io` is already allowed) and restart `egress`. Applications on private addresses also need a `conf.d` override. A scan of a host the proxy blocks fails with that explanation.
 - **Opengrep rules:** PATHOS ships its own baseline rules. Mount additional rule sets as `*.yml` in `workers/rules-extra/`; they are read-only at `/rules` in every worker.
 - **Workers page:** *Configurations → Scanners & workers* shows online workers and tool versions. Revoking a worker stops it immediately.
 
