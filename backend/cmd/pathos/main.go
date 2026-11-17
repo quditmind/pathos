@@ -331,6 +331,11 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}()
 
 	expire := func() {
+		if n, err := vuln.ExpireSuppressionRules(ctx, pool); err != nil {
+			log.Warn("suppression rule expiry failed", "err", err)
+		} else if n > 0 {
+			log.Info("suppression rules expired", "rules", n)
+		}
 		if n, err := vuln.ExpireAcceptances(ctx, pool); err != nil {
 			log.Error("risk acceptance expiry failed", "err", err)
 		} else if n > 0 {

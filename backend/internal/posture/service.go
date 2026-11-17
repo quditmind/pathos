@@ -41,6 +41,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/findings/{id}/dependency-paths", s.findingPaths)
 	mux.HandleFunc("GET /api/v1/posture/blast-radius", s.blastRadius)
 	mux.HandleFunc("GET /api/v1/posture/context-graph", s.contextGraph)
+	mux.HandleFunc("GET /api/v1/posture/attack-paths", s.attackPaths)
+	mux.HandleFunc("GET /api/v1/findings/{id}/related", s.related)
 }
 
 var errNotFound = errors.New("not found")

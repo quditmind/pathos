@@ -191,6 +191,16 @@ The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is no
 | `scm_remote_repositories` | Every repository each SCM connection sees (refreshed daily); compared with `repositories` to report shadow repositories |
 | `scm_inventory_runs` | Inventory refreshes: status, count, truncation, error |
 
+## Vulnerability intelligence (migration 00017)
+
+| Object | Purpose |
+|---|---|
+| `intel_vulns` | OSV records (aliases, description, vendor CVSS, CWEs, references, exploit references, affected packages); `found = false` remembers unknown identifiers |
+| `intel_feeds` | Adds the `osv` feed |
+| `repository_code_imports`, `repositories.imports_scanned_at`, `imports_files` | Packages each repository's code imports or names, per ecosystem, from its latest scan |
+| `findings.reachability_basis` | Why a dependency finding is reachable, not reachable or unknown |
+| `suppression_rules`, `findings.suppression_rule_id` | Governed, expiring decisions for every finding matching a pattern; four eyes enforced by the API and a CHECK |
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

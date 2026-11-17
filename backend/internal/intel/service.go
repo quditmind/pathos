@@ -59,7 +59,8 @@ type Feed struct {
 	UpdatedAt     time.Time  `json:"updated_at"`
 }
 
-var labels = map[string]string{EPSS: "FIRST EPSS (exploit prediction scores)", KEV: "CISA Known Exploited Vulnerabilities"}
+var labels = map[string]string{EPSS: "FIRST EPSS (exploit prediction scores)", KEV: "CISA Known Exploited Vulnerabilities",
+	OSV: "OSV vulnerability records (descriptions, references, vendor CVSS)"}
 
 func sha256Hex(b []byte) string {
 	h := sha256.Sum256(b)
@@ -98,7 +99,8 @@ const runCols = `id, feed, mode, status, records, as_of, error, started_at, fini
 
 func (s *Service) feeds(ctx context.Context) ([]Feed, error) {
 	rows, err := s.DB.Query(ctx, `SELECT feed, enabled, url, interval_hours, updated_at,
-		CASE feed WHEN 'epss' THEN (SELECT count(*) FROM intel_epss) ELSE (SELECT count(*) FROM intel_kev) END
+		CASE feed WHEN 'epss' THEN (SELECT count(*) FROM intel_epss) WHEN 'kev' THEN (SELECT count(*) FROM intel_kev)
+		  ELSE (SELECT count(*) FROM intel_vulns WHERE found) END
 		FROM intel_feeds ORDER BY feed`)
 	if err != nil {
 		return nil, err
@@ -146,7 +148,7 @@ func (s *Service) listFeeds(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-func validFeed(f string) bool { return f == EPSS || f == KEV }
+func validFeed(f string) bool { return f == EPSS || f == KEV || f == OSV }
 
 func (s *Service) admin(r *http.Request) (*authz.Principal, string, error) {
 	p := s.Principal(r.Context())
@@ -230,6 +232,10 @@ func (s *Service) Fetch(ctx context.Context, feed string, by *[16]byte) (Run, er
 	}
 	if s.HTTP == nil {
 		return Run{}, errors.New("online feeds are not available in this process")
+	}
+	if feed == OSV {
+		// OSV is looked up per identifier, not downloaded whole.
+		return s.fetchOSV(ctx, u, by)
 	}
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
@@ -340,6 +346,9 @@ type CVE struct {
 	EPSSAsOf *time.Time `json:"epss_as_of"`
 	KEV      *KEVInfo   `json:"kev"`
 	Findings int        `json:"open_findings"`
+	// OSV is the vulnerability record (description, references, vendor
+	// CVSS, CWEs, fixed versions), when known.
+	OSV *Vuln `json:"osv"`
 }
 
 // KEVInfo is a KEV catalog entry.
@@ -362,8 +371,11 @@ func (s *Service) cve(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := strings.ToUpper(strings.TrimSpace(r.PathValue("id")))
-	if !cveRe.MatchString(id) {
-		s.fail(w, r, httpx.BadRequest("invalid CVE identifier"))
+	if strings.HasPrefix(id, "GHSA-") {
+		id = "GHSA-" + strings.ToLower(id[5:])
+	}
+	if !cveRe.MatchString(id) && !ghsaRe.MatchString(id) {
+		s.fail(w, r, httpx.BadRequest("invalid CVE or GHSA identifier"))
 		return
 	}
 	out := CVE{ID: id}
@@ -372,6 +384,9 @@ func (s *Service) cve(w http.ResponseWriter, r *http.Request) {
 	if err := s.DB.QueryRow(ctx, `SELECT vendor, product, name, description, required_action, added_on, due_date, known_ransomware FROM intel_kev WHERE cve_id = $1`, id).
 		Scan(&k.Vendor, &k.Product, &k.Name, &k.Description, &k.RequiredAction, &k.AddedOn, &k.DueDate, &k.KnownRansomware); err == nil {
 		out.KEV = &k
+	}
+	if v, err := LookupVuln(ctx, s.DB, id); err == nil {
+		out.OSV = v
 	}
 	// Counted within the caller's scope only.
 	f := authz.FilterFor(p, authz.PermFindingsRead)

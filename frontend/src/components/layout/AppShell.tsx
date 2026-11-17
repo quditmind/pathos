@@ -45,6 +45,8 @@ import {
   ShieldQuestion,
   BarChart3,
   Crosshair,
+  Route,
+  FilterX,
   FileCode2,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
@@ -73,6 +75,7 @@ export const groups: NavGroup[] = [
       { label: "Coverage", to: "/posture/coverage", icon: <Grid3x3 />, perm: "repos.read" },
       { label: "Unmanaged assets", to: "/posture/unmanaged", icon: <ShieldQuestion />, perm: "repos.read" },
       { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
+      { label: "Attack paths", to: "/posture/attack-paths", icon: <Route />, perm: "findings.read" },
       { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
       { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
     ],
@@ -101,6 +104,7 @@ export const groups: NavGroup[] = [
     items: [
       { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
       { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
+      { label: "Suppression rules", to: "/suppression-rules", icon: <FilterX />, perm: "findings.read" },
       { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
     ],
   },

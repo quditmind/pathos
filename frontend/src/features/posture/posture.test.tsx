@@ -21,7 +21,7 @@ const group = (over: Partial<PostureGroup>): PostureGroup => ({
 describe("posture navigation", () => {
   it("has a Posture section", () => {
     const g = groups.find((x) => x.label === "Posture")!;
-    expect(g.items.map((i) => i.to)).toEqual(["/posture", "/posture/coverage", "/posture/unmanaged", "/posture/benchmark", "/posture/blast-radius", "/posture/graph"]);
+    expect(g.items.map((i) => i.to)).toEqual(["/posture", "/posture/coverage", "/posture/unmanaged", "/posture/benchmark", "/posture/attack-paths", "/posture/blast-radius", "/posture/graph"]);
   });
 });
 

@@ -104,7 +104,7 @@ func TestIntelligenceAndRisk(t *testing.T) {
 		t.Fatalf("kev online: %d %v", code, run)
 	}
 	code, feeds := call(analyst, "GET", "/api/v1/intel/feeds", nil)
-	if code != 200 || len(feeds["items"].([]any)) != 2 {
+	if code != 200 || len(feeds["items"].([]any)) != 3 {
 		t.Errorf("feeds: %d %v", code, feeds)
 	}
 	code, cve := call(analyst, "GET", "/api/v1/intel/cves/cve-2021-44228", nil)

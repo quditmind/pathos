@@ -17,6 +17,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
+	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/vuln"
 )
@@ -233,12 +234,12 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "no longer detected by a successful scan"); err != nil {
 			return err
 		}
-		var repoID uuid.UUID
+		var repoID, orgID uuid.UUID
 		var targetID *uuid.UUID
 		var failOnCritical bool
-		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id FROM scan_jobs j
+		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id FROM scan_jobs j
 			JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1 FOR UPDATE OF j`, jobID).
-			Scan(&repoID, &failOnCritical, &targetID); err != nil {
+			Scan(&repoID, &failOnCritical, &targetID, &orgID); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
@@ -286,6 +287,17 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 				return err
 			}
 			fixed = tag.RowsAffected()
+		}
+		if targetID == nil {
+			// Dependency findings added by this execution get their
+			// reachability from the latest code inventory and SBOM.
+			if _, err := reach.Update(ctx, tx, repoID); err != nil {
+				return err
+			}
+		}
+		// Approved suppression rules apply to findings detected now too.
+		if _, err := vuln.ApplyActiveRules(ctx, tx, orgID, repoID); err != nil {
+			return err
 		}
 		var newCount, newCritical int
 		if err := tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE severity = 'critical')

@@ -76,6 +76,7 @@ func EnsureDefaults(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) er
 
 // Register mounts the API.
 func (s *Service) Register(mux *http.ServeMux) {
+	s.registerSuppression(mux)
 	mux.HandleFunc("POST /api/v1/findings/{id}/status", s.changeStatus)
 	mux.HandleFunc("POST /api/v1/findings/{id}/assign", s.assign)
 	mux.HandleFunc("POST /api/v1/findings/bulk", s.bulk)
