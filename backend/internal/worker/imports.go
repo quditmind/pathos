@@ -2,6 +2,7 @@ package worker
 
 import (
 	"bufio"
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -106,6 +107,13 @@ func collectImports(src string) ImportInventory {
 	inv := ImportInventory{Version: 1, Imports: map[string][]string{}, Strings: map[string][]string{}}
 	imp := map[string]nameSet{"npm": {}, "pypi": {}, "go": {}}
 	str := map[string]nameSet{"npm": {}, "pypi": {}}
+	// Files are read through a root-scoped handle, so a symbolic link
+	// swapped in during the walk can never make a read escape the checkout.
+	root, err := os.OpenRoot(src)
+	if err != nil {
+		return inv
+	}
+	defer root.Close()
 	_ = filepath.WalkDir(src, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return nil
@@ -144,8 +152,16 @@ func collectImports(src string) ImportInventory {
 		if err != nil || info.Size() > maxImportFileLen {
 			return nil
 		}
-		// #nosec G304 -- path comes from walking the job's own checkout
-		data, err := os.ReadFile(path)
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return nil
+		}
+		f, err := root.Open(rel)
+		if err != nil {
+			return nil
+		}
+		data, err := io.ReadAll(io.LimitReader(f, maxImportFileLen))
+		_ = f.Close()
 		if err != nil {
 			return nil
 		}
