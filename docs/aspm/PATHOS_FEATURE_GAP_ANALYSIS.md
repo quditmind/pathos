@@ -128,13 +128,13 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 | Ollama, local models (Qwen and others), offline inference | ✓ self-hosted provider (`00008_local_ai`, Ollama container) |
 | Configurable providers, model configuration | ✓ versioned AI configurations |
 | Health | ✓ provider test |
-| Token and execution tracking | ✓ per review and suggestion; no usage dashboard |
+| Token and execution tracking | ✓ per review, suggestion, analyst answer and report; AI usage dashboard by feature, model, person and day (phase 6) |
 | Administrator enable/disable | ✓ auto-review, Human Review AI switch |
 | No source sent externally without configuration | ✓ `send_code_context`, redaction, secrets never sent |
 | Human approval of AI changes | ✓ approval queue |
 | Capabilities 1–6 | ✓ (see D) |
-| 7 (dependency analysis), 8 (correlation), 9 (risk explanation), 10 (technical and executive reports) | **missing** |
-| Dedicated "AI Security Analyst" workspace (conversation over the security data, usage) | **missing**. MCP already exposes the data to external assistants |
+| 7 (dependency analysis), 8 (correlation), 9 (risk explanation), 10 (technical and executive reports) | ✓ dependency paths and reachability (phases 3–4), related findings and AI duplicate suggestions (phases 4–5), AI risk explanation (phase 5), AI technical and executive reports over PATHOS-computed figures (phase 6) |
+| Dedicated "AI Security Analyst" workspace (conversation over the security data, usage) | ✓ private, scoped, cited conversations; usage dashboard (phase 6). MCP also exposes the data to external assistants |
 
 ## F. Software supply chain and DevSecOps
 

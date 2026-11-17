@@ -45,6 +45,9 @@ import {
   ShieldQuestion,
   BarChart3,
   Crosshair,
+  Activity,
+  FileText,
+  MessagesSquare,
   Route,
   FilterX,
   FileCode2,
@@ -122,8 +125,11 @@ export const groups: NavGroup[] = [
   {
     label: "AI & MCP",
     items: [
+      { label: "AI Security Analyst", to: "/ai/analyst", icon: <MessagesSquare />, perm: "ai.review" },
       { label: "AI reviews", to: "/ai", icon: <Bot />, perm: "findings.read" },
+      { label: "AI reports", to: "/ai/reports", icon: <FileText />, perm: "findings.read" },
       { label: "AI settings", to: "/admin/ai", icon: <Cpu />, perm: "ai.configure" },
+      { label: "AI usage", to: "/admin/ai-usage", icon: <Activity />, perm: "ai.configure" },
       { label: "MCP registry", to: "/admin/mcp", icon: <Network />, perm: "ai.review" },
     ],
   },

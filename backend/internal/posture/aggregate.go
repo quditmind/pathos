@@ -355,3 +355,9 @@ func (s *Service) benchmark(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"by": by, "days": days, "metrics": benchmarkMetrics, "items": out})
 }
+
+// Groups returns the posture of every group of repositories in the
+// caller's scope (by application, business_unit, team, owner or region).
+func (s *Service) Groups(ctx context.Context, p *authz.Principal, dim string, days int) ([]Group, error) {
+	return s.groups(ctx, p, dim, days, "")
+}

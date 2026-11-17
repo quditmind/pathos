@@ -22,6 +22,7 @@ This reference covers the Repository and Asset Management module of PATHOS: repo
 | [Scan schedules](schedules.md#the-schedule-object) | Schedules with execution plans, scan windows, retries, concurrency limits and activation history |
 | [Result and SBOM imports, custom rules](result-imports.md#importing-results) | Import SARIF, Grype or PATHOS JSON results and CycloneDX or SPDX SBOMs; custom Opengrep rules |
 | [Vulnerability intelligence](vulnerability-intelligence.md#osv-feed) | OSV records, reachability, attack paths, related findings, suppression rules |
+| [AI Security Analyst](ai-analyst.md#analyst) | Conversations over your security data, AI-written reports, AI usage |
 | [Posture](posture.md#endpoints) | Application posture and risk rollup, coverage, unmanaged and shadow repositories, benchmarking, dependency graphs, blast radius, context graph |
 | [Scan targets](scan-targets.md#endpoints) | Container images, web applications (DAST), APIs (OpenAPI) and SBOMs as scan targets |
 | [Risk and vulnerability intelligence](risk-intelligence.md#finding-fields-and-filters) | Contextual risk scores and model, EPSS and KEV feeds, CVE lookups, lifecycle statuses |

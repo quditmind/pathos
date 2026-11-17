@@ -264,3 +264,28 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 76 completed, 17 in progress, 7 not started. Module D is complete.
 
 **Next:** phase 6, AI Security Analyst workspace (conversation over the security data), AI usage and AI-written technical and executive reports.
+
+## 12. Phase 6 completion report (2026-11-18)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00019 | `ai_conversations`, `ai_messages`, `ai_reports`; full Down migration |
+| AI generation | One structured request path (`ai.Service.Generate`): default configuration, redaction, fenced untrusted payload, organization guidance, SHA-256 of what is sent |
+| AI Security Analyst | Private conversations; context scoped to the user (figures, riskiest applications, matching or riskiest findings, OSV records); exploit questions get exactly the exploited findings; citations kept only for findings in the context; follow-ups; rate limit; audit |
+| AI reports | Technical and executive reports for the organization, an application or a repository: PATHOS-computed facts, optional AI narrative from those facts, Markdown export; visible to the author and organization-wide readers |
+| AI usage | Requests and tokens by feature, model, person and day |
+| UI | AI Security Analyst (conversations, cited findings, follow-ups, safe Markdown), AI reports, AI usage |
+
+**Verified on the local stack (Ollama, qwen2.5-coder:3b):**
+
+- an answer in 46 s grounded in 25 findings with 9 valid citations; the small model over-stated KEV findings, so exploit questions now get exactly the exploited findings: the repeat answered with the single open KEV finding, matching the database
+- an executive report with narrative in 40 s over the real figures (49 critical, 167 high open; coverage 100 %)
+- usage by feature recorded every AI request
+
+**Tests:** unit (keywords, narrative validation, Markdown); integration (fake provider: citations filtered, redaction, privacy, empty answers refused, reports with and without narrative, report visibility, usage); Vitest 152; Playwright 68; smoke 92/92; gosec 0 issues.
+
+**Register:** module E requirements are all met (no numbered features).
+
+**Next:** phase 7, supply chain: SBOM export (CycloneDX and SPDX), package health and malicious package detection, PR checks, commit attribution, build artifacts and provenance.
