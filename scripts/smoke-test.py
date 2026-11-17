@@ -269,8 +269,8 @@ def main():
     check("scanner catalog lists 52 integrations + Syft", s == 200 and len(cat["items"]) == 53, s)
     if s == 200:
         avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
-        check("10 scanners runnable (7 core, zizmor, image and DAST targets)", avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft",
-                                                                                         "zizmor", "trivy-image", "nuclei"]), avail)
+        check("11 scanners runnable (7 core, zizmor, actionlint, image and DAST targets)", avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft",
+                                                                                                     "zizmor", "actionlint", "trivy-image", "nuclei"]), avail)
     s, profs = admin.api("GET", "/api/v1/scan-profiles")
     check("default scan profile seeded", s == 200 and any(p["is_default"] for p in profs["items"]), s)
     if s == 200:
@@ -280,7 +280,7 @@ def main():
     online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
     check("at least one scan worker online", len(online) >= 1, workers)
     if online:
-        check("worker reports all tool versions", len(online[0]["scanners"]) == 10, online[0]["scanners"])
+        check("worker reports all tool versions", len(online[0]["scanners"]) == 11, online[0]["scanners"])
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
     check("internal worker API not reachable through the proxy -> 404", st == 404, st)
     st, _, body = anon.req("GET", "/api")

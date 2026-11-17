@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"pathos/internal/ingest"
 	"strconv"
 	"strings"
 	"time"
@@ -36,6 +37,8 @@ type JobTarget struct {
 	// DAST tuning.
 	RateLimit   int    `json:"rate_limit,omitempty"`
 	MinSeverity string `json:"min_severity,omitempty"`
+	// FileName of an artifact target.
+	FileName string `json:"file_name,omitempty"`
 }
 
 // secrets lists credential values the reporter must never log.
@@ -75,6 +78,8 @@ func (a *Agent) prepareTarget(ctx context.Context, job Job, dir string) (string,
 		return p, os.WriteFile(p, []byte(t.Spec), 0o600)
 	case "sbom":
 		return a.fetchTargetFile(ctx, job, filepath.Join(dir, "target.sbom.json"))
+	case "artifact":
+		return a.prepareArtifact(ctx, job, dir)
 	}
 	return "", fmt.Errorf("unsupported target kind %q", t.Kind)
 }
@@ -135,7 +140,7 @@ func egressDenied(host string) error {
 func (a *Agent) fetchTargetFile(ctx context.Context, job Job, dst string) (string, error) {
 	want := strings.ToLower(job.Target.SHA256)
 	if !sha256Re.MatchString(want) {
-		return "", errors.New("job has no valid SBOM SHA-256")
+		return "", errors.New("job has no valid target file SHA-256")
 	}
 	u := strings.TrimRight(a.cfg.APIURL, "/") + "/internal/worker/v1/jobs/" + url.PathEscape(job.JobID) + "/target-file"
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -154,7 +159,7 @@ func (a *Agent) fetchTargetFile(ctx context.Context, job Job, dst string) (strin
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
 		return "", &apiError{Status: resp.StatusCode, Body: strings.TrimSpace(string(msg))}
 	}
-	const maxSBOM = 512 << 20
+	const maxSBOM = 512 << 20 // also bounds artifacts (the API limits them to 200 MiB)
 	// #nosec G304 -- path is created by the worker inside its job directory
 	f, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
 	if err != nil {
@@ -169,10 +174,10 @@ func (a *Agent) fetchTargetFile(ctx context.Context, job Job, dst string) (strin
 		return "", err
 	}
 	if n > maxSBOM {
-		return "", errors.New("the SBOM is too large")
+		return "", errors.New("the target file is too large")
 	}
 	if got := hex.EncodeToString(h.Sum(nil)); got != want {
-		return "", fmt.Errorf("SBOM checksum mismatch: got %s, expected %s", got, want)
+		return "", fmt.Errorf("target file checksum mismatch: got %s, expected %s", got, want)
 	}
 	return dst, nil
 }
@@ -266,6 +271,31 @@ func targetTools(cache func(string) string) map[string]Tool {
 			}
 			return "", nil
 		}},
+		"actionlint": simpleTool{"actionlint", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			files := workflowFiles(in.Src)
+			if len(files) == 0 {
+				return "no GitHub Actions workflows in the repository", nil
+			}
+			// #nosec G304 -- report path is created by the worker in its job directory
+			f, err := os.OpenFile(in.Out, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+			if err != nil {
+				return "", err
+			}
+			// Exit code 1 means problems were found. shellcheck and pyflakes
+			// are not installed, so no script from the repository is run.
+			args := append([]string{"-format", "{{json .}}", "-no-color"}, files...)
+			_, err = commandToIn(ctx, in.Src, f, nil, []int{0, 1}, bin, args...)
+			if cerr := f.Close(); err == nil {
+				err = cerr
+			}
+			if err != nil {
+				return "", err
+			}
+			if st, err := os.Stat(in.Out); err == nil && st.Size() == 0 {
+				return "", os.WriteFile(in.Out, []byte("[]"), 0o600)
+			}
+			return "", nil
+		}},
 		"zizmor": simpleTool{"zizmor", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			if !hasWorkflows(in.Src) {
 				return "no GitHub Actions workflows or actions in the repository", nil
@@ -304,4 +334,89 @@ func hasWorkflows(src string) bool {
 		}
 	}
 	return false
+}
+
+// workflowFiles lists the repository's workflow files (relative paths).
+func workflowFiles(src string) []string {
+	if src == "" {
+		return nil
+	}
+	entries, err := os.ReadDir(filepath.Join(src, ".github", "workflows"))
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		n := e.Name()
+		if e.Type().IsRegular() && (strings.HasSuffix(n, ".yml") || strings.HasSuffix(n, ".yaml")) && len(out) < 500 {
+			out = append(out, filepath.Join(".github", "workflows", n))
+		}
+	}
+	return out
+}
+
+// javaArchive reports whether name is a Java archive, which scanners read
+// whole (they look at the embedded manifests and nested archives).
+func javaArchive(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".jar", ".war", ".ear", ".aar", ".jpi", ".hpi":
+		return true
+	}
+	return false
+}
+
+// prepareArtifact downloads an artifact target (checksum verified) and
+// returns the directory to scan. Zip and tar archives are validated and
+// extracted with the same safe extraction as uploaded source snapshots
+// (no links, no path traversal, size, count and ratio limits); Java
+// archives and other files are scanned as they are. Nothing from the
+// artifact is ever executed.
+func (a *Agent) prepareArtifact(ctx context.Context, job Job, dir string) (string, error) {
+	name := filepath.Base(job.Target.FileName)
+	if name == "" || name == "." || name == "/" || strings.HasPrefix(name, ".") {
+		name = "artifact.bin"
+	}
+	raw := filepath.Join(dir, "download")
+	if _, err := a.fetchTargetFile(ctx, job, raw); err != nil {
+		return "", err
+	}
+	scan := filepath.Join(dir, "artifact")
+	if err := os.MkdirAll(scan, 0o700); err != nil {
+		return "", err
+	}
+	// #nosec G304 -- path is created by the worker inside its job directory
+	f, err := os.Open(raw)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	k, _ := io.ReadFull(f, head)
+	format, ferr := ingest.DetectFormat(head[:k], "")
+	if ferr != nil || javaArchive(name) {
+		// Not an archive (or a Java archive): scan the file itself.
+		return scan, os.Rename(raw, filepath.Join(scan, name))
+	}
+	st, err := f.Stat()
+	if err != nil {
+		return "", err
+	}
+	norm := filepath.Join(dir, "normalized.tar.gz")
+	// #nosec G304 -- path is created by the worker inside its job directory
+	nf, err := os.OpenFile(norm, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
+	if err != nil {
+		return "", err
+	}
+	defer nf.Close()
+	if _, err := ingest.Normalize(ctx, f, format, st.Size(), nf, ingest.DefaultLimits()); err != nil {
+		return "", fmt.Errorf("the artifact archive was rejected: %w", err)
+	}
+	if _, err := nf.Seek(0, io.SeekStart); err != nil {
+		return "", err
+	}
+	if err := ingest.ExtractSnapshot(ctx, nf, scan, ingest.DefaultLimits()); err != nil {
+		return "", fmt.Errorf("extracting the artifact: %w", err)
+	}
+	_ = os.Remove(raw)
+	return scan, nil
 }

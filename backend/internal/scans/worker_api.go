@@ -27,6 +27,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
+	"pathos/internal/platform/objstore"
 	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
@@ -551,7 +552,9 @@ func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
 		"scan "+job.Status)
 	_ = updateProgress(ctx, s.DB, id)
 	s.Log.Info("scan finished", "job_id", id, "status", job.Status, "new", job.FindingsNew, "fixed", job.FindingsFixed)
-	if s.OnScanFinished != nil && job.Status != "failed" {
+	if job.PullRequest > 0 {
+		s.postPRStatus(context.WithoutCancel(ctx), id)
+	} else if s.OnScanFinished != nil && job.Status != "failed" {
 		s.OnScanFinished(context.WithoutCancel(ctx), wk.orgID, id)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"status": job.Status})
@@ -657,12 +660,19 @@ func (s *Service) jobTargetFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var gz []byte
-	if err := s.DB.QueryRow(ctx, `SELECT t.sbom_gzip FROM scan_jobs j JOIN scan_targets t ON t.id = j.target_id
-		WHERE j.id = $1 AND t.kind = 'sbom'`, id).Scan(&gz); err != nil || len(gz) == 0 {
-		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusNotFound, "no_target_file", "this job has no SBOM target"))
+	var key *string
+	if err := s.DB.QueryRow(ctx, `SELECT COALESCE(t.sbom_gzip, t.artifact_gzip), t.artifact_key FROM scan_jobs j JOIN scan_targets t ON t.id = j.target_id
+		WHERE j.id = $1 AND t.kind IN ('sbom', 'artifact')`, id).Scan(&gz, &key); err != nil || (len(gz) == 0 && key == nil) {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusNotFound, "no_target_file", "this job has no uploaded target file"))
 		return
 	}
-	raw, err := gunzipLimited(gz, maxRawReport)
+	if key != nil {
+		if gz, err = objstore.Load(ctx, s.Artifacts, key, nil); err != nil {
+			httpx.WriteError(w, r, s.Log, err)
+			return
+		}
+	}
+	raw, err := gunzipLimited(gz, maxArtifactBytes+1)
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, err)
 		return
@@ -703,8 +713,14 @@ func (s *Service) jobImports(w http.ResponseWriter, r *http.Request) {
 	}
 	var repoID uuid.UUID
 	var target *uuid.UUID
-	if err := s.DB.QueryRow(ctx, `SELECT repository_id, target_id FROM scan_jobs WHERE id = $1`, id).Scan(&repoID, &target); err != nil {
+	var pr *int
+	if err := s.DB.QueryRow(ctx, `SELECT repository_id, target_id, pull_request FROM scan_jobs WHERE id = $1`, id).Scan(&repoID, &target, &pr); err != nil {
 		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	if pr != nil {
+		// The repository's code inventory tracks its scan branch.
+		httpx.WriteJSON(w, http.StatusOK, map[string]int{"findings_updated": 0})
 		return
 	}
 	if target != nil {

@@ -75,7 +75,7 @@ func (s *Service) coverage(w http.ResponseWriter, r *http.Request) {
 	  ORDER BY lower(r.full_name) LIMIT 1000),
 	runs AS (
 	  SELECT j.repository_id AS repo,
-	         CASE WHEN sr.scanner_key = 'zizmor' THEN 'cicd'
+	         CASE WHEN sr.scanner_key IN ('zizmor', 'actionlint') THEN 'cicd'
 	              WHEN j.target_kind = 'image' THEN 'container'
 	              WHEN j.target_kind IN ('url', 'api') THEN 'dast'
 	              WHEN j.target_kind = 'sbom' THEN 'sca'

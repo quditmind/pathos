@@ -60,7 +60,8 @@ type Feed struct {
 }
 
 var labels = map[string]string{EPSS: "FIRST EPSS (exploit prediction scores)", KEV: "CISA Known Exploited Vulnerabilities",
-	OSV: "OSV vulnerability records (descriptions, references, vendor CVSS)"}
+	OSV:     "OSV vulnerability records (descriptions, references, vendor CVSS)",
+	DepsDev: "deps.dev package health (latest versions, deprecations, OpenSSF Scorecard)"}
 
 func sha256Hex(b []byte) string {
 	h := sha256.Sum256(b)
@@ -100,7 +101,8 @@ const runCols = `id, feed, mode, status, records, as_of, error, started_at, fini
 func (s *Service) feeds(ctx context.Context) ([]Feed, error) {
 	rows, err := s.DB.Query(ctx, `SELECT feed, enabled, url, interval_hours, updated_at,
 		CASE feed WHEN 'epss' THEN (SELECT count(*) FROM intel_epss) WHEN 'kev' THEN (SELECT count(*) FROM intel_kev)
-		  ELSE (SELECT count(*) FROM intel_vulns WHERE found) END
+		  WHEN 'osv' THEN (SELECT count(*) FROM intel_vulns WHERE found)
+		  ELSE (SELECT count(*) FROM package_health WHERE found) END
 		FROM intel_feeds ORDER BY feed`)
 	if err != nil {
 		return nil, err
@@ -148,7 +150,7 @@ func (s *Service) listFeeds(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
-func validFeed(f string) bool { return f == EPSS || f == KEV || f == OSV }
+func validFeed(f string) bool { return f == EPSS || f == KEV || f == OSV || f == DepsDev }
 
 func (s *Service) admin(r *http.Request) (*authz.Principal, string, error) {
 	p := s.Principal(r.Context())
@@ -236,6 +238,9 @@ func (s *Service) Fetch(ctx context.Context, feed string, by *[16]byte) (Run, er
 	if feed == OSV {
 		// OSV is looked up per identifier, not downloaded whole.
 		return s.fetchOSV(ctx, u, by)
+	}
+	if feed == DepsDev {
+		return s.fetchDepsDev(ctx, u, by)
 	}
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()

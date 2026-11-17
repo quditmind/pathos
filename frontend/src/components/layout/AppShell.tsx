@@ -51,6 +51,7 @@ import {
   Route,
   FilterX,
   FileCode2,
+  GitPullRequest,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -91,6 +92,7 @@ export const groups: NavGroup[] = [
       { label: "Scan Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
       { label: "Scan Comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
       { label: "Scan targets", to: "/scans/targets", icon: <Container />, perm: "scans.read" },
+      { label: "Pull request checks", to: "/pull-requests", icon: <GitPullRequest />, perm: "scans.read" },
       { label: "Import Results", to: "/scans/imports", icon: <FileUp />, perm: "scans.read" },
     ],
   },

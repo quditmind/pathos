@@ -24,7 +24,8 @@ This reference covers the Repository and Asset Management module of PATHOS: repo
 | [Vulnerability intelligence](vulnerability-intelligence.md#osv-feed) | OSV records, reachability, attack paths, related findings, suppression rules |
 | [AI Security Analyst](ai-analyst.md#analyst) | Conversations over your security data, AI-written reports, AI usage |
 | [Posture](posture.md#endpoints) | Application posture and risk rollup, coverage, unmanaged and shadow repositories, benchmarking, dependency graphs, blast radius, context graph |
-| [Scan targets](scan-targets.md#endpoints) | Container images, web applications (DAST), APIs (OpenAPI) and SBOMs as scan targets |
+| [Scan targets](scan-targets.md#endpoints) | Container images, web applications (DAST), APIs (OpenAPI), build artifacts and SBOMs as scan targets |
+| [Supply chain and pull request checks](supply-chain.md#pull-request-checks) | SBOM export (CycloneDX, SPDX), package health, malicious packages, pull request checks and commit statuses |
 | [Risk and vulnerability intelligence](risk-intelligence.md#finding-fields-and-filters) | Contextual risk scores and model, EPSS and KEV feeds, CVE lookups, lifecycle statuses |
 | [Human Eye reviews](human-reviews.md#queue) | Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration |
 
@@ -260,7 +261,7 @@ Asset owners (business owner, technical owner, application owner, or member of t
 | `PATCH` | `/api/v1/applications/{id}` | [Update an application](applications.md#update-an-application) |
 | `POST` | `/api/v1/applications/{id}/archive` | [Archive an application](applications.md#archive-an-application) |
 
-Related endpoints documented elsewhere: [Scans](scans.md) and [Scan schedules](schedules.md). Not documented here: `GET /api/v1/repositories/{id}/sbom` (SBOM), `GET /api/v1/me` (current user).
+Related endpoints documented elsewhere: [Scans](scans.md) and [Scan schedules](schedules.md). SBOM export (`GET /api/v1/repositories/{id}/sbom`) is in [Supply chain](supply-chain.md#sbom-export). Not documented here: `GET /api/v1/me` (current user).
 
 ## Not available
 

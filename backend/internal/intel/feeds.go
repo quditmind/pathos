@@ -280,6 +280,8 @@ func Load(ctx context.Context, pool *pgxpool.Pool, feed, mode string, by *[16]by
 			asOf, n, err = LoadEPSS(ctx, tx, bytes.NewReader(data))
 		case KEV:
 			asOf, n, err = LoadKEV(ctx, tx, bytes.NewReader(data))
+		case DepsDev:
+			err = errors.New("package health has no file import; it is refreshed online from deps.dev")
 		case OSV:
 			var vulns []Vuln
 			if vulns, err = ParseOSV(data, "osv-file"); err == nil {

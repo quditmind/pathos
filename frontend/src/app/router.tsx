@@ -28,6 +28,7 @@ import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import { ScannersPage } from "@/features/scans/ScannersPage";
 import { ImportResultsPage } from "@/features/scans/ImportResultsPage";
 import { ScanTargetsPage } from "@/features/scans/ScanTargetsPage";
+import { PullRequestChecksPage } from "@/features/prchecks/PullRequestChecksPage";
 import { PosturePage } from "@/features/posture/PosturePage";
 import { CoveragePage } from "@/features/posture/CoveragePage";
 import { UnmanagedPage } from "@/features/posture/UnmanagedPage";
@@ -155,6 +156,12 @@ const oldProfilesRoute = createRoute({ getParentRoute: () => appRoute, path: "/s
 const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/scanners", component: ScannersPage });
 const oldScannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", beforeLoad: () => { throw redirect({ to: "/configurations/scanners", replace: true }); } });
 const importResultsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/imports", component: ImportResultsPage });
+const prChecksRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/pull-requests",
+  component: PullRequestChecksPage,
+  validateSearch: (s: Record<string, unknown>): { check?: string } => ({ check: typeof s.check === "string" ? s.check : undefined }),
+});
 const scanTargetsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/targets", component: ScanTargetsPage });
 const postureRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture", component: PosturePage });
 const coverageRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/coverage", component: CoveragePage });
@@ -198,7 +205,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

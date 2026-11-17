@@ -256,7 +256,8 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			               WHERE h.finding_id = f.id AND ha.answers->>'compensating_controls_present' = 'yes'),
 			       -- public exploit or proof of concept referenced by the OSV record
 			       f.cve <> '' AND EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND v.exploit_refs > 0
-			               AND (v.id = f.cve OR f.cve = ANY(v.aliases)))
+			               AND (v.id = f.cve OR f.cve = ANY(v.aliases))),
+			       `+MaliciousExpr+`
 			FROM findings f
 			JOIN repositories r ON r.id = f.repository_id
 			LEFT JOIN applications a ON a.id = r.application_id
@@ -275,6 +276,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			kevDue        *time.Time
 			exploit       bool
 			osvExploit    bool
+			malicious     bool
 		}
 		var list []upd
 		for rows.Next() {
@@ -283,7 +285,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			var repoCrit, appCrit string
 			if err := rows.Scan(&u.id, &in.Status, &in.Severity, &in.HumanSeverity, &in.CVSS, &u.epss, &u.epssPct, &u.kev, &u.kevDue,
 				&in.ExploitAvailable, &repoCrit, &appCrit, &in.Exposure, &in.Reachability, &in.Confidence, &in.HumanDisposition,
-				&in.FixAvailable, &in.Compensating, &u.osvExploit); err != nil {
+				&in.FixAvailable, &in.Compensating, &u.osvExploit, &in.Malicious); err != nil {
 				rows.Close()
 				return err
 			}
@@ -292,6 +294,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			// KEV entries are exploited in the wild.
 			in.ExploitAvailable = in.ExploitAvailable || u.kev || u.osvExploit
 			u.exploit = in.ExploitAvailable
+			u.malicious = in.Malicious
 			u.res = Compute(in, m.Weights)
 			u.res.Version = m.Version
 			list = append(list, u)
@@ -304,8 +307,8 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 		for _, u := range list {
 			raw, _ := json.Marshal(u.res)
 			b.Queue(`UPDATE findings SET risk_score = $2, risk_factors = $3, risk_scored_at = now(), risk_dirty = false,
-				epss_score = $4, epss_percentile = $5, kev = $6, kev_due_date = $7, exploit_available = $8 WHERE id = $1`,
-				u.id, u.res.Score, raw, u.epss, u.epssPct, u.kev, u.kevDue, u.exploit)
+				epss_score = $4, epss_percentile = $5, kev = $6, kev_due_date = $7, exploit_available = $8, malicious = $9 WHERE id = $1`,
+				u.id, u.res.Score, raw, u.epss, u.epssPct, u.kev, u.kevDue, u.exploit, u.malicious)
 		}
 		n = len(list)
 		if n == 0 {
@@ -349,3 +352,11 @@ func RunBackground(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 		}
 	}
 }
+
+// MaliciousExpr (alias f) is true for findings about malicious packages:
+// OSV MAL-* advisories (directly or through an alias of the advisory) and
+// GitHub "Malicious code in" / "Malware in" advisories.
+const MaliciousExpr = `(f.rule_id LIKE 'MAL-%' OR f.cve LIKE 'MAL-%'
+	OR f.title ~* '^(malicious code in|malware in|embedded malicious code)'
+	OR EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND (v.id IN (f.cve, f.rule_id) OR f.cve = ANY(v.aliases) OR f.rule_id = ANY(v.aliases))
+	           AND (v.id LIKE 'MAL-%' OR EXISTS (SELECT 1 FROM unnest(v.aliases) a WHERE a LIKE 'MAL-%'))))`

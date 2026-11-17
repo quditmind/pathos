@@ -1039,6 +1039,10 @@ export interface Finding {
   kev?: boolean;
   kev_due_date?: string | null;
   exploit_available?: boolean;
+  /** A known malicious package (OSV MAL- advisory or malware report). */
+  malicious?: boolean;
+  /** Commit of the scan that first detected the finding. */
+  introduced_commit?: string;
   reachability?: "reachable" | "not_reachable" | "unknown";
   /** Why: e.g. "a dependency of express, which the code uses". */
   reachability_basis?: string;
@@ -1121,7 +1125,7 @@ export interface FeedRun {
 }
 
 export interface IntelFeed {
-  feed: "epss" | "kev" | "osv";
+  feed: "epss" | "kev" | "osv" | "depsdev";
   label: string;
   enabled: boolean;
   url: string;

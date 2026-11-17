@@ -185,3 +185,28 @@ func (s *Service) snapshotFile(ctx context.Context, orgID uuid.UUID, ref SourceR
 		return b, "snapshot", nil
 	}
 }
+
+// StatusWriter returns the commit status writer of a repository's SCM
+// connection and the repository's reference (pull request checks).
+func (s *Service) StatusWriter(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error) {
+	t, err := loadSyncTarget(ctx, s.DB, orgID, repoID)
+	if err != nil {
+		return nil, scm.RepoRef{}, err
+	}
+	if t.ConnID == nil {
+		return nil, scm.RepoRef{}, errors.New("uploaded repositories have no SCM connection")
+	}
+	c, err := s.getConn(ctx, s.DB, orgID, *t.ConnID)
+	if err != nil {
+		return nil, scm.RepoRef{}, errors.New("the repository's SCM connection is no longer available")
+	}
+	cl, err := s.client(ctx, c)
+	if err != nil {
+		return nil, scm.RepoRef{}, errors.New("the repository's SCM connection could not be used")
+	}
+	w, ok := cl.(scm.StatusWriter)
+	if !ok {
+		return nil, scm.RepoRef{}, errors.New("this SCM provider does not support commit statuses")
+	}
+	return w, t.ref(), nil
+}

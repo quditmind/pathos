@@ -50,8 +50,14 @@ func command(ctx context.Context, env []string, okCodes []int, name string, args
 // commandTo is command with stdout written to w (for tools that print their
 // report to stdout).
 func commandTo(ctx context.Context, w io.Writer, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
+	return commandToIn(ctx, "", w, env, okCodes, name, args...)
+}
+
+// commandToIn is commandTo run in directory dir ("" = current).
+func commandToIn(ctx context.Context, dir string, w io.Writer, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
 	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
 	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(baseEnv(), env...)
 	var stderr bytes.Buffer
@@ -247,8 +253,12 @@ func Tools(cfg Config) map[string]Tool {
 			return "", enrichSARIF(in.Out, in.Src)
 		}},
 		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			dir := in.Src
+			if in.Target != nil && in.Target.Kind == "artifact" {
+				dir = in.TargetFile
+			}
 			_, err := command(ctx, nil, []int{0}, bin, "fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
-				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", in.Src)
+				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", dir)
 			if err != nil {
 				return "", err
 			}
@@ -287,7 +297,7 @@ func Tools(cfg Config) map[string]Tool {
 			_, err := command(ctx, []string{"BC_SKIP_MAPPING=TRUE", "CHECKOV_RUN_SCA_PACKAGE_SCAN_V2=false"}, []int{0, 1}, bin,
 				"-d", in.Src, "-o", "sarif", "--output-file-path", filepath.Join(dir, "checkov"), "--quiet", "--soft-fail",
 				"--skip-download", "--download-external-modules", "false", "--framework",
-				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines")
+				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines,bitbucket_pipelines")
 			if err != nil {
 				return "", err
 			}

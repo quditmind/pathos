@@ -38,7 +38,7 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 }
 
 // Trigger priorities: interactive requests jump ahead of automation.
-var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "push": 50, "onboarding": 40, "schedule": 30}
+var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pull_request": 55, "push": 50, "onboarding": 40, "schedule": 30}
 
 // ErrNotScannable means the repository is archived or scanning is disabled.
 var ErrNotScannable = errors.New("repository is archived or scanning is disabled")
@@ -71,6 +71,9 @@ type EnqueueOpts struct {
 	ProfileID *uuid.UUID
 	Name      string     // execution name; generated when empty
 	RetryOf   *uuid.UUID // the failed execution this one retries
+	// PullRequest scans a pull request's head (results kept apart from
+	// the repository's findings; see prchecks.go).
+	PullRequest int
 }
 
 // ErrProfileUnavailable means the requested profile does not exist or is archived.
@@ -108,6 +111,13 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		}
 		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
 	}
+	var pr *int
+	if opt.PullRequest > 0 {
+		if sourceType == "upload" {
+			return res, fmt.Errorf("%w: uploaded repositories have no pull requests", ErrScanPrerequisite)
+		}
+		pr = &opt.PullRequest
+	}
 	if sourceType == "upload" {
 		// Uploaded repositories are scanned from their current snapshot.
 		if snapshotID == nil {
@@ -135,8 +145,9 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 			UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
 			       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7,
 			       schedule_run_id = COALESCE(schedule_run_id, $9)
-			WHERE repository_id = $1 AND organization_id = $2 AND profile_version_id = $8 AND status = 'queued' AND target_id IS NULL RETURNING id`,
-			repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID)
+			WHERE repository_id = $1 AND organization_id = $2 AND profile_version_id = $8 AND status = 'queued' AND target_id IS NULL
+			  AND pull_request IS NOT DISTINCT FROM $10 RETURNING id`,
+			repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID, *profileVersion, opt.ScheduleRunID, pr).Scan(&res.JobID)
 		if err == nil {
 			res.Coalesced = true
 			return res, nil
@@ -160,16 +171,17 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	res.JobID = uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `
 		INSERT INTO scan_jobs (id, organization_id, repository_id, profile_version_id, trigger, priority, ref, commit_sha, requested_by,
-		  schedule_id, snapshot_id, name, config_snapshot, retry_of, retry_count, schedule_run_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+		  schedule_id, snapshot_id, name, config_snapshot, retry_of, retry_count, schedule_run_id, pull_request)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		res.JobID, orgID, repoID, *profileVersion, trigger, prio, ref, commit, by, opt.ScheduleID, snapshotID, name, snapshot,
-		opt.RetryOf, retryCount, opt.ScheduleRunID)
+		opt.RetryOf, retryCount, opt.ScheduleRunID, pr)
 	if db.IsUniqueViolation(err) {
 		// Lost a race with a concurrent trigger, or this schedule run
 		// already created the execution: use the existing one.
 		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND profile_version_id = $2 AND target_id IS NULL
+			AND pull_request IS NOT DISTINCT FROM $4
 			AND (status = 'queued' OR ($3::uuid IS NOT NULL AND schedule_run_id = $3)) ORDER BY queued_at DESC LIMIT 1`,
-			repoID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID); err != nil {
+			repoID, *profileVersion, opt.ScheduleRunID, pr).Scan(&res.JobID); err != nil {
 			return res, err
 		}
 		res.Coalesced = true
@@ -217,10 +229,13 @@ func AddEvent(ctx context.Context, q db.Querier, orgID, jobID uuid.UUID, stage, 
 	return err
 }
 
-// OnWebhookEvent queues scans for pushes and merges to the scan branch.
-// Pull request scanning is not performed (findings are tracked per scan
-// branch).
+// OnWebhookEvent queues scans for pushes and merges to the scan branch,
+// and pull request checks when the repository has them enabled.
 func (s *Service) OnWebhookEvent(ctx context.Context, orgID, repoID uuid.UUID, ev scm.WebhookEvent) {
+	if ev.Kind == "pull_request" {
+		s.onPullRequest(ctx, orgID, repoID, ev)
+		return
+	}
 	if ev.Kind != "push" && ev.Kind != "merge" {
 		return
 	}
@@ -357,6 +372,7 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 // Job is the API view of a scan job.
 type Job struct {
 	ID             uuid.UUID  `json:"id"`
+	PullRequest    int        `json:"pull_request,omitempty"`
 	RepositoryID   uuid.UUID  `json:"repository_id"`
 	RepositoryName string     `json:"repository_name"`
 	RepositoryKey  string     `json:"repository_key"`

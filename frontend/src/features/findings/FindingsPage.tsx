@@ -22,7 +22,7 @@ import { needsReason, statusLabel, useVulnMutation } from "@/features/vuln/api";
 import { reviewApi } from "@/features/review/api";
 import { dispositionLabel, statusLabel as reviewStatusLabel } from "@/features/review/shared";
 import type { Disposition, ReviewStatus } from "@/features/review/types";
-import { KevBadge, LifecycleBadge, lifecycleLabel, pct, RiskBadge, RiskPanel } from "@/features/vuln/intel";
+import { KevBadge, MaliciousBadge, LifecycleBadge, lifecycleLabel, pct, RiskBadge, RiskPanel } from "@/features/vuln/intel";
 
 /** Human Eye outcome of a finding (link to the assessment workspace). */
 function HumanReviewCell({ f }: { f: Finding }) {
@@ -35,10 +35,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
+type FindingSearch = { malicious?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["malicious", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -51,7 +51,7 @@ function location(f: Finding) {
 
 const columns: Column<Finding>[] = [
   { id: "severity", header: "Severity", required: true, cell: (f) => <SeverityBadge value={f.severity} />, csv: (f) => f.severity },
-  { id: "risk", header: "Risk", cell: (f) => <span className="flex items-center gap-1"><RiskBadge score={f.risk_score} />{f.kev && <KevBadge />}</span>, csv: (f) => f.risk_score ?? "" },
+  { id: "risk", header: "Risk", cell: (f) => <span className="flex items-center gap-1"><RiskBadge score={f.risk_score} />{f.malicious && <MaliciousBadge />}{f.kev && <KevBadge />}</span>, csv: (f) => f.risk_score ?? "" },
   {
     id: "title",
     header: "Finding",
@@ -110,11 +110,12 @@ export function FindingsPage() {
     { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
     { key: "lifecycle", label: "Lifecycle", allLabel: "Any lifecycle", options: Object.entries(lifecycleLabel).map(([value, label]) => ({ value, label })) },
     { key: "kev", label: "Exploited (KEV)", allLabel: "Any exploit status", options: [{ value: "true", label: "In CISA KEV" }] },
+    { key: "malicious", label: "Malicious packages", allLabel: "Any package", options: [{ value: "true", label: "Malicious packages only" }] },
     { key: "risk_min", label: "Risk", allLabel: "Any risk", options: [{ value: "75", label: "Critical risk (≥ 75)" }, { value: "50", label: "High risk or more (≥ 50)" }, { value: "25", label: "Medium risk or more (≥ 25)" }] },
     { key: "sort", label: "Order", options: [{ value: "", label: "Order by severity" }, { value: "risk", label: "Order by contextual risk" }] },
     { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
-    { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }] },
+    { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }, { value: "artifact", label: "Build artifacts" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
     { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.repository_key ? `${r.full_name} · ${r.repository_key}` : r.full_name })) },
@@ -210,6 +211,12 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
               <Link to="/human-review/reviews/$id" params={{ id: d.human_review_id }} className="ml-2 text-primary hover:underline">Open assessment →</Link>
             </div>
           )}
+          {d.malicious && (
+            <Alert>
+              This is a known <strong>malicious package</strong>: its code runs when it is installed. Remove it, rotate any credentials on machines and
+              CI runners that installed it, and check them for compromise.
+            </Alert>
+          )}
           {d.description && <p className="whitespace-pre-wrap break-words text-muted-foreground">{d.description}</p>}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div><dt className="text-[12px] text-muted-foreground">Type</dt><dd>{categoryLabel[d.category] ?? d.category}</dd></div>
@@ -226,6 +233,12 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <div className="col-span-2"><dt className="text-[12px] text-muted-foreground">Location</dt><dd className="break-all font-mono text-[12px]">{location(d)}</dd></div>
             <div><dt className="text-[12px] text-muted-foreground">Detected by</dt><dd>{d.scanner_keys.join(", ")}</dd></div>
             <div><dt className="text-[12px] text-muted-foreground">First seen</dt><dd className="tabular">{formatDateTime(d.first_seen_at)}</dd></div>
+            {d.introduced_commit && (
+              <div title="Commit of the first scan that detected it: the finding was introduced at or before this commit">
+                <dt className="text-[12px] text-muted-foreground">First detected at commit</dt>
+                <dd className="font-mono text-[12px]">{d.introduced_commit.slice(0, 12)}</dd>
+              </div>
+            )}
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
             {d.category === "sca" && d.reachability && (

@@ -14,7 +14,7 @@ Status: **Phase 1**. Exact versions are pinned when each component is introduced
 | Runtime base | `gcr.io/distroless/static-debian13:nonroot` (Debian 13 replaces the planned debian12) |
 | Build images | `golang:1.27.4-alpine`, `node:26.13.1-alpine` |
 | Go modules | anthropic-sdk-go v2.9.0 (Anthropic provider), pgx v5.13.0, goose v3.30.1, go-redis v9.23.0, go-oidc v3.21.0, x/oauth2 v0.38.0, google/uuid v1.6.0 |
-| Scanners (worker-core) | Gitleaks 8.30.1, Opengrep 2.0.0, Trivy 0.76.2, Syft 1.57.1, Grype 0.121.3, OSV-Scanner 2.7.1 (SHA-256 pinned); Checkov 3.4.5 (pip) on `python:3.13-slim-trixie` |
+| Scanners (worker-core) | Gitleaks 8.30.1, Opengrep 2.0.0, Trivy 0.76.2, Syft 1.57.1, Grype 0.121.3, OSV-Scanner 2.7.1 (SHA-256 pinned); Checkov 3.4.5 (pip) on `python:3.13-slim-trixie`; actionlint 1.7.12 (built from its Go module, checksum database) |
 | Egress proxy | `ubuntu/squid:7.2-26.04_edge` (digest-pinned) |
 | Frontend | React 19.3.1, TypeScript 6.0.3 (7.x deferred: Go-based compiler, tooling still settling), Vite 8.3.8, Tailwind 4.3.5, TanStack Query 5.107.1 / Router 1.170.46, Radix Dialog/Dropdown, lucide-react 1.73.0, Vitest 5.1.0 |
 

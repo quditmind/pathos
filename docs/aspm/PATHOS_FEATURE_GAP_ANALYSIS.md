@@ -20,9 +20,9 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
-| F. Supply chain and DevSecOps (61–75) | 7 | 5 | 3 |
+| F. Supply chain and DevSecOps (61–75) | 12 | 3 | 0 |
 | G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **76** | **17** | **7** |
+| **Total** | **81** | **15** | **4** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -140,25 +140,25 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
-| 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft, CycloneDX, per scan | SPDX export |
+| 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft CycloneDX per scan; CycloneDX 1.5 and SPDX 2.3 export of the inventory with its dependency graph (phase 7) | — |
 | 62 | SBOM import | Completed | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a); SBOM targets matched by Grype on workers (phase 2b) | — |
-| 63 | Dependency graph analysis | In Progress | ◐ | ◐ | ◐ | ✓ | Flat inventory | Edges, direct and transitive (see 22) |
-| 64 | Package risk | In Progress | ◐ | ◐ | — | ◐ | Known vulnerabilities | Outdated and unsupported signals (latest version, end of life, deprecation), OpenSSF Scorecard |
-| 65 | Malicious packages | In Progress | ◐ | — | — | — | OSV `MAL-*` via OSV-Scanner | Classify and highlight; KEV-like urgency |
+| 63 | Dependency graph analysis | Completed | ✓ | ✓ | ✓ | ✓ | Dependency edges, direct and transitive depth, paths (phase 3, see 22) | — |
+| 64 | Package risk | In Progress | ✓ | ✓ | ✓ | ✓ | Known vulnerabilities; latest version, outdated, deprecated versions and OpenSSF Scorecard from deps.dev (opt-in feed, phase 7) | End-of-life dates of runtimes and frameworks |
+| 65 | Malicious packages | Completed | ✓ | ✓ | ✓ | ✓ | OSV `MAL-*` advisories and malware reports classified as malicious; KEV-level likelihood, always reachable; badge, filter and remediation guidance (phase 7) | — |
 | 66 | Licence compliance | Completed | ✓ | ✓ | ✓ | ✓ | Policy and SBOM view | Findings for violations (see 10) |
-| 67 | CI/CD pipeline security | In Progress | ✓ | ◐ | ✓ | ✓ | zizmor audits GitHub Actions workflows and actions offline (phase 2b) | actionlint; GitLab CI, Azure Pipelines and Bitbucket Pipelines rules |
-| 68 | GitHub | Completed | ✓ | ✓ | ✓ | ✓ | PAT, App, OAuth, webhooks | Checks API (see 72) |
-| 69 | GitLab | Completed | ✓ | ✓ | ✓ | ✓ | | MR notes or status (see 72) |
-| 70 | Azure DevOps | Completed | ✓ | ✓ | ✓ | ✓ | | PR status (see 72) |
-| 71 | Bitbucket | Completed | ✓ | ✓ | ✓ | ✓ | | Commit status (see 72) |
-| 72 | Pull-request checks | Not Started | ◐ | — | ◐ | — | PR webhooks parsed, not acted on | Scan the PR head, diff against the base branch, report status or check back to the provider, gate policy |
-| 73 | Commit-level analysis | In Progress | ◐ | ◐ | ✓ | ✓ | Commit recorded per scan and occurrence | "Introduced in commit" attribution, push-triggered diff summaries |
-| 74 | Build artifact scanning | Not Started | — | — | — | — | — | Artifact and image targets (see 7, 11) |
-| 75 | Software provenance | Not Started | — | — | — | — | — | Verify SLSA, in-toto and Sigstore attestations of images and artifacts (cosign) |
+| 67 | CI/CD pipeline security | Completed | ✓ | ✓ | ✓ | ✓ | zizmor (phase 2b) and actionlint (phase 7) for GitHub Actions; Checkov for GitLab CI, Azure Pipelines and Bitbucket Pipelines | — |
+| 68 | GitHub | Completed | ✓ | ✓ | ✓ | ✓ | PAT, App, OAuth, webhooks, commit statuses (phase 7) | — |
+| 69 | GitLab | Completed | ✓ | ✓ | ✓ | ✓ | Commit statuses on merge requests (phase 7) | — |
+| 70 | Azure DevOps | Completed | ✓ | ✓ | ✓ | ✓ | Commit statuses on pull requests (phase 7) | — |
+| 71 | Bitbucket | Completed | ✓ | ✓ | ✓ | ✓ | Build statuses on pull requests (phase 7) | — |
+| 72 | Pull-request checks | Completed | ✓ | ✓ | ✓ | ✓ | Opt-in per repository: PR head scanned with the repository's profile, results kept apart from the scan branch's findings, new vs already known, gate by severity, commit status on all four providers (phase 7) | Pull requests from forks (the head branch must be in the repository) |
+| 73 | Commit-level analysis | In Progress | ✓ | ✓ | ✓ | ✓ | Commit recorded per scan and occurrence; commit of the first detecting scan shown on each finding; per-PR new findings (phase 7) | Exact introducing commit (blame) and push-triggered diff summaries |
+| 74 | Build artifact scanning | Completed | ✓ | ✓ | ✓ | ✓ | Container image targets (phase 2b); uploaded artifacts (zip, tar, Java archives, binaries) extracted safely on workers and scanned by Trivy (phase 7) | — |
+| 75 | Software provenance | In Progress | ◐ | ✓ | ◐ | ✓ | SLSA provenance of direct dependencies as verified by deps.dev (phase 7) | Verify Sigstore and in-toto attestations of images and artifacts (cosign) |
 
-Formats: CycloneDX ✓ (generate and import), SPDX ✓ (import), SARIF ✓ (internal and import), OCI ✗.
+Formats: CycloneDX ✓ (generate, import, export), SPDX ✓ (import and export), SARIF ✓ (internal and import), OCI ✗.
 
-Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive ✗, outdated ✗, malicious ◐, unsupported ✗.
+Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive ✓, outdated ✓, malicious ✓, deprecated ✓, end of life ✗.
 
 ## G. Enterprise security and governance
 
