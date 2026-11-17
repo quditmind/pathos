@@ -106,7 +106,9 @@ jobs:
       - run: npm run typecheck
       - run: npm test -- --run
       - run: npm run build
-      - run: npm audit --audit-level=high
+      # High and critical advisories fail unless excepted, with a reason and an
+      # expiry of at most 30 days, in frontend/audit-exceptions.json.
+      - run: node ../scripts/npm-audit-gate.mjs
 
   stack:
     needs: [backend, integration, frontend]
