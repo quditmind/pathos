@@ -28,6 +28,20 @@ RUN --mount=type=cache,target=/go/pkg/mod set -eux; \
     CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X github.com/zricethezav/gitleaks/v8/version.Version=v${GITLEAKS}" -o /out/gitleaks .; \
     /out/gitleaks version
 
+# Nuclei is built from its Go module (integrity: Go checksum database) with
+# the current toolchain and patched dependencies, because the upstream
+# v3.11.1 binary was built with Go 1.26.5 and carries fixable CVEs
+# (kin-openapi, go-git, go-jose, grpc, x/crypto, x/mod, x/net, x/text).
+FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS nuclei
+ARG NUCLEI=3.11.1
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
+    dir="$(go mod download -json "github.com/projectdiscovery/nuclei/v3@v${NUCLEI}" | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p')"; \
+    cp -r "$dir" /src; chmod -R u+w /src; cd /src; \
+    go get github.com/getkin/kin-openapi@v0.149.0 github.com/go-git/go-git/v5@v5.19.2 github.com/go-jose/go-jose/v4@v4.1.6 \
+      golang.org/x/crypto@v0.58.0 golang.org/x/net@v0.62.0 golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.83.2; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/nuclei ./cmd/nuclei; \
+    /out/nuclei -version 2>&1 | grep -q "v${NUCLEI}"
+
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS tools
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
 WORKDIR /dl
@@ -37,7 +51,6 @@ ARG GRYPE=0.121.3  GRYPE_SHA=e9da18cc1429e786722e32161288103600efffd8e483c90761f
 ARG OSV=2.7.1      OSV_SHA=fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8
 ARG OPENGREP=2.0.0 OPENGREP_SHA=37e93f4da5fd04a18c5c1febbdd12f7e98dfccd4d0c9cf2593bcb25eeb462da0
 ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
-ARG NUCLEI=3.11.1  NUCLEI_SHA=ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6
 # Nuclei templates: GitHub source archive of the release tag (hash computed
 # when the version was pinned).
 # Only a reviewed subset is installed. Left out: osint and token-spray
@@ -52,12 +65,10 @@ RUN set -eux; \
     fetch osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV}/osv-scanner_linux_amd64" "$OSV_SHA"; \
     fetch opengrep "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP}/opengrep_linux_x86" "$OPENGREP_SHA"; \
     fetch zizmor.tgz "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR}/zizmor-x86_64-unknown-linux-gnu.tar.gz" "$ZIZMOR_SHA"; \
-    fetch nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI}/nuclei_${NUCLEI}_linux_amd64.zip" "$NUCLEI_SHA"; \
     fetch templates.tgz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES}.tar.gz" "$NUCLEI_TEMPLATES_SHA"; \
     mkdir -p /out /templates; \
     for t in trivy syft grype; do tar -xzf "$t.tgz" -C /out "$t"; done; \
     tar -xzf zizmor.tgz -C /out zizmor; \
-    unzip -q nuclei.zip nuclei -d /out; \
     install -m 0755 osv-scanner opengrep /out/; \
     chmod 0755 /out/*; \
     t="nuclei-templates-${NUCLEI_TEMPLATES}"; \
@@ -79,6 +90,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && find /usr/local/lib/python3.13 -name '__pycache__' -prune -exec rm -rf {} +
 COPY --from=tools /out/ /usr/local/bin/
 COPY --from=gitleaks /out/gitleaks /usr/local/bin/gitleaks
+COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=agent /out/pathos-worker /usr/local/bin/pathos-worker
 COPY workers/rules/ /opt/pathos/rules/
 COPY --from=tools /templates/ /opt/pathos/nuclei-templates/

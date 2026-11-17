@@ -158,7 +158,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 | Migration 00015 | `scan_targets` (image, url, api, sbom; encrypted credentials; authorization statement), `scan_jobs.target_id/target_kind`, `findings.scan_target_id`, `scan_target` secret kind, full Down migration |
 | Scan targets API | CRUD, SBOM upload, scan, filters on findings (`scan_target_id`, `target_kind`) and scans (`asset_type`, `target_id`); retries of target scans |
 | Workers | Target jobs without a clone; `trivy image` with registry credentials; Nuclei for URL and OpenAPI targets (reviewed template subset, no intrusive/brute-force/DoS, no interactsh, rate-limited); Grype on downloaded, SHA-256-verified SBOMs; zizmor for GitHub Actions; egress reachability preflight; target credentials redacted from logs |
-| Worker image | zizmor 1.32.0, Nuclei 3.11.1 and templates 10.5.1, pinned by SHA-256 |
+| Worker image | zizmor 1.32.0 and the Nuclei templates 10.5.1 pinned by SHA-256; Nuclei 3.11.1 built from its Go module (checksum database) with Go 1.27.4 and patched dependencies, like Gitleaks |
 | Pipeline | Target-namespaced fingerprints; auto-resolve scoped to the same target; profiles cannot include target scanners |
 | UI | **Scanning → Scan targets** (add, edit, authorize, scan, findings and last scan); Findings **Asset** filter and target names; Scans asset types |
 
