@@ -64,6 +64,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerAssets(mux)
 	s.registerDirectory(mux)
 	s.registerSync(mux)
+	s.registerInventory(mux)
 	s.registerImports(mux)
 	s.registerUploads(mux)
 	s.registerInsights(mux)

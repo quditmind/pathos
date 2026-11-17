@@ -13,9 +13,15 @@ import (
 
 // ParseSPDX extracts packages from an SPDX 2.x JSON document.
 func ParseSPDX(raw []byte) ([]Component, error) {
+	c, _, err := parseSPDX(raw)
+	return c, err
+}
+
+func parseSPDX(raw []byte) ([]Component, map[string]string, error) {
 	var doc struct {
 		SPDXVersion string `json:"spdxVersion"`
 		Packages    []struct {
+			ID               string `json:"SPDXID"`
 			Name             string `json:"name"`
 			VersionInfo      string `json:"versionInfo"`
 			Supplier         string `json:"supplier"`
@@ -30,13 +36,14 @@ func ParseSPDX(raw []byte) ([]Component, error) {
 		} `json:"packages"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if !strings.HasPrefix(doc.SPDXVersion, "SPDX-2.") {
-		return nil, errors.New("not an SPDX 2.x JSON document")
+		return nil, nil, errors.New("not an SPDX 2.x JSON document")
 	}
 	out := make([]Component, 0, len(doc.Packages))
-	seen := map[string]bool{}
+	seen := map[string]string{}
+	aliases := map[string]string{}
 	for _, p := range doc.Packages {
 		if p.Name == "" {
 			continue
@@ -56,10 +63,13 @@ func ParseSPDX(raw []byte) ([]Component, error) {
 			continue
 		}
 		key := p.Name + "@" + p.VersionInfo + "|" + purl
-		if seen[key] {
+		if kept, ok := seen[key]; ok {
+			if p.ID != "" && kept != "" {
+				aliases[p.ID] = kept
+			}
 			continue
 		}
-		seen[key] = true
+		seen[key] = clip(p.ID, 1000)
 		var lic []string
 		for _, l := range []string{p.LicenseConcluded, p.LicenseDeclared} {
 			l = strings.TrimSpace(l)
@@ -70,12 +80,13 @@ func ParseSPDX(raw []byte) ([]Component, error) {
 		if lic == nil {
 			lic = []string{}
 		}
-		out = append(out, Component{Name: clip(p.Name, 300), Version: clip(p.VersionInfo, 100), PURL: clip(purl, 500), Type: clip(typ, 50), Licenses: lic})
+		out = append(out, Component{Name: clip(p.Name, 300), Version: clip(p.VersionInfo, 100), PURL: clip(purl, 500), Type: clip(typ, 50), Licenses: lic,
+			Ref: clip(p.ID, 1000)})
 		if len(out) >= 50000 {
 			break
 		}
 	}
-	return out, nil
+	return out, aliases, nil
 }
 
 // DetectSBOM returns the format of an SBOM document: cyclonedx, spdx or "".
@@ -109,17 +120,25 @@ func ParseSBOM(raw []byte) (string, []Component, error) {
 	return "", nil, errors.New("unrecognised SBOM: expected CycloneDX JSON or SPDX 2.x JSON")
 }
 
-// StoreImportedSBOM replaces a repository's component inventory with an
-// imported SBOM.
-func StoreImportedSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, comps []Component) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1`, repoID); err != nil {
-		return err
+// StoreImportedSBOM replaces a repository's component inventory and
+// dependency graph with an imported SBOM.
+func StoreImportedSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, raw []byte) (int, error) {
+	var comps []Component
+	var aliases map[string]string
+	var err error
+	switch DetectSBOM(raw) {
+	case "cyclonedx":
+		comps, aliases, err = parseCycloneDX(raw)
+	case "spdx":
+		comps, aliases, err = parseSPDX(raw)
+	default:
+		err = errors.New("unrecognised SBOM: expected CycloneDX JSON or SPDX 2.x JSON")
 	}
-	rows := make([][]any, len(comps))
-	for i, c := range comps {
-		rows[i] = []any{orgID, repoID, c.Name, c.Version, c.PURL, c.Type, c.Licenses, "import"}
+	if err != nil {
+		return 0, err
 	}
-	_, err := tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
-		[]string{"organization_id", "repository_id", "name", "version", "purl", "type", "licenses", "source"}, pgx.CopyFromRows(rows))
-	return err
+	if err := replaceComponents(ctx, tx, orgID, repoID, nil, "import", comps); err != nil {
+		return 0, err
+	}
+	return len(comps), storeGraph(ctx, tx, orgID, repoID, ParseGraph(raw), aliases)
 }

@@ -25,6 +25,7 @@ import (
 	"pathos/internal/platform/objstore"
 	"pathos/internal/platform/ratelimit"
 	"pathos/internal/platform/telemetry"
+	"pathos/internal/posture"
 	"pathos/internal/repos"
 	"pathos/internal/review"
 	"pathos/internal/risk"
@@ -122,6 +123,7 @@ func Build(d Deps) Handlers {
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	reviewSvc.Register(protected)
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)

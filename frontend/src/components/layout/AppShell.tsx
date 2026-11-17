@@ -41,6 +41,10 @@ import {
   FileBarChart,
   FileUp,
   Container,
+  Grid3x3,
+  ShieldQuestion,
+  BarChart3,
+  Crosshair,
   FileCode2,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
@@ -60,6 +64,17 @@ export const groups: NavGroup[] = [
       { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
+    ],
+  },
+  {
+    label: "Posture",
+    items: [
+      { label: "Application posture", to: "/posture", icon: <Gauge />, perm: "findings.read" },
+      { label: "Coverage", to: "/posture/coverage", icon: <Grid3x3 />, perm: "repos.read" },
+      { label: "Unmanaged assets", to: "/posture/unmanaged", icon: <ShieldQuestion />, perm: "repos.read" },
+      { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
+      { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
+      { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
     ],
   },
   {

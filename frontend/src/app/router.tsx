@@ -28,6 +28,12 @@ import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import { ScannersPage } from "@/features/scans/ScannersPage";
 import { ImportResultsPage } from "@/features/scans/ImportResultsPage";
 import { ScanTargetsPage } from "@/features/scans/ScanTargetsPage";
+import { PosturePage } from "@/features/posture/PosturePage";
+import { CoveragePage } from "@/features/posture/CoveragePage";
+import { UnmanagedPage } from "@/features/posture/UnmanagedPage";
+import { BenchmarkPage } from "@/features/posture/BenchmarkPage";
+import { BlastRadiusPage, validateBlastSearch } from "@/features/posture/BlastRadiusPage";
+import { ContextGraphPage, validateGraphSearch } from "@/features/posture/ContextGraphPage";
 import { CustomRulesPage } from "@/features/scans/CustomRulesPage";
 import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
 import { RiskPage } from "@/features/vuln/RiskPage";
@@ -144,6 +150,12 @@ const scannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/conf
 const oldScannersRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scanners", beforeLoad: () => { throw redirect({ to: "/configurations/scanners", replace: true }); } });
 const importResultsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/imports", component: ImportResultsPage });
 const scanTargetsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/targets", component: ScanTargetsPage });
+const postureRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture", component: PosturePage });
+const coverageRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/coverage", component: CoveragePage });
+const unmanagedRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/unmanaged", component: UnmanagedPage });
+const benchmarkRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/benchmark", component: BenchmarkPage });
+const blastRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/blast-radius", component: BlastRadiusPage, validateSearch: validateBlastSearch });
+const graphRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/graph", component: ContextGraphPage, validateSearch: validateGraphSearch });
 const customRulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/custom-rules", component: CustomRulesPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
@@ -174,7 +186,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, customRulesRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

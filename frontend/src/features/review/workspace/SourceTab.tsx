@@ -103,6 +103,11 @@ export function SourceTab({ d, path, line }: { d: ReviewDetail; path?: string; l
             <span className="flex items-center gap-1 text-warning"><Lock className="size-3" /> secret values redacted</span>
           )}
         </div>
+        {s?.available && !d.start_line && (
+          <p className="border-b border-border px-3 py-1.5 text-[12px] text-muted-foreground">
+            The scanner did not report a line for this finding (typical for dependency findings in a manifest or lockfile); the whole file is shown.
+          </p>
+        )}
         {src.isError ? (
           <div className="p-4"><Alert>{src.error.message}</Alert></div>
         ) : src.isPending ? (
