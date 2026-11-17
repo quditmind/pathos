@@ -23,6 +23,12 @@
   --warning: #9a6200;
   --warning-soft: #fff4dc;
   --sev-critical: #b42318;
+  /* Code viewer (Human Eye). */
+  --code-keyword: #7c3aed;
+  --code-string: #15803d;
+  --code-number: #b45309;
+  --code-function: #1d4ed8;
+  --code-type: #0e7490;
   --sev-high: #d9480f;
   --sev-medium: #b7791f;
   --sev-low: #52667a;
@@ -30,6 +36,11 @@
 }
 
 .dark {
+  --code-keyword: #c4b5fd;
+  --code-string: #86efac;
+  --code-number: #fcd34d;
+  --code-function: #93c5fd;
+  --code-type: #67e8f9;
   --background: #0d1117;
   --surface: #151b23;
   --surface-muted: #1c2430;
@@ -115,3 +126,10 @@ body {
 .help-prose figcaption { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
 .help-prose hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
 .help-prose .help-missing-image { color: var(--danger); font-size: 12px; }
+
+/* Printing (Review Reports → Save as PDF): content only. */
+@media print {
+  aside, header, nav[aria-label="Main"] { display: none !important; }
+  main { overflow: visible !important; }
+  .break-inside-avoid { break-inside: avoid; }
+}

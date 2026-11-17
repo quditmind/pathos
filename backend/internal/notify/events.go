@@ -150,6 +150,52 @@ Details: {{.Link}}`,
 
 Workers: {{.Link}}`,
 	},
+	{
+		Key: "review.assigned", Label: "Human Eye review assigned", Severity: true, Repository: true,
+		Description: "A finding was assigned to an analyst for manual review (self-assignment is not notified).",
+		Dynamic:     []string{"assignee"},
+		Subject:     `[PATHOS] Review assigned to you: {{.Review.Key}} {{.Finding.Title}}`,
+		Body: `{{if .Actor}}{{.Actor}}{{else}}PATHOS{{end}} assigned you a {{.Review.Priority}} review of a {{.Finding.Severity}} finding in {{.Repository}}:
+
+{{.Finding.Title}}{{if .Finding.Location}}
+Location: {{.Finding.Location}}{{end}}{{if .Review.DueAt}}
+Review due: {{.Review.DueAt}}{{end}}
+
+Open the assessment workspace: {{.Link}}`,
+	},
+	{
+		Key: "review.independent_requested", Label: "Independent review requested", Severity: true, Repository: true,
+		Description: "An analyst submitted a review decision that needs a second, independent reviewer.",
+		Dynamic:     []string{"independent_reviewers"},
+		Subject:     `[PATHOS] Independent review needed: {{.Review.Key}} ({{.Review.Disposition}})`,
+		Body: `{{.Actor}} submitted the decision "{{.Review.Disposition}}" for a {{.Finding.Severity}} finding in {{.Repository}}:
+
+{{.Finding.Title}}
+
+The decision needs an independent review before the finding can be closed.
+
+Review it: {{.Link}}`,
+	},
+	{
+		Key: "review.independent_decided", Label: "Independent review decided", Severity: true, Repository: true,
+		Description: "An independent reviewer approved, rejected or asked for more information on a review decision.",
+		Dynamic:     []string{"requester", "assignee"},
+		Subject:     `[PATHOS] Independent review {{.Review.Outcome}}: {{.Review.Key}}`,
+		Body: `{{.Actor}} {{.Review.Outcome}} the decision on {{.Review.Key}} ({{.Finding.Title}}) in {{.Repository}}.
+
+Open: {{.Link}}`,
+	},
+	{
+		Key: "review.overdue", Label: "Human Eye review overdue", Severity: true, Repository: true,
+		Description: "A human review passed its due date (one message per review).",
+		Dynamic:     []string{"assignee"},
+		Subject:     `[PATHOS] Review overdue: {{.Review.Key}} {{.Finding.Title}}`,
+		Body: `The review {{.Review.Key}} of a {{.Finding.Severity}} finding in {{.Repository}} was due {{.Review.DueAt}} and is still {{.Review.Status}}:
+
+{{.Finding.Title}}
+
+Open: {{.Link}}`,
+	},
 }
 
 var testEvent = EventDef{
@@ -175,10 +221,11 @@ func LookupEvent(key string) (EventDef, bool) {
 
 // DynamicLabels names dynamic recipients for the UI.
 var DynamicLabels = map[string]string{
-	"assignee":  "Assignee",
-	"requester": "Requester",
-	"approvers": "Eligible approvers",
-	"owners":    "Application owners",
+	"assignee":              "Assignee",
+	"requester":             "Requester",
+	"approvers":             "Eligible approvers",
+	"owners":                "Application owners",
+	"independent_reviewers": "Eligible independent reviewers",
 }
 
 var severityRank = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}

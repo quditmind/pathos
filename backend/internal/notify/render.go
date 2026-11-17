@@ -67,10 +67,15 @@ type Data struct {
 		Status, RequestedBy string
 		Total, Failed       int
 	}
+	Review struct {
+		Key, Status, Disposition, Priority, DueAt, Outcome string
+	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
 	assignees []uuid.UUID
 	requester *uuid.UUID
+	// independent is the designated independent reviewer, if any.
+	independent *uuid.UUID
 }
 
 const maxListed = 10
@@ -313,6 +318,41 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		d.Schedule.Succeeded, d.Schedule.Failed = payloadInt(p, "succeeded"), payloadInt(p, "failed")
 		d.Link = baseURL + "/scans?schedule_id=" + ev.SubjectID.String()
+	case "review.assigned", "review.independent_requested", "review.independent_decided", "review.overdue":
+		if ev.SubjectID == nil {
+			return nil, errors.New("event has no review")
+		}
+		var findingID uuid.UUID
+		var reviewer *uuid.UUID
+		var due *time.Time
+		var disp *string
+		err := q.QueryRow(ctx, `SELECT finding_id, review_key, status, disposition, priority, due_at, reviewer_id FROM human_reviews WHERE id = $1`,
+			*ev.SubjectID).Scan(&findingID, &d.Review.Key, &d.Review.Status, &disp, &d.Review.Priority, &due, &reviewer)
+		if err != nil {
+			return nil, fmt.Errorf("load review: %w", err)
+		}
+		if err := loadFinding(ctx, q, d, &findingID, baseURL); err != nil {
+			return nil, err
+		}
+		d.Review.Status = strings.ReplaceAll(d.Review.Status, "_", " ")
+		d.Review.DueAt = fmtTime(due)
+		d.Review.Disposition = strings.ReplaceAll(payloadString(p, "disposition"), "_", " ")
+		if d.Review.Disposition == "" && disp != nil {
+			d.Review.Disposition = strings.ReplaceAll(*disp, "_", " ")
+		}
+		d.Review.Outcome = strings.ReplaceAll(payloadString(p, "outcome"), "_", " ")
+		if a := payloadUUID(p, "assignee_id"); a != nil {
+			d.assignees = []uuid.UUID{*a}
+		} else if reviewer != nil && ev.Key != "review.independent_requested" {
+			d.assignees = []uuid.UUID{*reviewer}
+		}
+		d.requester = payloadUUID(p, "decided_by")
+		d.Actor = userName(ctx, q, payloadUUID(p, "actor"))
+		if ev.Key == "review.independent_requested" {
+			d.Actor = userName(ctx, q, d.requester)
+			d.independent = payloadUUID(p, "independent_reviewer_id")
+		}
+		d.Link = baseURL + "/human-review/reviews/" + ev.SubjectID.String()
 	case "worker.offline":
 		d.Worker.Name, d.Worker.Family = payloadString(p, "name"), payloadString(p, "family")
 		if t, err := time.Parse(time.RFC3339Nano, payloadString(p, "last_seen_at")); err == nil {
@@ -364,6 +404,8 @@ func Sample(key, baseURL string) *Data {
 	d.Worker.Name, d.Worker.Family, d.Worker.LastSeen, d.Worker.Queued = "worker-core-1", "core", "2026-11-15 09:41 UTC", 12
 	d.Sync.Status, d.Sync.Error = "permission_denied", "scm: the credential does not have permission for this operation"
 	d.Import.Status, d.Import.RequestedBy, d.Import.Total, d.Import.Failed = "failed", "Sam Developer", 4, 1
+	d.Review.Key, d.Review.Status, d.Review.Disposition, d.Review.Priority = "QD-HR-000042", "in progress", "false positive", "p1"
+	d.Review.DueAt, d.Review.Outcome = "2026-11-19 09:00 UTC", "approved"
 	return d
 }
 

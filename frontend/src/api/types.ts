@@ -1014,6 +1014,12 @@ export interface Finding {
   recurrence_count: number;
   accepted_until: string | null;
   ai_status: string;
+  /** Human Eye outcome (the scanner data above is unchanged by it). */
+  human_review_id?: string | null;
+  human_review_key?: string | null;
+  human_review_status?: string | null;
+  human_disposition?: string | null;
+  human_severity?: Severity | null;
   snippet?: string;
   snippet_start_line?: number | null;
   occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];

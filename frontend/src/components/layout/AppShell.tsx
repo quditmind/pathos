@@ -34,6 +34,11 @@ import {
   Scale,
   ShieldOff,
   HelpCircle,
+  UserCheck,
+  ListChecks,
+  ClipboardCheck,
+  UsersRound,
+  FileBarChart,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -76,6 +81,17 @@ export const groups: NavGroup[] = [
       { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
       { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
       { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
+    ],
+  },
+  {
+    label: "Human Eye",
+    items: [
+      { label: "Overview", to: "/human-review", icon: <UserCheck />, perm: "reviews.read" },
+      { label: "Review Queue", to: "/human-review/queue", icon: <ListChecks />, perm: "reviews.read" },
+      { label: "Assessments", to: "/human-review/assessments", icon: <ClipboardCheck />, perm: "reviews.read" },
+      { label: "Assignments", to: "/human-review/assignments", icon: <UsersRound />, perm: "reviews.read" },
+      { label: "Review Reports", to: "/human-review/reports", icon: <FileBarChart />, perm: "reviews.read" },
+      { label: "Review Configurations", to: "/human-review/configurations", icon: <Settings2 />, perm: "reviews.read" },
     ],
   },
   {
@@ -132,7 +148,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
 
   return (

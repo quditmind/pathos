@@ -290,6 +290,10 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	host, _ := os.Hostname()
 	go reposSvc.RunImportWorkers(ctx, cfg.ImportConcurrency, host)
 	log.Info("repository import workers started", "concurrency", cfg.ImportConcurrency)
+	// Human Review: automatic queue ingestion, capture of the original
+	// scanner output before retention prunes it, overdue notifications.
+	reviewSvc := server.NewReviewService(server.Deps{DB: pool, Log: log, Artifacts: artifacts}, repoAz, nil, nil)
+	go reviewSvc.RunBackground(ctx)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads
 		// are removed.

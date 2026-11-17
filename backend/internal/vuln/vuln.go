@@ -500,6 +500,13 @@ func (s *Service) decideAcceptance(w http.ResponseWriter, r *http.Request) {
 		if _, _, _, err := s.finding(ctx, tx, p, perm, findingID, true); err != nil {
 			return err
 		}
+		// Acceptances requested by a Human Eye decision are decided by
+		// its independent reviewer, so the review and the finding agree.
+		var reviewKey string
+		if err := tx.QueryRow(ctx, `SELECT review_key FROM human_reviews WHERE risk_acceptance_id = $1 AND status = 'awaiting_independent_review'`, id).
+			Scan(&reviewKey); err == nil && (action == "approve" || action == "reject") {
+			return httpx.Conflict("this risk acceptance belongs to Human Eye " + reviewKey + "; decide it there as the independent reviewer")
+		}
 		var newStatus, findingStatus string
 		switch action {
 		case "approve":
