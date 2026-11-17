@@ -84,9 +84,31 @@ CREATE TABLE finding_tickets (
 );
 CREATE INDEX finding_tickets_sync_idx ON finding_tickets (synced_at NULLS FIRST) WHERE NOT remote_done;
 
+-- Saved report definitions over findings: filters (the Findings page's
+-- query parameters), grouping, columns, optional scheduled delivery to
+-- users (in-app and e-mail through the notification rules).
+CREATE TABLE saved_reports (
+    id              uuid PRIMARY KEY,
+    organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    owner_id        uuid NOT NULL,
+    name            text NOT NULL CHECK (length(name) BETWEEN 1 AND 200),
+    description     text NOT NULL DEFAULT '' CHECK (length(description) <= 2000),
+    definition      jsonb NOT NULL,
+    shared          boolean NOT NULL DEFAULT false,
+    schedule        text CHECK (schedule IN ('daily', 'weekly', 'monthly')),
+    recipients      uuid[] NOT NULL DEFAULT '{}',
+    next_run_at     timestamptz,
+    last_run_at     timestamptz,
+    created_at      timestamptz NOT NULL DEFAULT now(),
+    updated_at      timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (organization_id, owner_id, name)
+);
+CREATE INDEX saved_reports_due_idx ON saved_reports (next_run_at) WHERE schedule IS NOT NULL;
+
 SELECT pathos_apply_app_grants();
 
 -- +goose Down
+DROP TABLE IF EXISTS saved_reports;
 DROP TABLE IF EXISTS finding_tickets;
 DROP TABLE IF EXISTS ticket_connections;
 DROP TABLE IF EXISTS outbound_webhook_deliveries;

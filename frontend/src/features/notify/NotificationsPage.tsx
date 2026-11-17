@@ -10,11 +10,13 @@ import { useRepositories } from "@/features/repos/api";
 import { useBusinessUnits, useRegions, useRoles, useUsers } from "@/features/users/api";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useDeliveries, useDelivery, useEvents, useNotifyMutation, useRules, useSmtp, useTemplates } from "./api";
+import { WebhooksTab } from "./WebhooksTab";
 
 const tabs = [
   { key: "rules", label: "Rules" },
   { key: "email", label: "Email (SMTP)" },
   { key: "templates", label: "Templates" },
+  { key: "webhooks", label: "Webhooks" },
   { key: "history", label: "Delivery history" },
 ] as const;
 type Tab = (typeof tabs)[number]["key"];
@@ -47,6 +49,7 @@ export function NotificationsPage() {
       {tab === "email" && <SmtpTab onTest={() => setTab("history")} />}
       {tab === "templates" && <TemplatesTab />}
       {tab === "history" && <HistoryTab />}
+      {tab === "webhooks" && <WebhooksTab />}
     </>
   );
 }

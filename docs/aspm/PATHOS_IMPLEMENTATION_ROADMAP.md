@@ -329,4 +329,22 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module G 17 completed, 5 in progress (executive dashboard, outbound webhooks, multi-tenant, plugin architecture, offline bundles), 3 not started (custom reporting, Jira, ServiceNow).
 
-**Next:** phase 9, reporting and integrations: executive dashboard, custom reports, outbound webhooks, Jira, ServiceNow, Slack and Teams, REST API tokens.
+### Phase 9 — Reporting and integrations (done)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00022 | `outbound_webhooks`, `outbound_webhook_deliveries`, `ticket_connections`, `finding_tickets`, `saved_reports`; secret kind `integration`; full Down migration |
+| REST API tokens | Scopes `api:read` / `api:write` on personal tokens; bearer authentication in the API middleware (no CSRF exposure); owner's current permissions; never for tokens, sign-in or MFA endpoints; token id on audit entries |
+| Outbound webhooks | Every notification event, as signed JSON (HMAC-SHA256 over timestamp and body), Slack or Microsoft Teams (Adaptive Card); queued with the event, retried with back-off (5 retries over ~9 h), 4xx not retried; URLs encrypted, only the host shown; SSRF policy (no loopback, metadata or private addresses unless allowed); test message; delivery log |
+| Jira, ServiceNow | Connections (encrypted credentials, connection test), a ticket per finding and connection with the finding's facts (redacted, no code), status sync every 10 minutes |
+| Executive overview | Open critical/high, KEV, SLA compliance, past-SLA, new vs fixed, weekly trend and backlog, MTTR by severity, riskiest applications and business units; printable |
+| Custom reports | Saved definitions over the Findings filters, grouping or columns; preview; shared; CSV (formula-safe); scheduled delivery as a link (`report.scheduled`), each reader sees only their own scope |
+| UI | Executive overview, Reports, Integrations, Webhooks tab, token scopes, finding tickets |
+
+**Tests:** integration (REST tokens: read-only, deny-list, deactivation; webhooks: SSRF, encryption, signature verification, Slack format, retry vs give-up, delivery log, test, secrets removed on delete; Jira and ServiceNow against mock servers: auth, redacted content, duplicates, permissions, sync; executive and reports: scope, CSV protection, grouping, sharing, scheduling); Vitest 165.
+
+**Register:** module G 22 completed, 3 in progress (multi-tenant, plugin architecture, offline bundles); 89 completed, 10 in progress, 1 not started overall.
+
+**Next:** phase 10, production readiness: declarative scanner adapters, offline vulnerability database bundles, air-gap guide.

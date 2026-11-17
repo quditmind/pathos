@@ -67,6 +67,15 @@ Review: {{.Link}}`,
 Review: {{.Link}}`,
 	},
 	{
+		Key: "report.scheduled", Label: "Scheduled report", Repository: false,
+		Description: "A scheduled custom report is ready. Recipients open it in PATHOS, where it shows only what they may see.",
+		Dynamic:     []string{"report_recipients"},
+		Subject:     `[PATHOS] Report ready: {{.Report}}`,
+		Body: `Your scheduled report "{{.Report}}" is ready.
+
+Open it: {{.Link}}`,
+	},
+	{
 		Key: "finding.assigned", Label: "Finding assigned", Severity: true, Repository: true,
 		Description: "Someone assigned a finding to a user (self-assignment is not notified).",
 		Dynamic:     []string{"assignee"},
@@ -238,6 +247,7 @@ var DynamicLabels = map[string]string{
 	"approvers":             "Eligible approvers",
 	"owners":                "Application owners",
 	"independent_reviewers": "Eligible independent reviewers",
+	"report_recipients":     "Report recipients",
 }
 
 var severityRank = map[string]int{"critical": 0, "high": 1, "medium": 2, "low": 3, "info": 4}

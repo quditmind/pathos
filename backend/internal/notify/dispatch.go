@@ -314,6 +314,8 @@ func resolve(ctx context.Context, q db.Querier, ev eventRow, data *Data, rc Reci
 					out = append(out, r)
 				}
 			}
+		case "report_recipients":
+			err = add(activeUsers(ctx, q, ev.OrgID, data.reportRecipients))
 		case "owners":
 			if ev.Repository != nil {
 				var ids []uuid.UUID
