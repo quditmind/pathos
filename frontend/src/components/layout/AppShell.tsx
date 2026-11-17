@@ -39,6 +39,8 @@ import {
   ClipboardCheck,
   UsersRound,
   FileBarChart,
+  FileUp,
+  FileCode2,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -66,6 +68,7 @@ export const groups: NavGroup[] = [
       { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
       { label: "Scan Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
       { label: "Scan Comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
+      { label: "Import Results", to: "/scans/imports", icon: <FileUp />, perm: "scans.read" },
     ],
   },
   {
@@ -73,6 +76,7 @@ export const groups: NavGroup[] = [
     items: [
       { label: "Scan profiles", to: "/configurations/scan-profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
       { label: "Scanners & workers", to: "/configurations/scanners", icon: <Server />, perm: "scanners.read" },
+      { label: "Custom rules", to: "/configurations/custom-rules", icon: <FileCode2 />, perm: "scanners.read" },
     ],
   },
   {

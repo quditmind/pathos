@@ -194,11 +194,17 @@ func configSnapshot(ctx context.Context, q db.Querier, versionID uuid.UUID) ([]b
 	if err != nil {
 		return nil, "", err
 	}
+	// Custom rule files enabled now, pinned by version.
+	rules, err := enabledRuleRefs(ctx, q, versionID)
+	if err != nil {
+		return nil, "", err
+	}
 	b, err := json.Marshal(map[string]any{
 		"profile_id": profileID, "profile_name": profileName, "profile_version_id": v.ID, "profile_version": v.Version,
 		"change_note": v.ChangeNote, "severity_threshold": v.SeverityThreshold, "exclusions": v.Exclusions,
 		"timeout_seconds": v.TimeoutSeconds, "sbom": v.SBOM, "fail_on_critical": v.FailOnCritical,
 		"retention_days": v.RetentionDays, "scanners": v.Scanners, "captured_at": time.Now().UTC(),
+		"custom_rules": rules,
 	})
 	return b, profileName, err
 }

@@ -163,6 +163,17 @@ The application role cannot update or delete history, decisions, approvals, comm
 
 The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is not stored.
 
+## Imports and custom rules (migration 00014)
+
+| Object | Purpose |
+|---|---|
+| `import_jobs` | Every result or SBOM import: format, tool, scanner key, repository, execution, SHA-256, size, outcome |
+| `pathos_register_import_tool()` | `SECURITY DEFINER`: the only way the app role adds catalog rows, restricted to `import-<category>-<tool>` keys |
+| `scan_jobs.trigger` | Adds `import` |
+| `findings.category` | Adds `dast` |
+| `sbom_components.source`, nullable `scan_job_id` | Imported inventories |
+| `custom_rules`, `custom_rule_versions` | Opengrep rule files and their saved versions; scan snapshots pin `(id, version)` |
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

@@ -136,3 +136,23 @@ Executions are ordered by time and each is compared with the previous one:
 The comparison also shows severity counts, duration and its change, whether the profile or its version changed, and scanner engine changes (added, removed, new versions), with trend charts and a finding-by-execution matrix.
 
 **Related APIs.** [Scans: comparison](../api-reference/scans.md).
+
+## Importing results from other tools
+
+**Scanning → Import Results** brings in findings from tools PATHOS does not run: other SAST or SCA products, DAST and IAST tools, fuzzers, or your CI pipeline.
+
+1. Choose the repository, give the tool a name and pick a category.
+2. Upload the report. PATHOS accepts SARIF 2.1, Grype JSON, and the PATHOS findings JSON format (see the API reference) for tools without SARIF.
+3. If the file is the tool's complete result, tick **This file is the tool's complete result**. Findings the tool no longer reports are then marked fixed. Partial results never close anything.
+
+Each import appears as a scan execution. Its findings are de-duplicated, risk-scored and reviewable like any other, and they keep the tool's name.
+
+The same page imports **SBOMs** (CycloneDX or SPDX JSON). An imported SBOM replaces the repository's component inventory, and licence policies apply immediately.
+
+## Custom rules
+
+**Configurations → Custom rules** holds your own Opengrep (Semgrep-syntax) rules: internal APIs, frameworks and coding standards.
+
+- **Validate** checks a file without running it.
+- Every save is a new version.
+- Enabled files run in every new scan, and each scan records which versions it used.

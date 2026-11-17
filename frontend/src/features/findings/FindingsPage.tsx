@@ -40,7 +40,7 @@ export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch
   return out;
 };
 
-const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", other: "Other" };
+const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", dast: "Web and API (DAST)", other: "Other" };
 
 function location(f: Finding) {
   if (f.category === "sca" && f.package_name) return `${f.package_name}@${f.package_version}`;
@@ -67,7 +67,7 @@ const columns: Column<Finding>[] = [
   },
   { id: "repository", header: "Repository", defaultHidden: true, exportAlways: true, className: "text-[12px]", cell: (f) => f.repository_name, csv: (f) => f.repository_name },
   { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "whitespace-nowrap font-mono text-[11.5px]", cell: (f) => f.repository_key || "—", csv: (f) => f.repository_key },
-  { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
+  { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : f.category === "dast" ? "DAST" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
   { id: "rule", header: "Rule / CVE", cell: (f) => <span className="whitespace-nowrap font-mono text-[11.5px]">{f.cve || f.rule_id}</span>, csv: (f) => f.cve || f.rule_id },
   { id: "scanners", header: "Detected by", defaultHidden: true, cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
   { id: "status", header: "Status", cell: (f) => f.lifecycle_status ? <LifecycleBadge value={f.lifecycle_status} /> : <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.lifecycle_status ?? f.status },

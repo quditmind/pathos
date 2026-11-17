@@ -30,18 +30,20 @@ const baseRoutes = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("navigation", () => {
-  it("Scanning has exactly the four entries and Configurations has the two moved pages", () => {
+  it("Scanning and Configurations have their entries", () => {
     const scanning = groups.find((g) => g.label === "Scanning")!;
     expect(scanning.items.map((i) => [i.label, i.to])).toEqual([
       ["Scan Overview", "/scans/overview"],
       ["Scans", "/scans"],
       ["Scan Schedules", "/scans/schedules"],
       ["Scan Comparison", "/scans/compare"],
+      ["Import Results", "/scans/imports"],
     ]);
     const conf = groups.find((g) => g.label === "Configurations")!;
     expect(conf.items.map((i) => [i.label, i.to])).toEqual([
       ["Scan profiles", "/configurations/scan-profiles"],
       ["Scanners & workers", "/configurations/scanners"],
+      ["Custom rules", "/configurations/custom-rules"],
     ]);
     expect(groups.flatMap((g) => g.items).filter((i) => i.label === "Scanners & workers")).toHaveLength(1);
   });

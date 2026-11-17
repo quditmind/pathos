@@ -5,6 +5,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ## [Unreleased]
 
 ### Added
+- **Result imports** (**Scanning → Import Results**): SARIF 2.1, Grype JSON and the PATHOS findings JSON format from any tool (other SAST and SCA products, DAST, IAST, fuzzers, CI pipelines). Each import is a scan execution whose findings keep the tool's name and go through de-duplication, risk scoring and review. Partial imports never resolve findings; complete imports can.
+- **SBOM import**: CycloneDX and SPDX 2.x JSON into the repository's component inventory.
+- **Custom rules** (**Configurations → Custom rules**): Opengrep rule files with validation, versions and enable/disable. Each scan pins the versions it used.
+- A **DAST** finding category.
 - **Contextual risk scoring** (`docs/user-guide/risk-intelligence.md`): every finding gets an explainable 0–100 risk score from CVSS or severity, EPSS, CISA KEV, business criticality, internet exposure, reachability, confidence, Human Eye outcomes, compensating controls and fix availability. The model is configurable and versioned (**Administration → Risk & intelligence**). Findings are re-scored in the background when any input changes. Severity is never altered.
 - **Vulnerability intelligence feeds**: FIRST EPSS and the CISA KEV catalog, downloaded daily by default (configurable URL and interval, can be turned off) or imported from files for air-gapped installations. CVE lookup API.
 - **Unified finding lifecycle**: New, Open, In progress, Under review, Confirmed, False positive, Accepted risk, Resolved and Reopened, derived from the stored statuses (no breaking change). Findings show CVSS version and vector, confidence, EPSS, KEV, risk and application, and can be filtered and ordered by risk.

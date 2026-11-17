@@ -274,6 +274,24 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		job.TimeoutSeconds, job.Exclusions, job.Scanners = v.TimeoutSeconds, v.Exclusions, v.Scanners
+		// Opengrep receives the custom rule files pinned in the snapshot.
+		for i, sc := range job.Scanners {
+			if sc.Key != scanners.Opengrep {
+				continue
+			}
+			rules, err := customRulesFor(ctx, tx, job.JobID.String())
+			if err != nil {
+				return err
+			}
+			if len(rules) == 0 {
+				break
+			}
+			cfg := map[string]any{}
+			_ = json.Unmarshal(sc.Config, &cfg)
+			cfg["custom_rules"] = rules
+			raw, _ := json.Marshal(cfg)
+			job.Scanners[i].Config = raw
+		}
 		return nil
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
