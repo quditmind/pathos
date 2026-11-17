@@ -5,8 +5,8 @@ package integration
 import (
 	"bytes"
 	"compress/gzip"
-	"encoding/base64"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"mime/multipart"
@@ -52,7 +52,7 @@ func TestScanTargets(t *testing.T) {
 	if code, _ := h.user(admin, "POST", "/api/v1/scan-targets", inj); code != 400 {
 		t.Errorf("header values with line breaks must be rejected: %d", code)
 	}
-		url["authorized"] = true
+	url["authorized"] = true
 	url["authorization_note"] = "Change CHG-1234, owner approved"
 	code, ut := h.user(admin, "POST", "/api/v1/scan-targets", url)
 	if code != 201 || ut["authorized_at"] == nil || ut["has_secret"] != true || ut["egress_host"] != "staging.example.test" {
