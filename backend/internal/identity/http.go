@@ -47,6 +47,9 @@ func (h *Handlers) Register(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/users/{id}/reactivate", h.reactivate)
 	mux.HandleFunc("GET /api/v1/users/{id}/mfa", h.mfaStatus)
 	mux.HandleFunc("POST /api/v1/users/{id}/require-mfa", h.requireMFA)
+	mux.HandleFunc("POST /api/v1/users/{id}/recovery-codes", h.requireRecoveryCodes)
+	mux.HandleFunc("GET /api/v1/me/mfa", h.myMFA)
+	mux.HandleFunc("POST /api/v1/me/recovery-codes", h.myRecoveryCodes)
 	mux.HandleFunc("GET /api/v1/users/{id}/role-assignments", h.listAssignments)
 	mux.HandleFunc("POST /api/v1/users/{id}/role-assignments", h.createAssignment)
 	mux.HandleFunc("DELETE /api/v1/role-assignments/{id}", h.deleteAssignment)
@@ -673,4 +676,82 @@ func (h *Handlers) requireMFA(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"changed": changed, "mfa": st})
+}
+
+// requireRecoveryCodes makes a user generate new recovery codes at the next
+// sign-in (an administrator helping someone who used or lost theirs).
+func (h *Handlers) requireRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	p, u, m, err := h.mfaUser(r, authz.PermUsersManage)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	h.recoveryCodes(w, r, p, u, m, "user.require_recovery_codes")
+}
+
+func (h *Handlers) recoveryCodes(w http.ResponseWriter, r *http.Request, p *authz.Principal, u User, m MFAManager, action string) {
+	rc, ok := m.(RecoveryCodeManager)
+	if !ok {
+		h.fail(w, r, httpx.E(http.StatusConflict, "mfa_unavailable", "the identity provider does not issue recovery codes"))
+		return
+	}
+	changed, err := rc.RequireRecoveryCodes(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.Log.Warn("require recovery codes failed", "user_id", u.ID, "err", err)
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not update the user in Keycloak"))
+		return
+	}
+	_ = audit.Write(r.Context(), h.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+		Action: action, TargetType: "user", TargetID: u.ID.String(), Metadata: map[string]any{"changed": changed}})
+	st, err := m.MFAStatus(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not read the MFA status from Keycloak"))
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"changed": changed, "mfa": st})
+}
+
+// myUser is the signed-in user's own MFA context (no permission needed).
+func (h *Handlers) myUser(r *http.Request) (*authz.Principal, User, MFAManager, error) {
+	p := h.Principal(r.Context())
+	if p == nil {
+		return nil, User{}, nil, authz.ErrForbidden
+	}
+	u, err := GetUser(r.Context(), h.DB, p.OrganizationID, p.UserID)
+	if err != nil {
+		return nil, User{}, nil, err
+	}
+	m, ok := h.Provisioner.(MFAManager)
+	if !ok || h.Provisioner == nil {
+		return nil, User{}, nil, httpx.E(http.StatusConflict, "mfa_unavailable", "MFA is managed in Keycloak; Keycloak provisioning is not configured")
+	}
+	if u.KeycloakSubject == nil {
+		return nil, User{}, nil, httpx.E(http.StatusConflict, "mfa_unavailable", "your account is not linked to Keycloak")
+	}
+	return p, u, m, nil
+}
+
+func (h *Handlers) myMFA(w http.ResponseWriter, r *http.Request) {
+	_, u, m, err := h.myUser(r)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	st, err := m.MFAStatus(r.Context(), *u.KeycloakSubject)
+	if err != nil {
+		h.fail(w, r, httpx.E(http.StatusBadGateway, "idp_error", "could not read the MFA status from Keycloak"))
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, st)
+}
+
+// myRecoveryCodes lets users generate their own recovery codes; Keycloak
+// shows them once, at the next sign-in.
+func (h *Handlers) myRecoveryCodes(w http.ResponseWriter, r *http.Request) {
+	p, u, m, err := h.myUser(r)
+	if err != nil {
+		h.fail(w, r, err)
+		return
+	}
+	h.recoveryCodes(w, r, p, u, m, "user.recovery_codes")
 }

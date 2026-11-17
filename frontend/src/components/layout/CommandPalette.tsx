@@ -96,6 +96,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
     { label: "AI settings", to: "/admin/ai", icon: <Radar />, show: canOrgWide("ai.configure") },
     { label: "MCP registry", to: "/admin/mcp", icon: <Radar />, show: can("ai.review") },
     { label: "API tokens", to: "/settings/tokens", icon: <Radar />, show: true },
+    { label: "Sign-in security (recovery codes)", to: "/settings/security", icon: <Radar />, show: true },
     { label: "Users", to: "/admin/users", icon: <Users />, show: canOrgWide("users.read") },
     { label: "SCM connections", to: "/admin/scm", icon: <Plug />, show: canOrgWide("scm.manage") },
     { label: "Tags", to: "/admin/tags", icon: <Tags />, show: can("repos.read") },

@@ -52,6 +52,7 @@ import {
   FilterX,
   FileCode2,
   GitPullRequest,
+  ShieldCheck,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -289,6 +290,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                 <DM.Separator className="my-1 h-px bg-border" />
                 <DM.Item asChild className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] outline-none data-highlighted:bg-surface-muted">
                   <Link to="/settings/tokens"><KeyRound className="size-4" /> API tokens (MCP)</Link>
+                </DM.Item>
+                <DM.Item asChild className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-[13px] outline-none data-highlighted:bg-surface-muted">
+                  <Link to="/settings/security"><ShieldCheck className="size-4" /> Sign-in security</Link>
                 </DM.Item>
                 <DM.Item
                   onSelect={() => void logout()}

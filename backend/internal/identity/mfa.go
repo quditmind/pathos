@@ -19,6 +19,19 @@ type MFAStatus struct {
 	Configured bool `json:"configured"`
 	// Pending: enrolment is required at the next sign-in.
 	Pending bool `json:"pending"`
+	// RecoveryCodes: the user has one-time recovery codes to sign in when
+	// the authenticator is lost. RecoveryPending: new codes are generated at
+	// the next sign-in.
+	RecoveryCodes   bool `json:"recovery_codes"`
+	RecoveryPending bool `json:"recovery_pending"`
+}
+
+// RecoveryCodeManager is implemented by providers that issue recovery codes.
+type RecoveryCodeManager interface {
+	// RequireRecoveryCodes makes the user generate a new set of recovery
+	// codes at the next sign-in (replacing any existing set). It reports
+	// whether anything changed (idempotent while pending).
+	RequireRecoveryCodes(ctx context.Context, subject string) (bool, error)
 }
 
 // MFAManager is implemented by providers that can report and require MFA.
@@ -30,7 +43,11 @@ type MFAManager interface {
 	RequireMFA(ctx context.Context, subject string) (bool, error)
 }
 
-const configureTOTP = "CONFIGURE_TOTP"
+const (
+	configureTOTP     = "CONFIGURE_TOTP"
+	configureRecovery = "CONFIGURE_RECOVERY_AUTHN_CODES"
+	recoveryCredType  = "recovery-authn-codes"
+)
 
 type kcUser struct {
 	RequiredActions []string `json:"requiredActions"`
@@ -52,6 +69,8 @@ func (k *KeycloakProvisioner) userState(ctx context.Context, subject string) (kc
 	}
 	st.Configured = slices.ContainsFunc(creds, func(c kcCredential) bool { return c.Type == "otp" })
 	st.Pending = slices.Contains(u.RequiredActions, configureTOTP)
+	st.RecoveryCodes = slices.ContainsFunc(creds, func(c kcCredential) bool { return c.Type == recoveryCredType })
+	st.RecoveryPending = slices.Contains(u.RequiredActions, configureRecovery)
 	return u, st, nil
 }
 
@@ -68,6 +87,18 @@ func (k *KeycloakProvisioner) RequireMFA(ctx context.Context, subject string) (b
 		return false, err
 	}
 	actions := append(slices.Clone(u.RequiredActions), configureTOTP)
+	_, err = k.do(ctx, http.MethodPut, k.admin("/users/"+url.PathEscape(subject)), map[string]any{"requiredActions": actions}, nil)
+	return err == nil, err
+}
+
+// RequireRecoveryCodes implements RecoveryCodeManager. Existing required
+// actions are kept.
+func (k *KeycloakProvisioner) RequireRecoveryCodes(ctx context.Context, subject string) (bool, error) {
+	u, st, err := k.userState(ctx, subject)
+	if err != nil || st.RecoveryPending {
+		return false, err
+	}
+	actions := append(slices.Clone(u.RequiredActions), configureRecovery)
 	_, err = k.do(ctx, http.MethodPut, k.admin("/users/"+url.PathEscape(subject)), map[string]any{"requiredActions": actions}, nil)
 	return err == nil, err
 }

@@ -238,6 +238,22 @@ services:
       timeout: 3s
       retries: 20
 
+  # One-shot realm configuration not covered by the realm import (which runs
+  # only for a new realm): MFA recovery codes. Idempotent; uses the bootstrap
+  # administrator so PATHOS's service account keeps user-management rights only.
+  keycloak-setup:
+    image: quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0
+    restart: "no"
+    entrypoint: ["/bin/bash", "/opt/pathos/keycloak-setup.sh"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-kcadmin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?run deploy/scripts/install.sh}
+    volumes:
+      - ./deploy/keycloak/setup.sh:/opt/pathos/keycloak-setup.sh:ro
+    networks: [app]
+    depends_on:
+      keycloak: { condition: service_healthy }
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.8.2@sha256:c68e286cacd87b942ac1939a0a1481461109d6acd3a57dc496969a319a76bbf0
     restart: unless-stopped
