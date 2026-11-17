@@ -124,7 +124,28 @@ Files are checked by extension and content; size limit per configuration (`413 t
 
 ## AI suggestions
 
-`POST /api/v1/human-reviews/{id}/ai` — `{ "kind": "explanation" | "code_summary" | "code_paths" | "investigation_questions" | "false_positive_indicators" | "evidence_suggestions" | "remediation" | "secure_code" | "references" | "assessment_summary" }` → `201` with `content { summary, points, references, code }`, model and the SHA-256 of what was transmitted. `GET` lists previous suggestions. Errors: `409 ai_disabled` / `ai_not_configured`, `429 rate_limited` (200 per user per day), `502 ai_failed`. Suggestions never change the review.
+`POST /api/v1/human-reviews/{id}/ai` — `{ "kind": "explanation" | "code_summary" | "code_paths" | "investigation_questions" | "false_positive_indicators" | "evidence_suggestions" | "remediation" | "secure_code" | "references" | "assessment_summary" | "patch" | "risk_explanation" | "duplicate_candidates" }` → `201` with `content { summary, points, references, code }`, model and the SHA-256 of what was transmitted. `GET` lists previous suggestions. Errors: `409 ai_disabled` / `ai_not_configured`, `429 rate_limited` (200 per user per day), `502 ai_failed`. Suggestions never change the review.
+
+The newer kinds:
+
+- **`patch`**
+  - `code` is a unified diff of the reviewed file. It is validated: one file only, the reviewed one, well-formed hunks, more than a whitespace change, at most 16 KB. Otherwise the request returns `502 invalid_patch`.
+  - It needs the source code (`409 source_required`).
+  - The suggestion has `patch_status: proposed`.
+  - `POST …/ai/{rid}/patch-decision` takes `{ "decision": "approved" | "rejected", "note" }` (`reviews.assess`; a note is required to reject) and returns `204`, or `409` once decided.
+  - `GET …/ai/{rid}/patch` downloads an approved patch as `text/x-diff`. PATHOS never applies patches.
+- **`risk_explanation`** needs a scored finding (`409 not_scored`).
+- **`duplicate_candidates`** compares the finding with up to 15 findings of the repository: same file within 10 lines, same rule, or same CVE (`409 no_candidates` when there are none).
+
+### Multi-level approval
+
+Settings `final_approval_severities` and `final_approval_dispositions` work as follows:
+
+- A decision that needs independent review and matches either list also needs a final approval.
+- Both levels use `POST /api/v1/human-reviews/{id}/independent-review`:
+  - level 1 is the independent reviewer, and the review stays `awaiting_independent_review`
+  - level 2 is a third person, who must not be the author or the level-1 reviewer
+- `approvals[].level` records the level, and the capability `can.final_approval` is set while the final approval is awaited.
 
 ## Reports and configuration
 

@@ -29,6 +29,9 @@ var AssistTasks = map[string]string{
 	"remediation":               "Recommend how to fix the root cause, with concrete developer action items and how to verify the fix.",
 	"secure_code":               "Show a secure version of the affected code (in the same language) that fixes the issue, with a short explanation. Put the code in the code field.",
 	"references":                "List the relevant CWE entries, OWASP Top 10 / ASVS categories and other authoritative references for this weakness, each with one line on why it applies.",
+	"patch":                     "Propose a minimal fix for this finding as a unified diff (git format) against the file shown in source_excerpt, in the code field: one '--- a/<path>' and '+++ b/<path>' header for the finding's file and @@ hunks whose context lines match the excerpt exactly (without the line numbers). Change only what the fix needs. Explain the change in summary and list what the developer must verify in points. If the excerpt is not enough to write a correct patch, leave code empty and say what is missing. The patch is reviewed by a person and never applied automatically.",
+	"risk_explanation":          "Explain the finding's contextual risk score (risk_score in the evidence: the score, its band and each factor with its value and weight) to a developer and a manager: which factors raise it, which lower it, and what concrete actions would lower it (fix, upgrade, compensating controls, reducing exposure). Use only the factors given.",
+	"duplicate_candidates":      "Compare this finding with each finding in candidates. In points, give one line per candidate that likely describes the same underlying issue, starting with its id, and say why; then mention candidates that are different. Do not decide: the analyst marks duplicates.",
 	"assessment_summary":        "Write a concise assessment summary from the analyst's recorded assessment (in the evidence) suitable for a report: decision rationale, exploitability, impact and recommended action. Do not add facts that are not in the evidence.",
 }
 
@@ -76,6 +79,10 @@ type AssistInput struct {
 	DataFlow string `json:"scanner_data_flow,omitempty"`
 	// Assessment is the analyst's recorded assessment (for summaries).
 	Assessment map[string]any `json:"analyst_assessment,omitempty"`
+	// RiskScore is the contextual risk and its factors (risk explanations).
+	RiskScore map[string]any `json:"risk_score,omitempty"`
+	// Candidates are possibly related findings (duplicate suggestions).
+	Candidates []map[string]any `json:"candidates,omitempty"`
 }
 
 // AssistResult is a suggestion with its provenance.
@@ -111,6 +118,22 @@ func AssistPrompt(kind string, in AssistInput, orgInstructions string, sendCode 
 		var clean map[string]any
 		_ = json.Unmarshal([]byte(clip(Redact(string(b), extra), 12000)), &clean)
 		in.Assessment = clean
+	}
+	if len(in.Candidates) > 0 {
+		// Titles and paths of other findings pass through the same redaction.
+		// The list is shortened until it fits; it is always redacted.
+		for len(in.Candidates) > 0 {
+			b, _ := json.Marshal(in.Candidates)
+			if len(b) <= 12000 {
+				var clean []map[string]any
+				if json.Unmarshal([]byte(Redact(string(b), extra)), &clean) != nil {
+					clean = nil
+				}
+				in.Candidates = clean
+				break
+			}
+			in.Candidates = in.Candidates[:len(in.Candidates)-1]
+		}
 	}
 	body, _ := json.MarshalIndent(in, "", "  ")
 	id := nonce()

@@ -111,6 +111,8 @@ export interface Approval {
   outcome: "approved" | "rejected" | "information_requested";
   comments: string;
   created_at: string;
+  /** 1: independent reviewer, 2: final approver. */
+  level?: number;
 }
 
 export interface Decision {
@@ -137,6 +139,8 @@ export interface Capabilities {
   start: boolean;
   assign: boolean;
   approve: boolean;
+  /** The independent reviewer approved; a final approval by a third person is awaited. */
+  final_approval?: boolean;
   comment: boolean;
   reopen: boolean;
   remediate: boolean;
@@ -345,6 +349,11 @@ export interface Recommendation {
   requested_by_name: string;
   created_at: string;
   label: string;
+  /** Patch proposals: a person approves or rejects them; never applied automatically. */
+  patch_status?: "proposed" | "approved" | "rejected";
+  patch_decided_by?: string;
+  patch_decided_at?: string;
+  patch_note?: string;
 }
 
 export interface Reviewer {
@@ -433,6 +442,8 @@ export interface Settings {
   allow_self_assign: boolean;
   independent_review_severities: Severity[];
   independent_review_dispositions: Disposition[];
+  final_approval_severities: Severity[];
+  final_approval_dispositions: Disposition[];
   evidence_required_dispositions: Disposition[];
   evidence_required_severities: Severity[];
   required_fields: string[];

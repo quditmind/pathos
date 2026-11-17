@@ -157,6 +157,8 @@ export const reviewApi = {
   remediation: (id: string, body: Record<string, unknown>) => put<ReviewItem>(`/api/v1/human-reviews/${id}/remediation`, body),
   comment: (id: string, body: string) => post(`/api/v1/human-reviews/${id}/comments`, { body }),
   ai: (id: string, kind: string) => post<Recommendation>(`/api/v1/human-reviews/${id}/ai`, { kind }),
+  patchDecision: (id: string, rid: string, decision: "approved" | "rejected", note: string) =>
+    post<unknown>(`/api/v1/human-reviews/${id}/ai/${rid}/patch-decision`, { decision, note }),
   deleteEvidence: (id: string, eid: string, reason: string) =>
     api(`/api/v1/human-reviews/${id}/evidence/${eid}?reason=${encodeURIComponent(reason)}`, { method: "DELETE" }),
   saveSettings: (s: Settings) => put<Settings>("/api/v1/human-review/settings", s),

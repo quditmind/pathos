@@ -32,24 +32,28 @@ type Settings struct {
 	AllowSelfAssign               bool              `json:"allow_self_assign"`
 	IndependentReviewSeverities   []string          `json:"independent_review_severities"`
 	IndependentReviewDispositions []string          `json:"independent_review_dispositions"`
-	EvidenceRequiredDispositions  []string          `json:"evidence_required_dispositions"`
-	EvidenceRequiredSeverities    []string          `json:"evidence_required_severities"`
-	RequiredFields                []string          `json:"required_fields"`
-	NotifyAssignment              bool              `json:"notify_assignment"`
-	NotifyIndependentReview       bool              `json:"notify_independent_review"`
-	NotifyOverdue                 bool              `json:"notify_overdue"`
-	AIAssist                      bool              `json:"ai_assist"`
-	AISendCode                    bool              `json:"ai_send_code"`
-	EvidenceMaxMB                 int               `json:"evidence_max_mb"`
-	UnassignedCanAssess           bool              `json:"unassigned_can_assess"`
-	UpdatedAt                     *time.Time        `json:"updated_at,omitempty"`
-	UpdatedBy                     *string           `json:"updated_by,omitempty"`
+	// Decisions needing independent review whose severity or disposition
+	// is listed here also need a final approval by a third person.
+	FinalApprovalSeverities      []string   `json:"final_approval_severities"`
+	FinalApprovalDispositions    []string   `json:"final_approval_dispositions"`
+	EvidenceRequiredDispositions []string   `json:"evidence_required_dispositions"`
+	EvidenceRequiredSeverities   []string   `json:"evidence_required_severities"`
+	RequiredFields               []string   `json:"required_fields"`
+	NotifyAssignment             bool       `json:"notify_assignment"`
+	NotifyIndependentReview      bool       `json:"notify_independent_review"`
+	NotifyOverdue                bool       `json:"notify_overdue"`
+	AIAssist                     bool       `json:"ai_assist"`
+	AISendCode                   bool       `json:"ai_send_code"`
+	EvidenceMaxMB                int        `json:"evidence_max_mb"`
+	UnassignedCanAssess          bool       `json:"unassigned_can_assess"`
+	UpdatedAt                    *time.Time `json:"updated_at,omitempty"`
+	UpdatedBy                    *string    `json:"updated_by,omitempty"`
 }
 
 const settingsCols = `auto_queue, auto_triggers, auto_scanners, auto_categories, auto_min_severity, priority_by_severity, sla_days,
 	assignment_strategy, assignment_pool, allow_self_assign, independent_review_severities, independent_review_dispositions,
 	evidence_required_dispositions, evidence_required_severities, required_fields, notify_assignment, notify_independent_review,
-	notify_overdue, ai_assist, ai_send_code, evidence_max_mb, unassigned_can_assess`
+	notify_overdue, ai_assist, ai_send_code, evidence_max_mb, unassigned_can_assess, final_approval_severities, final_approval_dispositions`
 
 // loadSettings returns the configuration, creating the defaults on first use.
 func loadSettings(ctx context.Context, q db.Querier, orgID uuid.UUID) (Settings, error) {
@@ -65,7 +69,8 @@ func loadSettings(ctx context.Context, q db.Querier, orgID uuid.UUID) (Settings,
 		Scan(&st.AutoQueue, &st.AutoTriggers, &st.AutoScanners, &st.AutoCategories, &st.AutoMinSeverity, &prio, &sla, &st.AssignmentStrategy,
 			&st.AssignmentPool, &st.AllowSelfAssign, &st.IndependentReviewSeverities, &st.IndependentReviewDispositions,
 			&st.EvidenceRequiredDispositions, &st.EvidenceRequiredSeverities, &st.RequiredFields, &st.NotifyAssignment,
-			&st.NotifyIndependentReview, &st.NotifyOverdue, &st.AIAssist, &st.AISendCode, &st.EvidenceMaxMB, &st.UnassignedCanAssess, &at, &by)
+			&st.NotifyIndependentReview, &st.NotifyOverdue, &st.AIAssist, &st.AISendCode, &st.EvidenceMaxMB, &st.UnassignedCanAssess,
+			&st.FinalApprovalSeverities, &st.FinalApprovalDispositions, &at, &by)
 	if err != nil {
 		return st, err
 	}
@@ -109,6 +114,7 @@ func (st *Settings) validate() error {
 	}
 	st.AutoTriggers, st.AutoScanners, st.AutoCategories = nonNil(st.AutoTriggers), nonNil(st.AutoScanners), nonNil(st.AutoCategories)
 	st.IndependentReviewSeverities, st.IndependentReviewDispositions = nonNil(st.IndependentReviewSeverities), nonNil(st.IndependentReviewDispositions)
+	st.FinalApprovalSeverities, st.FinalApprovalDispositions = nonNil(st.FinalApprovalSeverities), nonNil(st.FinalApprovalDispositions)
 	st.EvidenceRequiredDispositions, st.EvidenceRequiredSeverities = nonNil(st.EvidenceRequiredDispositions), nonNil(st.EvidenceRequiredSeverities)
 	st.RequiredFields = nonNil(st.RequiredFields)
 	if st.AssignmentPool == nil {
@@ -127,6 +133,8 @@ func (st *Settings) validate() error {
 		sub("assignment_strategy", []string{st.AssignmentStrategy}, []string{"manual", "round_robin", "least_loaded"}),
 		sub("independent_review_severities", st.IndependentReviewSeverities, Severities),
 		sub("independent_review_dispositions", st.IndependentReviewDispositions, finalDisp),
+		sub("final_approval_severities", st.FinalApprovalSeverities, Severities),
+		sub("final_approval_dispositions", st.FinalApprovalDispositions, finalDisp),
 		sub("evidence_required_dispositions", st.EvidenceRequiredDispositions, finalDisp),
 		sub("evidence_required_severities", st.EvidenceRequiredSeverities, Severities),
 		sub("required_fields", st.RequiredFields, RequiredFieldKeys()),
@@ -211,11 +219,12 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 			independent_review_severities = $12, independent_review_dispositions = $13, evidence_required_dispositions = $14,
 			evidence_required_severities = $15, required_fields = $16, notify_assignment = $17, notify_independent_review = $18,
 			notify_overdue = $19, ai_assist = $20, ai_send_code = $21, evidence_max_mb = $22, unassigned_can_assess = $23,
-			updated_by = $24, updated_at = now() WHERE organization_id = $1`,
+			updated_by = $24, final_approval_severities = $25, final_approval_dispositions = $26, updated_at = now() WHERE organization_id = $1`,
 			p.OrganizationID, st.AutoQueue, st.AutoTriggers, st.AutoScanners, st.AutoCategories, st.AutoMinSeverity, prio, sla,
 			st.AssignmentStrategy, st.AssignmentPool, st.AllowSelfAssign, st.IndependentReviewSeverities, st.IndependentReviewDispositions,
 			st.EvidenceRequiredDispositions, st.EvidenceRequiredSeverities, st.RequiredFields, st.NotifyAssignment, st.NotifyIndependentReview,
-			st.NotifyOverdue, st.AIAssist, st.AISendCode, st.EvidenceMaxMB, st.UnassignedCanAssess, p.UserID); err != nil {
+			st.NotifyOverdue, st.AIAssist, st.AISendCode, st.EvidenceMaxMB, st.UnassignedCanAssess, p.UserID,
+			st.FinalApprovalSeverities, st.FinalApprovalDispositions); err != nil {
 			return err
 		}
 		before.UpdatedAt, before.UpdatedBy = nil, nil

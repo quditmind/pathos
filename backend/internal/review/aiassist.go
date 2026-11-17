@@ -30,6 +30,11 @@ type Recommendation struct {
 	RequestedByName string          `json:"requested_by_name"`
 	CreatedAt       time.Time       `json:"created_at"`
 	Label           string          `json:"label"`
+	// Patch proposals carry a human decision; they are never applied.
+	PatchStatus    *string    `json:"patch_status,omitempty"`
+	PatchDecidedBy *string    `json:"patch_decided_by,omitempty"`
+	PatchDecidedAt *time.Time `json:"patch_decided_at,omitempty"`
+	PatchNote      string     `json:"patch_note,omitempty"`
 }
 
 // aiDailyLimitPerUser bounds interactive suggestions.
@@ -49,8 +54,10 @@ func (s *Service) listRecommendations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	rows, err := s.DB.Query(ctx, `SELECT x.id, x.kind, x.provider, x.model, x.content, x.transmitted_sha256, x.requested_by,
-		COALESCE(NULLIF(u.display_name, ''), u.email), x.created_at, 'AI suggestion'
-		FROM human_review_recommendations x JOIN users u ON u.id = x.requested_by WHERE x.review_id = $1 ORDER BY x.created_at DESC LIMIT 200`, v.ID)
+		COALESCE(NULLIF(u.display_name, ''), u.email), x.created_at, 'AI suggestion', x.patch_status,
+		COALESCE(NULLIF(du.display_name, ''), du.email), x.patch_decided_at, x.patch_note
+		FROM human_review_recommendations x JOIN users u ON u.id = x.requested_by LEFT JOIN users du ON du.id = x.patch_decided_by
+		WHERE x.review_id = $1 ORDER BY x.created_at DESC LIMIT 200`, v.ID)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -58,7 +65,8 @@ func (s *Service) listRecommendations(w http.ResponseWriter, r *http.Request) {
 	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (Recommendation, error) {
 		var x Recommendation
 		var content []byte
-		err := row.Scan(&x.ID, &x.Kind, &x.Provider, &x.Model, &content, &x.TransmittedSHA, &x.RequestedBy, &x.RequestedByName, &x.CreatedAt, &x.Label)
+		err := row.Scan(&x.ID, &x.Kind, &x.Provider, &x.Model, &content, &x.TransmittedSHA, &x.RequestedBy, &x.RequestedByName, &x.CreatedAt, &x.Label,
+			&x.PatchStatus, &x.PatchDecidedBy, &x.PatchDecidedAt, &x.PatchNote)
 		x.Content = content
 		return x, err
 	})
@@ -147,6 +155,40 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 		}
 		in.DataFlow = b.String()
 	}
+	switch req.Kind {
+	case "patch":
+		if in.SourceExcerpt == "" {
+			s.fail(w, r, httpx.E(http.StatusConflict, "source_required",
+				"patch proposals need the source code: allow sending code to AI in Review Configurations (and in the AI configuration)"))
+			return
+		}
+	case "risk_explanation":
+		var score *float64
+		var factors []byte
+		if err := s.DB.QueryRow(ctx, `SELECT risk_score::float8, COALESCE(risk_factors, '{}'::jsonb) FROM findings WHERE id = $1`, v.FindingID).
+			Scan(&score, &factors); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if score == nil {
+			s.fail(w, r, httpx.E(http.StatusConflict, "not_scored", "the finding has no contextual risk score yet"))
+			return
+		}
+		var f map[string]any
+		_ = json.Unmarshal(factors, &f)
+		in.RiskScore = map[string]any{"score": *score, "details": f}
+	case "duplicate_candidates":
+		cands, err := duplicateCandidates(ctx, s.DB, v.FindingID)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if len(cands) == 0 {
+			s.fail(w, r, httpx.E(http.StatusConflict, "no_candidates", "no other finding in the repository is close enough to compare"))
+			return
+		}
+		in.Candidates = cands
+	}
 	if req.Kind == "assessment_summary" || req.Kind == "false_positive_indicators" {
 		a, err := loadAssessment(ctx, s.DB, v.ID, v.Round)
 		if err != nil {
@@ -171,11 +213,23 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 		}
 		return
 	}
+	var patchStatus *string
+	if req.Kind == "patch" && res.Output.Code != "" {
+		if err := ValidatePatch(res.Output.Code, v.FilePath); err != nil {
+			s.Log.Warn("ai patch rejected", "review", v.Key, "err", err)
+			s.fail(w, r, httpx.E(http.StatusBadGateway, "invalid_patch", "the AI did not return a usable patch: "+err.Error()))
+			return
+		}
+		st := "proposed"
+		patchStatus = &st
+	}
 	content, _ := json.Marshal(res.Output)
 	rid := uuid.Must(uuid.NewV7())
 	if _, err := s.DB.Exec(ctx, `INSERT INTO human_review_recommendations (id, organization_id, review_id, kind, provider, model, config_version_id,
-		content, transmitted_sha256, input_tokens, output_tokens, requested_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-		rid, v.OrgID, v.ID, req.Kind, res.Provider, res.Model, res.ConfigVersionID, content, res.SHA256, res.InputTokens, res.OutputTokens, p.UserID); err != nil {
+		content, transmitted_sha256, input_tokens, output_tokens, requested_by, patch_status)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		rid, v.OrgID, v.ID, req.Kind, res.Provider, res.Model, res.ConfigVersionID, content, res.SHA256, res.InputTokens, res.OutputTokens, p.UserID,
+		patchStatus); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -183,7 +237,8 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 	_ = s.audit(ctx, s.DB, p, "ai_suggestion", v, map[string]any{"kind": req.Kind, "recommendation_id": rid, "model": res.Model,
 		"transmitted_sha256": res.SHA256})
 	httpx.WriteJSON(w, http.StatusCreated, Recommendation{ID: rid, Kind: req.Kind, Provider: res.Provider, Model: res.Model, Content: content,
-		TransmittedSHA: res.SHA256, RequestedBy: p.UserID, RequestedByName: p.DisplayName, CreatedAt: time.Now(), Label: "AI suggestion"})
+		TransmittedSHA: res.SHA256, RequestedBy: p.UserID, RequestedByName: p.DisplayName, CreatedAt: time.Now(), Label: "AI suggestion",
+		PatchStatus: patchStatus})
 }
 
 // excerpt returns up to ±radius numbered lines around line.

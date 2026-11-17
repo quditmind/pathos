@@ -77,7 +77,8 @@ export function Workspace({ id }: { id: string }) {
     );
   }
   const can = d.can;
-  const pendingDecision = d.decisions.findLast((x) => x.outcome === "pending_approval" && x.approvals.length === 0);
+  const pendingDecision = d.decisions.findLast((x) => x.outcome === "pending_approval" && x.approvals.every((a) => a.outcome === "approved"));
+  const firstApproval = pendingDecision?.approvals.find((a) => (a.level ?? 1) === 1 && a.outcome === "approved");
 
   return (
     <>
@@ -102,7 +103,7 @@ export function Workspace({ id }: { id: string }) {
             )}
             {can.approve && (
               <Button onClick={() => setDialog("independent")}>
-                <ShieldCheck /> Independent review
+                <ShieldCheck /> {can.final_approval ? "Final approval" : "Independent review"}
               </Button>
             )}
             {can.assign && (
@@ -138,8 +139,12 @@ export function Workspace({ id }: { id: string }) {
       {d.status === "awaiting_independent_review" && pendingDecision && (
         <div className="mb-3">
           <Alert tone="warning">
-            {pendingDecision.decided_by_name} proposed <strong>{pendingDecision.disposition.replace(/_/g, " ")}</strong>. The assessment is locked until an independent reviewer
-            {d.independent_reviewer_name ? ` (${d.independent_reviewer_name})` : ""} approves, rejects or asks for more information.
+            {pendingDecision.decided_by_name} proposed <strong>{pendingDecision.disposition.replace(/_/g, " ")}</strong>.{" "}
+            {firstApproval ? (
+              <>{firstApproval.reviewer_name} approved it as independent reviewer; a <strong>final approval</strong> by a third person is now required.</>
+            ) : (
+              <>The assessment is locked until an independent reviewer{d.independent_reviewer_name ? ` (${d.independent_reviewer_name})` : ""} approves, rejects or asks for more information.</>
+            )}
           </Alert>
         </div>
       )}

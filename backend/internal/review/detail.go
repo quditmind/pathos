@@ -100,6 +100,8 @@ type Approval struct {
 	Outcome      string    `json:"outcome"`
 	Comments     string    `json:"comments"`
 	CreatedAt    time.Time `json:"created_at"`
+	// Level 1: independent reviewer; level 2: final approver.
+	Level int `json:"level"`
 }
 
 // Decision is one submitted disposition with its independent review.
@@ -124,18 +126,21 @@ type Decision struct {
 
 // Capabilities tell the UI what the caller may do (the API enforces them).
 type Capabilities struct {
-	Assess       bool   `json:"assess"`
-	Start        bool   `json:"start"`
-	Assign       bool   `json:"assign"`
-	Approve      bool   `json:"approve"`
-	Comment      bool   `json:"comment"`
-	Reopen       bool   `json:"reopen"`
-	Remediate    bool   `json:"remediate"`
-	UploadFiles  bool   `json:"upload_files"`
-	AI           bool   `json:"ai"`
-	AIReason     string `json:"ai_unavailable_reason,omitempty"`
-	AcceptRisk   bool   `json:"accept_risk"`
-	SourceViewer bool   `json:"source_viewer"`
+	Assess  bool `json:"assess"`
+	Start   bool `json:"start"`
+	Assign  bool `json:"assign"`
+	Approve bool `json:"approve"`
+	// FinalApproval: the independent reviewer approved and a final
+	// approval by a third person is awaited.
+	FinalApproval bool   `json:"final_approval"`
+	Comment       bool   `json:"comment"`
+	Reopen        bool   `json:"reopen"`
+	Remediate     bool   `json:"remediate"`
+	UploadFiles   bool   `json:"upload_files"`
+	AI            bool   `json:"ai"`
+	AIReason      string `json:"ai_unavailable_reason,omitempty"`
+	AcceptRisk    bool   `json:"accept_risk"`
+	SourceViewer  bool   `json:"source_viewer"`
 }
 
 // Detail is the assessment workspace payload.
@@ -283,8 +288,18 @@ func (s *Service) capabilities(ctx context.Context, p *authz.Principal, v rec, s
 	c.AcceptRisk = s.can(ctx, p, authz.PermFindingsAcceptRisk, v.RepoID)
 	if v.Status == StatusAwaitingIndependent && approve {
 		var author uuid.UUID
-		if err := s.DB.QueryRow(ctx, `SELECT decided_by FROM human_review_decisions WHERE review_id = $1 ORDER BY created_at DESC LIMIT 1`, v.ID).Scan(&author); err == nil {
-			c.Approve = author != p.UserID && (v.IndependentID == nil || *v.IndependentID == p.UserID)
+		var first *uuid.UUID
+		if err := s.DB.QueryRow(ctx, `SELECT d.decided_by, (SELECT a.reviewer_id FROM human_review_approvals a WHERE a.decision_id = d.id
+			AND a.level = 1 AND a.outcome = 'approved') FROM human_review_decisions d WHERE d.review_id = $1 ORDER BY d.created_at DESC LIMIT 1`, v.ID).
+			Scan(&author, &first); err == nil {
+			if first != nil {
+				// Approved by the independent reviewer: a third person gives
+				// the final approval.
+				c.FinalApproval = true
+				c.Approve = author != p.UserID && *first != p.UserID
+			} else {
+				c.Approve = author != p.UserID && (v.IndependentID == nil || *v.IndependentID == p.UserID)
+			}
 		}
 	}
 	c.Comment = assess || assign || approve
@@ -353,7 +368,7 @@ func loadDecisions(ctx context.Context, q db.Querier, reviewID uuid.UUID) ([]Dec
 	if err != nil {
 		return nil, err
 	}
-	rows, err = q.Query(ctx, `SELECT a.decision_id, a.id, a.reviewer_id, COALESCE(NULLIF(u.display_name, ''), u.email), a.outcome, a.comments, a.created_at
+	rows, err = q.Query(ctx, `SELECT a.decision_id, a.id, a.reviewer_id, COALESCE(NULLIF(u.display_name, ''), u.email), a.outcome, a.comments, a.created_at, a.level
 		FROM human_review_approvals a JOIN users u ON u.id = a.reviewer_id WHERE a.review_id = $1 ORDER BY a.created_at, a.id`, reviewID)
 	if err != nil {
 		return nil, err
@@ -362,7 +377,7 @@ func loadDecisions(ctx context.Context, q db.Querier, reviewID uuid.UUID) ([]Dec
 	for rows.Next() {
 		var did uuid.UUID
 		var a Approval
-		if err := rows.Scan(&did, &a.ID, &a.ReviewerID, &a.ReviewerName, &a.Outcome, &a.Comments, &a.CreatedAt); err != nil {
+		if err := rows.Scan(&did, &a.ID, &a.ReviewerID, &a.ReviewerName, &a.Outcome, &a.Comments, &a.CreatedAt, &a.Level); err != nil {
 			return nil, err
 		}
 		for i := range out {

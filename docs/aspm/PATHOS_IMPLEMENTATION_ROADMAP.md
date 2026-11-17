@@ -240,3 +240,27 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 72 completed, 20 in progress, 8 not started. Module C (vulnerability intelligence) is complete.
 
 **Next:** phase 5, Human Eye extras: multi-level approval, AI patch proposals with human approval, AI risk explanation and correlation suggestions.
+
+## 11. Phase 5 completion report (2026-11-18)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00018 | Final-approval settings, approval levels (unique per decision and level, and per person), three new AI kinds, patch decision columns; the app role may update only those columns of AI suggestions; full Down migration |
+| Multi-level approval | Optional third level: decisions needing independent review that match the configured severities or dispositions also need a final approval by a third person; capabilities, banner and history |
+| AI patch proposals | Unified diffs of the reviewed file, validated (one file, well-formed hunks, not whitespace-only, ≤ 16 KB); approved or rejected by a person with history and audit; approved patches downloadable; never applied |
+| AI risk explanation | The contextual risk score and its factors explained, with what would lower it |
+| AI duplicate suggestions | Comparison with nearby, same-rule and same-CVE findings of the repository; the analyst decides |
+| Fix | AI requests wait for model responses as long as the request timeout (the 30-second header timeout cut off local CPU inference) |
+
+**Verified on the local stack (Ollama, qwen2.5-coder:3b):**
+
+- a risk explanation built from the finding's real factors (CVSS 9.2, EPSS percentile, criticality)
+- duplicate candidates and a patch proposal returned and stored; the small model's whitespace-only "patch" led to the no-op check
+
+**Tests:** unit (patch validation); integration (three levels with capabilities, patch decision, history and download, settings validation, migration rollback); Vitest 150; Playwright 65; smoke 92/92; gosec 0 issues.
+
+**Register:** 76 completed, 17 in progress, 7 not started. Module D is complete.
+
+**Next:** phase 6, AI Security Analyst workspace (conversation over the security data), AI usage and AI-written technical and executive reports.

@@ -5,6 +5,8 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ## [Unreleased]
 
 ### Added
+- **Human Eye**: optional third approval level (final approval by a third person for chosen severities or dispositions); AI patch proposals (validated unified diffs, approved or rejected by a person, downloadable, never applied); AI explanations of the contextual risk score; AI suggestions of possible duplicates.
+- AI requests to model servers wait for the response as long as the request timeout allows (slow local CPU inference no longer times out after 30 seconds).
 - **Vulnerability intelligence**: OSV records for the CVEs and advisories of findings (online lookups, offline JSON/zip import) with a vulnerability page (description, references, exploit evidence, affected and fixed versions, EPSS, KEV); exploit references raise the risk score; vendor CVSS vectors fill findings without one.
 - **Dependency reachability**: workers inventory the packages the code imports or names (JavaScript/TypeScript, Python, Go, templates); dependency findings are reachable, not reachable (npm and Go, with complete evidence) or unknown, with an explanation. It only weights the risk score.
 - **Attack paths** (Posture): from the internet through tested applications or exposed assets to weaknesses, their images and the vulnerable packages their code uses.

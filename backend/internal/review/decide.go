@@ -166,7 +166,7 @@ func (s *Service) validateDecision(ctx context.Context, tx pgx.Tx, p *authz.Prin
 	if !final {
 		return false, nil
 	}
-	independent := req.Disposition == DispAcceptedRisk ||
+	independent := req.Disposition == DispAcceptedRisk || st.needsFinalApproval(v, req.Disposition) ||
 		slices.Contains(st.IndependentReviewDispositions, req.Disposition) ||
 		slices.Contains(st.IndependentReviewSeverities, v.EffectiveSeverity()) ||
 		slices.Contains(st.IndependentReviewSeverities, v.OriginalSeverity)
@@ -438,8 +438,11 @@ func (s *Service) independentReview(w http.ResponseWriter, r *http.Request) {
 		if err := s.require(ctx, p, authz.PermReviewsApprove, v.RepoID); err != nil {
 			return err
 		}
-		if v.IndependentID != nil && *v.IndependentID != p.UserID {
-			return httpx.E(http.StatusForbidden, "forbidden", "another independent reviewer is assigned to this review")
+		// Approvals so far on the pending decision (level 1: the
+		// independent reviewer; level 2: the final approver).
+		var prior []struct {
+			reviewer uuid.UUID
+			outcome  string
 		}
 		var d decisionRequest
 		var did, author uuid.UUID
@@ -459,21 +462,66 @@ func (s *Service) independentReview(w http.ResponseWriter, r *http.Request) {
 		if d.Disposition == DispAcceptedRisk && req.Outcome == "approved" && !s.can(ctx, p, authz.PermFindingsAcceptRisk, v.RepoID) {
 			return httpx.E(http.StatusForbidden, "forbidden", "approving accepted risk requires findings.accept_risk")
 		}
-		var done bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM human_review_approvals WHERE decision_id = $1)`, did).Scan(&done); err != nil {
+		prows, err := tx.Query(ctx, `SELECT reviewer_id, outcome FROM human_review_approvals WHERE decision_id = $1 ORDER BY level`, did)
+		if err != nil {
 			return err
 		}
-		if done {
+		for prows.Next() {
+			var a struct {
+				reviewer uuid.UUID
+				outcome  string
+			}
+			if err := prows.Scan(&a.reviewer, &a.outcome); err != nil {
+				prows.Close()
+				return err
+			}
+			prior = append(prior, a)
+		}
+		prows.Close()
+		for _, a := range prior {
+			if a.outcome != "approved" {
+				return httpx.Conflict("this decision has already been reviewed")
+			}
+		}
+		st, err := loadSettings(ctx, tx, v.OrgID)
+		if err != nil {
+			return err
+		}
+		levels := 1
+		if st.needsFinalApproval(v, d.Disposition) {
+			levels = 2
+		}
+		level := len(prior) + 1
+		if level > levels {
 			return httpx.Conflict("this decision has already been reviewed")
 		}
+		if level == 1 && v.IndependentID != nil && *v.IndependentID != p.UserID {
+			return httpx.E(http.StatusForbidden, "forbidden", "another independent reviewer is assigned to this review")
+		}
+		if level == 2 && prior[0].reviewer == p.UserID {
+			return httpx.E(http.StatusForbidden, "forbidden", "the final approval must come from a third person, not the independent reviewer")
+		}
 		aid := uuid.Must(uuid.NewV7())
-		if _, err := tx.Exec(ctx, `INSERT INTO human_review_approvals (id, organization_id, review_id, decision_id, reviewer_id, outcome, comments)
-			VALUES ($1, $2, $3, $4, $5, $6, $7)`, aid, v.OrgID, v.ID, did, p.UserID, req.Outcome, comments); err != nil {
+		if _, err := tx.Exec(ctx, `INSERT INTO human_review_approvals (id, organization_id, review_id, decision_id, reviewer_id, outcome, comments, level)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, aid, v.OrgID, v.ID, did, p.UserID, req.Outcome, comments, level); err != nil {
 			return err
 		}
-		if err := hist(ctx, tx, v, &p.UserID, "independent_review."+req.Outcome, "independent_review", nil,
-			map[string]any{"outcome": req.Outcome, "decision_id": did, "approval_id": aid}, comments); err != nil {
+		event := "independent_review." + req.Outcome
+		if level == 2 {
+			event = "final_approval." + req.Outcome
+		}
+		if err := hist(ctx, tx, v, &p.UserID, event, "independent_review", nil,
+			map[string]any{"outcome": req.Outcome, "decision_id": did, "approval_id": aid, "level": level, "levels": levels}, comments); err != nil {
 			return err
+		}
+		if req.Outcome == "approved" && level < levels {
+			// Approved by the independent reviewer; a final approver decides.
+			if err := s.audit(ctx, tx, p, "independent_review", v, map[string]any{"outcome": req.Outcome, "decision_id": did,
+				"disposition": d.Disposition, "level": level, "awaiting": "final_approval"}); err != nil {
+				return err
+			}
+			return emit(ctx, tx, v, "review.independent_requested", map[string]any{"decided_by": author, "disposition": d.Disposition,
+				"stage": "final_approval", "approved_by": p.UserID})
 		}
 		if err := s.audit(ctx, tx, p, "independent_review", v, map[string]any{"outcome": req.Outcome, "decision_id": did, "disposition": d.Disposition}); err != nil {
 			return err
@@ -713,4 +761,12 @@ func (s *Service) setRemediation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.writeItem(w, r, id)
+}
+
+// needsFinalApproval reports whether a decision needs a third person's
+// final approval after the independent reviewer (multi-level approval).
+func (st Settings) needsFinalApproval(v rec, disposition string) bool {
+	return slices.Contains(st.FinalApprovalDispositions, disposition) ||
+		slices.Contains(st.FinalApprovalSeverities, v.EffectiveSeverity()) ||
+		slices.Contains(st.FinalApprovalSeverities, v.OriginalSeverity)
 }

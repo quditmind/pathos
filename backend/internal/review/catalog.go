@@ -183,7 +183,7 @@ type Catalog struct {
 
 // AIKinds lists assistance kinds in display order.
 var AIKinds = []string{"explanation", "code_summary", "code_paths", "investigation_questions", "false_positive_indicators",
-	"evidence_suggestions", "remediation", "secure_code", "references", "assessment_summary"}
+	"evidence_suggestions", "remediation", "secure_code", "references", "assessment_summary", "patch", "risk_explanation", "duplicate_candidates"}
 
 // TheCatalog returns the catalog.
 func TheCatalog() Catalog {
