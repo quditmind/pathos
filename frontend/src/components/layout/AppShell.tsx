@@ -111,6 +111,7 @@ export const groups: NavGroup[] = [
       { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
       { label: "Asset settings", to: "/admin/assets", icon: <Settings2 />, perm: "assets.configure" },
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
+      { label: "Risk & intelligence", to: "/admin/risk-intelligence", icon: <Gauge />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],

@@ -423,11 +423,16 @@ export interface UserRef {
 
 export interface Application {
   id: string;
+  /** Permanent application ID, e.g. QD-APP-000042. */
+  application_key: string;
   name: string;
   description: string;
   business_unit: Ref | null;
   owner: UserRef | null;
   security_owner: UserRef | null;
+  technical_owner: UserRef | null;
+  lifecycle: "planned" | "development" | "active" | "maintenance" | "deprecated" | "retired";
+  environment: "production" | "staging" | "development" | "test" | "other";
   criticality: Criticality;
   /** Organization's application identifier (e.g. CMDB ID); "" when not set. */
   external_ref: string;
@@ -1020,9 +1025,100 @@ export interface Finding {
   human_review_status?: string | null;
   human_disposition?: string | null;
   human_severity?: Severity | null;
+  /** Unified lifecycle status, derived from the stored status. */
+  lifecycle_status?: LifecycleStatus;
+  cvss_version?: string;
+  cvss_vector?: string;
+  confidence?: "high" | "medium" | "low" | "unknown";
+  epss?: number | null;
+  epss_percentile?: number | null;
+  kev?: boolean;
+  kev_due_date?: string | null;
+  exploit_available?: boolean;
+  reachability?: "reachable" | "not_reachable" | "unknown";
+  /** Contextual risk score 0-100 (null until scored). */
+  risk_score?: number | null;
+  application_id?: string | null;
+  application_name?: string | null;
   snippet?: string;
   snippet_start_line?: number | null;
   occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];
+}
+
+export type LifecycleStatus = "new" | "open" | "in_progress" | "under_review" | "confirmed" | "false_positive" | "accepted_risk" | "resolved" | "reopened";
+
+export interface RiskFactor {
+  key: string;
+  label: string;
+  value: string;
+  weight: number;
+}
+
+export interface FindingRisk {
+  risk_score: number | null;
+  band: "critical" | "high" | "medium" | "low" | "none" | "";
+  explanation: { score: number; base: number; factors: RiskFactor[]; reason?: string; model_version: number } | null;
+  scored_at: string | null;
+  pending: boolean;
+  cve: string;
+  epss: number | null;
+  epss_percentile: number | null;
+  kev: boolean;
+  kev_due_date: string | null;
+  confidence: string;
+  reachability: string;
+  cvss_version: string;
+  cvss_vector: string;
+}
+
+export interface RiskWeights {
+  severity: Record<string, number>;
+  use_cvss: boolean;
+  kev: number;
+  exploit_available: number;
+  epss_weight: number;
+  likelihood_unknown: number;
+  criticality: Record<string, number>;
+  exposure: Record<string, number>;
+  reachability: Record<string, number>;
+  confidence: Record<string, number>;
+  human_confirmed: number;
+  compensating_controls: number;
+  fix_available: number;
+}
+
+export interface RiskModel {
+  version: number;
+  weights: RiskWeights;
+  change_note: string;
+  created_by: string | null;
+  created_at: string;
+  is_default: boolean;
+}
+
+export interface FeedRun {
+  id: string;
+  feed: string;
+  mode: "online" | "file";
+  status: "running" | "succeeded" | "failed";
+  records: number;
+  as_of: string;
+  error: string;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface IntelFeed {
+  feed: "epss" | "kev";
+  label: string;
+  enabled: boolean;
+  url: string;
+  interval_hours: number;
+  records: number;
+  last_run: FeedRun | null;
+  last_success: FeedRun | null;
+  next_due: string | null;
+  updated_at: string;
 }
 
 export interface CatalogScanner {

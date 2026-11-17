@@ -56,11 +56,28 @@ type FindingView struct {
 	AcceptedUntil  *time.Time `json:"accepted_until"`
 	AIStatus       string     `json:"ai_status"`
 	// Human Eye outcome (the scanner data above is unchanged by it).
-	HumanReviewID    *uuid.UUID   `json:"human_review_id"`
-	HumanReviewKey   *string      `json:"human_review_key"`
-	HumanReviewState *string      `json:"human_review_status"`
-	HumanDisposition *string      `json:"human_disposition"`
-	HumanSeverity    *string      `json:"human_severity"`
+	HumanReviewID    *uuid.UUID `json:"human_review_id"`
+	HumanReviewKey   *string    `json:"human_review_key"`
+	HumanReviewState *string    `json:"human_review_status"`
+	HumanDisposition *string    `json:"human_disposition"`
+	HumanSeverity    *string    `json:"human_severity"`
+	// Unified lifecycle status (derived, see LifecycleExpr): new, open,
+	// in_progress, under_review, confirmed, false_positive, accepted_risk,
+	// resolved, reopened.
+	Lifecycle string `json:"lifecycle_status"`
+	// Vulnerability intelligence and contextual risk.
+	CVSSVersion      string       `json:"cvss_version"`
+	CVSSVector       string       `json:"cvss_vector"`
+	Confidence       string       `json:"confidence"`
+	EPSS             *float64     `json:"epss"`
+	EPSSPercentile   *float64     `json:"epss_percentile"`
+	KEV              bool         `json:"kev"`
+	KEVDueDate       *time.Time   `json:"kev_due_date"`
+	ExploitAvailable bool         `json:"exploit_available"`
+	Reachability     string       `json:"reachability"`
+	RiskScore        *float64     `json:"risk_score"`
+	ApplicationID    *uuid.UUID   `json:"application_id"`
+	ApplicationName  *string      `json:"application_name"`
 	Snippet          string       `json:"snippet,omitempty"`
 	SnippetStart     *int         `json:"snippet_start_line,omitempty"`
 	Occurrences      []Occurrence `json:"occurrences,omitempty"`
@@ -81,16 +98,48 @@ const findingSelect = `
 	       f.cwe, f.cve, f.cvss::float8, f.package_name, f.package_version, f.fixed_version, f.file_path, f.start_line,
 	       f.status, f.first_seen_at, f.last_seen_at, f.resolved_at, f.assignee_id,
 	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status,
-	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity
+	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity, ` + LifecycleExpr + `,
+	       f.cvss_version, f.cvss_vector, f.confidence, f.epss_score::float8, f.epss_percentile::float8, f.kev, f.kev_due_date,
+	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name
 	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
-	LEFT JOIN human_reviews hr ON hr.finding_id = f.id`
+	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id`
+
+// LifecycleExpr derives the unified lifecycle status from the stored
+// status, Human Eye state, recurrence and triage activity. Stored statuses
+// are unchanged (history, SLA and AI policy depend on them):
+//
+//	resolved       status fixed
+//	false_positive status false_positive
+//	accepted_risk  status accepted_risk
+//	under_review   status needs_review, or a Human Eye review is open
+//	confirmed      a human reviewer confirmed it (still open)
+//	in_progress    status in_progress
+//	reopened       detected again after being fixed
+//	new            first seen by the latest scan, nobody has touched it
+//	open           everything else that is open
+const LifecycleExpr = `CASE
+	WHEN f.status = 'fixed' THEN 'resolved'
+	WHEN f.status = 'false_positive' THEN 'false_positive'
+	WHEN f.status = 'accepted_risk' THEN 'accepted_risk'
+	WHEN f.status = 'needs_review' OR (hr.id IS NOT NULL AND hr.status <> 'completed') THEN 'under_review'
+	WHEN f.human_disposition = 'confirmed' THEN 'confirmed'
+	WHEN f.status = 'in_progress' THEN 'in_progress'
+	WHEN f.recurrence_count > 0 THEN 'reopened'
+	WHEN f.assignee_id IS NULL AND f.first_scan_job_id IS NOT DISTINCT FROM f.last_scan_job_id
+	     AND f.ai_status IN ('none', 'queued', 'failed', 'skipped') THEN 'new'
+	ELSE 'open' END`
+
+// LifecycleStatuses lists the unified statuses in workflow order.
+var LifecycleStatuses = []string{"new", "open", "in_progress", "under_review", "confirmed", "false_positive", "accepted_risk", "resolved", "reopened"}
 
 func scanFinding(row pgx.Row) (FindingView, error) {
 	var f FindingView
 	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.RepositoryKey, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
 		&f.Severity, &f.CWE, &f.CVE, &f.CVSS, &f.PackageName, &f.PackageVersion, &f.FixedVersion, &f.FilePath, &f.StartLine,
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
-		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity)
+		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity,
+		&f.Lifecycle, &f.CVSSVersion, &f.CVSSVector, &f.Confidence, &f.EPSS, &f.EPSSPercentile, &f.KEV, &f.KEVDueDate, &f.ExploitAvailable,
+		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -176,6 +225,60 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 	default:
 		return nil, nil, httpx.BadRequest("sla must be breached or due_soon")
 	}
+	if v := q.Get("lifecycle"); v != "" {
+		var ls []string
+		for _, x := range strings.Split(v, ",") {
+			if !slices.Contains(LifecycleStatuses, x) {
+				return nil, nil, httpx.BadRequest("invalid lifecycle status")
+			}
+			ls = append(ls, x)
+		}
+		// Lifecycle spans every stored status; the default "open only"
+		// filter does not apply.
+		if status == "" {
+			where = slices.DeleteFunc(where, func(c string) bool { return c == "f.status IN ('open', 'in_progress', 'needs_review')" })
+		}
+		add("("+LifecycleExpr+") = ANY(?)", ls)
+	}
+	switch q.Get("kev") {
+	case "":
+	case "true":
+		where = append(where, "f.kev")
+	case "false":
+		where = append(where, "NOT f.kev")
+	default:
+		return nil, nil, httpx.BadRequest("kev must be true or false")
+	}
+	for _, x := range []struct {
+		param, col string
+		max        float64
+	}{{"epss_min", "f.epss_percentile", 1}, {"risk_min", "f.risk_score", 100}} {
+		if v := q.Get(x.param); v != "" {
+			n, err := strconv.ParseFloat(v, 64)
+			if err != nil || n < 0 || n > x.max {
+				return nil, nil, httpx.BadRequest(fmt.Sprintf("%s must be between 0 and %g", x.param, x.max))
+			}
+			add(x.col+" >= ?", n)
+		}
+	}
+	for _, x := range []struct {
+		param, col string
+		allowed    []string
+	}{{"confidence", "f.confidence", []string{"high", "medium", "low", "unknown"}}, {"reachability", "f.reachability", []string{"reachable", "not_reachable", "unknown"}}} {
+		if v := q.Get(x.param); v != "" {
+			if !slices.Contains(x.allowed, v) {
+				return nil, nil, httpx.BadRequest("invalid " + x.param)
+			}
+			add(x.col+" = ?", v)
+		}
+	}
+	if v := q.Get("application_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return nil, nil, httpx.BadRequest("invalid application_id")
+		}
+		add("r.application_id = ?", id)
+	}
 	switch v := q.Get("human_review"); v {
 	case "":
 	case "none":
@@ -200,7 +303,26 @@ func (s *Service) listFindings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// Order: severity (default) or contextual risk ("sort=risk"). Both use
+	// keyset pagination on (rank, last_seen_at, id); risk ranks are the
+	// score in hundredths (-1 = not scored yet).
+	rankExpr, prefix := sevRank, ""
+	switch r.URL.Query().Get("sort") {
+	case "", "severity":
+	case "risk":
+		rankExpr, prefix = riskRank, "r"
+	default:
+		s.fail(w, r, httpx.BadRequest("sort must be severity or risk"))
+		return
+	}
 	if c := r.URL.Query().Get("cursor"); c != "" {
+		if prefix != "" {
+			if !strings.HasPrefix(c, prefix+"|") {
+				s.fail(w, r, httpx.BadRequest("invalid cursor"))
+				return
+			}
+			c = strings.TrimPrefix(c, prefix+"|")
+		}
 		parts := strings.SplitN(c, "|", 3)
 		if len(parts) != 3 {
 			s.fail(w, r, httpx.BadRequest("invalid cursor"))
@@ -215,9 +337,9 @@ func (s *Service) listFindings(w http.ResponseWriter, r *http.Request) {
 		}
 		args = append(args, rank, t, id)
 		n := len(args)
-		where = append(where, fmt.Sprintf("(%s, f.last_seen_at, f.id) < ($%d, $%d, $%d)", sevRank, n-2, n-1, n))
+		where = append(where, fmt.Sprintf("(%s, f.last_seen_at, f.id) < ($%d, $%d, $%d)", rankExpr, n-2, n-1, n))
 	}
-	sql := findingSelect + " WHERE " + strings.Join(where, " AND ") + " ORDER BY " + sevRank + " DESC, f.last_seen_at DESC, f.id DESC LIMIT 100"
+	sql := findingSelect + " WHERE " + strings.Join(where, " AND ") + " ORDER BY " + rankExpr + " DESC, f.last_seen_at DESC, f.id DESC LIMIT 100"
 	rows, err := s.DB.Query(r.Context(), sql, args...)
 	if err != nil {
 		s.fail(w, r, err)
@@ -234,11 +356,23 @@ func (s *Service) listFindings(w http.ResponseWriter, r *http.Request) {
 	var next *string
 	if len(out) == 100 {
 		last := out[len(out)-1]
-		c := fmt.Sprintf("%d|%s|%s", scanners.SeverityRank(last.Severity), last.LastSeenAt.Format(time.RFC3339Nano), last.ID)
+		rank := scanners.SeverityRank(last.Severity)
+		if prefix == "r" {
+			rank = -1
+			if last.RiskScore != nil {
+				rank = int(*last.RiskScore*100 + 0.5)
+			}
+		}
+		c := fmt.Sprintf("%d|%s|%s", rank, last.LastSeenAt.Format(time.RFC3339Nano), last.ID)
+		if prefix != "" {
+			c = prefix + "|" + c
+		}
 		next = &c
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "next_cursor": next})
 }
+
+const riskRank = "COALESCE(round(f.risk_score * 100)::int, -1)"
 
 const sevRank = "array_position(ARRAY['info','low','medium','high','critical'], f.severity) - 1"
 
@@ -251,7 +385,8 @@ func (s *Service) findingsSummary(w http.ResponseWriter, r *http.Request) {
 	var c [5]int
 	err = s.DB.QueryRow(r.Context(), `SELECT count(*) FILTER (WHERE f.severity = 'critical'), count(*) FILTER (WHERE f.severity = 'high'),
 		count(*) FILTER (WHERE f.severity = 'medium'), count(*) FILTER (WHERE f.severity = 'low'), count(*) FILTER (WHERE f.severity = 'info')
-		FROM findings f JOIN repositories r ON r.id = f.repository_id WHERE `+strings.Join(where, " AND "), args...).Scan(&c[0], &c[1], &c[2], &c[3], &c[4])
+		FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN human_reviews hr ON hr.finding_id = f.id
+		WHERE `+strings.Join(where, " AND "), args...).Scan(&c[0], &c[1], &c[2], &c[3], &c[4])
 	if err != nil {
 		s.fail(w, r, err)
 		return

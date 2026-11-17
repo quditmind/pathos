@@ -32,6 +32,7 @@ import { SchedulesPage } from "@/features/schedule/SchedulesPage";
 import { NotificationsPage } from "@/features/notify/NotificationsPage";
 import { SbomPage } from "@/features/vuln/SbomPage";
 import { PoliciesPage } from "@/features/vuln/PoliciesPage";
+import { RiskIntelPage } from "@/features/vuln/RiskIntelPage";
 import { AIReviewsPage } from "@/features/ai/AIReviewsPage";
 import { AISettingsPage } from "@/features/ai/AISettingsPage";
 import { McpRegistryPage } from "@/features/ai/McpRegistryPage";
@@ -144,6 +145,7 @@ const schedulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/sca
 const notifyRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/notifications", component: NotificationsPage });
 const riskRoute = createRoute({ getParentRoute: () => appRoute, path: "/risk", component: RiskPage });
 const sbomRoute = createRoute({ getParentRoute: () => appRoute, path: "/sbom", component: SbomPage });
+const riskIntelRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/risk-intelligence", component: RiskIntelPage });
 const policiesRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/policies", component: PoliciesPage });
 
 const aiRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai", component: AIReviewsPage });
@@ -166,7 +168,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

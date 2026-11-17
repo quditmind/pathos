@@ -150,6 +150,19 @@ erDiagram
 
 The application role cannot update or delete history, decisions, approvals, comments or suggestions, nor delete evidence rows. `pathos_review_remediation_sync` (AFTER UPDATE OF status on `findings`) moves confirmed reviews to *pending verification* when a scan no longer detects the finding and to *reopened* when it is detected again. `docs/HUMAN_REVIEW.md` describes the design.
 
+## Finding intelligence and risk (migration 00013)
+
+| Object | Purpose |
+|---|---|
+| `findings` (extended) | `cvss_version`, `cvss_vector`, `confidence`, `epss_score`, `epss_percentile`, `kev`, `kev_due_date`, `exploit_available`, `reachability`, `risk_score`, `risk_factors` (explanation), `risk_scored_at`, `risk_dirty` |
+| `pathos_finding_risk_dirty`, `pathos_repository_risk_dirty`, `pathos_application_risk_dirty` | Triggers that mark findings for re-scoring when an input changes (status, severity, CVE, confidence, Human Eye outcome; repository or application criticality and exposure) |
+| `intel_epss`, `intel_kev` | Reference data shared by all organizations, replaced atomically by each feed import |
+| `intel_feeds`, `intel_feed_runs` | Feed configuration (enabled, https URL, interval) and run history (online or file, records, SHA-256, error) |
+| `risk_models` | Versioned weights per organization; findings record the version in `risk_factors` |
+| `applications` (extended) | `application_key` (`QD-APP-000001`, trigger-assigned, immutable), `technical_owner_user_id`, `lifecycle`, `environment` |
+
+The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is not stored.
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

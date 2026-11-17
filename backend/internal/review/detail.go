@@ -564,6 +564,12 @@ func (s *Service) saveAssessment(w http.ResponseWriter, r *http.Request) {
 					return err
 				}
 			}
+			// Compensating controls feed the contextual risk score.
+			if _, ok := req.Answers["compensating_controls_present"]; ok {
+				if _, err := tx.Exec(ctx, `UPDATE findings SET risk_dirty = true WHERE id = $1`, v.FindingID); err != nil {
+					return err
+				}
+			}
 			if err := s.audit(ctx, tx, p, "assessment_update", v, map[string]any{"changes": changed}); err != nil {
 				return err
 			}

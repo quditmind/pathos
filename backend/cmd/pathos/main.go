@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/repos"
+	"pathos/internal/risk"
 	"syscall"
 	"time"
 
@@ -294,6 +295,10 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	// scanner output before retention prunes it, overdue notifications.
 	reviewSvc := server.NewReviewService(server.Deps{DB: pool, Log: log, Artifacts: artifacts}, repoAz, nil, nil)
 	go reviewSvc.RunBackground(ctx)
+	// Vulnerability intelligence feeds (EPSS, CISA KEV) and contextual risk
+	// scores.
+	go server.NewIntelService(server.Deps{DB: pool, Log: log}).RunBackground(ctx)
+	go risk.RunBackground(ctx, pool, log)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads
 		// are removed.
