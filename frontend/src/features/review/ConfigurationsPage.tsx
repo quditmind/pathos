@@ -164,6 +164,11 @@ export function ConfigurationsPage() {
           <Checks legend="Require for dispositions" options={finalDispositions} value={s.independent_review_dispositions} disabled={dis} onChange={(v) => set("independent_review_dispositions", v)} label={(d) => dispositionLabel[d]} />
         </Section>
 
+        <Section title="Final approval (third level)" description="Decisions that need an independent review and match these severities or dispositions also need a final approval by a third person (neither the analyst nor the independent reviewer). Leave empty for two levels.">
+          <Checks legend="Require for findings of severity (scanner or assessed)" options={severities} value={s.final_approval_severities ?? []} disabled={dis} onChange={(v) => set("final_approval_severities", v)} />
+          <Checks legend="Require for dispositions" options={finalDispositions} value={s.final_approval_dispositions ?? []} disabled={dis} onChange={(v) => set("final_approval_dispositions", v)} label={(d) => dispositionLabel[d]} />
+        </Section>
+
         <Section title="Required evidence and assessment fields">
           <Checks legend="At least one evidence item for dispositions" options={finalDispositions} value={s.evidence_required_dispositions} disabled={dis} onChange={(v) => set("evidence_required_dispositions", v)} label={(d) => dispositionLabel[d]} />
           <Checks legend="At least one evidence item for severities" options={severities} value={s.evidence_required_severities} disabled={dis} onChange={(v) => set("evidence_required_severities", v)} />

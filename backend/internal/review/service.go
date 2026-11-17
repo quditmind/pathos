@@ -107,6 +107,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/v1/human-reviews/{id}/evidence/{eid}", s.deleteEvidence)
 	mux.HandleFunc("GET /api/v1/human-reviews/{id}/ai", s.listRecommendations)
 	mux.HandleFunc("POST /api/v1/human-reviews/{id}/ai", s.requestRecommendation)
+	mux.HandleFunc("POST /api/v1/human-reviews/{id}/ai/{rid}/patch-decision", s.decidePatch)
+	mux.HandleFunc("GET /api/v1/human-reviews/{id}/ai/{rid}/patch", s.downloadPatch)
 }
 
 var errNotFound = errors.New("not found")

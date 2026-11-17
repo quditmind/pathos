@@ -59,6 +59,17 @@ Every decision needs a documented reason. Depending on the configuration (by def
 
 If you hold the Independent Reviewer role, reviews awaiting you are under **Assessments → Awaiting independent review**. Read the assessment, source code and evidence, then **approve**, **reject** (it goes back to the analyst) or **request information**, with your comments. Your outcome is recorded separately; you cannot change the first reviewer's work, and you cannot review your own decision.
 
+### Final approval (three levels)
+
+For the most sensitive decisions, a third person can be required:
+
+1. In **Review Configurations → Final approval**, choose severities or dispositions, for example every **Critical** finding or every **False positive**.
+2. Matching decisions first go to the independent reviewer.
+3. When the independent reviewer approves, the review stays locked and shows that a **final approval** is required.
+4. Someone with the approval permission who is neither the analyst nor the independent reviewer gives it with **Final approval**. A rejection or a request for information sends the review back to the analyst, as at the first level.
+
+Both approvals appear in the history and the reports. With nothing selected, reviews keep the two-level flow.
+
 ## Reopening
 
 Review managers and independent reviewers can **Reopen** a completed review with a reason. A new round starts from the previous assessment; the earlier decision stays in the history. A false positive or accepted risk reopens the finding.
@@ -66,6 +77,18 @@ Review managers and independent reviewers can **Reopen** a completed review with
 ## AI assistant
 
 **AI assist** opens a panel of suggestions: a plain-language explanation, code summary, likely vulnerable paths, investigation questions, false-positive indicators, evidence to collect, remediation, secure code, CWE and OWASP references, and a draft assessment summary. Suggestions are labelled, kept with the review, and only added to your assessment when you choose **Add to …**. AI never completes a review or approves anything. It needs an AI provider (Administration → AI settings).
+
+### Patch proposals, risk explanations and possible duplicates
+
+The AI assistant can also:
+
+- **Propose a patch.** The AI writes a unified diff for the reviewed file.
+  - PATHOS checks that it is a well-formed patch of exactly that file and that it changes more than whitespace. Anything else is refused.
+  - The proposal stays **Proposed** until an analyst **approves** it or **rejects** it with a note. Both decisions are recorded in the history.
+  - An approved patch can be downloaded as a `.patch` file for a developer to apply through the normal code review. **PATHOS never changes a repository.**
+  - Patch proposals need the source code, so sending code to AI must be allowed.
+- **Explain the risk score.** The AI turns the finding's contextual risk score and its factors into plain language, including what would lower the score.
+- **Find possible duplicates.** The AI compares the finding with nearby or similar findings in the same repository and says which are likely the same issue. The analyst decides.
 
 ## Permissions
 

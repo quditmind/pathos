@@ -19,10 +19,10 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | A. Code and application scanning (1–15) | 10 | 4 | 1 |
 | B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
-| D. Manual validation and AI (46–60) | 11 | 3 | 1 |
+| D. Manual validation and AI (46–60) | 15 | 0 | 0 |
 | F. Supply chain and DevSecOps (61–75) | 7 | 5 | 3 |
 | G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **72** | **20** | **8** |
+| **Total** | **76** | **17** | **7** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -108,14 +108,14 @@ Unified finding fields: **present**: ID, title, description, category, CWE, CVE,
 | 48 | False-positive confirmation | Completed | Justified disposition, independent review | — |
 | 49 | Evidence management | Completed | Encrypted uploads, text, reproduction template | — |
 | 50 | Reviewer assignment | Completed | Manual, bulk, round robin, least loaded | — |
-| 51 | Multi-level approval | In Progress | Two levels (analyst plus independent reviewer), configurable | More than two levels (optional), if needed |
+| 51 | Multi-level approval | Completed | Optional third level: final approval by a third person for chosen severities and dispositions (phase 5) | — |
 | 52 | AI explanation | Completed | AI assist `explanation` | — |
 | 53 | AI code analysis | Completed | `code_summary`, `code_paths` | — |
 | 54 | AI false-positive assistance | Completed | AI review verdicts, `false_positive_indicators` | — |
 | 55 | AI remediation | Completed | `remediation`, `secure_code` | — |
-| 56 | AI patch generation | In Progress | Secure code examples | Unified-diff patch proposals with human approval; never applied to repositories automatically |
-| 57 | AI risk assessment | In Progress | Suggested severity | Explanation of the contextual risk score (with 43) |
-| 58 | AI finding correlation | Not Started | — | Suggest related or duplicate findings across tools (with 33) |
+| 56 | AI patch generation | Completed | Unified-diff patch proposals, validated, approved or rejected by a person, downloadable; never applied to repositories (phase 5) | — |
+| 57 | AI risk assessment | Completed | Suggested severity; AI explanation of the contextual risk score and its factors (phase 5) | — |
+| 58 | AI finding correlation | Completed | AI suggestions of possible duplicates among nearby, same-rule and same-CVE findings (phase 5); deterministic related findings (phase 4) | — |
 | 59 | AI report generation | Completed | `assessment_summary` per review | Report-level summaries (see 84 and 85) |
 | 60 | AI review assistant | Completed | AI panel | — |
 

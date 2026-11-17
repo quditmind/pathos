@@ -58,6 +58,9 @@ export const aiKindLabel: Record<string, string> = {
   secure_code: "Secure code example",
   references: "CWE / OWASP references",
   assessment_summary: "Draft an assessment summary",
+  patch: "Propose a patch (reviewed by you, never applied)",
+  risk_explanation: "Explain the risk score",
+  duplicate_candidates: "Find possible duplicates",
 };
 
 export const evidenceTypeLabel: Record<string, string> = {
