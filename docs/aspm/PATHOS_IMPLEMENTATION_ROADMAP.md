@@ -288,4 +288,26 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module E requirements are all met (no numbered features).
 
-**Next:** phase 7, supply chain: SBOM export (CycloneDX and SPDX), package health and malicious package detection, PR checks, commit attribution, build artifacts and provenance.
+### Phase 7 — Supply chain and DevSecOps (done)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00020 | `findings.malicious`; `package_health`; artifact targets; `repositories.pr_checks_enabled` / `pr_gate_severity`; `scan_jobs.pull_request`; `pr_checks`, `pr_findings`; full Down migration |
+| SBOM export | `GET /repositories/{id}/sbom?format=spdx` (SPDX 2.3) and CycloneDX 1.5 from the inventory with its dependency graph; the scan's own CycloneDX file stays the default |
+| Malicious packages | OSV `MAL-*` advisories and malware reports flagged on findings; KEV-level likelihood, always reachable; badge, filter, remediation guidance |
+| Package health | deps.dev feed (off by default: it sends package names): latest version, deprecated versions, OpenSSF Scorecard and verified SLSA provenance of direct dependencies; outdated compared by version, not by inequality |
+| CI/CD | actionlint 1.7.12 (built from source) on GitHub Actions workflows; Checkov now also checks Bitbucket Pipelines |
+| Build artifacts | Upload (≤ 200 MiB) as a scan target; archives validated and extracted on the worker with the snapshot extractor (no links, traversal, bombs); Java archives and binaries scanned whole; Trivy |
+| PR checks | Opt-in per repository; PR head scanned with the repository's profile; results in `pr_findings`, never in `findings`; new = not already known on the scan branch (open, accepted or false positive); gate by severity; commit status `PATHOS / security` on GitHub, GitLab, Bitbucket and Azure DevOps; re-post |
+| Commit attribution | Commit of the first detecting scan on every finding |
+| UI | Pull request checks page and repository settings; SPDX download; package health column, filter and counts; artifact targets; malicious badge and filter |
+
+**Verified on the local stack:** SPDX export of nodejs-goof (572 packages, 1,479 dependency relationships); deps.dev refresh of 437 packages in 13 s (458 outdated, 43 deprecated versions, Scorecards; the root package no longer matches an unrelated public package); an uploaded release zip with lodash 4.17.20 extracted and scanned (4 CVEs); actionlint 1.7.12 found 7 genuine workflow problems in nodejs-goof. PR checks were not run against the provider: the connected repositories belong to third parties, so the integration test drives the full flow with a fake status writer.
+
+**Tests:** unit (SPDX/CycloneDX round trip through PATHOS's own parsers, purl mapping, deps.dev client, version order, actionlint parser, artifact extraction incl. traversal and checksum, commit statuses on four providers, PR outcome); integration (PR checks: opt-in, isolation from findings, new vs known, gate, statuses, permissions; migration down and up); Vitest 154; gosec 0 issues.
+
+**Register:** module F 12 completed, 3 in progress (end-of-life dates, exact introducing commit, image and artifact signature verification).
+
+**Next:** phase 8, governance: MFA recovery codes, SAML/OIDC brokering, policy engine, compliance mapping.

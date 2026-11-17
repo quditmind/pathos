@@ -4,7 +4,7 @@ section: api-reference
 order: 9
 version: "1.0"
 updated: 2026-11-17
-summary: Container images, web applications (DAST), APIs (OpenAPI) and SBOMs as scan targets; authorization statements, credentials, scanning and filters.
+summary: Container images, web applications (DAST), APIs (OpenAPI), build artifacts and SBOMs as scan targets; authorization statements, credentials, scanning and filters.
 ---
 # Scan targets
 
@@ -16,6 +16,7 @@ A scan target is something PATHOS scans besides a repository's source code. Each
 | `url` | Base URL of a running application | Nuclei | Misconfigurations, exposures, known vulnerabilities (non-intrusive templates) |
 | `api` | Base URL plus an OpenAPI 3 / Swagger 2 document | Nuclei DAST templates | Injection and other flaws in each operation |
 | `sbom` | Uploaded CycloneDX or SPDX JSON | Grype | Known vulnerabilities in the SBOM's components |
+| `artifact` | Uploaded build artifact: zip or tar archive, Java archive, binary | Trivy (filesystem) | Vulnerable components inside the artifact ([details](supply-chain.md#build-artifact-targets)) |
 
 ## Permissions
 
@@ -33,6 +34,7 @@ A scan target is something PATHOS scans besides a repository's source code. Each
 | `GET` | `/api/v1/scan-targets/{id}` | One target (includes `api_spec` for API targets) |
 | `POST` | `/api/v1/scan-targets` | Create an `image`, `url` or `api` target (JSON) |
 | `POST` | `/api/v1/scan-targets/sbom` | Create an SBOM target (`multipart/form-data`: `file`, `repository_id`, optional `name`) |
+| `POST` | `/api/v1/scan-targets/artifact` | Create a build artifact target (`multipart/form-data`: `file` up to 200 MiB, `repository_id`, optional `name`) |
 | `PUT` | `/api/v1/scan-targets/{id}` | Update (any field below; the kind cannot change) |
 | `DELETE` | `/api/v1/scan-targets/{id}` | Delete. `409` while it has findings (disable it instead) or a scan is queued or running |
 | `POST` | `/api/v1/scan-targets/{id}/scan` | Queue a scan → `202 { job_id, coalesced }`. `409` if disabled or not authorized |

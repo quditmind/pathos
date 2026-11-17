@@ -138,6 +138,9 @@ export interface DepComponent {
   outdated: boolean;
   deprecated: boolean;
   scorecard?: number;
+  /** SLSA provenance of this version (direct dependencies are checked). */
+  provenance?: "verified" | "unverified" | "none";
+  provenance_source?: string;
 }
 
 export interface DependencyGraph {

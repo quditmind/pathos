@@ -45,12 +45,15 @@ function Paths({ repoId, c }: { repoId: string; c: DepComponent }) {
 
 /** Package health from deps.dev: deprecated version, newer release, OpenSSF Scorecard. */
 function Health({ c }: { c: DepComponent }) {
-  if (!c.latest_version && c.scorecard == null) return <span className="text-muted-foreground" title="Package health not fetched yet (deps.dev feed)">—</span>;
+  if (!c.latest_version && c.scorecard == null && !c.provenance) return <span className="text-muted-foreground" title="Package health not fetched yet (deps.dev feed)">—</span>;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       {c.deprecated && <Badge tone="danger">Deprecated</Badge>}
       {c.outdated ? <span title="Latest release">latest {c.latest_version}</span> : c.latest_version && <span className="text-muted-foreground">Up to date</span>}
       {c.scorecard != null && <span className="text-muted-foreground" title="OpenSSF Scorecard of the source repository (0–10)">· Scorecard {c.scorecard.toFixed(1)}</span>}
+      {c.provenance === "verified" && <Badge tone="success"><span title={`Built from ${c.provenance_source}; SLSA provenance verified`}>Provenance</span></Badge>}
+      {c.provenance === "unverified" && <Badge tone="warning"><span title={`Provenance claims ${c.provenance_source}; not verified`}>Unverified provenance</span></Badge>}
+      {c.provenance === "none" && <span className="text-muted-foreground" title="The registry has no build provenance for this version">· no provenance</span>}
     </span>
   );
 }

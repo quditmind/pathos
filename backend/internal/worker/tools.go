@@ -297,7 +297,7 @@ func Tools(cfg Config) map[string]Tool {
 			_, err := command(ctx, []string{"BC_SKIP_MAPPING=TRUE", "CHECKOV_RUN_SCA_PACKAGE_SCAN_V2=false"}, []int{0, 1}, bin,
 				"-d", in.Src, "-o", "sarif", "--output-file-path", filepath.Join(dir, "checkov"), "--quiet", "--soft-fail",
 				"--skip-download", "--download-external-modules", "false", "--framework",
-				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines")
+				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines,bitbucket_pipelines")
 			if err != nil {
 				return "", err
 			}

@@ -17,11 +17,17 @@ CREATE TABLE package_health (
     deprecated_versions text[] NOT NULL DEFAULT '{}',
     scorecard           numeric(4,1),
     scorecard_project   text NOT NULL DEFAULT '',
+    -- SLSA provenance of checked versions, as verified by deps.dev:
+    -- {"<version>": {"source": "...", "commit": "...", "verified": true}}
+    provenance          jsonb NOT NULL DEFAULT '{}',
     fetched_at          timestamptz NOT NULL DEFAULT now()
 );
 ALTER TABLE intel_feeds DROP CONSTRAINT intel_feeds_feed_check;
 ALTER TABLE intel_feeds ADD CONSTRAINT intel_feeds_feed_check CHECK (feed IN ('epss', 'kev', 'osv', 'depsdev'));
-INSERT INTO intel_feeds (feed, url) VALUES ('depsdev', 'https://api.deps.dev/v3/') ON CONFLICT DO NOTHING;
+-- Off by default: unlike the other feeds (public CVE identifiers), it sends
+-- the names of the packages in the inventories, which can include private
+-- package names. An administrator enables it.
+INSERT INTO intel_feeds (feed, url, enabled) VALUES ('depsdev', 'https://api.deps.dev/v3/', false) ON CONFLICT DO NOTHING;
 
 -- Build artifact targets: an uploaded release artifact (archive, Java
 -- archive, binary). The file is kept gzip-compressed in the object store

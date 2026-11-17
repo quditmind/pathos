@@ -1125,7 +1125,7 @@ export interface FeedRun {
 }
 
 export interface IntelFeed {
-  feed: "epss" | "kev" | "osv";
+  feed: "epss" | "kev" | "osv" | "depsdev";
   label: string;
   enabled: boolean;
   url: string;

@@ -91,6 +91,15 @@ type pkgHealth struct {
 	deprecated                    []string
 	scorecard                     *float64
 	found                         bool
+	// provenance of the checked version (direct dependencies).
+	provVersion string
+	provenance  *provenance
+}
+
+type provenance struct {
+	Source   string `json:"source"`
+	Commit   string `json:"commit,omitempty"`
+	Verified bool   `json:"verified"`
 }
 
 func (s *Service) depsGet(ctx context.Context, u string, out any) (bool, error) {
@@ -143,6 +152,11 @@ func (s *Service) lookupPackage(ctx context.Context, base, system, name, version
 	}
 	// Scorecard of the source repository (direct dependencies only).
 	var ver struct {
+		SLSAProvenances []struct {
+			SourceRepository string `json:"sourceRepository"`
+			Commit           string `json:"commit"`
+			Verified         bool   `json:"verified"`
+		} `json:"slsaProvenances"`
 		RelatedProjects []struct {
 			ProjectKey struct {
 				ID string `json:"id"`
@@ -152,6 +166,13 @@ func (s *Service) lookupPackage(ctx context.Context, base, system, name, version
 	}
 	if ok, err := s.depsGet(ctx, pkgURL+"/versions/"+url.PathEscape(version), &ver); err != nil || !ok {
 		return h, nil
+	}
+	h.provVersion = version
+	for _, p := range ver.SLSAProvenances {
+		pv := provenance{Source: clip(p.SourceRepository, 300), Commit: clip(p.Commit, 64), Verified: p.Verified}
+		if h.provenance == nil || (pv.Verified && !h.provenance.Verified) {
+			h.provenance = &pv
+		}
 	}
 	for _, p := range ver.RelatedProjects {
 		if p.RelationType != "SOURCE_REPO" {
@@ -239,14 +260,26 @@ func (s *Service) fetchDepsDev(ctx context.Context, base string, by *[16]byte) (
 		err = pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
 			b := &pgx.Batch{}
 			for i, h := range results {
+				// Provenance per checked version: an attested version keeps its
+				// record; a version checked without provenance is recorded as
+				// none (null), so "no provenance" is known, not assumed.
+				prov := []byte("{}")
+				if h.provVersion != "" {
+					var v any
+					if h.provenance != nil {
+						v = h.provenance
+					}
+					prov, _ = json.Marshal(map[string]any{clip(h.provVersion, 100): v})
+				}
 				b.Queue(`INSERT INTO package_health (purl_base, system, name, found, latest_version, latest_published_at, deprecated_versions,
-					scorecard, scorecard_project, fetched_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, now())
+					scorecard, scorecard_project, provenance, fetched_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, now())
 					ON CONFLICT (purl_base) DO UPDATE SET found = EXCLUDED.found, latest_version = EXCLUDED.latest_version,
 					  latest_published_at = EXCLUDED.latest_published_at, deprecated_versions = EXCLUDED.deprecated_versions,
 					  scorecard = COALESCE(EXCLUDED.scorecard, package_health.scorecard),
 					  scorecard_project = CASE WHEN EXCLUDED.scorecard IS NOT NULL THEN EXCLUDED.scorecard_project ELSE package_health.scorecard_project END,
-					  fetched_at = now()`,
-					bases[i], h.system, clip(h.name, 300), h.found, clip(h.latest, 100), h.published, nonNilStrings(h.deprecated), h.scorecard, clip(h.project, 300))
+					  provenance = package_health.provenance || EXCLUDED.provenance, fetched_at = now()`,
+					bases[i], h.system, clip(h.name, 300), h.found, clip(h.latest, 100), h.published, nonNilStrings(h.deprecated), h.scorecard,
+					clip(h.project, 300), prov)
 			}
 			return tx.SendBatch(ctx, b).Close()
 		})

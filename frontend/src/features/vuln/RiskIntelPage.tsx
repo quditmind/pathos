@@ -47,6 +47,12 @@ function FeedCard({ f, editable }: { f: IntelFeed; editable: boolean }) {
         </div>
         <Badge tone={f.enabled ? "success" : "neutral"}>{f.enabled ? "Online updates on" : "Online updates off"}</Badge>
       </div>
+      {f.feed === "depsdev" && (
+        <p className="mt-2 text-[12px] text-muted-foreground">
+          Sends the names of the packages in your SBOM inventories (not versions of your own code) to deps.dev to look up their latest versions,
+          deprecations and OpenSSF Scorecards. Private package names are sent too; leave it off if they are confidential.
+        </p>
+      )}
       {err && <div className="mt-2"><Alert>{err.message}</Alert></div>}
       {last && (
         <p className="mt-2 text-[12px]">
@@ -78,9 +84,11 @@ function FeedCard({ f, editable }: { f: IntelFeed; editable: boolean }) {
             <Button size="sm" disabled={run.isPending} onClick={() => run.mutate()}>
               <CloudDownload /> {run.isPending ? "Downloading…" : "Download now"}
             </Button>
-            <Button size="sm" variant="secondary" disabled={imp.isPending} onClick={() => file.current?.click()}>
-              <Upload /> {imp.isPending ? "Importing…" : "Import file (offline)"}
-            </Button>
+            {f.feed !== "depsdev" && (
+              <Button size="sm" variant="secondary" disabled={imp.isPending} onClick={() => file.current?.click()}>
+                <Upload /> {imp.isPending ? "Importing…" : "Import file (offline)"}
+              </Button>
+            )}
             <input
               ref={file}
               type="file"

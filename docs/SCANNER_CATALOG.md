@@ -1,6 +1,6 @@
 # Scanner Catalog
 
-Status: **Phase 4**. The seven `worker-core` tools (Gitleaks, Opengrep, Trivy fs, Syft, Grype, OSV-Scanner, Checkov) are implemented and pinned. The others are catalogued in `backend/internal/scanners/catalog.go` as *planned* until their worker family image ships. Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. Each entry is verified again when its adapter is built (Phase 4+): license text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15. Entries marked *unverified* were not checked because of an API rate limit.
+Status: **Phase 4**. The `worker-core` tools (Gitleaks, Opengrep, Trivy fs, Syft, Grype, OSV-Scanner, Checkov; zizmor and Nuclei since phase 2b of the ASPM roadmap; actionlint since phase 7) are implemented and pinned. The others are catalogued in `backend/internal/scanners/catalog.go` as *planned* until their worker family image ships. Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. Each entry is verified again when its adapter is built (Phase 4+): license text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15. Entries marked *unverified* were not checked because of an API rate limit.
 
 Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** = excluded (reason given). Build = requires building the target code (disabled by default, see ARCHITECTURE.md §5).
 
@@ -51,7 +51,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 41 | Hadolint | Dockerfile | GPL-3.0 | active | Use | |
 | 42 | Dockle | Container image | Apache-2.0 | active (2026-08) | Use | Image targets |
 | 43 | Trivy (image) | Container image vulns | Apache-2.0 | active | Use | |
-| 44 | actionlint | CI/CD (GitHub Actions) | MIT (*unverified*) | *unverified* | Use (verify) | |
+| 44 | actionlint | CI/CD (GitHub Actions) | MIT | Active (1.7.12, 2026-03-30) | Use | Implemented: built from source in `worker-core`; runs on `.github/workflows` without shellcheck or pyflakes, so no repository script is run |
 | 45 | zizmor | CI/CD security (GitHub Actions) | MIT (*unverified*) | *unverified* | Use (verify) | |
 | 46 | OpenSSF Scorecard | Supply-chain posture | Apache-2.0 | active | Use | Uses SCM API |
 | 47 | ScanCode Toolkit | License compliance | Apache-2.0 + CC-BY (data) | active | Use | Replaces FOSSology for repo scanning |

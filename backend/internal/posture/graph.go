@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -33,6 +34,11 @@ type Component struct {
 	Outdated      bool     `json:"outdated"`
 	Deprecated    bool     `json:"deprecated"`
 	Scorecard     *float64 `json:"scorecard,omitempty"`
+	// Provenance of this version: "verified" (SLSA provenance verified by
+	// deps.dev), "unverified", "none" (checked, no attestation) or "" (not
+	// checked; only direct dependencies are).
+	Provenance       string `json:"provenance,omitempty"`
+	ProvenanceSource string `json:"provenance_source,omitempty"`
 }
 
 type edge struct {
@@ -54,7 +60,11 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 	rows, err := s.DB.Query(ctx, `
 	SELECT c.bom_ref, c.name, c.version, c.purl, c.type, c.licenses, c.depth,
 	       count(f.id), (array_agg(f.severity ORDER BY array_position(ARRAY['critical','high','medium','low','info'], f.severity)))[1],
-	       COALESCE(min(h.latest_version), ''), COALESCE(bool_or(c.version = ANY(h.deprecated_versions)), false), min(h.scorecard)::float8
+	       COALESCE(min(h.latest_version), ''), COALESCE(bool_or(c.version = ANY(h.deprecated_versions)), false), min(h.scorecard)::float8,
+	       CASE WHEN NOT COALESCE(bool_or(h.provenance ? c.version), false) THEN ''
+	            WHEN bool_or(jsonb_typeof(h.provenance -> c.version) = 'null') THEN 'none'
+	            WHEN bool_or((h.provenance -> c.version ->> 'verified')::boolean) THEN 'verified' ELSE 'unverified' END,
+	       COALESCE(min(h.provenance -> c.version ->> 'source'), '')
 	FROM sbom_components c
 	LEFT JOIN package_health h ON h.found AND h.purl_base = regexp_replace(split_part(c.purl, '?', 1), '@[^@/]*$', '')
 	LEFT JOIN findings f ON f.repository_id = c.repository_id AND f.scan_target_id IS NULL AND f.category = 'sca'
@@ -68,14 +78,19 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 		var c Component
 		var sev *string
 		if err := rows.Scan(&c.Ref, &c.Name, &c.Version, &c.PURL, &c.Type, &c.Licenses, &c.Depth, &c.OpenVulns, &sev,
-			&c.LatestVersion, &c.Deprecated, &c.Scorecard); err != nil {
+			&c.LatestVersion, &c.Deprecated, &c.Scorecard, &c.Provenance, &c.ProvenanceSource); err != nil {
 			rows.Close()
 			return g, err
 		}
 		if c.OpenVulns > 0 {
 			c.MaxSeverity = sev
 		}
-		c.Outdated = c.LatestVersion != "" && strings.TrimPrefix(c.LatestVersion, "v") != strings.TrimPrefix(c.Version, "v")
+		if c.Depth != nil && *c.Depth == 0 && c.LatestVersion != "" && VersionLess(c.LatestVersion, c.Version) {
+			// A root (often the application itself) newer than the public
+			// package of the same name: that package is someone else's.
+			c.LatestVersion, c.Deprecated, c.Scorecard, c.Provenance, c.ProvenanceSource = "", false, nil, "", ""
+		}
+		c.Outdated = c.LatestVersion != "" && VersionLess(c.Version, c.LatestVersion)
 		if c.Licenses == nil {
 			c.Licenses = []string{}
 		}
@@ -679,4 +694,51 @@ func hasEdge(b *graphBuilder, from, to string) bool {
 		}
 	}
 	return false
+}
+
+// VersionLess reports whether version a is lower than b, comparing the
+// numeric release parts (1.2.10 > 1.2.9); a pre-release sorts before its
+// release. Unparseable versions are never reported as lower.
+func VersionLess(a, b string) bool {
+	pa, preA, okA := splitVersion(a)
+	pb, preB, okB := splitVersion(b)
+	if !okA || !okB {
+		return false
+	}
+	for i := 0; i < max(len(pa), len(pb)); i++ {
+		var x, y int
+		if i < len(pa) {
+			x = pa[i]
+		}
+		if i < len(pb) {
+			y = pb[i]
+		}
+		if x != y {
+			return x < y
+		}
+	}
+	return preA && !preB
+}
+
+func splitVersion(v string) ([]int, bool, bool) {
+	v = strings.TrimPrefix(strings.TrimSpace(v), "v")
+	if i := strings.IndexByte(v, '+'); i >= 0 {
+		v = v[:i]
+	}
+	pre := false
+	if i := strings.IndexAny(v, "-"); i >= 0 {
+		v, pre = v[:i], true
+	}
+	if v == "" {
+		return nil, false, false
+	}
+	var out []int
+	for _, p := range strings.Split(v, ".") {
+		n, err := strconv.Atoi(p)
+		if err != nil || n < 0 {
+			return nil, false, false
+		}
+		out = append(out, n)
+	}
+	return out, pre, true
 }
