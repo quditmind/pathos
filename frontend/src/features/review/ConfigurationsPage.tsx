@@ -59,7 +59,7 @@ const triggerLabel: Record<string, string> = {
   ai_false_positive: "AI review suggests a false positive (human confirms)",
   new_findings: "Every new finding matching the filters",
 };
-const categories = ["sast", "sca", "secrets", "iac", "container", "license", "other"] as const;
+const categories = ["sast", "sca", "secrets", "iac", "container", "license", "dast", "other"] as const;
 const finalDispositions = (Object.keys(dispositionLabel) as Disposition[]).filter((d) => d !== "needs_more_information");
 
 export function ConfigurationsPage() {

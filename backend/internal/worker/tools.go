@@ -213,6 +213,14 @@ func Tools(cfg Config) map[string]Tool {
 					n++
 				}
 			}
+			// Custom rule files managed in PATHOS (validated server-side).
+			if dir, err := writeCustomRules(in.Config); err != nil {
+				return "", err
+			} else if dir != "" {
+				defer os.RemoveAll(dir)
+				args = append(args, "--config", dir)
+				n++
+			}
 			if n == 0 {
 				return "no rule sets available", nil
 			}
@@ -409,4 +417,33 @@ func gitHead(ctx context.Context, dir string) (string, error) {
 		return "", errors.New("reading the checked-out commit: unexpected output")
 	}
 	return sha, nil
+}
+
+// writeCustomRules writes the job's custom rule files to a private
+// temporary directory ("" when there are none).
+func writeCustomRules(raw json.RawMessage) (string, error) {
+	var cfg struct {
+		CustomRules []struct {
+			Name    string `json:"name"`
+			Content string `json:"content"`
+		} `json:"custom_rules"`
+	}
+	if len(raw) == 0 || json.Unmarshal(raw, &cfg) != nil || len(cfg.CustomRules) == 0 {
+		return "", nil
+	}
+	dir, err := os.MkdirTemp("", "pathos-rules-")
+	if err != nil {
+		return "", err
+	}
+	for i, r := range cfg.CustomRules {
+		if len(r.Content) > 256<<10 {
+			continue
+		}
+		// File names are generated, never taken from the server.
+		if err := os.WriteFile(filepath.Join(dir, fmt.Sprintf("custom-%03d.yml", i)), []byte(r.Content), 0o600); err != nil {
+			_ = os.RemoveAll(dir)
+			return "", err
+		}
+	}
+	return dir, nil
 }

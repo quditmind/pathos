@@ -219,7 +219,7 @@ const MaxFindingsPerReport = 20000
 
 // ParseSARIF parses a SARIF 2.1 log produced by scanner key.
 func ParseSARIF(key string, raw []byte) ([]Finding, error) {
-	sc, ok := Lookup(key)
+	sc, ok := Resolve(key)
 	if !ok {
 		return nil, fmt.Errorf("unknown scanner %q", key)
 	}
@@ -545,6 +545,9 @@ func matchGlob(pattern, name string) bool {
 func Parse(key string, raw []byte) ([]Finding, error) {
 	if key == Grype {
 		return ParseGrypeJSON(raw)
+	}
+	if IsImportKey(key) {
+		return parseImported(key, raw)
 	}
 	return ParseSARIF(key, raw)
 }

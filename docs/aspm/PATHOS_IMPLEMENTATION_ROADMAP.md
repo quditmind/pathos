@@ -121,3 +121,30 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 52 completed, 29 in progress, 19 not started (from 47, 32 and 21).
 
 **Next:** phase 2, ingestion (SARIF/JSON and SBOM import) and new engines and targets.
+
+## 7. Phase 2a completion report (2026-11-17)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00014 | `dast` category, `import` trigger, `pathos_register_import_tool()`, `import_jobs`, imported SBOM inventories, `custom_rules` and versions, full Down migration |
+| Result imports | SARIF 2.1, Grype JSON and PATHOS findings JSON (documented). Per-tool scanner keys `import-<category>-<tool>` keep provenance and stable fingerprints. Each import is a scan execution through the normal pipeline; partial imports never resolve findings |
+| SBOM import | CycloneDX and SPDX 2.x JSON into the component inventory |
+| Custom rules | Opengrep rule files with server-side validation (no execution), versions, unique IDs, enable/disable; snapshots pin versions; the worker writes them to a private temporary directory |
+| UI | **Scanning → Import Results** (results, SBOM, history), **Configurations → Custom rules** (editor, validate, versions) |
+
+**Verified on the local stack:**
+
+- a SARIF import created 5 findings, recorded as execution `QD-SCAN-000007`
+- a custom rule ran in a real worker scan of `nodejs-goof` and produced 2 findings
+
+**Tests:**
+
+- unit: import keys and formats, the generic JSON format, SPDX, rule validation, worker rule files
+- integration: imports (permissions, partial and complete, DAST, invalid files), SBOM, rules, version pinning
+- Vitest: 132
+
+**Register:** 56 completed, 28 in progress, 16 not started.
+
+**Next:** phase 2b, scan targets for container images, URLs (DAST) and API specs on workers; vulnerability matching of imported SBOMs; CI/CD pipeline scanning.

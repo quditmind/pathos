@@ -47,6 +47,8 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerProfiles(mux)
 	s.registerJobs(mux)
 	s.registerFindings(mux)
+	s.registerImports(mux)
+	s.registerRules(mux)
 	s.registerWorkersAdmin(mux)
 }
 

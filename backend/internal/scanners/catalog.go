@@ -36,7 +36,7 @@ type Scanner struct {
 // FindingCategory maps a scanner category to the findings.category column.
 func (s Scanner) FindingCategory() string {
 	switch s.Category {
-	case "secrets", "sast", "sca", "iac", "container", "license":
+	case "secrets", "sast", "sca", "iac", "container", "license", "dast":
 		return s.Category
 	}
 	return "other"

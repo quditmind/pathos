@@ -16,13 +16,13 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
-| A. Code and application scanning (1–15) | 4 | 6 | 5 |
+| A. Code and application scanning (1–15) | 7 | 5 | 3 |
 | B. ASPM and application intelligence (16–30) | 7 | 5 | 3 |
 | C. Vulnerability intelligence (31–45) | 11 | 2 | 2 |
 | D. Manual validation and AI (46–60) | 11 | 3 | 1 |
-| F. Supply chain and DevSecOps (61–75) | 6 | 4 | 5 |
-| G. Enterprise and governance (76–100) | 13 | 9 | 3 |
-| **Total** | **52** | **29** | **19** |
+| F. Supply chain and DevSecOps (61–75) | 6 | 5 | 4 |
+| G. Enterprise and governance (76–100) | 14 | 8 | 3 |
+| **Total** | **56** | **28** | **16** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -33,7 +33,7 @@ Module E (AI Security Analyst) has no numbered features. Its requirements are as
 | 1 | SAST | Completed | ✓ | ✓ | ✓ | ✓ | Opengrep with baseline rules, multi-language | More engines (Bandit, Gosec, …) are catalogued only |
 | 2 | SCA / dependencies | Completed | ✓ | ✓ | ✓ | ✓ | Trivy fs, Grype (on the Syft SBOM), OSV-Scanner; cross-tool de-duplication | Reachability (see 41) |
 | 3 | DAST | Not Started | — | — | — | — | ZAP and Nuclei catalogued; ZAP only tests PATHOS itself in CI | URL targets, a `dast` worker family, authenticated scan configuration, scope safety |
-| 4 | IAST integration | Not Started | — | — | — | — | — | Import IAST results (SARIF/JSON) through the import API (see the SARIF import requirement) |
+| 4 | IAST integration | Completed | ✓ | ✓ | ✓ | ✓ | IAST results imported as PATHOS findings JSON or SARIF (phase 2a) | — |
 | 5 | Secrets | Completed | ✓ | ✓ | ✓ | ✓ | Gitleaks mandatory, redaction, optional full history | Secret validity checks (TruffleHog verify, opt-in) |
 | 6 | IaC | Completed | ✓ | ✓ | ✓ | ✓ | Checkov | KICS and Kubescape adapters (optional) |
 | 7 | Container image | In Progress | ◐ | ◐ | ◐ | ◐ | Trivy fs reads Dockerfiles and lockfiles | Image targets (registry reference), `trivy image`, Dockle, registry credentials |
@@ -42,9 +42,9 @@ Module E (AI Security Analyst) has no numbered features. Its requirements are as
 | 10 | Licence scanning | In Progress | ✓ | ✓ | ✓ | ◐ | Licences from the SBOM, deny/review policy, SBOM page and KPI | Violations as findings (lifecycle and SLA), ScanCode for file-level licences |
 | 11 | Binary analysis | Not Started | — | — | — | — | — | Artifact targets; Syft and Grype on binaries and archives; checksec-style hardening checks |
 | 12 | Application configuration scanning | In Progress | ◐ | ◐ | — | ◐ | Checkov and Trivy cover some configuration files | Framework config rules (Spring, Django, Express), a misconfiguration category |
-| 13 | Fuzz testing | Not Started | — | — | — | — | — | Import of fuzzing crash results (SARIF) and a CI integration guide. Running fuzzers is the customer's pipeline |
+| 13 | Fuzz testing | Completed | ✓ | ✓ | ✓ | ✓ | Fuzzing crash results imported (SARIF or PATHOS JSON) (phase 2a) | Running fuzzers stays in the customer's pipeline |
 | 14 | Infrastructure exposure | In Progress | ◐ | ✓ | ✓ | ✓ | Internet exposure, public URLs, domains and IPs per repository (declared) | Verification of declared endpoints (Nuclei, TLS checks), opt-in and scope-limited |
-| 15 | Custom detection rules | In Progress | ◐ | — | — | ◐ | Administrators mount Opengrep rule packs on the worker | Rule management (upload, validate, version, enable per profile) in the UI and API |
+| 15 | Custom detection rules | Completed | ✓ | ✓ | ✓ | ✓ | Custom Opengrep rules: validation, versions, enable/disable; scans pin versions (phase 2a) | — |
 
 Cross-cutting requirements:
 
@@ -54,7 +54,7 @@ Cross-cutting requirements:
 | Git and local source | ✓ |
 | Configurable profiles, full scans, execution history, worker health, logs, severity thresholds, structured results | ✓ |
 | Incremental scanning | **missing**. Diff-aware scans for PRs (see 72) |
-| **SARIF/JSON import** | **missing**. This is the key enabler for 4, 13 and third-party tools |
+| **SARIF/JSON import** | ✓ SARIF 2.1, Grype JSON, PATHOS findings JSON (phase 2a) |
 | Adding engines | Compiled in. Documented adapter seam; a declarative adapter (SARIF tools) would make it data-driven |
 
 ## B. ASPM and application intelligence
@@ -141,7 +141,7 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
 | 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft, CycloneDX, per scan | SPDX export |
-| 62 | SBOM import | Not Started | — | — | — | — | — | CycloneDX and SPDX upload; components and vulnerabilities through Grype or OSV on the imported SBOM |
+| 62 | SBOM import | In Progress | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a) | Vulnerability matching of imported SBOMs on workers (phase 2b) |
 | 63 | Dependency graph analysis | In Progress | ◐ | ◐ | ◐ | ✓ | Flat inventory | Edges, direct and transitive (see 22) |
 | 64 | Package risk | In Progress | ◐ | ◐ | — | ◐ | Known vulnerabilities | Outdated and unsupported signals (latest version, end of life, deprecation), OpenSSF Scorecard |
 | 65 | Malicious packages | In Progress | ◐ | — | — | — | OSV `MAL-*` via OSV-Scanner | Classify and highlight; KEV-like urgency |
@@ -156,7 +156,7 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 | 74 | Build artifact scanning | Not Started | — | — | — | — | — | Artifact and image targets (see 7, 11) |
 | 75 | Software provenance | Not Started | — | — | — | — | — | Verify SLSA, in-toto and Sigstore attestations of images and artifacts (cosign) |
 
-Formats: CycloneDX ✓ (generate), SPDX ✗, SARIF ✓ (internal, no import), OCI ✗.
+Formats: CycloneDX ✓ (generate and import), SPDX ✓ (import), SARIF ✓ (internal and import), OCI ✗.
 
 Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive ✗, outdated ✗, malicious ◐, unsupported ✗.
 
@@ -184,7 +184,7 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 93 | ServiceNow | Not Started | — | Optional connector: incidents and vulnerability items |
 | 94 | Notification engine | Completed | Email, in-app, rules, templates | Chat (Slack and Teams incoming webhooks) via 90 |
 | 95 | Multi-tenant | In Progress | `organization_id` everywhere | Several organizations per deployment: tenant resolution, administration and isolation tests (see decision D3) |
-| 96 | Custom security rules | In Progress | Same as 15 | Same as 15 |
+| 96 | Custom security rules | Completed | Same as 15 (phase 2a) | — |
 | 97 | Data encryption | Completed | Keyring, encrypted stores, TLS | — |
 | 98 | Backup and recovery | Completed | Scripts, tested restore | — |
 | 99 | Plugin architecture | In Progress | Scanner adapter seam | Declarative scanner adapters, connector interface for ticketing and notifications |

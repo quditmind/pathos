@@ -210,6 +210,18 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 // Finalize completes a job: final status, auto-resolution of findings no
 // longer detected, counts and the critical gate.
 func (s *Service) Finalize(ctx context.Context, jobID uuid.UUID, workerFailed bool, workerErr string) (Job, error) {
+	return s.FinalizeWith(ctx, jobID, workerFailed, workerErr, FinalizeOpts{})
+}
+
+// FinalizeOpts adjusts Finalize.
+type FinalizeOpts struct {
+	// NoAutoResolve keeps findings the results no longer report open (a
+	// partial import is not evidence that anything was fixed).
+	NoAutoResolve bool
+}
+
+// FinalizeWith is Finalize with options.
+func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFailed bool, workerErr string, opts FinalizeOpts) (Job, error) {
 	var job Job
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "no longer detected by a successful scan"); err != nil {
@@ -256,7 +268,7 @@ func (s *Service) Finalize(ctx context.Context, jobID uuid.UUID, workerFailed bo
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
 		fixed := int64(0)
-		if len(ok) > 0 {
+		if len(ok) > 0 && !opts.NoAutoResolve {
 			tag, err := tx.Exec(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
 				WHERE repository_id = $1 AND status IN ('open', 'in_progress', 'needs_review')
 				  AND (last_scan_job_id IS DISTINCT FROM $2)

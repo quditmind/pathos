@@ -218,10 +218,13 @@ func redactAny(x any) any {
 
 // Locate finds a finding in a raw report of scanner key (any format).
 func Locate(key string, raw []byte, fingerprint string) (*Located, error) {
-	if key != Grype {
+	if key != Grype && !(IsImportKey(key) && importFormat(raw) == "grype") {
+		if IsImportKey(key) && importFormat(raw) == "pathos" {
+			return locateGeneric(key, raw, fingerprint)
+		}
 		return LocateSARIF(key, raw, fingerprint)
 	}
-	fs, err := ParseGrypeJSON(raw)
+	fs, err := Parse(key, raw)
 	if err != nil && len(fs) == 0 {
 		return nil, err
 	}
