@@ -173,18 +173,6 @@ func (in *input) validate() error {
 	return nil
 }
 
-// reevaluate applies a changed policy set at once (best effort: the
-// background loop catches up on failure).
-func (s *Service) reevaluate(ctx context.Context, orgID uuid.UUID) {
-	err := pgx.BeginFunc(ctx, s.DB, func(tx pgx.Tx) error {
-		_, err := Evaluate(ctx, tx, orgID, nil)
-		return err
-	})
-	if err != nil {
-		s.Log.Warn("security policy evaluation failed", "err", err)
-	}
-}
-
 func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 	p, err := s.requireManage(r)
 	if err != nil {
@@ -209,6 +197,9 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $8)`, id, p.OrganizationID, in.Name, in.Description, enabled, c, a, p.UserID); err != nil {
 			return err
 		}
+		if _, err := Evaluate(r.Context(), tx, p.OrganizationID, nil); err != nil {
+			return err
+		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "security_policy.create", TargetType: "security_policy", TargetID: id.String(),
 			Metadata: map[string]any{"name": in.Name, "enabled": enabled, "conditions": in.Conditions, "actions": in.Actions}})
@@ -217,7 +208,6 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.reevaluate(r.Context(), p.OrganizationID)
 	v, err := scanView(s.DB.QueryRow(r.Context(), viewSelect+` WHERE p.id = $1`, id))
 	if err != nil {
 		s.fail(w, r, err)
@@ -257,6 +247,13 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 		if in.Enabled != nil {
 			enabled = *in.Enabled
 		}
+		if before.Actions.SLADays != nil {
+			// Deadlines it tightened are recomputed; Evaluate below applies
+			// the new definition and the other policies again.
+			if err := RestoreSLA(r.Context(), tx, id); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(r.Context(), `UPDATE security_policies SET name = $2, description = $3, enabled = $4, conditions = $5, actions = $6,
 			version = version + 1, updated_by = $7, updated_at = now() WHERE id = $1`, id, in.Name, in.Description, enabled, c, a, p.UserID); err != nil {
 			return err
@@ -267,6 +264,9 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		if _, err := Evaluate(r.Context(), tx, p.OrganizationID, nil); err != nil {
+			return err
+		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "security_policy.update", TargetType: "security_policy", TargetID: id.String(),
 			Metadata: map[string]any{"before": map[string]any{"name": before.Name, "enabled": before.Enabled, "conditions": before.Conditions, "actions": before.Actions},
@@ -276,7 +276,6 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	s.reevaluate(r.Context(), p.OrganizationID)
 	v, err := scanView(s.DB.QueryRow(r.Context(), viewSelect+` WHERE p.id = $1`, id))
 	if err != nil {
 		s.fail(w, r, err)
@@ -297,9 +296,20 @@ func (s *Service) remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = db.InTx(r.Context(), s.DB, func(tx pgx.Tx) error {
+		var exists bool
+		if err := tx.QueryRow(r.Context(), `SELECT true FROM security_policies WHERE organization_id = $1 AND id = $2 FOR UPDATE`,
+			p.OrganizationID, id).Scan(&exists); err != nil {
+			return err
+		}
+		if err := RestoreSLA(r.Context(), tx, id); err != nil {
+			return err
+		}
 		var name string
 		if err := tx.QueryRow(r.Context(), `DELETE FROM security_policies WHERE organization_id = $1 AND id = $2 RETURNING name`,
 			p.OrganizationID, id).Scan(&name); err != nil {
+			return err
+		}
+		if _, err := Evaluate(r.Context(), tx, p.OrganizationID, nil); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,

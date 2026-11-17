@@ -46,7 +46,7 @@ type MFAManager interface {
 const (
 	configureTOTP     = "CONFIGURE_TOTP"
 	configureRecovery = "CONFIGURE_RECOVERY_AUTHN_CODES"
-	recoveryCredType  = "recovery-authn-codes"
+	recoveryCredType  = "recovery-authn-codes" // #nosec G101 -- Keycloak credential type name, not a credential
 )
 
 type kcUser struct {

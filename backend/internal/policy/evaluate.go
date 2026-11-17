@@ -159,3 +159,14 @@ func EvaluatePR(ctx context.Context, tx pgx.Tx, orgID, checkID uuid.UUID) ([]str
 	}
 	return blocking, nil
 }
+
+// RestoreSLA recomputes, from the SLA policies alone, the deadlines of the
+// findings that a policy tightened (open violations). Run Evaluate after it
+// so that the remaining policies tighten them again where they apply.
+func RestoreSLA(ctx context.Context, tx pgx.Tx, policyID uuid.UUID) error {
+	_, err := tx.Exec(ctx, `UPDATE findings f SET updated_at = now(),
+		  sla_due_at = (SELECT CASE WHEN p.days IS NULL THEN NULL ELSE f.first_seen_at + make_interval(days => p.days) END
+		                FROM sla_policies p WHERE p.organization_id = f.organization_id AND p.severity = f.severity)
+		FROM policy_violations v WHERE v.policy_id = $1 AND v.finding_id = f.id AND v.resolved_at IS NULL`, policyID)
+	return err
+}

@@ -310,4 +310,23 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module F 12 completed, 3 in progress (end-of-life dates, exact introducing commit, image and artifact signature verification).
 
-**Next:** phase 8, governance: MFA recovery codes, SAML/OIDC brokering, policy engine, compliance mapping.
+### Phase 8 — Governance (done)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00021 | `security_policies`, `policy_violations`; `pr_findings.cwe` and `policy_ids`; full Down migration |
+| MFA recovery codes | Recovery code sign-in enabled by an idempotent `keycloak-setup` job (bootstrap administrator; PATHOS's service account keeps user-management rights only); status, self-service (**Sign-in security**) and administrator requests; audited |
+| SSO | SAML 2.0 and OIDC brokering guide; `scripts/test-sso-brokering.py` signs in through a temporary external OIDC and SAML provider and checks provisioning |
+| Policy engine | Conditions on findings and context, actions block / require review / SLA / notify; evaluated after every scan (gate), in PR checks (new findings), every 10 minutes and on change; SLA restored when a policy stops applying; dry-run preview; violations; `policy.violated` notification |
+| Compliance mapping | Five frameworks; controls mapped by category, CWE and malicious packages; views over repositories in each framework's compliance scope; findings filter `control=` |
+| UI | Security policies (editor with live preview, violations), Compliance, Sign-in security, recovery codes in the user drawer, policies on findings and PR checks |
+
+**Verified on the local stack:** recovery codes enrolled at sign-in (12 codes), a code accepted once and refused when reused; OIDC and SAML brokering end to end (both signatures validated, new users without access), cleaned up; a KEV policy matched the one exploited finding, tightened its deadline to 7 days, notified and queued a Human Eye review, and deleting it restored the 90-day SLA; OWASP Top 10 view on real data (A03, A05, A06 failing).
+
+**Tests:** unit (policy validation and parameterised SQL, compliance catalog, recovery codes against a fake Keycloak); integration (policies: permissions, violations, gate, SLA and restoration, notification once, Human Eye queue, PR block, disable and delete, audit; compliance views, scope and control filter; recovery codes); Vitest 160.
+
+**Register:** module G 17 completed, 5 in progress (executive dashboard, outbound webhooks, multi-tenant, plugin architecture, offline bundles), 3 not started (custom reporting, Jira, ServiceNow).
+
+**Next:** phase 9, reporting and integrations: executive dashboard, custom reports, outbound webhooks, Jira, ServiceNow, Slack and Teams, REST API tokens.

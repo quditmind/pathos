@@ -166,6 +166,14 @@ func TestSecurityPolicies(t *testing.T) {
 	if code, out := call(admin, "PUT", "/api/v1/security-policies/"+pid, def); code != 200 || out["open_violations"].(float64) != 0 || out["version"].(float64) != 2 {
 		t.Errorf("disable: %d %v", code, out)
 	}
+	// Deadlines it tightened follow the SLA policies again.
+	var off int
+	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM policy_violations v JOIN findings f ON f.id = v.finding_id
+		WHERE v.policy_id = $1 AND f.sla_due_at IS DISTINCT FROM (SELECT CASE WHEN p.days IS NULL THEN NULL ELSE f.first_seen_at + make_interval(days => p.days) END
+		  FROM sla_policies p WHERE p.organization_id = f.organization_id AND p.severity = f.severity)`, pid).Scan(&off)
+	if off != 0 {
+		t.Errorf("SLA restored when the policy is disabled, %d not", off)
+	}
 	if code, _ := call(admin, "DELETE", "/api/v1/security-policies/"+sast["id"].(string), nil); code != 204 {
 		t.Errorf("delete: %d", code)
 	}
