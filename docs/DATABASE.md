@@ -209,6 +209,13 @@ The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is no
 | `human_review_approvals.level` | 1 independent reviewer, 2 final approver; unique per decision and level, and per decision and person |
 | `human_review_recommendations` kinds `patch`, `risk_explanation`, `duplicate_candidates`; `patch_status`, `patch_decided_by/at`, `patch_note` | AI patch proposals and their human decision. The app role may update only these four columns: suggestions stay immutable |
 
+## AI Security Analyst (migration 00019)
+
+| Object | Purpose |
+|---|---|
+| `ai_conversations`, `ai_messages` | Private conversations; answers keep their citations (finding IDs that were in the context), follow-ups, context SHA-256, model and tokens |
+| `ai_reports` | Technical and executive reports: PATHOS-computed `facts`, the AI `narrative` (or a `narrative_error`), model and tokens |
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

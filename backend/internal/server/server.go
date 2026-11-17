@@ -12,6 +12,7 @@ import (
 	"github.com/redis/go-redis/v9"
 
 	"pathos/internal/ai"
+	"pathos/internal/analyst"
 	"pathos/internal/auth"
 	"pathos/internal/authz"
 	"pathos/internal/dashboard"
@@ -123,7 +124,9 @@ func Build(d Deps) Handlers {
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	reviewSvc.Register(protected)
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
-	(&posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
+	postureSvc.Register(protected)
+	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)

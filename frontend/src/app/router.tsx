@@ -37,6 +37,9 @@ import { ContextGraphPage, validateGraphSearch } from "@/features/posture/Contex
 import { AttackPathsPage } from "@/features/posture/AttackPathsPage";
 import { VulnerabilityPage } from "@/features/vuln/VulnerabilityPage";
 import { SuppressionRulesPage } from "@/features/vuln/SuppressionRulesPage";
+import { AnalystPage } from "@/features/ai/AnalystPage";
+import { AIReportsPage } from "@/features/ai/AIReportsPage";
+import { AIUsagePage } from "@/features/ai/AIUsagePage";
 import { CustomRulesPage } from "@/features/scans/CustomRulesPage";
 import { FindingsPage, validateFindingSearch } from "@/features/findings/FindingsPage";
 import { RiskPage } from "@/features/vuln/RiskPage";
@@ -161,6 +164,9 @@ const blastRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture
 const attackRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/attack-paths", component: AttackPathsPage });
 const vulnRoute = createRoute({ getParentRoute: () => appRoute, path: "/vulnerabilities/$id", component: VulnerabilityPage });
 const suppressionRoute = createRoute({ getParentRoute: () => appRoute, path: "/suppression-rules", component: SuppressionRulesPage });
+const analystRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/analyst", component: AnalystPage });
+const aiReportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/reports", component: AIReportsPage });
+const aiUsageRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/ai-usage", component: AIUsagePage });
 const graphRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/graph", component: ContextGraphPage, validateSearch: validateGraphSearch });
 const customRulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/custom-rules", component: CustomRulesPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
@@ -192,7 +198,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 
