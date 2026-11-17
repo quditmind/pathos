@@ -1,5 +1,6 @@
 # syntax=docker/dockerfile:1
-# PATHOS worker-core: Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov.
+# PATHOS worker-core: Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov,
+# zizmor (GitHub Actions) and Nuclei (DAST for authorized URL/API targets).
 # Build context: repository root.
 #
 # Every downloaded binary is pinned by version and SHA-256. Repository code
@@ -28,13 +29,21 @@ RUN --mount=type=cache,target=/go/pkg/mod set -eux; \
     /out/gitleaks version
 
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS tools
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
 WORKDIR /dl
 ARG TRIVY=0.76.2   TRIVY_SHA=bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
 ARG SYFT=1.57.1    SYFT_SHA=bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c
 ARG GRYPE=0.121.3  GRYPE_SHA=e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85
 ARG OSV=2.7.1      OSV_SHA=fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8
 ARG OPENGREP=2.0.0 OPENGREP_SHA=37e93f4da5fd04a18c5c1febbdd12f7e98dfccd4d0c9cf2593bcb25eeb462da0
+ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
+ARG NUCLEI=3.11.1  NUCLEI_SHA=ea63d4ae232808cd7c6bc00d0142428e231fab59dae01042246097d195835ab6
+# Nuclei templates: GitHub source archive of the release tag (hash computed
+# when the version was pinned).
+# Only a reviewed subset is installed. Left out: osint and token-spray
+# (contact third-party sites), default-logins and credential-stuffing (log-in
+# attempts), fuzzing, iot, honeypot and technologies (fingerprinting).
+ARG NUCLEI_TEMPLATES=10.5.1 NUCLEI_TEMPLATES_SHA=30fe1cfaced4635f886e4a2673641bba86998dceec28e468274524e789aa56eb
 RUN set -eux; \
     fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY}/trivy_${TRIVY}_Linux-64bit.tar.gz" "$TRIVY_SHA"; \
@@ -42,10 +51,20 @@ RUN set -eux; \
     fetch grype.tgz "https://github.com/anchore/grype/releases/download/v${GRYPE}/grype_${GRYPE}_linux_amd64.tar.gz" "$GRYPE_SHA"; \
     fetch osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV}/osv-scanner_linux_amd64" "$OSV_SHA"; \
     fetch opengrep "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP}/opengrep_linux_x86" "$OPENGREP_SHA"; \
-    mkdir -p /out; \
+    fetch zizmor.tgz "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR}/zizmor-x86_64-unknown-linux-gnu.tar.gz" "$ZIZMOR_SHA"; \
+    fetch nuclei.zip "https://github.com/projectdiscovery/nuclei/releases/download/v${NUCLEI}/nuclei_${NUCLEI}_linux_amd64.zip" "$NUCLEI_SHA"; \
+    fetch templates.tgz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES}.tar.gz" "$NUCLEI_TEMPLATES_SHA"; \
+    mkdir -p /out /templates; \
     for t in trivy syft grype; do tar -xzf "$t.tgz" -C /out "$t"; done; \
+    tar -xzf zizmor.tgz -C /out zizmor; \
+    unzip -q nuclei.zip nuclei -d /out; \
     install -m 0755 osv-scanner opengrep /out/; \
-    chmod 0755 /out/*
+    chmod 0755 /out/*; \
+    t="nuclei-templates-${NUCLEI_TEMPLATES}"; \
+    tar -xzf templates.tgz -C /templates --strip-components=1 \
+      "$t/http/cves" "$t/http/misconfiguration" "$t/http/vulnerabilities" "$t/http/exposures" "$t/http/exposed-panels" \
+      "$t/http/takeovers" "$t/http/miscellaneous" "$t/ssl" "$t/dast" "$t/helpers" "$t/LICENSE.md"; \
+    find /templates -type d -exec chmod 0755 {} +; find /templates -type f -exec chmod 0644 {} +
 
 FROM python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
 RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends git ca-certificates \
@@ -62,9 +81,10 @@ COPY --from=tools /out/ /usr/local/bin/
 COPY --from=gitleaks /out/gitleaks /usr/local/bin/gitleaks
 COPY --from=agent /out/pathos-worker /usr/local/bin/pathos-worker
 COPY workers/rules/ /opt/pathos/rules/
+COPY --from=tools /templates/ /opt/pathos/nuclei-templates/
 RUN useradd --uid 10001 --create-home --home-dir /tmp/home --shell /usr/sbin/nologin pathos \
     && mkdir -p /work /cache /rules && chown pathos:pathos /work /cache \
-    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git; do command -v "$t" >/dev/null; done
+    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei; do command -v "$t" >/dev/null; done
 USER 10001:10001
 ENV PATHOS_WORK_DIR=/work PATHOS_CACHE_DIR=/cache PATHOS_RULES_DIRS=/opt/pathos/rules:/rules \
     PYTHONDONTWRITEBYTECODE=1 HOME=/tmp/home

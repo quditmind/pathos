@@ -8,6 +8,8 @@ const scanningPages: [string, string][] = [
   ["/scans", "Scans"],
   ["/scans/schedules", "Scan schedules"],
   ["/scans/compare", "Scan comparison"],
+  ["/scans/targets", "Scan targets"],
+  ["/scans/imports", "Import results"],
 ];
 
 for (const [path, heading] of scanningPages) {
@@ -21,7 +23,7 @@ for (const [path, heading] of scanningPages) {
 test("Scanning and Configurations navigation sections", async ({ page }) => {
   await page.goto("/scans/overview");
   const nav = page.getByRole("navigation", { name: "Main" });
-  for (const label of ["Scan Overview", "Scans", "Scan Schedules", "Scan Comparison"]) {
+  for (const label of ["Scan Overview", "Scans", "Scan Schedules", "Scan Comparison", "Scan targets", "Import Results"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
   await expect(nav.getByText("Configurations", { exact: true })).toBeVisible();

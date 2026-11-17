@@ -174,6 +174,14 @@ The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is no
 | `sbom_components.source`, nullable `scan_job_id` | Imported inventories |
 | `custom_rules`, `custom_rule_versions` | Opengrep rule files and their saved versions; scan snapshots pin `(id, version)` |
 
+## Scan targets (migration 00015)
+
+| Object | Purpose |
+|---|---|
+| `scan_targets` | Container images, web applications, APIs and SBOMs scanned for a repository: kind, reference, egress host, config, OpenAPI document, gzip SBOM with SHA-256 and size, authentication type and encrypted secret (`secrets.kind = scan_target`), authorization statement (`authorized_by`, `authorized_at`, note; required for `url` and `api`), enabled |
+| `scan_jobs.target_id`, `target_kind` | The target an execution scanned (`repository` for source scans). The queued-execution unique index includes the target |
+| `findings.scan_target_id` | The target a finding belongs to. Target findings use target-namespaced fingerprints and are resolved only by scans of the same target. A target with findings cannot be deleted (foreign key) |
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

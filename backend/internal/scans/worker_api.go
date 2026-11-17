@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -69,6 +70,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/results", s.uploadResult)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/complete", s.complete)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
+	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
@@ -195,6 +197,8 @@ type LeasedJob struct {
 	// snapshot from GET /internal/worker/v1/jobs/{id}/source.
 	Source      *JobSource `json:"source,omitempty"`
 	FullHistory bool       `json:"full_history"`
+	// Target replaces the repository source for scan-target jobs.
+	Target *LeasedTarget `json:"target,omitempty"`
 }
 
 // JobSource describes a snapshot to download instead of cloning.
@@ -221,7 +225,7 @@ func requeueExpired(ctx context.Context, q db.Querier) error {
 		  finished_at = CASE WHEN j.attempts >= j.max_attempts THEN now() ELSE NULL END,
 		  leased_by = NULL, lease_expires_at = NULL
 		WHERE j.status = 'running' AND j.lease_expires_at < now()
-		  AND NOT EXISTS (SELECT 1 FROM scan_jobs q WHERE q.repository_id = j.repository_id AND q.status = 'queued')`)
+		  AND NOT EXISTS (SELECT 1 FROM scan_jobs q WHERE q.repository_id = j.repository_id AND q.target_id IS NOT DISTINCT FROM j.target_id AND q.status = 'queued')`)
 	return err
 }
 
@@ -254,9 +258,10 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		var visibility string
-		if err := tx.QueryRow(ctx, `SELECT r.full_name, r.clone_url, r.scm_connection_id, r.visibility, r.full_history, j.snapshot_id
+		var targetID *uuid.UUID
+		if err := tx.QueryRow(ctx, `SELECT r.full_name, r.clone_url, r.scm_connection_id, r.visibility, r.full_history, j.snapshot_id, j.target_id
 			FROM repositories r JOIN scan_jobs j ON j.id = $2 WHERE r.id = $1`, job.RepositoryID, job.JobID).
-			Scan(&job.FullName, &job.CloneURL, &connID, &visibility, &job.FullHistory, &snapshotID); err != nil {
+			Scan(&job.FullName, &job.CloneURL, &connID, &visibility, &job.FullHistory, &snapshotID, &targetID); err != nil {
 			return err
 		}
 		job.Public = visibility == "public"
@@ -274,6 +279,12 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		job.TimeoutSeconds, job.Exclusions, job.Scanners = v.TimeoutSeconds, v.Exclusions, v.Scanners
+		if targetID != nil {
+			connID, snapshotID = nil, nil
+			return s.leaseTarget(ctx, tx, wk.orgID, *targetID, &job)
+		}
+		// Target scanners (image, DAST) never run against a repository.
+		job.Scanners = slices.DeleteFunc(job.Scanners, func(ps ProfileScanner) bool { return scanners.IsTargetOnly(ps.Key) })
 		// Opengrep receives the custom rule files pinned in the snapshot.
 		for i, sc := range job.Scanners {
 			if sc.Key != scanners.Opengrep {
@@ -626,3 +637,36 @@ func (s *Service) deleteWorker(w http.ResponseWriter, r *http.Request) {
 }
 
 var shaRe = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
+
+// jobTargetFile serves an SBOM target to the worker that holds the job.
+func (s *Service) jobTargetFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	wk := workerFrom(ctx)
+	id, err := pathID(r, "id")
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
+		return
+	}
+	if status, err := s.ownedJob(ctx, wk, id); err != nil || status != "running" {
+		if err == nil {
+			err = httpx.Conflict("job is " + status)
+		}
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	var gz []byte
+	if err := s.DB.QueryRow(ctx, `SELECT t.sbom_gzip FROM scan_jobs j JOIN scan_targets t ON t.id = j.target_id
+		WHERE j.id = $1 AND t.kind = 'sbom'`, id).Scan(&gz); err != nil || len(gz) == 0 {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusNotFound, "no_target_file", "this job has no SBOM target"))
+		return
+	}
+	raw, err := gunzipLimited(gz, maxRawReport)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Length", strconv.Itoa(len(raw)))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(raw)
+}

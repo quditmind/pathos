@@ -34,6 +34,12 @@ export function OverviewTab({ job: j }: { job: ScanJob }) {
             <div className="font-mono text-[11.5px] text-muted-foreground">{j.repository_key}</div>
           </Field>
           <Field label="Asset type"><span className="capitalize">{j.asset_type || "repository"}</span></Field>
+          {j.target_name && (
+            <Field label="Scan target">
+              <Link to="/scans/targets" className="text-primary hover:underline">{j.target_name}</Link>
+              <div className="break-all font-mono text-[11.5px] text-muted-foreground">{j.target_reference}</div>
+            </Field>
+          )}
           <Field label="Scan profile">
             {j.profile_id ? (
               <Link to="/configurations/scan-profiles" className="text-primary hover:underline">{j.profile_name}</Link>

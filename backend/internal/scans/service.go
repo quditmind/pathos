@@ -19,6 +19,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/scm"
+	"pathos/internal/secrets"
 )
 
 // Service holds shared dependencies.
@@ -36,6 +37,8 @@ type Service struct {
 	Artifacts objstore.Store
 	// OpenSnapshot opens a decrypted source snapshot (uploaded repositories).
 	OpenSnapshot func(ctx context.Context, orgID, snapshotID uuid.UUID) (io.ReadCloser, string, int64, error)
+	// Secrets encrypts scan target credentials.
+	Secrets *secrets.Store
 	// OnScanFinished runs after a job completes (AI auto-review enqueue).
 	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
 }
@@ -49,6 +52,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerFindings(mux)
 	s.registerImports(mux)
 	s.registerRules(mux)
+	s.registerTargets(mux)
 	s.registerWorkersAdmin(mux)
 }
 

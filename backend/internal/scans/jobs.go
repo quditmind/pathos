@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"pathos/internal/platform/objstore"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -134,7 +135,7 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 			UPDATE scan_jobs SET commit_sha = CASE WHEN $3 <> '' THEN $3 ELSE commit_sha END,
 			       priority = GREATEST(priority, $4), ref = $5, schedule_id = COALESCE(schedule_id, $6), snapshot_id = $7,
 			       schedule_run_id = COALESCE(schedule_run_id, $9)
-			WHERE repository_id = $1 AND organization_id = $2 AND profile_version_id = $8 AND status = 'queued' RETURNING id`,
+			WHERE repository_id = $1 AND organization_id = $2 AND profile_version_id = $8 AND status = 'queued' AND target_id IS NULL RETURNING id`,
 			repoID, orgID, commit, prio, ref, opt.ScheduleID, snapshotID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID)
 		if err == nil {
 			res.Coalesced = true
@@ -166,7 +167,7 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	if db.IsUniqueViolation(err) {
 		// Lost a race with a concurrent trigger, or this schedule run
 		// already created the execution: use the existing one.
-		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND profile_version_id = $2
+		if err := q.QueryRow(ctx, `SELECT id FROM scan_jobs WHERE repository_id = $1 AND profile_version_id = $2 AND target_id IS NULL
 			AND (status = 'queued' OR ($3::uuid IS NOT NULL AND schedule_run_id = $3)) ORDER BY queued_at DESC LIMIT 1`,
 			repoID, *profileVersion, opt.ScheduleRunID).Scan(&res.JobID); err != nil {
 			return res, err
@@ -381,7 +382,10 @@ type Job struct {
 	// Scanning module fields.
 	ScanKey        string         `json:"scan_key"` // permanent Scan ID, e.g. QD-SCAN-000042
 	Name           string         `json:"name"`
-	AssetType      string         `json:"asset_type"` // "repository"
+	AssetType      string         `json:"asset_type"` // repository | image | url | api | sbom
+	TargetID       *uuid.UUID     `json:"target_id"`
+	TargetName     *string        `json:"target_name"`
+	TargetRef      *string        `json:"target_reference"`
 	ProfileID      uuid.UUID      `json:"profile_id"`
 	Progress       int            `json:"progress"`
 	Stage          string         `json:"stage"`
@@ -412,6 +416,7 @@ const jobSelect = `
 	       j.attempts, wk.name, COALESCE(NULLIF(u.display_name, ''), u.email), j.error, j.findings_new, j.findings_fixed,
 	       j.gate_failed, j.queued_at, j.started_at, j.finished_at,
 	       j.scan_key, j.name, sp.id, j.progress, j.stage, j.retry_of, j.retry_count, j.schedule_id, j.schedule_run_id, j.snapshot_id,
+	       j.target_kind, j.target_id, st.name, st.reference,
 	       (EXTRACT(EPOCH FROM (COALESCE(j.finished_at, CASE WHEN j.status = 'running' THEN now() END) - j.started_at)) * 1000)::bigint,
 	       COALESCE((SELECT jsonb_object_agg(x.severity, x.n) FROM (
 	         SELECT f.severity, count(DISTINCT f.id) AS n FROM finding_occurrences o
@@ -422,6 +427,7 @@ const jobSelect = `
 	LEFT JOIN countries co ON co.id = r.country_id
 	JOIN scan_profile_versions v ON v.id = j.profile_version_id
 	JOIN scan_profiles sp ON sp.id = v.profile_id
+	LEFT JOIN scan_targets st ON st.id = j.target_id
 	LEFT JOIN workers wk ON wk.id = j.leased_by
 	LEFT JOIN users u ON u.id = j.requested_by`
 
@@ -431,11 +437,10 @@ func scanJob(row pgx.Row) (Job, error) {
 		&j.Status, &j.Ref, &j.CommitSHA, &j.Attempts, &j.WorkerName, &j.RequestedBy, &j.Error, &j.FindingsNew,
 		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt,
 		&j.ScanKey, &j.Name, &j.ProfileID, &j.Progress, &j.Stage, &j.RetryOf, &j.RetryCount, &j.ScheduleID, &j.ScheduleRunID,
-		&j.SnapshotID, &j.DurationMS, &j.Severity)
+		&j.SnapshotID, &j.AssetType, &j.TargetID, &j.TargetName, &j.TargetRef, &j.DurationMS, &j.Severity)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return j, errNotFound
 	}
-	j.AssetType = "repository"
 	for _, k := range []string{"critical", "high", "medium", "low", "info"} {
 		if _, ok := j.Severity[k]; !ok {
 			if j.Severity == nil {
@@ -515,8 +520,20 @@ func (s *Service) listJobs(w http.ResponseWriter, r *http.Request) {
 	if v := q.Get("scanner"); v != "" {
 		add("EXISTS (SELECT 1 FROM scan_results sr WHERE sr.scan_job_id = j.id AND sr.scanner_key = ?)", v)
 	}
-	if v := q.Get("asset_type"); v != "" && v != "repository" {
-		where = append(where, "false") // repositories are the only asset type with scans
+	if v := q.Get("asset_type"); v != "" {
+		if !slices.Contains([]string{"repository", "image", "url", "api", "sbom"}, v) {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("asset_type must be repository, image, url, api or sbom"))
+			return
+		}
+		add("j.target_kind = ?", v)
+	}
+	if v := q.Get("target_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid target_id"))
+			return
+		}
+		add("j.target_id = ?", id)
 	}
 	for param, op := range map[string]string{"from": ">=", "to": "<"} {
 		if v := q.Get(param); v != "" {

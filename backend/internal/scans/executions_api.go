@@ -63,9 +63,14 @@ func (s *Service) retryScan(w http.ResponseWriter, r *http.Request) {
 	var res EnqueueResult
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var err error
-		profileID := j.ProfileID
-		res, err = EnqueueWith(ctx, tx, p.OrganizationID, j.RepositoryID, j.Trigger, "", j.CommitSHA, &p.UserID,
-			EnqueueOpts{ProfileID: &profileID, RetryOf: &j.ID, Name: j.Name, ScheduleID: j.ScheduleID, ScheduleRunID: j.ScheduleRunID})
+		if j.TargetID != nil {
+			// A target scan is retried as a new scan of the same target.
+			res, err = EnqueueTarget(ctx, tx, p.OrganizationID, *j.TargetID, "manual", &p.UserID)
+		} else {
+			profileID := j.ProfileID
+			res, err = EnqueueWith(ctx, tx, p.OrganizationID, j.RepositoryID, j.Trigger, "", j.CommitSHA, &p.UserID,
+				EnqueueOpts{ProfileID: &profileID, RetryOf: &j.ID, Name: j.Name, ScheduleID: j.ScheduleID, ScheduleRunID: j.ScheduleRunID})
+		}
 		if err != nil {
 			return err
 		}

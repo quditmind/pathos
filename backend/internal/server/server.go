@@ -86,7 +86,7 @@ func Build(d Deps) Handlers {
 	repoSvc := NewReposService(d, az)
 	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
 		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID, Artifacts: d.Artifacts,
-		OpenSnapshot: repoSvc.OpenSnapshot}
+		OpenSnapshot: repoSvc.OpenSnapshot, Secrets: d.Secrets}
 	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)

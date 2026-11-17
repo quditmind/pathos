@@ -28,9 +28,12 @@ type Scanner struct {
 	Mandatory        bool   `json:"mandatory"`
 	AdapterAvailable bool   `json:"adapter_available"`
 	DefaultEnabled   bool   `json:"default_enabled"`
-	OutputFormat     string `json:"output_format"`
-	Homepage         string `json:"homepage"`
-	Notes            string `json:"notes"`
+	// TargetOnly scanners run for scan targets (images, URLs, APIs), not
+	// as part of a repository scan profile.
+	TargetOnly   bool   `json:"target_only"`
+	OutputFormat string `json:"output_format"`
+	Homepage     string `json:"homepage"`
+	Notes        string `json:"notes"`
 }
 
 // FindingCategory maps a scanner category to the findings.category column.
@@ -51,6 +54,9 @@ const (
 	Grype      = "grype"
 	OSVScanner = "osv-scanner"
 	Checkov    = "checkov"
+	TrivyImage = "trivy-image"
+	Nuclei     = "nuclei"
+	Zizmor     = "zizmor"
 )
 
 func s(key, name, cat, lic, decision, family string, opts ...func(*Scanner)) Scanner {
@@ -62,7 +68,10 @@ func s(key, name, cat, lic, decision, family string, opts ...func(*Scanner)) Sca
 }
 
 var (
-	core      = func(sc *Scanner) { sc.AdapterAvailable, sc.DefaultEnabled = true, true }
+	core = func(sc *Scanner) { sc.AdapterAvailable, sc.DefaultEnabled = true, true }
+	// target scanners run for scan targets (images, URLs, APIs), never as
+	// part of a repository profile.
+	target    = func(sc *Scanner) { sc.AdapterAvailable, sc.TargetOnly = true, true }
 	mandatory = func(sc *Scanner) { sc.Mandatory = true }
 	build     = func(sc *Scanner) { sc.RequiresBuild = true }
 	format    = func(f string) func(*Scanner) { return func(sc *Scanner) { sc.OutputFormat = f } }
@@ -114,14 +123,14 @@ var Catalog = []Scanner{
 	s("conftest", "Conftest", "iac", "Apache-2.0", "use", "iac"),
 	s("hadolint", "Hadolint", "iac", "GPL-3.0", "use", "iac"),
 	s("dockle", "Dockle", "container", "Apache-2.0", "use", "container"),
-	s("trivy-image", "Trivy (image)", "container", "Apache-2.0", "use", "container"),
+	s(TrivyImage, "Trivy (image)", "container", "Apache-2.0", "use", "core", target, home("https://github.com/aquasecurity/trivy"), note("Runs for container image targets")),
 	s("actionlint", "actionlint", "iac", "MIT", "use", "iac"),
-	s("zizmor", "zizmor", "iac", "MIT", "use", "iac"),
+	s(Zizmor, "zizmor", "iac", "MIT", "use", "core", core, home("https://github.com/zizmorcore/zizmor"), note("GitHub Actions workflow security; runs offline and only when the repository has workflows")),
 	s("scorecard", "OpenSSF Scorecard", "supply-chain", "Apache-2.0", "use", "supply-chain"),
 	s("scancode", "ScanCode Toolkit", "license", "Apache-2.0", "use", "license"),
 	s("trivy-license", "Trivy (license)", "license", "Apache-2.0", "use", "license"),
 	s("zap", "OWASP ZAP", "dast", "Apache-2.0", "use", "dast", note("Targets a URL, not a repository")),
-	s("nuclei", "Nuclei", "dast", "MIT", "use", "dast"),
+	s(Nuclei, "Nuclei", "dast", "MIT", "use", "core", target, format("jsonl"), home("https://github.com/projectdiscovery/nuclei"), note("Runs for authorized web application and API targets; non-intrusive templates only")),
 	s("schemathesis", "Schemathesis", "dast", "MIT", "use", "dast"),
 	s("kube-bench", "kube-bench", "iac", "Apache-2.0", "optional", "cluster", note("Cluster target")),
 }
@@ -131,6 +140,20 @@ var SyftUtility = Scanner{Key: Syft, Name: "Syft", Category: "sbom", License: "A
 	AdapterAvailable: true, OutputFormat: "cyclonedx-json", Homepage: "https://github.com/anchore/syft", Notes: "SBOM generation (CycloneDX)"}
 
 // Lookup returns a catalog entry.
+// TargetScanners maps a scan target kind to the scanners that run for it.
+var TargetScanners = map[string][]string{
+	"image": {TrivyImage},
+	"url":   {Nuclei},
+	"api":   {Nuclei},
+	"sbom":  {Grype},
+}
+
+// IsTargetOnly reports whether a scanner runs only for scan targets.
+func IsTargetOnly(key string) bool {
+	sc, ok := Lookup(key)
+	return ok && sc.TargetOnly
+}
+
 func Lookup(key string) (Scanner, bool) {
 	for _, sc := range Catalog {
 		if sc.Key == key {

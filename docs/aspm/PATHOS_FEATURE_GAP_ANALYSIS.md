@@ -16,13 +16,13 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
-| A. Code and application scanning (1–15) | 7 | 5 | 3 |
+| A. Code and application scanning (1–15) | 10 | 4 | 1 |
 | B. ASPM and application intelligence (16–30) | 7 | 5 | 3 |
 | C. Vulnerability intelligence (31–45) | 11 | 2 | 2 |
 | D. Manual validation and AI (46–60) | 11 | 3 | 1 |
-| F. Supply chain and DevSecOps (61–75) | 6 | 5 | 4 |
+| F. Supply chain and DevSecOps (61–75) | 7 | 5 | 3 |
 | G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **56** | **28** | **16** |
+| **Total** | **60** | **27** | **13** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -32,12 +32,12 @@ Module E (AI Security Analyst) has no numbered features. Its requirements are as
 |---|---|---|---|---|---|---|---|---|
 | 1 | SAST | Completed | ✓ | ✓ | ✓ | ✓ | Opengrep with baseline rules, multi-language | More engines (Bandit, Gosec, …) are catalogued only |
 | 2 | SCA / dependencies | Completed | ✓ | ✓ | ✓ | ✓ | Trivy fs, Grype (on the Syft SBOM), OSV-Scanner; cross-tool de-duplication | Reachability (see 41) |
-| 3 | DAST | Not Started | — | — | — | — | ZAP and Nuclei catalogued; ZAP only tests PATHOS itself in CI | URL targets, a `dast` worker family, authenticated scan configuration, scope safety |
+| 3 | DAST | Completed | ✓ | ✓ | ✓ | ✓ | Web application targets scanned by Nuclei (reviewed non-intrusive templates), header or basic authentication, recorded authorization, rate limits, egress preflight (phase 2b) | ZAP spidering and scripted login flows |
 | 4 | IAST integration | Completed | ✓ | ✓ | ✓ | ✓ | IAST results imported as PATHOS findings JSON or SARIF (phase 2a) | — |
 | 5 | Secrets | Completed | ✓ | ✓ | ✓ | ✓ | Gitleaks mandatory, redaction, optional full history | Secret validity checks (TruffleHog verify, opt-in) |
 | 6 | IaC | Completed | ✓ | ✓ | ✓ | ✓ | Checkov | KICS and Kubescape adapters (optional) |
-| 7 | Container image | In Progress | ◐ | ◐ | ◐ | ◐ | Trivy fs reads Dockerfiles and lockfiles | Image targets (registry reference), `trivy image`, Dockle, registry credentials |
-| 8 | API security | Not Started | — | — | — | — | Schemathesis catalogued | OpenAPI target type, Schemathesis and ZAP API adapters |
+| 7 | Container image | Completed | ✓ | ✓ | ✓ | ✓ | Image targets (registry reference or digest) scanned by `trivy image` with registry credentials; findings keep package and fix data (phase 2b) | Dockle image-configuration checks; registry discovery |
+| 8 | API security | Completed | ✓ | ✓ | ✓ | ✓ | API targets from OpenAPI 3 / Swagger 2 (servers locked to the authorized host) tested with Nuclei DAST templates (phase 2b) | Schemathesis property-based testing; GraphQL |
 | 9 | Malware detection | In Progress | ◐ | ◐ | ◐ | ✓ | ClamAV on uploads; OSV `MAL-*` advisories arrive as SCA findings | Repository and artifact malware scanning, a "malicious package" classification |
 | 10 | Licence scanning | In Progress | ✓ | ✓ | ✓ | ◐ | Licences from the SBOM, deny/review policy, SBOM page and KPI | Violations as findings (lifecycle and SLA), ScanCode for file-level licences |
 | 11 | Binary analysis | Not Started | — | — | — | — | — | Artifact targets; Syft and Grype on binaries and archives; checksec-style hardening checks |
@@ -141,12 +141,12 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
 | 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft, CycloneDX, per scan | SPDX export |
-| 62 | SBOM import | In Progress | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a) | Vulnerability matching of imported SBOMs on workers (phase 2b) |
+| 62 | SBOM import | Completed | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a); SBOM targets matched by Grype on workers (phase 2b) | — |
 | 63 | Dependency graph analysis | In Progress | ◐ | ◐ | ◐ | ✓ | Flat inventory | Edges, direct and transitive (see 22) |
 | 64 | Package risk | In Progress | ◐ | ◐ | — | ◐ | Known vulnerabilities | Outdated and unsupported signals (latest version, end of life, deprecation), OpenSSF Scorecard |
 | 65 | Malicious packages | In Progress | ◐ | — | — | — | OSV `MAL-*` via OSV-Scanner | Classify and highlight; KEV-like urgency |
 | 66 | Licence compliance | Completed | ✓ | ✓ | ✓ | ✓ | Policy and SBOM view | Findings for violations (see 10) |
-| 67 | CI/CD pipeline security | Not Started | — | — | — | — | actionlint and zizmor catalogued | Adapters for GitHub Actions (zizmor, actionlint) and pipeline misconfiguration rules |
+| 67 | CI/CD pipeline security | In Progress | ✓ | ◐ | ✓ | ✓ | zizmor audits GitHub Actions workflows and actions offline (phase 2b) | actionlint; GitLab CI, Azure Pipelines and Bitbucket Pipelines rules |
 | 68 | GitHub | Completed | ✓ | ✓ | ✓ | ✓ | PAT, App, OAuth, webhooks | Checks API (see 72) |
 | 69 | GitLab | Completed | ✓ | ✓ | ✓ | ✓ | | MR notes or status (see 72) |
 | 70 | Azure DevOps | Completed | ✓ | ✓ | ✓ | ✓ | | PR status (see 72) |

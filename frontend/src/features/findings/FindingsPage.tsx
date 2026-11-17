@@ -33,17 +33,17 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string };
+type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
 const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", dast: "Web and API (DAST)", other: "Other" };
 
 function location(f: Finding) {
-  if (f.category === "sca" && f.package_name) return `${f.package_name}@${f.package_version}`;
+  if ((f.category === "sca" || f.category === "container") && f.package_name) return `${f.package_name}@${f.package_version}`;
   return f.file_path ? `${f.file_path}${f.start_line ? `:${f.start_line}` : ""}` : "—";
 }
 
@@ -59,7 +59,8 @@ const columns: Column<Finding>[] = [
         <div className="truncate font-medium">{f.title}</div>
         <div className="truncate text-[12px] text-muted-foreground">
           {f.repository_name}
-          {f.repository_key && <span className="ml-1 font-mono text-[11px]">({f.repository_key})</span>} · <span className="font-mono">{location(f)}</span>
+          {f.repository_key && <span className="ml-1 font-mono text-[11px]">({f.repository_key})</span>}
+          {f.scan_target_name && <span> · {f.scan_target_name}</span>} · <span className="font-mono">{location(f)}</span>
         </div>
       </div>
     ),
@@ -111,6 +112,7 @@ export function FindingsPage() {
     { key: "sort", label: "Order", options: [{ value: "", label: "Order by severity" }, { value: "risk", label: "Order by contextual risk" }] },
     { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
+    { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
     { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.repository_key ? `${r.full_name} · ${r.repository_key}` : r.full_name })) },
@@ -138,6 +140,14 @@ export function FindingsPage() {
       <Card className="mb-3 p-3">
         <FilterBar filters={filterDefs} values={rest as Record<string, string | undefined>} onChange={(k, v) => set({ [k]: v })}
           onReset={() => { setQ(""); void navigate({ to: "/findings", search: {} as never, replace: true }); }} />
+        {search.scan_target_id && (
+          <div className="mt-2 flex items-center gap-2 text-[12px]">
+            <span className="rounded-full border border-border bg-surface-muted px-2 py-0.5">
+              Scan target: {rows.find((r) => r.scan_target_id === search.scan_target_id)?.scan_target_name ?? "selected target"}
+            </span>
+            <button type="button" className="text-primary hover:underline" onClick={() => set({ scan_target_id: undefined })}>Show all</button>
+          </div>
+        )}
       </Card>
       {(can("findings.triage") || can("reviews.assign")) && selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => setSelected(new Set())} />}
       <Card>

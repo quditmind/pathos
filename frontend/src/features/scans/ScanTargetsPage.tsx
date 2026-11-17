@@ -1,0 +1,495 @@
+import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Boxes, Container, FileJson, Globe, Pencil, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { api, ApiError, getCsrfToken } from "@/api/client";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm";
+import { Dialog } from "@/components/ui/dialog";
+import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { useSession } from "@/features/auth/session";
+import { RepoFilter } from "@/features/review/shared";
+import { formatDateTime } from "@/lib/utils";
+
+export type TargetKind = "image" | "url" | "api" | "sbom";
+
+export interface ScanTarget {
+  id: string;
+  repository_id: string;
+  repository_name: string;
+  kind: TargetKind;
+  name: string;
+  reference: string;
+  egress_host: string;
+  config: { rate_limit?: number; min_severity?: string };
+  api_spec?: string;
+  sbom_format: string;
+  sbom_components: number;
+  sbom_size: number;
+  auth_type: "none" | "basic" | "header";
+  auth_username: string;
+  auth_header_name: string;
+  has_secret: boolean;
+  authorized_by: string | null;
+  authorized_at: string | null;
+  authorization_note: string;
+  enabled: boolean;
+  scanners: string[];
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  open_findings: number;
+  last_scan: { id: string; scan_key: string; status: string; queued_at: string; finished_at: string | null; error: string } | null;
+}
+
+export const targetKindLabel: Record<TargetKind, string> = {
+  image: "Container image",
+  url: "Web application (DAST)",
+  api: "API (OpenAPI)",
+  sbom: "SBOM",
+};
+
+const kindIcon: Record<TargetKind, React.ReactNode> = {
+  image: <Container className="size-4" />,
+  url: <Globe className="size-4" />,
+  api: <Boxes className="size-4" />,
+  sbom: <FileJson className="size-4" />,
+};
+
+const kindHelp: Record<TargetKind, string> = {
+  image: "Trivy pulls the image from its registry and reports vulnerable OS and language packages.",
+  url: "Nuclei checks the running application for misconfigurations, exposures and known vulnerabilities. Intrusive, brute-force and denial-of-service checks never run.",
+  api: "Nuclei's DAST templates test each operation of your OpenAPI document. Intrusive, brute-force and denial-of-service checks never run.",
+  sbom: "Grype matches the SBOM's components against vulnerability databases, for software you receive but cannot scan as source.",
+};
+
+const statusTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {
+  succeeded: "success",
+  partial: "warning",
+  failed: "danger",
+  cancelled: "neutral",
+  queued: "neutral",
+  running: "neutral",
+};
+
+interface FormState {
+  repository_id?: string;
+  kind: TargetKind;
+  name: string;
+  reference: string;
+  api_spec: string;
+  auth_type: "none" | "basic" | "header";
+  auth_username: string;
+  auth_header_name: string;
+  auth_secret: string;
+  rate_limit: string;
+  min_severity: string;
+  authorized: boolean;
+  authorization_note: string;
+  enabled: boolean;
+}
+
+const emptyForm = (kind: TargetKind): FormState => ({
+  kind,
+  name: "",
+  reference: "",
+  api_spec: "",
+  auth_type: "none",
+  auth_username: "",
+  auth_header_name: kind === "image" ? "" : "Authorization",
+  auth_secret: "",
+  rate_limit: "",
+  min_severity: "",
+  authorized: false,
+  authorization_note: "",
+  enabled: true,
+});
+
+async function uploadSBOM(fd: FormData): Promise<ScanTarget> {
+  const res = await fetch("/api/v1/scan-targets/sbom", { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json", "X-CSRF-Token": getCsrfToken() } });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "error", data?.error?.message ?? res.statusText, data?.request_id, undefined, data);
+  return data as ScanTarget;
+}
+
+function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; onClose: () => void; target: ScanTarget | null; initialKind: TargetKind }) {
+  const qc = useQueryClient();
+  // Loaded once per opening: a background refetch must not reset edits.
+  const full = useQuery({
+    queryKey: ["scan-target", target?.id],
+    queryFn: () => api<ScanTarget>(`/api/v1/scan-targets/${target!.id}`),
+    enabled: open && !!target,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+  const [f, setF] = useState<FormState>(emptyForm(initialKind));
+  const [file, setFile] = useState<File | null>(null);
+  const [secretTouched, setSecretTouched] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    setFile(null);
+    setSecretTouched(false);
+    if (!target) {
+      setF(emptyForm(initialKind));
+      return;
+    }
+    const t = full.data ?? target;
+    setF({
+      repository_id: t.repository_id,
+      kind: t.kind,
+      name: t.name,
+      reference: t.reference,
+      api_spec: t.api_spec ?? "",
+      auth_type: t.auth_type,
+      auth_username: t.auth_username,
+      auth_header_name: t.auth_header_name || (t.kind === "image" ? "" : "Authorization"),
+      auth_secret: "",
+      rate_limit: t.config.rate_limit ? String(t.config.rate_limit) : "",
+      min_severity: t.config.min_severity ?? "",
+      authorized: false,
+      authorization_note: t.authorization_note,
+      enabled: t.enabled,
+    });
+  }, [open, target, initialKind, full.data]);
+  const set = (p: Partial<FormState>) => setF((x) => ({ ...x, ...p }));
+  const live = f.kind === "url" || f.kind === "api";
+  const addressChanged = !!target && live && f.reference.trim() !== target.reference;
+  const save = useMutation({
+    mutationFn: async () => {
+      if (f.kind === "sbom" && !target) {
+        const fd = new FormData();
+        fd.set("repository_id", f.repository_id!);
+        fd.set("name", f.name);
+        fd.set("file", file!);
+        return uploadSBOM(fd);
+      }
+      const body: Record<string, unknown> = {
+        name: f.name,
+        enabled: f.enabled,
+        authorization_note: f.authorization_note,
+        authorized: f.authorized,
+      };
+      if (f.kind !== "sbom") {
+        body.reference = f.reference.trim();
+        body.auth_type = f.auth_type;
+        body.auth_username = f.auth_username;
+        body.auth_header_name = f.auth_header_name;
+        if (!target || secretTouched) body.auth_secret = f.auth_secret;
+        if (live) body.config = { rate_limit: f.rate_limit ? Number(f.rate_limit) : undefined, min_severity: f.min_severity || undefined };
+        if (f.kind === "api") body.api_spec = f.api_spec;
+      }
+      if (target) return api<ScanTarget>(`/api/v1/scan-targets/${target.id}`, { method: "PUT", body });
+      return api<ScanTarget>("/api/v1/scan-targets", { method: "POST", body: { ...body, repository_id: f.repository_id, kind: f.kind } });
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ["scan-targets"] });
+      qc.removeQueries({ queryKey: ["scan-target"] });
+      onClose();
+    },
+  });
+  const needsAuthorization = live && (!target || addressChanged);
+  const ok =
+    !!f.repository_id &&
+    f.name.trim() !== "" &&
+    (f.kind === "sbom" ? !!target || !!file : f.reference.trim() !== "") &&
+    (f.kind !== "api" || f.api_spec.trim() !== "") &&
+    (!needsAuthorization || f.authorized) &&
+    (f.auth_type !== "basic" || f.auth_username.trim() !== "") &&
+    (f.auth_type !== "header" || f.auth_header_name.trim() !== "");
+  const onApiFile = async (file: File | undefined) => {
+    if (file) set({ api_spec: await file.text() });
+  };
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(o) => !o && onClose()}
+      size="lg"
+      title={target ? `Edit ${target.name}` : `Add ${targetKindLabel[f.kind].toLowerCase()}`}
+      description={kindHelp[f.kind]}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
+          <Button disabled={!ok || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : target ? "Save" : "Add target"}</Button>
+        </>
+      }
+    >
+      {target && full.isPending ? (
+        <Skeleton className="h-64" />
+      ) : (
+      <div className="space-y-3">
+        {save.error && <Alert>{save.error.message}</Alert>}
+        {!target && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <Label htmlFor="tgt-kind">Kind</Label>
+              <Select id="tgt-kind" className="w-full" value={f.kind} onChange={(e) => setF({ ...emptyForm(e.target.value as TargetKind), repository_id: f.repository_id, name: f.name })}>
+                {(Object.keys(targetKindLabel) as TargetKind[]).map((k) => <option key={k} value={k}>{targetKindLabel[k]}</option>)}
+              </Select>
+            </div>
+            <div>
+              <span className="mb-1 block text-[12px] font-medium">Repository</span>
+              <RepoFilter value={f.repository_id} onChange={(v) => set({ repository_id: v })} />
+              <p className="mt-1 text-[11.5px] text-muted-foreground">Findings belong to this repository's application, owners and scope.</p>
+            </div>
+          </div>
+        )}
+        <div className="grid gap-3 md:grid-cols-2">
+          <div>
+            <Label htmlFor="tgt-name">Name</Label>
+            <Input id="tgt-name" value={f.name} maxLength={200} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === "image" ? "e.g. Payments API image" : f.kind === "sbom" ? "e.g. Vendor appliance 4.2" : "e.g. Payments staging"} />
+          </div>
+          {f.kind !== "sbom" && (
+            <div>
+              <Label htmlFor="tgt-ref">{f.kind === "image" ? "Image reference" : "Base URL"}</Label>
+              <Input id="tgt-ref" className="font-mono text-[12px]" value={f.reference} maxLength={1000} onChange={(e) => set({ reference: e.target.value })}
+                placeholder={f.kind === "image" ? "ghcr.io/acme/payments:1.4.2" : "https://staging.payments.example.com"} />
+            </div>
+          )}
+        </div>
+        {f.kind === "sbom" && !target && (
+          <div>
+            <Label htmlFor="tgt-file" hint="(at most 64 MiB; .gz accepted)">SBOM: CycloneDX JSON or SPDX 2.x JSON</Label>
+            <input id="tgt-file" type="file" accept=".json,.gz" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
+          </div>
+        )}
+        {f.kind === "api" && (
+          <div>
+            <Label htmlFor="tgt-spec" hint="(OpenAPI 3 or Swagger 2, YAML or JSON; every server must be on the base URL's host)">OpenAPI document</Label>
+            <input aria-label="Load OpenAPI file" type="file" accept=".yaml,.yml,.json" onChange={(e) => void onApiFile(e.target.files?.[0])}
+              className="mb-1 block text-[12px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-0.5" />
+            <textarea id="tgt-spec" spellCheck={false} value={f.api_spec} onChange={(e) => set({ api_spec: e.target.value })}
+              className="h-40 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-ring" />
+          </div>
+        )}
+        {f.kind !== "sbom" && (
+          <fieldset className="rounded-md border border-border p-3">
+            <legend className="px-1 text-[12px] font-medium">Authentication</legend>
+            <div className="grid gap-3 md:grid-cols-3">
+              <div>
+                <Label htmlFor="tgt-auth">Type</Label>
+                <Select id="tgt-auth" className="w-full" value={f.auth_type} onChange={(e) => set({ auth_type: e.target.value as FormState["auth_type"] })}>
+                  <option value="none">None</option>
+                  <option value="basic">{f.kind === "image" ? "Registry username and token" : "Basic (username and password)"}</option>
+                  {f.kind !== "image" && <option value="header">Request header (token, API key, cookie)</option>}
+                </Select>
+              </div>
+              {f.auth_type === "basic" && (
+                <div>
+                  <Label htmlFor="tgt-user">Username</Label>
+                  <Input id="tgt-user" autoComplete="off" value={f.auth_username} onChange={(e) => set({ auth_username: e.target.value })} />
+                </div>
+              )}
+              {f.auth_type === "header" && (
+                <div>
+                  <Label htmlFor="tgt-hname">Header name</Label>
+                  <Input id="tgt-hname" value={f.auth_header_name} onChange={(e) => set({ auth_header_name: e.target.value })} placeholder="Authorization" />
+                </div>
+              )}
+              {f.auth_type !== "none" && (
+                <div>
+                  <Label htmlFor="tgt-secret" hint={target?.has_secret && !secretTouched ? "(stored; leave empty to keep)" : "(encrypted at rest)"}>
+                    {f.auth_type === "header" ? "Header value" : f.kind === "image" ? "Password or token" : "Password"}
+                  </Label>
+                  <Input id="tgt-secret" type="password" autoComplete="new-password" value={f.auth_secret}
+                    onChange={(e) => { set({ auth_secret: e.target.value }); setSecretTouched(true); }} />
+                </div>
+              )}
+            </div>
+          </fieldset>
+        )}
+        {live && (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <Label htmlFor="tgt-rate" hint="(1-100, default 20)">Requests per second</Label>
+              <Input id="tgt-rate" type="number" min={1} max={100} value={f.rate_limit} onChange={(e) => set({ rate_limit: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="tgt-sev">Checks to run</Label>
+              <Select id="tgt-sev" className="w-full" value={f.min_severity} onChange={(e) => set({ min_severity: e.target.value })}>
+                <option value="">All severities (including informational)</option>
+                <option value="low">Low and above</option>
+                <option value="medium">Medium and above</option>
+                <option value="high">High and critical</option>
+                <option value="critical">Critical only</option>
+              </Select>
+            </div>
+          </div>
+        )}
+        {live && (
+          <div className="rounded-md border border-warning/40 bg-warning/5 p-3">
+            <label className="flex items-start gap-2 text-[12.5px]">
+              <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.authorized} onChange={(e) => set({ authorized: e.target.checked })} />
+              <span>
+                <span className="font-medium">I am authorized to security-test this application{addressChanged ? " at its new address" : ""}.</span>
+                <span className="block text-[11.5px] text-muted-foreground">
+                  Scans send real requests to it. Your name and the time are recorded with the target{target?.authorized_by ? ` (currently: ${target.authorized_by}, ${formatDateTime(target.authorized_at!)})` : ""}.
+                </span>
+              </span>
+            </label>
+            <div className="mt-2">
+              <Label htmlFor="tgt-note" hint="(optional)">Authorization reference</Label>
+              <Input id="tgt-note" value={f.authorization_note} maxLength={2000} onChange={(e) => set({ authorization_note: e.target.value })} placeholder="e.g. change ticket, owner's approval" />
+            </div>
+          </div>
+        )}
+        {target && (
+          <label className="flex items-center gap-1.5 text-[13px]">
+            <input type="checkbox" className="accent-[var(--primary)]" checked={f.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Enabled
+          </label>
+        )}
+        {f.kind !== "sbom" && (
+          <p className="text-[11.5px] text-muted-foreground">
+            Workers reach targets only through the egress proxy. Add the host ({f.kind === "image" ? "the registry, e.g. ghcr.io" : "the application's host name"}) to <code>deploy/egress/allowlist.txt</code>; private addresses also need an
+            override in <code>deploy/egress/conf.d</code>.
+          </p>
+        )}
+      </div>
+      )}
+    </Dialog>
+  );
+}
+
+export function ScanTargetsPage() {
+  const { can } = useSession();
+  const qc = useQueryClient();
+  const [kind, setKind] = useState<"" | TargetKind>("");
+  const [repo, setRepo] = useState<string | undefined>();
+  const [dialog, setDialog] = useState<{ target: ScanTarget | null; kind: TargetKind } | null>(null);
+  const [del, setDel] = useState<ScanTarget | null>(null);
+  const params = new URLSearchParams();
+  if (kind) params.set("kind", kind);
+  if (repo) params.set("repository_id", repo);
+  const list = useQuery({
+    queryKey: ["scan-targets", kind, repo],
+    queryFn: () => api<{ items: ScanTarget[] }>(`/api/v1/scan-targets?${params}`).then((r) => r.items),
+    refetchInterval: (q) => (q.state.data?.some((t) => t.last_scan && ["queued", "running"].includes(t.last_scan.status)) ? 5000 : false),
+  });
+  const scan = useMutation({
+    mutationFn: (id: string) => api<{ job_id: string; coalesced: boolean }>(`/api/v1/scan-targets/${id}/scan`, { method: "POST" }),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["scan-targets"] }),
+  });
+  const remove = useMutation({
+    mutationFn: (id: string) => api(`/api/v1/scan-targets/${id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setDel(null);
+      void qc.invalidateQueries({ queryKey: ["scan-targets"] });
+    },
+  });
+  const canManage = can("repos.manage");
+  const canRun = can("scans.run");
+  return (
+    <>
+      <PageHeader
+        title="Scan targets"
+        description="Scan what is deployed, not only the source: container images, running web applications and APIs (DAST), and SBOMs of software you receive. Each target belongs to a repository, so its findings reach the right application and owners."
+        actions={canManage && <Button onClick={() => setDialog({ target: null, kind: "image" })}><Plus /> Add target</Button>}
+      />
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <Select aria-label="Filter by kind" value={kind} onChange={(e) => setKind(e.target.value as "" | TargetKind)}>
+          <option value="">All kinds</option>
+          {(Object.keys(targetKindLabel) as TargetKind[]).map((k) => <option key={k} value={k}>{targetKindLabel[k]}</option>)}
+        </Select>
+        <RepoFilter value={repo} onChange={setRepo} />
+      </div>
+      {scan.error && <div className="mb-3"><Alert>{scan.error.message}</Alert></div>}
+      {scan.data && (
+        <div className="mb-3">
+          <Alert tone="success">
+            Scan {scan.data.coalesced ? "already queued" : "queued"}.{" "}
+            <Link to="/scans/$id" params={{ id: scan.data.job_id }} className="underline">Follow the execution</Link>
+          </Alert>
+        </div>
+      )}
+      <Card>
+        {list.isError ? (
+          <div className="p-4"><Alert>{list.error.message}</Alert></div>
+        ) : list.isPending ? (
+          <Skeleton className="m-4 h-32" />
+        ) : !list.data.length ? (
+          <EmptyState icon={<Container />} title="No scan targets">
+            {canManage ? "Add a container image, a running application, an API or an SBOM." : "Targets are added by people who manage repositories."}
+          </EmptyState>
+        ) : (
+          <Table>
+            <thead>
+              <tr>
+                <Th>Target</Th>
+                <Th>Kind</Th>
+                <Th>Repository</Th>
+                <Th>Open findings</Th>
+                <Th>Last scan</Th>
+                <Th className="text-right">Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {list.data.map((t) => (
+                <tr key={t.id} className={t.enabled ? undefined : "opacity-60"}>
+                  <Td>
+                    <div className="flex items-center gap-2 font-medium">
+                      {kindIcon[t.kind]} {t.name}
+                      {!t.enabled && <Badge>disabled</Badge>}
+                    </div>
+                    <div className="max-w-md truncate font-mono text-[11.5px] text-muted-foreground" title={t.reference}>
+                      {t.kind === "sbom" ? `${t.reference} · ${t.sbom_format.toUpperCase()} · ${t.sbom_components} components` : t.reference}
+                    </div>
+                    {(t.kind === "url" || t.kind === "api") && t.authorized_by && (
+                      <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={t.authorization_note}>
+                        <ShieldAlert className="size-3" /> Authorized by {t.authorized_by}, {formatDateTime(t.authorized_at!)}
+                      </div>
+                    )}
+                  </Td>
+                  <Td className="text-[12px]">{targetKindLabel[t.kind]}</Td>
+                  <Td className="text-[12px]">{t.repository_name}</Td>
+                  <Td>
+                    {t.open_findings > 0 ? (
+                      <Link to="/findings" search={{ scan_target_id: t.id } as never} className="text-[12px] text-primary hover:underline">{t.open_findings} open</Link>
+                    ) : (
+                      <span className="text-[12px] text-muted-foreground">none</span>
+                    )}
+                  </Td>
+                  <Td className="text-[12px]">
+                    {t.last_scan ? (
+                      <div>
+                        <Link to="/scans/$id" params={{ id: t.last_scan.id }} className="font-mono text-primary hover:underline">{t.last_scan.scan_key}</Link>{" "}
+                        <Badge tone={statusTone[t.last_scan.status] ?? "neutral"}>{t.last_scan.status}</Badge>
+                        <div className="text-[11px] text-muted-foreground" title={t.last_scan.error}>{formatDateTime(t.last_scan.finished_at ?? t.last_scan.queued_at)}</div>
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">never</span>
+                    )}
+                  </Td>
+                  <Td className="whitespace-nowrap text-right">
+                    {canRun && (
+                      <Button size="sm" variant="secondary" disabled={!t.enabled || scan.isPending} onClick={() => scan.mutate(t.id)} aria-label={`Scan ${t.name}`}>
+                        <Play /> Scan
+                      </Button>
+                    )}
+                    {canManage && (
+                      <>
+                        <Button size="icon" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => setDialog({ target: t, kind: t.kind })}><Pencil /></Button>
+                        <Button size="icon" variant="ghost" aria-label={`Delete ${t.name}`} onClick={() => setDel(t)}><Trash2 /></Button>
+                      </>
+                    )}
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        )}
+      </Card>
+      <TargetDialog open={!!dialog} onClose={() => setDialog(null)} target={dialog?.target ?? null} initialKind={dialog?.kind ?? "image"} />
+      <ConfirmDialog
+        open={!!del}
+        onOpenChange={(o) => !o && setDel(null)}
+        title={`Delete ${del?.name ?? "target"}?`}
+        confirmLabel="Delete"
+        pending={remove.isPending}
+        error={remove.error?.message}
+        onConfirm={() => del && remove.mutate(del.id)}
+      >
+        The target and its stored credential are removed. A target with findings cannot be deleted (its findings keep their evidence); disable it instead.
+      </ConfirmDialog>
+    </>
+  );
+}

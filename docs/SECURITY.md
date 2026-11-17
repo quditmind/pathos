@@ -95,6 +95,14 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - Parsing happens in the API, not the worker. Secret values are never stored: Gitleaks runs with `--redact`, and finding text passes through the log redactor.
   - Raw reports are downloadable only with `scans.read` on the repository.
 - **Integrity:** every scan records the immutable profile version and the scanner versions it ran with.
+- **Scan targets (images, web applications, APIs, SBOMs):**
+  - A web application or API target can be added only with a recorded statement that the person adding it is authorized to test it (user and time). Changing its address needs a new statement. Every target change is audited.
+  - An OpenAPI document must declare only servers on the authorized host, so an API scan cannot be pointed at another system.
+  - Nuclei runs only a reviewed template subset installed in the image: no OSINT or token-spray templates (they contact third parties), no default-login or credential-stuffing templates, and never templates tagged `dos`, `intrusive` or `bruteforce`. URL scans do not fuzz. Out-of-band (interactsh) testing and template updates are disabled; the request rate is capped at 100 per second (default 20).
+  - Targets are reached only through the egress proxy. A target host is scanned only after an administrator adds it to the allowlist; before scanning, the worker checks that the proxy lets it through and fails the scan with an explanation otherwise (a blocked target is never "scanned" against the proxy's error page).
+  - Target credentials (registry tokens, passwords, header values) are encrypted like other secrets, never returned by the API, given only to the worker holding the job's lease, and redacted from scan logs.
+  - An SBOM target is served to the worker with its SHA-256, which the worker verifies before Grype reads it.
+- **CI/CD workflows:** zizmor audits GitHub Actions workflows offline (no GitHub API calls).
 
 ## AI review and MCP (Phase 5)
 

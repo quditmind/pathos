@@ -194,6 +194,9 @@ type Job struct {
 	// FullHistory clones the complete history and makes Gitleaks scan it
 	// (git mode). Default: shallow clone without history.
 	FullHistory bool `json:"full_history"`
+	// Target, when set, replaces the source entirely: the job scans a
+	// container image, URL, API or SBOM instead of a repository.
+	Target *JobTarget `json:"target,omitempty"`
 }
 
 // JobSource identifies a non-Git source for a job.
@@ -283,7 +286,19 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		return
 	}
 	commit := ""
-	if job.Source != nil {
+	targetFile := ""
+	if job.Target != nil {
+		job.Credential, job.Source = nil, nil
+		rep.event("source", "", "started", "preparing "+job.Target.Kind+" target "+job.Target.Reference)
+		var err error
+		if targetFile, err = a.prepareTarget(ctx, job, filepath.Join(ws, "target")); err != nil {
+			log.Warn("target preparation failed", "err", err)
+			sourceFailed("target preparation failed: " + err.Error())
+			return
+		}
+		rep.event("source", "", "succeeded", job.Target.Kind+" target "+job.Target.Reference+" ready")
+		rep.logf("info", "scanning %s target %s", job.Target.Kind, job.Target.Reference)
+	} else if job.Source != nil {
 		job.Credential = nil
 		if job.Source.Type != "snapshot" {
 			sourceFailed("unsupported source type")
@@ -339,6 +354,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	}
 
 	sbomPath := ""
+	if job.Target != nil && job.Target.Kind == "sbom" {
+		sbomPath = targetFile // Grype matches the imported SBOM
+	}
 	ordered := orderScanners(job.Scanners)
 	keys := make([]string, 0, len(ordered))
 	for _, js := range ordered {
@@ -363,7 +381,8 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 			rep.logf("info", "%s %s started", js.Key, res.Version)
 			outFile := filepath.Join(out, js.Key+".out")
 			tctx := withCollector(ctx, &lineCollector{rep: rep, source: js.Key, stdout: stdoutSafe[js.Key]})
-			skipped, err := tool.Run(tctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config, GitHistory: job.FullHistory && job.Source == nil})
+			skipped, err := tool.Run(tctx, RunInput{Src: src, Out: outFile, SBOM: sbomPath, Config: js.Config,
+				GitHistory: job.FullHistory && job.Source == nil && job.Target == nil, Target: job.Target, TargetFile: targetFile})
 			switch {
 			case skipped != "":
 				res.Status, res.Error = "skipped", skipped

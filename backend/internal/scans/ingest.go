@@ -36,11 +36,12 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		}
 	}
 	var repoID uuid.UUID
+	var targetID *uuid.UUID
 	var threshold, commit string
 	var exclusions []string
-	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions
+	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id
 		FROM scan_jobs j JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1`, jobID).
-		Scan(&repoID, &commit, &threshold, &exclusions); err != nil {
+		Scan(&repoID, &commit, &threshold, &exclusions, &targetID); err != nil {
 		return 0, err
 	}
 
@@ -58,6 +59,11 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		for _, f := range fs {
 			if scanners.SeverityRank(f.Severity) < scanners.SeverityRank(threshold) || scanners.Excluded(f.FilePath, exclusions) {
 				continue
+			}
+			if targetID != nil {
+				// A target's findings are its own: the same CVE in an image
+				// and in the repository's manifests are separate findings.
+				f.Fingerprint = targetFingerprint(*targetID, f.Fingerprint)
 			}
 			findings = append(findings, f)
 		}
@@ -109,7 +115,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			}
 		}
-		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, findings)
+		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings)
 	})
 	if err != nil && len(written) > 0 {
 		if derr := s.Artifacts.Delete(context.WithoutCancel(ctx), written); derr != nil {
@@ -141,15 +147,15 @@ func truncate(s string, n int) string {
 // upsertFindings merges findings by (repository, fingerprint). Findings
 // seen again are refreshed and re-opened if previously fixed; the
 // detecting scanner is added to scanner_keys.
-func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, resultID uuid.UUID, commit string, fs []scanners.Finding) error {
+func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, resultID uuid.UUID, commit string, targetID *uuid.UUID, fs []scanners.Finding) error {
 	if len(fs) == 0 {
 		return nil
 	}
 	const q = `
 		INSERT INTO findings (id, organization_id, repository_id, fingerprint, category, scanner_keys, rule_id, title, description,
 		  severity, cwe, cve, cvss, package_name, package_version, fixed_version, file_path, start_line, end_line,
-		  first_scan_job_id, last_scan_job_id, snippet, snippet_start_line, confidence, cvss_vector, cvss_version)
-		VALUES ($1, $2, $3, $4, $5, ARRAY[$6], $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20, $21, $22, $23, $24, $25)
+		  first_scan_job_id, last_scan_job_id, snippet, snippet_start_line, confidence, cvss_vector, cvss_version, scan_target_id)
+		VALUES ($1, $2, $3, $4, $5, ARRAY[$6], $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $20, $21, $22, $23, $24, $25, $26)
 		ON CONFLICT (repository_id, fingerprint) DO UPDATE SET
 		  last_seen_at = now(), last_scan_job_id = EXCLUDED.last_scan_job_id,
 		  scanner_keys = (SELECT array_agg(DISTINCT k ORDER BY k) FROM unnest(findings.scanner_keys || EXCLUDED.scanner_keys) k),
@@ -184,7 +190,7 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 			b.Queue(q, uuid.Must(uuid.NewV7()), orgID, repoID, f.Fingerprint, f.Category, f.ScannerKey, truncate(f.RuleID, 300),
 				truncate(f.Title, 300), f.Description, f.Severity, cwe, f.CVE, f.CVSS, truncate(f.PackageName, 300),
 				truncate(f.PackageVersion, 100), truncate(f.FixedVersion, 100), truncate(f.FilePath, 1000), f.StartLine, f.EndLine, jobID,
-				f.Snippet, f.SnippetStart, confidenceOrUnknown(f.Confidence), f.CVSSVector, f.CVSSVersion)
+				f.Snippet, f.SnippetStart, confidenceOrUnknown(f.Confidence), f.CVSSVector, f.CVSSVersion, targetID)
 		}
 		br := tx.SendBatch(ctx, b)
 		for range fs[start:end] {
@@ -228,10 +234,11 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			return err
 		}
 		var repoID uuid.UUID
+		var targetID *uuid.UUID
 		var failOnCritical bool
-		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical FROM scan_jobs j
+		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id FROM scan_jobs j
 			JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1 FOR UPDATE OF j`, jobID).
-			Scan(&repoID, &failOnCritical); err != nil {
+			Scan(&repoID, &failOnCritical, &targetID); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
@@ -272,8 +279,9 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			tag, err := tx.Exec(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
 				WHERE repository_id = $1 AND status IN ('open', 'in_progress', 'needs_review')
 				  AND (last_scan_job_id IS DISTINCT FROM $2)
-				  AND scanner_keys && $3::text[] AND NOT (scanner_keys && $4::text[])`,
-				repoID, jobID, ok, nonNilStrings(bad))
+				  AND scanner_keys && $3::text[] AND NOT (scanner_keys && $4::text[])
+				  AND scan_target_id IS NOT DISTINCT FROM $5`,
+				repoID, jobID, ok, nonNilStrings(bad), targetID)
 			if err != nil {
 				return err
 			}
@@ -351,4 +359,10 @@ func confidenceOrUnknown(c string) string {
 		return c
 	}
 	return "unknown"
+}
+
+// targetFingerprint namespaces a finding fingerprint by scan target.
+func targetFingerprint(targetID uuid.UUID, fp string) string {
+	sum := sha256.Sum256([]byte("target:" + targetID.String() + ":" + fp))
+	return hex.EncodeToString(sum[:])
 }

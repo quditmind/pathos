@@ -848,7 +848,11 @@ export interface ScanJob {
   /** Permanent Scan ID, e.g. QD-SCAN-000042 (unique, never reused). */
   scan_key: string;
   name: string;
-  asset_type: "repository";
+  /** repository, or the kind of scan target the execution scanned. */
+  asset_type: "repository" | "image" | "url" | "api" | "sbom";
+  target_id?: string | null;
+  target_name?: string | null;
+  target_reference?: string | null;
   profile_id: string;
   /** 0-100, derived from recorded stages (lease, source checkout, finished engine jobs, finalization). */
   progress: number;
@@ -1040,6 +1044,10 @@ export interface Finding {
   risk_score?: number | null;
   application_id?: string | null;
   application_name?: string | null;
+  /** Scan target (container image, web application, API, SBOM); null for the repository's code. */
+  scan_target_id?: string | null;
+  scan_target_kind?: "image" | "url" | "api" | "sbom" | null;
+  scan_target_name?: string | null;
   snippet?: string;
   snippet_start_line?: number | null;
   occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];
@@ -1131,6 +1139,8 @@ export interface CatalogScanner {
   requires_build: boolean;
   mandatory: boolean;
   adapter_available: boolean;
+  /** Runs for scan targets (images, URLs, APIs), not in repository profiles. */
+  target_only?: boolean;
   default_enabled: boolean;
   output_format: string;
   homepage: string;

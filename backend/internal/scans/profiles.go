@@ -232,6 +232,9 @@ func (req *profileRequest) validate() error {
 		if !sc.AdapterAvailable {
 			return httpx.BadRequest(sc.Name + " is catalogued but no worker image runs it yet")
 		}
+		if sc.TargetOnly {
+			return httpx.BadRequest(sc.Name + " runs for scan targets (Scan targets page), not in repository profiles")
+		}
 		if sc.Decision == "restricted" {
 			return httpx.BadRequest(sc.Name + " is license-restricted")
 		}
