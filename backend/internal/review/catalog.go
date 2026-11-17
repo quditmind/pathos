@@ -1,4 +1,4 @@
-// Package review implements Human Review: manual security assessment of
+// Package review implements Human Eye: manual security assessment of
 // findings by analysts (review queue, assessment workspace, evidence,
 // decisions, independent review, assignments, reports and configuration).
 //

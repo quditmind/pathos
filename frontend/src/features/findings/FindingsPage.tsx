@@ -21,7 +21,7 @@ import { reviewApi } from "@/features/review/api";
 import { dispositionLabel, statusLabel as reviewStatusLabel } from "@/features/review/shared";
 import type { Disposition, ReviewStatus } from "@/features/review/types";
 
-/** Human Review outcome of a finding (link to the assessment workspace). */
+/** Human Eye outcome of a finding (link to the assessment workspace). */
 function HumanReviewCell({ f }: { f: Finding }) {
   if (!f.human_review_id) return <span className="text-muted-foreground">—</span>;
   const label = f.human_disposition ? dispositionLabel[f.human_disposition as Disposition] : reviewStatusLabel[f.human_review_status as ReviewStatus] ?? f.human_review_status;
@@ -78,7 +78,7 @@ const columns: Column<Finding>[] = [
   { id: "first", header: "First seen", className: "tabular whitespace-nowrap text-[12px] text-muted-foreground", cell: (f) => formatDateTime(f.first_seen_at), csv: (f) => f.first_seen_at },
   { id: "fix", header: "Fixed version", defaultHidden: true, className: "text-[12px]", cell: (f) => f.fixed_version || "—", csv: (f) => f.fixed_version },
   { id: "path", header: "Location", defaultHidden: true, className: "font-mono text-[11.5px]", cell: location, csv: location },
-  { id: "human_review", header: "Human review", cell: (f) => <HumanReviewCell f={f} />, csv: (f) => f.human_disposition ?? f.human_review_status ?? "" },
+  { id: "human_review", header: "Human Eye", cell: (f) => <HumanReviewCell f={f} />, csv: (f) => f.human_disposition ?? f.human_review_status ?? "" },
 ];
 
 export function FindingsPage() {
@@ -99,7 +99,7 @@ export function FindingsPage() {
   const filterDefs: FilterDef[] = [
     { key: "status", label: "Status", allLabel: "Open", options: [...["in_progress", "needs_review", "fixed", "false_positive", "accepted_risk"].map((value) => ({ value, label: statusLabel[value]! })), { value: "all", label: "All statuses" }] },
     { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
-    { key: "human_review", label: "Human review", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
+    { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
@@ -175,7 +175,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
           <LifecyclePanel f={d} />
           {d.human_review_id && (
             <div className="rounded-md border border-border p-3 text-[12.5px]">
-              <span className="font-medium">Human review {d.human_review_key}: </span>
+              <span className="font-medium">Human Eye review {d.human_review_key}: </span>
               {d.human_disposition ? dispositionLabel[d.human_disposition as Disposition] : reviewStatusLabel[d.human_review_status as ReviewStatus]}
               {d.human_severity && <span className="text-muted-foreground"> · assessed severity {d.human_severity}</span>}
               <Link to="/human-review/reviews/$id" params={{ id: d.human_review_id }} className="ml-2 text-primary hover:underline">Open assessment →</Link>
@@ -273,7 +273,7 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
               </Button>
             </>
           ) : (
-            <Button size="sm" variant="secondary" onClick={() => setHrOpen(true)}><ShieldCheck /> Send to Human Review</Button>
+            <Button size="sm" variant="secondary" onClick={() => setHrOpen(true)}><ShieldCheck /> Send to Human Eye</Button>
           )}
           {sendToReview.data && <span className="text-[12px] text-muted-foreground">{sendToReview.data.created.length} added, {sendToReview.data.existing.length} already queued</span>}
           {can("findings.triage") && <span className="mx-1 h-5 w-px bg-border" />}

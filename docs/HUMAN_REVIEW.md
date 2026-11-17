@@ -1,8 +1,8 @@
-# Human Review module
+# Human Eye module
 
-Human Review is the manual security assessment workflow of PATHOS. Security analysts investigate findings produced by the scanners (SAST, SCA, secrets, IaC, container), document exploitability, risk and evidence, and decide a final disposition. Automated triage and AI review feed the queue; a person always makes the decision.
+Human Eye is the manual security assessment workflow of PATHOS. Security analysts investigate findings produced by the scanners (SAST, SCA, secrets, IaC, container), document exploitability, risk and evidence, and decide a final disposition. Automated triage and AI review feed the queue; a person always makes the decision.
 
-It is a standalone module (navigation section **Human Review**): Overview, Review Queue, Assessments, Assignments, Review Reports and Review Configurations, plus the assessment workspace at `/human-review/reviews/{id}`.
+It is a standalone module (navigation section **Human Eye**): Overview, Review Queue, Assessments, Assignments, Review Reports and Review Configurations, plus the assessment workspace at `/human-review/reviews/{id}`.
 
 - User guide: `docs/user-guide/human-review.md` (also in the in-app Help Center)
 - API: `docs/api-reference/human-reviews.md`
@@ -46,7 +46,7 @@ Dispositions and their rules (all need a documented reason of at least 10 charac
 
 Configured requirements (Review Configurations) are enforced on the server: required assessment fields, evidence for given dispositions or severities, and independent review for given severities (scanner or assessed) and dispositions. "Unknown" answers count as answered but are never read as evidence of non-exploitability.
 
-Every finding change carries the actor and reason through the existing finding lifecycle trigger, so `finding_status_history` shows "Human review QD-HR-… : …".
+Every finding change carries the actor and reason through the existing finding lifecycle trigger, so `finding_status_history` shows "Human Eye review QD-HR-… : …".
 
 ### Remediation sync
 

@@ -1,16 +1,16 @@
 ---
-title: "Human Review: manual security assessment"
+title: "Human Eye: manual security assessment"
 section: user-guide
 order: 9.7
 version: "1.0"
 updated: 2026-11-17
 summary: Investigate scanner findings by hand, record exploitability, risk and evidence, decide a disposition (with independent review where required) and track remediation.
 ---
-# Human Review: manual security assessment
+# Human Eye: manual security assessment
 
-Scanners and AI review produce many findings; some need a person to decide whether they are real. **Human Review** is where security analysts do that work: it collects the findings that need a decision, gives you the code, data flow, evidence and history in one workspace, and records an auditable decision.
+Scanners and AI review produce many findings; some need a person to decide whether they are real. **Human Eye** is where security analysts do that work: it collects the findings that need a decision, gives you the code, data flow, evidence and history in one workspace, and records an auditable decision.
 
-The **Human Review** section in the navigation has six pages:
+The **Human Eye** section in the navigation has six pages:
 
 | Page | What it is for |
 |---|---|
@@ -23,7 +23,7 @@ The **Human Review** section in the navigation has six pages:
 
 ## How findings reach the queue
 
-PATHOS adds a finding to the queue when automated triage marks it *needs review*, when AI review cannot decide, or when AI review suggests a false positive (a person must confirm). Administrators can also queue every new finding above a severity. You can add findings yourself from the **Findings** page: select them and choose **Send to Human Review**. A finding is never queued twice.
+PATHOS adds a finding to the queue when automated triage marks it *needs review*, when AI review cannot decide, or when AI review suggests a false positive (a person must confirm). Administrators can also queue every new finding above a severity. You can add findings yourself from the **Findings** page: select them and choose **Send to Human Eye**. A finding is never queued twice.
 
 Each review has a permanent **Finding ID** such as `QD-HR-000042`.
 

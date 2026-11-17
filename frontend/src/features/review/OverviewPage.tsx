@@ -27,7 +27,7 @@ export function OverviewPage() {
   const period = filters.from || filters.to ? "the selected period" : "all time";
   return (
     <>
-      <PageHeader title="Human Review" description="Manual security assessment of findings: workload, outcomes and what is waiting for remediation." />
+      <PageHeader title="Human Eye" description="Manual security assessment of findings: workload, outcomes and what is waiting for remediation." />
       <Card className="mb-4 p-3">
         <ReviewFilterBar
           values={filters}

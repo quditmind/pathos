@@ -20,7 +20,7 @@ This reference covers the Repository and Asset Management module of PATHOS: repo
 | [Applications](applications.md#the-application-object) | Applications and how repositories link to them |
 | [Scans](scans.md#the-execution-object) | Start, list, monitor, retry, cancel and compare scan executions; stages, logs, findings, history, overview |
 | [Scan schedules](schedules.md#the-schedule-object) | Schedules with execution plans, scan windows, retries, concurrency limits and activation history |
-| [Human reviews](human-reviews.md#queue) | Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration |
+| [Human Eye reviews](human-reviews.md#queue) | Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration |
 
 ## Base URL
 

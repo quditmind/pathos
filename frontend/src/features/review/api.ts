@@ -121,7 +121,7 @@ export function useRecommendations(id: string) {
   });
 }
 
-/** Mutation that refreshes everything Human Review shows afterwards. */
+/** Mutation that refreshes everything Human Eye shows afterwards. */
 export function useReviewMutation<T, V>(fn: (v: V) => Promise<T>) {
   const qc = useQueryClient();
   return useMutation({

@@ -151,7 +151,7 @@ const aiSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ad
 const mcpRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/mcp", component: McpRegistryPage });
 const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
 
-// Human Review (standalone module).
+// Human Eye (standalone module).
 const hrOverviewRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review", component: ReviewOverviewPage, validateSearch: validateReviewSearch });
 const hrQueueRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/queue", component: QueuePage, validateSearch: validateReviewSearch });
 const hrAssessmentsRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/assessments", component: AssessmentsPage, validateSearch: validateReviewSearch });

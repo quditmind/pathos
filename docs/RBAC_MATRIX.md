@@ -30,7 +30,7 @@ Rules enforced by the API (`backend/internal/authz`):
 | `application_owner` | Accountable for applications in scope |
 | `developer` | Views and remediates findings on assigned repositories |
 | `auditor` | Read-only, including users and the audit log |
-| `independent_reviewer` | Second-level Human Review: validates other analysts' decisions (approve, reject, request information) |
+| `independent_reviewer` | Second-level Human Eye: validates other analysts' decisions (approve, reject, request information) |
 | `viewer` | Read-only posture data in scope |
 
 ## Matrix

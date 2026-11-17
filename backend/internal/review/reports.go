@@ -159,7 +159,7 @@ func (s *Service) awaitingRemediation(ctx context.Context, f *filter, limit int)
 	return items, n, err
 }
 
-// Overview is the Human Review dashboard.
+// Overview is the Human Eye dashboard.
 type Overview struct {
 	Metrics struct {
 		Total          int      `json:"total"`

@@ -84,7 +84,7 @@ export const groups: NavGroup[] = [
     ],
   },
   {
-    label: "Human Review",
+    label: "Human Eye",
     items: [
       { label: "Overview", to: "/human-review", icon: <UserCheck />, perm: "reviews.read" },
       { label: "Review Queue", to: "/human-review/queue", icon: <ListChecks />, perm: "reviews.read" },

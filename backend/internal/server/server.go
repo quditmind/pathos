@@ -89,7 +89,7 @@ func Build(d Deps) Handlers {
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
 	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
-	// After a scan: AI auto-review first, then the Human Review queue picks
+	// After a scan: AI auto-review first, then the Human Eye queue picks
 	// up findings that need a person.
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
@@ -196,7 +196,7 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 		}}
 }
 
-// NewReviewService builds the Human Review service (also used by the jobs
+// NewReviewService builds the Human Eye service (also used by the jobs
 // role for ingestion and overdue detection).
 func NewReviewService(d Deps, az *authz.Authorizer, repoSvc *repos.Service, aiSvc *ai.Service) *review.Service {
 	svc := &review.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}

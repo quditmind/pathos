@@ -56,8 +56,8 @@ const sourceView = {
 };
 
 describe("navigation", () => {
-  it("Human Review is a standalone module with six sections", async () => {
-    const hr = groups.find((g) => g.label === "Human Review")!;
+  it("Human Eye is a standalone module with six sections", async () => {
+    const hr = groups.find((g) => g.label === "Human Eye")!;
     expect(hr.items.map((i) => [i.label, i.to])).toEqual([
       ["Overview", "/human-review"],
       ["Review Queue", "/human-review/queue"],

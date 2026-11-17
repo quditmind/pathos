@@ -83,7 +83,7 @@ export function ConfigurationsPage() {
     <>
       <PageHeader
         title="Review configurations"
-        description={editable ? "Workflow rules for Human Review. Nothing here is hard-coded." : "Read-only: managing the configuration requires reviews.configure."}
+        description={editable ? "Workflow rules for Human Eye. Nothing here is hard-coded." : "Read-only: managing the configuration requires reviews.configure."}
         actions={
           editable && (
             <Button disabled={save.isPending} onClick={() => save.mutate(s)}>

@@ -1,4 +1,4 @@
-// Human Review module contract (backend/internal/review).
+// Human Eye module contract (backend/internal/review).
 import type { Severity } from "@/api/types";
 
 export type ReviewStatus =

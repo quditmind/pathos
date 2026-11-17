@@ -55,7 +55,7 @@ type FindingView struct {
 	Recurrence     int        `json:"recurrence_count"`
 	AcceptedUntil  *time.Time `json:"accepted_until"`
 	AIStatus       string     `json:"ai_status"`
-	// Human Review outcome (the scanner data above is unchanged by it).
+	// Human Eye outcome (the scanner data above is unchanged by it).
 	HumanReviewID    *uuid.UUID   `json:"human_review_id"`
 	HumanReviewKey   *string      `json:"human_review_key"`
 	HumanReviewState *string      `json:"human_review_status"`

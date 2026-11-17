@@ -14,7 +14,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Analyst assistance (Human Review). Suggestions are advisory: they are
+// Analyst assistance (Human Eye). Suggestions are advisory: they are
 // returned to the analyst and stored for traceability, and never change a
 // finding or a review.
 
@@ -161,7 +161,7 @@ func ValidateAssist(raw []byte) (AssistOutput, error) {
 }
 
 // Assist asks the organization's default AI configuration for a
-// suggestion. sendCode is the Human Review setting; the configuration's own
+// suggestion. sendCode is the Human Eye setting; the configuration's own
 // send_code_context must also allow it.
 func (s *Service) Assist(ctx context.Context, orgID uuid.UUID, kind string, in AssistInput, sendCode bool) (AssistResult, error) {
 	cv, err := defaultConfig(ctx, s.DB, orgID)

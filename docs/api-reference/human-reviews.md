@@ -1,12 +1,12 @@
 ---
-title: Human reviews
+title: Human Eye reviews
 section: api-reference
 order: 9
 version: "1.0"
 updated: 2026-11-17
-summary: Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration of the Human Review module.
+summary: Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration of the Human Eye module.
 ---
-# Human reviews
+# Human Eye reviews
 
 A human review is a manual assessment of one finding. Each review references an existing finding (`finding_id` is unique) and has a permanent key (`review_key`, e.g. `QD-HR-000042`). Wherever a path takes `{id}`, either the review ID or the finding ID is accepted.
 

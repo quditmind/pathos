@@ -1014,7 +1014,7 @@ export interface Finding {
   recurrence_count: number;
   accepted_until: string | null;
   ai_status: string;
-  /** Human Review outcome (the scanner data above is unchanged by it). */
+  /** Human Eye outcome (the scanner data above is unchanged by it). */
   human_review_id?: string | null;
   human_review_key?: string | null;
   human_review_status?: string | null;

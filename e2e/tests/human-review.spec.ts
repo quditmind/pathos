@@ -1,10 +1,10 @@
 import { test, expect } from "./fixtures";
 
-// Human Review module: the six pages, navigation, and the assessment
+// Human Eye module: the six pages, navigation, and the assessment
 // workspace for a real finding (added to the queue through the API).
 
 const pages: [string, string][] = [
-  ["/human-review", "Human Review"],
+  ["/human-review", "Human Eye"],
   ["/human-review/queue", "Review queue"],
   ["/human-review/assessments", "Assessments"],
   ["/human-review/assignments", "Assignments"],
@@ -20,10 +20,10 @@ for (const [path, heading] of pages) {
   });
 }
 
-test("Human Review is a standalone navigation section", async ({ page }) => {
+test("Human Eye is a standalone navigation section", async ({ page }) => {
   await page.goto("/human-review");
   const nav = page.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByText("Human Review", { exact: true })).toBeVisible();
+  await expect(nav.getByText("Human Eye", { exact: true })).toBeVisible();
   for (const label of ["Review Queue", "Assessments", "Assignments", "Review Reports", "Review Configurations"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }

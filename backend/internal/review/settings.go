@@ -18,7 +18,7 @@ import (
 	"pathos/internal/scanners"
 )
 
-// Settings is the organization's Human Review configuration.
+// Settings is the organization's Human Eye configuration.
 type Settings struct {
 	AutoQueue                     bool              `json:"auto_queue"`
 	AutoTriggers                  []string          `json:"auto_triggers"`

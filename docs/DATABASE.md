@@ -134,7 +134,7 @@ erDiagram
 
 `docs/REPOSITORY_ONBOARDING.md` describes the design.
 
-## Human Review (migration 00012)
+## Human Eye (migration 00012)
 
 | Table | Purpose |
 |---|---|

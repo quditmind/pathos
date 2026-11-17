@@ -281,7 +281,7 @@ func (s *Service) transition(ctx context.Context, tx pgx.Tx, v rec, actor *uuid.
 // workflow; the independent reviewer (with findings.accept_risk) decides it.
 func (s *Service) requestRiskAcceptance(ctx context.Context, tx pgx.Tx, v rec, by uuid.UUID, req decisionRequest) error {
 	// A pending request from an earlier submission of this review is replaced.
-	if _, err := tx.Exec(ctx, `UPDATE risk_acceptances SET status = 'withdrawn', decided_at = now(), decision_note = 'superseded by a new Human Review decision'
+	if _, err := tx.Exec(ctx, `UPDATE risk_acceptances SET status = 'withdrawn', decided_at = now(), decision_note = 'superseded by a new Human Eye decision'
 		WHERE id = (SELECT risk_acceptance_id FROM human_reviews WHERE id = $1) AND status = 'pending'`, v.ID); err != nil {
 		return err
 	}
@@ -293,7 +293,7 @@ func (s *Service) requestRiskAcceptance(ctx context.Context, tx pgx.Tx, v rec, b
 		return httpx.Conflict("the finding already has an active or pending risk acceptance (see Risk acceptances)")
 	}
 	raID := uuid.Must(uuid.NewV7())
-	just := fmt.Sprintf("Human review %s: %s (risk owner recorded in the review)", v.Key, req.Reason)
+	just := fmt.Sprintf("Human Eye review %s: %s (risk owner recorded in the review)", v.Key, req.Reason)
 	if len(just) > 4000 {
 		just = just[:4000]
 	}
@@ -342,7 +342,7 @@ func (s *Service) complete(ctx context.Context, tx pgx.Tx, v rec, decidedBy uuid
 // take the finding out of "needs review".
 func (s *Service) applyToFinding(ctx context.Context, tx pgx.Tx, v rec, actor uuid.UUID, req decisionRequest) error {
 	a := [16]byte(actor)
-	if err := db.SetChangeContext(ctx, tx, &a, "user", fmt.Sprintf("Human review %s: %s. %s", v.Key, strings.ReplaceAll(req.Disposition, "_", " "), req.Reason)); err != nil {
+	if err := db.SetChangeContext(ctx, tx, &a, "user", fmt.Sprintf("Human Eye review %s: %s. %s", v.Key, strings.ReplaceAll(req.Disposition, "_", " "), req.Reason)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE findings SET human_review_id = $2, human_disposition = $3, human_severity = $4, human_reviewed_at = now(),
@@ -370,7 +370,7 @@ func (s *Service) applyToFinding(ctx context.Context, tx pgx.Tx, v rec, actor uu
 		}
 		if status == "pending" {
 			if _, err := tx.Exec(ctx, `UPDATE risk_acceptances SET status = 'approved', decided_by = $2, decided_at = now(),
-				decision_note = $3 WHERE id = $1`, *raID, actor, "approved in Human Review "+v.Key); err != nil {
+				decision_note = $3 WHERE id = $1`, *raID, actor, "approved in Human Eye "+v.Key); err != nil {
 				return err
 			}
 		} else if status != "approved" {
@@ -492,7 +492,7 @@ func (s *Service) independentReview(w http.ResponseWriter, r *http.Request) {
 				}
 				if _, err := tx.Exec(ctx, `UPDATE risk_acceptances SET status = $2, decided_by = CASE WHEN $2 = 'rejected' THEN $3::uuid ELSE decided_by END,
 					decided_at = now(), decision_note = $4 WHERE id = $1 AND status = 'pending'`,
-					v.RiskAcceptanceID, status, p.UserID, "Human Review "+v.Key+": "+comments); err != nil {
+					v.RiskAcceptanceID, status, p.UserID, "Human Eye "+v.Key+": "+comments); err != nil {
 					return err
 				}
 			}
@@ -545,7 +545,7 @@ func (s *Service) reopen(w http.ResponseWriter, r *http.Request) {
 			return authz.ErrForbidden
 		}
 		a := [16]byte(p.UserID)
-		if err := db.SetChangeContext(ctx, tx, &a, "user", "Human review "+v.Key+" reopened: "+reason); err != nil {
+		if err := db.SetChangeContext(ctx, tx, &a, "user", "Human Eye review "+v.Key+" reopened: "+reason); err != nil {
 			return err
 		}
 		if v.Disposition != nil {
@@ -557,7 +557,7 @@ func (s *Service) reopen(w http.ResponseWriter, r *http.Request) {
 			case DispAcceptedRisk:
 				if v.RiskAcceptanceID != nil {
 					if _, err := tx.Exec(ctx, `UPDATE risk_acceptances SET status = 'revoked', decided_by = $2, decided_at = now(), decision_note = $3
-						WHERE id = $1 AND status = 'approved'`, *v.RiskAcceptanceID, p.UserID, "Human Review "+v.Key+" reopened: "+reason); err != nil {
+						WHERE id = $1 AND status = 'approved'`, *v.RiskAcceptanceID, p.UserID, "Human Eye "+v.Key+" reopened: "+reason); err != nil {
 						return err
 					}
 					if _, err := tx.Exec(ctx, `UPDATE findings SET status = 'open' WHERE id = $1 AND status = 'accepted_risk'`, v.FindingID); err != nil {
