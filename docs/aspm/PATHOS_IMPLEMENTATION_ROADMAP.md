@@ -179,3 +179,34 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Register:** 60 completed, 27 in progress, 13 not started.
 
 **Next:** phase 3, ASPM inventory: application posture rollup, coverage matrix, unmanaged repository report, dependency edges and the context graph.
+
+## 9. Phase 3 completion report (2026-11-17)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00016 | `sbom_components.bom_ref` and `depth`, `sbom_dependencies`, `scm_remote_repositories`, `scm_inventory_runs`; full Down migration |
+| Dependency graph | CycloneDX `dependencies` and SPDX `DEPENDS_ON` / `*DEPENDENCY_OF` parsed for scanned and imported SBOMs (duplicate refs aliased); depth by breadth-first search from the roots; repository dependencies and "how it gets in" paths; dependency paths on findings |
+| SCM inventory | Daily listing of every connection's repositories (jobs service), on-demand refresh, run history; truncated listings never remove entries |
+| Posture API | Application posture with an explainable rollup (riskiest finding + ≤ 15), aggregation by application, business unit, team, owner and region, benchmarking, coverage matrix (target scans count while the target exists), unmanaged assets and shadow repositories, blast radius by CVE/GHSA or package, context graph |
+| UI | **Posture** section (Application posture, Coverage, Unmanaged assets, Benchmarking, Blast radius, Context graph), repository **Dependencies** tab, finding "How the package gets in"; Human Eye source tab explains findings without a line |
+
+**Verified on the local stack:**
+
+- the inventory of the real GitHub connection found `quditmind/pathos` as a shadow repository
+- a fresh scan of `nodejs-goof` stored 572 components and 1,479 edges (49 direct, 511 transitive, 94 vulnerable of which 69 transitive); a path `goof › mongoose › async`
+- blast radius for `minimist` found four transitive versions with 7 open findings
+- coverage, benchmark and aggregates returned live figures
+- the context graph rendered correctly (screenshot checked)
+
+**Tests:**
+
+- unit: graph parsing and depths (CycloneDX, SPDX, aliases, cycles), rollup, paths, relation and CVE validation
+- integration: posture end to end (rollup, aggregation, benchmark, coverage, unmanaged, inventory with a fake SCM, dependency graph and finding paths, blast radius by CVE and package, context graph, scope isolation)
+- Vitest: 143
+- Playwright: 62, including the posture pages and context graph; two existing tests made independent of the data in the stack
+
+**Register:** 68 completed, 22 in progress, 10 not started. Module B (ASPM and application intelligence) is complete.
+
+**Next:** phase 4, vulnerability intelligence: CVE detail pages, reachability, attack paths, correlation across tools, suppression rules.

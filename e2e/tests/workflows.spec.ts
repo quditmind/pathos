@@ -57,7 +57,9 @@ test("finding drawer shows lifecycle and history", async ({ page }) => {
 test("notification centre opens", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /^Notifications/ }).click();
-  await expect(page.getByText(/Mark all read|all caught up/).first()).toBeVisible();
+  // Unread items offer "Mark all read"; an empty inbox says so; read items
+  // show neither, so check the panel itself.
+  await expect(page.getByRole("dialog").getByText("Notifications", { exact: true })).toBeVisible();
 });
 
 test("user drawer shows the two-factor status", async ({ page }) => {

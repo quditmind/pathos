@@ -27,13 +27,24 @@ type Component struct {
 	PURL     string   `json:"purl"`
 	Type     string   `json:"type"`
 	Licenses []string `json:"licenses"`
+	// Ref is the component's identifier in the SBOM (CycloneDX bom-ref,
+	// SPDX SPDXID), used by dependency edges.
+	Ref string `json:"bom_ref,omitempty"`
 }
 
 // ParseCycloneDX extracts components from a CycloneDX JSON document.
 func ParseCycloneDX(raw []byte) ([]Component, error) {
+	c, _, err := parseCycloneDX(raw)
+	return c, err
+}
+
+// parseCycloneDX also returns aliases: refs of duplicate components mapped
+// to the ref of the component kept.
+func parseCycloneDX(raw []byte) ([]Component, map[string]string, error) {
 	var doc struct {
 		BOMFormat  string `json:"bomFormat"`
 		Components []struct {
+			Ref      string `json:"bom-ref"`
 			Name     string `json:"name"`
 			Group    string `json:"group"`
 			Version  string `json:"version"`
@@ -49,13 +60,14 @@ func ParseCycloneDX(raw []byte) ([]Component, error) {
 		} `json:"components"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if doc.BOMFormat != "CycloneDX" {
-		return nil, errors.New("not a CycloneDX document")
+		return nil, nil, errors.New("not a CycloneDX document")
 	}
 	out := make([]Component, 0, len(doc.Components))
-	seen := map[string]bool{}
+	seen := map[string]string{}
+	aliases := map[string]string{}
 	for _, c := range doc.Components {
 		name := c.Name
 		if c.Group != "" {
@@ -65,10 +77,13 @@ func ParseCycloneDX(raw []byte) ([]Component, error) {
 			continue
 		}
 		key := name + "@" + c.Version + "|" + c.PURL
-		if seen[key] {
+		if kept, ok := seen[key]; ok {
+			if c.Ref != "" && kept != "" {
+				aliases[c.Ref] = kept
+			}
 			continue
 		}
-		seen[key] = true
+		seen[key] = clip(c.Ref, 1000)
 		var lic []string
 		for _, l := range c.Licenses {
 			v := firstNonEmpty(l.License.ID, l.Expression, l.License.Name)
@@ -79,12 +94,13 @@ func ParseCycloneDX(raw []byte) ([]Component, error) {
 		if lic == nil {
 			lic = []string{}
 		}
-		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(c.Type, 50), Licenses: lic})
+		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(c.Type, 50), Licenses: lic,
+			Ref: clip(c.Ref, 1000)})
 		if len(out) >= 50000 {
 			break
 		}
 	}
-	return out, nil
+	return out, aliases, nil
 }
 
 func firstNonEmpty(v ...string) string {
@@ -106,20 +122,28 @@ func clip(s string, n int) string {
 // StoreSBOM replaces a repository's component inventory with the latest
 // SBOM (called from scan ingestion for Syft output).
 func StoreSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, raw []byte) (int, error) {
-	comps, err := ParseCycloneDX(raw)
+	comps, aliases, err := parseCycloneDX(raw)
 	if err != nil {
 		return 0, err
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1`, repoID); err != nil {
+	if err := replaceComponents(ctx, tx, orgID, repoID, &jobID, "scan", comps); err != nil {
 		return 0, err
+	}
+	return len(comps), storeGraph(ctx, tx, orgID, repoID, ParseGraph(raw), aliases)
+}
+
+// replaceComponents replaces a repository's component inventory.
+func replaceComponents(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, jobID *uuid.UUID, source string, comps []Component) error {
+	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1`, repoID); err != nil {
+		return err
 	}
 	rows := make([][]any, len(comps))
 	for i, c := range comps {
-		rows[i] = []any{orgID, repoID, jobID, c.Name, c.Version, c.PURL, c.Type, c.Licenses}
+		rows[i] = []any{orgID, repoID, jobID, c.Name, c.Version, c.PURL, c.Type, c.Licenses, source, c.Ref}
 	}
-	_, err = tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
-		[]string{"organization_id", "repository_id", "scan_job_id", "name", "version", "purl", "type", "licenses"}, pgx.CopyFromRows(rows))
-	return len(comps), err
+	_, err := tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
+		[]string{"organization_id", "repository_id", "scan_job_id", "name", "version", "purl", "type", "licenses", "source", "bom_ref"}, pgx.CopyFromRows(rows))
+	return err
 }
 
 // ComponentGroup aggregates a component across repositories.

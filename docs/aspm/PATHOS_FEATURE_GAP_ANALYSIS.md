@@ -17,12 +17,12 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
 | A. Code and application scanning (1–15) | 10 | 4 | 1 |
-| B. ASPM and application intelligence (16–30) | 7 | 5 | 3 |
+| B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
 | C. Vulnerability intelligence (31–45) | 11 | 2 | 2 |
 | D. Manual validation and AI (46–60) | 11 | 3 | 1 |
 | F. Supply chain and DevSecOps (61–75) | 7 | 5 | 3 |
 | G. Enterprise and governance (76–100) | 14 | 8 | 3 |
-| **Total** | **60** | **27** | **13** |
+| **Total** | **68** | **22** | **10** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -61,21 +61,21 @@ Cross-cutting requirements:
 
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
-| 16 | Application inventory | In Progress | ✓ | ✓ | ✓ | ✓ | Applications: permanent ID (`QD-APP-…`), technical owner, lifecycle, environment (phase 1); business unit, owners, criticality | Last scan, aggregated exposure and posture per application (phase 3) |
+| 16 | Application inventory | Completed | ✓ | ✓ | ✓ | ✓ | Applications with permanent IDs, owners, lifecycle, environment (phase 1); last scan, open findings, exposure, coverage and risk per application (phase 3) | — |
 | 17 | Repository discovery | Completed | ✓ | ✓ | ✓ | ✓ | SCM discovery across organizations and projects | — |
 | 18 | Application ↔ repository mapping | Completed | ✓ | ✓ | ✓ | ✓ | `repositories.application_id` | Many-to-many (monorepos serving several applications) is optional |
 | 19 | Ownership | Completed | ✓ | ✓ | ✓ | ✓ | Owners on applications and repositories, teams | — |
 | 20 | Posture dashboard | Completed | ✓ | ✓ | ✓ | ✓ | Live KPIs and trends | Application-level view (with 21) |
-| 21 | Application risk scoring | In Progress | ◐ | ◐ | ◐ | ✓ | Contextual risk score per finding (phase 1) | Rollup per application (phase 3) |
-| 22 | Dependency graph | In Progress | ◐ | ◐ | ◐ | ✓ | Flat SBOM components | Dependency edges from CycloneDX `dependencies`, a direct/transitive flag, graph view |
-| 23 | Security context graph | Not Started | — | — | — | — | — | Relational graph (applications, repositories, components, findings, owners, endpoints) with traversal queries and a "blast radius" view |
+| 21 | Application risk scoring | Completed | ✓ | ✓ | ✓ | ✓ | Explainable rollup per application: riskiest open finding + up to 15 points for other high-risk findings (phase 3) | — |
+| 22 | Dependency graph | Completed | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX dependency edges, direct/transitive depth, repository Dependencies tab with paths, finding dependency paths (phase 3) | Graph across repositories (shared internal libraries) |
+| 23 | Security context graph | Completed | ✓ | ✓ | ✓ | ✓ | Context graph of an application or repository (owners, teams, business unit, repositories, targets, components, findings) and blast radius for a CVE or package (phase 3), computed from the relational model | Arbitrary graph queries; runtime and cloud nodes |
 | 24 | Business criticality | Completed | ✓ | ✓ | ✓ | ✓ | Application and repository criticality | Used in risk scoring (21) |
 | 25 | Internet exposure | Completed | ✓ | ✓ | ✓ | ✓ | Exposure yes/no/unknown with endpoints | Used in risk scoring |
 | 26 | Lifecycle management | Completed | ✓ | ✓ | ✓ | ✓ | Repository and application lifecycle (phase 1) | — |
-| 27 | Shadow application discovery | Not Started | — | — | — | — | Discovery lists repositories not yet imported | "Unmanaged" report: SCM repositories with recent activity not in PATHOS, repositories without an application or owner |
-| 28 | Coverage mapping | In Progress | ◐ | ◐ | — | ◐ | Scan-coverage KPI | Matrix of applications/repositories × scan categories (SAST, SCA, secrets, IaC, DAST) with last run |
-| 29 | Risk aggregation | In Progress | ◐ | ◐ | — | ◐ | Repository counts | Aggregation by application, business unit, team, owner (with 21) |
-| 30 | Benchmarking | Not Started | — | — | — | — | — | Compare applications and business units on normalised metrics (risk per KLOC or per repository, mean time to remediate, SLA compliance) |
+| 27 | Shadow application discovery | Completed | ✓ | ✓ | ✓ | ✓ | Daily SCM inventory per connection; unmanaged-assets report (shadow repositories, no application or owner, never or stale scans, failing sync) (phase 3) | Discovery beyond SCM (registries, cloud) |
+| 28 | Coverage mapping | Completed | ✓ | ✓ | ✓ | ✓ | Repositories × SAST, secrets, SCA, IaC, CI/CD, container, DAST with last success and covered/stale/never/no-target (phase 3) | — |
+| 29 | Risk aggregation | Completed | ✓ | ✓ | ✓ | ✓ | Posture by application, business unit, team, owner and region (phase 3) | — |
+| 30 | Benchmarking | Completed | ✓ | ✓ | ✓ | ✓ | Normalised comparison (risk, open and critical/high per repository, KEV, MTTR, SLA compliance, coverage) with best/worst and median (phase 3) | Per-KLOC normalisation; trends over time |
 
 ## C. Vulnerability intelligence and management
 

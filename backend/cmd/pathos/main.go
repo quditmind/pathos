@@ -290,6 +290,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	}
 	host, _ := os.Hostname()
 	go reposSvc.RunImportWorkers(ctx, cfg.ImportConcurrency, host)
+	// SCM inventory for the unmanaged-asset report (daily per connection).
+	go reposSvc.RunInventory(ctx)
 	log.Info("repository import workers started", "concurrency", cfg.ImportConcurrency)
 	// Human Review: automatic queue ingestion, capture of the original
 	// scanner output before retention prunes it, overdue notifications.

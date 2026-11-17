@@ -353,7 +353,10 @@ func (s *Service) importSBOM(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid_sbom", "message": msg}, "import": rec})
 		return
 	}
-	if err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error { return vuln.StoreImportedSBOM(ctx, tx, p.OrganizationID, repoID, comps) }); err != nil {
+	if err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		_, err := vuln.StoreImportedSBOM(ctx, tx, p.OrganizationID, repoID, data)
+		return err
+	}); err != nil {
 		s.fail(w, r, err)
 		return
 	}

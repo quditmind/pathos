@@ -1,3 +1,4 @@
+import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Bot, Search, ShieldCheck, X } from "lucide-react";
@@ -194,6 +195,12 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
           </div>
           <LifecyclePanel f={d} />
           <RiskPanel findingId={d.id} />
+          {(d.category === "sca" || d.category === "container") && d.package_name && !d.scan_target_id && (
+            <div className="rounded-md border border-border p-3">
+              <h3 className="mb-1 text-[12px] font-semibold">How the package gets in</h3>
+              <FindingDependencyPaths findingId={d.id} />
+            </div>
+          )}
           {d.human_review_id && (
             <div className="rounded-md border border-border p-3 text-[12.5px]">
               <span className="font-medium">Human Eye review {d.human_review_key}: </span>

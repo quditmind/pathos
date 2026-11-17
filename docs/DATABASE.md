@@ -182,6 +182,15 @@ The unified lifecycle status is derived in SQL (`scans.LifecycleExpr`) and is no
 | `scan_jobs.target_id`, `target_kind` | The target an execution scanned (`repository` for source scans). The queued-execution unique index includes the target |
 | `findings.scan_target_id` | The target a finding belongs to. Target findings use target-namespaced fingerprints and are resolved only by scans of the same target. A target with findings cannot be deleted (foreign key) |
 
+## Dependency graph and SCM inventory (migration 00016)
+
+| Object | Purpose |
+|---|---|
+| `sbom_components.bom_ref`, `depth` | The component's SBOM identifier and its shortest distance from a root (0 root, 1 direct, 2+ transitive, NULL without graph data) |
+| `sbom_dependencies` | "parent depends on child" edges of each repository's latest SBOM (CycloneDX `dependencies`, SPDX `DEPENDS_ON` / `*DEPENDENCY_OF`) |
+| `scm_remote_repositories` | Every repository each SCM connection sees (refreshed daily); compared with `repositories` to report shadow repositories |
+| `scm_inventory_runs` | Inventory refreshes: status, count, truncation, error |
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.

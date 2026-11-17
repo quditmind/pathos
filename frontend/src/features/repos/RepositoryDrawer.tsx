@@ -1,3 +1,4 @@
+import { DependencyPanel } from "@/features/posture/DependencyPanel";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Pencil } from "lucide-react";
 import { api, ApiError } from "@/api/client";
@@ -19,7 +20,7 @@ import { PublicExposureBadge, RepositoryKey } from "./badges";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
 
-type Tab = "details" | "source" | "security";
+type Tab = "details" | "source" | "security" | "dependencies";
 
 interface ScanDraft {
   scan_branch: string;
@@ -40,6 +41,7 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
   const r = repo.data;
   const [tab, setTab] = useState<Tab>("details");
   useEffect(() => setTab("details"), [id]);
+  const { can: canDo } = useSession();
   const crit = useAssetSettings();
   const c = r ? catalogEntry(crit.data, "criticality", r.criticality) : undefined;
 
@@ -88,8 +90,9 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
                 ["details", "Details"],
                 ["source", "Source"],
                 ["security", "Security"],
+                ["dependencies", "Dependencies"],
               ] as const
-            ).map(([k, l]) => (
+            ).filter(([k]) => k !== "dependencies" || canDo("sbom.read")).map(([k, l]) => (
               <button
                 key={k}
                 role="tab"
@@ -107,6 +110,7 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {tab === "details" && <DetailsPanel key={r.id} r={r} onDeleted={onClose} />}
             {tab === "source" && <SourcePanel r={r} />}
             {tab === "security" && <SecurityPanel r={r} />}
+            {tab === "dependencies" && <DependencyPanel repoId={r.id} />}
           </div>
         </div>
       )}

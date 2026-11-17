@@ -56,7 +56,7 @@ test("assessment workspace for a queued finding", async ({ page, request }) => {
   }
   await tabs.getByRole("tab", { name: "Source code" }).click();
   // Either the scanned source with the vulnerable line, or a clear unavailable state.
-  await expect(page.getByText(/vulnerable line|Source code unavailable|did not report a file/).first()).toBeAttached();
+  await expect(page.getByText(/vulnerable line|Source code unavailable|did not report a (file|line)/).first()).toBeAttached();
   await tabs.getByRole("tab", { name: "History" }).click();
   await expect(page.getByText("Review created").first()).toBeVisible();
 });

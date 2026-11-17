@@ -4,6 +4,12 @@ const pages: [string, string | RegExp][] = [
   ["/", "Security posture"],
   ["/repositories", "Repositories"],
   ["/applications", "Applications"],
+  ["/posture", "Application posture"],
+  ["/posture/coverage", "Scan coverage"],
+  ["/posture/unmanaged", "Unmanaged assets"],
+  ["/posture/benchmark", "Benchmarking"],
+  ["/posture/blast-radius", "Blast radius"],
+  ["/posture/graph", "Context graph"],
   ["/scans/overview", "Scan overview"],
   ["/scans", "Scans"],
   ["/scans/schedules", "Scan schedules"],
@@ -51,4 +57,15 @@ test("security headers on the app shell", async ({ request }) => {
   expect(h["strict-transport-security"]).toContain("max-age=");
   expect(h["x-frame-options"]).toBe("DENY");
   expect(h["cross-origin-opener-policy"]).toBe("same-origin");
+});
+
+test("context graph of a repository renders its nodes", async ({ page, request }) => {
+  const r = await request.get("/api/v1/repositories?limit=1");
+  const items = r.ok() ? ((await r.json()) as { items: { id: string }[] }).items : [];
+  test.skip(!items.length, "no repositories in this environment");
+  await page.goto(`/posture/graph?node=repository:${items[0]!.id}`);
+  const graph = page.getByRole("img", { name: /Context graph with \d+ nodes/ });
+  await expect(graph).toBeVisible();
+  await expect(graph.getByRole("link").first()).toBeVisible();
+  await page.screenshot({ path: "test-results/context-graph.png", fullPage: true });
 });
