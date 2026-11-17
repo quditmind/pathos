@@ -17,11 +17,25 @@ import { cn, formatDateTime } from "@/lib/utils";
 import { useCatalog, useFinding, useFindings, useFindingSummary } from "@/features/scans/api";
 import { LifecyclePanel, slaState } from "@/features/vuln/LifecyclePanel";
 import { needsReason, statusLabel, useVulnMutation } from "@/features/vuln/api";
+import { reviewApi } from "@/features/review/api";
+import { dispositionLabel, statusLabel as reviewStatusLabel } from "@/features/review/shared";
+import type { Disposition, ReviewStatus } from "@/features/review/types";
 
-type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; q?: string; finding?: string };
+/** Human Review outcome of a finding (link to the assessment workspace). */
+function HumanReviewCell({ f }: { f: Finding }) {
+  if (!f.human_review_id) return <span className="text-muted-foreground">—</span>;
+  const label = f.human_disposition ? dispositionLabel[f.human_disposition as Disposition] : reviewStatusLabel[f.human_review_status as ReviewStatus] ?? f.human_review_status;
+  return (
+    <Link to="/human-review/reviews/$id" params={{ id: f.human_review_id }} onClick={(e) => e.stopPropagation()} className="whitespace-nowrap text-[12px] text-primary hover:underline" title={f.human_review_key ?? undefined}>
+      {label}
+    </Link>
+  );
+}
+
+type FindingSearch = { status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; q?: string; finding?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "q", "finding"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -64,6 +78,7 @@ const columns: Column<Finding>[] = [
   { id: "first", header: "First seen", className: "tabular whitespace-nowrap text-[12px] text-muted-foreground", cell: (f) => formatDateTime(f.first_seen_at), csv: (f) => f.first_seen_at },
   { id: "fix", header: "Fixed version", defaultHidden: true, className: "text-[12px]", cell: (f) => f.fixed_version || "—", csv: (f) => f.fixed_version },
   { id: "path", header: "Location", defaultHidden: true, className: "font-mono text-[11.5px]", cell: location, csv: location },
+  { id: "human_review", header: "Human review", cell: (f) => <HumanReviewCell f={f} />, csv: (f) => f.human_disposition ?? f.human_review_status ?? "" },
 ];
 
 export function FindingsPage() {
@@ -84,6 +99,7 @@ export function FindingsPage() {
   const filterDefs: FilterDef[] = [
     { key: "status", label: "Status", allLabel: "Open", options: [...["in_progress", "needs_review", "fixed", "false_positive", "accepted_risk"].map((value) => ({ value, label: statusLabel[value]! })), { value: "all", label: "All statuses" }] },
     { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
+    { key: "human_review", label: "Human review", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
@@ -113,12 +129,12 @@ export function FindingsPage() {
         <FilterBar filters={filterDefs} values={rest as Record<string, string | undefined>} onChange={(k, v) => set({ [k]: v })}
           onReset={() => { setQ(""); void navigate({ to: "/findings", search: {} as never, replace: true }); }} />
       </Card>
-      {can("findings.triage") && selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => setSelected(new Set())} />}
+      {(can("findings.triage") || can("reviews.assign")) && selected.size > 0 && <BulkBar ids={[...selected]} onDone={() => setSelected(new Set())} />}
       <Card>
         <DataTable
           tableId="findings-v2"
-          selection={can("findings.triage") ? selected : undefined}
-          onSelectionChange={can("findings.triage") ? setSelected : undefined}
+          selection={can("findings.triage") || can("reviews.assign") ? selected : undefined}
+          onSelectionChange={can("findings.triage") || can("reviews.assign") ? setSelected : undefined}
           exportName="pathos-findings"
           columns={columns}
           rows={rows}
@@ -157,6 +173,14 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             {d.cvss != null && <span className="tabular text-[12px] text-muted-foreground">CVSS {d.cvss.toFixed(1)}</span>}
           </div>
           <LifecyclePanel f={d} />
+          {d.human_review_id && (
+            <div className="rounded-md border border-border p-3 text-[12.5px]">
+              <span className="font-medium">Human review {d.human_review_key}: </span>
+              {d.human_disposition ? dispositionLabel[d.human_disposition as Disposition] : reviewStatusLabel[d.human_review_status as ReviewStatus]}
+              {d.human_severity && <span className="text-muted-foreground"> · assessed severity {d.human_severity}</span>}
+              <Link to="/human-review/reviews/$id" params={{ id: d.human_review_id }} className="ml-2 text-primary hover:underline">Open assessment →</Link>
+            </div>
+          )}
           {d.description && <p className="whitespace-pre-wrap break-words text-muted-foreground">{d.description}</p>}
           <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <div><dt className="text-[12px] text-muted-foreground">Type</dt><dd>{categoryLabel[d.category] ?? d.category}</dd></div>
@@ -227,7 +251,10 @@ function AISection({ id }: { id: string }) {
 }
 
 function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
-  const { me } = useSession();
+  const { me, can } = useSession();
+  const [hrReason, setHrReason] = useState("");
+  const [hrOpen, setHrOpen] = useState(false);
+  const sendToReview = useVulnMutation(() => reviewApi.create({ finding_ids: ids, reason: hrReason }));
   const [status, setStatus] = useState("");
   const [reason, setReason] = useState("");
   const bulk = useVulnMutation((body: unknown) => api<{ updated: number }>("/api/v1/findings/bulk", { method: "POST", body: { finding_ids: ids, ...(body as object) } }));
@@ -235,6 +262,24 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
   return (
     <Card className="mb-3 flex flex-wrap items-center gap-2 border-primary/40 p-2.5">
       <span className="text-[13px] font-medium">{ids.length} selected</span>
+      {can("reviews.assign") && (
+        <>
+          {hrOpen ? (
+            <>
+              <Input aria-label="Reason for human review" className="max-w-xs" placeholder="Why does this need human review?" value={hrReason} onChange={(e) => setHrReason(e.target.value)} />
+              <Button size="sm" disabled={sendToReview.isPending || hrReason.trim().length < 5}
+                onClick={() => sendToReview.mutate(undefined, { onSuccess: () => { setHrOpen(false); setHrReason(""); onDone(); } })}>
+                Add to review queue
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" variant="secondary" onClick={() => setHrOpen(true)}><ShieldCheck /> Send to Human Review</Button>
+          )}
+          {sendToReview.data && <span className="text-[12px] text-muted-foreground">{sendToReview.data.created.length} added, {sendToReview.data.existing.length} already queued</span>}
+          {can("findings.triage") && <span className="mx-1 h-5 w-px bg-border" />}
+        </>
+      )}
+      {can("findings.triage") && <>
       <Select aria-label="Bulk status" value={status} onChange={(e) => setStatus(e.target.value)}>
         <option value="">Set status…</option>
         {["open", "in_progress", "needs_review", "false_positive", "fixed"].map((s) => <option key={s} value={s}>{statusLabel[s]}</option>)}
@@ -244,8 +289,10 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       <span className="mx-1 h-5 w-px bg-border" />
       <Button size="sm" variant="secondary" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: me.user.id }, done)}>Assign to me</Button>
       <Button size="sm" variant="ghost" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: null }, done)}>Unassign</Button>
+      </>}
       <Button size="sm" variant="ghost" className="ml-auto" aria-label="Clear selection" onClick={onDone}><X /></Button>
       {bulk.isError && <div className="w-full"><Alert>{bulk.error.message}</Alert></div>}
+      {sendToReview.isError && <div className="w-full"><Alert>{sendToReview.error.message}</Alert></div>}
     </Card>
   );
 }

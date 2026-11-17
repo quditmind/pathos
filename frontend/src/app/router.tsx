@@ -36,6 +36,13 @@ import { AIReviewsPage } from "@/features/ai/AIReviewsPage";
 import { AISettingsPage } from "@/features/ai/AISettingsPage";
 import { McpRegistryPage } from "@/features/ai/McpRegistryPage";
 import { TokensPage } from "@/features/ai/TokensPage";
+import { OverviewPage as ReviewOverviewPage } from "@/features/review/OverviewPage";
+import { QueuePage, validateReviewSearch } from "@/features/review/QueuePage";
+import { AssessmentsPage } from "@/features/review/AssessmentsPage";
+import { AssignmentsPage } from "@/features/review/AssignmentsPage";
+import { ReportsPage as ReviewReportsPage } from "@/features/review/ReportsPage";
+import { ConfigurationsPage as ReviewConfigurationsPage } from "@/features/review/ConfigurationsPage";
+import { WorkspacePage, validateWorkspaceSearch } from "@/features/review/workspace/WorkspacePage";
 
 function Authenticated() {
   const me = useMe();
@@ -144,13 +151,23 @@ const aiSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ad
 const mcpRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/mcp", component: McpRegistryPage });
 const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
 
+// Human Review (standalone module).
+const hrOverviewRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review", component: ReviewOverviewPage, validateSearch: validateReviewSearch });
+const hrQueueRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/queue", component: QueuePage, validateSearch: validateReviewSearch });
+const hrAssessmentsRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/assessments", component: AssessmentsPage, validateSearch: validateReviewSearch });
+const hrAssignmentsRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/assignments", component: AssignmentsPage, validateSearch: validateReviewSearch });
+const hrReportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/reports", component: ReviewReportsPage, validateSearch: validateReviewSearch });
+const hrConfigRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/configurations", component: ReviewConfigurationsPage });
+const hrWorkspaceRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/reviews/$id", component: WorkspacePage, validateSearch: validateWorkspaceSearch });
+
 const helpRoute = createRoute({ getParentRoute: () => appRoute, path: "/help", component: HelpHomePage, validateSearch: validateHelpSearch });
 const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/$section/$slug", component: HelpDocPage });
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute]),
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute,
+    hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });

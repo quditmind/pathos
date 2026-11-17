@@ -144,7 +144,7 @@ func (s *Service) buildFilter(p *authz.Principal, q url.Values, dateCol string) 
 	if !isWorker(p) {
 		f.where = append(f.where, "h.status = 'completed'")
 	}
-	if v := listParam(q, "status"); len(v) > 0 {
+	if v := slices.DeleteFunc(listParam(q, "status"), func(x string) bool { return x == "all" }); len(v) > 0 {
 		if slices.Contains(v, "open") {
 			f.where = append(f.where, "h.status <> 'completed'")
 			v = slices.DeleteFunc(v, func(x string) bool { return x == "open" })

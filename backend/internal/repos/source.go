@@ -55,6 +55,7 @@ func (s *Service) ReadSourceFile(ctx context.Context, orgID, repoID uuid.UUID, r
 	defer cancel()
 	b, err := cr.FileAt(cctx, t.ref(), ref.Commit, path)
 	if err != nil {
+		s.Log.Warn("source file unavailable", "repository_id", repoID, "path", path, "err", err)
 		return nil, "", providerUnavailable(err)
 	}
 	return b, "scm", nil
@@ -77,6 +78,7 @@ func (s *Service) SourceHistory(ctx context.Context, orgID, repoID uuid.UUID, co
 	defer cancel()
 	out, err := cr.FileHistory(cctx, t.ref(), commit, path, limit)
 	if err != nil {
+		s.Log.Warn("source history unavailable", "repository_id", repoID, "path", path, "err", err)
 		return nil, providerUnavailable(err)
 	}
 	return out, nil
@@ -132,7 +134,9 @@ func providerUnavailable(err error) error {
 	switch {
 	case errors.Is(err, scm.ErrNotFound):
 		return unavailable("not_found", "The file does not exist at the scanned commit (or the connection cannot see it).")
-	case errors.Is(err, scm.ErrForbidden), errors.Is(err, scm.ErrAuth), errors.Is(err, scm.ErrTokenExpired):
+	case errors.Is(err, scm.ErrAuth), errors.Is(err, scm.ErrTokenExpired):
+		return unavailable("credential_rejected", "The SCM provider rejected the connection's credential (expired or revoked). Update it under Administration → SCM connections.")
+	case errors.Is(err, scm.ErrForbidden):
 		return unavailable("forbidden", "The SCM connection is not allowed to read this repository.")
 	case errors.Is(err, scm.ErrTooLarge):
 		return unavailable("too_large", "The file is larger than 1 MiB and cannot be displayed.")

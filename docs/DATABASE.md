@@ -134,6 +134,22 @@ erDiagram
 
 `docs/REPOSITORY_ONBOARDING.md` describes the design.
 
+## Human Review (migration 00012)
+
+| Table | Purpose |
+|---|---|
+| `human_reviews` | One per finding (`UNIQUE (finding_id)`): permanent `review_key` (`QD-HR-000001`), scanned commit / branch / snapshot, preserved scanner severity, score, vector and output (immutable, trigger-protected), status, disposition, remediation status, priority, reviewer, independent reviewer, due date, round, human-assessed severity and CVSS, remediation tracking |
+| `human_review_assessments` | Structured assessment per review round (answers, fields, reproduction, risk, remediation, data flow notes; JSON objects) |
+| `human_review_decisions` | Append-only submitted dispositions with reason, duplicate reference, risk owner and expiry |
+| `human_review_approvals` | Append-only independent review outcomes; a trigger rejects approval by the decision's author |
+| `human_review_evidence` | Evidence metadata (`QD-EV-000001`), SHA-256, encrypted object key or inline text; deletion keeps the record |
+| `human_review_comments`, `human_review_recommendations` | Append-only comments and AI suggestions (provenance, transmitted SHA-256) |
+| `human_review_history` | Append-only activity history (actor, action, field, old and new value) |
+| `human_review_settings` | Per-organization workflow configuration |
+| `findings.human_*` | Human outcome on the finding: review, disposition, assessed severity, time |
+
+The application role cannot update or delete history, decisions, approvals, comments or suggestions, nor delete evidence rows. `pathos_review_remediation_sync` (AFTER UPDATE OF status on `findings`) moves confirmed reviews to *pending verification* when a scan no longer detects the finding and to *reopened* when it is detected again. `docs/HUMAN_REVIEW.md` describes the design.
+
 ## Finding lifecycle trigger
 
 `pathos_finding_lifecycle` (BEFORE INSERT/UPDATE on `findings`) is the single writer of `finding_status_history`. Callers describe *why* a change happens with transaction-local settings, set through `db.SetChangeContext`: `pathos.actor`, `pathos.source` and `pathos.reason`. The trigger sets `sla_due_at` on insert, `status_changed_at` and `resolved_at` on transitions, increments `recurrence_count` on `fixed → open`, and clears `accepted_until` when a finding leaves `accepted_risk`. Changes made without context are recorded as `source=system`, so no change is silently untracked.
