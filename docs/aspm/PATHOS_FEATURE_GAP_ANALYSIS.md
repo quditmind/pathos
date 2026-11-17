@@ -21,8 +21,8 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
 | F. Supply chain and DevSecOps (61–75) | 12 | 3 | 0 |
-| G. Enterprise and governance (76–100) | 17 | 5 | 3 |
-| **Total** | **84** | **12** | **4** |
+| G. Enterprise and governance (76–100) | 22 | 3 | 0 |
+| **Total** | **89** | **10** | **1** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -172,17 +172,17 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 81 | Audit logging | Completed | Partitioned, append-only | — |
 | 82 | Policy engine | Completed | Security policies: conditions on findings (severity, type, CWE, risk, KEV, malicious, reachability, age) and context (criticality, exposure, environment, data, compliance scope, repositories) → block scan and PR gates, require a Human Eye review, tighten the SLA, notify; dry-run preview, violations, versions, audit (phase 8) | — |
 | 83 | Compliance mapping | Completed | OWASP Top 10 2021, OWASP ASVS 4.0.3, PCI DSS 4.0.1, ISO/IEC 27001:2022 Annex A, SOC 2 controls mapped by category, CWE and malicious packages; per-framework views over the repositories in scope; findings filter by control (phase 8). Indicative evidence, not a verdict | — |
-| 84 | Executive dashboard | In Progress | Dashboard | Executive view: risk by application or business unit, trend, MTTR, SLA compliance; printable |
-| 85 | Custom reporting | Not Started | CSV exports | Saved report definitions (filters, grouping, columns), scheduled delivery, CSV and print layout |
+| 84 | Executive dashboard | Completed | Executive overview: open critical/high, KEV, SLA compliance, new vs fixed, weekly trend and backlog, MTTR by severity, riskiest applications and business units; printable (phase 9) | — |
+| 85 | Custom reporting | Completed | Saved reports (Findings filters, grouping, columns), shared, scheduled delivery as a link, CSV with formula protection, print; each reader sees only their scope (phase 9) | — |
 | 86 | Scheduled scanning | Completed | | — |
 | 87 | Distributed workers | Completed | Leased jobs, multiple workers | Additional worker families |
 | 88 | Orchestration | Completed | | — |
 | 89 | Scanner health | Completed | | — |
-| 90 | Webhooks | In Progress | Inbound SCM webhooks | Outbound webhooks (signed with HMAC, retries) for findings, scans and reviews |
-| 91 | REST API | Completed | `/api/v1`, documented | Personal API tokens for REST (today MCP only) |
-| 92 | Jira | Not Started | — | Optional connector: create and link issues, status sync |
-| 93 | ServiceNow | Not Started | — | Optional connector: incidents and vulnerability items |
-| 94 | Notification engine | Completed | Email, in-app, rules, templates | Chat (Slack and Teams incoming webhooks) via 90 |
+| 90 | Webhooks | Completed | Inbound SCM webhooks; outbound webhooks for every notification event: signed JSON (HMAC-SHA256), Slack, Microsoft Teams; retries with back-off, delivery log, SSRF protection, encrypted URLs (phase 9) | — |
+| 91 | REST API | Completed | `/api/v1`, documented; personal API tokens for REST (read or read-write, owner's permissions, audited) (phase 9) | — |
+| 92 | Jira | Completed | Optional connector (Cloud and Data Center): create an issue for a finding, link, status sync (phase 9) | Automatic ticket creation by policy |
+| 93 | ServiceNow | Completed | Optional connector: incidents (any table), link, status sync (phase 9) | Vulnerability Response items |
+| 94 | Notification engine | Completed | Email, in-app, rules, templates; Slack and Microsoft Teams through webhooks (phase 9) | — |
 | 95 | Multi-tenant | In Progress | `organization_id` everywhere | Several organizations per deployment: tenant resolution, administration and isolation tests (see decision D3) |
 | 96 | Custom security rules | Completed | Same as 15 (phase 2a) | — |
 | 97 | Data encryption | Completed | Keyring, encrypted stores, TLS | — |

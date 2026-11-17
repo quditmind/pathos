@@ -25,6 +25,7 @@ This reference covers the Repository and Asset Management module of PATHOS: repo
 | [AI Security Analyst](ai-analyst.md#analyst) | Conversations over your security data, AI-written reports, AI usage |
 | [Posture](posture.md#endpoints) | Application posture and risk rollup, coverage, unmanaged and shadow repositories, benchmarking, dependency graphs, blast radius, context graph |
 | [Scan targets](scan-targets.md#endpoints) | Container images, web applications (DAST), APIs (OpenAPI), build artifacts and SBOMs as scan targets |
+| [API tokens, webhooks, ticketing and reports](integrations-reporting.md#rest-api-tokens) | REST tokens, outbound webhooks, Jira and ServiceNow, executive overview, custom reports |
 | [Security policies, compliance and sign-in security](governance.md#security-policies) | Policies (conditions → actions) and violations, compliance framework views, MFA recovery codes |
 | [Supply chain and pull request checks](supply-chain.md#pull-request-checks) | SBOM export (CycloneDX, SPDX), package health, malicious packages, pull request checks and commit statuses |
 | [Risk and vulnerability intelligence](risk-intelligence.md#finding-fields-and-filters) | Contextual risk scores and model, EPSS and KEV feeds, CVE lookups, lifecycle statuses |

@@ -16,8 +16,10 @@ import (
 	"os/signal"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/policy"
+	"pathos/internal/reporting"
 	"pathos/internal/repos"
 	"pathos/internal/risk"
+	"pathos/internal/tickets"
 	"syscall"
 	"time"
 
@@ -342,6 +344,18 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Error("risk acceptance expiry failed", "err", err)
 		} else if n > 0 {
 			log.Info("expired risk acceptances; findings reopened", "count", n)
+		}
+		if n, err := reporting.RunDue(ctx, pool); err != nil {
+			log.Warn("scheduled reports failed", "err", err)
+		} else if n > 0 {
+			log.Info("scheduled reports sent", "count", n)
+		}
+		// Ticket statuses (Jira, ServiceNow) for the finding drawer.
+		ts := &tickets.Service{DB: pool, Secrets: store, Log: log}
+		if n, err := ts.Sync(ctx); err != nil {
+			log.Warn("ticket status sync failed", "err", err)
+		} else if n > 0 {
+			log.Debug("ticket statuses synced", "count", n)
 		}
 		// Security policies follow changes between scans (risk scores,
 		// intelligence, repository context, finding age).

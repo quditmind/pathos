@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"pathos/internal/compliance"
 	"slices"
 	"strconv"
@@ -168,7 +169,14 @@ var (
 
 // findingsWhere builds the scoped WHERE clause shared by list and summary.
 func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
-	p := s.Principal(r.Context())
+	return FindingsWhere(s.Principal(r.Context()), r.URL.Query())
+}
+
+// FindingsWhere builds the WHERE clause (alias f for findings, r for
+// repositories) of the findings list for a principal and the list's query
+// parameters, limited to what the principal may read. Reports reuse it so
+// their filters mean exactly what they mean on the Findings page.
+func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 	f := authz.FilterFor(p, authz.PermFindingsRead)
 	if f.None() {
 		return nil, nil, authz.ErrForbidden
@@ -181,7 +189,6 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 		args = append(args, v)
 		where = append(where, strings.ReplaceAll(cond, "?", "$"+strconv.Itoa(len(args))))
 	}
-	q := r.URL.Query()
 	status := q.Get("status")
 	switch {
 	case status == "" || status == "open":
@@ -221,7 +228,7 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 	switch v := q.Get("assignee"); v {
 	case "":
 	case "me":
-		add("f.assignee_id = ?", s.Principal(r.Context()).UserID)
+		add("f.assignee_id = ?", p.UserID)
 	case "none":
 		where = append(where, "f.assignee_id IS NULL")
 	default:

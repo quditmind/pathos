@@ -12,6 +12,7 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -91,7 +92,12 @@ func (s *Service) listTokens(w http.ResponseWriter, r *http.Request) {
 type tokenRequest struct {
 	Name string `json:"name"`
 	Days int    `json:"days"`
+	// Scopes: "mcp" (default), "api:read" (REST API, read-only),
+	// "api:write" (REST API, read and write).
+	Scopes []string `json:"scopes"`
 }
+
+var validScopes = []string{ScopeMCP, "api:read", "api:write"}
 
 func (s *Service) createToken(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
@@ -117,6 +123,17 @@ func (s *Service) createToken(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("days must be between 1 and 90"))
 		return
 	}
+	if len(req.Scopes) == 0 {
+		req.Scopes = []string{ScopeMCP}
+	}
+	slices.Sort(req.Scopes)
+	req.Scopes = slices.Compact(req.Scopes)
+	for _, sc := range req.Scopes {
+		if !slices.Contains(validScopes, sc) {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("scopes must be mcp, api:read or api:write"))
+			return
+		}
+	}
 	var active int
 	_ = s.DB.QueryRow(ctx, `SELECT count(*) FROM api_tokens WHERE user_id = $1 AND revoked_at IS NULL AND expires_at > now()`, p.UserID).Scan(&active)
 	if active >= 10 {
@@ -126,7 +143,7 @@ func (s *Service) createToken(w http.ResponseWriter, r *http.Request) {
 	raw := make([]byte, 32)
 	_, _ = rand.Read(raw)
 	secret := TokenPrefix + base64.RawURLEncoding.EncodeToString(raw)
-	t := Token{ID: uuid.Must(uuid.NewV7()), Name: req.Name, Prefix: secret[:len(TokenPrefix)+6], Scopes: []string{ScopeMCP},
+	t := Token{ID: uuid.Must(uuid.NewV7()), Name: req.Name, Prefix: secret[:len(TokenPrefix)+6], Scopes: req.Scopes,
 		ExpiresAt: time.Now().Add(time.Duration(req.Days) * 24 * time.Hour), CreatedAt: time.Now()}
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO api_tokens (id, organization_id, user_id, name, prefix, token_sha256, scopes, expires_at)
@@ -134,13 +151,13 @@ func (s *Service) createToken(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "api_token.create", TargetType: "api_token", TargetID: t.ID.String(), Metadata: map[string]any{"name": t.Name, "days": req.Days}})
+			Action: "api_token.create", TargetType: "api_token", TargetID: t.ID.String(), Metadata: map[string]any{"name": t.Name, "days": req.Days, "scopes": t.Scopes}})
 	})
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"token": t, "secret": secret, "mcp_url": s.PublicURL + "/mcp"})
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{"token": t, "secret": secret, "mcp_url": s.PublicURL + "/mcp", "api_url": s.PublicURL + "/api/v1"})
 }
 
 func (s *Service) revokeToken(w http.ResponseWriter, r *http.Request) {

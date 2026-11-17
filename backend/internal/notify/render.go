@@ -39,6 +39,7 @@ type Data struct {
 	Severity   string
 	Actor      string
 	Policy     string // policy.violated
+	Report     string // report.scheduled: report name
 	Count      int
 	More       int
 	Findings   []Item
@@ -73,8 +74,9 @@ type Data struct {
 	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
-	assignees []uuid.UUID
-	requester *uuid.UUID
+	assignees        []uuid.UUID
+	reportRecipients []uuid.UUID
+	requester        *uuid.UUID
 	// independent is the designated independent reviewer, if any.
 	independent *uuid.UUID
 }
@@ -256,6 +258,18 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		} else if ev.Repository != nil {
 			d.Link += "&repository_id=" + ev.Repository.String()
 		}
+	case "report.scheduled":
+		d.Report = payloadString(p, "report_name")
+		if raw, ok := p["recipient_ids"].([]any); ok {
+			for _, v := range raw {
+				if s, ok := v.(string); ok {
+					if id, err := uuid.Parse(s); err == nil {
+						d.reportRecipients = append(d.reportRecipients, id)
+					}
+				}
+			}
+		}
+		d.Link = baseURL + "/reports?report=" + payloadString(p, "report_id")
 	case "finding.assigned":
 		if err := loadFinding(ctx, q, d, ev.SubjectID, baseURL); err != nil {
 			return nil, err

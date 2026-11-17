@@ -410,7 +410,7 @@ func TestNotifications(t *testing.T) {
 			}
 		}
 	}
-	if code != 200 || sys != 17 {
+	if code != 200 || sys != 18 {
 		t.Fatalf("system rules: %d %d", code, sys)
 	}
 	if code, _ := call(analyst, "GET", "/api/v1/notifications/rules", nil); code != 403 {

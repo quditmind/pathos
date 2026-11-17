@@ -2,12 +2,15 @@ package auth
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/subtle"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -323,6 +326,23 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = audit.WithMeta(ctx, audit.Meta{IP: httpx.ClientIP(r), UserAgent: r.UserAgent(), RequestID: httpx.RequestID(r)})
 		c, err := r.Cookie(s.SessionCookieName())
+		// The REST API accepts personal API tokens; other endpoints that take
+		// bearer tokens (the MCP server) authenticate them themselves.
+		if err != nil && strings.HasPrefix(r.URL.Path, "/api/") {
+			if bearer, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+				// Personal API token (no cookie, so no CSRF exposure).
+				p, tokenID, terr := s.tokenPrincipal(ctx, strings.TrimSpace(bearer), r)
+				if terr != nil {
+					httpx.WriteError(w, r, s.Log, terr)
+					return
+				}
+				m := audit.MetaFrom(ctx)
+				m.APIToken = tokenID.String()
+				ctx = context.WithValue(audit.WithMeta(ctx, m), principalKey, p)
+				next.ServeHTTP(w, r.WithContext(ctx))
+				return
+			}
+		}
 		if err == nil {
 			sess, err := s.Sessions.Get(ctx, c.Value)
 			switch {
@@ -399,4 +419,49 @@ func (s *Service) RequireAuth(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+// Token scopes for the REST API (MCP has its own scope).
+const (
+	TokenScopeRead  = "api:read"
+	TokenScopeWrite = "api:write"
+	tokenPrefix     = "pathos_pat_"
+)
+
+// tokenDenied lists API areas a token can never use: a token must not be
+// able to mint tokens, change sign-in or MFA, or end sessions.
+var tokenDenied = []string{"/api/v1/me/tokens", "/api/auth/", "/api/v1/me/recovery-codes", "/api/v1/me/mfa"}
+
+// tokenPrincipal resolves a personal API token. Read tokens allow safe
+// methods only. The owner's current role assignments apply, so a token
+// never carries more than its owner has; deactivated owners' tokens stop
+// working at once.
+func (s *Service) tokenPrincipal(ctx context.Context, tok string, r *http.Request) (*authz.Principal, uuid.UUID, error) {
+	bad := httpx.E(http.StatusUnauthorized, "invalid_token", "invalid, expired or revoked API token")
+	if !strings.HasPrefix(tok, tokenPrefix) || len(tok) > 200 {
+		return nil, uuid.Nil, bad
+	}
+	for _, p := range tokenDenied {
+		if strings.HasPrefix(r.URL.Path, p) {
+			return nil, uuid.Nil, httpx.E(http.StatusForbidden, "token_not_allowed", "API tokens cannot be used for this endpoint; sign in instead")
+		}
+	}
+	sum := sha256.Sum256([]byte(tok))
+	var tokenID, userID, orgID uuid.UUID
+	var scopes []string
+	err := s.DB.QueryRow(ctx, `UPDATE api_tokens SET last_used_at = now()
+		WHERE token_sha256 = $1 AND revoked_at IS NULL AND expires_at > now() AND scopes && ARRAY[$2, $3]::text[]
+		RETURNING id, user_id, organization_id, scopes`, hex.EncodeToString(sum[:]), TokenScopeRead, TokenScopeWrite).
+		Scan(&tokenID, &userID, &orgID, &scopes)
+	if err != nil {
+		return nil, uuid.Nil, bad
+	}
+	if !safeMethod(r.Method) && !slices.Contains(scopes, TokenScopeWrite) {
+		return nil, uuid.Nil, httpx.E(http.StatusForbidden, "token_read_only", "this API token is read-only")
+	}
+	p, err := s.loadPrincipal(ctx, &Session{UserID: userID, OrgID: orgID})
+	if err != nil {
+		return nil, uuid.Nil, bad
+	}
+	return p, tokenID, nil
 }
