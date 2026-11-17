@@ -55,6 +55,18 @@ Details: {{.Link}}`,
 Review: {{.Link}}`,
 	},
 	{
+		Key: "policy.violated", Label: "Security policy violated", Severity: true, Repository: true,
+		Description: "Open findings newly violate a security policy that notifies (one message per policy, repository and run).",
+		Dynamic:     []string{"assignee", "owners"},
+		Subject:     `[PATHOS] Policy "{{.Policy}}": {{.Count}} finding{{if ne .Count 1}}s{{end}} in {{.Repository}}`,
+		Body: `{{.Count}} open finding{{if ne .Count 1}}s{{end}} in {{.Repository}} violate{{if eq .Count 1}}s{{end}} the security policy "{{.Policy}}":
+
+{{range .Findings}}- [{{.Severity}}] {{.Title}}{{if .Location}} ({{.Location}}){{end}}
+{{end}}{{if gt .More 0}}…and {{.More}} more.
+{{end}}
+Review: {{.Link}}`,
+	},
+	{
 		Key: "finding.assigned", Label: "Finding assigned", Severity: true, Repository: true,
 		Description: "Someone assigned a finding to a user (self-assignment is not notified).",
 		Dynamic:     []string{"assignee"},

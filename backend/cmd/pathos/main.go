@@ -9,11 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"pathos/internal/platform/sourcestore"
+	"pathos/internal/policy"
 	"pathos/internal/repos"
 	"pathos/internal/risk"
 	"syscall"
@@ -340,6 +342,25 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Error("risk acceptance expiry failed", "err", err)
 		} else if n > 0 {
 			log.Info("expired risk acceptances; findings reopened", "count", n)
+		}
+		// Security policies follow changes between scans (risk scores,
+		// intelligence, repository context, finding age).
+		var orgs []uuid.UUID
+		if rows, err := pool.Query(ctx, `SELECT DISTINCT organization_id FROM security_policies WHERE enabled`); err == nil {
+			orgs, _ = pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+		}
+		for _, org := range orgs {
+			var n int
+			err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+				var err error
+				n, err = policy.Evaluate(ctx, tx, org, nil)
+				return err
+			})
+			if err != nil {
+				log.Warn("security policy evaluation failed", "err", err)
+			} else {
+				log.Debug("security policies evaluated", "open_violations", n)
+			}
 		}
 	}
 	tick()

@@ -5,6 +5,7 @@ import { Alert, Card, Input, Label, PageHeader, Skeleton } from "@/components/ui
 import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
 import { useLicensePolicy, useSLA, useVulnMutation } from "./api";
+import { SecurityPolicies } from "@/features/policies/SecurityPolicies";
 
 const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
 
@@ -20,7 +21,7 @@ export function PoliciesPage() {
 
   return (
     <>
-      <PageHeader title="Policies" description="Remediation SLAs and the license policy applied to SBOM components." />
+      <PageHeader title="Policies" description="Remediation SLAs, the license policy applied to SBOM components, and security policies on findings." />
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="p-4">
           <h2 className="mb-1 text-[13px] font-semibold">Remediation SLAs</h2>
@@ -53,6 +54,7 @@ export function PoliciesPage() {
           })}>Save license policy</Button>
         </Card>
       </div>
+      <SecurityPolicies />
     </>
   );
 }

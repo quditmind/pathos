@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"pathos/internal/compliance"
 	"slices"
 	"strconv"
 	"strings"
@@ -302,6 +303,17 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 	}
 	if q.Get("malicious") == "true" {
 		where = append(where, "f.malicious")
+	}
+	if v := q.Get("control"); v != "" {
+		fw, ctl, ok := compliance.LookupControl(v)
+		if !ok {
+			return nil, nil, httpx.BadRequest("unknown compliance control")
+		}
+		ph := func(x any) string {
+			args = append(args, x)
+			return "$" + strconv.Itoa(len(args))
+		}
+		where = append(where, compliance.MatchSQL(ctl, ph), compliance.ScopeSQL(fw, ph))
 	}
 	switch v := q.Get("target_kind"); v {
 	case "":

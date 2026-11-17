@@ -43,6 +43,7 @@ interface PRFinding {
   cve: string | null;
   is_new: boolean;
   existing_finding_id: string | null;
+  policies: string[];
 }
 
 const statusTone = { pending: "neutral", passed: "success", failed: "danger", error: "warning" } as const;
@@ -174,6 +175,7 @@ function FindingTable({ rows }: { rows: PRFinding[] }) {
             <Td className="text-[12.5px]">
               {f.existing_finding_id ? <Link to="/findings" search={{ finding: f.existing_finding_id, status: "all" } as never} className="text-primary hover:underline">{f.title}</Link> : f.title}
               {f.cve && <span className="ml-1 font-mono text-[11px] text-muted-foreground">{f.cve}</span>}
+              {f.policies?.map((p) => <Badge key={p} tone="danger" className="ml-1">policy: {p}</Badge>)}
             </Td>
             <Td className="max-w-64 truncate font-mono text-[11.5px]"><span title={f.file_path}>{f.file_path}{f.start_line ? `:${f.start_line}` : ""}</span></Td>
             <Td className="text-[12px]">{f.scanner_key}</Td>

@@ -81,6 +81,7 @@ export const groups: NavGroup[] = [
       { label: "Unmanaged assets", to: "/posture/unmanaged", icon: <ShieldQuestion />, perm: "repos.read" },
       { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
       { label: "Attack paths", to: "/posture/attack-paths", icon: <Route />, perm: "findings.read" },
+      { label: "Compliance", to: "/compliance", icon: <ClipboardCheck />, perm: "findings.read" },
       { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
       { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
     ],

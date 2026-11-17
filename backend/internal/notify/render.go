@@ -38,6 +38,7 @@ type Data struct {
 	Repository string
 	Severity   string
 	Actor      string
+	Policy     string // policy.violated
 	Count      int
 	More       int
 	Findings   []Item
@@ -214,7 +215,10 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.More = max(d.Scan.New-len(items), 0)
 			d.Link = baseURL + "/findings?repository_id=" + ev.Repository.String()
 		}
-	case "finding.sla_breached":
+	case "finding.sla_breached", "policy.violated":
+		if ev.Key == "policy.violated" {
+			d.Policy, _ = p["policy_name"].(string)
+		}
 		var ids []uuid.UUID
 		if raw, ok := p["finding_ids"].([]any); ok {
 			for _, v := range raw {
@@ -244,7 +248,12 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		rows.Close()
 		d.Link = baseURL + "/findings?sla=breached"
-		if ev.Repository != nil {
+		if ev.Key == "policy.violated" {
+			d.Link = baseURL + "/findings?status=all"
+			if pid, _ := p["policy_id"].(string); pid != "" {
+				d.Link = baseURL + "/admin/policies?policy=" + pid
+			}
+		} else if ev.Repository != nil {
 			d.Link += "&repository_id=" + ev.Repository.String()
 		}
 	case "finding.assigned":

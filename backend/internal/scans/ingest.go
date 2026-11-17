@@ -17,6 +17,7 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
+	"pathos/internal/policy"
 	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/vuln"
@@ -281,7 +282,7 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		}
 
 		if pr != nil {
-			return finalizePR(ctx, tx, jobID, repoID, status, workerErr, bad, &job)
+			return finalizePR(ctx, tx, orgID, jobID, repoID, status, workerErr, bad, &job)
 		}
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
@@ -309,12 +310,26 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		if _, err := vuln.ApplyActiveRules(ctx, tx, orgID, repoID); err != nil {
 			return err
 		}
+		// Security policies: violations of the repository's findings, and
+		// whether a new finding violates a blocking policy.
+		if _, err := policy.Evaluate(ctx, tx, orgID, &repoID); err != nil {
+			return err
+		}
+		blocking, err := policy.Blocking(ctx, tx, jobID)
+		if err != nil {
+			return err
+		}
 		var newCount, newCritical int
 		if err := tx.QueryRow(ctx, `SELECT count(*), count(*) FILTER (WHERE severity = 'critical')
 			FROM findings WHERE repository_id = $1 AND first_scan_job_id = $2`, repoID, jobID).Scan(&newCount, &newCritical); err != nil {
 			return err
 		}
-		gate := failOnCritical && newCritical > 0
+		gate := (failOnCritical && newCritical > 0) || len(blocking) > 0
+		if len(blocking) > 0 {
+			if err := AddEvent(ctx, tx, orgID, jobID, "finalize", "", "info", "security gate failed: blocked by security policy "+strings.Join(blocking, ", ")); err != nil {
+				return err
+			}
+		}
 		errText := logging.RedactString(truncate(workerErr, 2000))
 		if errText == "" && len(bad) > 0 {
 			errText = "scanners failed: " + joinSorted(bad)

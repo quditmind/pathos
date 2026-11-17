@@ -3,6 +3,7 @@ import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Bot, Search, ShieldCheck, X } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session";
@@ -35,10 +36,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { malicious?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
+type FindingSearch = { control?: string; malicious?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["malicious", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["control", "malicious", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -140,6 +141,14 @@ export function FindingsPage() {
           </button>
         ))}
       </div>
+      {search.control && (
+        <div className="mb-3">
+          <Alert tone="warning">
+            Showing findings mapped to compliance control <strong className="font-mono">{search.control.replace(":", " ")}</strong>.{" "}
+            <button type="button" className="underline" onClick={() => set({ control: undefined })}>Clear</button>
+          </Alert>
+        </div>
+      )}
       <Card className="mb-3 p-3">
         <FilterBar filters={filterDefs} values={rest as Record<string, string | undefined>} onChange={(k, v) => set({ [k]: v })}
           onReset={() => { setQ(""); void navigate({ to: "/findings", search: {} as never, replace: true }); }} />
@@ -257,6 +266,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
               </div>
             )}
           </dl>
+          <FindingPolicies findingId={d.id} />
           <RelatedFindings findingId={d.id} />
           {d.snippet && (
             <div>
@@ -357,5 +367,30 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       {bulk.isError && <div className="w-full"><Alert>{bulk.error.message}</Alert></div>}
       {sendToReview.isError && <div className="w-full"><Alert>{sendToReview.error.message}</Alert></div>}
     </Card>
+  );
+}
+
+/** Security policies the finding violates (and what they do). */
+function FindingPolicies({ findingId }: { findingId: string }) {
+  const q = useQuery({
+    queryKey: ["finding-policies", findingId],
+    queryFn: () => api<{ items: { id: string; name: string; actions: { block?: boolean; require_review?: boolean; sla_days?: number; notify?: boolean } }[] }>(`/api/v1/findings/${findingId}/policies`).then((r) => r.items),
+    retry: false,
+  });
+  if (!q.data?.length) return null;
+  return (
+    <div className="rounded-md border border-border p-3 text-[12.5px]">
+      <h3 className="mb-1 text-[12px] font-semibold">Violates security polic{q.data.length === 1 ? "y" : "ies"}</h3>
+      <ul className="space-y-0.5">
+        {q.data.map((p) => (
+          <li key={p.id} className="flex flex-wrap items-center gap-1.5">
+            <Link to="/admin/policies" search={{ policy: p.id } as never} className="text-primary hover:underline">{p.name}</Link>
+            {p.actions.block && <Badge tone="danger">blocks gates</Badge>}
+            {p.actions.require_review && <Badge tone="primary">review required</Badge>}
+            {p.actions.sla_days != null && <Badge tone="warning">SLA {p.actions.sla_days} d</Badge>}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
