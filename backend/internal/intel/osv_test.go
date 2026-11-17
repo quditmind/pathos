@@ -70,3 +70,22 @@ func TestPickVector(t *testing.T) {
 		t.Error("invalid vectors are ignored")
 	}
 }
+
+func TestPURLs(t *testing.T) {
+	for purl, want := range map[string][3]string{
+		"pkg:npm/%40babel/core@7.0.0":            {"npm", "@babel/core", "pkg:npm/%40babel/core"},
+		"pkg:npm/@babel/core@7.0.0":              {"npm", "@babel/core", "pkg:npm/@babel/core"},
+		"pkg:npm/lodash@4.17.20?package-id=abc":  {"npm", "lodash", "pkg:npm/lodash"},
+		"pkg:pypi/PyYAML@6.0":                    {"pypi", "pyyaml", "pkg:pypi/PyYAML"},
+		"pkg:golang/github.com/gin-gonic/gin@v1": {"go", "github.com/gin-gonic/gin", "pkg:golang/github.com/gin-gonic/gin"},
+		"pkg:maven/org.apache.commons/commons-text@1.9": {"maven", "org.apache.commons:commons-text", "pkg:maven/org.apache.commons/commons-text"},
+	} {
+		sys, name, ok := PURLPackage(purl)
+		if !ok || sys != want[0] || name != want[1] || PURLBase(purl) != want[2] {
+			t.Errorf("%s: %s %s %v %s", purl, sys, name, ok, PURLBase(purl))
+		}
+	}
+	if _, _, ok := PURLPackage("pkg:deb/debian/openssl@3"); ok {
+		t.Error("unsupported ecosystems are skipped")
+	}
+}

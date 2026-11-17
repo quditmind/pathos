@@ -28,6 +28,11 @@ type Component struct {
 	// Open vulnerability findings for this package version in the repository.
 	OpenVulns   int     `json:"open_vulnerabilities"`
 	MaxSeverity *string `json:"max_severity"`
+	// Package health (deps.dev), when known.
+	LatestVersion string   `json:"latest_version,omitempty"`
+	Outdated      bool     `json:"outdated"`
+	Deprecated    bool     `json:"deprecated"`
+	Scorecard     *float64 `json:"scorecard,omitempty"`
 }
 
 type edge struct {
@@ -48,8 +53,10 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 	g := repoGraph{byRef: map[string]int{}, parents: map[string][]string{}}
 	rows, err := s.DB.Query(ctx, `
 	SELECT c.bom_ref, c.name, c.version, c.purl, c.type, c.licenses, c.depth,
-	       count(f.id), (array_agg(f.severity ORDER BY array_position(ARRAY['critical','high','medium','low','info'], f.severity)))[1]
+	       count(f.id), (array_agg(f.severity ORDER BY array_position(ARRAY['critical','high','medium','low','info'], f.severity)))[1],
+	       COALESCE(min(h.latest_version), ''), COALESCE(bool_or(c.version = ANY(h.deprecated_versions)), false), min(h.scorecard)::float8
 	FROM sbom_components c
+	LEFT JOIN package_health h ON h.found AND h.purl_base = regexp_replace(split_part(c.purl, '?', 1), '@[^@/]*$', '')
 	LEFT JOIN findings f ON f.repository_id = c.repository_id AND f.scan_target_id IS NULL AND f.category = 'sca'
 	     AND f.status IN `+openStatuses+` AND lower(f.package_name) = lower(c.name) AND f.package_version = c.version
 	WHERE c.repository_id = $1
@@ -60,13 +67,15 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 	for rows.Next() {
 		var c Component
 		var sev *string
-		if err := rows.Scan(&c.Ref, &c.Name, &c.Version, &c.PURL, &c.Type, &c.Licenses, &c.Depth, &c.OpenVulns, &sev); err != nil {
+		if err := rows.Scan(&c.Ref, &c.Name, &c.Version, &c.PURL, &c.Type, &c.Licenses, &c.Depth, &c.OpenVulns, &sev,
+			&c.LatestVersion, &c.Deprecated, &c.Scorecard); err != nil {
 			rows.Close()
 			return g, err
 		}
 		if c.OpenVulns > 0 {
 			c.MaxSeverity = sev
 		}
+		c.Outdated = c.LatestVersion != "" && strings.TrimPrefix(c.LatestVersion, "v") != strings.TrimPrefix(c.Version, "v")
 		if c.Licenses == nil {
 			c.Licenses = []string{}
 		}
@@ -199,6 +208,12 @@ func (s *Service) dependencies(w http.ResponseWriter, r *http.Request) {
 			stats["direct"]++
 		default:
 			stats["transitive"]++
+		}
+		if c.Outdated {
+			stats["outdated"]++
+		}
+		if c.Deprecated {
+			stats["deprecated"]++
 		}
 		if c.OpenVulns > 0 {
 			stats["vulnerable"]++

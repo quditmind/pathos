@@ -11,6 +11,7 @@ import (
 	"pathos/internal/platform/objstore"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -231,12 +232,28 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// format: cyclonedx (default: the latest scan's SBOM file, else generated
+	// from the inventory) or spdx (generated from the inventory).
+	format := r.URL.Query().Get("format")
+	if format == "spdx" || format == "cyclonedx-inventory" {
+		s.exportInventory(w, r, id, format)
+		return
+	}
+	if format != "" && format != "cyclonedx" {
+		s.fail(w, r, httpx.BadRequest("format must be cyclonedx or spdx"))
+		return
+	}
 	var data []byte
 	var key *string
 	var name string
 	err = s.DB.QueryRow(ctx, `SELECT a.data_gzip, a.object_key, r.name FROM scan_artifacts a JOIN scan_results sr ON sr.id = a.scan_result_id
 		JOIN scan_jobs j ON j.id = sr.scan_job_id JOIN repositories r ON r.id = j.repository_id
 		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID).Scan(&data, &key, &name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// No scan SBOM (e.g. an imported one): generate from the inventory.
+		s.exportInventory(w, r, id, "cyclonedx-inventory")
+		return
+	}
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -259,4 +276,42 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 		return r
 	}, name)+`.cdx.json"`)
 	_, _ = io.Copy(w, io.LimitReader(zr, 512<<20))
+}
+
+func (s *Service) exportInventory(w http.ResponseWriter, r *http.Request, repoID uuid.UUID, format string) {
+	ctx := r.Context()
+	var name string
+	if err := s.DB.QueryRow(ctx, `SELECT COALESCE(NULLIF(display_name, ''), full_name) FROM repositories WHERE id = $1`, repoID).Scan(&name); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	comps, edges, err := loadInventory(ctx, s.DB, repoID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if len(comps) == 0 {
+		s.fail(w, r, httpx.E(http.StatusNotFound, "no_sbom", "the repository has no component inventory yet"))
+		return
+	}
+	var out []byte
+	ct, ext := "application/vnd.cyclonedx+json", ".cdx.json"
+	if format == "spdx" {
+		out, err = SPDXDocument(name, comps, edges, time.Now())
+		ct, ext = "application/spdx+json", ".spdx.json"
+	} else {
+		out, err = CycloneDXDocument(name, comps, edges, time.Now())
+	}
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.Header().Set("Content-Type", ct)
+	w.Header().Set("Content-Disposition", `attachment; filename="`+strings.Map(func(r rune) rune {
+		if r == '"' || r == '\\' || r < 0x20 || r == '/' {
+			return '_'
+		}
+		return r
+	}, name)+ext+`"`)
+	_, _ = w.Write(out)
 }

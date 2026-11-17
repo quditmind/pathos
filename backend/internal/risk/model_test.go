@@ -97,3 +97,27 @@ func TestValidate(t *testing.T) {
 		t.Error("bands")
 	}
 }
+
+func TestMaliciousPackages(t *testing.T) {
+	w := Default()
+	base := Input{Status: "open", Severity: "high", Criticality: "medium", Exposure: "unknown", Reachability: "not_reachable", Confidence: "high"}
+	plain := Compute(base, w)
+	mal := base
+	mal.Malicious = true
+	r := Compute(mal, w)
+	if r.Score <= plain.Score {
+		t.Fatalf("malware raises risk: %v <= %v", r.Score, plain.Score)
+	}
+	var reach, like string
+	for _, f := range r.Factors {
+		switch f.Key {
+		case "reachability":
+			reach = f.Value
+		case "likelihood":
+			like = f.Value
+		}
+	}
+	if reach != "reachable" || like != "malicious package (runs when installed)" {
+		t.Errorf("malware ignores reachability and has maximal likelihood: %q %q", reach, like)
+	}
+}

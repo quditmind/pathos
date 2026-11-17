@@ -144,6 +144,9 @@ type Input struct {
 	HumanDisposition string // "" or a Human Eye disposition
 	Compensating     bool   // a review recorded compensating controls
 	FixAvailable     bool
+	// Malicious: the package itself is malware (OSV MAL-*): it runs when
+	// installed, so likelihood is maximal and reachability does not lower it.
+	Malicious bool
 }
 
 // Factor is one term of the explanation.
@@ -206,6 +209,9 @@ func Compute(in Input, w Weights) Result {
 	if in.KEV && w.KEV >= likelihood {
 		likelihood, lsrc = w.KEV, "listed in CISA KEV (exploited in the wild)"
 	}
+	if in.Malicious && w.KEV >= likelihood {
+		likelihood, lsrc = w.KEV, "malicious package (runs when installed)"
+	}
 	add("likelihood", "Exploit likelihood", lsrc, 0.5+likelihood)
 
 	mult := 1.0
@@ -219,7 +225,12 @@ func Compute(in Input, w Weights) Result {
 	}
 	m("criticality", "Business criticality", orUnknown(in.Criticality, "medium"), w.Criticality)
 	m("exposure", "Internet exposure", orUnknown(in.Exposure, "unknown"), w.Exposure)
-	m("reachability", "Reachability", orUnknown(in.Reachability, "unknown"), w.Reachability)
+	if in.Malicious {
+		// Malware acts at install time, whether or not the code imports it.
+		m("reachability", "Reachability", "reachable", w.Reachability)
+	} else {
+		m("reachability", "Reachability", orUnknown(in.Reachability, "unknown"), w.Reachability)
+	}
 	if in.HumanDisposition == "confirmed" {
 		mult *= w.HumanConfirmed
 		add("confidence", "Confidence", "confirmed by a human reviewer", w.HumanConfirmed)

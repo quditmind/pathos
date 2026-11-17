@@ -79,9 +79,13 @@ type FindingView struct {
 	ReachabilityBasis string `json:"reachability_basis"`
 	// SuppressionRuleID is the approved rule that decided the status.
 	SuppressionRuleID *uuid.UUID `json:"suppression_rule_id"`
-	RiskScore         *float64   `json:"risk_score"`
-	ApplicationID     *uuid.UUID `json:"application_id"`
-	ApplicationName   *string    `json:"application_name"`
+	// Malicious: the package itself is malware (OSV MAL-*).
+	Malicious bool `json:"malicious"`
+	// IntroducedCommit is the commit of the scan that first detected it.
+	IntroducedCommit string     `json:"introduced_commit"`
+	RiskScore        *float64   `json:"risk_score"`
+	ApplicationID    *uuid.UUID `json:"application_id"`
+	ApplicationName  *string    `json:"application_name"`
 	// Scan target the finding belongs to (nil: the repository's code).
 	TargetID     *uuid.UUID   `json:"scan_target_id"`
 	TargetKind   *string      `json:"scan_target_kind"`
@@ -108,7 +112,8 @@ const findingSelect = `
 	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status,
 	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity, ` + LifecycleExpr + `,
 	       f.cvss_version, f.cvss_vector, f.confidence, f.epss_score::float8, f.epss_percentile::float8, f.kev, f.kev_due_date,
-	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name, f.reachability_basis, f.suppression_rule_id
+	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name, f.reachability_basis, f.suppression_rule_id, f.malicious,
+	       COALESCE((SELECT fj.commit_sha FROM scan_jobs fj WHERE fj.id = f.first_scan_job_id), '')
 	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
 	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id
 	LEFT JOIN scan_targets stg ON stg.id = f.scan_target_id`
@@ -148,7 +153,7 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
 		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity,
 		&f.Lifecycle, &f.CVSSVersion, &f.CVSSVector, &f.Confidence, &f.EPSS, &f.EPSSPercentile, &f.KEV, &f.KEVDueDate, &f.ExploitAvailable,
-		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.SuppressionRuleID)
+		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.SuppressionRuleID, &f.Malicious, &f.IntroducedCommit)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -294,6 +299,9 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 			return nil, nil, httpx.BadRequest("invalid scan_target_id")
 		}
 		add("f.scan_target_id = ?", id)
+	}
+	if q.Get("malicious") == "true" {
+		where = append(where, "f.malicious")
 	}
 	switch v := q.Get("target_kind"); v {
 	case "":
