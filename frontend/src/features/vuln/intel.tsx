@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Flame } from "lucide-react";
+import { Flame, Skull } from "lucide-react";
 import { api } from "@/api/client";
 import type { FindingRisk, LifecycleStatus } from "@/api/types";
 import { Badge, Skeleton } from "@/components/ui/primitives";
@@ -57,6 +57,14 @@ export function RiskBadge({ score, className }: { score?: number | null; classNa
       {Math.round(score)}
       <span className="font-normal capitalize">{band}</span>
     </span>
+  );
+}
+
+export function MaliciousBadge() {
+  return (
+    <Badge tone="danger" className="gap-0.5">
+      <Skull className="size-3" aria-hidden /> Malicious
+    </Badge>
   );
 }
 

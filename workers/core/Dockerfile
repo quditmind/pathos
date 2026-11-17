@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 # PATHOS worker-core: Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov,
-# zizmor (GitHub Actions) and Nuclei (DAST for authorized URL/API targets).
+# zizmor and actionlint (GitHub Actions) and Nuclei (DAST for authorized URL/API targets).
 # Build context: repository root.
 #
 # Every downloaded binary is pinned by version and SHA-256. Repository code
@@ -41,6 +41,14 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
       golang.org/x/crypto@v0.58.0 golang.org/x/net@v0.62.0 golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.83.2; \
     CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/nuclei ./cmd/nuclei; \
     /out/nuclei -version 2>&1 | grep -q "v${NUCLEI}"
+
+# actionlint (GitHub Actions workflow checks), built from its Go module
+# (integrity: Go checksum database) with the current toolchain.
+FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS actionlint
+ARG ACTIONLINT=1.7.12
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
+    GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "github.com/rhysd/actionlint/cmd/actionlint@v${ACTIONLINT}"; \
+    /out/actionlint -version | grep -q "${ACTIONLINT}"
 
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS tools
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
@@ -91,12 +99,13 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 COPY --from=tools /out/ /usr/local/bin/
 COPY --from=gitleaks /out/gitleaks /usr/local/bin/gitleaks
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
+COPY --from=actionlint /out/actionlint /usr/local/bin/actionlint
 COPY --from=agent /out/pathos-worker /usr/local/bin/pathos-worker
 COPY workers/rules/ /opt/pathos/rules/
 COPY --from=tools /templates/ /opt/pathos/nuclei-templates/
 RUN useradd --uid 10001 --create-home --home-dir /tmp/home --shell /usr/sbin/nologin pathos \
     && mkdir -p /work /cache /rules && chown pathos:pathos /work /cache \
-    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei; do command -v "$t" >/dev/null; done
+    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei actionlint; do command -v "$t" >/dev/null; done
 USER 10001:10001
 ENV PATHOS_WORK_DIR=/work PATHOS_CACHE_DIR=/cache PATHOS_RULES_DIRS=/opt/pathos/rules:/rules \
     PYTHONDONTWRITEBYTECODE=1 HOME=/tmp/home

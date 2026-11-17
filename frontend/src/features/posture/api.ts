@@ -133,12 +133,17 @@ export interface DepComponent {
   depth: number | null;
   open_vulnerabilities: number;
   max_severity: string | null;
+  /** Package health from deps.dev, when the feed has run. */
+  latest_version?: string;
+  outdated: boolean;
+  deprecated: boolean;
+  scorecard?: number;
 }
 
 export interface DependencyGraph {
   components: DepComponent[];
   edges: { parent: string; child: string }[];
-  stats: Partial<Record<"components" | "edges" | "roots" | "direct" | "transitive" | "unknown" | "vulnerable" | "vulnerable_transitive", number>>;
+  stats: Partial<Record<"components" | "edges" | "roots" | "direct" | "transitive" | "unknown" | "vulnerable" | "vulnerable_transitive" | "outdated" | "deprecated", number>>;
   truncated: boolean;
 }
 

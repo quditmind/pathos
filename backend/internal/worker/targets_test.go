@@ -111,3 +111,18 @@ func TestCheckReachable(t *testing.T) {
 		t.Fatalf("DNS failure: %v", err)
 	}
 }
+
+func TestWorkflowFiles(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.MkdirAll(filepath.Join(dir, ".github", "workflows"), 0o700)
+	for _, n := range []string{"ci.yml", "release.yaml", "README.md"} {
+		_ = os.WriteFile(filepath.Join(dir, ".github", "workflows", n), []byte("on: push"), 0o600)
+	}
+	got := workflowFiles(dir)
+	if !slices.Equal(got, []string{".github/workflows/ci.yml", ".github/workflows/release.yaml"}) {
+		t.Errorf("workflow files: %v", got)
+	}
+	if workflowFiles("") != nil {
+		t.Error("no source, no files")
+	}
+}

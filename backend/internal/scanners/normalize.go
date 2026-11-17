@@ -576,6 +576,9 @@ func Parse(key string, raw []byte) ([]Finding, error) {
 	if key == Nuclei {
 		return ParseNucleiJSONL(raw)
 	}
+	if key == Actionlint {
+		return ParseActionlint(raw)
+	}
 	return ParseSARIF(key, raw)
 }
 

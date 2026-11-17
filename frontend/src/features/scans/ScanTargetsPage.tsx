@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Container, FileJson, Globe, Pencil, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { Boxes, Container, FileJson, Globe, Package, Pencil, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { api, ApiError, getCsrfToken } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
@@ -11,7 +11,9 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
 
-export type TargetKind = "image" | "url" | "api" | "sbom";
+export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact";
+/** Targets whose content is an uploaded file. */
+const uploaded = (k: TargetKind) => k === "sbom" || k === "artifact";
 
 export interface ScanTarget {
   id: string;
@@ -47,6 +49,7 @@ export const targetKindLabel: Record<TargetKind, string> = {
   url: "Web application (DAST)",
   api: "API (OpenAPI)",
   sbom: "SBOM",
+  artifact: "Build artifact",
 };
 
 const kindIcon: Record<TargetKind, React.ReactNode> = {
@@ -54,6 +57,7 @@ const kindIcon: Record<TargetKind, React.ReactNode> = {
   url: <Globe className="size-4" />,
   api: <Boxes className="size-4" />,
   sbom: <FileJson className="size-4" />,
+  artifact: <Package className="size-4" />,
 };
 
 const kindHelp: Record<TargetKind, string> = {
@@ -61,6 +65,8 @@ const kindHelp: Record<TargetKind, string> = {
   url: "Nuclei checks the running application for misconfigurations, exposures and known vulnerabilities. Intrusive, brute-force and denial-of-service checks never run.",
   api: "Nuclei's DAST templates test each operation of your OpenAPI document. Intrusive, brute-force and denial-of-service checks never run.",
   sbom: "Grype matches the SBOM's components against vulnerability databases, for software you receive but cannot scan as source.",
+  artifact:
+    "Trivy looks for vulnerable components inside a release artifact (zip or tar archive, Java archive, binary). Archives are validated and extracted on a worker; nothing in them is run.",
 };
 
 const statusTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -105,8 +111,8 @@ const emptyForm = (kind: TargetKind): FormState => ({
   enabled: true,
 });
 
-async function uploadSBOM(fd: FormData): Promise<ScanTarget> {
-  const res = await fetch("/api/v1/scan-targets/sbom", { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json", "X-CSRF-Token": getCsrfToken() } });
+async function uploadTarget(kind: TargetKind, fd: FormData): Promise<ScanTarget> {
+  const res = await fetch(`/api/v1/scan-targets/${kind}`, { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json", "X-CSRF-Token": getCsrfToken() } });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new ApiError(res.status, data?.error?.code ?? "error", data?.error?.message ?? res.statusText, data?.request_id, undefined, data);
   return data as ScanTarget;
@@ -156,12 +162,12 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
   const addressChanged = !!target && live && f.reference.trim() !== target.reference;
   const save = useMutation({
     mutationFn: async () => {
-      if (f.kind === "sbom" && !target) {
+      if (uploaded(f.kind) && !target) {
         const fd = new FormData();
         fd.set("repository_id", f.repository_id!);
         fd.set("name", f.name);
         fd.set("file", file!);
-        return uploadSBOM(fd);
+        return uploadTarget(f.kind, fd);
       }
       const body: Record<string, unknown> = {
         name: f.name,
@@ -169,7 +175,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         authorization_note: f.authorization_note,
         authorized: f.authorized,
       };
-      if (f.kind !== "sbom") {
+      if (!uploaded(f.kind)) {
         body.reference = f.reference.trim();
         body.auth_type = f.auth_type;
         body.auth_username = f.auth_username;
@@ -191,7 +197,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
   const ok =
     !!f.repository_id &&
     f.name.trim() !== "" &&
-    (f.kind === "sbom" ? !!target || !!file : f.reference.trim() !== "") &&
+    (uploaded(f.kind) ? !!target || !!file : f.reference.trim() !== "") &&
     (f.kind !== "api" || f.api_spec.trim() !== "") &&
     (!needsAuthorization || f.authorized) &&
     (f.auth_type !== "basic" || f.auth_username.trim() !== "") &&
@@ -236,9 +242,9 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <Label htmlFor="tgt-name">Name</Label>
-            <Input id="tgt-name" value={f.name} maxLength={200} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === "image" ? "e.g. Payments API image" : f.kind === "sbom" ? "e.g. Vendor appliance 4.2" : "e.g. Payments staging"} />
+            <Input id="tgt-name" value={f.name} maxLength={200} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === "image" ? "e.g. Payments API image" : f.kind === "sbom" ? "e.g. Vendor appliance 4.2" : f.kind === "artifact" ? "e.g. payments-service 2.3.0 release" : "e.g. Payments staging"} />
           </div>
-          {f.kind !== "sbom" && (
+          {!uploaded(f.kind) && (
             <div>
               <Label htmlFor="tgt-ref">{f.kind === "image" ? "Image reference" : "Base URL"}</Label>
               <Input id="tgt-ref" className="font-mono text-[12px]" value={f.reference} maxLength={1000} onChange={(e) => set({ reference: e.target.value })}
@@ -253,6 +259,13 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
               className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
           </div>
         )}
+        {f.kind === "artifact" && !target && (
+          <div>
+            <Label htmlFor="tgt-file" hint="(at most 200 MiB)">Artifact: zip, tar or tar.gz archive, Java archive (.jar, .war, .ear) or binary</Label>
+            <input id="tgt-file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
+          </div>
+        )}
         {f.kind === "api" && (
           <div>
             <Label htmlFor="tgt-spec" hint="(OpenAPI 3 or Swagger 2, YAML or JSON; every server must be on the base URL's host)">OpenAPI document</Label>
@@ -262,7 +275,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
               className="h-40 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-ring" />
           </div>
         )}
-        {f.kind !== "sbom" && (
+        {!uploaded(f.kind) && (
           <fieldset className="rounded-md border border-border p-3">
             <legend className="px-1 text-[12px] font-medium">Authentication</legend>
             <div className="grid gap-3 md:grid-cols-3">
@@ -338,7 +351,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
             <input type="checkbox" className="accent-[var(--primary)]" checked={f.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Enabled
           </label>
         )}
-        {f.kind !== "sbom" && (
+        {!uploaded(f.kind) && (
           <p className="text-[11.5px] text-muted-foreground">
             Workers reach targets only through the egress proxy. Add the host ({f.kind === "image" ? "the registry, e.g. ghcr.io" : "the application's host name"}) to <code>deploy/egress/allowlist.txt</code>; private addresses also need an
             override in <code>deploy/egress/conf.d</code>.
@@ -382,7 +395,7 @@ export function ScanTargetsPage() {
     <>
       <PageHeader
         title="Scan targets"
-        description="Scan what is deployed, not only the source: container images, running web applications and APIs (DAST), and SBOMs of software you receive. Each target belongs to a repository, so its findings reach the right application and owners."
+        description="Scan what is deployed, not only the source: container images, running web applications and APIs (DAST), release artifacts, and SBOMs of software you receive. Each target belongs to a repository, so its findings reach the right application and owners."
         actions={canManage && <Button onClick={() => setDialog({ target: null, kind: "image" })}><Plus /> Add target</Button>}
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -408,7 +421,7 @@ export function ScanTargetsPage() {
           <Skeleton className="m-4 h-32" />
         ) : !list.data.length ? (
           <EmptyState icon={<Container />} title="No scan targets">
-            {canManage ? "Add a container image, a running application, an API or an SBOM." : "Targets are added by people who manage repositories."}
+            {canManage ? "Add a container image, a running application, an API, a build artifact or an SBOM." : "Targets are added by people who manage repositories."}
           </EmptyState>
         ) : (
           <Table>

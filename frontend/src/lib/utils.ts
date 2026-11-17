@@ -27,7 +27,7 @@ export function splitHref(href: string): { to: string; search: Record<string, st
 }
 
 /** Routes that exist today; drill-down links to later-phase pages are suppressed. */
-const appRoutes = ["/admin/", "/repositories", "/applications", "/findings", "/scans", "/ai", "/risk", "/sbom", "/human-review"];
+const appRoutes = ["/admin/", "/repositories", "/applications", "/findings", "/scans", "/ai", "/risk", "/sbom", "/human-review", "/pull-requests"];
 export function isAppRoute(href: string) {
   return appRoutes.some((r) => href.startsWith(r));
 }

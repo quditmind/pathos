@@ -124,7 +124,7 @@ var Catalog = []Scanner{
 	s("hadolint", "Hadolint", "iac", "GPL-3.0", "use", "iac"),
 	s("dockle", "Dockle", "container", "Apache-2.0", "use", "container"),
 	s(TrivyImage, "Trivy (image)", "container", "Apache-2.0", "use", "core", target, home("https://github.com/aquasecurity/trivy"), note("Runs for container image targets")),
-	s("actionlint", "actionlint", "iac", "MIT", "use", "iac"),
+	s(Actionlint, "actionlint", "iac", "MIT", "use", "core", core, format("json"), home("https://github.com/rhysd/actionlint"), note("GitHub Actions workflow checks (script injection, syntax, types); runs only when the repository has workflows")),
 	s(Zizmor, "zizmor", "iac", "MIT", "use", "core", core, home("https://github.com/zizmorcore/zizmor"), note("GitHub Actions workflow security; runs offline and only when the repository has workflows")),
 	s("scorecard", "OpenSSF Scorecard", "supply-chain", "Apache-2.0", "use", "supply-chain"),
 	s("scancode", "ScanCode Toolkit", "license", "Apache-2.0", "use", "license"),
@@ -146,6 +146,9 @@ var TargetScanners = map[string][]string{
 	"url":   {Nuclei},
 	"api":   {Nuclei},
 	"sbom":  {Grype},
+	// Build artifacts: archives are extracted; Java archives and binaries
+	// are read as they are.
+	"artifact": {TrivyFS},
 }
 
 // IsTargetOnly reports whether a scanner runs only for scan targets.

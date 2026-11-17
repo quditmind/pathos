@@ -31,6 +31,7 @@ type scanHarness struct {
 	t        *testing.T
 	api      *http.ServeMux
 	internal http.Handler
+	svc      *scans.Service
 }
 
 func newScanHarness(t *testing.T) *scanHarness {
@@ -39,7 +40,7 @@ func newScanHarness(t *testing.T) *scanHarness {
 		CloneCredential: func(context.Context, uuid.UUID, uuid.UUID) (scm.Credential, error) {
 			return scm.Credential{Username: "x-access-token", Token: "ghs_short_lived"}, nil
 		}}
-	h := &scanHarness{t: t, api: http.NewServeMux(), internal: svc.InternalHandler()}
+	h := &scanHarness{t: t, api: http.NewServeMux(), internal: svc.InternalHandler(), svc: svc}
 	svc.Register(h.api)
 	return h
 }

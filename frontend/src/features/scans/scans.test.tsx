@@ -38,6 +38,7 @@ describe("navigation", () => {
       ["Scan Schedules", "/scans/schedules"],
       ["Scan Comparison", "/scans/compare"],
       ["Scan targets", "/scans/targets"],
+      ["Pull request checks", "/pull-requests"],
       ["Import Results", "/scans/imports"],
     ]);
     const conf = groups.find((g) => g.label === "Configurations")!;

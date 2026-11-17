@@ -95,6 +95,7 @@ func Build(d Deps) Handlers {
 	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
 	// After a scan: AI auto-review first, then the Human Eye queue picks
 	// up findings that need a person.
+	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)

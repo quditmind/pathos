@@ -114,3 +114,28 @@ func TestTargetScanners(t *testing.T) {
 		t.Error("zizmor runs in repository scans by default")
 	}
 }
+
+func TestActionlint(t *testing.T) {
+	raw, err := os.ReadFile("testdata/actionlint.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	fs, err := Parse(Actionlint, raw)
+	if err != nil || len(fs) != 2 {
+		t.Fatalf("%v %d", err, len(fs))
+	}
+	f := fs[0]
+	if f.Severity != "high" || f.RuleID != "actionlint/expression" || f.FilePath != ".github/workflows/ci.yml" || *f.StartLine != 10 ||
+		!slices.Equal(f.CWE, []string{"CWE-94"}) || f.Title != `"github.event.pull_request.title" is potentially untrusted` {
+		t.Errorf("finding: %+v", f)
+	}
+	if fs[0].Fingerprint == fs[1].Fingerprint {
+		t.Error("distinct fingerprints")
+	}
+	if fs, err := Parse(Actionlint, []byte("[]")); err != nil || len(fs) != 0 {
+		t.Errorf("empty report: %v", err)
+	}
+	if sc, _ := Lookup(Actionlint); !sc.AdapterAvailable || !sc.DefaultEnabled {
+		t.Error("actionlint is a default repository scanner")
+	}
+}

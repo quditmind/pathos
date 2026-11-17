@@ -36,9 +36,14 @@ export function SecurityPanel({ r }: { r: Repository }) {
           </Link>
         )}
         {can("findings.read") && (
-          <a href={`/api/v1/repositories/${r.id}/sbom`} className="text-[13px] text-primary hover:underline" download>
-            SBOM (CycloneDX)
-          </a>
+          <>
+            <a href={`/api/v1/repositories/${r.id}/sbom`} className="text-[13px] text-primary hover:underline" download>
+              SBOM (CycloneDX)
+            </a>
+            <a href={`/api/v1/repositories/${r.id}/sbom?format=spdx`} className="text-[13px] text-primary hover:underline" download>
+              SBOM (SPDX)
+            </a>
+          </>
         )}
       </div>
 

@@ -4,12 +4,17 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
+	"path"
 	"regexp"
 	"slices"
 	"strings"
@@ -41,13 +46,14 @@ import (
 
 const secretKindTarget = "scan_target"
 
-var targetKinds = []string{"image", "url", "api", "sbom"}
+var targetKinds = []string{"image", "url", "api", "sbom", "artifact"}
 
 func (s *Service) registerTargets(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/scan-targets", s.listTargets)
 	mux.HandleFunc("GET /api/v1/scan-targets/{id}", s.getTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets", s.createTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets/sbom", s.createSBOMTarget)
+	mux.HandleFunc("POST /api/v1/scan-targets/artifact", s.createArtifactTarget)
 	mux.HandleFunc("PUT /api/v1/scan-targets/{id}", s.updateTarget)
 	mux.HandleFunc("DELETE /api/v1/scan-targets/{id}", s.deleteTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets/{id}/scan", s.scanTarget)
@@ -280,7 +286,7 @@ func (s *Service) listTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := q.Get("kind"); v != "" {
 		if !slices.Contains(targetKinds, v) {
-			s.fail(w, r, httpx.BadRequest("kind must be image, url, api or sbom"))
+			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom or artifact"))
 			return
 		}
 		args = append(args, v)
@@ -418,10 +424,10 @@ func (f *targetFields) apply(req targetRequest) error {
 			}
 			err = ValidateAPISpec(*f.spec, f.egress)
 		}
-	case "sbom":
+	case "sbom", "artifact":
 		f.egress = ""
 	default:
-		return httpx.BadRequest("kind must be image, url, api or sbom")
+		return httpx.BadRequest("kind must be image, url, api, sbom or artifact")
 	}
 	if err != nil {
 		return httpx.BadRequest(err.Error())
@@ -445,8 +451,8 @@ func (f *targetFields) apply(req targetRequest) error {
 	default:
 		return httpx.BadRequest("auth_type must be none, basic or header")
 	}
-	if f.kind == "sbom" && f.authType != "none" {
-		return httpx.BadRequest("SBOM targets have no authentication")
+	if (f.kind == "sbom" || f.kind == "artifact") && f.authType != "none" {
+		return httpx.BadRequest("uploaded targets have no authentication")
 	}
 	return nil
 }
@@ -459,8 +465,8 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	if req.Kind == "sbom" {
-		s.fail(w, r, httpx.BadRequest("upload SBOM targets with POST /api/v1/scan-targets/sbom"))
+	if req.Kind == "sbom" || req.Kind == "artifact" {
+		s.fail(w, r, httpx.BadRequest("upload SBOM and artifact targets with POST /api/v1/scan-targets/"+req.Kind))
 		return
 	}
 	if err := s.requireRepo(ctx, p, authz.PermReposManage, req.RepositoryID); err != nil {
@@ -580,8 +586,8 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		}
 		f.spec = &spec
 	}
-	if cur.Kind == "sbom" && req.Reference != nil {
-		s.fail(w, r, httpx.BadRequest("upload a new SBOM target to change the SBOM"))
+	if (cur.Kind == "sbom" || cur.Kind == "artifact") && req.Reference != nil {
+		s.fail(w, r, httpx.BadRequest("upload a new target to change the file"))
 		return
 	}
 	if err := f.apply(req); err != nil {
@@ -888,6 +894,8 @@ type LeasedTarget struct {
 	HeaderValue string `json:"header_value,omitempty"`
 	RateLimit   int    `json:"rate_limit,omitempty"`
 	MinSeverity string `json:"min_severity,omitempty"`
+	// FileName of an artifact target.
+	FileName string `json:"file_name,omitempty"`
 }
 
 // leaseTarget fills a leased job's target (with its decrypted credential)
@@ -898,8 +906,8 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	var spec *string
 	var secretID *uuid.UUID
 	if err := tx.QueryRow(ctx, `SELECT kind, reference, api_spec, sbom_sha256, sbom_size, auth_type, auth_username, auth_header_name,
-		secret_id, config FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
-		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw); err != nil {
+		secret_id, config, artifact_name FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
+		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw, &t.FileName); err != nil {
 		return err
 	}
 	if spec != nil {
@@ -946,4 +954,120 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	job.Target = &t
 	job.Source, job.CloneURL, job.FullHistory, job.Credential = nil, "", false, nil
 	return nil
+}
+
+// maxArtifactBytes bounds an uploaded build artifact.
+const maxArtifactBytes = 200 << 20
+
+// createArtifactTarget stores an uploaded build artifact (archive, Java
+// archive, binary) as a target; its scan extracts archives on a worker and
+// looks for vulnerable components.
+func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	p := s.Principal(ctx)
+	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
+		s.fail(w, r, httpx.E(http.StatusUnsupportedMediaType, "unsupported_media_type", "upload the artifact as multipart/form-data (field \"file\")"))
+		return
+	}
+	r.Body = http.MaxBytesReader(w, r.Body, maxArtifactBytes+1<<20)
+	mr, err := r.MultipartReader()
+	if err != nil {
+		s.fail(w, r, httpx.BadRequest("invalid multipart body"))
+		return
+	}
+	form := map[string]string{}
+	var gz bytes.Buffer
+	var size int64
+	var fileName string
+	h := sha256.New()
+	tooLarge := httpx.E(http.StatusRequestEntityTooLarge, "too_large", "artifacts are limited to 200 MiB")
+	for {
+		part, err := mr.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			var mbe *http.MaxBytesError
+			if errors.As(err, &mbe) {
+				s.fail(w, r, tooLarge)
+				return
+			}
+			s.fail(w, r, httpx.BadRequest("invalid multipart body"))
+			return
+		}
+		if part.FormName() != "file" {
+			b, _ := io.ReadAll(io.LimitReader(part, 4096))
+			form[part.FormName()] = strings.TrimSpace(string(b))
+			continue
+		}
+		fileName = path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
+		zw := gzip.NewWriter(&gz)
+		n, err := io.Copy(io.MultiWriter(zw, h), io.LimitReader(part, maxArtifactBytes+1))
+		_ = zw.Close()
+		if err != nil {
+			var mbe *http.MaxBytesError
+			if errors.As(err, &mbe) {
+				s.fail(w, r, tooLarge)
+				return
+			}
+			s.fail(w, r, httpx.BadRequest("could not read the file"))
+			return
+		}
+		if n > maxArtifactBytes {
+			s.fail(w, r, tooLarge)
+			return
+		}
+		size = n
+	}
+	if size == 0 {
+		s.fail(w, r, httpx.BadRequest("an artifact file is required (field \"file\")"))
+		return
+	}
+	repoID, err := uuid.Parse(form["repository_id"])
+	if err != nil {
+		s.fail(w, r, httpx.BadRequest("repository_id is required"))
+		return
+	}
+	if err := s.requireRepo(ctx, p, authz.PermReposManage, repoID); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if fileName == "" || fileName == "." || fileName == "/" {
+		fileName = "artifact.bin"
+	}
+	fileName = truncate(fileName, 255)
+	name := truncate(firstNonEmpty(strings.TrimSpace(form["name"]), fileName), 200)
+	id := uuid.Must(uuid.NewV7())
+	key, inline, err := putArtifact(ctx, s.Artifacts, p.OrganizationID, id, gz.Bytes())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	digest := hex.EncodeToString(h.Sum(nil))
+	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `INSERT INTO scan_targets (id, organization_id, repository_id, kind, name, reference, artifact_name, artifact_key,
+			artifact_gzip, sbom_sha256, sbom_size, created_by) VALUES ($1, $2, $3, 'artifact', $4, $5, $6, $7, $8, $9, $10, $11)`,
+			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID); err != nil {
+			return err
+		}
+		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
+			Metadata: map[string]any{"kind": "artifact", "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID}})
+	})
+	if err != nil {
+		if key != nil && s.Artifacts != nil {
+			_ = s.Artifacts.Delete(context.WithoutCancel(ctx), []string{*key})
+		}
+		if db.IsUniqueViolation(err) {
+			err = httpx.Conflict("this repository already has this artifact as a target")
+		}
+		s.fail(w, r, err)
+		return
+	}
+	t, err := s.loadTarget(ctx, p, authz.PermScansRead, id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusCreated, t)
 }

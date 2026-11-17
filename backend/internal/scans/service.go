@@ -41,6 +41,11 @@ type Service struct {
 	Secrets *secrets.Store
 	// OnScanFinished runs after a job completes (AI auto-review enqueue).
 	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
+	// StatusWriter returns the commit status writer of a repository's SCM
+	// connection (pull request checks); nil disables posting.
+	StatusWriter func(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error)
+	// PublicURL links commit statuses back to PATHOS ("" = no link).
+	PublicURL string
 }
 
 var errNotFound = errors.New("not found")
@@ -48,6 +53,7 @@ var errNotFound = errors.New("not found")
 // Register mounts the user-facing API.
 func (s *Service) Register(mux *http.ServeMux) {
 	s.registerProfiles(mux)
+	s.registerPRChecks(mux)
 	s.registerJobs(mux)
 	s.registerFindings(mux)
 	s.registerImports(mux)

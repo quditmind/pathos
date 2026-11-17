@@ -4,7 +4,7 @@ import { ChevronRight, Package } from "lucide-react";
 import { api } from "@/api/client";
 import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
-import { Alert, EmptyState, Input, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Alert, Badge, EmptyState, Input, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { type DepComponent, type PathNode, relationLabel, useDependencyGraph } from "./api";
 
 export function relationOf(depth: number | null) {
@@ -43,25 +43,39 @@ function Paths({ repoId, c }: { repoId: string; c: DepComponent }) {
   );
 }
 
+/** Package health from deps.dev: deprecated version, newer release, OpenSSF Scorecard. */
+function Health({ c }: { c: DepComponent }) {
+  if (!c.latest_version && c.scorecard == null) return <span className="text-muted-foreground" title="Package health not fetched yet (deps.dev feed)">—</span>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {c.deprecated && <Badge tone="danger">Deprecated</Badge>}
+      {c.outdated ? <span title="Latest release">latest {c.latest_version}</span> : c.latest_version && <span className="text-muted-foreground">Up to date</span>}
+      {c.scorecard != null && <span className="text-muted-foreground" title="OpenSSF Scorecard of the source repository (0–10)">· Scorecard {c.scorecard.toFixed(1)}</span>}
+    </span>
+  );
+}
+
 export function DependencyPanel({ repoId }: { repoId: string }) {
   const g = useDependencyGraph(repoId);
   const [q, setQ] = useState("");
   const [rel, setRel] = useState("");
   const [vulnOnly, setVulnOnly] = useState(false);
+  const [health, setHealth] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const rows = useMemo(() => {
     const t = q.trim().toLowerCase();
     return (g.data?.components ?? []).filter(
-      (c) => (!t || c.name.toLowerCase().includes(t)) && (!rel || relationOf(c.depth) === rel) && (!vulnOnly || c.open_vulnerabilities > 0),
+      (c) => (!t || c.name.toLowerCase().includes(t)) && (!rel || relationOf(c.depth) === rel) && (!vulnOnly || c.open_vulnerabilities > 0) &&
+        (!health || (health === "outdated" ? c.outdated : c.deprecated)),
     );
-  }, [g.data, q, rel, vulnOnly]);
+  }, [g.data, q, rel, vulnOnly, health]);
   if (g.isError) return <Alert>{g.error.message}</Alert>;
   if (g.isPending) return <Skeleton className="h-40" />;
   const st = g.data.stats;
   if (!st.components) return <EmptyState icon={<Package />} title="No SBOM yet">Run a scan with SBOM generation or import an SBOM.</EmptyState>;
   return (
     <div className="space-y-3">
-      <dl className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+      <dl className="grid grid-cols-4 gap-2 sm:grid-cols-8">
         {(
           [
             ["components", "Components"],
@@ -70,6 +84,8 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
             ["unknown", "No graph data"],
             ["vulnerable", "Vulnerable"],
             ["vulnerable_transitive", "Vulnerable, transitive"],
+            ["outdated", "Outdated"],
+            ["deprecated", "Deprecated"],
           ] as const
         ).map(([k, l]) => (
           <div key={k} className="rounded-md border border-border px-2 py-1.5">
@@ -85,6 +101,11 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
           <option value="">All dependencies</option>
           {["root", "direct", "transitive", "unknown"].map((r) => <option key={r} value={r}>{relationLabel[r]}</option>)}
         </Select>
+        <Select aria-label="Package health" value={health} onChange={(e) => setHealth(e.target.value)}>
+          <option value="">Any health</option>
+          <option value="outdated">Outdated</option>
+          <option value="deprecated">Deprecated version</option>
+        </Select>
         <label className="flex items-center gap-1.5 text-[12.5px]">
           <input type="checkbox" className="accent-[var(--primary)]" checked={vulnOnly} onChange={(e) => setVulnOnly(e.target.checked)} /> Vulnerable only
         </label>
@@ -96,6 +117,7 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
             <Th>Package</Th>
             <Th>Dependency</Th>
             <Th>Licences</Th>
+            <Th>Health</Th>
             <Th>Open vulnerabilities</Th>
           </tr>
         </thead>
@@ -117,12 +139,13 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
                 </Td>
                 <Td className="text-[12px]">{relationLabel[relationOf(c.depth)]}{c.depth != null && c.depth > 1 && <span className="text-muted-foreground"> (depth {c.depth})</span>}</Td>
                 <Td className="max-w-40 truncate text-[11.5px] text-muted-foreground">{c.licenses.join(", ") || "—"}</Td>
+                <Td className="text-[11.5px]"><Health c={c} /></Td>
                 <Td>{c.open_vulnerabilities ? <span className="inline-flex items-center gap-1"><SeverityBadge value={c.max_severity as Severity} /> {c.open_vulnerabilities}</span> : <span className="text-[12px] text-muted-foreground">0</span>}</Td>
               </tr>
               {open === c.ref && (
                 <tr key={c.ref + "-paths"}>
                   <Td className="bg-surface-muted/40" />
-                  <td colSpan={3} className="bg-surface-muted/40 px-3 py-2 text-[12px]">
+                  <td colSpan={4} className="bg-surface-muted/40 px-3 py-2 text-[12px]">
                     <div className="mb-1 text-[11px] font-medium text-muted-foreground">How it gets here</div>
                     <Paths repoId={repoId} c={c} />
                   </td>

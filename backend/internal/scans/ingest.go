@@ -40,9 +40,10 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var targetID *uuid.UUID
 	var threshold, commit string
 	var exclusions []string
-	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id
+	var pr *int
+	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id, j.pull_request
 		FROM scan_jobs j JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1`, jobID).
-		Scan(&repoID, &commit, &threshold, &exclusions, &targetID); err != nil {
+		Scan(&repoID, &commit, &threshold, &exclusions, &targetID, &pr); err != nil {
 		return 0, err
 	}
 
@@ -110,6 +111,11 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				hex.EncodeToString(sum[:]), len(raw), inline, key); err != nil {
 				return err
 			}
+		}
+		if pr != nil {
+			// A pull request's results never change the repository's
+			// findings or inventory.
+			return insertPRFindings(ctx, tx, jobID, findings)
 		}
 		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
@@ -237,9 +243,10 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		var repoID, orgID uuid.UUID
 		var targetID *uuid.UUID
 		var failOnCritical bool
-		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id FROM scan_jobs j
+		var pr *int
+		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id, j.pull_request FROM scan_jobs j
 			JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1 FOR UPDATE OF j`, jobID).
-			Scan(&repoID, &failOnCritical, &targetID, &orgID); err != nil {
+			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
@@ -273,6 +280,9 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			status = "failed"
 		}
 
+		if pr != nil {
+			return finalizePR(ctx, tx, jobID, repoID, status, workerErr, bad, &job)
+		}
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
 		fixed := int64(0)

@@ -50,8 +50,14 @@ func command(ctx context.Context, env []string, okCodes []int, name string, args
 // commandTo is command with stdout written to w (for tools that print their
 // report to stdout).
 func commandTo(ctx context.Context, w io.Writer, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
+	return commandToIn(ctx, "", w, env, okCodes, name, args...)
+}
+
+// commandToIn is commandTo run in directory dir ("" = current).
+func commandToIn(ctx context.Context, dir string, w io.Writer, env []string, okCodes []int, name string, args ...string) ([]byte, error) {
 	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
 	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Env = append(baseEnv(), env...)
 	var stderr bytes.Buffer
@@ -247,8 +253,12 @@ func Tools(cfg Config) map[string]Tool {
 			return "", enrichSARIF(in.Out, in.Src)
 		}},
 		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
+			dir := in.Src
+			if in.Target != nil && in.Target.Kind == "artifact" {
+				dir = in.TargetFile
+			}
 			_, err := command(ctx, nil, []int{0}, bin, "fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
-				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", in.Src)
+				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", dir)
 			if err != nil {
 				return "", err
 			}

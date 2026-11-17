@@ -60,7 +60,7 @@ type Feed struct {
 }
 
 var labels = map[string]string{EPSS: "FIRST EPSS (exploit prediction scores)", KEV: "CISA Known Exploited Vulnerabilities",
-	OSV: "OSV vulnerability records (descriptions, references, vendor CVSS)",
+	OSV:     "OSV vulnerability records (descriptions, references, vendor CVSS)",
 	DepsDev: "deps.dev package health (latest versions, deprecations, OpenSSF Scorecard)"}
 
 func sha256Hex(b []byte) string {
