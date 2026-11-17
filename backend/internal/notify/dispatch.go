@@ -294,6 +294,18 @@ func resolve(ctx context.Context, q db.Querier, ev eventRow, data *Data, rc Reci
 					out = append(out, r)
 				}
 			}
+		case "independent_reviewers":
+			if data.independent != nil {
+				err = add(activeUsers(ctx, q, ev.OrgID, []uuid.UUID{*data.independent}))
+				break
+			}
+			var rs []recipient
+			rs, err = usersCovering(ctx, q, ev.OrgID, ev.Repository, nil, "reviews.approve")
+			for _, r := range rs {
+				if data.requester == nil || *r.UserID != *data.requester {
+					out = append(out, r)
+				}
+			}
 		case "owners":
 			if ev.Repository != nil {
 				var ids []uuid.UUID

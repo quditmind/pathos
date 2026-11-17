@@ -48,6 +48,14 @@ var systemRules = []systemRule{
 		Recipients{Dynamic: []string{"requester"}}},
 	{"worker_offline", "Offline scan workers", "worker.offline", "",
 		Recipients{Roles: []string{"super_admin", "platform_admin"}}},
+	{"review_assigned", "Human reviews assigned to me", "review.assigned", "",
+		Recipients{Dynamic: []string{"assignee"}}},
+	{"review_independent_requested", "Independent reviews requested", "review.independent_requested", "",
+		Recipients{Dynamic: []string{"independent_reviewers"}}},
+	{"review_independent_decided", "Independent review outcomes", "review.independent_decided", "",
+		Recipients{Dynamic: []string{"requester"}}},
+	{"review_overdue", "Overdue human reviews", "review.overdue", "",
+		Recipients{Dynamic: []string{"assignee"}}},
 }
 
 // EnsureDefaults seeds built-in rules and, on first run, SMTP settings from

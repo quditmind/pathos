@@ -25,6 +25,7 @@ import (
 	"pathos/internal/platform/ratelimit"
 	"pathos/internal/platform/telemetry"
 	"pathos/internal/repos"
+	"pathos/internal/review"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
 	"pathos/internal/scm"
@@ -87,7 +88,13 @@ func Build(d Deps) Handlers {
 	repoSvc.OnEvent = scanSvc.OnWebhookEvent
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
-	scanSvc.OnScanFinished = aiSvc.OnScanFinished
+	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
+	// After a scan: AI auto-review first, then the Human Review queue picks
+	// up findings that need a person.
+	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
+		aiSvc.OnScanFinished(ctx, orgID, jobID)
+		reviewSvc.OnScanFinished(ctx, orgID, jobID)
+	}
 	mcpSvc := &mcp.Service{DB: d.DB, Authz: az, AI: aiSvc, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
 	// The MCP endpoint authenticates with personal API tokens, not sessions.
 	public.Handle("/mcp", mcpSvc.Handler())
@@ -111,6 +118,7 @@ func Build(d Deps) Handlers {
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
+	reviewSvc.Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
@@ -186,6 +194,22 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 			_, err := scans.Enqueue(ctx, d.DB, orgID, repoID, trigger, "", "", by)
 			return err
 		}}
+}
+
+// NewReviewService builds the Human Review service (also used by the jobs
+// role for ingestion and overdue detection).
+func NewReviewService(d Deps, az *authz.Authorizer, repoSvc *repos.Service, aiSvc *ai.Service) *review.Service {
+	svc := &review.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}
+	if repoSvc != nil {
+		svc.Source = repoSvc
+	}
+	if d.Sources != nil {
+		svc.Evidence = d.Sources
+	}
+	if aiSvc != nil {
+		svc.AI = aiSvc
+	}
+	return svc
 }
 
 func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {

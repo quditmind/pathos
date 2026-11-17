@@ -27,37 +27,43 @@ func (s *Service) registerFindings(mux *http.ServeMux) {
 
 // FindingView is the API representation.
 type FindingView struct {
-	ID             uuid.UUID    `json:"id"`
-	RepositoryID   uuid.UUID    `json:"repository_id"`
-	RepositoryName string       `json:"repository_name"`
-	RepositoryKey  string       `json:"repository_key"`
-	Category       string       `json:"category"`
-	ScannerKeys    []string     `json:"scanner_keys"`
-	RuleID         string       `json:"rule_id"`
-	Title          string       `json:"title"`
-	Description    string       `json:"description"`
-	Severity       string       `json:"severity"`
-	CWE            []string     `json:"cwe"`
-	CVE            string       `json:"cve"`
-	CVSS           *float64     `json:"cvss"`
-	PackageName    string       `json:"package_name"`
-	PackageVersion string       `json:"package_version"`
-	FixedVersion   string       `json:"fixed_version"`
-	FilePath       string       `json:"file_path"`
-	StartLine      *int         `json:"start_line"`
-	Status         string       `json:"status"`
-	FirstSeenAt    time.Time    `json:"first_seen_at"`
-	LastSeenAt     time.Time    `json:"last_seen_at"`
-	ResolvedAt     *time.Time   `json:"resolved_at"`
-	AssigneeID     *uuid.UUID   `json:"assignee_id"`
-	AssigneeName   *string      `json:"assignee_name"`
-	SLADueAt       *time.Time   `json:"sla_due_at"`
-	Recurrence     int          `json:"recurrence_count"`
-	AcceptedUntil  *time.Time   `json:"accepted_until"`
-	AIStatus       string       `json:"ai_status"`
-	Snippet        string       `json:"snippet,omitempty"`
-	SnippetStart   *int         `json:"snippet_start_line,omitempty"`
-	Occurrences    []Occurrence `json:"occurrences,omitempty"`
+	ID             uuid.UUID  `json:"id"`
+	RepositoryID   uuid.UUID  `json:"repository_id"`
+	RepositoryName string     `json:"repository_name"`
+	RepositoryKey  string     `json:"repository_key"`
+	Category       string     `json:"category"`
+	ScannerKeys    []string   `json:"scanner_keys"`
+	RuleID         string     `json:"rule_id"`
+	Title          string     `json:"title"`
+	Description    string     `json:"description"`
+	Severity       string     `json:"severity"`
+	CWE            []string   `json:"cwe"`
+	CVE            string     `json:"cve"`
+	CVSS           *float64   `json:"cvss"`
+	PackageName    string     `json:"package_name"`
+	PackageVersion string     `json:"package_version"`
+	FixedVersion   string     `json:"fixed_version"`
+	FilePath       string     `json:"file_path"`
+	StartLine      *int       `json:"start_line"`
+	Status         string     `json:"status"`
+	FirstSeenAt    time.Time  `json:"first_seen_at"`
+	LastSeenAt     time.Time  `json:"last_seen_at"`
+	ResolvedAt     *time.Time `json:"resolved_at"`
+	AssigneeID     *uuid.UUID `json:"assignee_id"`
+	AssigneeName   *string    `json:"assignee_name"`
+	SLADueAt       *time.Time `json:"sla_due_at"`
+	Recurrence     int        `json:"recurrence_count"`
+	AcceptedUntil  *time.Time `json:"accepted_until"`
+	AIStatus       string     `json:"ai_status"`
+	// Human Review outcome (the scanner data above is unchanged by it).
+	HumanReviewID    *uuid.UUID   `json:"human_review_id"`
+	HumanReviewKey   *string      `json:"human_review_key"`
+	HumanReviewState *string      `json:"human_review_status"`
+	HumanDisposition *string      `json:"human_disposition"`
+	HumanSeverity    *string      `json:"human_severity"`
+	Snippet          string       `json:"snippet,omitempty"`
+	SnippetStart     *int         `json:"snippet_start_line,omitempty"`
+	Occurrences      []Occurrence `json:"occurrences,omitempty"`
 }
 
 // Occurrence is one sighting of a finding.
@@ -74,15 +80,17 @@ const findingSelect = `
 	SELECT f.id, f.repository_id, r.full_name, r.repository_key, f.category, f.scanner_keys, f.rule_id, f.title, f.description, f.severity,
 	       f.cwe, f.cve, f.cvss::float8, f.package_name, f.package_version, f.fixed_version, f.file_path, f.start_line,
 	       f.status, f.first_seen_at, f.last_seen_at, f.resolved_at, f.assignee_id,
-	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status
-	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id`
+	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status,
+	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity
+	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
+	LEFT JOIN human_reviews hr ON hr.finding_id = f.id`
 
 func scanFinding(row pgx.Row) (FindingView, error) {
 	var f FindingView
 	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.RepositoryKey, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
 		&f.Severity, &f.CWE, &f.CVE, &f.CVSS, &f.PackageName, &f.PackageVersion, &f.FixedVersion, &f.FilePath, &f.StartLine,
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
-		&f.AcceptedUntil, &f.AIStatus)
+		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -167,6 +175,17 @@ func (s *Service) findingsWhere(r *http.Request) ([]string, []any, error) {
 		where = append(where, "f.sla_due_at BETWEEN now() AND now() + interval '7 days' AND f.status IN ('open', 'in_progress', 'needs_review')")
 	default:
 		return nil, nil, httpx.BadRequest("sla must be breached or due_soon")
+	}
+	switch v := q.Get("human_review"); v {
+	case "":
+	case "none":
+		where = append(where, "NOT EXISTS (SELECT 1 FROM human_reviews hx WHERE hx.finding_id = f.id)")
+	case "open":
+		where = append(where, "EXISTS (SELECT 1 FROM human_reviews hx WHERE hx.finding_id = f.id AND hx.status <> 'completed')")
+	case "confirmed", "false_positive", "duplicate", "not_exploitable", "accepted_risk", "mitigated", "out_of_scope":
+		add("f.human_disposition = ?", v)
+	default:
+		return nil, nil, httpx.BadRequest("human_review must be none, open or a disposition")
 	}
 	if v := strings.TrimSpace(q.Get("q")); v != "" {
 		like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(v)) + "%"

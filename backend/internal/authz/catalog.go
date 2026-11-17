@@ -44,6 +44,12 @@ const (
 
 	PermSBOMRead Permission = "sbom.read"
 
+	PermReviewsRead      Permission = "reviews.read"
+	PermReviewsAssess    Permission = "reviews.assess"
+	PermReviewsAssign    Permission = "reviews.assign"
+	PermReviewsApprove   Permission = "reviews.approve"
+	PermReviewsConfigure Permission = "reviews.configure"
+
 	PermAIReview    Permission = "ai.review"
 	PermAIConfigure Permission = "ai.configure"
 	PermMCPManage   Permission = "mcp.manage"
@@ -99,6 +105,12 @@ var Permissions = []PermissionInfo{
 	{PermFindingsExport, "Findings", "Export findings", false},
 	{PermSBOMRead, "Findings", "View SBOMs and component inventory", false},
 
+	{PermReviewsRead, "Human Review", "View the review queue, completed assessments and review reports", false},
+	{PermReviewsAssess, "Human Review", "Perform assessments: investigate, upload evidence, comment and submit review decisions", false},
+	{PermReviewsAssign, "Human Review", "Add findings to the review queue, assign reviewers, set priorities and due dates", false},
+	{PermReviewsApprove, "Human Review", "Act as independent reviewer: approve, reject or request information on review decisions", false},
+	{PermReviewsConfigure, "Human Review", "Manage Human Review configuration and workflow rules", true},
+
 	{PermAIReview, "AI & MCP", "Run and approve AI reviews", false},
 	{PermAIConfigure, "AI & MCP", "Manage AI providers and configurations", true},
 	{PermMCPManage, "AI & MCP", "Manage MCP servers and tool permissions", true},
@@ -122,7 +134,7 @@ func all() []Permission {
 
 var readOnly = []Permission{
 	PermDashboardRead, PermOrgRead, PermReposRead, PermScannersRead,
-	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead,
+	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead,
 }
 
 func with(base []Permission, extra ...Permission) []Permission {
@@ -133,7 +145,7 @@ func with(base []Permission, extra ...Permission) []Permission {
 // RoleSuperAdmin is granted to the bootstrap administrator.
 const RoleSuperAdmin = "super_admin"
 
-// SystemRoles are the ten seeded roles. See docs/RBAC_MATRIX.md.
+// SystemRoles are the eleven seeded roles. See docs/RBAC_MATRIX.md.
 var SystemRoles = []SystemRole{
 	{RoleSuperAdmin, "Super Administrator", "Full control of the PATHOS platform", all()},
 	{"platform_admin", "Platform Administrator",
@@ -142,20 +154,24 @@ var SystemRoles = []SystemRole{
 			PermUsersRead, PermUsersManage, PermTeamsManage, PermRolesRead, PermRolesAssign,
 			PermOrgManage, PermAuditRead, PermSettingsManage, PermNotificationsManage,
 			PermReposManage, PermSCMManage, PermTagsManage, PermAssetsConfigure, PermScannersManage, PermProfilesManage,
-			PermScansRun, PermSchedulesManage, PermAIConfigure, PermMCPManage)},
+			PermScansRun, PermSchedulesManage, PermAIConfigure, PermMCPManage, PermReviewsAssign, PermReviewsConfigure)},
 	{"security_manager", "Security Manager",
 		"Owns the security program for a scope: policy, risk acceptance, scheduling, reporting",
 		with(readOnly,
 			PermUsersRead, PermRolesRead, PermRolesAssign, PermAuditRead,
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview)},
+			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview,
+			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermReviewsAssess)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
 		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsExport, PermAIReview)},
+			PermFindingsTriage, PermFindingsExport, PermAIReview, PermReviewsAssess)},
+	{"independent_reviewer", "Independent Reviewer",
+		"Second-level reviewer: validates other analysts' Human Review decisions before closure",
+		with(readOnly, PermReviewsApprove, PermFindingsExport)},
 	{"repository_contributor", "Repository Contributor",
 		"Imports and maintains repositories in scope and runs scans; owners of a repository can also edit its descriptive metadata",
 		with(readOnly, PermReposManage, PermScansRun)},

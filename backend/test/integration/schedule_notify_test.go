@@ -376,6 +376,11 @@ func TestNotifications(t *testing.T) {
 		_ = json.Unmarshal(rec.Body.Bytes(), &out)
 		return rec.Code, out
 	}
+	// Events left by earlier tests (the dispatcher handles 100 per pump)
+	// must not be delivered to this test's mailboxes.
+	if _, err := appPool.Exec(ctx, `UPDATE notification_events SET processed_at = now() WHERE processed_at IS NULL`); err != nil {
+		t.Fatal(err)
+	}
 	smtpSrv := startFakeSMTP(t)
 	disp := &notify.Dispatcher{Pool: appPool, Secrets: store, Sender: notify.SMTPSender{Dial: smtpSrv.dial}, BaseURL: "https://pathos.test", Log: log}
 	pump := func() {
@@ -405,7 +410,7 @@ func TestNotifications(t *testing.T) {
 			}
 		}
 	}
-	if code != 200 || sys != 12 {
+	if code != 200 || sys != 16 {
 		t.Fatalf("system rules: %d %d", code, sys)
 	}
 	if code, _ := call(analyst, "GET", "/api/v1/notifications/rules", nil); code != 403 {
