@@ -173,7 +173,7 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log,
+	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log, Offline: cfg.Offline,
 		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
 		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken,
 		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts,
@@ -303,7 +303,7 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go reviewSvc.RunBackground(ctx)
 	// Vulnerability intelligence feeds (EPSS, CISA KEV) and contextual risk
 	// scores.
-	go server.NewIntelService(server.Deps{DB: pool, Log: log}).RunBackground(ctx)
+	go server.NewIntelService(server.Deps{DB: pool, Log: log, Offline: cfg.Offline}).RunBackground(ctx)
 	go risk.RunBackground(ctx, pool, log)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads

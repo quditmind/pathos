@@ -26,6 +26,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/ingest"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
@@ -1035,6 +1036,32 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	if fileName == "" || fileName == "." || fileName == "/" {
 		fileName = "artifact.bin"
 	}
+	// Malware scan (clamd) of the uploaded file, when configured.
+	malware := "not_configured"
+	if s.ClamAVAddress != "" {
+		zr, err := gzip.NewReader(bytes.NewReader(gz.Bytes()))
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		v, err := ingest.ClamAV{Address: s.ClamAVAddress, Timeout: 10 * time.Minute}.Scan(ctx, zr)
+		switch {
+		case err != nil && s.ClamAVRequired:
+			s.fail(w, r, httpx.E(http.StatusServiceUnavailable, "malware_scanner_unavailable", "the malware scanner is unavailable; try again later"))
+			return
+		case err != nil:
+			malware = "unavailable"
+			s.Log.Warn("artifact malware scan unavailable; continuing (PATHOS_CLAMAV_REQUIRED=false)", "err", err)
+		case !v.Clean:
+			_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+				Action: "scan_target.malware_detected", Outcome: "failure", TargetType: "repository", TargetID: repoID.String(),
+				Metadata: map[string]any{"file_name": fileName, "signature": v.Signature, "engine": v.Engine}})
+			s.fail(w, r, httpx.E(http.StatusUnprocessableEntity, "malware_detected", "the artifact was rejected by the malware scanner ("+v.Signature+")"))
+			return
+		default:
+			malware = "clean"
+		}
+	}
 	fileName = truncate(fileName, 255)
 	name := truncate(firstNonEmpty(strings.TrimSpace(form["name"]), fileName), 200)
 	id := uuid.Must(uuid.NewV7())
@@ -1052,7 +1079,8 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
-			Metadata: map[string]any{"kind": "artifact", "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID}})
+			Metadata: map[string]any{"kind": "artifact", "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID,
+				"malware_scan": malware}})
 	})
 	if err != nil {
 		if key != nil && s.Artifacts != nil {

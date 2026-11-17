@@ -118,6 +118,7 @@ services:
       PATHOS_BOOTSTRAP_ADMIN_EMAIL: ${PATHOS_BOOTSTRAP_ADMIN_EMAIL:?run deploy/scripts/install.sh}
       # Self-hosted GitHub Enterprise / Azure DevOps Server on a private network.
       PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
+      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
       # Outbound proxy for SCM API calls (optional).
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: keycloak,localhost
@@ -153,6 +154,7 @@ services:
       PATHOS_ROLE: jobs
       PATHOS_PUBLIC_URL: ${PATHOS_PUBLIC_URL:-https://localhost}
       PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
+      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: clamav,localhost
       # Repository import workers (archive processing, SCM imports).
@@ -329,6 +331,9 @@ services:
       PATHOS_API_URL: http://api:8081
       PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
       PATHOS_WORKER_FAMILY: core
+      # Air-gapped: only the vulnerability databases imported with
+      # scripts/offline-bundle.sh are used.
+      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
       PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
       HTTPS_PROXY: http://egress:3128
       HTTP_PROXY: http://egress:3128
@@ -341,6 +346,8 @@ services:
       - /tmp:size=1g,mode=1777
     volumes:
       - scanner_cache:/cache
+      # Declarative scanner adapters (operator-defined; empty by default).
+      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
       - ./workers/rules-extra:/rules:ro
     # scan: egress proxy only. worker-api: the API's worker listener only.
     networks: [scan, worker-api]

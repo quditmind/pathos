@@ -46,6 +46,10 @@ type Service struct {
 	StatusWriter func(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error)
 	// PublicURL links commit statuses back to PATHOS ("" = no link).
 	PublicURL string
+	// ClamAVAddress (host:port) scans uploaded build artifacts for malware;
+	// ClamAVRequired refuses uploads while the scanner is unavailable.
+	ClamAVAddress  string
+	ClamAVRequired bool
 }
 
 var errNotFound = errors.New("not found")

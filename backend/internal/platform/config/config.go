@@ -50,7 +50,10 @@ type Config struct {
 
 	// SCM network policy (see internal/scm/safehttp.go).
 	SCMAllowPrivate bool
-	SCMAllowHTTP    bool
+	// Offline (PATHOS_OFFLINE): air-gapped operation. Intelligence feeds are
+	// imported from files only; nothing is downloaded.
+	Offline      bool
+	SCMAllowHTTP bool
 
 	// S3 object storage for scan artifacts; empty bucket keeps them in
 	// PostgreSQL.
@@ -159,6 +162,7 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 		WorkerAPIAddr:        get("PATHOS_WORKER_API_ADDR", ":8081"),
 		WorkerBootstrapToken: get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
 		SCMAllowPrivate:      get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		Offline:              get("PATHOS_OFFLINE", "false") == "true",
 		SCMAllowHTTP:         get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
 		OTLPEndpoint:         get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 		RequireMFA:           get("PATHOS_REQUIRE_MFA", "false") == "true",

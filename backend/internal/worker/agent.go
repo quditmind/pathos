@@ -32,10 +32,14 @@ type Config struct {
 	Family         string
 	WorkDir        string // tmpfs workspace root
 	CacheDir       string // vulnerability DB cache
-	RulesDirs      []string
-	PollInterval   time.Duration
-	MaxRepoBytes   int64
-	Version        string
+	// Offline: use only cached vulnerability databases (air-gapped).
+	Offline bool
+	// PluginsDir holds declarative scanner adapter definitions.
+	PluginsDir   string
+	RulesDirs    []string
+	PollInterval time.Duration
+	MaxRepoBytes int64
+	Version      string
 }
 
 // Agent runs jobs.
@@ -45,6 +49,8 @@ type Agent struct {
 	http  *http.Client
 	token string
 	tools map[string]Tool
+	// plugins are the declarative adapters among tools.
+	plugins []PluginDef
 	// reportInterval is how often execution events and logs are flushed
 	// (default 3s).
 	reportInterval time.Duration
@@ -58,7 +64,12 @@ func New(cfg Config, log *slog.Logger) *Agent {
 	if cfg.MaxRepoBytes == 0 {
 		cfg.MaxRepoBytes = 2 << 30
 	}
-	return &Agent{cfg: cfg, log: log, http: &http.Client{Timeout: 5 * time.Minute}, tools: Tools(cfg)}
+	tools := Tools(cfg)
+	plugins := LoadPlugins(cfg.PluginsDir, log)
+	for _, p := range plugins {
+		tools[p.Key()] = pluginTool{def: p, cacheDir: cfg.CacheDir}
+	}
+	return &Agent{cfg: cfg, log: log, http: &http.Client{Timeout: 5 * time.Minute}, tools: tools, plugins: plugins}
 }
 
 // apiError carries the HTTP status of a failed API call.
@@ -114,8 +125,14 @@ func (a *Agent) register(ctx context.Context) error {
 	var out struct {
 		Token string `json:"token"`
 	}
+	plugins := map[string]map[string]string{}
+	for _, p := range a.plugins {
+		if _, ok := versions[p.Key()]; ok {
+			plugins[p.Key()] = map[string]string{"name": firstNonEmptyStr(p.DisplayName, p.Name), "homepage": p.Homepage}
+		}
+	}
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/register", a.cfg.BootstrapToken, map[string]any{
-		"name": a.cfg.Name, "family": a.cfg.Family, "version": a.cfg.Version, "scanners": versions,
+		"name": a.cfg.Name, "family": a.cfg.Family, "version": a.cfg.Version, "scanners": versions, "plugins": plugins,
 	}, &out); err != nil {
 		return err
 	}
@@ -491,4 +508,13 @@ func gzipB64(data []byte) string {
 	_, _ = zw.Write(data)
 	_ = zw.Close()
 	return base64.StdEncoding.EncodeToString(b.Bytes())
+}
+
+func firstNonEmptyStr(v ...string) string {
+	for _, s := range v {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }

@@ -75,6 +75,28 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	out := append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility)
+	// Declarative adapters registered by workers.
+	// Only plugins an online, non-revoked worker currently provides.
+	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, '') FROM scanner_catalog c
+		WHERE c.worker_family = 'plugin' AND EXISTS (SELECT 1 FROM workers w WHERE w.revoked_at IS NULL AND w.scanners ? c.key
+		  AND w.last_seen_at > now() - $1::interval)
+		ORDER BY c.key`, WorkerOnlineWindow.String())
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var key, name, home, notes string
+		if err := rows.Scan(&key, &name, &home, &notes); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if sc, ok := scanners.ResolvePlugin(key); ok {
+			sc.Name, sc.Homepage, sc.Notes = name, home, notes
+			out = append(out, sc)
+		}
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
@@ -226,6 +248,11 @@ func (req *profileRequest) validate() error {
 	var out []ProfileScanner
 	for _, ps := range st.Scanners {
 		sc, ok := scanners.Lookup(ps.Key)
+		if !ok {
+			// Declarative adapters: known once a worker registered them
+			// (the catalog foreign key rejects unregistered ones).
+			sc, ok = scanners.ResolvePlugin(ps.Key)
+		}
 		if !ok {
 			return httpx.BadRequest("unknown scanner " + ps.Key)
 		}

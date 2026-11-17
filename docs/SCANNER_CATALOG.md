@@ -87,3 +87,26 @@ Count: **52 scanner integrations**: 45 "Use" plus 7 optional or license-restrict
 | Clair | Registry-integrated server, not a repo scanner. May come back as an integration |
 | FOSSology | Full server platform. ScanCode covers repo license scanning |
 | tfsec | Merged into Trivy |
+
+## Declarative scanner adapters (plugins)
+
+Operators can add a scanner to `worker-core` without changing PATHOS: put a definition file in `deploy/scanners.d/` (mounted read-only at `/etc/pathos/scanners.d`; `PATHOS_SCANNER_PLUGINS_DIR` changes the path) and make the tool's executable available in the worker container (a derived image or a read-only mount). See `deploy/scanners.d/example.yaml.disabled`.
+
+| Field | Meaning |
+|---|---|
+| `name` | Lowercase letters, digits, dashes (≤ 23). The scanner key is `plugin-<category>-<name>` |
+| `display_name`, `homepage` | Shown in the catalog (homepage must be https) |
+| `category` | `sast`, `sca`, `secrets`, `iac`, `container`, `license`, `dast` or `other` (the findings' type) |
+| `command` | Absolute path of an existing executable that is not writable by group or others |
+| `version_args` | Arguments that print the version (default `--version`) |
+| `args` | Arguments; placeholders `{source}` (required), `{output}` (required unless `output: stdout`), `{cache}` (persistent per plugin), `{tmp}` (per run) |
+| `ok_exit_codes` | Exit codes meaning success (default `0`; many tools exit `1` when they find something) |
+| `output` | `file` (SARIF written to `{output}`, default) or `stdout` |
+| `env` | Extra variables (not `PATH`, `HOME`, `LD_*`, `*_PROXY`, `PATHOS_*`) |
+
+The tool must produce **SARIF 2.1.0**. When the worker registers, the plugin appears in **Scanners & workers** and can be added to scan profiles; results are normalized, deduplicated, risk-scored and triaged like any other scanner's. Invalid files are skipped with a log message; at most 20 plugins load.
+
+Security: definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Plugins run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. They scan repository source only (not scan targets).
+
+New issue trackers implement the `tickets.Connector` interface (`Check`, `Create`, `Status`) and register a kind; storage, permissions, audit and status sync are shared.
+

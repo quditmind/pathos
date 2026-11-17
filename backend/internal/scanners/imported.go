@@ -53,6 +53,9 @@ func Resolve(key string) (Scanner, bool) {
 	if sc, ok := Lookup(key); ok {
 		return sc, true
 	}
+	if sc, ok := ResolvePlugin(key); ok {
+		return sc, true
+	}
 	m := importKeyRe.FindStringSubmatch(key)
 	if m == nil {
 		return Scanner{}, false

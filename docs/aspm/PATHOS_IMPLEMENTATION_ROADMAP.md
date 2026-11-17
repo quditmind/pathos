@@ -347,4 +347,22 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module G 22 completed, 3 in progress (multi-tenant, plugin architecture, offline bundles); 89 completed, 10 in progress, 1 not started overall.
 
-**Next:** phase 10, production readiness: declarative scanner adapters, offline vulnerability database bundles, air-gap guide.
+### Phase 10 — Production readiness (done)
+
+**Implemented:**
+
+| Area | What was built |
+|---|---|
+| Migration 00023 | `pathos_register_plugin_scanner` (SECURITY DEFINER, plugin keys only, category bound to the key); Down migration |
+| Declarative scanner adapters | YAML/JSON definitions in `deploy/scanners.d` (mounted read-only into `worker-core`): absolute, non-writable executable, templated arguments without a shell, SARIF output, restricted environment; registered by the worker, selectable in profiles, findings of the declared category |
+| Connector interface | `tickets.Connector` (`Check`, `Create`, `Status`) with a registry; Jira and ServiceNow implement it |
+| Offline mode | `PATHOS_OFFLINE=true`: Trivy (`--skip-db-update --skip-java-db-update --offline-scan`), Grype (no auto-update), OSV-Scanner (`--offline-vulnerabilities`) use local databases only, with a clear error when one is missing; the API never downloads feeds (file import only; the UI says so) |
+| Offline bundles | `scripts/offline-bundle.sh create / import / status`: Trivy, Grype and OSV databases plus EPSS and KEV, SHA-256 manifest, refuses links and unsafe paths, verifies every checksum, optional feed import with a REST token |
+| Malware scanning | ClamAV scans uploaded build artifacts (reject and audit on detection; `PATHOS_CLAMAV_REQUIRED` behaviour as for source uploads) |
+| Docs | Air-gap guide (`docs/AIRGAP.md`), declarative adapters (`docs/SCANNER_CATALOG.md`) |
+
+**Verified on this machine:** a real bundle (6.6 GB, npm OSV) created in about 5 minutes, imported with every checksum verified; with `--network none`, Trivy, Grype and OSV-Scanner each found the lodash vulnerabilities from the bundle alone. Test data removed.
+
+**Tests:** unit (offline flags and database checks, plugin validation: placeholders, environment, relative or writable commands, unknown fields, duplicates; a plugin run end to end); integration (plugin registration, catalog, profile, unregistered keys refused, results as findings; the registration function refuses non-plugin keys and mismatched categories; artifact malware scan with a fake clamd: infected, clean, scanner required or optional).
+
+**Register:** 91 completed, 9 in progress, 0 not started.

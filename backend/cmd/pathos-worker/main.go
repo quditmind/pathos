@@ -45,6 +45,8 @@ func main() {
 		Family:         env("PATHOS_WORKER_FAMILY", "core"),
 		WorkDir:        env("PATHOS_WORK_DIR", "/work"),
 		CacheDir:       env("PATHOS_CACHE_DIR", "/cache"),
+		Offline:        env("PATHOS_OFFLINE", "false") == "true",
+		PluginsDir:     env("PATHOS_SCANNER_PLUGINS_DIR", "/etc/pathos/scanners.d"),
 		RulesDirs:      strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
 		Version:        version,
 	}

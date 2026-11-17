@@ -113,6 +113,13 @@ type registerRequest struct {
 	Family   string            `json:"family"`
 	Version  string            `json:"version"`
 	Scanners map[string]string `json:"scanners"`
+	// Plugins describes the declarative adapters among Scanners.
+	Plugins map[string]pluginMeta `json:"plugins"`
+}
+
+type pluginMeta struct {
+	Name     string `json:"name"`
+	Homepage string `json:"homepage"`
 }
 
 // register exchanges the bootstrap token for a per-worker credential. A
@@ -133,10 +140,20 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid worker registration"))
 		return
 	}
+	plugins := map[string]pluginMeta{}
 	for k, v := range req.Scanners {
-		if _, ok := scanners.Lookup(k); !ok || len(v) > 100 {
+		if len(v) > 100 {
 			delete(req.Scanners, k)
+			continue
 		}
+		if _, ok := scanners.Lookup(k); ok {
+			continue
+		}
+		if meta, ok := req.Plugins[k]; ok && scanners.IsPluginKey(k) && len(meta.Name) <= 100 && len(meta.Homepage) <= 300 {
+			plugins[k] = meta
+			continue
+		}
+		delete(req.Scanners, k)
 	}
 	raw := make([]byte, 32)
 	_, _ = rand.Read(raw)
@@ -163,6 +180,17 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 			}
 		default:
 			return err
+		}
+		// Declarative adapters become selectable in scan profiles.
+		for k, meta := range plugins {
+			sc, _ := scanners.ResolvePlugin(k)
+			name := meta.Name
+			if name == "" {
+				name = sc.Name
+			}
+			if _, err := tx.Exec(ctx, `SELECT pathos_register_plugin_scanner($1, $2, $3, $4)`, k, name, sc.Category, meta.Homepage); err != nil {
+				return err
+			}
 		}
 		// Jobs leased by a previous incarnation of this worker are requeued.
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = 'queued', leased_by = NULL, lease_expires_at = NULL
@@ -420,7 +448,7 @@ func (s *Service) uploadResult(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid status"))
 		return
 	}
-	if _, ok := scanners.Lookup(up.Scanner); !ok {
+	if _, ok := scanners.Lookup(up.Scanner); !ok && !scanners.IsPluginKey(up.Scanner) {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("unknown scanner"))
 		return
 	}

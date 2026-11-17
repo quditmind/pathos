@@ -66,6 +66,8 @@ type Deps struct {
 	// RateLimiter enables API rate limiting with RateLimitPolicy (nil: off).
 	RateLimiter     ratelimit.Limiter
 	RateLimitPolicy ratelimit.Policy
+	// Offline disables online intelligence downloads (air-gapped).
+	Offline bool
 }
 
 // Handlers bundles the public handler and the internal worker handler.
@@ -100,6 +102,7 @@ func Build(d Deps) Handlers {
 	// After a scan: AI auto-review first, then the Human Eye queue picks
 	// up findings that need a person.
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
+	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
@@ -219,6 +222,10 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 func NewIntelService(d Deps) *intel.Service {
 	client := scm.NetPolicy{}.Client()
 	client.Timeout = 5 * time.Minute
+	if d.Offline {
+		// Air-gapped: feeds are imported from files only.
+		return &intel.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, Offline: true}
+	}
 	return &intel.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client}
 }
 

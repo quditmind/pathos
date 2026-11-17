@@ -16,13 +16,13 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
-| A. Code and application scanning (1–15) | 10 | 4 | 1 |
+| A. Code and application scanning (1–15) | 10 | 5 | 0 |
 | B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
 | F. Supply chain and DevSecOps (61–75) | 12 | 3 | 0 |
-| G. Enterprise and governance (76–100) | 22 | 3 | 0 |
-| **Total** | **89** | **10** | **1** |
+| G. Enterprise and governance (76–100) | 24 | 1 | 0 |
+| **Total** | **91** | **9** | **0** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -38,9 +38,9 @@ Module E (AI Security Analyst) has no numbered features. Its requirements are as
 | 6 | IaC | Completed | ✓ | ✓ | ✓ | ✓ | Checkov | KICS and Kubescape adapters (optional) |
 | 7 | Container image | Completed | ✓ | ✓ | ✓ | ✓ | Image targets (registry reference or digest) scanned by `trivy image` with registry credentials; findings keep package and fix data (phase 2b) | Dockle image-configuration checks; registry discovery |
 | 8 | API security | Completed | ✓ | ✓ | ✓ | ✓ | API targets from OpenAPI 3 / Swagger 2 (servers locked to the authorized host) tested with Nuclei DAST templates (phase 2b) | Schemathesis property-based testing; GraphQL |
-| 9 | Malware detection | In Progress | ◐ | ◐ | ◐ | ✓ | ClamAV on uploads; OSV `MAL-*` advisories arrive as SCA findings | Repository and artifact malware scanning, a "malicious package" classification |
+| 9 | Malware detection | In Progress | ✓ | ✓ | ◐ | ✓ | ClamAV on source uploads and on build artifact uploads (phase 10); OSV `MAL-*` and malware advisories classified as malicious packages (phase 7) | Malware scanning of repository content |
 | 10 | Licence scanning | In Progress | ✓ | ✓ | ✓ | ◐ | Licences from the SBOM, deny/review policy, SBOM page and KPI | Violations as findings (lifecycle and SLA), ScanCode for file-level licences |
-| 11 | Binary analysis | Not Started | — | — | — | — | — | Artifact targets; Syft and Grype on binaries and archives; checksec-style hardening checks |
+| 11 | Binary analysis | In Progress | ◐ | ✓ | ◐ | ✓ | Build artifacts (archives, Java archives, binaries) scanned by Trivy for vulnerable components; ClamAV on upload (phases 7, 10) | Hardening checks (checksec: PIE, RELRO, stack canaries, NX) |
 | 12 | Application configuration scanning | In Progress | ◐ | ◐ | — | ◐ | Checkov and Trivy cover some configuration files | Framework config rules (Spring, Django, Express), a misconfiguration category |
 | 13 | Fuzz testing | Completed | ✓ | ✓ | ✓ | ✓ | Fuzzing crash results imported (SARIF or PATHOS JSON) (phase 2a) | Running fuzzers stays in the customer's pipeline |
 | 14 | Infrastructure exposure | In Progress | ◐ | ✓ | ✓ | ✓ | Internet exposure, public URLs, domains and IPs per repository (declared) | Verification of declared endpoints (Nuclei, TLS checks), opt-in and scope-limited |
@@ -187,8 +187,8 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 96 | Custom security rules | Completed | Same as 15 (phase 2a) | — |
 | 97 | Data encryption | Completed | Keyring, encrypted stores, TLS | — |
 | 98 | Backup and recovery | Completed | Scripts, tested restore | — |
-| 99 | Plugin architecture | In Progress | Scanner adapter seam | Declarative scanner adapters, connector interface for ticketing and notifications |
-| 100 | Offline / air-gapped | In Progress | Egress allow-list, local AI, no mandatory external service | Offline vulnerability database bundles (Trivy, Grype, OSV), offline EPSS and KEV import, air-gap install guide |
+| 99 | Plugin architecture | Completed | Declarative scanner adapters defined on workers (SARIF, no code; phase 10); connector interface for issue trackers (phase 10); import adapters for any SARIF tool | — |
+| 100 | Offline / air-gapped | Completed | `PATHOS_OFFLINE` mode; offline bundles of the Trivy, Grype and OSV databases and the EPSS and KEV feeds with checksum verification (`scripts/offline-bundle.sh`); air-gap guide; local AI; egress allow-list (phase 10) | — |
 
 Authentication requirements:
 
