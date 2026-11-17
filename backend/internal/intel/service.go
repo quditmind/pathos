@@ -30,6 +30,8 @@ type Service struct {
 	Principal func(context.Context) *authz.Principal
 	// HTTP downloads online feeds (public hosts only).
 	HTTP *http.Client
+	// Offline: air-gapped deployment; feeds are imported from files only.
+	Offline bool
 }
 
 // Run is one feed update.
@@ -147,7 +149,7 @@ func (s *Service) listFeeds(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "offline": s.Offline})
 }
 
 func validFeed(f string) bool { return f == EPSS || f == KEV || f == OSV || f == DepsDev }
@@ -231,6 +233,9 @@ func (s *Service) Fetch(ctx context.Context, feed string, by *[16]byte) (Run, er
 	var u string
 	if err := s.DB.QueryRow(ctx, `SELECT url FROM intel_feeds WHERE feed = $1`, feed).Scan(&u); err != nil {
 		return Run{}, err
+	}
+	if s.Offline {
+		return Run{}, errors.New("PATHOS runs offline (PATHOS_OFFLINE=true): import the feed from a file instead")
 	}
 	if s.HTTP == nil {
 		return Run{}, errors.New("online feeds are not available in this process")
@@ -404,6 +409,10 @@ func (s *Service) cve(w http.ResponseWriter, r *http.Request) {
 
 // RunBackground keeps enabled feeds current (jobs role).
 func (s *Service) RunBackground(ctx context.Context) {
+	if s.Offline {
+		s.Log.Info("offline mode: intelligence feeds are not downloaded; import them from files")
+		return
+	}
 	t := time.NewTicker(15 * time.Minute)
 	defer t.Stop()
 	for {

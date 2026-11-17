@@ -136,8 +136,8 @@ type input struct {
 
 func (in *input) validate(update bool) error {
 	in.Name, in.BaseURL, in.Username = strings.TrimSpace(in.Name), strings.TrimRight(strings.TrimSpace(in.BaseURL), "/"), strings.TrimSpace(in.Username)
-	if in.Kind != "jira" && in.Kind != "servicenow" {
-		return httpx.BadRequest("kind must be jira or servicenow")
+	if _, ok := registry[in.Kind]; !ok {
+		return httpx.BadRequest("kind must be one of: " + strings.Join(Kinds(), ", "))
 	}
 	if in.Name == "" || len(in.Name) > 120 {
 		return httpx.BadRequest("name is required (at most 120 characters)")

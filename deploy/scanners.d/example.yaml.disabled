@@ -1,0 +1,16 @@
+# Copy to <name>.yaml and adjust. The command must exist inside the worker
+# container (build a derived image, or mount the binary read-only) and must
+# not be writable by group or others.
+name: semgrep-custom          # key becomes plugin-sast-semgrep-custom
+display_name: Semgrep (custom rules)
+category: sast                # sast | sca | secrets | iac | container | license | dast | other
+homepage: https://semgrep.dev
+command: /opt/plugins/semgrep/bin/semgrep
+version_args: ["--version"]
+# Placeholders: {source} (checked-out code, read-only), {output} (write SARIF
+# here), {cache} (persistent per-plugin cache), {tmp} (per-run scratch).
+args: ["scan", "--config", "/opt/plugins/semgrep/rules", "--sarif", "--output", "{output}", "--metrics", "off", "{source}"]
+ok_exit_codes: [0, 1]
+output: file                  # or stdout
+env:
+  SEMGREP_SEND_METRICS: "off"

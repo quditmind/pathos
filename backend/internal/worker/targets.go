@@ -244,7 +244,7 @@ func severityAtLeast(s, min string) bool {
 }
 
 // targetTools are the adapters for non-repository targets and CI/CD.
-func targetTools(cache func(string) string) map[string]Tool {
+func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 	return map[string]Tool{
 		"trivy-image": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			if in.Target == nil || in.Target.Kind != "image" {
@@ -254,8 +254,14 @@ func targetTools(cache func(string) string) map[string]Tool {
 			if in.Target.AuthType == "basic" && in.Target.Username != "" {
 				env = append(env, "TRIVY_USERNAME="+in.Target.Username, "TRIVY_PASSWORD="+in.Target.Password)
 			}
-			_, err := command(ctx, env, []int{0}, bin, "image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
-				"--output", in.Out, "--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", in.Target.Reference)
+			if cfg.Offline {
+				if err := offlineReady(cfg.CacheDir, "trivy"); err != nil {
+					return "", err
+				}
+			}
+			args := append([]string{"image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
+				"--output", in.Out, "--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
+			_, err := command(ctx, env, []int{0}, bin, append(args, in.Target.Reference)...)
 			return "", err
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {

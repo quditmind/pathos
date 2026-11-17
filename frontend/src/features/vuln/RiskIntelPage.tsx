@@ -24,7 +24,7 @@ async function uploadFeed(feed: string, file: File): Promise<FeedRun> {
   return data as FeedRun;
 }
 
-function FeedCard({ f, editable }: { f: IntelFeed; editable: boolean }) {
+function FeedCard({ f, editable, offline }: { f: IntelFeed; editable: boolean; offline: boolean }) {
   const qc = useQueryClient();
   const [url, setUrl] = useState(f.url);
   const [hours, setHours] = useState(f.interval_hours);
@@ -81,9 +81,11 @@ function FeedCard({ f, editable }: { f: IntelFeed; editable: boolean }) {
             <Button size="sm" variant="secondary" disabled={save.isPending} onClick={() => save.mutate({ enabled: !f.enabled })}>
               {f.enabled ? "Turn off online updates" : "Turn on online updates"}
             </Button>
-            <Button size="sm" disabled={run.isPending} onClick={() => run.mutate()}>
-              <CloudDownload /> {run.isPending ? "Downloading…" : "Download now"}
-            </Button>
+            {!offline && (
+              <Button size="sm" disabled={run.isPending} onClick={() => run.mutate()}>
+                <CloudDownload /> {run.isPending ? "Downloading…" : "Download now"}
+              </Button>
+            )}
             {f.feed !== "depsdev" && (
               <Button size="sm" variant="secondary" disabled={imp.isPending} onClick={() => file.current?.click()}>
                 <Upload /> {imp.isPending ? "Importing…" : "Import file (offline)"}
@@ -240,7 +242,9 @@ function History() {
 export function RiskIntelPage() {
   const { canOrgWide } = useSession();
   const editable = canOrgWide("settings.manage");
-  const feeds = useQuery({ queryKey: ["intel-feeds"], queryFn: () => api<{ items: IntelFeed[] }>("/api/v1/intel/feeds").then((r) => r.items) });
+  const feedsQ = useQuery({ queryKey: ["intel-feeds"], queryFn: () => api<{ items: IntelFeed[]; offline?: boolean }>("/api/v1/intel/feeds") });
+  const feeds = { ...feedsQ, data: feedsQ.data?.items };
+  const offline = !!feedsQ.data?.offline;
   const model = useQuery({ queryKey: ["risk-model"], queryFn: () => api<ModelResponse>("/api/v1/risk-model"), refetchInterval: (q) => (q.state.data?.pending_recompute ? 5000 : false) });
   return (
     <>
@@ -250,8 +254,9 @@ export function RiskIntelPage() {
       />
       <div className="space-y-4">
         {feeds.isError && <Alert>{feeds.error.message}</Alert>}
+        {offline && <Alert tone="warning">PATHOS runs offline (air-gapped): nothing is downloaded. Import each feed from a file, for example from an offline bundle.</Alert>}
         <div className="grid gap-4 lg:grid-cols-2">
-          {feeds.isPending ? [0, 1].map((i) => <Skeleton key={i} className="h-40" />) : (feeds.data ?? []).map((f) => <FeedCard key={f.feed} f={f} editable={editable} />)}
+          {feeds.isPending ? [0, 1].map((i) => <Skeleton key={i} className="h-40" />) : (feeds.data ?? []).map((f) => <FeedCard key={f.feed} f={f} editable={editable} offline={offline} />)}
         </div>
         {model.isError && <Alert>{model.error.message}</Alert>}
         {model.data ? <ModelEditor data={model.data} editable={editable} /> : <Skeleton className="h-64" />}

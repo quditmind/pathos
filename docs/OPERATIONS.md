@@ -58,6 +58,10 @@ cosign verify ghcr.io/quditmind/pathos:0.9.0 \
 
 The images also carry an SBOM and SLSA provenance attestations. Inspect them with `docker buildx imagetools inspect <image> --format '{{json .SBOM}}'` (or `.Provenance`). The images are built for `linux/amd64`.
 
+## Air-gapped operation
+
+See [AIRGAP.md](AIRGAP.md): images and vulnerability data as offline bundles (`scripts/offline-bundle.sh`), `PATHOS_OFFLINE=true`, and what changes without internet access.
+
 ## Backup
 
 ```bash

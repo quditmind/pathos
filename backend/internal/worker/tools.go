@@ -257,8 +257,14 @@ func Tools(cfg Config) map[string]Tool {
 			if in.Target != nil && in.Target.Kind == "artifact" {
 				dir = in.TargetFile
 			}
-			_, err := command(ctx, nil, []int{0}, bin, "fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
-				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m", dir)
+			if cfg.Offline {
+				if err := offlineReady(cfg.CacheDir, "trivy"); err != nil {
+					return "", err
+				}
+			}
+			args := append([]string{"fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
+				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
+			_, err := command(ctx, nil, []int{0}, bin, append(args, dir)...)
 			if err != nil {
 				return "", err
 			}
@@ -274,7 +280,12 @@ func Tools(cfg Config) map[string]Tool {
 			if in.SBOM != "" {
 				target = "sbom:" + in.SBOM
 			}
-			_, err := command(ctx, []string{"GRYPE_CHECK_FOR_APP_UPDATE=false", "GRYPE_DB_CACHE_DIR=" + cache("grype")}, []int{0}, bin,
+			if cfg.Offline {
+				if err := offlineReady(cfg.CacheDir, "grype"); err != nil {
+					return "", err
+				}
+			}
+			_, err := command(ctx, grypeEnv(cfg.CacheDir, cfg.Offline), []int{0}, bin,
 				target, "-o", "json", "--file", in.Out, "--quiet")
 			if err != nil {
 				return "", err
@@ -286,7 +297,14 @@ func Tools(cfg Config) map[string]Tool {
 		}},
 		"osv-scanner": simpleTool{"osv-scanner", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			// Exit 1 = vulnerabilities found; 128 = no packages found.
-			_, err := command(ctx, nil, []int{0, 1, 128}, bin, "scan", "source", "-r", "--format", "sarif", "--output-file", in.Out, in.Src)
+			flags, env := osvArgs(cfg.CacheDir, cfg.Offline)
+			if cfg.Offline {
+				if err := offlineReady(cfg.CacheDir, "osv-scanner"); err != nil {
+					return "", err
+				}
+			}
+			args := append(append([]string{"scan", "source", "-r", "--format", "sarif", "--output-file", in.Out}, flags...), in.Src)
+			_, err := command(ctx, env, []int{0, 1, 128}, bin, args...)
 			if err != nil {
 				return "", err
 			}
@@ -311,7 +329,7 @@ func Tools(cfg Config) map[string]Tool {
 			return "", ensureReport(in.Out, "checkov")
 		}},
 	}
-	for k, t := range targetTools(cache) {
+	for k, t := range targetTools(cache, cfg) {
 		tools[k] = t
 	}
 	return tools
