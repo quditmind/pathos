@@ -1,0 +1,55 @@
+{
+  "@programName": "ZAP",
+  "@version": "2.15.0",
+  "@generated": "Tue, 17 Nov 2026 10:12:44",
+  "site": [
+    {
+      "@name": "https://shop.example.test",
+      "@host": "shop.example.test",
+      "@port": "443",
+      "@ssl": "true",
+      "alerts": [
+        {
+          "pluginid": "10038",
+          "alertRef": "10038-1",
+          "alert": "Content Security Policy (CSP) Header Not Set",
+          "name": "Content Security Policy (CSP) Header Not Set",
+          "riskcode": "2",
+          "confidence": "3",
+          "riskdesc": "Medium (High)",
+          "desc": "<p>Content Security Policy (CSP) is an added layer of security that helps to detect and mitigate certain types of attacks.</p>",
+          "instances": [
+            {"id": "1", "uri": "https://shop.example.test/", "method": "GET", "param": "", "attack": "", "evidence": "", "otherinfo": ""},
+            {"id": "2", "uri": "https://shop.example.test/cart", "method": "GET", "param": "", "attack": "", "evidence": "", "otherinfo": ""}
+          ],
+          "count": "2",
+          "solution": "<p>Ensure that your web server sets the Content-Security-Policy header.</p>",
+          "otherinfo": "",
+          "reference": "<p>https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP</p>",
+          "cweid": "693",
+          "wascid": "15",
+          "sourceid": "3"
+        },
+        {
+          "pluginid": "10202",
+          "alertRef": "10202",
+          "alert": "Absence of Anti-CSRF Tokens",
+          "name": "Absence of Anti-CSRF Tokens",
+          "riskcode": "1",
+          "confidence": "0",
+          "riskdesc": "Low (False Positive)",
+          "desc": "<p>No Anti-CSRF tokens were found in a HTML submission form.</p>",
+          "instances": [
+            {"id": "3", "uri": "https://shop.example.test/search", "method": "POST", "param": "q", "attack": "", "evidence": "<form action=\"/search\" method=\"post\">", "otherinfo": ""}
+          ],
+          "count": "1",
+          "solution": "<p>Use a vetted anti-CSRF library.</p>",
+          "reference": "",
+          "cweid": "352",
+          "wascid": 9,
+          "sourceid": "1"
+        }
+      ]
+    }
+  ]
+}

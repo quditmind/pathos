@@ -173,6 +173,18 @@ Declarative scanner adapters let operators add tools without changing PATHOS ([S
 - Plugins run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout. They scan repository source only, not scan targets.
 - The worker registers plugins in the catalog through a database function that accepts only `plugin-<category>-<name>` keys and cannot change built-in entries. At most 20 plugins load; invalid files are skipped with a log message.
 
+### Result imports and the CLI
+
+[Result imports](api-reference/result-imports.md) parse reports of 25 formats on the API server. Parsing is data only; nothing in a report is executed or fetched.
+
+- Uploads need `scans.run` on the repository and are limited to 64 MiB (gzip expanded to at most 256 MiB); at most 20 000 findings per report.
+- **XML** (ZAP, Burp, Nessus, OpenVAS, Checkmarx) is parsed with Go's `encoding/xml` in strict mode: DTDs and external entities are never processed or resolved (no XXE, no external fetches), only the five predefined entities are accepted (entity-expansion bombs fail), nesting depth is bounded by the standard library, and only UTF-8, US-ASCII and ISO-8859-1 / Windows-1252 are accepted.
+- **Secrets in reports:** secret values reported by Gitleaks, TruffleHog and Trivy are removed before the report is parsed or stored; finding identity never depends on them. Burp and ZAP request/response bodies are not kept in findings' original output. Every kept record is passed through the credential redaction used for scanner output.
+- **No suppression:** records a tool marks as false positive or not exploitable are imported with low confidence and the tool's verdict, never dropped or auto-dismissed.
+- A named `format` must agree with the detected one, so a report cannot be parsed under the wrong schema.
+
+The **`pathos` CLI** ([CI/CD integration](user-guide/ci-cd-integration.md)) authenticates with a REST API token (the owner's permissions, `api:read` or `api:write`). It always verifies TLS certificates (an extra CA with `--ca-cert`; there is no switch to disable verification), refuses plain HTTP except to loopback unless `--allow-http` is given, sends the token only to the configured host (never on a redirect elsewhere), never prints or logs it, and bounds every response it reads. Release binaries are listed with their SHA-256 in `checksums.txt`, which the release workflow signs with cosign keyless; the CI templates verify the checksum before running the binary.
+
 ## External data and offline mode
 
 PATHOS sends nothing to third parties unless a feature is configured.

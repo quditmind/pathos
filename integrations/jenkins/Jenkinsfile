@@ -1,0 +1,57 @@
+// PATHOS Jenkins pipeline snippet: import results and enforce the security
+// gate with the PATHOS CLI. Documented in
+// docs/user-guide/ci-cd-integration.md.
+//
+// Needs a Linux agent with curl and sha256sum, and a "Secret text"
+// credential with the PATHOS REST API token (id "pathos-token" below).
+// Copy the stages into your pipeline after the stage that produces the
+// report.
+pipeline {
+  agent any
+
+  environment {
+    PATHOS_URL         = 'https://pathos.example.com'
+    PATHOS_REPOSITORY  = 'acme/payments-api'
+    PATHOS_CLI_VERSION = '1.1.0'
+    PATHOS_CLI_REPO    = 'quditmind/pathos'
+  }
+
+  stages {
+    // ... your build and scanner stages, e.g. one writing semgrep.json ...
+
+    stage('Install PATHOS CLI') {
+      steps {
+        sh '''#!/bin/sh
+          set -eu
+          v="${PATHOS_CLI_VERSION#v}"
+          case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) echo "unsupported architecture"; exit 2 ;; esac
+          asset="pathos_${v}_linux_${arch}"
+          base="https://github.com/${PATHOS_CLI_REPO}/releases/download/v${v}"
+          mkdir -p .pathos-cli && cd .pathos-cli
+          curl -fsSL --proto '=https' -o "$asset" "$base/$asset"
+          curl -fsSL --proto '=https' -o checksums.txt "$base/checksums.txt"
+          grep " ${asset}\$" checksums.txt | sha256sum -c -
+          mv "$asset" pathos && chmod +x pathos
+        '''
+      }
+    }
+
+    stage('PATHOS import') {
+      steps {
+        withCredentials([string(credentialsId: 'pathos-token', variable: 'PATHOS_TOKEN')]) {
+          // Single quotes: the shell, not Groovy, expands the token.
+          sh '.pathos-cli/pathos import --repo "$PATHOS_REPOSITORY" --file semgrep.json'
+        }
+      }
+    }
+
+    stage('PATHOS gate') {
+      steps {
+        withCredentials([string(credentialsId: 'pathos-token', variable: 'PATHOS_TOKEN')]) {
+          // Exit code 1 (gate failed) fails the build.
+          sh '.pathos-cli/pathos gate --repo "$PATHOS_REPOSITORY" --fail-on high'
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OWASPZAPReport programName="ZAP" version="2.15.0" generated="Tue, 17 Nov 2026 10:12:44">
+  <site name="https://api.example.test" host="api.example.test" port="443" ssl="true">
+    <alerts>
+      <alertitem>
+        <pluginid>40018</pluginid>
+        <alertRef>40018</alertRef>
+        <alert>SQL Injection</alert>
+        <name>SQL Injection</name>
+        <riskcode>3</riskcode>
+        <confidence>2</confidence>
+        <riskdesc>High (Medium)</riskdesc>
+        <confidencedesc>Medium</confidencedesc>
+        <desc>&lt;p&gt;SQL injection may be possible.&lt;/p&gt;</desc>
+        <instances>
+          <instance>
+            <uri>https://api.example.test/orders?id=1</uri>
+            <method>GET</method>
+            <param>id</param>
+            <attack>1' OR '1'='1</attack>
+            <evidence></evidence>
+            <otherinfo>The page results were successfully manipulated using the boolean conditions.</otherinfo>
+          </instance>
+        </instances>
+        <count>1</count>
+        <solution>&lt;p&gt;Use prepared statements.&lt;/p&gt;</solution>
+        <otherinfo></otherinfo>
+        <reference>&lt;p&gt;https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html&lt;/p&gt;</reference>
+        <cweid>89</cweid>
+        <wascid>19</wascid>
+        <sourceid>1</sourceid>
+      </alertitem>
+      <alertitem>
+        <pluginid>10096</pluginid>
+        <alertRef>10096</alertRef>
+        <alert>Timestamp Disclosure - Unix</alert>
+        <name>Timestamp Disclosure - Unix</name>
+        <riskcode>0</riskcode>
+        <confidence>1</confidence>
+        <riskdesc>Informational (Low)</riskdesc>
+        <desc>&lt;p&gt;A timestamp was disclosed by the application.&lt;/p&gt;</desc>
+        <instances></instances>
+        <count>0</count>
+        <solution></solution>
+        <reference></reference>
+        <cweid>-1</cweid>
+        <wascid>13</wascid>
+        <sourceid>3</sourceid>
+      </alertitem>
+    </alerts>
+  </site>
+</OWASPZAPReport>

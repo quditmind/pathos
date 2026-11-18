@@ -1,0 +1,26 @@
+[
+  {
+    "vulnerabilities": [
+      {
+        "id": "SNYK-PYTHON-REQUESTS-5595532",
+        "title": "Information Exposure",
+        "severity": "medium",
+        "cvssScore": 6.1,
+        "identifiers": { "CVE": ["CVE-2023-32681"], "CWE": ["CWE-200"] },
+        "packageName": "requests",
+        "version": "2.28.1",
+        "fixedIn": ["2.31.0"],
+        "from": ["api@0.0.0", "requests@2.28.1"]
+      }
+    ],
+    "dependencyCount": 12,
+    "packageManager": "pip",
+    "displayTargetFile": "services/api/requirements.txt"
+  },
+  {
+    "vulnerabilities": [],
+    "dependencyCount": 3,
+    "packageManager": "npm",
+    "displayTargetFile": "web/package-lock.json"
+  }
+]

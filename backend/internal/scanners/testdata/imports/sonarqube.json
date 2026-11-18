@@ -1,0 +1,53 @@
+{
+  "total": 3,
+  "p": 1,
+  "ps": 100,
+  "paging": { "pageIndex": 1, "pageSize": 100, "total": 3 },
+  "effortTotal": 45,
+  "issues": [
+    {
+      "key": "AYx1-sqli-0001",
+      "rule": "javasecurity:S3649",
+      "severity": "BLOCKER",
+      "component": "acme_orders:src/main/java/com/acme/OrderDao.java",
+      "project": "acme_orders",
+      "line": 42,
+      "hash": "0c1f6c2f1a9e",
+      "textRange": { "startLine": 42, "endLine": 44, "startOffset": 8, "endOffset": 61 },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Change this code to not construct SQL queries directly from user-controlled data.",
+      "effort": "30min",
+      "tags": ["cwe", "owasp-a3", "sans-top25"],
+      "type": "VULNERABILITY",
+      "cleanCodeAttribute": "COMPLETE",
+      "impacts": [{ "softwareQuality": "SECURITY", "severity": "HIGH" }]
+    },
+    {
+      "key": "AYx1-bug-0002",
+      "rule": "java:S2259",
+      "severity": "MAJOR",
+      "component": "acme_orders:src/main/java/com/acme/Cart.java",
+      "project": "acme_orders",
+      "line": 17,
+      "status": "CONFIRMED",
+      "message": "A \"NullPointerException\" could be thrown; \"items\" is nullable here.",
+      "tags": [],
+      "type": "BUG"
+    },
+    {
+      "key": "AYx1-old-0003",
+      "rule": "java:S2076",
+      "severity": "CRITICAL",
+      "component": "acme_orders:src/main/java/com/acme/Shell.java",
+      "line": 9,
+      "status": "CLOSED",
+      "resolution": "FIXED",
+      "message": "Removed code.",
+      "type": "VULNERABILITY"
+    }
+  ],
+  "components": [
+    { "key": "acme_orders", "qualifier": "TRK", "name": "Acme Orders" }
+  ]
+}

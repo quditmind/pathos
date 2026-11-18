@@ -56,6 +56,14 @@ jobs:
           if [ -n "$unformatted" ]; then echo "Run gofmt on:"; echo "$unformatted"; exit 1; fi
       - run: go vet ./... && go vet -tags integration ./test/integration/...
       - run: go test -race -count=1 ./...
+      # The CLI (unit-tested above) must build for every release platform.
+      - name: Build the pathos CLI (linux, darwin, windows; amd64, arm64)
+        run: |
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              GOOS=$os GOARCH=$arch CGO_ENABLED=0 go build -trimpath -o /dev/null ./cmd/pathos-cli
+            done
+          done
       - name: gosec
         run: go run "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}" -exclude-dir=test ./...
       - name: govulncheck

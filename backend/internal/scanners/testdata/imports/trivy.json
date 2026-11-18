@@ -1,0 +1,91 @@
+{
+  "SchemaVersion": 2,
+  "CreatedAt": "2026-11-18T10:00:00Z",
+  "ArtifactName": ".",
+  "ArtifactType": "filesystem",
+  "Metadata": {"ImageConfig": {"architecture": "", "created": "0001-01-01T00:00:00Z", "os": "", "rootfs": {"type": "", "diff_ids": null}, "config": {}}},
+  "Results": [
+    {
+      "Target": "package-lock.json",
+      "Class": "lang-pkgs",
+      "Type": "npm",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2021-23337",
+          "PkgID": "lodash@4.17.20",
+          "PkgName": "lodash",
+          "PkgIdentifier": {"PURL": "pkg:npm/lodash@4.17.20"},
+          "InstalledVersion": "4.17.20",
+          "FixedVersion": "4.17.21",
+          "Status": "fixed",
+          "SeveritySource": "ghsa",
+          "PrimaryURL": "https://avd.aquasec.com/nvd/cve-2021-23337",
+          "Title": "nodejs-lodash: command injection via template",
+          "Description": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+          "Severity": "HIGH",
+          "CweIDs": ["CWE-94"],
+          "CVSS": {
+            "ghsa": {"V3Vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H", "V3Score": 7.2},
+            "nvd": {"V2Vector": "AV:N/AC:L/Au:S/C:P/I:P/A:P", "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H", "V2Score": 6.5, "V3Score": 7.2}
+          },
+          "References": ["https://github.com/advisories/GHSA-35jh-r3h4-6jhm"]
+        },
+        {
+          "VulnerabilityID": "GHSA-29mw-wpgm-hmr9",
+          "PkgName": "lodash",
+          "InstalledVersion": "4.17.20",
+          "FixedVersion": "4.17.21, 5.0.0",
+          "Severity": "MEDIUM",
+          "Title": "Regular Expression Denial of Service (ReDoS) in lodash"
+        }
+      ]
+    },
+    {
+      "Target": "deploy/k8s/deployment.yaml",
+      "Class": "config",
+      "Type": "kubernetes",
+      "MisconfSummary": {"Successes": 20, "Failures": 1},
+      "Misconfigurations": [
+        {
+          "Type": "Kubernetes Security Check",
+          "ID": "KSV001",
+          "AVDID": "AVD-KSV-0001",
+          "Title": "Can elevate its own privileges",
+          "Description": "A program inside the container can elevate its own privileges and run as root.",
+          "Message": "Container 'api' of Deployment 'api' should set 'securityContext.allowPrivilegeEscalation' to false",
+          "Namespace": "builtin.kubernetes.KSV001",
+          "Resolution": "Set 'set containers[].securityContext.allowPrivilegeEscalation' to 'false'.",
+          "Severity": "MEDIUM",
+          "PrimaryURL": "https://avd.aquasec.com/misconfig/ksv001",
+          "Status": "FAIL",
+          "CauseMetadata": {"Resource": "Deployment/api", "Provider": "Kubernetes", "Service": "general", "StartLine": 21, "EndLine": 40}
+        },
+        {
+          "ID": "KSV012",
+          "AVDID": "AVD-KSV-0012",
+          "Title": "Runs as root user",
+          "Message": "Container 'api' runs as non-root",
+          "Severity": "MEDIUM",
+          "Status": "PASS",
+          "CauseMetadata": {"Resource": "Deployment/api", "StartLine": 21, "EndLine": 40}
+        }
+      ]
+    },
+    {
+      "Target": "scripts/deploy.sh",
+      "Class": "secret",
+      "Secrets": [
+        {
+          "RuleID": "aws-access-key-id",
+          "Category": "AWS",
+          "Severity": "CRITICAL",
+          "Title": "AWS Access Key ID",
+          "StartLine": 7,
+          "EndLine": 7,
+          "Code": {"Lines": [{"Number": 7, "Content": "export AWS_ACCESS_KEY_ID=AKIAEXAMPLEEXAMPLE12", "IsCause": true}]},
+          "Match": "export AWS_ACCESS_KEY_ID=AKIAEXAMPLEEXAMPLE12"
+        }
+      ]
+    }
+  ]
+}

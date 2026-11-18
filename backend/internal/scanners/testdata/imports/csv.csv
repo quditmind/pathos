@@ -1,0 +1,5 @@
+Title,Severity,Description,CWE,CVE,CVSS,File,Line,URL,Package,Version,Fixed Version,Confidence,Fingerprint,Category
+"Stored XSS in comment form",High,"User input is rendered without encoding, ""script"" tags execute",CWE-79,,,,,"https://app.example/comments",,,,high,pt-2026-001,dast
+Outdated OpenSSL,,"Found during the annual audit",,CVE-2024-5535,9.1,,,,openssl,3.0.13,3.0.14,,pt-2026-002,sca
+Hard-coded password,medium,,798;259,,,src/db/conn.go,17,,,,,,,
+

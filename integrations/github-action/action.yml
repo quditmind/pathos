@@ -1,0 +1,159 @@
+# PATHOS GitHub Action: installs the verified PATHOS CLI from a release,
+# then imports a results file, starts a scan and/or evaluates the security
+# gate. Documented in docs/user-guide/ci-cd-integration.md.
+#
+#   - uses: quditmind/pathos/integrations/github-action@v1.1.0
+#     with:
+#       url: https://pathos.example.com
+#       token: ${{ secrets.PATHOS_TOKEN }}
+#       repository: acme/payments-api
+#       import-file: semgrep.json
+#       fail-on: high
+name: PATHOS
+description: Import scanner results into PATHOS, start a PATHOS scan and enforce the PATHOS security gate.
+author: PATHOS
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  url:
+    description: PATHOS base URL (https://...).
+    required: true
+  token:
+    description: PATHOS REST API token (api:write scope to import or scan; api:read is enough for the gate). Store it as a secret.
+    required: true
+  repository:
+    description: The PATHOS repository (ID, full name such as acme/api, or QD-REPO key).
+    required: true
+  cli-version:
+    description: PATHOS CLI release version (e.g. 1.1.0). Defaults to the version of this action's tag.
+    required: false
+    default: ""
+  ca-cert:
+    description: Path to a PEM CA certificate for PATHOS servers with a private CA.
+    required: false
+    default: ""
+  import-file:
+    description: Results file to import (any supported format; empty skips the import).
+    required: false
+    default: ""
+  import-format:
+    description: Format of the results file (empty detects it).
+    required: false
+    default: ""
+  import-tool:
+    description: Tool name for the import (required for SARIF, PATHOS JSON and CSV).
+    required: false
+    default: ""
+  import-category:
+    description: Import category (sast, sca, secrets, iac, container, license, dast, other).
+    required: false
+    default: ""
+  complete:
+    description: "true when the file is the tool's complete result: findings it no longer reports are marked fixed."
+    required: false
+    default: "false"
+  sbom-file:
+    description: CycloneDX or SPDX JSON SBOM to import (empty skips it).
+    required: false
+    default: ""
+  scan:
+    description: "true to start a PATHOS scan of the repository and wait for it."
+    required: false
+    default: "false"
+  gate:
+    description: "true to evaluate the security gate of the latest execution (the import or scan above) and fail the step when it fails."
+    required: false
+    default: "true"
+  fail-on:
+    description: Also fail at or above this severity (critical, high, medium, low, none).
+    required: false
+    default: "none"
+  scope:
+    description: Findings the threshold counts, new (first detected by the execution) or all (open findings of the repository).
+    required: false
+    default: "new"
+
+outputs:
+  scan-id:
+    description: The execution the gate evaluated (or the import/scan created).
+    value: ${{ steps.run.outputs.scan-id }}
+  gate-passed:
+    description: '"true" or "false" (empty when the gate was not evaluated).'
+    value: ${{ steps.run.outputs.gate-passed }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install the PATHOS CLI
+      id: install
+      shell: bash
+      env:
+        PATHOS_CLI_VERSION: ${{ inputs.cli-version }}
+        ACTION_REF: ${{ github.action_ref }}
+        PATHOS_CLI_REPO: ${{ github.action_repository }}
+        PATHOS_CLI_DIR: ${{ runner.temp }}/pathos-cli
+      run: |
+        if [ -z "$PATHOS_CLI_VERSION" ]; then
+          case "$ACTION_REF" in
+            v[0-9]*.[0-9]*.[0-9]*) PATHOS_CLI_VERSION="${ACTION_REF#v}" ;;
+            *) echo "::error::set the cli-version input (the action is not used at a release tag)"; exit 2 ;;
+          esac
+        fi
+        export PATHOS_CLI_VERSION PATHOS_CLI_REPO="${PATHOS_CLI_REPO:-quditmind/pathos}"
+        bin="$("$GITHUB_ACTION_PATH/../install-cli.sh" | tail -n 1)"
+        echo "bin=$bin" >> "$GITHUB_OUTPUT"
+    - name: Run PATHOS
+      id: run
+      shell: bash
+      env:
+        PATHOS_URL: ${{ inputs.url }}
+        PATHOS_TOKEN: ${{ inputs.token }}
+        PATHOS_CA_CERT: ${{ inputs.ca-cert }}
+        PATHOS: ${{ steps.install.outputs.bin }}
+        REPO: ${{ inputs.repository }}
+        IMPORT_FILE: ${{ inputs.import-file }}
+        IMPORT_FORMAT: ${{ inputs.import-format }}
+        IMPORT_TOOL: ${{ inputs.import-tool }}
+        IMPORT_CATEGORY: ${{ inputs.import-category }}
+        COMPLETE: ${{ inputs.complete }}
+        SBOM_FILE: ${{ inputs.sbom-file }}
+        SCAN: ${{ inputs.scan }}
+        GATE: ${{ inputs.gate }}
+        FAIL_ON: ${{ inputs.fail-on }}
+        SCOPE: ${{ inputs.scope }}
+      run: |
+        set -euo pipefail
+        echo "::add-mask::$PATHOS_TOKEN"
+        scan_id=""
+        if [ -n "$SBOM_FILE" ]; then
+          "$PATHOS" import --sbom --repo "$REPO" --file "$SBOM_FILE"
+        fi
+        if [ -n "$IMPORT_FILE" ]; then
+          args=(import --repo "$REPO" --file "$IMPORT_FILE" --json)
+          [ -n "$IMPORT_FORMAT" ] && args+=(--format "$IMPORT_FORMAT")
+          [ -n "$IMPORT_TOOL" ] && args+=(--tool "$IMPORT_TOOL")
+          [ -n "$IMPORT_CATEGORY" ] && args+=(--category "$IMPORT_CATEGORY")
+          [ "$COMPLETE" = "true" ] && args+=(--complete)
+          out="$("$PATHOS" "${args[@]}")"
+          echo "$out"
+          scan_id="$(printf '%s' "$out" | jq -r '.import.scan_job_id // empty')"
+        fi
+        if [ "$SCAN" = "true" ]; then
+          out="$("$PATHOS" scan --repo "$REPO" --json)"
+          echo "$out"
+          scan_id="$(printf '%s' "$out" | jq -r '.id // empty')"
+        fi
+        echo "scan-id=$scan_id" >> "$GITHUB_OUTPUT"
+        if [ "$GATE" = "true" ]; then
+          target=(--repo "$REPO")
+          [ -n "$scan_id" ] && target=(--scan "$scan_id")
+          set +e
+          "$PATHOS" gate "${target[@]}" --fail-on "$FAIL_ON" --scope "$SCOPE"
+          rc=$?
+          set -e
+          if [ "$rc" -eq 0 ]; then echo "gate-passed=true" >> "$GITHUB_OUTPUT"; fi
+          if [ "$rc" -eq 1 ]; then echo "gate-passed=false" >> "$GITHUB_OUTPUT"; fi
+          exit "$rc"
+        fi

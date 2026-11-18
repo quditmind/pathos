@@ -268,7 +268,7 @@ flowchart LR
 | Extension | Interface |
 |---|---|
 | Scanner (no code) | Declarative plugin on the worker: [SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins) |
-| Third-party results | SARIF, Grype JSON or the PATHOS findings JSON through the import API |
+| Third-party results | SARIF, 21 native tool formats (JSON, JSON lines, XML), generic CSV or the PATHOS findings JSON through the import API (`scanners.ImportFormats`), also from CI with the `pathos` CLI (`backend/cmd/pathos-cli`) |
 | Issue tracker | `tickets.Connector` (`Check`, `Create`, `Status`) in `backend/internal/tickets`, registered by kind. Storage, permissions, audit and status sync are shared. Jira and ServiceNow implement it |
 | Outbound events | Outbound webhooks for any notification event |
 | AI provider | The provider interface in `backend/internal/ai` |

@@ -51,7 +51,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var findings []scanners.Finding
 	parseErr := ""
 	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
-		fs, err := scanners.Parse(up.Scanner, raw)
+		var fs []scanners.Finding
+		var err error
+		if scanners.IsImportKey(up.Scanner) {
+			fs, err = scanners.ParseImport(up.Scanner, up.Format, raw)
+		} else {
+			fs, err = scanners.Parse(up.Scanner, raw)
+		}
 		if err != nil {
 			if len(fs) == 0 {
 				up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
@@ -97,6 +103,10 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
 				ct = "application/json"
+			}
+			if scanners.IsImportKey(up.Scanner) {
+				// The content type records the format for evidence capture.
+				ct = scanners.ImportContentType(firstNonEmpty(up.Format, scanners.DetectImportFormat(raw)))
 			}
 			sum := sha256.Sum256(raw)
 			artID := uuid.Must(uuid.NewV7())
