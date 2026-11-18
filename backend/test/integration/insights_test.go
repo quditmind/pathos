@@ -108,7 +108,7 @@ func TestMaterialChangesAndAttribution(t *testing.T) {
 			{"category": "auth", "rule_id": "auth.spring-security", "file_path": "src/Security.java", "change_type": "modified", "side": "added",
 				"start_line": 12, "end_line": 12, "match_count": 1, "snippet": `.permitAll() // password=hunter2hunter2`, "explanation": "x"},
 			{"category": "cicd", "rule_id": "cicd.pipeline", "file_path": ".github/workflows/ci.yml", "change_type": "added", "side": "file"},
-			{"category": "auth", "rule_id": "made.up", "file_path": "x"},                  // unknown rule: dropped
+			{"category": "auth", "rule_id": "made.up", "file_path": "x"},              // unknown rule: dropped
 			{"category": "dependency", "rule_id": "dependency.new", "file_path": "y"}, // only the API computes these
 		},
 		"commits": []map[string]any{
