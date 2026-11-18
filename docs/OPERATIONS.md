@@ -179,6 +179,13 @@ Suggested alerts:
 
 Source archives are scanned by the `jobs` service; build artifacts are scanned by the `api` service when they are uploaded. `docker-compose.yml` passes `PATHOS_CLAMAV_ADDRESS` and `PATHOS_CLAMAV_REQUIRED` to both services, so one setting covers both.
 
+## Endpoint verification, end-of-life data and signatures
+
+- **Declared endpoint verification** runs on `worker-core` through the egress proxy. Add the declared hosts to `deploy/egress/allowlist.txt` (and, for private addresses, an override in `deploy/egress/conf.d`) and restart `egress`; hosts the proxy refuses are reported as *Blocked by egress proxy*. Only ports 80 and 443 pass the default proxy configuration.
+- **End-of-life data**: enable the `endoflife` feed in **Risk & intelligence** (daily download of about 3 MB from `endoflife.date` by the `jobs` service through `PATHOS_HTTPS_PROXY` when set), or import the file offline. The `jobs` service also recomputes end-of-life statuses daily.
+- **Signature verification** uses the `cosign` binary in `worker-core`. Keyless verification needs `tuf-repo-cdn.sigstore.dev`, `rekor.sigstore.dev` and `fulcio.sigstore.dev`, which the default egress allowlist contains; remove them to allow key-based verification only. Signatures in private registries use the target's registry credentials.
+- **Introducing commits** need full history: set **Clone full history** on the repository (larger clones, slower scans). Shallow clones record the introducing commit as unknown.
+
 ## Configuration reference
 
 `.env.example` documents the settings an installation normally changes. The table lists every variable the PATHOS services read, with the service that reads it. Variables marked *code only* are not passed through by `docker-compose.yml`; add them to the service's `environment` in an override file to change them.
@@ -201,7 +208,7 @@ Source archives are scanned by the `jobs` service; build artifacts are scanned b
 | `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS` | api, jobs | `false` | Allow providers on private addresses |
 | `PATHOS_SCM_ALLOW_HTTP` | api, jobs (*code only*) | `false` | Allow `http` provider URLs (development) |
 | `PATHOS_HTTPS_PROXY` | api, jobs | empty | Outbound proxy for provider APIs, feeds and integrations |
-| `PATHOS_OFFLINE` | api, jobs, worker-core | `false` | Air-gapped mode ([AIRGAP.md](AIRGAP.md)) |
+| `PATHOS_OFFLINE` | api, jobs, worker-core | `false` | Air-gapped mode ([AIRGAP.md](AIRGAP.md)); also disables declared endpoint verification and keyless signature verification |
 | `PATHOS_WORKER_BOOTSTRAP_TOKEN` | api, worker-core | generated | Worker registration |
 | `PATHOS_WORKER_MEMORY`, `PATHOS_WORKER_TMPFS` | worker-core (Compose limits) | `4g`, `3g` | Memory limit and workspace size per worker |
 | `PATHOS_SCANNER_PLUGINS_DIR` | worker-core (*code only*) | `/etc/pathos/scanners.d` | Declarative scanner adapters |

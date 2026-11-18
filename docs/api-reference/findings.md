@@ -32,7 +32,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `id`, `repository_id`, `repository_name`, `repository_key` | The finding and its repository |
 | `application_id`, `application_name` | The repository's application (`null` without one) |
 | `scan_target_id`, `scan_target_kind`, `scan_target_name` | The [scan target](scan-targets.md) the finding belongs to; `null` for the repository's source code |
-| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `other` |
+| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `eol` ([end of life](supply-chain.md#end-of-life)), `supply-chain` ([required signatures](scan-targets.md#signature-verification)), `other` |
 | `scanner_keys` | Every scanner that reported it |
 | `rule_id`, `title`, `description` | As reported |
 | `severity` | `critical`, `high`, `medium`, `low`, `info` (scanner severity) |
@@ -57,6 +57,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `reachability`, `reachability_basis` | `reachable`, `not_reachable`, `unknown`, and why ([reachability](vulnerability-intelligence.md#reachability)) |
 | `malicious` | The package itself is malware ([malicious packages](supply-chain.md#malicious-packages)) |
 | `introduced_commit` | Commit of the scan that first detected it |
+| `introduced_status`, `introduced_commit_sha`, `introduced_author`, `introduced_at` | The commit that introduced the code (git blame of the scanned commit; `sast`, `secrets` and `iac` findings with a file and line). `introduced_status`: `known`, `shallow_clone` (unknown: the repository is cloned without history), `not_found` (the line is not in the scanned commit) or `""` (not determined). Only the author's name is stored, never the e-mail address. Once known it does not change |
 | `suppression_rule_id` | The [suppression rule](#suppression-rules) that decided the status |
 
 `GET /api/v1/findings/{id}` adds `snippet` and `snippet_start_line` (code captured by the scanner, when available) and `occurrences[]` (the 50 latest sightings: `scan_job_id`, `scanner_key`, `commit_sha`, `file_path`, `start_line`, `seen_at`).
@@ -96,7 +97,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `confidence` | `high`, `medium`, `low`, `unknown` |
 | `reachability` | `reachable`, `not_reachable`, `unknown` |
 | `scan_target_id` | Findings of one scan target |
-| `target_kind` | `repository` (source code only), `image`, `url`, `api`, `sbom` |
+| `target_kind` | `repository` (source code only), `image`, `url`, `api`, `sbom`, `artifact`, `endpoints` |
 | `malicious` | `true`: malicious packages only |
 | `human_review` | `none` (no review), `open` (review not completed) or a disposition (`confirmed`, `false_positive`, `duplicate`, `not_exploitable`, `accepted_risk`, `mitigated`, `out_of_scope`) |
 | `control` | `<framework>:<control>`: findings mapped to a compliance control ([compliance](governance.md#compliance)) |

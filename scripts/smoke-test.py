@@ -266,11 +266,12 @@ def main():
 
     print("\nScanning engine (Phase 4)")
     s, cat = admin.api("GET", "/api/v1/scanners")
-    check("scanner catalog lists 52 integrations + Syft", s == 200 and len(cat["items"]) == 53, s)
+    check("scanner catalog lists 52 integrations + Syft + 3 built-in checks", s == 200 and len(cat["items"]) == 56, s)
     if s == 200:
         avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
-        check("11 scanners runnable (7 core, zizmor, actionlint, image and DAST targets)", avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft",
-                                                                                                     "zizmor", "actionlint", "trivy-image", "nuclei"]), avail)
+        check("13 scanners runnable (7 core, zizmor, actionlint, image and DAST targets, endpoint checks, cosign)",
+              avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft", "zizmor", "actionlint",
+                               "trivy-image", "nuclei", "pathos-endpoints", "cosign"]), avail)
     s, profs = admin.api("GET", "/api/v1/scan-profiles")
     check("default scan profile seeded", s == 200 and any(p["is_default"] for p in profs["items"]), s)
     if s == 200:
@@ -280,13 +281,22 @@ def main():
     online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
     check("at least one scan worker online", len(online) >= 1, workers)
     if online:
-        check("worker reports all tool versions", len(online[0]["scanners"]) == 11, online[0]["scanners"])
+        check("worker reports all tool versions", len(online[0]["scanners"]) == 13, online[0]["scanners"])
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
     check("internal worker API not reachable through the proxy -> 404", st == 404, st)
     st, _, body = anon.req("GET", "/api")
     check("GET /api answers with the API's JSON 404 (not the web app)", st == 404 and '"not_found"' in body, st)
     s, fs = admin.api("GET", "/api/v1/findings")
     check("findings API -> 200", s == 200 and "items" in fs, s)
+    s, feeds = admin.api("GET", "/api/v1/intel/feeds")
+    check("endoflife.date feed listed", s == 200 and any(f["feed"] == "endoflife" for f in feeds.get("items", [])), s)
+    repos_now = lst.get("items", []) if isinstance(lst, dict) else []
+    if repos_now:
+        rid = repos_now[0]["id"]
+        s, ev = admin.api("GET", f"/api/v1/repositories/{rid}/endpoint-verification")
+        check("endpoint verification state -> 200", s == 200 and "endpoints" in ev, s)
+        s, eolv = admin.api("GET", f"/api/v1/repositories/{rid}/eol")
+        check("repository end-of-life view -> 200", s == 200 and "items" in eolv, s)
 
     print("\nAI review & MCP (Phase 5)")
     s, pv = admin.api("POST", "/api/v1/ai/providers", {"name": f"Smoke Claude {sfx}", "kind": "anthropic", "api_key": "sk-ant-invalid-smoke-key"})

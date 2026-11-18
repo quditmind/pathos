@@ -60,9 +60,38 @@ Package health comes from the `depsdev` intelligence feed ([feeds](risk-intellig
 
 `stats` adds `outdated` and `deprecated` counts. A root component whose version is newer than the public package of the same name gets no health data (the public package is someone else's).
 
+## End of life
+
+Release cycles and end-of-life dates come from the opt-in `endoflife` [intelligence feed](risk-intelligence.md#feeds). PATHOS matches them to the repository's SBOM components (by package URL), the runtimes and base images declared in its files (reported by the worker, see [worker protocol](worker-protocol.md#runtimes-and-introducing-commits)) and its container image targets. Statuses are recomputed after each repository or image scan, after each feed update and daily.
+
+`GET /api/v1/repositories/{id}/eol` — permission `sbom.read` on the repository.
+
+```json
+{
+  "feed_loaded": true,
+  "feed_as_of": "2026-11-18",
+  "eol": 2, "approaching": 1, "supported": 5,
+  "computed_at": "2026-11-19T08:00:00Z",
+  "items": [
+    { "source": "runtime", "component": "node", "version": "16.20.0", "path": ".nvmrc", "product": "nodejs", "product_label": "Node.js",
+      "cycle": "16", "eol_date": "2023-09-11T00:00:00Z", "status": "eol", "latest_in_cycle": "16.20.2" },
+    { "source": "image", "component": "python:3.8-slim", "version": "3.8", "scan_target_id": "0193…", "product": "python",
+      "product_label": "Python", "cycle": "3.8", "eol_date": "2024-10-07T00:00:00Z", "status": "eol", "latest_in_cycle": "3.8.20" }
+  ]
+}
+```
+
+`source` is `sbom`, `runtime` (declared in a file; base images in Dockerfiles have the image reference as `component`) or `image` (an image target). `status` is `eol`, `approaching` (support ends within 180 days) or `supported`. The [dependency graph](posture.md) components carry `eol_status`, `eol_cycle` and `eol_date` as well.
+
+Each product cycle past its end of life is one finding per repository (and image target): category `eol`, scanner `endoflife`, rule `eol/<product>/<cycle>`, `package_name` = product, `package_version` = cycle, severity `medium` (`high` once support ended more than a year ago), confidence `high`. It is resolved automatically when nothing in the repository uses that cycle any more and reopened if it comes back.
+
 ## Malicious packages
 
 Findings from OSV `MAL-*` advisories (or titled as malicious code or malware) have `malicious: true`. Their risk uses the KEV likelihood weight and treats them as reachable: a malicious package runs when it is installed. Filter with `GET /api/v1/findings?malicious=true` ([list findings](findings.md#list-findings)).
+
+## Signature verification
+
+Image and artifact targets can be verified with Sigstore cosign on every scan (key-based or keyless), optionally with an in-toto attestation, and a signature can be required: see [signature verification](scan-targets.md#signature-verification).
 
 ## Build artifact targets
 
