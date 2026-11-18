@@ -46,13 +46,20 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # cosign (Sigstore signature and attestation verification), built from its Go
 # module with the current toolchain. Integrity: the module hash is pinned below
 # (h1 sum, as recorded in the Go checksum database) and checked before building.
+# Patched dependencies (Go checksum database): cosign v3.1.4 requires
+# golang.org/x/net v0.61.0 (CVE-2026-78661, fixed in v0.62.0).
 FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS cosign
 ARG COSIGN=3.1.4 COSIGN_SUM=h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
-    sum="$(go mod download -json "github.com/sigstore/cosign/v3@v${COSIGN}" | sed -n 's/^[[:space:]]*"Sum": "\(.*\)",$/\1/p')"; \
+    json="$(go mod download -json "github.com/sigstore/cosign/v3@v${COSIGN}")"; \
+    sum="$(printf '%s\n' "$json" | sed -n 's/^[[:space:]]*"Sum": "\(.*\)",$/\1/p')"; \
     test "$sum" = "$COSIGN_SUM"; \
-    GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "github.com/sigstore/cosign/v3/cmd/cosign@v${COSIGN}"; \
-    /out/cosign version 2>&1 | grep -q "v${COSIGN}"
+    dir="$(printf '%s\n' "$json" | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p')"; \
+    cp -r "$dir" /src; chmod -R u+w /src; cd /src; \
+    go get golang.org/x/net@v0.62.0; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X sigs.k8s.io/release-utils/version.gitVersion=v${COSIGN}" -o /out/cosign ./cmd/cosign; \
+    /out/cosign version 2>&1 | grep -q "v${COSIGN}"; \
+    go version -m /out/cosign | grep -q "golang.org/x/net[[:space:]]*v0.62.0"
 
 # actionlint (GitHub Actions workflow checks), built from its Go module
 # (integrity: Go checksum database) with the current toolchain.
