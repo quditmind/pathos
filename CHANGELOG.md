@@ -4,7 +4,16 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-11-19
+
+First stable release: the platform phases P1–P8 of 0.9.0 plus the ten ASPM phases (application security posture management), with the full documentation set reviewed against the code.
+
 ### Added
+- **Supply chain** (ASPM phase 7): SBOM export as SPDX 2.3 or CycloneDX JSON; package health and provenance from deps.dev (off by default, because it sends package names); malicious-package flagging; actionlint for GitHub Actions workflows; **build artifacts** as scan targets (Trivy, optional ClamAV malware check on upload); **pull request checks** posted to GitHub, GitLab, Bitbucket and Azure DevOps, opt-in per repository.
+- **Governance** (ASPM phase 8): MFA **recovery codes**; **single sign-on** with your SAML 2.0 or OpenID Connect identity provider brokered by Keycloak; **security policies** (conditions → actions: block the scan gate and pull request checks, require a Human Eye review, tighten the SLA, notify) with preview and violations; **compliance views** for OWASP Top 10, OWASP ASVS, PCI DSS, ISO 27001 and SOC 2.
+- **Reporting and integrations** (ASPM phase 9): **REST API tokens** with `api:read` or `api:write` scope (valid for `/api/` only); **outbound webhooks** (signed JSON, Slack, Microsoft Teams) with delivery history and retries; **Jira and ServiceNow** tickets for findings with status sync; **executive overview**; saved and scheduled **reports**.
+- **Production readiness** (ASPM phase 10): **declarative scanner plugins** defined by files on the worker (`deploy/scanners.d`); **offline mode** (`PATHOS_OFFLINE=true`) with SHA-256-verified vulnerability-database bundles (`scripts/offline-bundle.sh`) and an air-gap guide (`docs/AIRGAP.md`); a pluggable ticket connector interface.
+- **Documentation**: complete API reference (every route documented, including findings, scan configuration, AI and MCP, administration, notifications, dashboard and search, and the internal worker protocol); user guide reorganised without duplication and with new Findings and Administration pages; engineering docs rewritten as built.
 - **AI Security Analyst** (AI & MCP): private conversations over your security data, scoped to what you may read, citing the findings used (only findings that were in the context), never sending code or secrets. **AI reports**: technical and executive reports for the organization, an application or a repository, with PATHOS-computed figures and an optional AI narrative, downloadable as Markdown. **AI usage** for administrators.
 - **Human Eye**: optional third approval level (final approval by a third person for chosen severities or dispositions); AI patch proposals (validated unified diffs, approved or rejected by a person, downloadable, never applied); AI explanations of the contextual risk score; AI suggestions of possible duplicates.
 - AI requests to model servers wait for the response as long as the request timeout allows (slow local CPU inference no longer times out after 30 seconds).
@@ -49,6 +58,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 - MFA for existing users: `PATHOS_REQUIRE_MFA=true` now also makes every existing account without an authenticator enrol at its next sign-in (hourly, idempotent). The Users page shows each user's two-factor status and has a **Require MFA** action (audited).
 
 ### Fixed
+- Build-artifact uploads were never malware-scanned in the default stack: `PATHOS_CLAMAV_*` reached only the `jobs` service, but artifacts are scanned by `api`. Both services now get the settings.
+- Request IDs are 24 random letters instead of hex, so security scanners no longer mistake one for a payment card number (random DAST "PII Disclosure" failures).
+- `POST /api/v1/scm-connections/{id}/resync` returns `404` for an unknown connection instead of `502`.
+- Repository technologies are a scan setting and need `repos.manage`; asset owners see the Scanning section read-only instead of controls that failed on save.
 - API responses now carry `Cross-Origin-Resource-Policy: same-origin`.
 - `GET /api` (without a trailing slash) returned the web app's HTML instead of the API's JSON 404.
 
