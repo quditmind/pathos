@@ -237,6 +237,15 @@ func TestIntroducingCommitsRuntimesAndEOL(t *testing.T) {
 		}
 		return jid
 	}
+	// Author names are kept only while developer attribution is on (off by
+	// default); turn it on for this organization.
+	if _, err := appPool.Exec(ctx, `INSERT INTO developer_insight_settings (organization_id, attribution_enabled) VALUES ($1, true)
+		ON CONFLICT (organization_id) DO UPDATE SET attribution_enabled = true`, orgID); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_, _ = appPool.Exec(ctx, `UPDATE developer_insight_settings SET attribution_enabled = false WHERE organization_id = $1`, orgID)
+	})
 	opengrep := map[string]any{"scanner": "opengrep", "status": "succeeded", "output_gzip": fixture(t, "opengrep.sarif")}
 	sha1 := strings.Repeat("a", 40)
 	introducing := strings.Repeat("c", 40)

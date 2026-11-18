@@ -273,12 +273,18 @@ func TestMaterialChangesAndAttribution(t *testing.T) {
 	}
 
 	// --- turning attribution off erases people data ---------------------------
+	// Includes the author of a finding's introducing commit (git blame).
+	if _, err := appPool.Exec(ctx, `UPDATE findings SET introduced_status = 'known', introduced_commit_sha = $2, introduced_author = 'Bob Dev'
+		WHERE id = (SELECT id FROM findings WHERE organization_id = $1 LIMIT 1)`, orgID, strings.Repeat("d", 40)); err != nil {
+		t.Fatal(err)
+	}
 	if code, _ := h.user(admin, "PUT", "/api/v1/insights/settings", map[string]any{"attribution_enabled": false}); code != 200 {
 		t.Fatal("disable")
 	}
 	var n int
 	_ = appPool.QueryRow(ctx, `SELECT (SELECT count(*) FROM finding_attribution WHERE organization_id = $1) + (SELECT count(*) FROM scan_commits WHERE organization_id = $1)
-		+ (SELECT count(*) FROM developer_identities WHERE organization_id = $1) + (SELECT count(*) FROM material_changes WHERE organization_id = $1 AND author_name <> '')`,
+		+ (SELECT count(*) FROM developer_identities WHERE organization_id = $1) + (SELECT count(*) FROM material_changes WHERE organization_id = $1 AND author_name <> '')
+		+ (SELECT count(*) FROM findings WHERE organization_id = $1 AND introduced_author <> '')`,
 		orgID).Scan(&n)
 	if n != 0 {
 		t.Errorf("people data left after disabling: %d rows", n)

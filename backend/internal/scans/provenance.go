@@ -154,7 +154,7 @@ var codeCategories = []string{"sast", "secrets", "iac"}
 // commit, once known, is kept: later edits of the line do not change who
 // introduced the finding.
 func (s *Service) jobBlame(w http.ResponseWriter, r *http.Request) {
-	_, jobID, repoID, skip, ok := s.repoJob(w, r)
+	orgID, jobID, repoID, skip, ok := s.repoJob(w, r)
 	if !ok {
 		return
 	}
@@ -179,10 +179,18 @@ func (s *Service) jobBlame(w http.ResponseWriter, r *http.Request) {
 			updated = tag.RowsAffected()
 			return err
 		}
+		// Author names are personal data: they are kept only while the
+		// organization has developer attribution turned on (off by default;
+		// turning it off erases them). The commit and its date are always kept.
+		var keepAuthors bool
+		_ = tx.QueryRow(ctx, `SELECT attribution_enabled FROM developer_insight_settings WHERE organization_id = $1`, orgID).Scan(&keepAuthors)
 		b := &pgx.Batch{}
 		for _, e := range up.Entries {
 			if e.Line <= 0 || e.File == "" || len(e.File) > 1000 || !fullSHARe.MatchString(e.Commit) {
 				continue
+			}
+			if !keepAuthors {
+				e.Author = ""
 			}
 			author := strings.Map(func(r rune) rune {
 				if unicode.IsControl(r) {

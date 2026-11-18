@@ -376,6 +376,7 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 				{"commits", `DELETE FROM scan_commits WHERE organization_id = $1`},
 				{"identity_links", `DELETE FROM developer_identities WHERE organization_id = $1`},
 				{"material_change_authors", `UPDATE material_changes SET author_name = '' WHERE organization_id = $1 AND author_name <> ''`},
+				{"finding_introducing_authors", `UPDATE findings SET introduced_author = '' WHERE organization_id = $1 AND introduced_author <> ''`},
 			} {
 				tag, err := tx.Exec(ctx, q.sql, p.OrganizationID)
 				if err != nil {
