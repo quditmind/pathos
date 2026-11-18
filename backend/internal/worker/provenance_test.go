@@ -173,7 +173,7 @@ func TestVerifySignature(t *testing.T) {
 	var calls []fakeCall
 	run := func(results map[string]struct {
 		out, stderr string
-		err error
+		err         error
 	}) runner {
 		return func(_ context.Context, env []string, args ...string) ([]byte, string, error) {
 			calls = append(calls, fakeCall{args: args, env: env})
@@ -183,7 +183,7 @@ func TestVerifySignature(t *testing.T) {
 	}
 	type res = struct {
 		out, stderr string
-		err error
+		err         error
 	}
 	fail := errors.New("cosign exited with 1")
 	keyless := &JobTarget{Kind: "image", Reference: "ghcr.io/acme/api:1", AuthType: "basic", Username: "bot", Password: "s3cret",
