@@ -1,9 +1,9 @@
 ---
 title: Applications
 section: user-guide
-order: 7
+order: 9
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: What an application is in PATHOS, how to create one, link repositories to it and report on it, and what is not available.
 ---
 
@@ -40,7 +40,7 @@ Open **Assets → Applications** (`/applications`).
 | View linked repositories | Yes | Select the number in the **Repositories** column; the repository inventory opens filtered by the application |
 | Staging / production URLs, public exposure per application | **Not available** | Recorded per repository; see [Asset registration](asset-registration.md#classification) |
 | Linking APIs, cloud resources, hosts or other non-repository assets to an application | **Not available** | Only repositories can be linked |
-| Application-level security score or dashboard | **Not available** | Filter the repository inventory, insights and findings by application instead |
+| Application risk, coverage and benchmarking | Yes | **Posture → Application posture**, **Benchmarking** and **Context graph**; see [Posture](posture.md) |
 
 The **Owner** and **Security owner** pickers are shown only to users who may list users organization-wide (`users.read`); others can create applications without them.
 
@@ -78,13 +78,10 @@ The **Owner** and **Security owner** pickers are shown only to users who may lis
 
 ## Viewing posture per application
 
-PATHOS has no separate application scorecard. Use these views:
-
-1. **Repositories → More filters → Application**: the inventory, KPI strip and **Insights** are filtered to the application's repositories (exposure, criticality, environment, compliance scope, owners).
-2. **Findings**: filter by **Repository** for each repository of the application, or export the findings and group them by the **Repository ID** column.
-3. The main **Dashboard** counts **Applications** (Assets & coverage) and **Without owner** (repositories with no application or owner).
-
-See [Dashboards and reporting](dashboards.md).
+1. **Posture → Application posture**: risk, open findings by severity, KEV findings, SLA breaches, mean time to fix, coverage and last scan per application. **Context graph** shows everything connected to it. See [Posture](posture.md).
+2. **Repositories → More filters → Application**: the inventory, KPI strip and **Insights** are filtered to the application's repositories (exposure, criticality, environment, compliance scope, owners).
+3. **Findings**: add the **Application** column, or export the findings (the Application column is always exported).
+4. **Overview → Reports** can count findings per application, and **AI & MCP → AI reports** can cover one application. See [Dashboards and reporting](dashboards.md#reports) and [AI reports](ai-analyst.md#ai-reports).
 
 ## Archive an application
 

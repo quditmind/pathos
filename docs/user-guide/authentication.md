@@ -1,9 +1,9 @@
 ---
 title: Authentication methods
 section: user-guide
-order: 5
+order: 4
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Every supported way PATHOS authenticates to GitHub, GitLab, Bitbucket Cloud and Azure DevOps, with setup, testing, troubleshooting and rotation, plus the unsupported methods.
 ---
 
@@ -11,7 +11,7 @@ summary: Every supported way PATHOS authenticates to GitHub, GitLab, Bitbucket C
 
 This page describes every authentication method PATHOS supports for SCM connections. For each method you find: what it is, when to use it, where to configure it at the provider, what PATHOS needs, how to connect, how to test, how to troubleshoot, and how to rotate or revoke it.
 
-All methods are set up in **Administration → SCM connections → Connect provider** (permission `scm.manage`). See [Provider integrations](provider-integrations.md) for the dialog itself. Provider portals change their menus from time to time; where this page describes a portal location, the **Provider documentation** link in the dialog (listed with each method below) is authoritative.
+All methods are set up in **Administration → SCM connections → Connect provider** (permission `scm.manage`). See [Provider integrations](provider-integrations.md) for the dialog itself, and [Connection statuses and messages](provider-integrations.md#connection-statuses-and-messages) for what the status and error messages mean. Provider portals change their menus from time to time; where this page describes a portal location, the **Provider documentation** link in the dialog (listed with each method below) is authoritative.
 
 > Never paste real secrets into tickets, chat or this Help Center. In the examples below, values such as `<client-secret>` are placeholders.
 
@@ -31,33 +31,6 @@ All methods are set up in **Administration → SCM connections → Connect provi
 | Azure DevOps Services | **Personal access token** | Static token | Quick setups |
 | Azure DevOps Services | **Microsoft Entra ID (OAuth)** | Delegated browser sign-in | Users connecting with their own account |
 | Azure DevOps Server | **Personal access token** | Static token | On-premises servers |
-
-## Statuses and messages you will see
-
-| Where | Value or message | Meaning |
-|---|---|---|
-| Connection status | **Connected** (`ok`) | The last test succeeded |
-| | **Untested** (`untested`) | Not tested yet, or reconnected and awaiting the next check |
-| | **Error** (`error`) | The last test failed; the message says why |
-| | **Expired** (`expired`) | An OAuth token could not be refreshed. Reconnect |
-| | **Revoked** (`revoked`) | The connection was deleted and its credential destroyed |
-| Status message | *scm: authentication failed (check the token and its scopes)* (with the HTTP status and host) | The provider rejected the credential (HTTP 401): wrong, expired or revoked token, wrong IDs |
-| | *scm: the credential does not have permission for this operation* | Valid credential, missing permission or scope (HTTP 403) |
-| | *scm: not found or not visible to this credential* | Wrong organization / project, or no access |
-| | *scm: rate limited by the provider, try again later* | Provider rate limit; temporary |
-| | *scm: the authorization has expired or was revoked; reconnect the connection* | OAuth refresh failed (status **Expired**) |
-| | *scm: destination address is not allowed* | The base URL resolves to an address that PATHOS' outbound policy blocks (for example a private or metadata address) |
-| Import error codes | `authentication_failed`, `permission_denied`, `repository_not_found`, `token_expired`, `blocked_address`, `provider_unavailable`, `provider_error`, `timeout` | See [Import history](import-history.md#error-codes) |
-| OAuth sign-in | *the provider declined the authorization: …*, *the provider did not return an authorization code*, *token exchange failed: …*, *the OAuth application no longer exists*, *this authorization was started by another user* | Shown on the SCM connections page after a failed browser sign-in |
-
-## Troubleshooting authentication failures
-
-1. Select **Test** on the connection and read the status message.
-2. **HTTP 401 / authentication failed**: the secret is wrong, expired or revoked, or an ID (App ID, Installation ID, Tenant ID, Client ID) is wrong. Create a new credential and use **Rotate credential**, or **Reconnect** for OAuth.
-3. **HTTP 403 / no permission**: add the missing scope or permission listed for the method below; for GitHub organizations with SAML SSO, authorise the token for the organization.
-4. **Not found**: check the scope on the connection (organization, group, workspace, project) and that the identity is a member.
-5. **Expired**: select **Reconnect** (OAuth). For tokens, rotate.
-6. **Blocked address / timeouts with self-managed servers**: the base URL must be reachable from the PATHOS server and resolve to an allowed address; contact your PATHOS administrator.
 
 ---
 

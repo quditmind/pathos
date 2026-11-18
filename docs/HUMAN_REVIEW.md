@@ -1,12 +1,11 @@
-# Human Eye module
+# Human Eye module: design notes
 
-Human Eye is the manual security assessment workflow of PATHOS. Security analysts investigate findings produced by the scanners (SAST, SCA, secrets, IaC, container), document exploitability, risk and evidence, and decide a final disposition. Automated triage and AI review feed the queue; a person always makes the decision.
+Human Eye is the manual security assessment workflow of PATHOS: analysts investigate findings, document exploitability, risk and evidence, and decide a final disposition. Automated triage and AI review feed the queue; a person always makes the decision. This page explains how it is built and which rules the server enforces.
 
-It is a standalone module (navigation section **Human Eye**): Overview, Review Queue, Assessments, Assignments, Review Reports and Review Configurations, plus the assessment workspace at `/human-review/reviews/{id}`.
-
-- User guide: `docs/user-guide/human-review.md` (also in the in-app Help Center)
-- API: `docs/api-reference/human-reviews.md`
-- Code: `backend/internal/review`, `frontend/src/features/review`, migration `00012_human_review.sql`
+- How to use it (pages, workspace tabs, deciding, independent review, AI assistant): [user guide: Human Eye](user-guide/human-review.md), also in the in-app Help Center.
+- Endpoints: [API reference: Human Eye reviews](api-reference/human-reviews.md).
+- Tables: [DATABASE.md](DATABASE.md#human-eye-migration-00012) (migrations `00012` and `00018`).
+- Code: `backend/internal/review`, `frontend/src/features/review`.
 
 ## Design principles
 
@@ -52,6 +51,23 @@ Every finding change carries the actor and reason through the existing finding l
 
 A trigger on `findings.status` keeps confirmed reviews in step with scans: a scan that no longer detects the finding moves remediation to **Pending verification**; detection after a fix moves it to **Reopened**. **Verified** can only be set by an analyst once the finding is no longer detected.
 
+### Multi-level approval
+
+Independent review is level 1 (`human_review_approvals.level = 1`). Organizations can require a **final approval** (level 2) for decisions matching configured severities or dispositions (`final_approval_severities`, `final_approval_dispositions`). The rules:
+
+- Level 2 is only requested after level 1 approved; the review stays locked in between.
+- The final approver holds `reviews.approve` and is neither the analyst nor the level-1 reviewer. Approvals are unique per decision and level, and per decision and person.
+- A rejection or a request for information at either level sends the review back to the analyst.
+- With no final-approval rule configured, reviews keep the two-level flow.
+
+### AI suggestions
+
+AI suggestions (`human_review_recommendations`) are immutable, with their provenance and the SHA-256 of what was sent. The kinds `patch`, `risk_explanation` and `duplicate_candidates` were added in `00018`.
+
+- **Patch proposals** are unified diffs of the reviewed file. The server checks that the patch touches exactly that file, has well-formed hunks, changes more than whitespace and is at most 16 KB.
+- A person approves or rejects a patch with a note. The application role may update only the four patch-decision columns (`patch_status`, `patch_decided_by`, `patch_decided_at`, `patch_note`); everything else in a suggestion is immutable.
+- Approved patches can be downloaded. PATHOS never applies them.
+
 ## Ingestion
 
 `review.Service.Ingest` runs after every scan (chained after AI auto-review), every two minutes in the jobs role, and on demand (**Sync queue**). It selects open findings, filtered by category, minimum severity and scanners, whose trigger matches the configuration:
@@ -77,15 +93,14 @@ Files are validated by extension *and* content (PNG, JPEG, GIF, WebP, PDF, UTF-8
 
 ## Authorization
 
-| Permission | Scope | Granted to |
-|---|---|---|
-| `reviews.read` | scoped | every read-only role (read-only users see **completed** assessments only) |
-| `reviews.assess` | scoped | Security Analyst, AppSec Engineer, Security Manager |
-| `reviews.assign` | scoped | Security Manager, Platform Administrator |
-| `reviews.approve` | scoped | **Independent Reviewer** (new role), Security Manager |
-| `reviews.configure` | org-only | Security Manager, Platform Administrator |
+The permissions (`reviews.read`, `reviews.assess`, `reviews.assign`, `reviews.approve`, `reviews.configure`) and the roles that hold them are in [RBAC_MATRIX.md](RBAC_MATRIX.md). The API enforces:
 
-The API enforces everything: an analyst works on reviews assigned to them (or self-assigns if allowed); review managers can step in; independent reviewers cannot approve their own decision (also enforced by a database trigger) and only the designated one may decide when one is assigned; accepted risk needs `findings.accept_risk`. Reviews outside the caller's scope return 404. Every change is in the immutable review history and in the audit log (`human_review.*`).
+- Read-only roles see **completed** assessments only.
+- An analyst works on reviews assigned to them (or self-assigns if the configuration allows it). Review managers can step in.
+- Independent reviewers cannot approve their own decision; a database trigger enforces this as well. When an independent reviewer is designated, only that person may decide.
+- Accepted risk needs `findings.accept_risk`.
+- Reviews outside the caller's scope return 404.
+- Every change is in the immutable review history and in the audit log (`human_review.*`).
 
 ## Notifications
 

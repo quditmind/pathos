@@ -3,7 +3,7 @@ title: Applications
 section: api-reference
 order: 6
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: List, create, update and archive applications, and link repositories to them.
 ---
 
@@ -11,7 +11,7 @@ summary: List, create, update and archive applications, and link repositories to
 
 An application groups repositories into a business application, for example "Payments Platform". It has an owner, a security owner, an optional business unit and a criticality. Repositories link to at most one application through their `application_id`.
 
-All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Token` on mutations. See [Authentication](index.md#authentication).
+All endpoints are under `/api/v1` and accept a browser session (with `X-CSRF-Token` on mutations) or a REST API token. See [Authentication](index.md#authentication).
 
 ## Capabilities at a glance
 
@@ -23,7 +23,7 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
 | Archive an application | [`POST /api/v1/applications/{id}/archive`](#archive-an-application) |
 | Link a repository to an application | [`PATCH /api/v1/repositories/{id}`](#link-repositories-to-an-application) with `application_id` |
 | View the repositories of an application | [`GET /api/v1/repositories?application_id=...`](#view-the-repositories-of-an-application) |
-| Retrieve one application by ID | **Not available.** There is no `GET /api/v1/applications/{id}`. Use the list endpoint and filter by `id`, or by name with `q`. |
+| Retrieve one application by ID | **Not available.** There is no single-application read endpoint. Use the list endpoint (search by name with `q`) and pick the item by `id`. |
 | Unarchive an application | **Not available.** |
 | Delete an application | **Not available.** Applications are archived, never deleted. |
 | Link APIs and other assets | **Not available.** Only repositories can be linked to an application. |
@@ -33,11 +33,15 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
 ```json
 {
   "id": "0190c0de-4444-7000-8000-000000000001",
+  "application_key": "QD-APP-000001",
   "name": "Payments Platform",
   "description": "Card payments, refunds and settlement",
   "business_unit": { "id": "0190c0de-1111-7000-8000-000000000101", "name": "Payments" },
   "owner": { "id": "0190c0de-2222-7000-8000-000000000001", "name": "Dana Owner", "email": "dana.owner@example.com" },
   "security_owner": { "id": "0190c0de-2222-7000-8000-000000000003", "name": "Sam Security", "email": "sam.security@example.com" },
+  "technical_owner": null,
+  "lifecycle": "active",
+  "environment": "production",
   "criticality": "high",
   "external_ref": "APP-0193",
   "repository_count": 4,
@@ -48,7 +52,10 @@ All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Toke
 
 | Field | Notes |
 |---|---|
-| `business_unit`, `owner`, `security_owner` | `null` when not set. |
+| `application_key` | Permanent application ID assigned by PATHOS (for example `QD-APP-000001`). |
+| `business_unit`, `owner`, `security_owner`, `technical_owner` | `null` when not set. |
+| `lifecycle` | `planned`, `development`, `active` (default), `maintenance`, `deprecated` or `retired`. |
+| `environment` | `production` (default), `staging`, `development`, `test` or `other`. |
 | `criticality` | `low`, `medium`, `high` or `critical`. Default `medium`. |
 | `external_ref` | The organization's application identifier (for example a CMDB ID); `""` when not set. |
 | `repository_count` | Linked active (non-archived) repositories. |
@@ -65,7 +72,7 @@ Returns up to 500 applications, sorted by name. There is no pagination.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/applications` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope. With an organization-wide grant, all applications are returned. Otherwise: applications placed in a business unit the caller has `repos.read` on (including units below it), plus applications that contain a repository the caller can read through a grant. |
 | Request headers | `Cookie` |
 
@@ -81,13 +88,17 @@ Response `200 OK`:
   "items": [
     {
       "id": "0190c0de-4444-7000-8000-000000000001",
+      "application_key": "QD-APP-000001",
       "name": "Payments Platform",
       "description": "Card payments, refunds and settlement",
       "business_unit": { "id": "0190c0de-1111-7000-8000-000000000101", "name": "Payments" },
       "owner": { "id": "0190c0de-2222-7000-8000-000000000001", "name": "Dana Owner", "email": "dana.owner@example.com" },
       "security_owner": null,
+      "technical_owner": null,
+      "lifecycle": "active",
+      "environment": "production",
       "criticality": "high",
-  "external_ref": "APP-0193",
+      "external_ref": "APP-0193",
       "repository_count": 4,
       "archived_at": null,
       "created_at": "2026-09-20T10:00:00Z"
@@ -110,7 +121,7 @@ Database entities: `applications`, `repositories`, `business_units`, `users`.
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/applications` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the business unit given in `business_unit_id` (or a scope above it); without a business unit, `repos.manage` organization-wide |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -121,8 +132,11 @@ Database entities: `applications`, `repositories`, `business_units`, `users`.
 | `business_unit_id` | UUID or null | no | Placement of the application. |
 | `owner_user_id` | UUID or null | no | Application owner (a user of the organization). |
 | `security_owner_user_id` | UUID or null | no | Security owner (a user of the organization). |
+| `technical_owner_user_id` | UUID or null | no | Technical owner (a user of the organization). |
+| `lifecycle` | string | no | `planned`, `development`, `active` (default), `maintenance`, `deprecated` or `retired`. |
+| `environment` | string | no | `production` (default), `staging`, `development`, `test` or `other`. |
 | `criticality` | string | no | `low`, `medium` (default), `high` or `critical`. |
-| `external_ref` | string | no | Application identifier (for example a CMDB ID), max 100 characters. Also accepted on update. |
+| `external_ref` | string | no | Application identifier (for example a CMDB ID), max 100 characters, no line breaks. |
 
 ```json
 {
@@ -140,7 +154,7 @@ Response `201 Created`: the [Application object](#the-application-object).
 | Status | Meaning |
 |---|---|
 | 201 | Created. |
-| 400 `invalid_request` | "name is required", "name must be 1-200 characters", "description must be at most 2000 characters", "invalid criticality", "business unit does not exist", unknown user ("a referenced item ... does not exist"), malformed JSON or unknown field. |
+| 400 `invalid_request` | "name is required", "name must be 1-200 characters", "description must be at most 2000 characters", "invalid criticality", "lifecycle must be one of …", "environment must be one of …", "external_ref must be at most 100 characters", "business unit does not exist", unknown user ("a referenced item ... does not exist"), malformed JSON or unknown field. |
 | 403 `forbidden` | No `repos.manage` at the placement. |
 | 409 `conflict` | "an item with this name already exists". |
 | 415 `unsupported_media_type` | Wrong `Content-Type`. |
@@ -156,13 +170,13 @@ Database entities: `applications`, `audit_logs` (`application.create`).
 
 ### Update an application
 
-Changes the fields that are present. Explicit `null` clears `business_unit_id`, `owner_user_id` or `security_owner_user_id`.
+Changes the fields that are present. Explicit `null` clears `business_unit_id`, `owner_user_id`, `security_owner_user_id` or `technical_owner_user_id`.
 
 | Property | Value |
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/applications/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at the application's current placement (its business unit, else organization-wide). When `business_unit_id` is sent, also `repos.manage` at the new placement. |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -196,11 +210,11 @@ Archives the application and **unlinks all its repositories** (their `applicatio
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/applications/{id}/archive` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at the application's placement (its business unit, else organization-wide) |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
-Response: `204 No Content`. The audit entry `application.archive` records how many repositories were unlinked.
+Response: `204 No Content`. The audit entry `application.archive` records `repositories_unlinked`, the number of linked **active** repositories (archived repositories are unlinked too but not counted). Archiving an already archived application is not refused; it sets a new archive time and writes another audit entry.
 
 | Status | Meaning |
 |---|---|

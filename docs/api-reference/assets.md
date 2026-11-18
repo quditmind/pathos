@@ -3,7 +3,7 @@ title: Assets
 section: api-reference
 order: 2
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: How assets map to repositories, and the asset settings, classification catalogs, tags and directory lookups that describe them.
 ---
 
@@ -28,7 +28,7 @@ PATHOS models an **asset** as a **registered repository plus its metadata**: own
 
 The endpoints on this page configure how assets are described: the organization's asset policy, the classification catalogs, tags and the user and team lookups used by owner pickers.
 
-All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Token` on mutations. See [Authentication](index.md#authentication).
+All endpoints are under `/api/v1` and accept a browser session (with `X-CSRF-Token` on mutations) or a REST API token. See [Authentication](index.md#authentication).
 
 ## Asset settings
 
@@ -40,7 +40,7 @@ Returns the organization's asset policy, the classification catalogs and the upl
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/asset-settings` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope |
 | Request headers | `Cookie` |
 
@@ -99,7 +99,7 @@ Database entities: `asset_settings`, `asset_classifications`.
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/asset-settings` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `assets.configure` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -132,7 +132,7 @@ Database entities: `asset_settings`, `audit_logs` (`asset_settings.update`).
 
 Catalog kinds: `criticality`, `data_classification`, `environment`, `application_type`, `internet_exposure`, `compliance`, `hosting_region`, `lifecycle_status`. Each organization is seeded with defaults. Assets store the catalog `key`; labels and colours are display data.
 
-Built-in entries (`is_system: true`) cannot be archived because code relies on their keys: all four criticality levels; environments `production`, `staging`, `test`, `development`, `other`; internet exposure `unknown`; lifecycle `active` and `retired`. They can be renamed and recoloured.
+Built-in entries (`is_system: true`) cannot be archived because code relies on their keys: all four criticality levels; environments `production`, `staging`, `test`, `development`, `other`; internet exposure `public`, `internal`, `private` and `unknown`; lifecycle `active` and `retired`. They can be renamed and recoloured.
 
 Archived entries cannot be chosen for new values, but assets that already use them stay valid.
 
@@ -144,7 +144,7 @@ To list catalogs, use [Get asset settings](#get-asset-settings) (`classification
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/asset-classifications` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `assets.configure` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -194,7 +194,7 @@ Changes the label, description, colour or sort order, or archives / restores an 
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/asset-classifications/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `assets.configure` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -238,7 +238,7 @@ Returns all categories with their tags and usage counts.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/tag-categories` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope |
 | Request headers | `Cookie` |
 
@@ -277,7 +277,7 @@ Database entities: `tag_categories`, `tags`, `repository_tags`, `repositories`.
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/tag-categories` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -321,7 +321,7 @@ Database entities: `tag_categories`, `audit_logs` (`tag_category.create`).
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/tag-categories/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -351,7 +351,7 @@ Deletes the category, its tags and their assignments to repositories.
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/tag-categories/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -371,7 +371,7 @@ Database entities: `tag_categories`, `tags`, `repository_tags` (cascade), `audit
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/tag-categories/{id}/tags` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -413,7 +413,7 @@ A flat, searchable tag list for pickers.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/tags` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope |
 | Request headers | `Cookie` |
 
@@ -454,7 +454,7 @@ Database entities: `tags`, `tag_categories`, `repository_tags`.
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/tags/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -488,7 +488,7 @@ Deletes the tag and removes it from all repositories.
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/tags/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `tags.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -512,13 +512,13 @@ Owner and team pickers use these lookups. They return only ID, name and e-mail (
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/directory/users` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` or `repos.manage` at any scope |
 | Request headers | `Cookie` |
 
 | Query parameter | Type | Required | Description |
 |---|---|---|---|
-| `q` | string | no | Case-insensitive substring of display name or e-mail, max 100 characters. |
+| `q` | string | no | Substring of display name (case-insensitive) or e-mail, max 100 characters. The search term is lower-cased, so e-mail matching assumes lower-case stored addresses. |
 | `ids` | string | no | Comma-separated user UUIDs (max 100) to resolve specific users; when set, `q` is ignored. Invalid UUIDs are skipped. |
 | `limit` | integer | no | 1–100, default 20. |
 
@@ -548,7 +548,7 @@ Database entities: `users`.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/directory/teams` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` or `repos.manage` at any scope |
 | Request headers | `Cookie` |
 

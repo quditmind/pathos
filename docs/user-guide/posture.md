@@ -1,10 +1,10 @@
 ---
 title: Posture
 section: user-guide
-order: 9.7
+order: 15
 version: "1.0"
-updated: 2026-11-17
-summary: Application posture and risk rollup, scan coverage, unmanaged and shadow repositories, benchmarking, blast radius, the context graph and dependency paths.
+updated: 2026-11-19
+summary: Application posture and risk rollup, scan coverage, unmanaged and shadow repositories, benchmarking, attack paths, blast radius, the context graph and dependency paths.
 ---
 # Posture
 
@@ -14,7 +14,7 @@ The **Posture** section answers application-level questions:
 - what nobody owns
 - what a new vulnerability affects
 
-Everything is computed live from findings, scans and ownership, within the repositories you can see.
+Everything is computed live from findings, scans and ownership, within the repositories you can see. **Posture → Compliance** is described in [Security policies and compliance](policies-and-compliance.md#compliance).
 
 ## Application posture
 
@@ -77,6 +77,17 @@ Select a gap to filter the list.
 - scan coverage
 
 The best and worst value of each metric are marked, and the last row shows the median.
+
+## Attack paths
+
+**Posture → Attack paths** lists how an attacker on the internet could reach a weakness, ordered by risk:
+
+- through a **tested web application or API** (a DAST [scan target](scanning.md#scan-targets)) to the weakness found there
+- through an **internet-exposed asset** (Public internet exposure: yes) to a weakness in its code
+- to its **container image**
+- to a **vulnerable package its code uses**
+
+Unreachable dependencies ([reachability](vulnerability-intelligence.md#reachability)) are not attack paths. Each path says why it matters, for example *actively exploited (CISA KEV)*.
 
 ## Blast radius
 

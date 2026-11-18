@@ -1,22 +1,22 @@
 ---
 title: Supply chain and pull requests
 section: user-guide
-order: 9.75
+order: 17
 version: "1.0"
-updated: 2026-11-18
+updated: 2026-11-19
 summary: Export SBOMs, check package health and provenance, spot malicious packages, scan build artifacts and check pull requests before they merge.
 ---
 # Supply chain and pull requests
 
 ## Export an SBOM
 
-Open a repository and use **SBOM (CycloneDX)** or **SBOM (SPDX)** in its Security panel. CycloneDX is the file from the latest scan; SPDX 2.3 is generated from the repository's component inventory and keeps the dependency graph (which package depends on which). Imported SBOMs can be exported in both formats.
+Open a repository and use **SBOM (CycloneDX)** or **SBOM (SPDX)** on its **Security** tab. **Vulnerabilities → SBOM inventory** lists the components of every repository. CycloneDX is the file from the latest scan; SPDX 2.3 is generated from the repository's component inventory and keeps the dependency graph (which package depends on which). Imported SBOMs can be exported in both formats.
 
 ## Package health
 
 The repository's **Dependencies** tab shows, for each package, whether a newer release exists, whether the version in use is **deprecated** by its maintainers, the **OpenSSF Scorecard** of its source repository (0–10, higher is better maintained) and, for direct dependencies, whether the registry has **build provenance** for that version. Filter by **Outdated** or **Deprecated version**.
 
-This data comes from deps.dev. The feed is **off by default** because PATHOS sends the names of your packages, including private ones, to deps.dev. An administrator can turn it on in **Risk intelligence** (deps.dev package health). Until then the Health column shows a dash.
+This data comes from deps.dev. The feed is **off by default** because PATHOS sends the names of your packages, including private ones, to deps.dev. An administrator can turn it on in **Administration → Risk & intelligence** (deps.dev package health). It is not available offline. Until then the Health column shows a dash.
 
 ## Malicious packages
 
@@ -26,13 +26,13 @@ Each finding also shows **First detected at commit**: the commit of the first sc
 
 ## Scan a build artifact
 
-In **Scan targets**, choose **Add target** → **Build artifact** and upload a release file (up to 200 MiB): a zip or tar archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary. Scanning finds vulnerable components inside it. Archives are checked and unpacked safely on a worker, and nothing in them is ever run.
+In **Scanning → Scan targets**, choose **Add target** → **Build artifact** and upload a release file (up to 200 MiB): a zip or tar archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary. Scanning finds vulnerable components inside it. Archives are checked and unpacked safely on a worker, and nothing in them is ever run. See [Scan targets](scanning.md#scan-targets).
 
 ## Pull request checks
 
-PATHOS can check every pull request and report the result on the pull request itself.
+PATHOS can check every pull request and report the result on the pull request itself. This works for Git repositories only; uploaded repositories have no pull requests.
 
-1. Open **Pull request checks**, pick the repository under **Repository settings**, select **Check pull requests**, choose when to block (default: a new **High** or **Critical** finding) and save.
+1. Open **Scanning → Pull request checks**, pick the repository under **Repository settings**, select **Check pull requests**, choose when to block (default: a new **High** or **Critical** finding) and save.
 2. Make sure the repository's SCM connection has a webhook and that its credential can write commit statuses (GitHub *Commit statuses: write*, GitLab `api`, Bitbucket *Repositories: write*, Azure DevOps *Code (status)*).
 3. Optionally make the status **PATHOS / security** a required check in your branch protection rules, so blocked pull requests cannot merge.
 

@@ -86,7 +86,12 @@ Cron example (02:30 daily, keep two weeks):
 30 2 * * * cd /opt/pathos && deploy/scripts/backup.sh --keep 14 >> backups/backup.log 2>&1
 ```
 
-Copy `backups/` off the host (object storage, backup system). Validated in Phase 8: a backup of a 2.7 MB installation took 2 s, and the restore took 40 s, including Keycloak start-up.
+Copy `backups/` off the host (object storage, backup system). Measured in platform phase P8: a backup of a 2.7 MB installation took 2 s, and the restore took 40 s, including Keycloak start-up.
+
+### Data, volumes and the master key
+
+- Data lives in named volumes: `pg_data`, `redis_data`, `caddy_data`, `sources` (uploaded archives, source snapshots, Human Eye evidence), `scanner_cache`, plus `s3_data` with the `objectstore` profile. `docker compose down` keeps them; **`docker compose down -v` deletes all data**.
+- **Back up `PATHOS_MASTER_KEY` separately** (vault or password manager). Without it, stored credentials, source snapshots and evidence cannot be decrypted. It is not in the `backup.sh` output unless you pass `--with-env`.
 
 ## Restore
 
@@ -127,8 +132,8 @@ If the upgrade does not become healthy, it prints the rollback command: check ou
 |---|---|---|
 | Scan throughput | `docker compose up -d --scale worker-core=N` | 1–4 GB RAM per concurrent scan (`PATHOS_WORKER_MEMORY`). Jobs are leased with `SKIP LOCKED`, so any number of workers is safe |
 | Scheduler | `--scale scheduler=2` (production default) | Postgres advisory-lock leader election; standbys take over within 15 s |
-| Background jobs | `--scale jobs=N` | Outbox, email and AI review queues all use `SKIP LOCKED` claims |
-| API | Vertical first: one replica served 80 req/s at p95 < 500 ms with 100k findings (Phase 8 load test) | Sessions are in Valkey, and rate limits are shared through Valkey |
+| Background jobs | `--scale jobs=N` | Notification, e-mail, webhook, AI review and import queues all use `SKIP LOCKED` claims |
+| API | Vertical first: one replica served 80 req/s at p95 < 500 ms with 100k findings (platform phase P8 load test) | Sessions are in Valkey, and rate limits are shared through Valkey |
 
 ## Monitoring
 
@@ -155,7 +160,8 @@ Suggested alerts:
 
 - **Everyone:** set `PATHOS_REQUIRE_MFA=true` and recreate the API (`docker compose up -d api`). Within a minute, and then hourly, every active or invited user without an authenticator is required to enrol one at the next sign-in. That includes your own administrator account, so have your phone's authenticator app ready.
 - **Individual users:** open **Users**, choose the user and click **Require MFA**. The drawer shows whether two-factor is enabled, pending or not set up.
-- **Lost authenticator:** an administrator removes the user's OTP credential in the Keycloak admin console (Users → Credentials). Requiring MFA again then starts a fresh enrolment.
+- **Recovery codes:** users who set them up sign in with a code when they lose their authenticator (see the [user guide](user-guide/sign-in-and-sso.md#recovery-codes)). The `keycloak-setup` service enables them on every `docker compose up`; if it fails, `docker compose logs keycloak-setup` shows why.
+- **Lost authenticator without recovery codes:** an administrator removes the user's OTP credential in the Keycloak admin console (Users → Credentials). Requiring MFA again then starts a fresh enrolment.
 
 ## Repository imports
 
@@ -164,7 +170,53 @@ Suggested alerts:
 - Uploads are limited by `PATHOS_UPLOAD_MAX_BYTES` and the archive limits `PATHOS_IMPORT_MAX_FILES`, `PATHOS_IMPORT_MAX_EXTRACTED_BYTES` and `PATHOS_IMPORT_MAX_FILE_BYTES`. Unfinished uploads are deleted after 24 hours; sync history is kept for 180 days.
 - Disk: the `sources` volume holds one encrypted snapshot per uploaded version (roughly the compressed size of the code). The `import_work` volume needs free space for the largest archive being processed at once, per worker.
 - OAuth tokens are refreshed before they expire (every 10 minutes for tokens expiring within 30 minutes). A connection whose refresh is rejected is marked *expired* and must be reconnected.
-- Rollback of this release: `docker compose run --rm --entrypoint /usr/local/bin/pathosctl migrate migrate-down 8` before starting the previous images. It deletes uploaded repositories and GitLab, Bitbucket, OAuth, API-token and service-principal connections (with their repositories), which the older schema cannot represent.
+
+## Malware scanning (ClamAV)
+
+1. Add `clamav` to `COMPOSE_PROFILES` and set `PATHOS_CLAMAV_ADDRESS=clamav:3310`. The `clamav` service needs about 2 GB of RAM and downloads signatures through the `edge` network (`freshclam`).
+2. Optionally set `PATHOS_CLAMAV_REQUIRED=true`: uploads then wait (source imports) or are refused (build artifacts) while ClamAV is unavailable, instead of proceeding unscanned.
+3. `PATHOS_CLAMAV_STREAM_MAX` (default `4000M`) and `PATHOS_CLAMAV_MAX_FILE` (default `1000M`) set clamd's stream and file limits; keep the stream limit above `PATHOS_UPLOAD_MAX_BYTES`.
+
+Source archives are scanned by the `jobs` service. Build artifacts are scanned by the `api` service when they are uploaded. **The default `docker-compose.yml` passes `PATHOS_CLAMAV_*` to `jobs` only**, so artifact uploads are recorded as `not_configured` unless you also add the two variables to the `api` service (for example in an override file).
+
+## Configuration reference
+
+`.env.example` documents the settings an installation normally changes. The table lists every variable the PATHOS services read, with the service that reads it. Variables marked *code only* are not passed through by `docker-compose.yml`; add them to the service's `environment` in an override file to change them.
+
+| Variable | Read by | Default | Purpose |
+|---|---|---|---|
+| `PATHOS_PUBLIC_URL`, `PATHOS_DOMAIN` | api, jobs, keycloak, proxy | `https://localhost`, `localhost` | Public address |
+| `PATHOS_HTTPS_PORT`, `PATHOS_HTTP_PORT`, `CADDY_TLS` | proxy | `443`, `80`, `internal` | Published ports, certificate (`internal` CA or an ACME e-mail) |
+| `KEYCLOAK_ADMIN_ALLOW` | proxy | `private_ranges` | Who may reach the Keycloak admin console; required in production mode |
+| `PATHOS_ENV`, `PATHOS_LOG_LEVEL` | all PATHOS services | `production`, `info` | |
+| `PATHOS_ORG_NAME`, `PATHOS_ORG_SLUG` | all PATHOS services | `Default Organization`, `default` | The organization created by `migrate` |
+| `PATHOS_MASTER_KEY`, `PATHOS_MASTER_KEYS_PREVIOUS` | all PATHOS services | generated | Envelope encryption; see [rotation](SECURITY.md#secrets-at-rest) |
+| `PATHOS_DB_OWNER_PASSWORD`, `PATHOS_DB_APP_PASSWORD`, `POSTGRES_SUPERUSER_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `VALKEY_PASSWORD` | postgres, migrate, api, jobs, scheduler, valkey, keycloak | generated | Database and Valkey credentials |
+| `PATHOS_OIDC_CLIENT_SECRET`, `PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET`, `KEYCLOAK_ADMIN_USER`, `KEYCLOAK_ADMIN_PASSWORD` | api, keycloak, keycloak-setup | generated | Keycloak clients and the Keycloak bootstrap administrator |
+| `PATHOS_BOOTSTRAP_ADMIN_EMAIL`, `PATHOS_BOOTSTRAP_ADMIN_PASSWORD` | api, keycloak | generated | The first PATHOS administrator |
+| `PATHOS_SESSION_IDLE_TTL`, `PATHOS_SESSION_ABSOLUTE_TTL` | api (*code only*) | `8h`, `24h` | Session lifetime |
+| `PATHOS_REQUIRE_MFA` | api | `false` | Enforce TOTP for everyone |
+| `PATHOS_RATE_LIMIT_SCALE` | api | `1` | Multiplies every rate limit; `0` disables |
+| `PATHOS_SMTP_HOST`, `_PORT`, `_FROM`, `_STARTTLS`, `_AUTH`, `_USER`, `_PASSWORD` | keycloak, migrate (first run only) | Mailpit | Mail relay; afterwards PATHOS e-mail is managed in the UI |
+| `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS` | api, jobs | `false` | Allow providers on private addresses |
+| `PATHOS_SCM_ALLOW_HTTP` | api, jobs (*code only*) | `false` | Allow `http` provider URLs (development) |
+| `PATHOS_HTTPS_PROXY` | api, jobs | empty | Outbound proxy for provider APIs, feeds and integrations |
+| `PATHOS_OFFLINE` | api, jobs, worker-core | `false` | Air-gapped mode ([AIRGAP.md](AIRGAP.md)) |
+| `PATHOS_WORKER_BOOTSTRAP_TOKEN` | api, worker-core | generated | Worker registration |
+| `PATHOS_WORKER_MEMORY`, `PATHOS_WORKER_TMPFS` | worker-core (Compose limits) | `4g`, `3g` | Memory limit and workspace size per worker |
+| `PATHOS_SCANNER_PLUGINS_DIR` | worker-core (*code only*) | `/etc/pathos/scanners.d` | Declarative scanner adapters |
+| `PATHOS_SCAN_LOG_RETENTION_DAYS` | jobs (*code only*) | `400` (minimum 360) | Execution logs and stage events |
+| `PATHOS_S3_ENDPOINT`, `_REGION`, `_BUCKET`, `_ACCESS_KEY`, `_SECRET_KEY` | all PATHOS services | empty bucket = PostgreSQL | Object storage for artifacts and source snapshots |
+| `PATHOS_S3_PATH_STYLE` | all PATHOS services (*code only*) | `true` | Path-style S3 addressing |
+| `PATHOS_SOURCE_STORE_DIR`, `PATHOS_SOURCE_S3_PREFIX` | api, jobs | `/var/lib/pathos/sources`, `sources/` | Encrypted source store |
+| `PATHOS_UPLOAD_MAX_BYTES`, `PATHOS_IMPORT_MAX_FILES`, `PATHOS_IMPORT_MAX_EXTRACTED_BYTES`, `PATHOS_IMPORT_MAX_FILE_BYTES` | api, jobs | 2 GiB, 200,000, 8 GiB, 1 GiB | Upload and archive limits |
+| `PATHOS_IMPORT_CONCURRENCY`, `PATHOS_IMPORT_TIMEOUT` | jobs | `2`, `30m` | Import workers per `jobs` container, per-item timeout |
+| `PATHOS_CLAMAV_ADDRESS`, `PATHOS_CLAMAV_REQUIRED` | jobs (and api, see above) | empty, `false` | Malware scanning |
+| `PATHOS_CLAMAV_STREAM_MAX`, `PATHOS_CLAMAV_MAX_FILE` | clamav | `4000M`, `1000M` | clamd limits |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | all PATHOS services | empty | OpenTelemetry export |
+| `COMPOSE_PROFILES` | Compose | `dev` | Optional services: `dev`, `objectstore`, `clamav`, `ollama`, `observability` |
+| `PATHOS_COMPOSE_PROD`, `PATHOS_IMAGE_PREFIX`, `PATHOS_VERSION` | deploy scripts, Compose | | Production override, registry images |
+| `MAILPIT_UI_PORT`, `OTEL_LGTM_UI_PORT` | mailpit, otel-lgtm | `8025`, `3001` | Local UI ports |
 
 ## Rate limiting
 
@@ -179,7 +231,7 @@ The API rate-limits per client (GCRA, shared across replicas through Valkey):
 | SCM webhooks | Connection | 50/s | 200 |
 | MCP | Token | 10/s | 60 |
 
-`PATHOS_RATE_LIMIT_SCALE` multiplies every limit (`0` disables limiting). A throttled request gets `429` with a `Retry-After` header. If Valkey is unreachable, the limiter fails open and logs a warning once a minute.
+Requests with a personal API token count against their owner's read and write limits. `PATHOS_RATE_LIMIT_SCALE` multiplies every limit (`0` disables limiting). A throttled request gets `429` with a `Retry-After` header. If Valkey is unreachable, the limiter fails open and logs a warning once a minute.
 
 ## Object storage
 
@@ -227,7 +279,7 @@ Then create an AI configuration with that provider and the model name. Model gui
 
 | Hardware | Suggested model | Notes |
 |---|---|---|
-| CPU only | `qwen2.5-coder:3b` / `7b` | Phase 8+ test: about 30 s per finding with the 3B model on a 20-core CPU |
+| CPU only | `qwen2.5-coder:3b` / `7b` | Measured during development: about 30 s per finding with the 3B model on a 20-core CPU |
 | 12 GB GPU | `qwen2.5-coder:14b` | Good balance |
 | 24 GB GPU | `qwen2.5-coder:32b` | Strong |
 | 48 GB+ | 70B-class models | Closest to cloud models |
@@ -274,4 +326,5 @@ Thresholds: error rate below 1 %, list p95 below 800 ms, detail p95 below 300 ms
 
 - **Master key:** see [SECURITY.md](SECURITY.md#secrets-at-rest) (`pathosctl rotate-master-key`).
 - **Worker bootstrap token:** change `PATHOS_WORKER_BOOTSTRAP_TOKEN`, then recreate `api` and the workers. Revoke old workers in **Scanners & workers**.
-- **SCM, AI and SMTP credentials:** replace them in the UI. They are write-only and re-encrypted on save.
+- **SCM, AI, SMTP, webhook, scan-target and ticket-system credentials:** replace them in the UI. They are write-only and re-encrypted on save.
+- **Personal API tokens** expire after at most 90 days; users create a new token and revoke the old one under **API tokens**. Deactivating a user stops all their tokens.

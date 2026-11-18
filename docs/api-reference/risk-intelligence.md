@@ -1,54 +1,18 @@
 ---
-title: Risk and vulnerability intelligence
+title: Risk scoring and intelligence feeds
 section: api-reference
-order: 10
+order: 27
 version: "1.0"
-updated: 2026-11-17
-summary: Contextual risk scores, the risk model, EPSS and CISA KEV feeds, CVE lookups, the unified lifecycle status and the new finding fields and filters.
+updated: 2026-11-19
+summary: Contextual risk scores and their explanation, the versioned risk model, the EPSS, KEV, OSV and deps.dev intelligence feeds, and CVE lookups.
 ---
-# Risk and vulnerability intelligence
+# Risk scoring and intelligence feeds
 
-## Finding fields and filters
-
-`GET /api/v1/findings` and `GET /api/v1/findings/{id}` return these additional fields. Existing fields and stored statuses are unchanged.
-
-| Field | Description |
-|---|---|
-| `lifecycle_status` | Unified status, derived (see below): `new`, `open`, `in_progress`, `under_review`, `confirmed`, `false_positive`, `accepted_risk`, `resolved`, `reopened` |
-| `risk_score` | Contextual risk 0–100 (`null` until scored) |
-| `cvss_version`, `cvss_vector` | As reported by the scanner (Trivy, Grype) |
-| `confidence` | `high`, `medium`, `low`, `unknown` |
-| `epss`, `epss_percentile` | FIRST EPSS probability and percentile for the CVE |
-| `kev`, `kev_due_date` | Listed in the CISA KEV catalog, with its due date |
-| `exploit_available` | Known exploitation (KEV) |
-| `reachability` | `reachable`, `not_reachable`, `unknown` (`unknown` until reachability analysis exists) |
-| `application_id`, `application_name` | The repository's application |
-
-| Lifecycle | Derived from |
-|---|---|
-| `resolved` | status `fixed` |
-| `false_positive`, `accepted_risk` | the same status |
-| `under_review` | status `needs_review`, or a Human Eye review is open |
-| `confirmed` | a Human Eye reviewer confirmed the finding (still open) |
-| `in_progress` | status `in_progress` |
-| `reopened` | open again after a fix (recurrence) |
-| `new` | first seen by the latest scan; not assigned, triaged or reviewed |
-| `open` | any other open finding |
-
-New query parameters:
-
-| Parameter | Description |
-|---|---|
-| `lifecycle` | Comma-separated lifecycle statuses (spans every stored status) |
-| `kev` | `true` or `false` |
-| `epss_min` | Minimum EPSS percentile (0–1) |
-| `risk_min` | Minimum risk score (0–100) |
-| `confidence`, `reachability`, `application_id` | Exact match |
-| `sort` | `severity` (default) or `risk` (keyset cursor; pass `next_cursor` back unchanged) |
+Every open finding gets a contextual risk score from 0 to 100. The finding fields that carry risk and intelligence data (`risk_score`, `epss`, `kev`, `confidence`, `reachability`, …) and the matching list filters are described with the [finding object](findings.md#the-finding-object).
 
 ## Risk explanation
 
-`GET /api/v1/findings/{id}/risk` (`findings.read`):
+`GET /api/v1/findings/{id}/risk` (`findings.read` on the finding's repository):
 
 ```json
 {
@@ -75,19 +39,51 @@ Fixed, false-positive and accepted-risk findings score 0. Bands: critical ≥ 75
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `GET` | `/api/v1/risk-model` | `findings.read` | `{ model, defaults, pending_recompute }` |
-| `PUT` | `/api/v1/risk-model` | `settings.manage` | `{ weights, change_note }` creates a new version and re-scores every finding in the background. Weights are validated (ranges, known keys) |
+| `PUT` | `/api/v1/risk-model` | `settings.manage` (organization-wide) | `{ weights, change_note }` creates a new version and re-scores every finding in the background. Weights are validated (ranges, known keys) |
 | `GET` | `/api/v1/risk-model/history` | `findings.read` | Versions with author and note |
 
 Scores are recomputed in the background (jobs role) whenever an input changes: ingest, status, severity, Human Eye outcome, repository or application criticality and exposure, a feed update, or a model change.
 
 ## Feeds
 
+| Feed | Data | Default |
+|---|---|---|
+| `epss` | FIRST EPSS scores and percentiles | On, daily |
+| `kev` | CISA Known Exploited Vulnerabilities catalog | On, daily |
+| `osv` | OSV vulnerability records (descriptions, references, vendor CVSS, fixed versions) | On, daily; see [OSV feed](#osv-feed) |
+| `depsdev` | deps.dev package health; see [package health](supply-chain.md#package-health) | **Off**: it sends package names to `api.deps.dev` |
+
 | Method | Path | Permission | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/intel/feeds` | `findings.read` | EPSS and KEV feeds: enabled, URL, interval, record count, last run, last success, next due |
-| `PUT` | `/api/v1/intel/feeds/{epss\|kev}` | `settings.manage` | `{ enabled, url (https), interval_hours (1–720) }` |
-| `POST` | `/api/v1/intel/feeds/{feed}/run` | `settings.manage` | Download now (`409` while a run is in progress, `502 feed_failed` on download errors) |
-| `POST` | `/api/v1/intel/feeds/{feed}/import` | `settings.manage` | Offline import: multipart field `file` (EPSS CSV or CSV.gz, KEV JSON; at most 64 MiB). `422 invalid_feed` with the reason when the file cannot be parsed |
-| `GET` | `/api/v1/intel/cves/{cve}` | `findings.read` | EPSS, KEV entry and the number of open findings for a CVE |
+| `GET` | `/api/v1/intel/feeds` | `findings.read` | Every feed: enabled, URL, interval, record count, last run, last success, next due |
+| `PUT` | `/api/v1/intel/feeds/{feed}` | `settings.manage` (organization-wide) | `{ enabled, url (https), interval_hours (1–720) }`; each field optional |
+| `POST` | `/api/v1/intel/feeds/{feed}/run` | `settings.manage` (organization-wide) | Download now (`409` while a run is in progress, `502 feed_failed` on download errors) |
+| `POST` | `/api/v1/intel/feeds/{feed}/import` | `settings.manage` (organization-wide) | Offline import: multipart field `file`, at most 64 MiB (EPSS CSV or CSV.gz, KEV JSON, OSV JSON or zip). `422 invalid_feed` with the reason when the file cannot be parsed; `409` while a run is in progress |
 
-Online updates are on by default (daily). The jobs role downloads each enabled feed when its interval has passed, and retries an hour after a failure. Each import replaces the feed's data atomically and is recorded in `intel_feed_runs` and the audit log. For air-gapped installations, turn online updates off and import the files.
+An unknown `{feed}` returns `404`. The jobs role downloads each enabled feed when its interval has passed, and retries an hour after a failure. Each import replaces the feed's data atomically and is recorded in `intel_feed_runs` and the audit log. With `PATHOS_OFFLINE=true` nothing is downloaded; import the files instead.
+
+### OSV feed
+
+The feed URL is the OSV API base, `https://api.osv.dev/v1/vulns/` by default.
+
+- **Online:** each run looks up at most 300 identifiers of open findings (their `cve`, and `GHSA-` rule IDs) without a record from the last 7 days, with 4 lookups at a time. Identifiers OSV does not know are remembered for the same period.
+- **Offline import:** OSV JSON (one record or an array) or a zip of record files (OSV's `all.zip` exports).
+
+Loading a record:
+
+- fills `cvss_vector`, `cvss_version` and the 3.x base score of findings without a vector (3.1 preferred over 4.0)
+- marks those findings for re-scoring
+
+`EVIDENCE` references count as exploit evidence in the risk score.
+
+## CVE lookup
+
+`GET /api/v1/intel/cves/{id}` (`findings.read` at any scope) accepts CVE and GHSA identifiers (`400` otherwise):
+
+| Field | Description |
+|---|---|
+| `id` | Normalized identifier |
+| `epss`, `epss_percentile`, `epss_as_of` | EPSS data, `null` when unknown |
+| `kev` | KEV entry (`vendor`, `product`, `name`, `description`, `required_action`, `added_on`, `due_date`, `known_ransomware`) or `null` |
+| `open_findings` | Open findings with this CVE; counted only for callers with organization-wide `findings.read` (otherwise `0`) |
+| `osv` | OSV record or `null`: `id`, `aliases`, `summary`, `details`, `published`, `modified`, `withdrawn`, `cvss_vectors`, `cwes`, `references[]{type,url}`, `exploit_references`, `affected[]{ecosystem,package,fixed[]}`, `source`, `fetched_at` |

@@ -1,14 +1,14 @@
 ---
 title: Scans
 section: api-reference
-order: 7
+order: 21
 version: "1.0"
-updated: 2026-11-17
-summary: Start, list, monitor, retry, cancel and compare scan executions, with their stages, logs, findings and history.
+updated: 2026-11-19
+summary: Start, list, monitor, retry, cancel and compare scan executions, with their stages, logs, findings, raw scanner output and history.
 ---
 # Scans
 
-A scan execution runs one existing scan profile (managed in Configurations) against one repository. Every execution has a permanent **Scan ID** (`scan_key`, e.g. `QD-SCAN-000042`), a read-only snapshot of the configuration it used, engine jobs per scanner, stage events and an execution log.
+A scan execution runs one existing [scan profile](scan-configuration.md#scan-profiles) against one repository (or one of its [scan targets](scan-targets.md)). Every execution has a permanent **Scan ID** (`scan_key`, e.g. `QD-SCAN-000042`), a read-only snapshot of the configuration it used, engine jobs per scanner, stage events and an execution log.
 
 All endpoints are under `/api/v1`, need a browser session, and mutations need `X-CSRF-Token` (see [API reference overview](index.md)). Errors use the common `{"error": {"code", "message"}}` body.
 
@@ -20,6 +20,9 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
   "scan_key": "QD-SCAN-000042",
   "name": "Nightly secrets",
   "asset_type": "repository",
+  "target_id": null,
+  "target_name": null,
+  "target_reference": null,
   "repository_id": "0193a1c2-0000-7000-8000-000000000101",
   "repository_name": "acme/payments-api",
   "repository_key": "QD-REPO-000042",
@@ -27,6 +30,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
   "profile_name": "Secrets and dependencies",
   "profile_version": 3,
   "trigger": "manual",
+  "priority": 70,
   "status": "running",
   "progress": 55,
   "stage": "scanning:osv-scanner",
@@ -60,6 +64,9 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `severity`, `findings_total` | Distinct findings observed by this execution |
 | `findings_new`, `findings_fixed` | Findings first seen in, and resolved by, this execution |
 | `retry_of`, `retry_count` | Set on retries, which are always new executions |
+| `asset_type`, `target_id`, `target_name`, `target_reference` | `repository` for source-code scans; otherwise the [scan target](scan-targets.md) kind and the target |
+| `trigger`, `priority` | `manual`, `schedule`, `push`, `merge`, `pull_request`, `onboarding`, `emergency` or `import`; the queue priority follows the trigger (emergency 100 … schedule 30) |
+| `gate_failed` | The profile's `fail_on_critical` gate or a blocking [security policy](governance.md#security-policies) failed |
 | `config_snapshot` | Only on `GET /scans/{id}`: profile id, name, version, change note, scanners and their configuration, exclusions, severity threshold, timeout, SBOM, fail on critical, retention, capture time. Immutable |
 
 Database entities: `scan_jobs`, `scan_results` (engine jobs), `scan_job_events`, `scan_job_logs`, `finding_occurrences`, `scan_profile_versions`.
@@ -107,9 +114,10 @@ Status codes: `202`, `400 invalid_request` (empty list, unknown or archived prof
 | `scan_key`, `repository_key` | Exact, case-insensitive |
 | `repository_id`, `profile_id`, `schedule_id` | UUIDs |
 | `status` | One status or `active` (queued and running) |
-| `trigger` | `manual`, `schedule`, `push`, `merge`, `onboarding`, `emergency` |
+| `trigger` | `manual`, `schedule`, `push`, `merge`, `pull_request`, `onboarding`, `emergency` |
 | `scanner` | Executions with an engine job of this scanner |
-| `asset_type` | `repository` (the only asset type with scans) |
+| `asset_type` | `repository`, `image`, `url`, `api` or `sbom` |
+| `target_id` | Executions of one scan target |
 | `from`, `to` | `YYYY-MM-DD` (inclusive) or RFC 3339 |
 | `cursor` | `next_cursor` of the previous page |
 
@@ -161,6 +169,10 @@ Stage status: `pending`, `running`, `succeeded`, `failed`, `skipped`, `timed_out
 
 At most 1,000 lines per response; at most 5,000 lines are kept per execution. Secrets are redacted when stored.
 
+### Raw scanner output
+
+`GET /api/v1/scans/{id}/results/{scanner}/artifact` — downloads what the scanner produced in this execution (its raw report, or the SBOM for Syft), decompressed, as an attachment named `<scanner>-<execution id>.json`. Permission `scans.read`. Engine jobs with output have `has_artifact: true`. `404` when the execution or the output does not exist.
+
 ### Findings of an execution
 
 `GET /api/v1/scans/{id}/findings?severity=&scanner=` → `{ "items": [...] }`. Permission `findings.read` on the repository. Each item is a finding plus `scanner`, `evidence` (`file:line` or `package@version`), `occurrence_commit_sha` and `is_new` (first seen in this execution). At most 1,000, most severe first.
@@ -200,4 +212,4 @@ Errors: `400 invalid_request` (fewer than 2 or more than 10 ids, invalid id), `4
 
 ## Worker API (internal)
 
-`POST /internal/worker/v1/jobs/{id}/events` — on the worker-only listener, authenticated with the worker token; only for the worker holding the lease. Body `{ "events": [{ "stage": "source|scanner", "scanner", "status", "message", "at" }], "logs": [{ "at", "level", "source", "message" }] }` (≤200 events, ≤1,000 lines). `204`; `409` when the execution is no longer running.
+Workers report stages and log lines with `POST /internal/worker/v1/jobs/{id}/events`; see [Worker protocol: events and logs](worker-protocol.md#events-and-logs).

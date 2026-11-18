@@ -1,6 +1,10 @@
 # PATHOS ASPM implementation roadmap
 
-From the gap analysis (`PATHOS_FEATURE_GAP_ANALYSIS.md`). Each phase ships as its own pull request (or several) with migrations, backend, UI, tests, docs and an updated register. Nothing is marked Completed without backend logic, UI, persistence and tests.
+**Status: complete.** All ASPM phases (1 to 10) are merged: phase 1 in #31, 2a in #32, 2b in #33, 3 to 10 in #35 to #42. The register in [PATHOS_FEATURE_GAP_ANALYSIS.md](PATHOS_FEATURE_GAP_ANALYSIS.md) stands at 91 completed, 9 in progress, 0 not started.
+
+**Phase numbers.** "Phase N" in this document and in the `docs/aspm/` folder means an **ASPM phase**. The platform was first built in eight earlier phases (foundation to enterprise hardening), which [DEVELOPMENT_ROADMAP.md](../DEVELOPMENT_ROADMAP.md) calls *platform phases P1 to P8*. The two numberings are unrelated: ASPM phase 7 (supply chain) is not platform phase P7 (scheduling and notifications).
+
+From the gap analysis ([PATHOS_FEATURE_GAP_ANALYSIS.md](PATHOS_FEATURE_GAP_ANALYSIS.md)). Each phase ships as its own pull request (or several) with migrations, backend, UI, tests, docs and an updated register. Nothing is marked Completed without backend logic, UI, persistence and tests.
 
 ## 1. Target architecture
 
@@ -21,6 +25,12 @@ Same stack and deployment, with these additions:
 - **Intelligence layer** = relational context, not a separate graph database. Applications, repositories, components, dependency edges, findings, owners, endpoints and reviews are joined by foreign keys. Graph questions (blast radius, attack paths) are recursive SQL views behind one service, `internal/intel`.
 - **Connectors** (`internal/connectors`): one interface for outbound integrations (webhook, Jira, ServiceNow, chat). All are optional and disabled by default.
 - **New target types** for workers: `repository` (today), `url`, `api_spec`, `image`, `artifact`, `sbom`, handled by additional worker families (`dast`, `container`) with the same sandbox and egress rules.
+
+As built, the design changed in three places:
+
+- Graph questions are answered by the posture service (`internal/posture`: blast radius, attack paths, context graph, dependency paths), while `internal/intel` holds the feeds (EPSS, KEV, OSV, deps.dev).
+- Outbound integrations are split by kind. Outbound webhooks (JSON, Slack, Teams) live in `internal/notify`. Jira and ServiceNow implement the `tickets.Connector` interface in `internal/tickets`.
+- All target kinds (`image`, `url`, `api`, `sbom`, `artifact`) run on the single `worker-core` image; no extra worker families were needed.
 
 ## 2. Phases
 
@@ -46,9 +56,11 @@ Within a phase, every feature follows the same sequence:
 4. UI and tests
 5. documentation
 6. register update
-7. completion report in `docs/DEVELOPMENT_ROADMAP.md`
+7. completion report in this document (sections 6 onwards)
 
 ## 3. Decisions needed from the product owner
+
+The decisions were taken in phase 1 (see section 6): D1 renamed the module to Human Eye (labels only), D2 derives the lifecycle statuses, D3 keeps one organization per deployment, and D4 enabled EPSS and KEV online by default, with offline import. D5 was delivered in phase 9.
 
 | # | Decision | Recommendation |
 |---|---|---|
@@ -288,7 +300,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module E requirements are all met (no numbered features).
 
-### Phase 7 — Supply chain and DevSecOps (done)
+## 13. Phase 7 completion report (supply chain and DevSecOps)
 
 **Implemented:**
 
@@ -310,7 +322,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module F 12 completed, 3 in progress (end-of-life dates, exact introducing commit, image and artifact signature verification).
 
-### Phase 8 — Governance (done)
+## 14. Phase 8 completion report (governance)
 
 **Implemented:**
 
@@ -329,7 +341,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module G 17 completed, 5 in progress (executive dashboard, outbound webhooks, multi-tenant, plugin architecture, offline bundles), 3 not started (custom reporting, Jira, ServiceNow).
 
-### Phase 9 — Reporting and integrations (done)
+## 15. Phase 9 completion report (reporting and integrations)
 
 **Implemented:**
 
@@ -347,7 +359,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 **Register:** module G 22 completed, 3 in progress (multi-tenant, plugin architecture, offline bundles); 89 completed, 10 in progress, 1 not started overall.
 
-### Phase 10 — Production readiness (done)
+## 16. Phase 10 completion report (production readiness)
 
 **Implemented:**
 

@@ -1,6 +1,6 @@
 # PATHOS feature gap analysis and register
 
-The 100 target capabilities compared with PATHOS as of 2026-11-17 (`main` plus PR #29), updated after phase 1. This is also the **feature register**. Update it as phases land.
+The 100 target capabilities compared with PATHOS. The first assessment was made on 2026-11-17 (`main` plus PR #29); the register has been updated after every ASPM phase and is current as of phase 10. This is also the **feature register**: update it whenever a capability changes. "Phase N" in the evidence column means an ASPM phase ([PATHOS_IMPLEMENTATION_ROADMAP.md](PATHOS_IMPLEMENTATION_ROADMAP.md)).
 
 **Status** uses the programme's values:
 
@@ -199,12 +199,18 @@ Authentication requirements:
 | SAML 2.0 and OIDC identity providers | ✓ (Keycloak brokering; guide and end-to-end test, phase 8) |
 | No external SMS, email or domain needed locally | ✓ (Mailpit for development; email optional) |
 
-## Biggest gaps by value
+## Remaining gaps
 
-1. **Contextual risk engine** (21, 29, 37–40, 43): EPSS and KEV, CVSS vectors, confidence, explainable scoring, application rollup.
-2. **Import pipeline** (SARIF/JSON, CycloneDX/SPDX): unlocks 4, 13, 62 and any third-party tool.
-3. **Pull-request checks** (72) and **outbound webhooks** (90): developer workflow.
-4. **Application intelligence** (16, 22, 23, 27, 28): application IDs, dependency edges, context graph, coverage, shadow assets.
-5. **New target types** (3, 7, 8, 11, 74): DAST, API, images and artifacts on new worker families.
-6. **Governance** (82–85): policy engine, compliance mapping, executive and custom reports.
-7. **Ticketing** (92, 93), optional.
+The original "biggest gaps by value" (contextual risk, imports, pull-request checks and webhooks, application intelligence, new target types, governance, ticketing) were all closed in ASPM phases 1 to 9. The nine capabilities still **In Progress**:
+
+| # | Capability | What is missing |
+|---|---|---|
+| 9 | Malware detection | Malware scanning of repository content (uploads and build artifacts are scanned) |
+| 10 | Licence scanning | Licence violations as findings; file-level licences (ScanCode) |
+| 11 | Binary analysis | Hardening checks (PIE, RELRO, stack canaries, NX) |
+| 12 | Application configuration scanning | Framework configuration rules and a misconfiguration category |
+| 14 | Infrastructure exposure | Opt-in verification of declared public endpoints |
+| 64 | Package risk | End-of-life dates of runtimes and frameworks |
+| 73 | Commit-level analysis | Exact introducing commit (blame) and push diff summaries |
+| 75 | Software provenance | Sigstore and in-toto verification of images and artifacts |
+| 95 | Multi-tenant | Several organizations per deployment (decision D3) |

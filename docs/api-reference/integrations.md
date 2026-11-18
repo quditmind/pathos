@@ -1,17 +1,19 @@
 ---
-title: SCM integrations
+title: Source provider (SCM) connections
 section: api-reference
 order: 4
 version: "1.0"
-updated: 2026-11-17
-summary: Manage SCM connections, OAuth applications and webhooks, and browse providers for repositories to import.
+updated: 2026-11-19
+summary: SCM providers and connections, repository discovery, SCM inventory, OAuth applications and the webhook receivers for provider events.
 ---
 
-# SCM integrations
+# Source provider (SCM) connections
 
 An SCM connection stores the credential PATHOS uses to read repositories from a source-code platform. Connections feed repository discovery and [imports](imports.md#start-an-import), keep repositories in sync, and receive webhooks.
 
-Credentials are encrypted at rest and never returned by the API. All endpoints are under `/api/v1` and need a browser session (mutations also need `X-CSRF-Token`), except the [webhook receivers](#webhook-receivers), which are public and verified by signature. See [Authentication](index.md#authentication).
+Credentials are encrypted at rest and never returned by the API. All endpoints are under `/api/v1` and use the [common authentication](index.md#authentication) (a session with `X-CSRF-Token` on mutations, or a REST API token), except the [webhook receivers](#webhook-receivers), which are public and verified by signature.
+
+Outbound webhooks (PATHOS notifying other systems) are in [Notifications](notifications.md#outbound-webhooks); Jira and ServiceNow are in [Ticketing and reports](integrations-reporting.md#ticketing-jira-servicenow).
 
 ## Providers and authentication methods
 
@@ -42,7 +44,7 @@ Returns the provider catalog that drives the connection wizard: labels, base URL
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-providers` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope, or organization-wide `scm.manage` |
 | Request headers | `Cookie` |
 
@@ -132,7 +134,7 @@ Database entities: `scm_connections`, `secrets` (credential and webhook secret, 
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope (connection names are needed to show repositories). Credentials are never included. |
 | Request headers | `Cookie` |
 
@@ -151,7 +153,7 @@ Database entities: `scm_connections`, `repositories` (count).
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie` |
 
@@ -177,7 +179,7 @@ Creates a connection with a PAT, GitHub App, Bitbucket API token or Azure DevOps
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-connections` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -256,7 +258,7 @@ Renames a connection, changes `owner` or `organizations`, rotates its credential
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/scm-connections/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -286,7 +288,7 @@ Checks the credential against the provider and stores the outcome.
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-connections/{id}/test` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -308,7 +310,7 @@ Generates a new webhook secret and returns it **once**. Configure it at the prov
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-connections/{id}/webhook-secret` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -337,7 +339,7 @@ Reconciles every active repository of the connection with the provider: metadata
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-connections/{id}/resync` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -349,12 +351,38 @@ Response `200 OK`:
 
 | Status | Meaning |
 |---|---|
-| 200 | Done. Per-repository results are recorded as sync runs with trigger `schedule`. |
+| 200 | Done. A sync run (trigger `schedule`) is recorded for each repository that changed, failed or changed sync status; the others only get a new `last_sync_at`. |
 | 403 `forbidden` | No organization-wide `scm.manage`. |
-| 404 `not_found` | Unknown or deleted connection. |
-| 502 `scm_error` | "re-sync failed: ..." (for example the listing failed). |
+| 502 `scm_error` | "re-sync failed: ..." (for example the listing failed). An unknown or deleted connection currently also returns `502` ("re-sync failed: not found"), not `404`. |
 
 Database entities: `repositories`, `repository_sync_runs`, `scm_connections.last_synced_at`, `audit_logs` (`scm.resync`).
+
+### Refresh the SCM inventory
+
+The SCM inventory is the list of every repository a connection's credential can see. The [unmanaged and shadow repository report](posture.md) compares it with the repositories registered in PATHOS. PATHOS refreshes each active connection's inventory once a day; this endpoint refreshes it now.
+
+| Property | Value |
+|---|---|
+| Method | `POST` |
+| Path | `/api/v1/scm-connections/{id}/inventory` |
+| Permission | `repos.manage` at organization, region or business-unit scope (as for [Discovery](#discovery)) |
+
+Response `200 OK`, the inventory run:
+
+```json
+{
+  "id": "0190c0de-aaaa-7000-8000-000000000001",
+  "scm_connection_id": "0190c0de-1234-7000-8000-000000000001",
+  "started_at": "2026-11-19T10:00:00Z",
+  "finished_at": "2026-11-19T10:00:41Z",
+  "status": "succeeded",
+  "repositories": 812,
+  "truncated": false,
+  "error": ""
+}
+```
+
+At most 20,000 repositories are recorded per connection (`truncated: true` beyond that). When the provider listing fails, the response is `502` with `{ "error": { "code": "inventory_failed", "message": "…" }, "run": { … } }`. `403` without the permission, `404` for an unknown or deleted connection. Audited as `scm.inventory_refresh` (status and repository count).
 
 ### Delete a connection
 
@@ -364,7 +392,7 @@ Deletes a connection that has no active repositories. Before the stored credenti
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/scm-connections/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -383,7 +411,7 @@ Database entities: `scm_connections`, `secrets`, `audit_logs` (`scm_connection.d
 
 Discovery endpoints browse what a connection's credential can see, live from the provider. Because the results can include repositories outside the caller's own scope, they require `repos.manage` granted at **organization, region or business-unit scope** (a grant on individual repositories is not enough). Placement is authorized later, when the import is created.
 
-All discovery endpoints return `403 forbidden` without such a grant, `404 not_found` for an unknown connection, `400 invalid_request` "not supported by this provider" where the provider lacks the concept, and `502 scm_error` when the provider call fails (authentication, permission, not found, rate limit, expired token, blocked address).
+All discovery endpoints return `403 forbidden` without such a grant, `404 not_found` for an unknown connection, `400 invalid_request` "not supported by this provider" where the provider lacks the concept, and `502 scm_error` when the provider refuses the call (authentication, permission, not found, rate limit, expired token, blocked address). Other provider failures (provider `5xx`, network errors, timeouts) return `500 internal`.
 
 ### List remote organizations
 
@@ -393,7 +421,7 @@ Lists GitHub organizations and users, GitLab groups, Bitbucket workspaces or Azu
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}/organizations` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at organization, region or business-unit scope |
 | Request headers | `Cookie` |
 
@@ -420,7 +448,7 @@ Lists Azure DevOps projects or Bitbucket projects of an organization or workspac
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}/projects` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at organization, region or business-unit scope |
 | Request headers | `Cookie` |
 
@@ -450,7 +478,7 @@ Returns one page (50) of repositories visible to the credential, with their impo
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}/remote-repositories` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at organization, region or business-unit scope |
 | Request headers | `Cookie` |
 
@@ -505,7 +533,7 @@ Returns the import preview of one remote repository: metadata, branches with hea
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}/remote-repositories/details` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at organization, region or business-unit scope |
 | Request headers | `Cookie` |
 
@@ -558,7 +586,7 @@ Response `200 OK`:
 |---|---|
 | 200 | Preview returned. |
 | 400 `invalid_request` | "external_id or full_name is required", or a parameter is too long. |
-| 502 `scm_error` | Not found or not visible to the credential, or another provider error. |
+| 502 `scm_error` | Not found or not visible to the credential, or refused by the provider (see [Discovery](#discovery)). |
 
 Database entities: `repositories` (import state).
 
@@ -570,7 +598,7 @@ Lists every repository the credential can see in one response (up to 5,000), wit
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-connections/{id}/discover` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at organization, region or business-unit scope |
 | Request headers | `Cookie` |
 
@@ -620,7 +648,7 @@ Database entities: `scm_oauth_apps`, `secrets`.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/scm-oauth-apps` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie` |
 
@@ -646,7 +674,7 @@ Database entities: `scm_oauth_apps`, `scm_connections` (count).
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-oauth-apps` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -689,7 +717,7 @@ Changes `name`, `base_url`, `tenant_id`, `client_id`, `scopes`, or rotates `clie
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/scm-oauth-apps/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -705,6 +733,7 @@ Response `200 OK`: the updated [OAuth application object](#the-oauth-application
 | 400 `invalid_request` | "provider cannot be changed" or a validation error as for create. |
 | 403 `forbidden` | No organization-wide `scm.manage`. |
 | 404 `not_found` | Unknown or deleted application. |
+| 409 `conflict` | "an item with this name already exists". |
 
 Database entities: `scm_oauth_apps`, `secrets`, `audit_logs` (`scm_oauth_app.update`).
 
@@ -714,7 +743,7 @@ Database entities: `scm_oauth_apps`, `secrets`, `audit_logs` (`scm_oauth_app.upd
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/scm-oauth-apps/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -731,13 +760,13 @@ Database entities: `scm_oauth_apps`, `secrets`, `audit_logs` (`scm_oauth_app.del
 
 ### Start an OAuth connection
 
-Starts the authorization-code flow (with PKCE) for a new `oauth` connection, or for reconnecting an existing one. The client then navigates the browser to `authorize_url`. The flow must finish within 10 minutes.
+Starts the authorization-code flow (with PKCE, except for Bitbucket, which does not use it) for a new `oauth` connection, or for reconnecting an existing one. The client then navigates the browser to `authorize_url`. The flow must finish within 10 minutes.
 
 | Property | Value |
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/scm-connections/oauth/start` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -747,7 +776,7 @@ Starts the authorization-code flow (with PKCE) for a new `oauth` connection, or 
 | `name` | string | new connections | Connection name, 1–200 characters. Ignored when reconnecting. |
 | `owner` | string | no | As for other connections, max 200 characters. |
 | `connection_id` | UUID | reconnect | Existing `oauth` connection created with the same OAuth application. Its stored token is replaced. |
-| `return_to` | string | no | Same-origin path to return to after consent. Default `/admin/scm`. Anything else (absolute URLs, `//...`, control characters) falls back to the default. |
+| `return_to` | string | no | Same-origin path to return to after consent. Default `/admin/scm`. Anything else (absolute URLs, `//...`, backslashes, control characters, more than 300 characters) falls back to the default. |
 
 ```json
 {
@@ -826,7 +855,7 @@ Common behaviour of all four receivers:
 
 Events are normalized to `push`, `pull_request`, `merge`, `ping` or `ignored`. For a verified delivery:
 
-- The delivery is stored once per (connection, delivery ID). Without a delivery ID, the SHA-256 of the body is used. Replays return `200` with `{"status": "duplicate"}`.
+- The delivery is stored once per (connection, delivery ID). Without a delivery ID (or with one longer than 200 characters), the SHA-256 of the body is used. Replays return `200` with `{"status": "duplicate"}`.
 - A `push` to the tracked branch of a registered repository updates its head commit and records a sync run with trigger `webhook`.
 - A `push` or `merge` to the repository's scan branch (or default branch) queues a scan (trigger `push` or `merge`), if scanning is enabled.
 - Deliveries for repositories that are not registered are stored with status `unknown_repository`.

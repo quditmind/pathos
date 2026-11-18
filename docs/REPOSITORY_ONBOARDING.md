@@ -1,27 +1,21 @@
-# Repository asset management and onboarding
+# Repository asset management and onboarding: design notes
 
-This document is the target architecture for the enterprise repository
-onboarding module: three import methods (local upload, Git providers,
-Azure DevOps) that share one asset registration wizard, one background
-ingestion engine and one enterprise asset model. It extends the existing
-`repos`, `scm`, `scans` and `worker` packages; nothing existing is replaced.
+Engineering design of the repository onboarding module: three import methods (local upload, Git providers, Azure DevOps) that share one asset registration wizard, one background ingestion engine and one asset model. It was built on the existing `repos`, `scm`, `scans` and `worker` packages (migrations `00009` and `00010`).
 
-## 1. Assessment of the existing application
+- How to use it: the user guide pages [Repository import](user-guide/repository-import.md), [Repository management](user-guide/repository-management.md), [Import history](user-guide/import-history.md) and [Provider integrations](user-guide/provider-integrations.md) (also in the in-app Help Center).
+- Endpoints: the API reference pages [Repositories](api-reference/repositories.md), [Imports and uploads](api-reference/imports.md) and [SCM integrations](api-reference/integrations.md).
+- Security controls: [SECURITY.md](SECURITY.md#repository-onboarding-and-uploads).
 
-| Area | Existing implementation | Consequence for this module |
-|---|---|---|
-| Backend | Go 1.27, `net/http` mux, pgx, packages under `backend/internal` | New code is Go in the same packages. No Python, Celery or SQLAlchemy |
-| Database | PostgreSQL 18, goose migrations in `backend/migrations`, UUIDv7 keys, text enums with CHECK, composite `(organization_id, id)` foreign keys | One new migration `00009_asset_onboarding.sql`, same conventions |
-| Tenancy | One organization per install; every row carries `organization_id`, composite FKs keep references inside the organization | Every new table follows the same rule; cross-organization access is tested |
-| AuthN | Keycloak OIDC, server-side sessions in Valkey, CSRF header on mutations | OAuth callbacks for SCM providers are authenticated session routes |
-| AuthZ | Permission catalog in Go, system and custom roles, assignments scoped to organization, region, business unit or repository; checks in every handler | New permissions `tags.manage` and `assets.configure`, a `repository_contributor` system role, owner-based edit rights |
-| Secrets | Envelope encryption (AES-256-GCM, per-secret DEK, versioned master key) in `secrets` table | All provider credentials, OAuth tokens and OAuth client secrets use it; nothing is returned to the browser |
-| SCM | GitHub (PAT, GitHub App) and Azure DevOps (PAT); discovery, branches, webhooks, nightly metadata re-sync; SSRF-safe HTTP client | Extended with GitLab, Bitbucket Cloud, OAuth, Entra ID and service principals behind one interface |
-| Import | Synchronous `POST /repositories/import` and CSV import with placement, criticality, environment and tags | Kept for compatibility; the new wizard uses background import jobs |
-| Scanning | `scan_jobs` queue in PostgreSQL leased by isolated workers that `git clone` (shallow, hardened) and run Gitleaks, Opengrep, Trivy, SBOM tools | Workers additionally fetch encrypted upload snapshots through the worker API |
-| Object storage | Optional S3-compatible store for scan artifacts | Source snapshots use S3 when configured, otherwise an encrypted file store on a volume |
-| Frontend | React 19, TanStack Router/Query, Tailwind 4, Radix dialogs, light and dark themes | New pages reuse `PageHeader`, `Card`, `DataTable`, `FilterBar`, `Dialog`, `KpiCard` |
-| Background work | `jobs` role (re-sync, retention), `scheduler` role | Import engine and sync run in the `jobs` role, never in API request handlers |
+## 1. Design constraints
+
+The module follows the platform's conventions rather than introducing new ones:
+
+- Go code in the existing packages and the `jobs` role for background work; no new runtime or queue (the import engine uses PostgreSQL `SKIP LOCKED` claims).
+- One goose migration per change, with UUIDv7 keys, text enums with CHECK constraints and composite `(organization_id, id)` foreign keys.
+- Every provider credential, OAuth token and OAuth client secret is envelope-encrypted in `secrets` and never returned to the browser.
+- Authorization through the permission catalog: new permissions `tags.manage` and `assets.configure`, a `repository_contributor` system role, and owner-based edit rights.
+- Source snapshots go to S3-compatible storage when it is configured, otherwise to an encrypted file store on a volume.
+- The synchronous `POST /repositories/import` and the CSV import were kept for compatibility; the wizard uses background import jobs.
 
 ## 2. Architecture
 
@@ -98,7 +92,7 @@ Credential lifecycle:
   check, no cross-host redirects). Token endpoints are fixed per provider
   (or derived from the validated base URL for self-managed servers).
 
-### 2.2 Unified ingestion engine (`internal/repos/ingest*.go`)
+### 2.2 Unified ingestion engine (`internal/repos/imports.go`, `import_worker.go`)
 
 All three import methods create a `repository_import_jobs` row with one
 `repository_import_items` row per repository. The API validates the
@@ -235,34 +229,16 @@ Rules: `yes` needs at least one public URL, domain or IP; `no` allows none; IPs 
 
 ## 4. API
 
-Existing conventions are kept: `/api/v1`, JSON, cursor pagination
-(`next_cursor`), error body `{"error": {"code", "message"}}`, CSRF header on
-mutations, per-user rate limits. The specification's endpoint names map to
-existing resources (`integrations` → `scm-connections`, `tags` → existing tag
-endpoints, `import-jobs` → `repository-imports`).
+The endpoints are documented in the API reference: [Repositories](api-reference/repositories.md), [Imports and uploads](api-reference/imports.md) (upload sessions and import jobs) and [SCM integrations](api-reference/integrations.md) (providers, connections, discovery, OAuth applications, webhook receivers). Asset settings, classifications, tags and the directory pickers are in [Assets](api-reference/assets.md). The worker downloads snapshots with `GET /internal/worker/v1/jobs/{id}/source`.
 
-| Area | Endpoints |
-|---|---|
-| Providers | `GET /scm-providers` (providers, auth methods and their fields) |
-| OAuth apps | `GET/POST /scm-oauth-apps`, `PATCH/DELETE /scm-oauth-apps/{id}` |
-| Connections | existing CRUD, test, webhook secret, resync; `POST /scm-connections/oauth/start`, `GET /scm-oauth/callback` |
-| Discovery | `GET /scm-connections/{id}/organizations`, `/projects?organization=`, `/remote-repositories?organization=&project=&q=&page_token=`, `/remote-repositories/details?…` |
-| Uploads | `POST /source-uploads`, `GET/DELETE /source-uploads/{id}`, `PUT /source-uploads/{id}/parts/{n}`, `POST /source-uploads/{id}/complete` |
-| Imports | `POST /repository-imports/validate`, `POST/GET /repository-imports`, `GET /repository-imports/{id}`, `POST /repository-imports/{id}/cancel`, `POST /repository-imports/{id}/retry` |
-| Repositories | existing list (new filters and sorting, including `repository_key`, `public_exposure`, `production_url`, `staging_url`, `missing_production_url`), get, patch (all metadata), archive, delete; `GET /repositories/insights`, `POST /repositories/{id}/sync`, `GET /repositories/{id}/sync-runs`, `GET /repositories/{id}/snapshots`, `GET /repositories/{id}/security` |
-| Settings | `GET/PATCH /asset-settings`, `POST /asset-classifications`, `PATCH /asset-classifications/{id}` |
-| Tags | existing endpoints + `GET /tags?q=`, `PATCH /tags/{id}` |
-| Directory | `GET /directory/users?q=`, `GET /directory/teams?q=` (owner pickers for importers without `users.read`) |
-| Worker | `GET /internal/worker/v1/jobs/{id}/source` |
-
-Request and response bodies are defined once in `frontend/src/api/types.ts` (the Go handlers marshal the same shapes).
+The specification's names map to existing resources: `integrations` → `scm-connections`, `import-jobs` → `repository-imports`, `tags` → the existing tag endpoints.
 
 ## 5. Access control
 
 | Specification role | PATHOS role (permissions) |
 |---|---|
 | Platform administrator | `platform_admin` / `super_admin` |
-| Security administrator | `security_manager` (+ `tags.manage`, `assets.configure` via `platform_admin`) |
+| Security administrator | `security_manager` (has `tags.manage`; `assets.configure` stays with `platform_admin` and `super_admin`) |
 | Asset owner | any role with `repos.read` in scope; being the business, technical or application owner of a repository (or a member of its responsible team) grants editing of that repository's descriptive and ownership metadata |
 | Repository contributor | new `repository_contributor`: read-only + `repos.manage`, `scans.run` |
 | Security analyst | `security_analyst` |
@@ -287,7 +263,7 @@ organization-wide.
 | `PATHOS_IMPORT_MAX_FILE_BYTES` | `1073741824` (1 GiB) | maximum single file |
 | `PATHOS_IMPORT_CONCURRENCY` | `2` | import workers per `jobs` process |
 | `PATHOS_IMPORT_TIMEOUT` | `30m` | per item |
-| `PATHOS_IMPORT_WORK_DIR` | `/tmp/pathos-import` | scratch space for ZIP central directories (deleted after each item) |
+| `PATHOS_IMPORT_WORK_DIR` | `/tmp/pathos-import` (Compose: `/var/lib/pathos/work` on the `import_work` volume) | scratch space for ZIP central directories (deleted after each item) |
 | `PATHOS_CLAMAV_ADDRESS` | empty | `host:port` of clamd; empty records `not_configured` |
 | `PATHOS_CLAMAV_REQUIRED` | `false` | fail imports when clamd is unavailable |
 
@@ -297,6 +273,8 @@ the same backup, rotation (`pathosctl rotate-master-key`) and audit path as all
 other credentials.
 
 ## 7. Provider registration
+
+The scopes and permissions each sign-in method needs. Step-by-step registration is in the [user guide](user-guide/provider-integrations.md#oauth-applications).
 
 | Provider | Register | Redirect URI | Scopes / permissions |
 |---|---|---|---|
@@ -328,7 +306,7 @@ verified manually with the steps in section 7.
 - Backups: the `sources` volume (or the S3 prefix) must be backed up with
   PostgreSQL; snapshots are encrypted with the master key, so the master key
   backup applies to them too.
-- Rollback: `docker compose run --rm --entrypoint /usr/local/bin/pathosctl migrate migrate-down 8` reverts the schema. Uploaded
+- Rollback to a release before this module: `docker compose run --rm --entrypoint /usr/local/bin/pathosctl migrate migrate-down 8` reverts the schema to migration 00008, which also reverts every later migration (and the data they hold). Restoring a backup taken before the upgrade ([OPERATIONS.md](OPERATIONS.md#restore)) is usually the better path. Uploaded
   repositories (no SCM connection) are deleted by the down migration because
   the previous schema cannot represent them; export them first if needed.
   New providers' connections are archived by the down migration.

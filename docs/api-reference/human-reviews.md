@@ -1,9 +1,9 @@
 ---
 title: Human Eye reviews
 section: api-reference
-order: 9
+order: 35
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Review queue, assessment workspace, decisions, independent review, evidence, AI suggestions, reports and configuration of the Human Eye module.
 ---
 # Human Eye reviews
@@ -94,7 +94,7 @@ Assessment keys are listed by `GET /api/v1/human-review/catalog` (questions, fie
 
 Other fields: `duplicate_of` (finding ID) or `duplicate_reference_unavailable: true`; `remediation_owner_id`, `remediation_due_at`, `remediation_priority` for `confirmed`. Validation failures return `422 validation_failed` with per-field messages in `error.fields` (`reason`, `duplicate_of`, `risk_owner_id`, `risk_expires_at`, `evidence`, `assessment`).
 
-Outcome: completed (`status: completed`), sent to an independent reviewer (`awaiting_independent_review`; always for accepted risk, which opens a pending risk acceptance), or kept open (`needs_more_information` → `awaiting_information`). An independent reviewer cannot approve their own decision; approving accepted risk requires `findings.accept_risk`. Risk acceptances linked to a review cannot be approved or rejected from `/api/v1/risk-acceptances` (`409`).
+Outcome: completed (`status: completed`), sent to an independent reviewer (`awaiting_independent_review`; always for accepted risk, which opens a pending risk acceptance), or kept open (`needs_more_information` → `awaiting_information`). An independent reviewer cannot approve their own decision; approving accepted risk requires `findings.accept_risk`. Risk acceptances linked to a review cannot be approved or rejected through the [risk acceptance endpoints](findings.md#risk-acceptances) (`409`).
 
 ## Source code and data flow
 
@@ -124,7 +124,9 @@ Files are checked by extension and content; size limit per configuration (`413 t
 
 ## AI suggestions
 
-`POST /api/v1/human-reviews/{id}/ai` — `{ "kind": "explanation" | "code_summary" | "code_paths" | "investigation_questions" | "false_positive_indicators" | "evidence_suggestions" | "remediation" | "secure_code" | "references" | "assessment_summary" | "patch" | "risk_explanation" | "duplicate_candidates" }` → `201` with `content { summary, points, references, code }`, model and the SHA-256 of what was transmitted. `GET` lists previous suggestions. Errors: `409 ai_disabled` / `ai_not_configured`, `429 rate_limited` (200 per user per day), `502 ai_failed`. Suggestions never change the review.
+These suggestions use the organization's default [AI configuration](ai-and-mcp.md#configurations) and are separate from [AI finding reviews](ai-and-mcp.md#finding-reviews).
+
+`POST /api/v1/human-reviews/{id}/ai` — `{ "kind": "explanation" | "code_summary" | "code_paths" | "investigation_questions" | "false_positive_indicators" | "evidence_suggestions" | "remediation" | "secure_code" | "references" | "assessment_summary" | "patch" | "risk_explanation" | "duplicate_candidates" }` → `201` with `content { summary, points, references, code }`, model and the SHA-256 of what was transmitted. `GET` lists previous suggestions. Errors: `409 ai_disabled` / `ai_not_configured`, `429 rate_limited` (200 per user per day, or the provider's limit), `422 ai_refused` (the provider declined), `502 ai_failed`. Suggestions never change the review.
 
 The newer kinds:
 
@@ -132,8 +134,8 @@ The newer kinds:
   - `code` is a unified diff of the reviewed file. It is validated: one file only, the reviewed one, well-formed hunks, more than a whitespace change, at most 16 KB. Otherwise the request returns `502 invalid_patch`.
   - It needs the source code (`409 source_required`).
   - The suggestion has `patch_status: proposed`.
-  - `POST …/ai/{rid}/patch-decision` takes `{ "decision": "approved" | "rejected", "note" }` (`reviews.assess`; a note is required to reject) and returns `204`, or `409` once decided.
-  - `GET …/ai/{rid}/patch` downloads an approved patch as `text/x-diff`. PATHOS never applies patches.
+  - `POST /api/v1/human-reviews/{id}/ai/{rid}/patch-decision` takes `{ "decision": "approved" | "rejected", "note" }` (`reviews.assess`) and returns `204`. Rejecting needs a note of 5–2000 characters (`422 validation_failed`); `409` once decided. Recorded in the review history and audited (`human_review.ai_patch_decision`).
+  - `GET /api/v1/human-reviews/{id}/ai/{rid}/patch` (`reviews.read`) downloads an approved patch as a `text/x-diff` attachment (`<review key>-<id>.patch`); `409` for patches that are not approved. PATHOS never applies patches.
 - **`risk_explanation`** needs a scored finding (`409 not_scored`).
 - **`duplicate_candidates`** compares the finding with up to 15 findings of the repository: same file within 10 lines, same rule, or same CVE (`409 no_candidates` when there are none).
 
