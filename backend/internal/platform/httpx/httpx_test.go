@@ -67,3 +67,17 @@ func TestMiddlewareRecoversAndSetsHeaders(t *testing.T) {
 		t.Errorf("invalid client request id must be replaced, got %q", id)
 	}
 }
+
+func TestNewIDHasNoDigits(t *testing.T) {
+	seen := map[string]bool{}
+	for i := 0; i < 2000; i++ {
+		id := newID()
+		if len(id) != 24 || !validRequestID(id) || strings.ContainsAny(id, "0123456789") {
+			t.Fatalf("bad request id %q", id)
+		}
+		if seen[id] {
+			t.Fatalf("duplicate request id %q", id)
+		}
+		seen[id] = true
+	}
+}

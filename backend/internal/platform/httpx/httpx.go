@@ -5,7 +5,6 @@ package httpx
 import (
 	"context"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,10 +99,25 @@ func RequestID(r *http.Request) string {
 	return id
 }
 
+// idAlphabet has no digits: a hex ID can contain a long run of digits that
+// data-leak detectors (ZAP 10062 "PII Disclosure") mistake for a payment
+// card number in error responses. 24 letters carry about 112 bits.
+const idAlphabet = "abcdefghijklmnopqrstuvwxyz"
+
 func newID() string {
-	b := make([]byte, 12)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
+	const n = 24
+	out := make([]byte, 0, n)
+	buf := make([]byte, 32)
+	for len(out) < n {
+		_, _ = rand.Read(buf)
+		for _, b := range buf {
+			// Rejection sampling keeps every letter equally likely.
+			if b < 26*9 && len(out) < n {
+				out = append(out, idAlphabet[b%26])
+			}
+		}
+	}
+	return string(out)
 }
 
 func validRequestID(s string) bool {
