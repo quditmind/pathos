@@ -311,40 +311,43 @@ function DetailsPanel({ r, onDeleted }: { r: Repository; onDeleted: () => void }
         <h3 id="edit-scanning" className="border-b border-border pb-1 text-[13px] font-semibold">
           Scanning
         </h3>
-        <div className="grid gap-3 sm:grid-cols-2">
-          {r.source_type !== "upload" && (
+        {!canManage && <p className="text-[12px] text-muted-foreground">Scan settings and technologies need repository management permission.</p>}
+        <fieldset disabled={!canManage} className="space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {r.source_type !== "upload" && (
+              <div>
+                <Label htmlFor="scan-branch" hint={branches.isFetching ? "(loading…)" : undefined}>
+                  Scan branch
+                </Label>
+                <Select id="scan-branch" className="w-full" value={scan.scan_branch} onChange={(e) => setScan({ ...scan, scan_branch: e.target.value })}>
+                  <option value="">Default ({r.default_branch || "unknown"})</option>
+                  {(branches.data?.items ?? (scan.scan_branch ? [scan.scan_branch] : [])).map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                </Select>
+                {branches.isError && <p className="mt-1 text-[11px] text-danger">Could not load branches: {branches.error.message}</p>}
+              </div>
+            )}
             <div>
-              <Label htmlFor="scan-branch" hint={branches.isFetching ? "(loading…)" : undefined}>
-                Scan branch
+              <Label htmlFor="techs" hint="(comma-separated)">
+                Technologies
               </Label>
-              <Select id="scan-branch" className="w-full" value={scan.scan_branch} onChange={(e) => setScan({ ...scan, scan_branch: e.target.value })}>
-                <option value="">Default ({r.default_branch || "unknown"})</option>
-                {(branches.data?.items ?? (scan.scan_branch ? [scan.scan_branch] : [])).map((b) => (
-                  <option key={b} value={b}>
-                    {b}
-                  </option>
-                ))}
-              </Select>
-              {branches.isError && <p className="mt-1 text-[11px] text-danger">Could not load branches: {branches.error.message}</p>}
+              <Input id="techs" value={scan.technologies} onChange={(e) => setScan({ ...scan, technologies: e.target.value })} />
             </div>
-          )}
-          <div>
-            <Label htmlFor="techs" hint="(comma-separated)">
-              Technologies
-            </Label>
-            <Input id="techs" value={scan.technologies} onChange={(e) => setScan({ ...scan, technologies: e.target.value })} />
           </div>
-        </div>
-        <label className="flex items-center gap-2">
-          <input type="checkbox" checked={scan.scan_enabled} onChange={(e) => setScan({ ...scan, scan_enabled: e.target.checked })} className="accent-[var(--primary)]" />
-          Include in scheduled scans
-        </label>
-        {r.source_type !== "upload" && (
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={scan.full_history} onChange={(e) => setScan({ ...scan, full_history: e.target.checked })} className="accent-[var(--primary)]" />
-            Clone full history (secret scanning covers past commits; slower)
+            <input type="checkbox" checked={scan.scan_enabled} onChange={(e) => setScan({ ...scan, scan_enabled: e.target.checked })} className="accent-[var(--primary)]" />
+            Include in scheduled scans
           </label>
-        )}
+          {r.source_type !== "upload" && (
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={scan.full_history} onChange={(e) => setScan({ ...scan, full_history: e.target.checked })} className="accent-[var(--primary)]" />
+              Clone full history (secret scanning covers past commits; slower)
+            </label>
+          )}
+        </fieldset>
       </section>
       <div className="sticky bottom-0 flex justify-end gap-2 border-t border-border bg-surface py-3">
         <Button

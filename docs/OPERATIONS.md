@@ -40,9 +40,9 @@ Each tagged release publishes three images to the GitHub Container Registry, bui
 Use them instead of building locally:
 
 ```bash
-git clone --branch v0.9.0 https://github.com/quditmind/pathos.git && cd pathos
+git clone --branch v1.0.0 https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh                 # new installs only
-# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=0.9.0
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=1.0.0
 deploy/scripts/upgrade.sh --pull
 ```
 
@@ -51,8 +51,8 @@ Upgrading to a later release works the same way: check out the new tag, set `PAT
 **Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
 
 ```bash
-cosign verify ghcr.io/quditmind/pathos:0.9.0 \
-  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v0.9.0" \
+cosign verify ghcr.io/quditmind/pathos:1.0.0 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v1.0.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -177,7 +177,7 @@ Suggested alerts:
 2. Optionally set `PATHOS_CLAMAV_REQUIRED=true`: uploads then wait (source imports) or are refused (build artifacts) while ClamAV is unavailable, instead of proceeding unscanned.
 3. `PATHOS_CLAMAV_STREAM_MAX` (default `4000M`) and `PATHOS_CLAMAV_MAX_FILE` (default `1000M`) set clamd's stream and file limits; keep the stream limit above `PATHOS_UPLOAD_MAX_BYTES`.
 
-Source archives are scanned by the `jobs` service. Build artifacts are scanned by the `api` service when they are uploaded. **The default `docker-compose.yml` passes `PATHOS_CLAMAV_*` to `jobs` only**, so artifact uploads are recorded as `not_configured` unless you also add the two variables to the `api` service (for example in an override file).
+Source archives are scanned by the `jobs` service; build artifacts are scanned by the `api` service when they are uploaded. `docker-compose.yml` passes `PATHOS_CLAMAV_ADDRESS` and `PATHOS_CLAMAV_REQUIRED` to both services, so one setting covers both.
 
 ## Configuration reference
 
@@ -211,7 +211,7 @@ Source archives are scanned by the `jobs` service. Build artifacts are scanned b
 | `PATHOS_SOURCE_STORE_DIR`, `PATHOS_SOURCE_S3_PREFIX` | api, jobs | `/var/lib/pathos/sources`, `sources/` | Encrypted source store |
 | `PATHOS_UPLOAD_MAX_BYTES`, `PATHOS_IMPORT_MAX_FILES`, `PATHOS_IMPORT_MAX_EXTRACTED_BYTES`, `PATHOS_IMPORT_MAX_FILE_BYTES` | api, jobs | 2 GiB, 200,000, 8 GiB, 1 GiB | Upload and archive limits |
 | `PATHOS_IMPORT_CONCURRENCY`, `PATHOS_IMPORT_TIMEOUT` | jobs | `2`, `30m` | Import workers per `jobs` container, per-item timeout |
-| `PATHOS_CLAMAV_ADDRESS`, `PATHOS_CLAMAV_REQUIRED` | jobs (and api, see above) | empty, `false` | Malware scanning |
+| `PATHOS_CLAMAV_ADDRESS`, `PATHOS_CLAMAV_REQUIRED` | api, jobs | empty, `false` | Malware scanning |
 | `PATHOS_CLAMAV_STREAM_MAX`, `PATHOS_CLAMAV_MAX_FILE` | clamav | `4000M`, `1000M` | clamd limits |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all PATHOS services | empty | OpenTelemetry export |
 | `COMPOSE_PROFILES` | Compose | `dev` | Optional services: `dev`, `objectstore`, `clamav`, `ollama`, `observability` |

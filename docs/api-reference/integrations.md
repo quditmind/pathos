@@ -353,7 +353,8 @@ Response `200 OK`:
 |---|---|
 | 200 | Done. A sync run (trigger `schedule`) is recorded for each repository that changed, failed or changed sync status; the others only get a new `last_sync_at`. |
 | 403 `forbidden` | No organization-wide `scm.manage`. |
-| 502 `scm_error` | "re-sync failed: ..." (for example the listing failed). An unknown or deleted connection currently also returns `502` ("re-sync failed: not found"), not `404`. |
+| 404 `not_found` | Unknown or deleted connection. |
+| 502 `scm_error` | "re-sync failed: ..." (for example the provider listing failed). |
 
 Database entities: `repositories`, `repository_sync_runs`, `scm_connections.last_synced_at`, `audit_logs` (`scm.resync`).
 

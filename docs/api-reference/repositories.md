@@ -444,7 +444,7 @@ Request body: any subset of the following fields. Unknown fields are rejected, i
 | `exposure_notes` | string | yes | Max 2000 characters. |
 | `scan_enabled` | boolean | no | Scheduled and event-driven scans run only when `true`. |
 | `scan_branch` | string | no | Branch to track and scan; `""` means the default branch. Max 255 characters, valid Git ref characters. |
-| `technologies` | string array | yes | Max 30, each 1–50 characters. |
+| `technologies` | string array | no | Max 30, each 1–50 characters. A scan setting: needs `repos.manage`. |
 | `full_history` | boolean | no | Clone the full history for scans. |
 
 Public exposure rules:
