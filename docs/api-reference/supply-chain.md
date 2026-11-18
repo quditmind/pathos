@@ -1,26 +1,51 @@
 ---
 title: Supply chain and pull request checks
 section: api-reference
-order: 9.5
+order: 26
 version: "1.0"
-updated: 2026-11-18
-summary: SBOM export (CycloneDX and SPDX), package health from deps.dev, malicious packages, build artifact targets and pull request checks with commit statuses.
+updated: 2026-11-19
+summary: SBOM inventory search and export (CycloneDX and SPDX), licence policies, package health from deps.dev, malicious packages, build artifact targets and pull request checks with commit statuses.
 ---
 # Supply chain and pull request checks
+
+## SBOM inventory
+
+Each repository has a component inventory, built from the latest scan's SBOM (Syft) or from an [imported SBOM](result-imports.md#importing-sboms).
+
+`GET /api/v1/sbom/components` (`sbom.read` at any scope) searches the inventories in the caller's scope. Components are grouped by name and version across repositories; at most 500, sorted by name.
+
+| Parameter | Description |
+|---|---|
+| `q` | Case-insensitive search in name and purl |
+| `repository_id` | One repository |
+| `license` | `deny` or `review` (components whose licence has that policy decision) or `violations` (either) |
+
+Each item: `name`, `version`, `purl`, `type`, `licenses`, `license_policy` (`deny`, `review` or `""`; `deny` wins), `repositories` (full names) and `open_vulnerabilities` (open SCA findings for this package and version in those repositories).
+
+## Licence policies
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/license-policies` | `sbom.read` at any scope | `{ "items": [{ "spdx_id", "decision" }] }` |
+| `PUT` | `/api/v1/license-policies` | `settings.manage` (organization-wide) | `{ "items": [{ "spdx_id", "decision" }] }` replaces the whole list (at most 500 entries; `decision` is `deny` or `review`; SPDX ID at most 100 characters) → `204`. Audited (`license_policy.update`) |
+
+New organizations start with `deny` for AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and `review` for GPL-2.0, GPL-3.0, LGPL-3.0 and BUSL-1.1 (the `-only` and `-or-later` SPDX IDs).
 
 ## SBOM export
 
 | Method | Path | Permission | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/repositories/{id}/sbom` | `findings.read` | The latest scan's CycloneDX SBOM (Syft). Without one (for example an imported SBOM), CycloneDX 1.5 generated from the inventory |
-| `GET` | `/api/v1/repositories/{id}/sbom?format=spdx` | `findings.read` | SPDX 2.3 JSON generated from the inventory: one package per component (purl as an external reference, SPDX licence expression or `NOASSERTION`), `DESCRIBES` for the roots and `DEPENDS_ON` for every dependency edge |
-| `GET` | `/api/v1/repositories/{id}/sbom?format=cyclonedx` | `findings.read` | Same as without `format` |
+| `GET` | `/api/v1/repositories/{id}/sbom` | `sbom.read` | The latest scan's CycloneDX SBOM (Syft). Without one (for example an imported SBOM), CycloneDX 1.5 generated from the inventory |
+| `GET` | `/api/v1/repositories/{id}/sbom?format=spdx` | `sbom.read` | SPDX 2.3 JSON generated from the inventory: one package per component (purl as an external reference, SPDX licence expression or `NOASSERTION`), `DESCRIBES` for the roots and `DEPENDS_ON` for every dependency edge |
+| `GET` | `/api/v1/repositories/{id}/sbom?format=cyclonedx` | `sbom.read` | Same as without `format` |
 
 `404 no_sbom` when the repository has no inventory; `400` for any other `format`. Files are sent as attachments (`*.spdx.json`, `*.cdx.json`).
 
+Component graphs, dependency paths and blast radius are in [Posture](posture.md#endpoints).
+
 ## Package health
 
-Package health comes from the `depsdev` intelligence feed ([Risk and vulnerability intelligence](risk-intelligence.md)). The feed is **off by default**: it sends the names of the packages in the inventories (npm, PyPI, Go, Cargo, NuGet, Maven) to `api.deps.dev`, and private package names are sent too. Turn it on with `PUT /api/v1/intel/feeds/depsdev {"enabled": true}` or run it once with `POST /api/v1/intel/feeds/depsdev/run`. Each run refreshes up to 500 packages not refreshed in the last 7 days. There is no file import.
+Package health comes from the `depsdev` intelligence feed ([feeds](risk-intelligence.md#feeds)). The feed is **off by default**: it sends the names of the packages in the inventories (npm, PyPI, Go, Cargo, NuGet, Maven) to `api.deps.dev`, and private package names are sent too. Turn it on with `PUT /api/v1/intel/feeds/depsdev {"enabled": true}` or run it once with `POST /api/v1/intel/feeds/depsdev/run`. Each run refreshes up to 500 packages not refreshed in the last 7 days. There is no file import.
 
 `GET /api/v1/repositories/{id}/dependencies` then returns per component:
 
@@ -37,7 +62,7 @@ Package health comes from the `depsdev` intelligence feed ([Risk and vulnerabili
 
 ## Malicious packages
 
-Findings from OSV `MAL-*` advisories (or titled as malicious code or malware) have `malicious: true`. Their risk uses the KEV likelihood weight and treats them as reachable: a malicious package runs when it is installed. Filter with `GET /api/v1/findings?malicious=true`. Findings also carry `introduced_commit`, the commit of the first scan that detected them.
+Findings from OSV `MAL-*` advisories (or titled as malicious code or malware) have `malicious: true`. Their risk uses the KEV likelihood weight and treats them as reachable: a malicious package runs when it is installed. Filter with `GET /api/v1/findings?malicious=true` ([list findings](findings.md#list-findings)).
 
 ## Build artifact targets
 

@@ -1,15 +1,57 @@
 ---
 title: Dashboards and reporting
 section: user-guide
-order: 10
+order: 16
 version: "1.0"
-updated: 2026-11-17
-summary: The repository KPI strip and insights, the security posture dashboard, filters, search, sorting, CSV export and common reporting scenarios.
+updated: 2026-11-19
+summary: The security posture dashboard, the executive overview, saved and scheduled reports, the repository KPI strip and insights, filters, CSV export and common reporting scenarios.
 ---
 
 # Dashboards and reporting
 
-PATHOS reports on repositories in three places: the **KPI strip** and **Insights** on the Repositories page, the organization-wide **Dashboard**, and CSV exports of any list. Everything respects your permissions: you only see and count repositories in your scope.
+PATHOS reports in these places:
+
+| Where | For |
+|---|---|
+| **Overview → Dashboard** | Organization-wide metrics with drill-down |
+| **Overview → Executive overview** | A printable summary for leadership |
+| **Overview → Reports** | Saved finding reports, shared and delivered on a schedule |
+| **Assets → Repositories** (KPI strip and **Insights**) | Inventory and ownership gaps |
+| **Export** on every list | CSV of the loaded rows |
+
+Application risk, coverage and benchmarking are on the [Posture](posture.md) pages; AI-written summaries are [AI reports](ai-analyst.md#ai-reports). Everything respects your permissions: you only see and count what is in your scope.
+
+## Security posture dashboard
+
+**Overview → Dashboard** shows organization-wide metrics grouped into *Risk posture*, *Remediation*, *Assets & coverage*, *Scanning*, *AI review*, *Supply chain* and *Platform*. Select a card to drill down.
+
+![Security posture dashboard](images/dashboard.png "Dashboard: risk posture, remediation, assets and coverage, scanning")
+
+Selected cards:
+
+| Card | Meaning |
+|---|---|
+| Repositories | Active repositories under management |
+| Applications | Applications grouping repositories |
+| **Scan coverage** | Share of active repositories scanned in the selected period |
+| Without owner | Repositories with no application or owner |
+| Open findings, Critical open, High open, Risk score, Exposed secrets, Vulnerable dependencies | Finding metrics (risk score: severity-weighted open findings per repository, critical 10, high 5, medium 2, low 0.5; not the same as the [contextual risk](vulnerability-intelligence.md#contextual-risk) of a finding) |
+| SLA breaches, Mean time to remediate, Resolved, Accepted risks | Remediation metrics |
+| Repositories by criticality, Riskiest repositories | Charts |
+
+Dashboard filters: **Period** (Last 7 / 30 / 90 days, Last 12 months), **Region**, **Country**, **Business unit**. The **Severity** and **Scanner** filters are shown but disabled. Filtering the dashboard by provider, environment, criticality or application is **not available**; use the Repositories page filters and Insights for those.
+
+## Executive overview
+
+**Overview → Executive overview** (permission `findings.read`) summarizes the security posture for leadership over 30, 90, 180 or 365 days: open critical and high findings, actively exploited vulnerabilities, SLA compliance and overdue findings, findings found and fixed each week, the open backlog, mean time to fix by severity, and the applications and business units with the most critical findings. **Print** produces a clean page (or a PDF from the print dialog). Everything is computed from the findings you can access.
+
+## Reports
+
+**Overview → Reports** keeps the views you need again and again. **New report**: choose the findings (status, severity, type, risk, KEV, past SLA, repository), then show them as a list with the columns you want or as counts per severity, status, type, repository, application, business unit, scanner, assignee or vulnerability. The preview updates as you change it.
+
+- **Share with everyone who can read findings**, or keep it to yourself.
+- **Deliver** it daily, weekly or monthly to **Recipients**: they get the *Scheduled report* notification with a link. Scheduling needs `findings.export`. A report always shows each person only the findings they may see, whoever created it.
+- **CSV** downloads the result (needs `findings.export`); **Print** gives a printable page; **Run again** refreshes it.
 
 ## Repository KPI strip
 
@@ -61,25 +103,6 @@ Filters are kept in the page address, so you can bookmark or share a filtered vi
 
 Every table (repositories, applications, import history, scans, findings) has **Export**, which downloads the **loaded rows** as CSV (*Export loaded rows as CSV*). Scroll or load further pages first if you need more rows. Some columns are always exported even when hidden, for example **Public exposure** in the repository list and **Repository ID** in scans and findings. Owner columns are exported as e-mail addresses.
 
-## Security posture dashboard
-
-**Overview → Dashboard** shows organization-wide metrics grouped into *Risk posture*, *Remediation*, *Assets & coverage*, *Scanning*, *AI review*, *Supply chain* and *Platform*. Select a card to drill down.
-
-![Security posture dashboard](images/dashboard.png "Dashboard: risk posture, remediation, assets and coverage, scanning")
-
-Relevant to repositories:
-
-| Card | Meaning |
-|---|---|
-| Repositories | Active repositories under management |
-| Applications | Applications grouping repositories |
-| **Scan coverage** | Share of active repositories scanned in the selected period |
-| Without owner | Repositories with no application or owner |
-| Open findings, Critical open, High open, Risk score, Exposed secrets, Vulnerable dependencies | Finding metrics (risk score: critical 10, high 5, medium 2, low 0.5 per open finding, per repository) |
-| Repositories by criticality, Riskiest repositories | Charts |
-
-Dashboard filters: **Period** (Last 7 / 30 / 90 days, Last 12 months), **Region**, **Country**, **Business unit**. The **Severity** and **Scanner** filters are shown but disabled. Filtering the dashboard by provider, environment, criticality or application is **not available**; use the Repositories page filters and Insights for those.
-
 ## Reporting scenarios
 
 ### 1. Which internet-facing, critical assets do we have?
@@ -105,7 +128,7 @@ Dashboard filters: **Period** (Last 7 / 30 / 90 days, Last 12 months), **Region*
 
 1. **More filters → Application** → *Payments Platform*.
 2. Check the KPI strip (exposure, critical, ownership) and **Insights**.
-3. Open **Findings**, filter **Repository** for each listed repository, or export findings and filter on the **Repository ID** column.
+3. Open **Posture → Application posture** for the application's risk, open findings, SLA breaches and coverage, or export the findings and filter on the **Application** column.
 
 ### 5. Import and sync health
 
@@ -121,4 +144,4 @@ Dashboard filters: **Period** (Last 7 / 30 / 90 days, Last 12 months), **Region*
 
 ## Related APIs
 
-[Repositories API](../api-reference/repositories.md) (list filters, insights), [Applications API](../api-reference/applications.md), [Imports API](../api-reference/imports.md).
+[Repositories API](../api-reference/repositories.md) (list filters, insights), [Applications API](../api-reference/applications.md), [Imports API](../api-reference/imports.md), [Integrations and reporting](../api-reference/integrations-reporting.md) (executive overview, reports).

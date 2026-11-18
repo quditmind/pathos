@@ -1,14 +1,14 @@
 ---
 title: Scan schedules
 section: api-reference
-order: 8
+order: 22
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Create one-time, recurring and interval scan schedules with execution plans, scan windows, retries, concurrency limits and run history.
 ---
 # Scan schedules
 
-A schedule runs an **execution plan** — rows of asset scope × existing scan profile — at its activations. Each activation creates one execution per distinct repository × profile pair, each with its own Scan ID and the schedule and activation ids. See [Scans](scans.md).
+A schedule runs an **execution plan** — rows of asset scope × existing [scan profile](scan-configuration.md#scan-profiles) — at its activations. Each activation creates one execution per distinct repository × profile pair, each with its own Scan ID and the schedule and activation ids. See [Scans](scans.md).
 
 All endpoints are under `/api/v1`, need a session, and mutations need `X-CSRF-Token`.
 
@@ -155,4 +155,4 @@ Errors: `400 invalid_request` (for example `the cron expression never fires`, `r
 
 ### Scheduler status
 
-`GET /api/v1/scheduler/status` — leader, heartbeat, workers online/offline, queued and running executions, oldest queued, schedules, missed runs.
+`GET /api/v1/scheduler/status` (`scans.read` or `scanners.read` at any scope) — leader, heartbeat, workers online/offline, queued and running executions, oldest queued, schedules, missed runs.

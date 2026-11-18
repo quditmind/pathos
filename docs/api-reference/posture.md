@@ -1,10 +1,10 @@
 ---
 title: Posture
 section: api-reference
-order: 11
+order: 30
 version: "1.0"
-updated: 2026-11-17
-summary: Application posture and risk rollup, aggregation, benchmarking, coverage, unmanaged and shadow repositories, SCM inventory, dependency graphs and paths, blast radius and the context graph.
+updated: 2026-11-19
+summary: Application posture and risk rollup, aggregation, benchmarking, coverage, unmanaged and shadow repositories, SCM inventory, dependency graphs and paths, blast radius, the context graph and attack paths.
 ---
 # Posture
 
@@ -25,6 +25,7 @@ All results are computed live and limited to the caller's repository scope.
 | `GET` | `/api/v1/findings/{id}/dependency-paths` | `findings.read` | For a dependency finding: the matching components, `relation` and paths, or a `reason` |
 | `GET` | `/api/v1/posture/blast-radius?cve=` or `?package=&version=` | `findings.read` | Affected repositories with ownership, exposure, relation, packages, open findings, risk and KEV |
 | `GET` | `/api/v1/posture/context-graph?node=application:<id>` or `repository:<id>` | `findings.read` | Nodes and edges around the application or repository |
+| `GET` | `/api/v1/posture/attack-paths?min_risk=50&limit=100` | `findings.read` | Paths from internet-facing entry points to risky findings ([details](#attack-paths)) |
 
 ## Group fields
 
@@ -86,3 +87,16 @@ Node `type` is one of:
 Nodes carry `label`, `sub`, `risk`, `severity` and `link` (a PATHOS page). Edge `kind` is one of `owns`, `contains`, `scans`, `depends_on` or `affects`.
 
 The graph includes up to 50 repositories, 100 targets, and the 8 riskiest open findings per repository.
+
+## Attack paths
+
+A path leads from the internet through a tested web application or API (DAST target), or through an internet-exposed repository (and its container image), to a finding. Dependency findings count only when they are reachable. Paths are ranked by the finding's risk.
+
+`min_risk` is 0–100 (default 50), `limit` 1–500 (default 100). The response has `min_risk`, `items`, `counts` (paths per entry) and `truncated`.
+
+Items contain:
+
+- `finding_id`, `risk`, `severity`, `kev`, `exploit_available`
+- `entry` (`dast_target` or `exposed_repository`)
+- `steps[]{type,label,sub,link}`, where type is `internet`, `target`, `application`, `repository`, `component`, `image` or `finding`
+- `reasons[]`

@@ -5,9 +5,9 @@ PATHOS authorization is **scoped RBAC**. A role assignment is `user × role × s
 | Scope | Covers |
 |---|---|
 | `organization` | Everything in the organization |
-| `region` | Resources in that region (repositories via their country, from Phase 3) |
+| `region` | Resources in that region (repositories through their country) |
 | `business_unit` | That business unit **and all of its descendants** |
-| `repository` | One repository (from Phase 3) |
+| `repository` | One repository |
 
 Rules enforced by the API (`backend/internal/authz`):
 
@@ -16,7 +16,8 @@ Rules enforced by the API (`backend/internal/authz`):
 - `super_admin` can only be granted at organization scope. The last active super administrator cannot be deactivated or have that role removed.
 - Users cannot deactivate themselves. Deactivation revokes all PATHOS sessions immediately and disables the Keycloak account.
 - List endpoints filter by the caller's scopes **in SQL** (`authz.FilterFor`). The UI hides menus only as a courtesy.
-- Denied requests are written to the audit log (`authz.denied`).
+- Denied requests are written to the audit log (`authz.denied`). Resources outside the caller's scope return 404.
+- Personal API tokens and the MCP server act with the token owner's **current** assignments; a token never adds permissions ([SECURITY.md](SECURITY.md#api-tokens-and-mcp)).
 
 ## System roles
 
@@ -31,11 +32,12 @@ Rules enforced by the API (`backend/internal/authz`):
 | `developer` | Views and remediates findings on assigned repositories |
 | `auditor` | Read-only, including users and the audit log |
 | `independent_reviewer` | Second-level Human Eye: validates other analysts' decisions (approve, reject, request information) |
+| `repository_contributor` | Onboards and maintains repositories and runs scans in scope; otherwise read-only |
 | `viewer` | Read-only posture data in scope |
 
 ## Matrix
 
-Generated from `backend/internal/authz/catalog.go` with `scripts/go.sh run ./cmd/pathosctl rbac-matrix`. A unit test fails if this table drifts from the code.
+Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scripts/go.sh run ./cmd/pathosctl rbac-matrix`). A unit test fails if this table drifts from the code.
 
 | Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|

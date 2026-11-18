@@ -3,7 +3,7 @@ title: Asset registration
 section: user-guide
 order: 6
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Every field of the registration wizard, which fields are required, regions, public exposure and URLs, and a walkthrough with screenshots.
 ---
 

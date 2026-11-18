@@ -1,9 +1,9 @@
 ---
 title: Import history
 section: user-guide
-order: 8
+order: 7
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Follow, investigate, retry and cancel background import jobs; every status and error code explained.
 ---
 

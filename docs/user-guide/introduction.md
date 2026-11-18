@@ -3,15 +3,15 @@ title: Introduction to PATHOS
 section: user-guide
 order: 1
 version: "1.0"
-updated: 2026-11-17
-summary: What PATHOS is, how it manages software security posture, and how the Repository Asset Management module fits in.
+updated: 2026-11-19
+summary: What PATHOS is, how it manages software security posture, how repositories, applications and findings fit together, and how this Help Center is organised.
 ---
 
 # Introduction to PATHOS
 
-PATHOS is a self-hosted platform for managing the security posture of the software your organization builds. It keeps an inventory of your source code repositories, records who owns them and how important they are, scans them with open-source security scanners in isolated workers, and turns the results into findings, dashboards and reports that can be filtered by business unit, region, application and owner.
+PATHOS is a self-hosted platform for managing the security posture of the software your organization builds. It keeps an inventory of your source code repositories, records who owns them and how important they are, scans them with open-source security scanners in isolated workers, ranks the findings by contextual risk, supports their triage and manual review, and turns the results into dashboards, posture views and reports that can be filtered by business unit, region, application and owner.
 
-This guide covers the **Repository Asset Management** module: registering repositories (from a local PC, from GitHub, GitLab or Bitbucket, or from Azure DevOps), describing them with business metadata, grouping them into applications, and following them into security scanning and reporting.
+This Help Center covers the whole product, from registering repositories to administration. It is bundled with PATHOS, so it always matches the version you run.
 
 ![The Help button in the top bar opens this Help Center](images/help-button.png "The Help button in the top bar opens the Help Center from any page")
 
@@ -30,14 +30,14 @@ PATHOS implements this as follows:
 |---|---|
 | What do we have? | **Repositories** inventory, each with a permanent Repository ID such as `QD-REPO-000042`, and **Applications** that group repositories |
 | Who owns it and how critical is it? | Registration metadata: business, technical and application owner, business unit, regions, criticality, data classification, environment, compliance scope, public exposure |
-| What is wrong with it? | **Scans** run by isolated workers (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, plus Syft for the SBOM), normalized into **Findings** |
-| What is being done? | Finding status and SLA, **Risk acceptances**, **Dashboard** trends and the audit log |
+| What is wrong with it? | **Scans** run by isolated workers (secrets, code, dependencies, infrastructure as code, CI/CD workflows) and **scan targets** (container images, web applications and APIs, SBOMs, build artifacts), normalized into **Findings** and ranked by **contextual risk** |
+| What is being done? | Finding status, assignment and SLA, **Risk acceptances**, **Human Eye** reviews, **security policies**, **Posture** and **Dashboard** trends, and the audit log |
 
-PATHOS does not test running applications. Application URLs, public domains and IP addresses that you record on a repository are **metadata only**: PATHOS never contacts, resolves or scans them.
+Application URLs, public domains and IP addresses that you record on a repository are **metadata only**: PATHOS never contacts, resolves or scans them. Running applications are tested only when someone registers them as an authorized [scan target](scanning.md#scan-targets).
 
-## Purpose of the Repository Asset Management module
+## Repository asset management
 
-The module makes sure every repository that should be assessed is known, described and owned:
+PATHOS makes sure every repository that should be assessed is known, described and owned:
 
 - **One registration process for every source.** All three import methods share the same registration wizard and the same background import engine, so a repository uploaded as a ZIP file and one imported from Azure DevOps carry the same metadata.
 - **A permanent identity.** Every repository receives a Repository ID that never changes and is never reused. It appears in the inventory, scan jobs, findings, CSV exports, global search and the audit log.
@@ -65,17 +65,45 @@ A repository belongs to at most one application; an application can have many re
 
 ## How this Help Center is organised
 
+**Getting started**
+
 1. [Introduction to PATHOS](introduction.md) (this page)
-2. [Repository management](repository-management.md): the repository record, the Repository ID, status, viewing and editing
-3. [Importing repositories](repository-import.md): Local PC, GitHub / GitLab / Bitbucket, Azure DevOps
-4. [Provider integrations](provider-integrations.md): SCM connections, OAuth applications, testing, webhooks, re-sync, deletion
-5. [Authentication methods](authentication.md): every supported sign-in method per provider, and the unsupported ones
+2. [Sign-in, MFA and single sign-on](sign-in-and-sso.md): signing in, two-factor authentication, recovery codes, SSO
+
+**Connecting providers and importing**
+
+3. [Provider integrations](provider-integrations.md): SCM connections, OAuth applications, statuses, webhooks, re-sync, deletion
+4. [Authentication methods](authentication.md): every supported credential per provider, and the unsupported ones
+5. [Importing repositories](repository-import.md): Local PC, GitHub / GitLab / Bitbucket, Azure DevOps
 6. [Asset registration](asset-registration.md): every wizard field, what is required, regions, exposure
-7. [Applications](applications.md): grouping repositories into business applications
-8. [Import history](import-history.md): statuses, error codes, retry and cancel
-9. [Security scanning](security-scanning.md): how registered repositories are scanned and where results appear
-10. [Dashboards and reporting](dashboards.md): KPIs, insights, filters, search and CSV export
-11. [Troubleshooting and FAQ](troubleshooting.md)
+7. [Import history](import-history.md): statuses, error codes, retry and cancel
+
+**Assets**
+
+8. [Repository management](repository-management.md): the repository record, the Repository ID, status, viewing and editing
+9. [Applications](applications.md): grouping repositories into business applications
+
+**Scanning and findings**
+
+10. [Security scanning: scanners and profiles](security-scanning.md): triggers, scanners, plugins, profiles, custom rules, offline mode
+11. [Running scans](scanning.md): executions, schedules, comparison, scan targets, result imports
+12. [Working with findings](findings.md): status, assignment, bulk actions, risk acceptance, SLAs, suppression rules
+13. [Contextual risk and vulnerability intelligence](vulnerability-intelligence.md): risk score, CVE details, reachability, feeds
+14. [Human Eye](human-review.md): manual security assessment and independent review
+
+**Posture and reporting**
+
+15. [Posture](posture.md): application posture, coverage, unmanaged assets, attack paths, blast radius
+16. [Dashboards and reporting](dashboards.md): dashboard, executive overview, reports, KPIs, CSV export
+17. [Supply chain and pull requests](supply-chain.md): SBOM export, package health, malicious packages, pull request checks
+18. [Security policies and compliance](policies-and-compliance.md): SLAs, license policy, security policies, compliance frameworks
+19. [Integrations and API tokens](reporting-and-integrations.md): webhooks, Jira, ServiceNow, REST API tokens
+
+**AI and administration**
+
+20. [AI features](ai-analyst.md): AI settings, AI reviews, MCP, AI Security Analyst, AI reports, AI usage
+21. [Administration](administration.md): users and roles, organization, notifications, workers, audit log
+22. [Troubleshooting and FAQ](troubleshooting.md)
 
 The [API reference](../api-reference/index.md) documents the endpoints behind every screen.
 

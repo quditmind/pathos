@@ -1,71 +1,35 @@
-# PATHOS ASPM database design
+# PATHOS ASPM database design (historical)
 
-Planned schema changes for the roadmap phases. Every change is an **additive** goose migration with a Down migration and a `pathos_apply_app_grants()` update. Existing columns, values and fingerprints are unchanged. Current schema: `docs/DATABASE.md`.
+> **Status: historical design, written in phase 0 (2026-11-17).** All ten ASPM phases are built (migrations `00013` to `00023`). Some planned tables were built under other names or replaced by a simpler design. This page keeps the plan and maps each part to what exists today. The current schema is described in [DATABASE.md](../DATABASE.md), which is canonical.
 
-## Phase 1: unified finding and application model
+The plan's rules hold for every ASPM migration:
 
-**`findings` (new nullable or defaulted columns)**
+- each change is an **additive** goose migration with a Down migration and an updated `pathos_apply_app_grants()`
+- existing columns, values and fingerprints are unchanged
 
-| Column | Type | Source |
-|---|---|---|
-| `cvss_version` | text (`2.0`, `3.0`, `3.1`, `4.0`) | Scanner, CVE feed |
-| `cvss_vector` | text | Scanner, CVE feed |
-| `confidence` | text (`high`, `medium`, `low`, `unknown`) default `unknown` | SARIF `rank` and precision, tool defaults |
-| `epss_score`, `epss_percentile` | numeric(6,5) | EPSS feed |
-| `kev` | boolean default false; `kev_due_date` date | KEV feed |
-| `exploit_available` | boolean | CVE references, KEV |
-| `reachability` | text (`reachable`, `not_reachable`, `unknown`) default `unknown` | Phase 4 analysers |
-| `risk_score` | numeric(5,2); `risk_factors` jsonb; `risk_scored_at` timestamptz | Risk engine |
+## Planned and as built
 
-Index: `(organization_id, risk_score DESC)` WHERE the finding is open.
-
-**`applications`**
-
-- `application_key` (`QD-APP-000001`, trigger-assigned from a sequence, immutable, like Repository IDs)
-- `technical_owner_user_id`
-- `lifecycle`, `environment`
-- `internet_exposure` (derived view over repositories, plus an optional override)
-
-**Intel tables (organization-independent reference data, read-only for the app role except through the feed job)**
-
-| Table | Key | Columns |
-|---|---|---|
-| `intel_cves` | cve_id | description, published, modified, cvss_v3_vector, cvss_v4_vector, base scores, cwe[], references jsonb, source |
-| `intel_epss` | cve_id | score, percentile, as_of |
-| `intel_kev` | cve_id | vendor, product, added_on, due_date, known_ransomware |
-| `intel_feed_runs` | id | feed, started, finished, records, error, mode (`online` or `file`) |
-
-**`risk_models`** (versioned per organization): `weights` jsonb, `version`, `created_by`. Findings record the model version in `risk_factors`.
-
-## Phase 2: ingestion
-
-- `import_jobs`: kind (`sarif`, `json`, `cyclonedx`, `spdx`), repository or application target, uploader, file SHA-256, status, counts, error.
-- Imported results become `scan_results` with `scanner_key` = `import:<tool>`.
-- `scan_targets`: type (`repository`, `url`, `api_spec`, `image`, `artifact`), reference, credentials secret, scope rules. `scan_jobs.target_id` is nullable; repositories keep working unchanged.
-- `custom_rules`: engine, name, content (validated), version, enabled, profile links.
-
-## Phase 3 and 7: components and graph
-
-- `components` (organization, purl, name, version, type, licences, latest_version, eol, deprecated, malicious, scorecard_score) de-duplicated by purl.
-- `repository_components` (repository, component, scan, direct boolean, scope).
-- `component_dependencies` (parent component, child component, repository). Built from CycloneDX `dependencies`.
-- The existing `sbom_components` stays and is backfilled into the new tables; it is dropped only in a later major version.
-- Graph traversal: recursive CTE views `v_component_paths` and `v_application_exposure`.
-
-## Phase 4: correlation, suppression
-
-- `finding_correlations` (finding_a, finding_b, kind: `same_location`, `same_cve_package`, `ai_suggested`, confidence, confirmed_by). Correlation links findings; it never merges them.
-- `suppression_rules` (match on fingerprint, rule, path glob or package; reason; expires_at; created_by). Matched findings get status `false_positive` through the lifecycle trigger, with `source=rule`.
-
-## Phase 8 and 9: governance and integrations
-
-- `policies` (versioned): condition jsonb over finding and context attributes, actions (gate, require_review, sla_days, notify), scope.
-- `compliance_frameworks`, `compliance_controls`, `control_mappings` (control ↔ CWE, category or rule).
-- `report_definitions` (filters, grouping, columns, schedule, recipients) and `report_runs`.
-- `connectors` (kind: `webhook`, `jira`, `servicenow`, `slack`, `teams`; config jsonb; secret_id; enabled).
-- `connector_links` (finding or review ↔ external key and URL, last sync).
-- `outbound_deliveries` (signed payload, attempts, status).
-- `api_tokens.scopes` extended for REST use.
+| Planned (phase) | As built |
+|---|---|
+| `findings` intelligence columns: `cvss_version`, `cvss_vector`, `confidence`, `epss_score`, `epss_percentile`, `kev`, `kev_due_date`, `exploit_available`, `reachability`, `risk_score`, `risk_factors`, `risk_scored_at` (1) | Built in `00013`, plus `risk_dirty` and the re-scoring triggers. `reachability_basis` came in `00017`, `malicious` in `00020` |
+| `applications`: `application_key`, `technical_owner_user_id`, `lifecycle`, `environment` (1) | Built in `00013`. Internet exposure is derived from the application's repositories in the posture queries; there is no override column |
+| `intel_cves` (1) | Not built. CVE and GHSA details come from OSV and are stored in `intel_vulns` (`00017`) |
+| `intel_epss`, `intel_kev`, `intel_feed_runs` (1) | Built in `00013`, plus `intel_feeds` (feed configuration). The `osv` feed came in `00017`, `depsdev` in `00020` |
+| `risk_models` (1) | Built in `00013` |
+| `import_jobs` (2) | Built in `00014`. Imported results use scanner keys `import-<category>-<tool>` (registered through `pathos_register_import_tool()`), not `import:<tool>` |
+| `scan_targets` with types `repository`, `url`, `api_spec`, `image`, `artifact` (2) | Built in `00015` with kinds `image`, `url`, `api`, `sbom`; `artifact` was added in `00020`. Repositories are not targets: `scan_jobs.target_kind` is `repository` for source scans |
+| `custom_rules` (2) | Built in `00014`, plus `custom_rule_versions` |
+| `components`, `repository_components`, `component_dependencies`, views `v_component_paths`, `v_application_exposure` (3, 7) | Not built. `sbom_components` gained `bom_ref` and `depth`, and `sbom_dependencies` holds the edges (`00016`). Package health is kept per package in `package_health` (`00020`). Paths are computed by the posture service |
+| `finding_correlations` (4) | Not built. Related findings are computed on request (`GET /findings/{id}/related`) and never stored or merged |
+| `suppression_rules` (4) | Built in `00017`, plus `findings.suppression_rule_id`. Matched findings get status `false_positive` through the lifecycle trigger |
+| `policies` (8) | Built as `security_policies` and `policy_violations` (`00021`) |
+| `compliance_frameworks`, `compliance_controls`, `control_mappings` (8) | Not tables. The five frameworks and their control mappings are a catalog in code (`backend/internal/compliance`) |
+| `report_definitions`, `report_runs` (9) | Built as `saved_reports` (`00022`). Runs are not stored; scheduled runs deliver a link through the notification rules |
+| `connectors` (9) | Split by kind: `outbound_webhooks` (JSON, Slack, Teams) and `ticket_connections` (Jira, ServiceNow) (`00022`) |
+| `connector_links` (9) | Built as `finding_tickets` (`00022`) |
+| `outbound_deliveries` (9) | Built as `outbound_webhook_deliveries` (`00022`) |
+| `api_tokens.scopes` extended (9) | No migration needed: the existing `scopes` column takes the new values `api:read` and `api:write` |
+| (not planned) | `pr_checks`, `pr_findings` (`00020`); AI analyst tables `ai_conversations`, `ai_messages`, `ai_reports` (`00019`); Human Eye approval levels and patch decisions (`00018`); `pathos_register_plugin_scanner()` (`00023`) |
 
 ## Conventions kept
 

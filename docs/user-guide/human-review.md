@@ -1,9 +1,9 @@
 ---
 title: "Human Eye: manual security assessment"
 section: user-guide
-order: 9.7
+order: 14
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Investigate scanner findings by hand, record exploitability, risk and evidence, decide a disposition (with independent review where required) and track remediation.
 ---
 # Human Eye: manual security assessment
@@ -23,7 +23,7 @@ The **Human Eye** section in the navigation has six pages:
 
 ## How findings reach the queue
 
-PATHOS adds a finding to the queue when automated triage marks it *needs review*, when AI review cannot decide, or when AI review suggests a false positive (a person must confirm). Administrators can also queue every new finding above a severity. You can add findings yourself from the **Findings** page: select them and choose **Send to Human Eye**. A finding is never queued twice.
+PATHOS adds a finding to the queue when automated triage marks it *needs review*, when AI review cannot decide, or when AI review suggests a false positive (a person must confirm). Administrators can also queue every new finding above a severity. You can add findings yourself from the **Findings** page: select them, choose **Send to Human Eye**, give a reason and select **Add to review queue** (permission `reviews.assign`; see [bulk actions](findings.md#bulk-actions)). A [security policy](policies-and-compliance.md#security-policies) can also require a review. A finding is never queued twice.
 
 Each review has a permanent **Finding ID** such as `QD-HR-000042`.
 
@@ -76,7 +76,7 @@ Review managers and independent reviewers can **Reopen** a completed review with
 
 ## AI assistant
 
-**AI assist** opens a panel of suggestions: a plain-language explanation, code summary, likely vulnerable paths, investigation questions, false-positive indicators, evidence to collect, remediation, secure code, CWE and OWASP references, and a draft assessment summary. Suggestions are labelled, kept with the review, and only added to your assessment when you choose **Add to …**. AI never completes a review or approves anything. It needs an AI provider (Administration → AI settings).
+**AI assist** opens a panel of suggestions: a plain-language explanation, code summary, likely vulnerable paths, investigation questions, false-positive indicators, evidence to collect, remediation, secure code, CWE and OWASP references, and a draft assessment summary. Suggestions are labelled, kept with the review, and only added to your assessment when you choose **Add to …**. AI never completes a review or approves anything. It needs an AI provider (**AI & MCP → AI settings**, see [AI features](ai-analyst.md#ai-settings-administrators)).
 
 ### Patch proposals, risk explanations and possible duplicates
 
@@ -87,7 +87,7 @@ The AI assistant can also:
   - The proposal stays **Proposed** until an analyst **approves** it or **rejects** it with a note. Both decisions are recorded in the history.
   - An approved patch can be downloaded as a `.patch` file for a developer to apply through the normal code review. **PATHOS never changes a repository.**
   - Patch proposals need the source code, so sending code to AI must be allowed.
-- **Explain the risk score.** The AI turns the finding's contextual risk score and its factors into plain language, including what would lower the score.
+- **Explain the risk score.** The AI turns the finding's [contextual risk](vulnerability-intelligence.md#contextual-risk) score and its factors into plain language, including what would lower the score.
 - **Find possible duplicates.** The AI compares the finding with nearby or similar findings in the same repository and says which are likely the same issue. The analyst decides.
 
 ## Permissions

@@ -1,6 +1,8 @@
-# PATHOS architecture assessment
+# PATHOS architecture assessment (phase 0 baseline)
 
-Phase 0 of the ASPM programme (2026-11-17). This describes PATHOS **as it is**, as the baseline for `PATHOS_FEATURE_GAP_ANALYSIS.md`. It is based on the code on `main`, plus the Human Review module in PR #29, which is complete with CI green but not yet merged.
+> **Status: historical snapshot.** Written in phase 0 of the ASPM programme (2026-11-17) and not updated since. It describes PATHOS as it was before the ASPM phases, as the baseline for [PATHOS_FEATURE_GAP_ANALYSIS.md](PATHOS_FEATURE_GAP_ANALYSIS.md). The gaps listed under "does not yet have" below were addressed in ASPM phases 1 to 10 (see [PATHOS_IMPLEMENTATION_ROADMAP.md](PATHOS_IMPLEMENTATION_ROADMAP.md)); what is still open is listed in the register. For the current architecture read [ARCHITECTURE.md](../ARCHITECTURE.md); for the current schema, [DATABASE.md](../DATABASE.md).
+
+It was based on the code on `main`, plus the Human Review module in PR #29, which was complete with CI green but not yet merged.
 
 ## 1. Summary
 
@@ -38,9 +40,9 @@ The architecture can absorb all of these without a rewrite. None of the 100 capa
 | Storage | PostgreSQL inline or S3-compatible (SeaweedFS profile) for scan artifacts; encrypted file store for source snapshots and evidence | AES-256-GCM with per-object keys |
 | Proxy | Caddy | TLS, security headers, `/internal` blocked |
 | Observability | slog JSON, OpenTelemetry traces and metrics, optional Grafana LGTM | |
-| Deployment | Docker Compose (single host), production override, backup, restore and upgrade scripts | Kubernetes path documented in `docs/ARCHITECTURE.md` §7 |
+| Deployment | Docker Compose (single host), production override, backup, restore and upgrade scripts | |
 
-Full detail: `docs/ARCHITECTURE.md`, `docs/DATABASE.md`, `docs/SECURITY.md`, `docs/OPERATIONS.md`.
+Full detail: [ARCHITECTURE.md](../ARCHITECTURE.md), [DATABASE.md](../DATABASE.md), [SECURITY.md](../SECURITY.md), [OPERATIONS.md](../OPERATIONS.md).
 
 ## 3. Modules (backend packages and UI)
 

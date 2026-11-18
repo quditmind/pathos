@@ -1,12 +1,14 @@
 ---
-title: Security policies, compliance and sign-in security
+title: Security policies and compliance
 section: api-reference
-order: 9.6
+order: 50
 version: "1.0"
-updated: 2026-11-18
-summary: Security policies (conditions → actions) and their violations, compliance framework views, MFA recovery codes.
+updated: 2026-11-19
+summary: Security policies (conditions → actions) and their violations, and compliance framework views.
 ---
-# Security policies, compliance and sign-in security
+# Security policies and compliance
+
+All endpoints follow the [common conventions](index.md#authentication).
 
 ## Security policies
 
@@ -66,13 +68,6 @@ Policies are evaluated after every scan (before the gate), when pull request sca
 
 Frameworks: `owasp_top10_2021`, `owasp_asvs_4` (every repository), `pci_dss_4` (repositories with compliance scope `pci_dss`), `iso_27001_2022` (`iso_27001`), `soc2_2017` (`soc_2`). A control maps findings by category, CWE and malicious packages. Status: `failing` (open critical or high findings), `attention` (other open findings), `passing` (none), `not_applicable` (no repository in scope). Everything is limited to the caller's scope. The mapping is indicative evidence for an assessment, not a compliance verdict.
 
-## MFA recovery codes
+## Sign-in security
 
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/me/mfa` | signed in | Own status: `configured`, `pending`, `recovery_codes`, `recovery_pending` |
-| `POST` | `/api/v1/me/recovery-codes` | signed in | New recovery codes at the next sign-in (shown once by Keycloak; old codes stop working). Audited `user.recovery_codes` |
-| `GET` | `/api/v1/users/{id}/mfa` | `users.read` | A user's status (same fields) |
-| `POST` | `/api/v1/users/{id}/recovery-codes` | `users.manage` | Require new recovery codes for a user. Audited `user.require_recovery_codes` |
-
-`409 mfa_unavailable` when Keycloak provisioning is not configured or the account is not linked to Keycloak; `502 idp_error` when Keycloak cannot be reached.
+MFA status, required enrolment and recovery codes are documented in [Administration: MFA and recovery codes](administration.md#mfa-and-recovery-codes).

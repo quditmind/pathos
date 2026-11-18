@@ -1,9 +1,9 @@
 ---
 title: Sign-in, MFA and single sign-on
 section: user-guide
-order: 2.5
+order: 2
 version: "1.0"
-updated: 2026-11-18
+updated: 2026-11-19
 summary: How people sign in to PATHOS, two-factor authentication and recovery codes, and single sign-on with your company's SAML 2.0 or OpenID Connect identity provider.
 ---
 # Sign-in, MFA and single sign-on
@@ -12,14 +12,14 @@ PATHOS signs people in through its bundled identity provider, Keycloak (realm `p
 
 ## Two-factor authentication (TOTP)
 
-Administrators require two-factor authentication per user (**Users → user → Require MFA**) or for everyone (the MFA enforcement setting). The user sets up an authenticator app at the next sign-in.
+Administrators require two-factor authentication per user (**Administration → Users** → user → **Require MFA**) or for everyone (the operator sets `PATHOS_REQUIRE_MFA=true`). The user sets up an authenticator app at the next sign-in. Your own status is under user menu → **Sign-in security**.
 
 ## Recovery codes
 
 Recovery codes let someone sign in when they lose their authenticator: on the code prompt they choose **Try another way** and enter one of their codes. Each code works once.
 
 - **For yourself:** user menu → **Sign-in security** → **Set up recovery codes**, then sign out and in again. Keycloak shows 12 codes once; save them (for example in a password manager) and confirm.
-- **For someone else (administrators):** **Users → user → Recovery codes → Require recovery codes** (or **Issue new codes** when they used or lost them). Old codes stop working when the new set is created.
+- **For someone else (administrators):** **Administration → Users** → user → **Recovery codes** → **Require recovery codes** (or **Issue new codes** when they used or lost them). Old codes stop working when the new set is created.
 
 Every request is recorded in the audit log (`user.recovery_codes`, `user.require_recovery_codes`).
 
@@ -31,7 +31,7 @@ Keycloak brokers sign-in to your company identity provider over **SAML 2.0** or 
 
 ### What PATHOS does with a new SSO user
 
-- The first sign-in creates the PATHOS user **with no roles**: they see nothing until an administrator grants a role (**Users**). To give roles in advance, **invite** the user with the same e-mail address: the invitation is linked on first sign-in.
+- The first sign-in creates the PATHOS user **with no roles**: they see nothing until an administrator grants a role ([Users and roles](administration.md#users-and-roles)). To give roles in advance, **invite** the user with the same e-mail address: the invitation is linked on first sign-in.
 - An invitation is linked only when the e-mail address is **verified**. For SSO users that is the case only when the identity provider is set to **Trust email**. Turn that on only for an identity provider whose e-mail addresses you control (your own company directory), otherwise anyone who can choose their e-mail address in that provider could take over an invitation.
 - A Keycloak account that already exists with the same e-mail address is not taken over: Keycloak asks the person to confirm by signing in to the existing account first (the default *first broker login* flow).
 - Deactivating a user in PATHOS blocks their sign-in even when the identity provider still accepts them.

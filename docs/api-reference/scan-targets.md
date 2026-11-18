@@ -1,9 +1,9 @@
 ---
 title: Scan targets
 section: api-reference
-order: 9
+order: 24
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Container images, web applications (DAST), APIs (OpenAPI), build artifacts and SBOMs as scan targets; authorization statements, credentials, scanning and filters.
 ---
 # Scan targets
@@ -66,7 +66,5 @@ A scan target is something PATHOS scans besides a repository's source code. Each
 
 ## Filters
 
-| Endpoint | Parameters |
-|---|---|
-| `GET /api/v1/findings` | `scan_target_id`, `target_kind` (`repository` = source code only, `image`, `url`, `api`, `sbom`) |
-| `GET /api/v1/scans` | `asset_type` (`repository`, `image`, `url`, `api`, `sbom`), `target_id` |
+- Findings of targets: `scan_target_id` and `target_kind` on [list findings](findings.md#list-findings).
+- Target scans: `asset_type` and `target_id` on [list executions](scans.md#list-executions).

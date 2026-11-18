@@ -4,17 +4,19 @@
 
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
-> **Status: release candidate. All eight roadmap phases are implemented and tested.** Delivered so far:
+> **Status: release candidate.** The eight platform phases (P1–P8) and the ten ASPM phases are implemented and tested. Highlights:
 >
-> - Keycloak login with scoped RBAC and an audit log.
-> - GitHub and Azure DevOps repository management.
-> - Isolated scan workers running 7 open-source scanners with de-duplicated findings.
-> - AI review (Anthropic, OpenAI, xAI) with human approval, and an MCP server.
-> - Vulnerability lifecycle: SLAs, risk acceptance, SBOM and license policy.
-> - Scheduling and notifications.
-> - Production hardening: rate limiting, backup, restore and upgrade, OpenTelemetry, S3 artifacts and security self-tests.
+> - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
+> - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
+> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; declarative scanner plugins.
+> - Contextual risk scoring with EPSS, CISA KEV and OSV; reachability, attack paths and posture analytics.
+> - Human Eye manual review, AI review (Anthropic, OpenAI, xAI) with human approval, the AI Security Analyst and an MCP server.
+> - Vulnerability lifecycle: SLAs, risk acceptance, security policies, compliance views, SBOM export and license policy.
+> - Supply chain: package health, malicious packages, pull request checks.
+> - Reporting and integrations: executive overview, scheduled reports, REST API tokens, webhooks (Slack, Teams), Jira and ServiceNow.
+> - Production readiness: scheduling, notifications, rate limiting, backup, restore and upgrade, OpenTelemetry, S3 artifacts, offline (air-gapped) mode and security self-tests.
 >
-> See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) for the milestone reports.
+> See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) and [docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md](docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md) for the milestone reports.
 
 ## Installation
 
@@ -43,19 +45,44 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 
 ## Documentation
 
+**Using PATHOS** (also in the in-app Help Center):
+
 | Document | Contents |
 |---|---|
-| [INSTALLATION](docs/INSTALLATION.md) | Install, configure, verify |
-| [OPERATIONS](docs/OPERATIONS.md) | Production deployment, backup/restore/upgrade, scaling, monitoring, rate limits, object storage, self-tests |
+| [User guide](docs/user-guide/introduction.md) | Every module, step by step: repositories, scanning, findings, Human Eye, posture, AI, policies, integrations |
+| [API reference](docs/api-reference/index.md) | Authentication, errors, pagination, and every REST endpoint with its permission |
+
+**Installing and operating:**
+
+| Document | Contents |
+|---|---|
+| [INSTALLATION](docs/INSTALLATION.md) | Install, what runs, configure, verify |
+| [OPERATIONS](docs/OPERATIONS.md) | Production deployment, releases, backup/restore/upgrade, scaling, monitoring, configuration reference, rate limits, object storage, malware scanning, AI options, self-tests |
+| [AIRGAP](docs/AIRGAP.md) | Air-gapped installation with offline vulnerability data |
 | [SECURITY](docs/SECURITY.md) | Implemented security controls, key rotation |
 | [RBAC_MATRIX](docs/RBAC_MATRIX.md) | Roles, scopes, permission matrix |
-| [API](backend/api/openapi.yaml) | OpenAPI 3.1 spec |
-| [CHANGELOG](CHANGELOG.md) | Changes per phase |
-| [ARCHITECTURE](docs/ARCHITECTURE.md) | System design, isolation model, deployment, UI plan, decisions, sizing |
-| [DATABASE](docs/DATABASE.md) | Entity-relationship design |
-| [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Scanner licensing and maintenance review |
-| [DEPENDENCIES](docs/DEPENDENCIES.md) | Dependencies and licenses |
-| [DEVELOPMENT_ROADMAP](docs/DEVELOPMENT_ROADMAP.md) | Phase plan and status |
+
+**Design and engineering:**
+
+| Document | Contents |
+|---|---|
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | System design, isolation model, deployment, decisions, sizing, extension points |
+| [DATABASE](docs/DATABASE.md) | Schema and migrations |
+| [SCANNING_MODULE](docs/SCANNING_MODULE.md) | Scan executions, schedules and comparison: design notes |
+| [REPOSITORY_ONBOARDING](docs/REPOSITORY_ONBOARDING.md) | Repository onboarding: design notes |
+| [HUMAN_REVIEW](docs/HUMAN_REVIEW.md) | Human Eye: design notes |
+| [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Implemented scanners, licensing review, scanner plugins |
+| [DEPENDENCIES](docs/DEPENDENCIES.md) | Dependencies, versions and licenses |
+| [OpenAPI](backend/api/openapi.yaml) | OpenAPI 3.1 description |
+
+**Roadmaps and history:**
+
+| Document | Contents |
+|---|---|
+| [ASPM roadmap](docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md) | ASPM phases 1–10 and their completion reports |
+| [ASPM register](docs/aspm/PATHOS_FEATURE_GAP_ANALYSIS.md) | The 100 target capabilities and their status |
+| [DEVELOPMENT_ROADMAP](docs/DEVELOPMENT_ROADMAP.md) | Original platform build (phases P1–P8) and milestone reports |
+| [CHANGELOG](CHANGELOG.md) | Changes per release |
 
 ## Contributing and security
 

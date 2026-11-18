@@ -63,6 +63,7 @@ Vulnerability data is only as fresh as the last bundle. Create and import a bund
 | SCM integrations | Internal servers (GitHub Enterprise Server, GitLab self-managed, Azure DevOps Server) |
 | Webhooks, Jira, ServiceNow | Internal endpoints (allow internal addresses on each) |
 | AI | Self-hosted model only |
+| Malware scanning (ClamAV, optional) | The offline bundle does not include ClamAV signatures; `freshclam` cannot update them without internet access |
 | Sign-in, MFA, recovery codes, SSO | Work (SSO with an internal identity provider) |
 
 ## Verify

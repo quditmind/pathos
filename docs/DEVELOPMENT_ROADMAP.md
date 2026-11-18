@@ -1,20 +1,24 @@
-# Development Roadmap
+# Development roadmap: platform phases P1 to P8
 
-Each phase ends with: working features, automated tests passing, `docker compose up -d` validated, docs updated, and a milestone report (implemented / files / tests / open issues / verify commands / next).
+**Status: complete.** This is the plan and the milestone reports of the original platform build, delivered in eight phases on 2026-11-15. To keep them apart from the later ASPM programme, they are called **platform phases P1 to P8** here.
+
+The ASPM programme that followed has its own phases 1 to 10, all done, with completion reports in [aspm/PATHOS_IMPLEMENTATION_ROADMAP.md](aspm/PATHOS_IMPLEMENTATION_ROADMAP.md). The two numberings are unrelated: platform phase P7 (scheduling and notifications) is not ASPM phase 7 (supply chain). New work is planned against the ASPM register ([aspm/PATHOS_FEATURE_GAP_ANALYSIS.md](aspm/PATHOS_FEATURE_GAP_ANALYSIS.md)), not here.
+
+Each phase ended with working features, automated tests passing, `docker compose up -d` validated, docs updated, and a milestone report (implemented / files / tests / open issues / verify commands / next). The reports are kept as written: what they call open, deferred or "not verified" describes the state at that milestone, and much of it was delivered later (see the CHANGELOG).
 
 | Phase | Status |
 |---|---|
-| 0 Environment & architecture | **Done (2026-11-15)** |
-| 1 Foundation | **Done (2026-11-15)**: see milestone report below |
-| 2 Premium UI & dashboard | **Done (2026-11-15)**: see milestone report below |
-| 3 Repository & asset management | **Done (2026-11-15)**: see milestone report below |
-| 4 Scanning engine | **Done (2026-11-15)**: see milestone report below |
-| 5 AI & MCP | **Done (2026-11-15)**: see milestone report below |
-| 6 Vulnerability management | Not started |
-| 7 Scheduling & notifications | Not started |
-| 8 Enterprise hardening | Not started |
+| P0 Environment and architecture | Done (2026-11-15) |
+| P1 Foundation | Done (2026-11-15) |
+| P2 Premium UI and dashboard | Done (2026-11-15) |
+| P3 Repository and asset management | Done (2026-11-15) |
+| P4 Scanning engine | Done (2026-11-15) |
+| P5 AI and MCP | Done (2026-11-15) |
+| P6 Vulnerability management | Done (2026-11-15) |
+| P7 Scheduling and notifications | Done (2026-11-15) |
+| P8 Enterprise hardening | Done (2026-11-15) |
 
-## Phase 1: Foundation
+## P1: Foundation
 - Go module skeleton (`cmd/pathos` roles, `pathosctl`), config loading with validation, slog JSON logging with secret redaction, health/readiness endpoints.
 - PostgreSQL + goose migrations: organizations, regions/countries/BUs (seeded), users, teams, roles, permissions, role_assignments, secrets, audit_logs.
 - Envelope encryption package plus master-key handling.
@@ -25,38 +29,38 @@ Each phase ends with: working features, automated tests passing, `docker compose
 - Tests: Go unit tests (authz, crypto, config), integration tests with testcontainers (migrations, RBAC queries), frontend unit tests, compose smoke test script.
 - Docs: README, INSTALLATION, SECURITY, RBAC_MATRIX, API_DOCUMENTATION (OpenAPI), CHANGELOG.
 
-## Phase 2: Premium UI & dashboard
+## P2: Premium UI & dashboard
 Design tokens, light/dark themes, logo/favicon, Keycloak login theme, navigation shell, ⌘K global search, notification centre shell, `DataTable`/`FilterBar`/`KpiCard` components. Dashboard aggregate endpoints (SQL-backed, scope-filtered) with all 24 KPIs and charts. KPIs whose data source lands in a later phase are shown as **"Not yet available"** rather than with fake numbers. Drill-down links.
 
-## Phase 3: Repository & asset management
+## P3: Repository & asset management
 SCM connections (GitHub App / PAT, GHE base URL, Azure DevOps Services/Server), repo discovery and import, bulk onboarding (selection + CSV), branch selection, metadata and classification, tag categories and mandatory tags, bulk tagging, applications, archive/delete. Webhook receivers (signature-verified) for push, PR and merge.
 
-## Phase 4: Scanning engine
+## P4: Scanning engine
 Catalog seeding from SCANNER_CATALOG, Adapter interface, shared SARIF parser, worker agent + lease API, `worker-core` image (Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov), egress proxy, scan profiles with versioning (Gitleaks locked on), result normalization and fingerprinting, raw report storage. Then the remaining worker families.
 
-## Phase 5: AI & MCP
+## P5: AI & MCP
 Provider interface and Anthropic / OpenAI / xAI adapters, AI configurations (versioned), redaction, prompt-injection-resistant prompt assembly, JSON-schema-validated output, review pipeline as background jobs, human approval queue, PATHOS MCP server (interactive mode), MCP server registry with approval and tool allow-lists.
 
-## Phase 6: Vulnerability management
+## P6: Vulnerability management
 Findings UI, lifecycle state machine and history, assignment, SLA policies and deadlines, accepted-risk workflow with expiry, recurrence tracking, SBOM inventory and component search.
 
-## Phase 7: Scheduling & notifications
+## P7: Scheduling & notifications
 Leader-elected scheduler, cadence by repo / region / BU / profile, priorities, retries, cancellation, missed-schedule detection, worker health. SMTP settings, templates, rules, delivery history.
 
-## Phase 8: Enterprise hardening
+## P8: Enterprise hardening
 Load tests (k6), security tests (gosec, Trivy on our images, ZAP baseline against PATHOS itself), production compose overrides, backup/restore/upgrade scripts validated, OTel exporters, final documentation.
 
-## Phase 1 milestone report (2026-11-15)
+## P1 milestone report (2026-11-15)
 
-**Implemented:** everything in the Phase 1 scope above, with these deviations:
+**Implemented:** everything in the phase P1 scope above, with these deviations:
 
 | Planned | Delivered | Reason / follow-up |
 |---|---|---|
-| sqlc-generated queries | Hand-written pgx queries in each package's `store.go` | Small surface so far. Revisit when Phase 3 adds many list/filter queries |
-| oapi-codegen server types; openapi-typescript client | Hand-written OpenAPI 3.1 spec (`backend/api/openapi.yaml`) plus a typed fetch client | Wire codegen in Phase 2, when the API surface grows |
+| sqlc-generated queries | Hand-written pgx queries in each package's `store.go` | Small surface so far. Revisit when phase P3 adds many list/filter queries |
+| oapi-codegen server types; openapi-typescript client | Hand-written OpenAPI 3.1 spec (`backend/api/openapi.yaml`) plus a typed fetch client | Wire codegen in phase P2, when the API surface grows |
 | testcontainers-go | `scripts/test-integration.sh` (throwaway PostgreSQL container on a private network) | Avoids mounting the Docker socket into the test container |
-| SeaweedFS in compose | Not deployed yet | No object storage consumer until Phase 4 (raw reports, SBOMs) |
-| User-management "teams" API | Schema only (`teams`, `team_members`) | UI/API for teams lands with Phase 3 ownership features |
+| SeaweedFS in compose | Not deployed yet | No object storage consumer until phase P4 (raw reports, SBOMs) |
+| User-management "teams" API | Schema only (`teams`, `team_members`) | UI/API for teams lands with phase P3 ownership features |
 
 **Tests:**
 - Go unit tests (config, logging redaction, envelope crypto, RBAC, RBAC doc sync, HTTP helpers, open-redirect guard).
@@ -71,11 +75,11 @@ make test && make test-integration
 docker compose up -d --build --wait && make smoke
 ```
 
-**Open issues:** see "Known gaps" in [SECURITY.md](SECURITY.md). Keycloak realm changes after first start must be made in the Keycloak admin console (the import is first-start only).
+**Open issues:** see [Known gaps in SECURITY.md](SECURITY.md#known-gaps). Keycloak realm changes after first start must be made in the Keycloak admin console (the import is first-start only).
 
-**Next:** Phase 2, the premium UI and dashboard.
+**Next:** Phase P2, the premium UI and dashboard.
 
-## Phase 2 milestone report (2026-11-15)
+## P2 milestone report (2026-11-15)
 
 **Implemented:**
 - **Dashboard API** (`GET /api/v1/dashboard`). The 24-KPI catalog plus 6 chart panels are defined once in `backend/internal/dashboard/catalog.go`, each tagged with its data-source phase and required permission. Every item returns one of three states: `ok` with values, `not_yet_available` (no number, shows the phase that delivers it) or `restricted` (no value is sent). Filters: period (7/30/90/365 days), region, country, business unit. KPIs that are not geo-scoped are labelled `org_wide` when a geo filter is set.
@@ -87,15 +91,15 @@ docker compose up -d --build --wait && make smoke
   - Users and Audit pages rebuilt on `DataTable`, with URL-driven filters so drill-downs and search results deep-link. Charts are lazy-loaded (Recharts kept out of the main bundle).
 - **Keycloak login theme** `pathos` (`deploy/keycloak/themes/pathos`): PATHOS mark and colours over `keycloak.v2`.
 
-**Upgrading a Phase 1 install:** the realm import runs only on first start. In the Keycloak admin console set *Realm settings → Themes → Login theme* to `pathos`. After any theme change, run `docker compose up -d --force-recreate keycloak`, because Keycloak keeps a gzip cache of theme files inside the container.
+**Upgrading a phase P1 install:** the realm import runs only on first start. In the Keycloak admin console set *Realm settings → Themes → Login theme* to `pathos`. After any theme change, run `docker compose up -d --force-recreate keycloak`, because Keycloak keeps a gzip cache of theme files inside the container.
 
 **Tests:** dashboard catalog and filter unit tests; integration tests for dashboard values, permission restrictions and search scoping; frontend tests for KpiCard states, delta polarity, CSV escaping and href splitting; smoke test now has 40 checks; Playwright run of login, dashboard, palette, drill-down, notifications and dark mode.
 
 **Deviations:** OpenAPI code generation is still deferred (spec updated by hand). Saved table views are not implemented; column choices persist per browser.
 
-**Next:** Phase 3, repository and asset management.
+**Next:** Phase P3, repository and asset management.
 
-## Phase 3 milestone report (2026-11-15)
+## P3 milestone report (2026-11-15)
 
 **Implemented:**
 - **Schema** (migration 00002): `scm_connections`, `applications`, `repositories`, `tag_categories`, `tags`, `repository_tags`, `webhook_deliveries`. Same-organization integrity uses composite foreign keys throughout.
@@ -111,7 +115,7 @@ docker compose up -d --build --wait && make smoke
 - **Scoped access:** repository-scope grants work end to end. Region grants match through the repository's country; BU grants include descendants; moves require permission at the destination.
 - **Tags:** categories with *mandatory* and *single-value* rules, enforced on import, edit and bulk tag. Non-compliance is counted when a rule is tightened later.
 - **Applications:** create/update/archive with owner and security owner, scoped by business unit.
-- **Webhooks:** GitHub (HMAC) and Azure DevOps (basic auth) receivers normalise push / pull request / merge events, de-duplicate deliveries and expose an `OnEvent` hook for Phase 4.
+- **Webhooks:** GitHub (HMAC) and Azure DevOps (basic auth) receivers normalise push / pull request / merge events, de-duplicate deliveries and expose an `OnEvent` hook for phase P4.
 - **Dashboard and search:** the *Repositories*, *Applications* and *Without owner* KPIs plus a *Repositories by criticality* chart are now live, scope- and geo-filtered. Global search covers repositories and applications.
 - **UI:** Repositories (filters, bulk actions, drawer editor with branch picker), Import (selection + CSV), Applications, SCM connections, Tags.
 
@@ -122,11 +126,11 @@ docker compose up -d --build --wait && make smoke
 - Smoke test now has 50 checks, including a live call to `api.github.com` that confirms egress and credential-failure handling.
 - A Playwright pass over every new screen.
 
-**Deviations:** repository metadata (default branch, archived flag, last push) is captured at import time; periodic re-sync with the SCM moves to the Phase 7 scheduler. Webhook events are recorded but trigger nothing until Phase 4.
+**Deviations:** repository metadata (default branch, archived flag, last push) is captured at import time; periodic re-sync with the SCM moves to the phase P7 scheduler. Webhook events are recorded but trigger nothing until phase P4.
 
-**Next:** Phase 4, the scanning engine.
+**Next:** Phase P4, the scanning engine.
 
-## Phase 4 milestone report (2026-11-15)
+## P4 milestone report (2026-11-15)
 
 **Implemented:**
 - **Catalog:** all 52 integrations (plus Syft), synced from `internal/scanners/catalog.go`. The seven `worker-core` tools are runnable today; the rest are marked *planned* with their worker family.
@@ -164,14 +168,14 @@ docker compose up -d --build --wait && make smoke
 - Smoke test now has 58 checks.
 
 **Deviations:**
-- Raw reports and SBOMs are stored in PostgreSQL (`scan_artifacts`, gzip) behind one code path, instead of SeaweedFS/S3. Moving them to object storage is scheduled for Phase 8.
+- Raw reports and SBOMs are stored in PostgreSQL (`scan_artifacts`, gzip) behind one code path, instead of SeaweedFS/S3. Moving them to object storage is scheduled for phase P8.
 - Pull-request webhooks are recorded but do not trigger scans (findings are tracked per scan branch).
 - Only the `core` worker family is built.
 - Public repositories fall back to an anonymous clone when the stored credential is rejected; private ones never do.
 
-**Next:** Phase 5, AI review and MCP.
+**Next:** Phase P5, AI review and MCP.
 
-## Phase 5 milestone report (2026-11-15)
+## P5 milestone report (2026-11-15)
 
 **Implemented:**
 - **Providers** behind one `ai.Provider` interface:
@@ -204,9 +208,9 @@ docker compose up -d --build --wait && make smoke
 
 **Not verified:** a real review against a live provider, because no API key is available in this environment. Everything up to the HTTP call is covered with the fake provider, and the SDK path is verified up to authentication.
 
-**Next:** Phase 6, vulnerability management.
+**Next:** Phase P6, vulnerability management.
 
-## Phase 6 milestone report (2026-11-15)
+## P6 milestone report (2026-11-15)
 
 **Implemented:**
 - **Lifecycle in the database:** the `pathos_finding_lifecycle` trigger records every status change in an append-only history, with actor, source (`user` / `scanner` / `ai` / `expiry` / `system`) and reason. It sets SLA deadlines at detection, counts recurrences (fixed → open) and maintains `resolved_at` / `accepted_until`. Scanner auto-fix, AI decisions and manual triage all pass through it.
@@ -226,9 +230,9 @@ docker compose up -d --build --wait && make smoke
 - The smoke test now has 76 checks, adding the policy seeds, SBOM API, filters, the reason/workflow guards, assignment and history.
 - Live end to end: a rescan of `snyk-labs/nodejs-goof` stored 572 SBOM components (251 with licenses) and ranked vulnerable components (handlebars 4.0.11: 21 open). SLA deadlines were backfilled for all 337 existing findings.
 
-**Next:** Phase 7, scheduling and notifications.
+**Next:** Phase P7, scheduling and notifications.
 
-## Phase 7 milestone report (2026-11-15)
+## P7 milestone report (2026-11-15)
 
 **Implemented:**
 - **Scheduler role:**
@@ -268,9 +272,9 @@ docker compose up -d --build --wait && make smoke
     - one SLA breach event per breach, the inbox and read state, history and retry, append-only history, and suppression when email is disabled.
 - The smoke test now has 87 checks, including leader health, schedule CRUD and preview, the seeded rules and SMTP, and a real test email delivered by `jobs` to Mailpit and verified through Mailpit's API.
 
-**Next:** Phase 8, enterprise hardening.
+**Next:** Phase P8, enterprise hardening.
 
-## Phase 8 milestone report (2026-11-15)
+## P8 milestone report (2026-11-15)
 
 **Implemented:**
 - **Rate limiting:**
@@ -327,4 +331,4 @@ docker compose up -d --build --wait && make smoke
 **Not verified:**
 - Automated reviews against a live AI provider (no key in this environment).
 - An authenticated active DAST scan. Only the passive baseline ran, so as not to mutate the shared development data; run ZAP's API scan against a disposable environment.
-- Multi-host deployment (Compose is single-host by design; see ARCHITECTURE §7 for the Kubernetes path).
+- Multi-host deployment (Compose is single-host by design).

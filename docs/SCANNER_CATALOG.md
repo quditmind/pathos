@@ -1,18 +1,40 @@
 # Scanner Catalog
 
-Status: **Phase 4**. The `worker-core` tools (Gitleaks, Opengrep, Trivy fs, Syft, Grype, OSV-Scanner, Checkov; zizmor and Nuclei since phase 2b of the ASPM roadmap; actionlint since phase 7) are implemented and pinned. The others are catalogued in `backend/internal/scanners/catalog.go` as *planned* until their worker family image ships. Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. Each entry is verified again when its adapter is built (Phase 4+): license text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15. Entries marked *unverified* were not checked because of an API rate limit.
+The licensing and maintenance review behind the scanner catalog. The catalog itself is code: `backend/internal/scanners/catalog.go`, synced into `scanner_catalog` by every `migrate`. Each entry was verified again when its adapter was built: licence text, commercial-use terms, release cadence and output formats. "Repo status" was read from the GitHub API on 2026-11-15; entries marked *unverified* were not checked because of an API rate limit.
 
-Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** = excluded (reason given). Build = requires building the target code (disabled by default, see ARCHITECTURE.md §5).
+## Implemented
+
+These run in the `worker-core` image today, pinned by version and SHA-256 (or built from their checksum-verified Go module):
+
+| Tool | Runs on | Output |
+|---|---|---|
+| Gitleaks (mandatory in every profile) | Repositories | SARIF, secrets redacted |
+| Opengrep | Repositories (PATHOS baseline rules, mounted rule sets, custom rules) | SARIF |
+| Trivy (filesystem) | Repositories, build artifacts | SARIF |
+| Syft | Repositories (SBOM utility for Grype and the inventory) | CycloneDX |
+| Grype | Repositories (on the Syft SBOM), SBOM targets | JSON |
+| OSV-Scanner | Repositories | SARIF |
+| Checkov | Repositories (including Bitbucket Pipelines) | SARIF |
+| zizmor | Repositories with GitHub Actions workflows | SARIF |
+| actionlint | Repositories with GitHub Actions workflows | JSON |
+| Trivy (image) | Container image targets | SARIF |
+| Nuclei | Web application and API targets (reviewed template subset) | JSONL |
+
+Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#declarative-scanner-adapters-plugins). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
+
+**Not a scanner, but related:** ClamAV (GPL-2.0, optional `clamav` Compose profile) scans uploaded source archives and build artifacts for malware before PATHOS accepts them ([OPERATIONS.md](OPERATIONS.md#malware-scanning-clamav)). It does not produce findings and is not in the catalog.
+
+Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** = excluded (reason given). Build = requires building the target code (no adapter; see [ARCHITECTURE.md §5](ARCHITECTURE.md#5-scanner-execution-and-isolation)).
 
 ## Scanners
 
 | # | Tool | Category | License | Repo status | Decision | Notes |
 |---|---|---|---|---|---|---|
-| 1 | Gitleaks | Secrets | MIT | active | **Use, mandatory** | SARIF/JSON |
+| 1 | Gitleaks | Secrets | MIT | active | **Use, mandatory** | **Implemented** |
 | 2 | TruffleHog | Secrets | AGPL-3.0 | active | Use | Run unmodified as a separate process; verification mode off by default (it calls third-party APIs) |
 | 3 | detect-secrets | Secrets | Apache-2.0 | active (last push 2026-04) | Use | |
 | 4 | Kingfisher | Secrets | Apache-2.0 (*unverified*) | *unverified* | Use (verify) | |
-| 5 | Opengrep | SAST | LGPL-2.1 | active | **Use (default Semgrep-compatible engine)** | Rule licensing, see D5 |
+| 5 | Opengrep | SAST | LGPL-2.1 | active | **Use (default Semgrep-compatible engine)** | **Implemented**. Rule licensing: ARCHITECTURE D5 |
 | 6 | Semgrep CE | SAST | LGPL-2.1 | active | Opt | Registry rules restricted |
 | 7 | CodeQL | SAST | GitHub CodeQL Terms | active | **Opt, license-restricted** | Free only for OSS/research. Build for compiled languages |
 | 8 | Bandit | SAST (Python) | Apache-2.0 | active | Use | |
@@ -32,9 +54,9 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 22 | mobsfscan | SAST (Android/iOS) | LGPL-3.0 (*unverified*) | *unverified* | Use (verify) | |
 | 23 | Sobelow | SAST (Elixir/Phoenix) | Apache-2.0 (*unverified*) | *unverified* | Use (verify) | |
 | 24 | ShellCheck | Shell script analysis | GPL-3.0 | active | Use | |
-| 25 | Trivy (fs) | SCA + secrets + misconfig + license | Apache-2.0 | active | Use | One tool, several catalog modes |
-| 26 | Grype | SCA | Apache-2.0 | active | Use | Consumes Syft SBOM |
-| 27 | OSV-Scanner | SCA | Apache-2.0 | active | Use | |
+| 25 | Trivy (fs) | SCA + secrets + misconfig + license | Apache-2.0 | active | Use | **Implemented** |
+| 26 | Grype | SCA | Apache-2.0 | active | Use | **Implemented**; consumes the Syft SBOM |
+| 27 | OSV-Scanner | SCA | Apache-2.0 | active | Use | **Implemented** |
 | 28 | OWASP Dependency-Check | SCA (JVM/.NET) | Apache-2.0 | original repo archived 2025-09 | Use (verify new home) | Needs NVD API key for good performance |
 | 29 | Retire.js | SCA (JS) | Apache-2.0 | active | Use | |
 | 30 | govulncheck | SCA, reachability (Go) | BSD-3 | active | Use | |
@@ -42,7 +64,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 32 | cargo-audit (RustSec) | SCA (Rust) | Apache-2.0/MIT | active | Use | |
 | 33 | bundler-audit | SCA (Ruby) | GPL-3.0 | active | Use | |
 | 34 | OWASP dep-scan | SCA + reachability | MIT | active | Use | |
-| 35 | Checkov | IaC | Apache-2.0 | active | Use | |
+| 35 | Checkov | IaC | Apache-2.0 | active | Use | **Implemented** |
 | 36 | KICS | IaC | Apache-2.0 | active | Use | |
 | 37 | KubeLinter | K8s manifests | Apache-2.0 | active | Use | |
 | 38 | Kubescape | K8s posture (manifests/Helm) | Apache-2.0 | active | Use | |
@@ -50,14 +72,14 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 40 | Conftest | Policy-as-code (OPA) | Apache-2.0 (*unverified*) | *unverified* | Use (verify) | Org-defined policies |
 | 41 | Hadolint | Dockerfile | GPL-3.0 | active | Use | |
 | 42 | Dockle | Container image | Apache-2.0 | active (2026-08) | Use | Image targets |
-| 43 | Trivy (image) | Container image vulns | Apache-2.0 | active | Use | |
-| 44 | actionlint | CI/CD (GitHub Actions) | MIT | Active (1.7.12, 2026-03-30) | Use | Implemented: built from source in `worker-core`; runs on `.github/workflows` without shellcheck or pyflakes, so no repository script is run |
-| 45 | zizmor | CI/CD security (GitHub Actions) | MIT (*unverified*) | *unverified* | Use (verify) | |
+| 43 | Trivy (image) | Container image vulns | Apache-2.0 | active | Use | **Implemented** (image targets) |
+| 44 | actionlint | CI/CD (GitHub Actions) | MIT | active (1.7.12, 2026-03-30) | Use | **Implemented**: built from source; runs on `.github/workflows` without shellcheck or pyflakes, so no repository script is run |
+| 45 | zizmor | CI/CD security (GitHub Actions) | MIT | *unverified* | Use | **Implemented**; runs offline |
 | 46 | OpenSSF Scorecard | Supply-chain posture | Apache-2.0 | active | Use | Uses SCM API |
 | 47 | ScanCode Toolkit | License compliance | Apache-2.0 + CC-BY (data) | active | Use | Replaces FOSSology for repo scanning |
 | 48 | Trivy (license) | License compliance | Apache-2.0 | active | Use | |
 | 49 | OWASP ZAP | DAST | Apache-2.0 | active | Use (target URL, not repo) | Runs against deployed app. Separate worker family and network policy |
-| 50 | Nuclei | DAST / templated checks | MIT | active | Use (target URL) | |
+| 50 | Nuclei | DAST / templated checks | MIT | active | Use (target URL) | **Implemented** (URL and API targets) |
 | 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
@@ -106,7 +128,6 @@ Operators can add a scanner to `worker-core` without changing PATHOS: put a defi
 
 The tool must produce **SARIF 2.1.0**. When the worker registers, the plugin appears in **Scanners & workers** and can be added to scan profiles; results are normalized, deduplicated, risk-scored and triaged like any other scanner's. Invalid files are skipped with a log message; at most 20 plugins load.
 
-Security: definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Plugins run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. They scan repository source only (not scan targets).
+Security: definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Plugins run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. They scan repository source only (not scan targets). The full trust model is in [SECURITY.md](SECURITY.md#scanner-plugins).
 
-New issue trackers implement the `tickets.Connector` interface (`Check`, `Create`, `Status`) and register a kind; storage, permissions, audit and status sync are shared.
 

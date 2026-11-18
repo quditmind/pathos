@@ -1,9 +1,9 @@
 ---
 title: Importing repositories
 section: user-guide
-order: 3
+order: 5
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Import repositories from a local PC, from GitHub, GitLab or Bitbucket, or from Azure DevOps, step by step.
 ---
 
@@ -101,21 +101,18 @@ Open the repository, go to **Source**, select **Upload new version** and choose 
 
 ### Common upload errors
 
+These errors appear in the wizard, before the import job starts. Errors of the import job itself (for example `archive_rejected`, `malware_detected`, `upload_missing`) are listed with their fixes in [Import history → Error codes](import-history.md#local-uploads).
+
 | Message or code | Meaning | What to do |
 |---|---|---|
 | *only .zip, .tar, .tar.gz and .tgz archives are accepted* | Unsupported file type | Re-pack the code in a supported format |
-| `too_large` (HTTP 413) | The archive exceeds the maximum size | Remove build output, dependencies and binaries, or split the code base |
+| `too_large` (HTTP 413) | The archive exceeds the maximum size shown in the drop zone | Remove build output, dependencies and binaries, or split the code base |
 | `too_many_uploads` (HTTP 429) — *finish, import or cancel your open uploads first* | 50 open uploads, or too much staged data | Import or remove pending uploads in the wizard |
 | `uploads_unavailable` (HTTP 503) | Local uploads are not configured on this server | Contact your administrator |
 | `checksum_mismatch` (part) — *the part does not match its SHA-256; resend it* | A part was corrupted in transit | Select **Retry**; the browser resends the part |
-| *N of M parts are missing* | Upload not finished | Select **Retry** / **Resume** |
+| *N of M parts are missing*, upload paused or failed mid-way | Upload not finished | Select **Retry** / **Resume**; only missing parts are sent |
+| *Waiting for n uploads to finish before checking the import.* | **Check and review** waits for running uploads | Wait until all items show **Uploaded** |
 | `rate_limited` (HTTP 429) | Too many requests in a short time | Wait a moment and select **Retry** |
-| Import fails with `archive_rejected` | The archive breaks a safety rule (see above); the message names the rule and path, for example `path_traversal: path traversal ("../evil.txt")` | Fix the archive and import again |
-| Import fails with `checksum_mismatch` | The stored archive does not match the SHA-256 your browser computed | Upload again |
-| `malware_detected` | ClamAV found malware; the upload is discarded and the event is audited | Do not import the archive; contact your security team |
-| `malware_scan_too_large` | The archive exceeds the ClamAV size limit | Ask the administrator to raise the limit or split the archive |
-| `malware_scanner_unavailable` | ClamAV is required but not reachable; retried automatically | Wait or contact your administrator |
-| `upload_missing`, `upload_incomplete`, `upload_consumed` | The upload expired, was not finished, or was already imported | Upload the archive again |
 | Review: *an identical archive was already imported* (`duplicate`) | The same archive (same SHA-256) is already registered | Remove it, or tick **Import anyway** to register a second copy |
 
 ---
@@ -167,8 +164,8 @@ Repositories that are already imported through the same connection are greyed ou
 
 | Symptom | Cause and fix |
 |---|---|
-| An organization or group is missing | The credential cannot see it. GitHub App: install the app on that organization. PAT: grant access to the organization (and authorise SSO if your organization enforces it). GitLab group/project tokens only see their own group or project. Bitbucket access tokens cannot list workspaces: set the workspace on the connection |
-| *Could not list organizations: …* | The connection test fails; see [Authentication methods](authentication.md#troubleshooting-authentication-failures) |
+| An organization or group is missing | The credential cannot see it; see [I can't see an organization, group, workspace or project](troubleshooting.md#i-cant-see-an-organization-group-workspace-or-project) |
+| *Could not list organizations: …* | The connection test fails; see [Connection statuses and messages](provider-integrations.md#connection-statuses-and-messages) |
 | Item fails with `repository_not_found` | The repository was renamed or deleted, or the connection cannot see it |
 | Item fails with `permission_denied` | The credential lacks read permission on the repository |
 | Item fails with `invalid_branch` | The branch does not exist (any more) |

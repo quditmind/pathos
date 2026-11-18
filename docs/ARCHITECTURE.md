@@ -1,6 +1,12 @@
 # PATHOS Architecture
 
-Status: **Phase 8 implemented** (enterprise hardening: rate limiting, production override, backup/restore/upgrade, OpenTelemetry, optional S3 object storage for artifacts, security self-tests). **Phase 7 implemented** for scheduling (leader-elected `scheduler` role) and notifications (outbox, rules, SMTP, in-app). **Phase 6 implemented** for the vulnerability lifecycle (DB-enforced history, SLAs, risk acceptance, SBOM inventory). **Phase 5 implemented** for §6 (AI review, interactive MCP mode). **Phase 4 implemented** for §5 (scanner isolation: worker pools, lease API, egress proxy; raw reports are stored in PostgreSQL, or in S3-compatible storage since Phase 8). **Phase 1 implemented** for §1 (api/jobs roles; scheduler is Phase 7), §3 (layout), §4 (authentication and authorization), §7 (deployment, minus SeaweedFS, workers and egress, which come in Phase 4), §8 (UI shell) and the envelope encryption in §9. Everything else is still design.
+How PATHOS is built and why. This page describes the system as it is today. Related pages:
+
+- [DATABASE.md](DATABASE.md): the schema.
+- [SECURITY.md](SECURITY.md): the security controls in detail.
+- [SCANNING_MODULE.md](SCANNING_MODULE.md), [HUMAN_REVIEW.md](HUMAN_REVIEW.md) and [REPOSITORY_ONBOARDING.md](REPOSITORY_ONBOARDING.md): design notes per module.
+- [INSTALLATION.md](INSTALLATION.md) and [OPERATIONS.md](OPERATIONS.md): running it.
+- [aspm/](aspm/PATHOS_IMPLEMENTATION_ROADMAP.md): the ASPM programme (risk engine design, roadmap and register).
 
 ## 1. Architectural style
 
@@ -8,16 +14,17 @@ PATHOS is a **modular monolith** (Go) with **separately deployed scanner workers
 
 | Responsibility | Runtime unit | Scales by |
 |---|---|---|
-| Web UI | `frontend` (static build served by edge proxy) | CDN/proxy replicas |
-| REST API, auth, RBAC, scheduling, AI review, notifications | `pathos-api` (Go) | Horizontal replicas (stateless; sessions in Redis) |
-| Background jobs (AI review, notifications, ingestion) | `pathos-api --role=jobs` (same binary) | Replicas, independent from API |
-| Scanner execution | `pathos-worker` inside per-family worker images | Replicas per worker family |
-| Identity | Keycloak | Keycloak clustering (later) |
-| Relational data | PostgreSQL | Vertical; read replicas later |
-| Queue, sessions, locks, rate limits | Redis-compatible store | Vertical |
-| Raw reports, SBOMs | S3-compatible object storage | Storage backend |
+| Web UI | Static React build, served by the `proxy` (Caddy) | Proxy replicas |
+| REST API, authentication, RBAC, MCP server, ingestion of scan results | `pathos --role=api` | Replicas (stateless; sessions and rate limits in Valkey) |
+| Background work: AI reviews, notifications and outbound webhooks, repository imports and sync, intelligence feeds, risk scoring, policies, ticket sync, retention | `pathos --role=jobs` (same binary) | Replicas, independent from the API |
+| Scan scheduling, missed-run and offline-worker detection, lease recovery, platform metrics | `pathos --role=scheduler` (same binary, leader-elected) | Standby replicas |
+| Scanner execution | `pathos-worker` agent inside the `worker-core` image | Replicas |
+| Identity | Keycloak | Single instance in Compose |
+| Relational data and job queues | PostgreSQL (`FOR UPDATE SKIP LOCKED` queues) | Vertical |
+| Sessions, OIDC state, rate limits | Valkey | Vertical |
+| Scan artifacts and source snapshots (optional) | S3-compatible object storage | Storage backend |
 
-The same Go binary runs in `api`, `jobs` or `scheduler` role (`--role`). This gives independent scaling without a microservice mesh. Modules talk through Go interfaces inside the binary. Only the **worker boundary** is a network boundary, because it is a **trust boundary**.
+The same Go binary runs in the `api`, `jobs` or `scheduler` role (`PATHOS_ROLE`). This gives independent scaling without a microservice mesh. Modules talk through Go interfaces inside the binary. Only the **worker boundary** is a network boundary, because it is a **trust boundary**.
 
 ## 2. System diagram
 
@@ -25,215 +32,214 @@ The same Go binary runs in `api`, `jobs` or `scheduler` role (`--role`). This gi
 flowchart LR
   subgraph Internet
     U[Browser]
-    SCM[GitHub / GHE / Azure DevOps]
-    AIP[AI providers<br/>Anthropic · OpenAI · xAI]
-    IDP[Entra ID / SAML IdP]
+    SCM[GitHub / GitLab / Bitbucket / Azure DevOps]
+    EXT[AI providers, intelligence feeds,<br/>webhooks, Jira, ServiceNow, SMTP]
+    IDP[External OIDC / SAML IdP]
   end
 
   subgraph edge[edge network]
-    PX[Caddy edge proxy<br/>TLS, security headers]
+    PX[Caddy proxy<br/>TLS, security headers, static UI]
   end
 
   subgraph app[app network - internal]
-    API[pathos-api<br/>role=api]
-    JOBS[pathos-api<br/>role=jobs]
-    SCHED[pathos-api<br/>role=scheduler<br/>leader-elected]
     KC[Keycloak]
   end
 
-  subgraph data[data network - internal, no egress]
+  subgraph data[data network - internal]
+    API[pathos role=api]
+    JOBS[pathos role=jobs]
+    SCHED[pathos role=scheduler<br/>leader-elected]
     PG[(PostgreSQL)]
-    RD[(Redis-compatible)]
-    S3[(S3 object storage)]
+    RD[(Valkey)]
+    S3[(S3 object storage<br/>optional)]
   end
 
-  subgraph scan[scan network - internal]
-    W1[worker-core<br/>gitleaks, trivy, syft,<br/>grype, osv, opengrep, checkov]
-    W2[worker-lang<br/>bandit, gosec, ruff, ...]
-    W3[worker-jvm / iac / dast ...]
-    EG[egress proxy<br/>allowlist: SCM + vuln DBs<br/>deny RFC1918 + 169.254.0.0/16]
+  subgraph scan[scan + worker-api networks - internal]
+    W[worker-core<br/>pathos-worker + scanners]
+    EG[egress proxy Squid<br/>allowlist, denies private ranges]
   end
 
   U -->|HTTPS| PX
-  PX -->|/| FE[static UI]
-  PX -->|/api| API
+  PX -->|/api, /mcp| API
   PX -->|/auth| KC
-  KC <-->|federation| IDP
+  KC <-->|brokering| IDP
   API --> PG & RD & S3
-  JOBS --> PG & RD & S3
-  SCHED --> RD & PG
-  JOBS -->|redacted evidence only| AIP
-  API -->|SCM APIs| SCM
-  W1 & W2 & W3 -->|lease/report<br/>worker token, HTTPS| API
-  W1 & W2 & W3 -->|clone, DB updates| EG --> SCM
+  JOBS --> PG & S3
+  SCHED --> PG
+  API -->|SCM APIs, commit statuses| SCM
+  JOBS -->|imports, sync, redacted AI evidence, deliveries| EXT
+  JOBS --> SCM
+  W -->|lease, events, results<br/>worker token, :8081| API
+  W -->|clone, DB updates, targets| EG --> SCM
 ```
 
 Key properties:
 
-- Workers **never** connect to PostgreSQL, Redis, S3 or Keycloak, and never receive platform secrets. They speak a narrow internal API (`/internal/worker/v1/*`: lease job, heartbeat, upload results, report status), authenticated with a per-worker credential scoped to those calls only.
-- Workers have no route to `app`/`data` networks except the API's internal listener, and no direct internet access. Outbound traffic goes through the egress proxy. The proxy allowlists SCM hosts and vulnerability-DB mirrors, and denies private ranges and cloud metadata (`169.254.169.254`, `fd00:ec2::254`).
-- PostgreSQL, Redis, S3 and worker ports are never published to the host.
+- Workers **never** connect to PostgreSQL, Valkey, object storage or Keycloak, and never receive platform secrets. They speak a narrow internal API (`/internal/worker/v1/*`: register, lease, heartbeat, events, results, imports, complete, source snapshot, target file) on the API's worker listener (`:8081`), authenticated with a per-worker token.
+- Workers have no route to the `app` and `data` networks and no direct internet access. Their traffic goes through the egress proxy, which allows only the hosts in `deploy/egress/allowlist.txt` and denies private ranges and cloud metadata addresses.
+- The proxy never forwards `/internal/*` or `/healthz`. PostgreSQL, Valkey, object storage and the worker listener are never published to the host.
 
-## 3. Proposed repository layout
+## 3. Repository layout
 
 ```
 PATHOS/
-├── docker-compose.yml            # `docker compose up -d` entry point (pinned images)
-├── docker-compose.prod.yml       # production overrides (resources, replicas, no dev tools)
-├── .env.example
-├── Makefile                      # dev shortcuts (all targets run in containers)
-├── backend/                      # Go module
-│   ├── cmd/
-│   │   ├── pathos/               # api | jobs | scheduler roles
-│   │   ├── pathos-worker/        # worker agent, embedded in worker images
-│   │   └── pathosctl/            # migrate, bootstrap, key rotation, backup helpers
-│   ├── internal/
-│   │   ├── platform/             # config, logging (slog), db (pgx), redis, objstore, crypto, otel, httpx
-│   │   ├── auth/                 # OIDC (BFF), sessions, CSRF
-│   │   ├── authz/                # roles, permissions, scope resolution, policy checks
-│   │   ├── identity/             # users, teams, provisioning
-│   │   ├── org/                  # organizations, regions, countries, business units
-│   │   ├── audit/
-│   │   ├── repos/  scm/{github,azuredevops}/  tags/
-│   │   ├── scanners/             # catalog + Adapter interface + adapters/<tool>/
-│   │   ├── profiles/  scans/  jobs/  scheduler/
-│   │   ├── findings/  sbom/  sla/
-│   │   ├── ai/                   # Provider interface, providers/{anthropic,openai,xai}, review pipeline, redaction
-│   │   ├── mcp/                  # MCP server registry + PATHOS MCP server
-│   │   ├── notify/               # SMTP, templates, delivery history
-│   │   └── dashboard/  search/
-│   ├── migrations/               # versioned SQL migrations
-│   ├── queries/                  # sqlc query files
-│   └── api/openapi.yaml          # source of truth for REST API
-├── frontend/                     # Vite + React + TS + Tailwind + shadcn/ui
-│   └── src/{app,components/ui,components/layout,features/*,lib,api}
-├── workers/                      # Dockerfile per worker family + tool version manifest
-├── deploy/
-│   ├── caddy/Caddyfile
-│   ├── keycloak/pathos-realm.json
-│   ├── egress/                   # egress proxy allowlist
-│   └── scripts/{install,backup,restore,upgrade}.sh
+├── docker-compose.yml           # `docker compose up -d` entry point (digest-pinned images)
+├── docker-compose.prod.yml      # production overrides (limits, log rotation, standby scheduler)
+├── docker-compose.gpu.yml       # NVIDIA GPU for the optional Ollama profile
+├── .env.example                 # every setting, documented
+├── Makefile                     # dev shortcuts (toolchains run in containers)
+├── backend/                     # Go module
+│   ├── cmd/pathos/              # api | jobs | scheduler roles
+│   ├── cmd/pathos-worker/       # worker agent, built into worker-core
+│   ├── cmd/pathosctl/           # migrate, keys, artifacts, RBAC matrix
+│   ├── internal/                # one package per module (see below)
+│   ├── migrations/              # goose SQL migrations 00001…
+│   ├── api/openapi.yaml         # OpenAPI 3.1 description
+│   └── test/integration/        # integration tests against PostgreSQL
+├── frontend/                    # Vite + React + TypeScript + Tailwind
+│   └── src/{app,api,components/{ui,layout,data},features/*,lib}
+├── workers/                     # worker-core Dockerfile, PATHOS baseline Opengrep rules, rules-extra mount
+├── deploy/                      # caddy, egress (Squid), keycloak (realm, theme, setup.sh),
+│                                # postgres init, scanners.d (plugins), security (ZAP), scripts/
+├── scripts/                     # smoke, e2e, security, DAST, load, offline bundles, SSO test
+├── e2e/                         # Playwright tests
 └── docs/
 ```
 
-## 4. Authentication and authorization design
+Backend packages (`backend/internal`):
 
-- **Backend-for-frontend (BFF) OIDC.** `pathos-api` runs the Authorization Code + PKCE flow against Keycloak. The browser receives only an opaque `HttpOnly; Secure; SameSite=Lax` session cookie. Access and refresh tokens stay server-side in Redis, so no tokens are ever exposed to JavaScript. State-changing requests require a CSRF token (synchronizer token bound to the session).
-- **Keycloak** handles local login, MFA, password policy, Entra ID (OIDC) and generic SAML federation. A `pathos` realm is imported on first start. The initial administrator is created from `.env` with a forced password change.
-- **Authorization lives in PATHOS, not Keycloak.** Scoped role assignments (`user × role × scope`, where scope ∈ organization / region / business unit / repository) are stored in PostgreSQL. Keycloak groups can be mapped to PATHOS role assignments for automatic provisioning. Every handler declares a required permission. List queries are filtered by the caller's resolved scopes in SQL, not post-filtered. The frontend hides menus as a courtesy only.
-- Users are provisioned just-in-time on first login, and also through the admin UI and Keycloak admin API. Deactivation revokes PATHOS sessions immediately.
+| Area | Packages |
+|---|---|
+| Platform | `platform/{config,crypto,db,httpx,logging,objstore,ratelimit,sourcestore,telemetry}`, `server`, `secrets`, `audit` |
+| Identity and access | `auth` (OIDC, sessions, CSRF, API tokens), `authz` (permissions, roles, scopes), `identity` (users, teams, MFA), `org` |
+| Assets | `repos` (repositories, imports, uploads, sync, inventory), `scm` (provider clients, SSRF-safe HTTP), `ingest` (archive normalisation, ClamAV) |
+| Scanning | `scanners` (catalog, parsers, plugins), `scans` (profiles, executions, ingestion, targets, PR checks), `schedule`, `worker` (agent) |
+| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture` |
+| Review and AI | `review` (Human Eye), `ai`, `analyst`, `mcp` |
+| Governance and reporting | `policy`, `compliance`, `reporting`, `dashboard`, `search` |
+| Integrations | `notify` (notifications, SMTP, outbound webhooks), `tickets` (Jira, ServiceNow) |
+
+## 4. Authentication and authorization
+
+- **Backend-for-frontend (BFF) OIDC.** The API runs the Authorization Code + PKCE flow against Keycloak. The browser receives only an opaque, `HttpOnly` session cookie. Tokens stay server-side, so none are exposed to JavaScript. State-changing requests need a CSRF token bound to the session.
+- **Keycloak** handles local login, TOTP MFA, recovery codes, password policy and brokering to external OIDC or SAML 2.0 identity providers. The `pathos` realm is imported on first start; the `keycloak-setup` job applies the settings the import cannot (recovery codes) on every start.
+- **Authorization lives in PATHOS, not Keycloak.** Scoped role assignments (`user × role × scope`, where the scope is the organization, a region, a business unit or a repository) are stored in PostgreSQL. Every handler declares a required permission. List queries are filtered by the caller's scopes in SQL, not post-filtered. The frontend hides menus as a courtesy only. See [RBAC_MATRIX.md](RBAC_MATRIX.md).
+- **Personal API tokens** (`pathos_pat_…`) authenticate the MCP server and, with the `api:read` or `api:write` scope, the REST API. They act with the owner's current permissions.
+- Users are provisioned just in time on first login (linked to an invitation only when the e-mail address is verified) or invited by an administrator. Deactivation revokes PATHOS sessions immediately.
+
+The controls are listed in [SECURITY.md](SECURITY.md#authentication).
 
 ## 5. Scanner execution and isolation
 
 Each scan job is processed in stages inside a worker container:
 
-1. **Lease.** The worker leases a job over the internal API. The response includes repo URL, ref, profile scanners and a **short-lived** clone credential (GitHub App installation token ≤1h; for Azure DevOps, the narrowest available token).
-2. **Fetch.** `git clone --depth` with hooks disabled, `protocol.file.allow=never`, no submodule recursion by default, `core.fsmonitor` off, size limits. The credential is then wiped from memory and from git config.
-3. **Scan.** Each adapter runs as a non-root process in a per-job `tmpfs` workspace with a timeout (process-group kill) and memory limits. **Repository code is never built or executed.** Tools that require a build (CodeQL compiled languages, SpotBugs, Infer) are flagged `requires_build` and disabled unless an administrator explicitly enables a hardened build sandbox (future phase).
-4. **Report.** The worker uploads raw output and normalized findings, then destroys the workspace.
+1. **Lease.** The worker leases a job over the internal API. The response includes the repository URL and ref (or the scan target), the profile's scanners and configuration, and a **short-lived** clone credential: a GitHub App installation token (≤ 1 hour) or the connection's stored credential. Uploaded repositories are fetched instead as a source snapshot through the worker API, which decrypts it; the worker verifies its SHA-256.
+2. **Fetch.** A shallow `git clone` with hooks disabled, no `file://` or `ext::` transports, no symlinks, fsck on, no redirects and a size cap. The credential travels in environment variables, never in the URL or `.git/config`. `.git` is removed before the scanners run.
+3. **Scan.** Each tool runs as a non-root process in its own process group, in a per-job `tmpfs` workspace, with a timeout that kills the whole group. **Repository code is never built or executed.** Catalogue entries that need a build (CodeQL for compiled languages, SpotBugs, Infer) are flagged `requires_build` and have no adapter.
+4. **Report.** The worker uploads the raw reports (and its code inventory for reachability), the API parses and normalises them, and the workspace is destroyed.
 
-Container hardening for all workers: read-only root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, non-root UID, seccomp default profile, `pids`/memory/CPU limits, **no Docker socket**. The optional gVisor (`runsc`) runtime is supported for stronger isolation.
+Container hardening: read-only root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, non-root UID, PID and memory limits, **no Docker socket**.
 
-**Decision (vs. a per-scan-container dispatcher):** spawning a container per scan needs Docker API access, which is root-equivalent on the host. That conflicts with the requirement that nothing scan-facing touches the Docker socket. Long-running hardened worker pools are the safer default for Compose. A Kubernetes Job backend can be added later behind the same lease API.
+**Decision (versus a dispatcher that starts a container per scan):** starting containers needs Docker API access, which is root-equivalent on the host. That conflicts with the rule that nothing scan-facing touches the Docker socket. Long-running hardened worker pools are the safer default for Compose.
 
-### Adapter interface (sketch)
+### Adapters
 
-```go
-type Adapter interface {
-    ID() string
-    CheckAvailable(ctx context.Context) error
-    Version(ctx context.Context) (string, error)
-    ValidateConfig(cfg json.RawMessage) error
-    Run(ctx context.Context, in RunInput) (RunOutput, error) // honours ctx deadline
-    Parse(raw io.Reader) ([]NormalizedFinding, error)
-}
-```
+- **On the worker,** each tool implements `worker.Tool` (`Version`, `Run`) and writes its report; tools that only apply to some repositories (zizmor, actionlint without workflows) report themselves as skipped.
+- **On the API,** `backend/internal/scanners` parses the reports. Most tools emit SARIF, so a shared SARIF parser covers them; Grype, Nuclei and actionlint have dedicated parsers. Parsing never runs on the worker.
+- **Adding a built-in engine** means a catalogue entry (`scanners/catalog.go`), a tool in `worker/tools.go`, a parser if the tool has no SARIF, and the binary in the worker image.
+- **Without code changes,** operators can add SARIF-producing tools as declarative plugins on the worker ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)), and any tool's SARIF or JSON can be imported ([API: result imports](api-reference/result-imports.md)).
 
-Most tools emit SARIF, so a shared SARIF parser covers the majority of adapters. Tools with custom JSON get a dedicated parser.
+### Scan targets and pull requests
+
+The same workers scan container images, web applications and APIs (Nuclei), uploaded SBOMs (Grype) and build artifacts (Trivy). Targets have no clone: the worker reaches the target through the egress proxy and first checks that the proxy allows it. Pull request scans run the repository's profile on the PR head and keep their results apart from the repository's findings.
 
 ## 6. AI review architecture
 
-- Every vendor implements `ai.Provider` (`Review(ctx, ReviewRequest) (ReviewResult, error)`, `Models()`, `Validate()`). The scanning engine only emits "finding ready for review" events and never imports a provider.
-- Pipeline: normalize → dedupe/fingerprint → **redact** (secret patterns + Gitleaks matches + configured policies) → evidence extraction (snippet ± N lines, metadata) → prompt assembly, with untrusted content fenced and labeled as data → provider call → **strict JSON schema validation** → store `ai_reviews` with model, model version, configuration version, and a hash of exactly what was transmitted → human approval when policy requires it.
-- AI is never on the critical path. If no provider is configured or a call fails, findings stay `pending_ai_review` and scanning continues.
-- Guardrail: a Critical finding is **never** auto-closed on an AI "False Positive" verdict. It moves to "Needs human review".
+- Every vendor implements one provider interface: Anthropic (official Go SDK), OpenAI, xAI, and self-hosted OpenAI-compatible servers (Ollama, vLLM and similar). The scanning engine only queues findings for review and never calls a provider.
+- Pipeline: normalise → fingerprint → **redact** (secret patterns, Gitleaks matches, organization patterns) → evidence (metadata plus at most ±5 lines of code, none for secret findings) → prompt with the untrusted evidence fenced by a random nonce → provider call → **strict JSON schema validation** → stored review with model, configuration version and the SHA-256 of exactly what was sent → human approval when the policy requires it.
+- AI is never on the critical path. If no provider is configured or a call fails, scanning continues and the finding keeps its status.
+- Guardrails: a Critical finding is **never** closed on an AI "false positive" verdict, and AI never overrides a human decision.
+- The AI Security Analyst, AI reports and Human Eye assistance use the same request path (default configuration, redaction, fencing, SHA-256 of the payload).
 
-### Claude authentication: what is and isn't allowed
+### Claude subscriptions
 
-- A Claude Pro/Max subscription **does not** provide API access. Anthropic's terms restrict subscription OAuth tokens to Claude Code and claude.ai, and prohibit their use in third-party products or the Agent SDK. PATHOS will **not** extract, proxy or reuse subscription credentials.
-- **Automated mode** uses an Anthropic Console API key, or Claude through a supported cloud provider (Amazon Bedrock, Google Vertex AI). OpenAI and xAI use their own API keys.
-- **Interactive mode** (permitted for a human's own subscription): PATHOS exposes its own **MCP server** with tools such as `list_pending_findings`, `get_finding_evidence` (redacted) and `submit_review`. It authenticates with a user-scoped PATHOS API token. A security engineer adds it to *their own* Claude Code session and reviews findings interactively. Claude Code runs as Claude Code under the user's own login, and PATHOS only receives the structured results. Reviews are attributed to the human and tagged `source=interactive_mcp`.
+- A Claude Pro or Max subscription **does not** provide API access, and its credentials may not be used in third-party products. PATHOS does not extract, proxy or reuse them.
+- **Automated mode** uses a provider API key (or a self-hosted model).
+- **Interactive mode** works with a person's own subscription: PATHOS exposes its own **MCP server** (`/mcp`, tools `list_pending_findings`, `get_finding_evidence`, `submit_review`), authenticated with a personal API token. The person adds it to *their own* Claude Code session; PATHOS only receives the structured results, attributed to the person with `source=interactive_mcp`.
 
 ## 7. Docker deployment architecture
 
-| Service | Image (pin resolved in Phase 1) | Networks | Published port | Volume |
-|---|---|---|---|---|
-| `proxy` | Caddy 2.x | edge, app | 443/80 | `caddy_data` |
-| `frontend` | built into proxy image (static) | — | — | — |
-| `api` | `pathos` (distroless static) | app, data, worker-api | — | — |
-| `jobs` | `pathos` | data, edge (AI providers, SCM APIs, SMTP) | — | — |
-| `scheduler` | `pathos` (leader-elected; replicas are standbys) | data | — | — |
-| `migrate` | `pathos` (one-shot `pathosctl migrate`) | data | — | — |
-| `keycloak` | Keycloak 26.x | app, kc-data | — | — |
-| `postgres` | PostgreSQL (two databases: `pathos`, `keycloak`) | data, kc-data | — | `pg_data` |
-| `redis` | Valkey/Redis | data | — | `redis_data` |
-| `objectstore` | SeaweedFS (S3 API) | data | — | `s3_data` |
-| `worker-core` etc. | `pathos-worker-<family>` | scan, worker-api | — | `scanner_cache` (vuln DBs) |
-| `egress` | egress proxy (Squid or Smokescreen) | scan, edge | — | — |
-| `mailpit` | Mailpit (dev profile only) | app | 8025 (dev) | — |
+What each service does is listed in [INSTALLATION.md](INSTALLATION.md#what-runs). Networks, ports and volumes:
 
-- Health checks on every service. `depends_on: condition: service_healthy` orders startup. `migrate` runs to completion before `api` starts.
-- `docker compose up -d` is idempotent. Migrations are versioned and forward-only. Realm import uses `IGNORE_EXISTING`. Named volumes persist across `down`/`up`. Only `down -v` destroys data, and the docs warn about it.
-- Secrets come from `.env`, or from Docker secrets files in production. `install.sh` generates strong random values. Nothing secret is baked into images.
+| Service | Networks | Published port | Volumes |
+|---|---|---|---|
+| `proxy` | edge, app | 443, 80 | `caddy_data`, `caddy_config` |
+| `migrate` (one-shot) | data | — | — |
+| `api` | app, data, edge, worker-api | — | `sources` |
+| `jobs` | data, edge | — | `sources`, `import_work` |
+| `scheduler` | data | — | — |
+| `postgres` | data | — | `pg_data` |
+| `valkey` | data | — | `redis_data` |
+| `keycloak` | app, data, edge | — | — |
+| `keycloak-setup` (one-shot) | app | — | — |
+| `egress` | scan, edge | — | `egress_logs` |
+| `worker-core` | scan, worker-api | — | `scanner_cache` (vulnerability databases) |
+| `mailpit` (profile `dev`) | app, edge | 127.0.0.1:8025 | — |
+| `objectstore` (profile `objectstore`) | data | — | `s3_data` |
+| `clamav` (profile `clamav`) | data, edge | — | `clamav_db` |
+| `ollama` (profile `ollama`) | data, edge | — | `ollama_models` |
+| `otel-lgtm` (profile `observability`) | data, edge | 127.0.0.1:3001 | — |
 
-## 8. UI design plan
+- `app`, `data`, `scan` and `worker-api` are internal networks (no route to the internet). `edge` is the only network with outbound access; `jobs`, `api` and `keycloak` use it for provider APIs, feeds and identity federation.
+- Health checks on every long-running service. `depends_on: condition: service_healthy` orders startup, and `migrate` runs to completion before `api`, `jobs` and `scheduler` start.
+- `docker compose up -d` is idempotent. Migrations are versioned and forward-only in normal operation. Named volumes persist across `down`/`up`; only `down -v` destroys data.
+- Secrets come from `.env`, generated by `install.sh`. Nothing secret is baked into images.
 
-- **Visual language:** a light enterprise theme. Neutral slate greys, white surfaces, one professional blue accent (`#1F5FD6`-range, tuned for WCAG AA), and semantic severity colours (Critical red, High orange, Medium amber, Low blue-grey, Info grey) used consistently in badges, charts and tables. Dark mode uses the same token set (CSS variables, shadcn convention).
-- **Typography:** Inter (OFL) with tabular numerals for metrics, and a 13–14px base for density.
-- **Layout:** a compact collapsible left rail (icons + labels, grouped: Overview, Assets, Scanning, Findings, AI & MCP, Administration). A 56px header carries global search (⌘K command palette), organization switcher, notification centre and user menu. Content uses a max-width grid with 1px borders and minimal shadow.
-- **Components:** a shadcn/ui-based design system (`components/ui`) plus PATHOS composites: `DataTable` (server-side pagination/sort/filter, column chooser, saved views, CSV export), `FilterBar`, `KpiCard` (value, delta, sparkline, drill-down link), `SeverityBadge`, `StatusPill`, `EmptyState`, `Skeleton` loaders, `ConfirmDialog`, and `AuditTrail`.
-- **Dashboard:** a filter bar (date range, region, country, BU, application, repository, severity, scanner, status, technology) drives 24 KPI cards (6×4 grid on desktop) and chart panels. Every card links to a pre-filtered findings, scans or repos table. All values come from aggregate API endpoints.
-- **Branding:** the PATHOS wordmark plus a shield/path glyph as an SVG logo and favicon, used on the login theme (a custom Keycloak login theme to match), the app shell and email templates.
+## 8. User interface
+
+- React 19 with TanStack Router and Query, Tailwind CSS 4 and Radix primitives; components under `frontend/src/components` (`ui`, `layout`, `data`) and one folder per feature under `src/features`.
+- Light and dark themes from the same set of CSS variables, Inter (self-hosted) with tabular numerals, and consistent severity colours in badges, charts and tables.
+- Navigation in a collapsible left rail grouped by area, with a ⌘K / Ctrl+K command palette, a notification centre and the user menu in the header.
+- The dashboard KPIs are defined once in `backend/internal/dashboard/catalog.go`; the frontend renders whatever the API returns, and every KPI links to a pre-filtered list.
+- The in-app Help Center bundles [docs/user-guide](user-guide/introduction.md) and [docs/api-reference](api-reference/index.md).
+- A custom Keycloak login theme (`deploy/keycloak/themes/pathos`) matches the application.
 
 ## 9. Architectural decisions and risks
 
 | # | Decision / risk | Resolution |
 |---|---|---|
-| D1 | **MinIO Community Edition is archived** (no images since Oct 2025, maintenance mode Dec 2025, repo archived 2026). | Default object store: **SeaweedFS** (Apache-2.0, S3 API). PATHOS codes against the generic S3 API (`aws-sdk-go-v2`), so any S3-compatible store (Garage, RustFS, Ceph RGW, AWS S3) works. |
-| D2 | **Redis 8 is tri-licensed AGPLv3/RSALv2/SSPL.** AGPL is OSI-approved and fine for unmodified use as a service, but some organizations ban it. | Default image: **Valkey** (BSD-3, Redis-protocol compatible). Redis 8 is supported by changing one image line. The Go client (`go-redis`) works with both. *Needs your confirmation, because the brief says "Redis".* |
-| D3 | Workers must not hold platform secrets or a Docker socket. | Workers pull jobs over a narrow HTTP lease API, not directly from Redis (§5). |
-| D4 | Claude subscription cannot power automated reviews. | API key / cloud provider for automation, plus the interactive MCP mode (§6). |
-| D5 | **Semgrep Registry rules** are under the Semgrep Rules License, which restricts redistribution in products. | Use **Opengrep** (LGPL-2.1 fork) as the default Semgrep-compatible engine. Ship only rules with permissive licenses, or let admins point to their own rule sets. Semgrep CE is an optional adapter. |
-| D6 | **CodeQL** CLI is free only for OSS and academic use; private commercial code needs GitHub Advanced Security. | Catalog entry marked `license_restricted`. Disabled until an admin attests to licensing. |
-| D7 | Archived or abandoned tools from the brief: **Whispers, Dredd, Terrascan** (archived); **Tern** (no commits since 2024); OWASP Dependency-Check's original repo archived (project moved: verify). | Excluded or replaced (see SCANNER_CATALOG.md). |
-| D8 | Non-scanners in the brief: Cosign, in-toto, SLSA verifier, GUAC, CycloneDX CLI, SPDX tools. | Catalogued as **supply-chain verification / SBOM utilities**, not counted as scanners. |
-| D9 | Repos are untrusted input; build-requiring analyzers execute code. | Never build by default; `requires_build` tools stay off until a hardened build sandbox exists. |
-| D10 | Azure DevOps lacks GitHub-App-style short-lived tokens. | Prefer Entra ID service principal / workload identity tokens. Fall back to a narrowly scoped PAT (Code: Read) encrypted at rest, with an expiry reminder. |
-| R1 | 50+ scanners mean large worker images (JVM, Python, Node toolchains). | Split worker families. Admins deploy only the families their profiles use. |
-| R2 | Vulnerability DB downloads (Trivy, Grype, OSV) are large and rate-limited. | Shared `scanner_cache` volume plus scheduled DB refresh. Offline/air-gapped mirror support later. |
-| R3 | Scope of brief vs. delivery time. | Strict milestone delivery. Every phase ends with working, tested, documented functionality. |
+| D1 | **MinIO Community Edition is archived** (no images since October 2025). | Optional object store: **SeaweedFS** (Apache-2.0, S3 API). PATHOS codes against the generic S3 API (`aws-sdk-go-v2`), so any S3-compatible store works. |
+| D2 | **Redis 8 is tri-licensed AGPLv3/RSALv2/SSPL**, which some organizations ban. | Default image: **Valkey** (BSD-3, Redis-protocol compatible). The Go client (`go-redis`) works with both. |
+| D3 | Workers must not hold platform secrets or a Docker socket. | Workers pull jobs over a narrow HTTP lease API, not from the database or Valkey (§5). |
+| D4 | A Claude subscription cannot power automated reviews. | API key or self-hosted model for automation, plus the interactive MCP mode (§6). |
+| D5 | **Semgrep Registry rules** are under the Semgrep Rules License, which restricts redistribution. | **Opengrep** (LGPL-2.1 fork) is the Semgrep-compatible engine. PATHOS ships its own Apache-2.0 baseline rules; administrators can mount their own rule sets or manage custom rules. |
+| D6 | **CodeQL** is free only for open-source and academic use. | Catalogued as `restricted`; no adapter. |
+| D7 | Archived or abandoned tools: Whispers, Dredd, Terrascan (archived); Tern (inactive). | Excluded (see [SCANNER_CATALOG.md](SCANNER_CATALOG.md#excluded)). |
+| D8 | Non-scanners: Cosign, in-toto, SLSA verifier, GUAC, CycloneDX CLI, SPDX tools. | Catalogued as supply-chain and SBOM utilities, not counted as scanners. |
+| D9 | Repositories are untrusted input; build-requiring analysers execute code. | Never build; `requires_build` tools have no adapter. |
+| D10 | Azure DevOps has no GitHub-App-style short-lived tokens. | Entra ID OAuth or a service principal (client secret or certificate), or a narrowly scoped PAT (*Code: Read*), all encrypted at rest. |
+| R1 | Around 50 catalogued scanners would mean large worker images. | One `worker-core` image with the implemented tools; operators add tools as plugins in derived images. |
+| R2 | Vulnerability databases (Trivy, Grype, OSV) are large and rate-limited. | Shared `scanner_cache` volume; offline bundles for air-gapped installs ([AIRGAP.md](AIRGAP.md)). |
 
-Secrets at rest use **envelope encryption**: AES-256-GCM data keys wrapped by a master key from `PATHOS_MASTER_KEY` (a Docker secret in production). `pathosctl rotate-master-key` handles rotation. This applies to SCM tokens, AI keys, MCP credentials and SMTP passwords, and each class is stored separately.
+Secrets at rest use **envelope encryption**: AES-256-GCM data keys wrapped by a versioned master key (`PATHOS_MASTER_KEY`). This covers SCM, AI, MCP, SMTP, webhook, scan-target and integration credentials, each kind authenticated separately. Rotation: [SECURITY.md](SECURITY.md#secrets-at-rest).
 
 ## 10. Resource requirements
 
-| Profile | Users / repos | vCPU | RAM | Disk |
+| Profile | Users / repositories | vCPU | RAM | Disk |
 |---|---|---|---|---|
-| Development (this host) | — | 4+ | 8–12 GB for the full stack | 40 GB |
-| Small production | ≤200 users, ≤500 repos | 8 | 16 GB | 200 GB SSD |
-| Medium production | ≤1,000 users, ≤3,000 repos | 16 | 32 GB | 500 GB SSD |
-| Large | 1,000+ users | Split DB to its own host. Add worker hosts (each 8 vCPU / 16 GB runs about 4 concurrent scans) |
+| Evaluation | — | 4+ | 8–12 GB for the full stack | 40 GB |
+| Small production | ≤ 200 users, ≤ 500 repositories | 8 | 16 GB | 200 GB SSD |
+| Medium production | ≤ 1,000 users, ≤ 3,000 repositories | 16 | 32 GB | 500 GB SSD |
+| Large | 1,000+ users | Database on its own host; more worker capacity |
 
-Baseline footprint without workers is about 3 GB (Keycloak ~1 GB, PostgreSQL ~0.5–1 GB, API ~200 MB, Valkey/SeaweedFS ~300 MB). Each concurrent scan needs 1–4 GB (Opengrep and JVM tools at the high end). Vulnerability DB cache is about 5 GB.
+The baseline without workers is about 3 GB (Keycloak about 1 GB, PostgreSQL 0.5–1 GB, API about 200 MB, Valkey a little). Each concurrent scan needs 1–4 GB (Opengrep at the high end). The vulnerability database cache is about 5 GB. These figures are estimates from the development host, not a benchmark; the measured load test is in [DEVELOPMENT_ROADMAP.md](DEVELOPMENT_ROADMAP.md#p8-milestone-report-2026-11-15).
 
-This host (20 CPUs, 30 GB RAM, 862 GB free) comfortably runs the full stack plus 4–6 concurrent scans.
-
-## Scheduling and notifications (Phase 7)
+## 11. Scheduling and notifications
 
 ```mermaid
 flowchart LR
   subgraph scheduler[scheduler role: advisory-lock leader]
-    T[tick every 15s] --> D[due schedules -> scans.EnqueueWith]
+    T[tick every 15s] --> D[due schedules -> executions]
     T --> M[missed runs -> schedule.missed]
     T --> W[silent workers -> worker.offline]
     T --> L[expired leases -> requeue]
@@ -244,14 +250,26 @@ flowchart LR
     F[findings.assignee_id] -- trigger --> E
   end
   subgraph jobs[jobs role]
-    S[SLA detector] --> E
+    S[detectors: SLA, policies, reviews, imports] --> E
     E --> X[dispatcher: rules, scope, severity, recipients, templates]
-    X --> N[notifications: in-app + email outbox]
-    N --> SM[SMTP sender: claim, send, backoff x5]
+    X --> N[notifications: in-app + email]
+    N --> SM[SMTP sender: claim, send, retry]
+    E --> WH[outbound webhooks: JSON, Slack, Teams]
   end
   D --> J
 ```
 
-- **One writer per concern.** Database triggers emit the events that follow data changes (scan finished or failed, risk requested or decided, assignment), so every code path is covered. Detectors emit time-based events: SLA breaches in `jobs`, missed runs and offline workers in `scheduler`.
+- **One writer per concern.** Database triggers emit the events that follow data changes (scan finished or failed, risk requested or decided, assignment), so every code path is covered. Detectors in `jobs` and `scheduler` emit time-based events.
 - **Leader election:** `pg_try_advisory_lock` held on a dedicated connection. If the leader's connection dies, the lock is released and a standby takes over within one interval. `scheduler_state` records the holder and heartbeat for the UI.
-- **Delivery:** emails are claimed with a short lease, so no transaction stays open during SMTP I/O. Delivery is retried with backoff (1 m, 5 m, 30 m, 2 h) and marked failed after five attempts. In-app notifications are rows in the same table, filtered by user.
+- **Delivery:** e-mails are claimed with a short lease, so no transaction stays open during SMTP I/O, and retried with back-off (1 m, 5 m, 30 m, 2 h) until marked failed. Outbound webhooks have their own queue and back-off (see [SECURITY.md](SECURITY.md#outbound-webhooks-and-ticketing)). In-app notifications are rows in the same table as e-mails, filtered by user.
+
+## 12. Extension points
+
+| Extension | Interface |
+|---|---|
+| Scanner (no code) | Declarative plugin on the worker: [SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins) |
+| Third-party results | SARIF, Grype JSON or the PATHOS findings JSON through the import API |
+| Issue tracker | `tickets.Connector` (`Check`, `Create`, `Status`) in `backend/internal/tickets`, registered by kind. Storage, permissions, audit and status sync are shared. Jira and ServiceNow implement it |
+| Outbound events | Outbound webhooks for any notification event |
+| AI provider | The provider interface in `backend/internal/ai` |
+| Automation | REST API with personal API tokens; MCP server |

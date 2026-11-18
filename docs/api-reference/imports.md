@@ -3,7 +3,7 @@ title: Imports and uploads
 section: api-reference
 order: 5
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Register new repositories through asynchronous import jobs from SCM connections or uploaded archives, using resumable chunked uploads.
 ---
 
@@ -16,11 +16,11 @@ Typical flows:
 - **Git or Azure DevOps:** browse the connection with the [discovery endpoints](integrations.md#list-remote-repositories), optionally [validate](#validate-an-import), then [start an import](#start-an-import) and poll [Get an import job](#get-an-import-job).
 - **Local upload:** [create an upload session](#create-an-upload-session), [send the parts](#upload-a-part), [complete the upload](#complete-an-upload), then [start an import](#start-an-import) with `source: "upload"`.
 
-All endpoints are under `/api/v1`, need a browser session, and need `X-CSRF-Token` on mutations. See [Authentication](index.md#authentication).
+All endpoints are under `/api/v1` and accept a browser session (with `X-CSRF-Token` on mutations) or a REST API token. See [Authentication](index.md#authentication).
 
 ## Upload sessions
 
-Uploads are resumable. The client declares the file name, size and SHA-256 of the whole archive, then sends fixed-size parts with a per-part SHA-256. Uploads are private to the user who created them, expire after 24 hours if unused, and are removed by an hourly cleanup.
+Uploads are resumable. The client declares the file name, size and SHA-256 of the whole archive, then sends fixed-size parts with a per-part SHA-256. Uploads are private to the user who created them, expire 24 hours after they were created (sending parts does not extend this; see `expires_at`), and are removed by an hourly cleanup.
 
 Limits:
 
@@ -33,7 +33,7 @@ Limits:
 | Staged bytes per user | 4 × the maximum archive size |
 | Session lifetime | 24 hours |
 
-During processing, archives are also bounded by `PATHOS_IMPORT_MAX_FILES` (default 200,000), `PATHOS_IMPORT_MAX_EXTRACTED_BYTES` (default 8 GiB), `PATHOS_IMPORT_MAX_FILE_BYTES` (default 1 GiB) and `PATHOS_IMPORT_TIMEOUT` (default 30 minutes per item).
+During processing, archives are also bounded by `PATHOS_IMPORT_MAX_FILES` (default 200,000), `PATHOS_IMPORT_MAX_EXTRACTED_BYTES` (default 8 GiB), `PATHOS_IMPORT_MAX_FILE_BYTES` (default 1 GiB) and `PATHOS_IMPORT_TIMEOUT` (default 30 minutes per item). `PATHOS_IMPORT_CONCURRENCY` (default 2) sets how many items are processed in parallel and `PATHOS_IMPORT_WORK_DIR` (default `/tmp/pathos-import`) where archives are unpacked. Uploaded archives are checked by ClamAV when `PATHOS_CLAMAV_ADDRESS` is set; `PATHOS_CLAMAV_REQUIRED` makes the check mandatory.
 
 Upload `status` values:
 
@@ -53,7 +53,7 @@ All upload endpoints return `503 uploads_unavailable` when the server has no sou
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/source-uploads` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at any scope |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -110,7 +110,7 @@ Returns the session, including which parts were received, so an interrupted uplo
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/source-uploads/{id}` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | Only the user who created the upload; anyone else gets `404 not_found` |
 | Request headers | `Cookie` |
 
@@ -136,7 +136,7 @@ Stores one part. Parts can be sent in any order and in parallel. Sending a part 
 |---|---|
 | Method | `PUT` |
 | Path | `/api/v1/source-uploads/{id}/parts/{n}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Only the user who created the upload |
 | Request headers | `Cookie`, `X-CSRF-Token`, `X-Content-SHA256` (hex SHA-256 of this part), `Content-Type: application/octet-stream` (not checked) |
 
@@ -189,7 +189,7 @@ Marks the upload `complete` when every part was received. Calling it again on a 
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/source-uploads/{id}/complete` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Only the user who created the upload |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -223,7 +223,7 @@ Cancels an upload that was not imported and deletes its stored parts.
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/source-uploads/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | Only the user who created the upload |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -282,7 +282,7 @@ Checks an import request without creating anything. Use it to show field and ite
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repository-imports/validate` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at any scope; `repos.manage` at the placement (otherwise `403`) |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -322,7 +322,7 @@ Item problem codes:
 | Status | Meaning |
 |---|---|
 | 200 | Validation result. |
-| 400 `invalid_request` | Bad `source`, missing or unexpected `scm_connection_id`, "unknown SCM connection", wrong connection category, 0 or more than 200 items, metadata sent with a version-only upload, malformed JSON. |
+| 400 `invalid_request` | Bad `source`, missing or unexpected `scm_connection_id`, "unknown SCM connection", wrong connection category, "country does not exist" (a `country_id` that does not exist when no business unit is set), 0 or more than 200 items, metadata sent with a version-only upload, malformed JSON. |
 | 403 `forbidden` | No `repos.manage` anywhere or at the placement. |
 | 404 `not_found` | The placement (business unit) does not exist. |
 | 415 `unsupported_media_type` | Wrong `Content-Type`. |
@@ -338,7 +338,7 @@ Validates the request and creates an import job with its items. Processing is as
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repository-imports` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at any scope, and `repos.manage` at the placement (or on each `target_repository_id` for version uploads) |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json`, optional `Idempotency-Key` |
 
@@ -445,7 +445,7 @@ Response `202 Accepted` (or `200 OK` for a repeated idempotency key): the [impor
 }
 ```
 
-Database entities: `repository_import_jobs`, `repository_import_items`, `audit_logs` (`repository_import.create`).
+Database entities: `repository_import_jobs`, `repository_import_items`, `audit_logs` (`repository_import.create`; while the job runs: `repository_import.item_failed`, `repository.import` and `repository.snapshot_add` for uploaded archives, `source_upload.malware_detected`).
 
 ### Upload a new version of an uploaded repository
 
@@ -585,10 +585,10 @@ Item `error_code` values:
 | `checksum_mismatch` | failed | A part or the whole archive does not match its SHA-256. |
 | `malware_detected` | failed | The malware scanner rejected the archive; the upload is discarded. |
 | `malware_scan_too_large` | failed | The archive exceeds the scanner's size limit. |
-| `malware_scanner_unavailable` | retried, then failed | The malware scanner is required but unreachable. |
-| `archive_rejected` | failed | Unsupported or unsafe archive. The message starts with the reason: `path_traversal`, `absolute_path`, `invalid_path`, `duplicate_path`, `too_many_files`, `too_large`, `file_too_large`, `compression_ratio`, `encrypted_entry`, `unsupported_format` or `corrupt_archive`. |
+| `malware_scanner_unavailable` | retried, then failed | The malware scanner is required (`PATHOS_CLAMAV_REQUIRED`) but unreachable. |
+| `archive_rejected` | failed | Unsupported or unsafe archive. The message contains the reason (it starts with it, except "unsupported or corrupt archive: …" when the format cannot be detected): `path_traversal`, `absolute_path`, `invalid_path`, `duplicate_path`, `too_many_files`, `too_large`, `file_too_large`, `compression_ratio`, `encrypted_entry`, `unsupported_format` or `corrupt_archive`. |
 | `storage_unavailable` | retried, then failed | The source store could not be read or written. |
-| `timeout` | retried, then failed | The provider did not answer in time, or the item exceeded `PATHOS_IMPORT_TIMEOUT`. |
+| `timeout` | retried, then failed | The provider did not answer in time. An item that exceeds `PATHOS_IMPORT_TIMEOUT` fails at once with this code and is not retried. |
 | `provider_unavailable` | retried, then failed | Temporary provider error. |
 | `provider_error` | retried, then failed | Other provider error. |
 | `cancelled` | cancelled | Cancelled while running. |
@@ -607,7 +607,7 @@ Returns import jobs, newest first, 25 per page.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repository-imports` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.manage` at any scope, or `repos.read` organization-wide. Users without organization-wide `repos.manage` or `repos.read` see only their own jobs. |
 | Request headers | `Cookie` |
 
@@ -663,7 +663,7 @@ Returns one job with all items. Poll it to follow progress.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repository-imports/{id}` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | The requester, or organization-wide `repos.manage` or `repos.read`. Others get `404 not_found`. |
 | Request headers | `Cookie` |
 
@@ -688,7 +688,7 @@ Requests cancellation. Waiting items (`queued`) and items in `needs_attention` a
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repository-imports/{id}/cancel` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | The requester, or organization-wide `repos.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -711,7 +711,7 @@ Re-queues items in `failed`, `needs_attention` or `cancelled`, resetting their a
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repository-imports/{id}/retry` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | The requester, or organization-wide `repos.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` when a body is sent |
 

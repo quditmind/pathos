@@ -3,7 +3,7 @@ title: Repositories
 section: api-reference
 order: 3
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: List, inspect, edit, archive, delete, tag, synchronize and scan registered repositories (assets), plus the legacy synchronous imports.
 ---
 
@@ -11,7 +11,7 @@ summary: List, inspect, edit, archive, delete, tag, synchronize and scan registe
 
 A repository is the registered asset in PATHOS. It holds the source location (an SCM connection or an uploaded archive), the asset metadata (ownership, placement, classification, application URLs, public exposure) and its synchronization and scan state.
 
-All endpoints on this page are under `/api/v1` and need a browser session. Mutating requests also need the `X-CSRF-Token` header. See [Authentication](index.md#authentication) and [Errors](index.md#errors).
+All endpoints on this page are under `/api/v1` and accept a browser session (mutations also need the `X-CSRF-Token` header) or a REST API token. See [Authentication](index.md#authentication) and [Errors](index.md#errors).
 
 New repositories are created through [imports](imports.md#start-an-import). The two synchronous import endpoints at the end of this page are older and still supported.
 
@@ -147,7 +147,7 @@ Returns a page of repositories the caller can see, with filters, sorting and key
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope. The result contains repositories inside the caller's `repos.read` scopes plus repositories the caller owns. Without `repos.read` anywhere: `403 forbidden`. |
 | Request headers | `Cookie` |
 
@@ -225,7 +225,7 @@ Returns one repository.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/{id}` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` on the repository, or asset owner with `repos.read` anywhere |
 | Request headers | `Cookie` |
 
@@ -252,7 +252,7 @@ Returns totals and breakdowns for the dashboards, computed over the repositories
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/insights` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` at any scope (same visibility as [List repositories](#list-repositories)) |
 | Request headers | `Cookie` |
 
@@ -312,7 +312,7 @@ Returns the most recent scan job of the repository and its open findings by seve
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/{id}/security` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` on the repository, or asset owner. Finding counts are filled only when the caller also holds `findings.read` on the repository; otherwise they are all `0`. |
 | Request headers | `Cookie` |
 
@@ -360,7 +360,7 @@ Lists the branch names of an SCM repository, live from the provider.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/{id}/branches` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` on the repository, or asset owner |
 | Request headers | `Cookie` |
 
@@ -377,7 +377,7 @@ Response `200 OK`:
 | Status | Meaning |
 |---|---|
 | 200 | Branches returned, sorted by name. |
-| 404 `not_found` | Repository not visible, or its connection was deleted. |
+| 404 `not_found` | Repository not visible, or its connection was deleted or archived. |
 | 409 `conflict` | Uploaded repository: "uploaded repositories have no branches; upload a new version instead". |
 | 502 `scm_error` | The provider rejected or failed the call (authentication, permission, not found, rate limit, expired token, blocked address). |
 
@@ -393,7 +393,7 @@ Changes asset metadata and scan settings. Absent fields stay unchanged. An expli
 |---|---|
 | Method | `PATCH` |
 | Path | `/api/v1/repositories/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository, or asset owner (limited fields, see below). Archived repositories are read-only for owners. Changing `business_unit_id` or `country_id`, or sending `new_application`, also needs `repos.manage` at the destination scope (the business unit, else the region of the country, else the organization). |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -428,7 +428,7 @@ Request body: any subset of the following fields. Unknown fields are rejected, i
 | `criticality` | string | no | `low`, `medium`, `high` or `critical`. Cannot be empty. |
 | `data_classification` | string | yes | Active key of the `data_classification` catalog, or `""`. |
 | `environment` | string | no | Active key of the `environment` catalog. Cannot be empty. |
-| `internet_exposure` | string | yes | Active key of the `internet_exposure` catalog. Cannot be empty. |
+| `internet_exposure` | string | yes | Active key of the `internet_exposure` catalog. `""` is stored as `unknown`. |
 | `compliance_scopes` | string array | yes | Active keys of the `compliance` catalog, max 30. |
 | `tag_ids` | UUID array | yes | Replaces all tags. Max 50; mandatory tag categories must be covered; single-value categories allow one tag. |
 | `color` | string | yes | `#rrggbb` (lower-cased) or `""`. |
@@ -444,7 +444,7 @@ Request body: any subset of the following fields. Unknown fields are rejected, i
 | `exposure_notes` | string | yes | Max 2000 characters. |
 | `scan_enabled` | boolean | no | Scheduled and event-driven scans run only when `true`. |
 | `scan_branch` | string | no | Branch to track and scan; `""` means the default branch. Max 255 characters, valid Git ref characters. |
-| `technologies` | string array | no | Max 30, each 1–50 characters. |
+| `technologies` | string array | yes | Max 30, each 1–50 characters. |
 | `full_history` | boolean | no | Clone the full history for scans. |
 
 Public exposure rules:
@@ -528,7 +528,7 @@ Assigns a scan profile, or reverts to the organization default.
 |---|---|
 | Method | `PUT` |
 | Path | `/api/v1/repositories/{id}/scan-profile` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository (asset owners do not qualify) |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -547,12 +547,12 @@ Response: `204 No Content`.
 | Status | Meaning |
 |---|---|
 | 204 | Saved. |
-| 400 `invalid_request` | "scan profile does not exist" or malformed JSON. |
+| 400 `invalid_request` | "scan profile does not exist" (also for an archived profile) or malformed JSON. |
 | 403 `forbidden` | No `repos.manage` on the repository. |
 | 404 `not_found` | Repository does not exist. |
 | 415 `unsupported_media_type` | Wrong `Content-Type`. |
 
-Database entities: `repositories.scan_profile_id`, `scan_profiles`, `audit_logs`.
+Database entities: `repositories.scan_profile_id`, `scan_profiles`, `audit_logs` (`repository.set_scan_profile`).
 
 ### Add or remove tags on many repositories
 
@@ -562,7 +562,7 @@ Adds and removes tags on up to 500 repositories in one transaction.
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/bulk-tags` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on **every** listed repository |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -601,7 +601,7 @@ Archives (soft-deletes) a repository. Archived repositories are hidden from the 
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/{id}/archive` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository (asset owners do not qualify) |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -627,7 +627,7 @@ Restores an archived repository.
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/{id}/unarchive` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -649,7 +649,7 @@ Permanently deletes an **archived** repository, its source snapshots (database r
 |---|---|
 | Method | `DELETE` |
 | Path | `/api/v1/repositories/{id}` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository |
 | Request headers | `Cookie`, `X-CSRF-Token` |
 
@@ -673,7 +673,7 @@ Refreshes one SCM repository's metadata, default branch, head commit of the trac
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/{id}/sync` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` on the repository, or asset owner (not on archived repositories) |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -703,7 +703,7 @@ Run `status` values: `ok`, `failed`, `missing` (repository not found at the prov
 | Status | Meaning |
 |---|---|
 | 200 | Sync run recorded (check `run.status`). |
-| 403 `forbidden` / 404 `not_found` | See [Access rules](#access-rules-for-a-single-repository). 404 also when the connection was deleted. |
+| 403 `forbidden` / 404 `not_found` | See [Access rules](#access-rules-for-a-single-repository). 404 also when the connection was deleted or archived. |
 | 409 `conflict` | Uploaded repository: "uploaded repositories are updated by uploading a new version" (see [version uploads](imports.md#upload-a-new-version-of-an-uploaded-repository)). |
 
 Database entities: `repositories`, `repository_sync_runs`, `notification_events`, `audit_logs`.
@@ -716,7 +716,7 @@ Returns the 100 most recent sync runs, newest first.
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/{id}/sync-runs` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` on the repository, or asset owner |
 | Request headers | `Cookie` |
 
@@ -759,7 +759,7 @@ Returns the 100 most recent source snapshots of an uploaded repository, newest f
 |---|---|
 | Method | `GET` |
 | Path | `/api/v1/repositories/{id}/snapshots` |
-| Authentication | Session cookie |
+| Authentication | Session or API token |
 | Permission | `repos.read` on the repository, or asset owner |
 | Request headers | `Cookie` |
 
@@ -808,7 +808,7 @@ Queues a manual scan. If the repository already has a queued scan, the request m
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/{id}/scan` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `scans.run` on the repository |
 | Request headers | `Cookie`, `X-CSRF-Token` (no body) |
 
@@ -842,7 +842,7 @@ These endpoints register SCM repositories synchronously, without import jobs, up
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/import` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | `repos.manage` at any scope to call; each item needs `repos.manage` at its placement (business unit, else region of the country, else organization) |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
@@ -859,7 +859,7 @@ Request body:
 | `repositories[].criticality` | string | no | `low`, `medium`, `high`, `critical`; default `medium`. |
 | `repositories[].scan_branch` | string | no | Valid branch name. |
 | `repositories[].tag_ids` | UUID array | no | Must satisfy the tag rules. |
-| `defaults` | object | no | Same fields as an item; used for fields an item leaves empty. |
+| `defaults` | object | no | Values for fields an item leaves empty. Only `application_id`, `business_unit_id`, `country_id`, `environment`, `criticality` and `tag_ids` are taken from it; other fields are ignored. |
 | `dry_run` | boolean | no | Validate without saving. |
 
 ```json
@@ -898,6 +898,7 @@ Result `status`: `imported`, `would_import` (dry run), `already_imported` or `er
 |---|---|
 | 200 | Processed; check each result. |
 | 400 `invalid_request` | Item count out of range or malformed JSON. |
+| 415 `unsupported_media_type` | `Content-Type` is not `application/json`. |
 | 403 `forbidden` | No `repos.manage` anywhere. |
 | 404 `not_found` | Connection does not exist. |
 | 502 `scm_error` | Listing the connection's repositories failed. |
@@ -912,7 +913,7 @@ Same as [Import repositories synchronously](#import-repositories-synchronously),
 |---|---|
 | Method | `POST` |
 | Path | `/api/v1/repositories/import-csv` |
-| Authentication | Session cookie and `X-CSRF-Token` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
 | Permission | As for [Import repositories synchronously](#import-repositories-synchronously) |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: text/csv` (or `text/plain`) |
 
@@ -936,7 +937,7 @@ Response `200 OK`: as above; each result also carries `line` (CSV line number). 
 | Status | Meaning |
 |---|---|
 | 200 | Processed. |
-| 400 `invalid_request` | Missing `scm_connection_id`, body over 2 MB, invalid CSV, no data rows, unknown column, no `repository` column. |
+| 400 `invalid_request` | Missing `scm_connection_id`, body over 2 MB, invalid CSV, no data rows (rows with an empty `repository` cell are skipped, so such a file returns `200` with no results), unknown column, no `repository` column. |
 | 403 `forbidden` | No `repos.manage` anywhere. |
 | 404 `not_found` | Connection does not exist. |
 | 415 `unsupported_media_type` | "Content-Type must be text/csv". |

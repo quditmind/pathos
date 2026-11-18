@@ -1,9 +1,9 @@
 ---
 title: Provider integrations
 section: user-guide
-order: 4
+order: 3
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: Manage SCM connections and OAuth applications - connect, test, reconnect, rotate, webhooks, re-sync and delete.
 ---
 
@@ -35,7 +35,7 @@ Each method is explained in [Authentication methods](authentication.md).
 | Name, provider, method | For example *GitHub · Personal access token*, or *GitHub App 123456* |
 | Owner scope | The organization, group, workspace or project the connection is limited to, if set |
 | *Signed in as …* | The provider account (OAuth connections) |
-| Status badge | **Connected** (`ok`), **Untested** (`untested`), **Error** (`error`), **Expired** (`expired`), **Revoked** (`revoked`) |
+| Status badge | **Connected**, **Untested**, **Error**, **Expired** or **Revoked**, see [Connection statuses and messages](#connection-statuses-and-messages) |
 | Status message | The last error, for example *scm: authentication failed (check the token and its scopes) (HTTP 401 from api.github.com)* |
 | *n repositories · checked …* | Imported repositories and the time of the last test |
 | *Token expires …* | Expiry of an OAuth token (*refreshed automatically*) or a known token expiry |
@@ -67,7 +67,7 @@ Each method is explained in [Authentication methods](authentication.md).
 
 **Expected result.** The connection card appears and is tested immediately: **Connected** on success, otherwise **Error** with the provider's message. After OAuth, *The provider connection was authorised and saved.* is shown.
 
-**Troubleshooting.** *Required: …* lists missing fields. *No OAuth application is registered for `<provider>`. Register one first.* means an administrator must first [register an OAuth application](#oauth-applications). For error messages see [Authentication methods](authentication.md#troubleshooting-authentication-failures).
+**Troubleshooting.** *Required: …* lists missing fields. *No OAuth application is registered for `<provider>`. Register one first.* means an administrator must first [register an OAuth application](#oauth-applications). For error messages see [Connection statuses and messages](#connection-statuses-and-messages).
 
 **Related APIs.** [Integrations API](../api-reference/integrations.md).
 
@@ -114,6 +114,33 @@ To change the secret, edit the application (leave **Client secret** blank to kee
 
 ![OAuth sign-in flow](images/oauth-flow.svg "OAuth flow: Continue with the provider, consent, callback with state and PKCE check, tokens stored encrypted")
 
+## Connection statuses and messages
+
+| Where | Value or message | Meaning |
+|---|---|---|
+| Connection status | **Connected** (`ok`) | The last test succeeded |
+| | **Untested** (`untested`) | Not tested yet, or reconnected and awaiting the next check |
+| | **Error** (`error`) | The last test failed; the message says why |
+| | **Expired** (`expired`) | An OAuth token could not be refreshed. Reconnect |
+| | **Revoked** (`revoked`) | The connection was deleted and its credential destroyed |
+| Status message | *scm: authentication failed (check the token and its scopes)* (with the HTTP status and host) | The provider rejected the credential (HTTP 401): wrong, expired or revoked token, wrong IDs |
+| | *scm: the credential does not have permission for this operation* | Valid credential, missing permission or scope (HTTP 403) |
+| | *scm: not found or not visible to this credential* | Wrong organization / project, or no access |
+| | *scm: rate limited by the provider, try again later* | Provider rate limit; temporary |
+| | *scm: the authorization has expired or was revoked; reconnect the connection* | OAuth refresh failed (status **Expired**) |
+| | *scm: destination address is not allowed* | The base URL resolves to an address that PATHOS' outbound policy blocks (for example a private or metadata address) |
+| Import error codes | `authentication_failed`, `permission_denied`, `repository_not_found`, `token_expired`, `blocked_address`, `provider_unavailable`, `provider_error`, `timeout` | See [Import history](import-history.md#error-codes) |
+| OAuth sign-in | *the provider declined the authorization: …*, *the provider did not return an authorization code*, *token exchange failed: …*, *the OAuth application no longer exists*, *this authorization was started by another user* | Shown on the SCM connections page after a failed browser sign-in |
+
+### Troubleshooting authentication failures
+
+1. Select **Test** on the connection and read the status message.
+2. **HTTP 401 / authentication failed**: the secret is wrong, expired or revoked, or an ID (App ID, Installation ID, Tenant ID, Client ID) is wrong. Create a new credential and use **Rotate credential**, or **Reconnect** for OAuth.
+3. **HTTP 403 / no permission**: add the missing scope or permission listed for the method in [Authentication methods](authentication.md); for GitHub organizations with SAML SSO, authorise the token for the organization.
+4. **Not found**: check the scope on the connection (organization, group, workspace, project) and that the identity is a member.
+5. **Expired**: select **Reconnect** (OAuth). For tokens, rotate.
+6. **Blocked address / timeouts with self-managed servers**: the base URL must be reachable from the PATHOS server and resolve to an allowed address; contact your PATHOS administrator.
+
 ## Test a connection
 
 Select **Test**. PATHOS calls the provider with the stored credential and shows *Test succeeded.* or *Test finished: `<message>`*. The status badge and *checked* time are updated. A test that fails because an OAuth authorization cannot be refreshed sets the status to **Expired**.
@@ -144,7 +171,7 @@ Webhooks tell PATHOS about pushes and pull/merge requests so that sync and scann
 | Bitbucket Cloud | `<PATHOS URL>/api/webhooks/bitbucket/<connection ID>` | Webhook secret (HMAC signature) | Repository push, pull request created / updated / merged |
 | Azure DevOps Services / Server | `<PATHOS URL>/api/webhooks/azure-devops/<connection ID>` | Service hook with **basic authentication**: the secret is the password | Code pushed (`git.push`), pull request created / updated / merged |
 
-PATHOS does not create webhooks at the provider for you. Webhooks only have an effect for repositories that are registered through that connection; deliveries for unknown repositories are recorded and ignored. A push or merge to the repository's **scan branch** queues a scan (see [Security scanning](security-scanning.md)); pull requests are recorded but not scanned. The provider must be able to reach your PATHOS URL.
+PATHOS does not create webhooks at the provider for you. Webhooks only have an effect for repositories that are registered through that connection; deliveries for unknown repositories are recorded and ignored. A push or merge to the repository's **scan branch** queues a scan (see [Security scanning](security-scanning.md#how-repositories-enter-the-scanning-pipeline)); pull requests are scanned only when [pull request checks](supply-chain.md#pull-request-checks) are on for the repository. The provider must be able to reach your PATHOS URL.
 
 ## Re-sync metadata
 

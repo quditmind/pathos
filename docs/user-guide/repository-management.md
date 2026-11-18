@@ -1,9 +1,9 @@
 ---
 title: Repository management
 section: user-guide
-order: 2
+order: 8
 version: "1.0"
-updated: 2026-11-17
+updated: 2026-11-19
 summary: The repository record, its permanent Repository ID, URLs, branch, ownership, lifecycle and status, and how to view and edit it.
 ---
 
@@ -98,7 +98,7 @@ Sync only reads metadata and the latest commit; it never downloads source code. 
 
 ## Link to scans and findings
 
-Each repository's **Security** tab shows open findings by severity, the latest scan (status, commit or snapshot, profile, each scanner's version and finding count), the scan profile and recent scans, with links to **All findings**, **Scan history** and **SBOM (CycloneDX)**. See [Security scanning](security-scanning.md).
+Each repository's **Security** tab shows open findings by severity, the latest scan (status, commit or snapshot, profile, each scanner's version and finding count), the scan profile and recent scans, with **Scan now** and links to **All findings**, **Scan history** and the SBOM downloads. See [Running scans](scanning.md#step-by-step-scan-a-repository-from-its-record-and-view-its-findings) and [Supply chain](supply-chain.md#export-an-sbom).
 
 ## Example repository record
 
@@ -144,7 +144,7 @@ The following record is illustrative (it was created for this guide from a small
 1. Open **Assets → Repositories**.
 2. Find the repository: type part of its name in **Search repositories**, or open **More filters** and enter the exact **Repository ID**, for example `QD-REPO-000042`.
    ![Repository inventory with KPI strip and Repository ID column](images/repositories-inventory.png "Repositories inventory: KPI strip, filters and the Repository ID column")
-3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and three tabs: **Details**, **Source** and **Security**.
+3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and tabs: **Details**, **Source**, **Security** and **Dependencies** (the last needs `sbom.read`; see [Dependencies of a repository](posture.md#dependencies-of-a-repository)).
    ![Repository details panel](images/repository-drawer.png "The details panel opens over the inventory")
 4. On **Details**, select **Edit metadata**. The same sections as in the wizard appear.
 5. Change the fields, for example set **Production URL** to `https://payments.example.com`.

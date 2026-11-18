@@ -1,12 +1,14 @@
 ---
 title: AI Security Analyst, reports and usage
 section: api-reference
-order: 12
+order: 41
 version: "1.0"
-updated: 2026-11-18
+updated: 2026-11-19
 summary: Conversations with the AI Security Analyst, AI-written reports over PATHOS-computed figures, and AI usage.
 ---
 # AI Security Analyst, reports and usage
+
+The analyst and the report narratives use the organization's default [AI configuration](ai-and-mcp.md#configurations). AI reviews of findings and the MCP registry are described in [AI providers, finding reviews and MCP](ai-and-mcp.md).
 
 ## Analyst
 

@@ -1,12 +1,14 @@
 ---
-title: Result and SBOM imports, custom rules
+title: Result and SBOM imports
 section: api-reference
-order: 8
+order: 25
 version: "1.0"
-updated: 2026-11-17
-summary: Import findings from any tool (SARIF 2.1, Grype JSON, PATHOS findings JSON) and SBOMs (CycloneDX, SPDX), and manage custom Opengrep detection rules.
+updated: 2026-11-19
+summary: Import findings from any tool (SARIF 2.1, Grype JSON, PATHOS findings JSON) and SBOMs (CycloneDX, SPDX), and list past imports.
 ---
-# Result and SBOM imports, custom rules
+# Result and SBOM imports
+
+Custom Opengrep detection rules are described in [Scanners, scan profiles and custom rules](scan-configuration.md#custom-rules).
 
 ## Importing results
 
@@ -38,7 +40,7 @@ Responses:
 
 - `201`: the import record (`status`, `records`, `scan_job_id`, `scan_key`, `format`, `sha256`)
 - `422 invalid_report`: the file cannot be parsed. The failed import is recorded too.
-- `409`: a scan of the repository is running
+- `409`: a scan of the repository is running, or the repository is archived
 
 ### PATHOS findings JSON
 
@@ -77,32 +79,9 @@ For tools without SARIF output (IAST, fuzzers, custom scripts):
 `POST /api/v1/imports/sbom` (`scans.run`), `multipart/form-data`: `file` (CycloneDX JSON or SPDX 2.x JSON, at most 64 MiB) and `repository_id`, plus an optional `tool`.
 
 - The SBOM replaces the repository's component inventory, marked `source: import`.
-- Licence policies apply immediately (**SBOM inventory**, dashboard).
+- [Licence policies](supply-chain.md#licence-policies) apply immediately (**SBOM inventory**, dashboard).
 - `422 invalid_sbom` is returned for unrecognised or empty SBOMs.
 
-`GET /api/v1/imports/history?repository_id=&kind=results|sbom` lists the 200 latest imports in the caller's scope.
+## Import history
 
-## Custom rules
-
-Opengrep (Semgrep-compatible) rule files.
-
-**How they run:**
-
-- Enabled files run in every new scan alongside the PATHOS baseline rules.
-- Each scan's configuration snapshot records the rule file versions (`custom_rules: [{id, name, version}]`).
-- The worker receives exactly those versions.
-
-| Method | Path | Permission | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/custom-rules` | `scanners.read` | Rule files (without content) |
-| `GET` | `/api/v1/custom-rules/{id}` | `scanners.read` | With content |
-| `GET` | `/api/v1/custom-rules/{id}/versions` | `scanners.read` | Saved versions |
-| `POST` | `/api/v1/custom-rules/validate` | `profiles.manage` | `{ content }` → `{ valid, rule_ids }` or `422 invalid_rules` |
-| `POST` | `/api/v1/custom-rules` | `profiles.manage` | `{ name, description, content, enabled }` |
-| `PUT` | `/api/v1/custom-rules/{id}` | `profiles.manage` | Any of the fields plus `change_note`; content or enabled changes create a new version |
-| `DELETE` | `/api/v1/custom-rules/{id}` | `profiles.manage` | New scans stop using the file |
-
-Validation runs without executing anything. It requires:
-
-- a `rules:` list (at most 200 rules)
-- for each rule: an `id` (unique across enabled files, not starting with the reserved `pathos.`), a `message`, a `severity` (ERROR, WARNING or INFO), non-empty `languages`, and a pattern (`pattern`, `patterns`, `pattern-either`, `pattern-regex`, or taint mode with `pattern-sources` and `pattern-sinks`)
+`GET /api/v1/imports/history?repository_id=&kind=results|sbom` (`scans.read`) lists the 200 latest imports in the caller's scope.
