@@ -20,6 +20,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/eol"
 	"pathos/internal/platform/httpx"
 )
 
@@ -62,8 +63,9 @@ type Feed struct {
 }
 
 var labels = map[string]string{EPSS: "FIRST EPSS (exploit prediction scores)", KEV: "CISA Known Exploited Vulnerabilities",
-	OSV:     "OSV vulnerability records (descriptions, references, vendor CVSS)",
-	DepsDev: "deps.dev package health (latest versions, deprecations, OpenSSF Scorecard)"}
+	OSV:      "OSV vulnerability records (descriptions, references, vendor CVSS)",
+	DepsDev:  "deps.dev package health (latest versions, deprecations, OpenSSF Scorecard)",
+	eol.Feed: "endoflife.date end-of-life dates of runtimes, frameworks, databases and operating systems"}
 
 func sha256Hex(b []byte) string {
 	h := sha256.Sum256(b)
@@ -104,6 +106,7 @@ func (s *Service) feeds(ctx context.Context) ([]Feed, error) {
 	rows, err := s.DB.Query(ctx, `SELECT feed, enabled, url, interval_hours, updated_at,
 		CASE feed WHEN 'epss' THEN (SELECT count(*) FROM intel_epss) WHEN 'kev' THEN (SELECT count(*) FROM intel_kev)
 		  WHEN 'osv' THEN (SELECT count(*) FROM intel_vulns WHERE found)
+		  WHEN 'endoflife' THEN (SELECT count(*) FROM eol_products)
 		  ELSE (SELECT count(*) FROM package_health WHERE found) END
 		FROM intel_feeds ORDER BY feed`)
 	if err != nil {
@@ -152,7 +155,9 @@ func (s *Service) listFeeds(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "offline": s.Offline})
 }
 
-func validFeed(f string) bool { return f == EPSS || f == KEV || f == OSV || f == DepsDev }
+func validFeed(f string) bool {
+	return f == EPSS || f == KEV || f == OSV || f == DepsDev || f == eol.Feed
+}
 
 func (s *Service) admin(r *http.Request) (*authz.Principal, string, error) {
 	p := s.Principal(r.Context())

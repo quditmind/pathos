@@ -17,6 +17,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/compliance"
 	"pathos/internal/dashboard"
+	"pathos/internal/eol"
 	"pathos/internal/identity"
 	"pathos/internal/intel"
 	"pathos/internal/mcp"
@@ -103,6 +104,7 @@ func Build(d Deps) Handlers {
 	// up findings that need a person.
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
+	scanSvc.Offline = d.Offline
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
@@ -140,6 +142,7 @@ func Build(d Deps) Handlers {
 	postureSvc.Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)
+	(&eol.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)

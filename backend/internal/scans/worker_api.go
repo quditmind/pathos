@@ -75,6 +75,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/imports", s.jobImports)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
+	s.registerWorkerProvenance(authed)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
 	return mux

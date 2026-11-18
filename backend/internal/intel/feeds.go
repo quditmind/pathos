@@ -22,6 +22,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"pathos/internal/eol"
 )
 
 // Feeds.
@@ -282,6 +284,11 @@ func Load(ctx context.Context, pool *pgxpool.Pool, feed, mode string, by *[16]by
 			asOf, n, err = LoadKEV(ctx, tx, bytes.NewReader(data))
 		case DepsDev:
 			err = errors.New("package health has no file import; it is refreshed online from deps.dev")
+		case eol.Feed:
+			var ps []eol.Product
+			if ps, asOf, err = eol.Parse(data); err == nil {
+				n, err = eol.Load(ctx, tx, ps)
+			}
 		case OSV:
 			var vulns []Vuln
 			if vulns, err = ParseOSV(data, "osv-file"); err == nil {
@@ -302,6 +309,13 @@ func Load(ctx context.Context, pool *pgxpool.Pool, feed, mode string, by *[16]by
 	run.Status, run.Records, run.AsOf, run.Error = status, n, asOf, msg
 	if err != nil {
 		return run, err
+	}
+	if feed == eol.Feed {
+		// Components, runtimes and images get their end-of-life status
+		// (and findings) from the new data.
+		if serr := eol.SyncAll(ctx, pool, nil); serr != nil {
+			return run, fmt.Errorf("end-of-life data loaded, but updating repositories failed: %w", serr)
+		}
 	}
 	return run, uerr
 }

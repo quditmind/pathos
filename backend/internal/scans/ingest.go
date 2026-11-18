@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"pathos/internal/platform/objstore"
 	"slices"
@@ -121,6 +122,20 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
+			}
+		}
+		// Evidence kept besides findings: per-endpoint verification status
+		// and signature verification results.
+		if up.Status == "succeeded" && len(raw) > 0 {
+			switch up.Scanner {
+			case scanners.EndpointCheck:
+				if err := recordEndpoints(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+					return err
+				}
+			case scanners.Cosign:
+				if err := recordSignature(ctx, tx, orgID, jobID, targetID, raw); err != nil {
+					return err
+				}
 			}
 		}
 		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings)
@@ -245,9 +260,11 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		var targetID *uuid.UUID
 		var failOnCritical bool
 		var pr *int
-		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id, j.pull_request FROM scan_jobs j
+		var trigger, commit, targetKind string
+		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id, j.pull_request, j.trigger,
+			j.commit_sha, j.target_kind FROM scan_jobs j
 			JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1 FOR UPDATE OF j`, jobID).
-			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr); err != nil {
+			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr, &trigger, &commit, &targetKind); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
@@ -287,17 +304,38 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
 		fixed := int64(0)
+		fixedBySeverity := map[string]int{}
 		if len(ok) > 0 && !opts.NoAutoResolve {
-			tag, err := tx.Exec(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
+			rows, err := tx.Query(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
 				WHERE repository_id = $1 AND status IN ('open', 'in_progress', 'needs_review')
 				  AND (last_scan_job_id IS DISTINCT FROM $2)
 				  AND scanner_keys && $3::text[] AND NOT (scanner_keys && $4::text[])
-				  AND scan_target_id IS NOT DISTINCT FROM $5`,
+				  AND scan_target_id IS NOT DISTINCT FROM $5
+				RETURNING severity`,
 				repoID, jobID, ok, nonNilStrings(bad), targetID)
 			if err != nil {
 				return err
 			}
-			fixed = tag.RowsAffected()
+			for rows.Next() {
+				var sev string
+				if err := rows.Scan(&sev); err != nil {
+					rows.Close()
+					return err
+				}
+				fixedBySeverity[sev]++
+				fixed++
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+		// End-of-life status of the components, runtimes and images this
+		// scan (re)discovered; new end-of-life findings count as found by it.
+		if status != "failed" && (targetID == nil || targetKind == "image") {
+			if err := s.syncEOL(ctx, tx, orgID, repoID, jobID); err != nil {
+				return err
+			}
 		}
 		if targetID == nil {
 			// Dependency findings added by this execution get their
@@ -330,13 +368,34 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 				return err
 			}
 		}
+		if targetID != nil {
+			unsigned, err := signatureGateFailed(ctx, tx, jobID)
+			if err != nil {
+				return err
+			}
+			if unsigned {
+				gate = true
+				if err := AddEvent(ctx, tx, orgID, jobID, "finalize", "", "info", "security gate failed: the target requires a verified signature"); err != nil {
+					return err
+				}
+			}
+		}
+		var change []byte
+		if targetID == nil && (trigger == "push" || trigger == "merge") {
+			cs, err := changeSummary(ctx, tx, jobID, repoID, commit, fixedBySeverity)
+			if err != nil {
+				return err
+			}
+			change, _ = json.Marshal(cs)
+			job.ChangeSummary = cs
+		}
 		errText := logging.RedactString(truncate(workerErr, 2000))
 		if errText == "" && len(bad) > 0 {
 			errText = "scanners failed: " + joinSorted(bad)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL,
-			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6 WHERE id = $1`,
-			jobID, status, newCount, fixed, gate, errText); err != nil {
+			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6, change_summary = $7 WHERE id = $1`,
+			jobID, status, newCount, fixed, gate, errText, change); err != nil {
 			return err
 		}
 		job.Status, job.FindingsNew, job.FindingsFixed, job.GateFailed = status, newCount, int(fixed), gate

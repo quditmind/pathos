@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"pathos/internal/eol"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/policy"
 	"pathos/internal/reporting"
@@ -305,6 +306,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	// scores.
 	go server.NewIntelService(server.Deps{DB: pool, Log: log, Offline: cfg.Offline}).RunBackground(ctx)
 	go risk.RunBackground(ctx, pool, log)
+	// End-of-life status changes with the calendar: recomputed daily.
+	go eol.RunBackground(ctx, pool, log)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads
 		// are removed.

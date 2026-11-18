@@ -50,6 +50,9 @@ type Service struct {
 	// ClamAVRequired refuses uploads while the scanner is unavailable.
 	ClamAVAddress  string
 	ClamAVRequired bool
+	// Offline (PATHOS_OFFLINE=true): declared endpoint verification, which
+	// contacts the endpoints, is disabled.
+	Offline bool
 }
 
 var errNotFound = errors.New("not found")
@@ -63,6 +66,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerImports(mux)
 	s.registerRules(mux)
 	s.registerTargets(mux)
+	s.registerEndpointVerification(mux)
 	s.registerWorkersAdmin(mux)
 }
 

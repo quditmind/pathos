@@ -454,9 +454,43 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 			rep.logf("info", "import inventory: %d source files, %d npm, %d Python, %d Go imports", inv.FilesScanned,
 				len(inv.Imports["npm"]), len(inv.Imports["pypi"]), len(inv.Imports["go"]))
 		}
+		// Declared runtimes and base images (end-of-life matching).
+		rt := collectRuntimes(src)
+		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/runtimes", a.token, rt, nil); err != nil {
+			log.Warn("runtime inventory upload failed", "err", err)
+			rep.logf("warn", "runtime inventory upload failed: %v", err)
+		} else {
+			rep.logf("info", "runtime inventory: %d runtimes and base images declared", len(rt.Runtimes))
+		}
+		// Introducing commits of code findings (Git sources only).
+		if job.Source == nil {
+			a.uploadBlame(ctx, parent, job, src, out, keys, rep)
+		}
 	}
 	if !stop {
 		finish("", commit)
+	}
+}
+
+// uploadBlame records the introducing commit of each code finding: git
+// blame with full history, "unknown (shallow clone)" otherwise.
+func (a *Agent) uploadBlame(ctx, parent context.Context, job Job, src, out string, keys []string, rep *reporter) {
+	locs := blameLocations(out, keys)
+	if len(locs) == 0 {
+		return
+	}
+	br := BlameReport{Version: 1, Mode: "shallow", Entries: []BlameEntry{}}
+	if job.FullHistory {
+		start := time.Now()
+		br = blame(ctx, src, locs)
+		rep.logf("info", "git blame: %d of %d code finding locations attributed in %s", len(br.Entries), len(br.Entries)+len(br.Missing),
+			time.Since(start).Round(time.Millisecond))
+	} else {
+		rep.logf("info", "introducing commits unknown: shallow clone (enable full history on the repository to record them)")
+	}
+	if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/blame", a.token, br, nil); err != nil {
+		a.log.Warn("blame upload failed", "job_id", job.JobID, "err", err)
+		rep.logf("warn", "introducing commit upload failed: %v", err)
 	}
 }
 

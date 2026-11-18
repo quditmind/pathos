@@ -23,7 +23,9 @@ var Events = []EventDef{
 		Dynamic:     []string{"owners"},
 		Subject:     `[PATHOS] {{.Scan.New}} new finding{{if ne .Scan.New 1}}s{{end}} in {{.Repository}}`,
 		Body: `A {{.Scan.Trigger}} scan of {{.Repository}} found {{.Scan.New}} new finding{{if ne .Scan.New 1}}s{{end}}{{if .Scan.Fixed}} and resolved {{.Scan.Fixed}}{{end}}.
-{{if .Scan.GateFailed}}
+{{with .Scan.Changes}}
+Changes since the previous scanned commit{{if .BaseCommit}} {{.BaseShort}}{{end}}{{if .HeadCommit}} (now {{.HeadShort}}){{end}}: +{{.NewTotal}} new{{if .NewText}} ({{.NewText}}){{end}}, -{{.FixedTotal}} fixed{{if .FixedText}} ({{.FixedText}}){{end}}.
+{{end}}{{if .Scan.GateFailed}}
 The security gate FAILED for this scan.
 {{end}}
 {{range .Findings}}- [{{.Severity}}] {{.Title}}{{if .Location}} ({{.Location}}){{end}}

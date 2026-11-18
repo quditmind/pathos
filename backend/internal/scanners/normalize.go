@@ -579,6 +579,14 @@ func Parse(key string, raw []byte) ([]Finding, error) {
 	if key == Actionlint {
 		return ParseActionlint(raw)
 	}
+	switch key {
+	case EndpointCheck:
+		return parseEndpoints(raw)
+	case Cosign:
+		return parseSignature(raw)
+	case EndOfLife:
+		return nil, errors.New("end-of-life findings come from the intelligence feed, not from scanner output")
+	}
 	return ParseSARIF(key, raw)
 }
 

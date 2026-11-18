@@ -2,6 +2,7 @@ package posture
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"regexp"
@@ -39,6 +40,11 @@ type Component struct {
 	// checked; only direct dependencies are).
 	Provenance       string `json:"provenance,omitempty"`
 	ProvenanceSource string `json:"provenance_source,omitempty"`
+	// End of life (endoflife.date): eol, approaching or supported when the
+	// package is a tracked framework or runtime; its cycle and end date.
+	EOLStatus string  `json:"eol_status,omitempty"`
+	EOLCycle  string  `json:"eol_cycle,omitempty"`
+	EOLDate   *string `json:"eol_date,omitempty"`
 }
 
 type edge struct {
@@ -64,7 +70,10 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 	       CASE WHEN NOT COALESCE(bool_or(h.provenance ? c.version), false) THEN ''
 	            WHEN bool_or(jsonb_typeof(h.provenance -> c.version) = 'null') THEN 'none'
 	            WHEN bool_or((h.provenance -> c.version ->> 'verified')::boolean) THEN 'verified' ELSE 'unverified' END,
-	       COALESCE(min(h.provenance -> c.version ->> 'source'), '')
+	       COALESCE(min(h.provenance -> c.version ->> 'source'), ''),
+	       (SELECT jsonb_build_object('status', e.status, 'cycle', e.product_label || ' ' || e.cycle, 'date', e.eol_date)
+	          FROM component_eol e WHERE e.repository_id = c.repository_id AND e.source = 'sbom' AND e.purl = c.purl
+	          ORDER BY array_position(ARRAY['eol','approaching','supported'], e.status) LIMIT 1)
 	FROM sbom_components c
 	LEFT JOIN package_health h ON h.found AND h.purl_base = regexp_replace(split_part(c.purl, '?', 1), '@[^@/]*$', '')
 	LEFT JOIN findings f ON f.repository_id = c.repository_id AND f.scan_target_id IS NULL AND f.category = 'sca'
@@ -77,10 +86,21 @@ func (s *Service) loadGraph(ctx context.Context, repoID uuid.UUID) (repoGraph, e
 	for rows.Next() {
 		var c Component
 		var sev *string
+		var eolRaw []byte
 		if err := rows.Scan(&c.Ref, &c.Name, &c.Version, &c.PURL, &c.Type, &c.Licenses, &c.Depth, &c.OpenVulns, &sev,
-			&c.LatestVersion, &c.Deprecated, &c.Scorecard, &c.Provenance, &c.ProvenanceSource); err != nil {
+			&c.LatestVersion, &c.Deprecated, &c.Scorecard, &c.Provenance, &c.ProvenanceSource, &eolRaw); err != nil {
 			rows.Close()
 			return g, err
+		}
+		if len(eolRaw) > 0 {
+			var e struct {
+				Status string  `json:"status"`
+				Cycle  string  `json:"cycle"`
+				Date   *string `json:"date"`
+			}
+			if json.Unmarshal(eolRaw, &e) == nil {
+				c.EOLStatus, c.EOLCycle, c.EOLDate = e.Status, e.Cycle, e.Date
+			}
 		}
 		if c.OpenVulns > 0 {
 			c.MaxSeverity = sev

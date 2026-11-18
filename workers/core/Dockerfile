@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 # PATHOS worker-core: Gitleaks, Opengrep, Trivy, Syft, Grype, OSV-Scanner, Checkov,
-# zizmor and actionlint (GitHub Actions) and Nuclei (DAST for authorized URL/API targets).
+# zizmor and actionlint (GitHub Actions), Nuclei (DAST for authorized URL/API targets)
+# and cosign (Sigstore signature and attestation verification of image and artifact targets).
 # Build context: repository root.
 #
 # Every downloaded binary is pinned by version and SHA-256. Repository code
@@ -41,6 +42,17 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
       golang.org/x/crypto@v0.58.0 golang.org/x/net@v0.62.0 golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.83.2; \
     CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/nuclei ./cmd/nuclei; \
     /out/nuclei -version 2>&1 | grep -q "v${NUCLEI}"
+
+# cosign (Sigstore signature and attestation verification), built from its Go
+# module with the current toolchain. Integrity: the module hash is pinned below
+# (h1 sum, as recorded in the Go checksum database) and checked before building.
+FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS cosign
+ARG COSIGN=3.1.4 COSIGN_SUM=h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
+    sum="$(go mod download -json "github.com/sigstore/cosign/v3@v${COSIGN}" | sed -n 's/^[[:space:]]*"Sum": "\(.*\)",$/\1/p')"; \
+    test "$sum" = "$COSIGN_SUM"; \
+    GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "github.com/sigstore/cosign/v3/cmd/cosign@v${COSIGN}"; \
+    /out/cosign version 2>&1 | grep -q "v${COSIGN}"
 
 # actionlint (GitHub Actions workflow checks), built from its Go module
 # (integrity: Go checksum database) with the current toolchain.
@@ -100,12 +112,13 @@ COPY --from=tools /out/ /usr/local/bin/
 COPY --from=gitleaks /out/gitleaks /usr/local/bin/gitleaks
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=actionlint /out/actionlint /usr/local/bin/actionlint
+COPY --from=cosign /out/cosign /usr/local/bin/cosign
 COPY --from=agent /out/pathos-worker /usr/local/bin/pathos-worker
 COPY workers/rules/ /opt/pathos/rules/
 COPY --from=tools /templates/ /opt/pathos/nuclei-templates/
 RUN useradd --uid 10001 --create-home --home-dir /tmp/home --shell /usr/sbin/nologin pathos \
     && mkdir -p /work /cache /rules && chown pathos:pathos /work /cache \
-    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei actionlint; do command -v "$t" >/dev/null; done
+    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei actionlint cosign; do command -v "$t" >/dev/null; done
 USER 10001:10001
 ENV PATHOS_WORK_DIR=/work PATHOS_CACHE_DIR=/cache PATHOS_RULES_DIRS=/opt/pathos/rules:/rules \
     PYTHONDONTWRITEBYTECODE=1 HOME=/tmp/home
