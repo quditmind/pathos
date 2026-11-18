@@ -10,6 +10,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Card, EmptyState, Input, Label, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { materialCategories } from "@/features/insights/api";
 
 export interface PolicyConditions {
   min_severity?: string;
@@ -29,6 +30,7 @@ export interface PolicyConditions {
   compliance_scopes?: string[];
   repository_ids?: string[];
   application_ids?: string[];
+  material_change_categories?: string[];
 }
 export interface PolicyActions {
   block?: boolean;
@@ -67,6 +69,8 @@ const categoryLabel: Record<string, string> = {
 };
 
 /** One-line description of a policy's conditions. */
+const materialLabel: Record<string, string> = Object.fromEntries(materialCategories);
+
 export function describeConditions(c: PolicyConditions): string {
   const p: string[] = [];
   if (c.min_severity) p.push(`severity ${c.min_severity}${c.min_severity === "critical" ? "" : " or above"}`);
@@ -84,6 +88,7 @@ export function describeConditions(c: PolicyConditions): string {
   if (c.environments?.length) p.push(`in ${c.environments.join("/")}`);
   if (c.data_classification?.length) p.push(`data ${c.data_classification.join("/")}`);
   if (c.compliance_scopes?.length) p.push(`scope ${c.compliance_scopes.join("/")}`);
+  if (c.material_change_categories?.length) p.push(`landed with a ${c.material_change_categories.map((x) => materialLabel[x] ?? x).join(" or ")} change`);
   if (c.repository_ids?.length) p.push(`${c.repository_ids.length} selected repositor${c.repository_ids.length === 1 ? "y" : "ies"}`);
   return p.join(" · ") || "—";
 }
@@ -204,6 +209,12 @@ function PolicyDialog({ open, onClose, policy }: { open: boolean; onClose: () =>
             ))}
           </div>
           <Checks label="Reachability" options={[["reachable", "Reachable"], ["unknown", "Unknown"], ["not_reachable", "Not reachable"]]} value={c.reachability} onChange={(v) => set({ reachability: v })} />
+          <Checks
+            label="Landed with a security-material change (the finding's file changed in the scan that first reported it)"
+            options={materialCategories.map(([k, l]) => [k, l] as [string, string])}
+            value={c.material_change_categories}
+            onChange={(v) => set({ material_change_categories: v })}
+          />
           <div className="grid gap-3 md:grid-cols-2">
             <div><Label htmlFor="pol-cwe" hint="(comma-separated)">CWE</Label><Input id="pol-cwe" value={cweText} onChange={(e) => setCweText(e.target.value)} placeholder="CWE-89, CWE-79" /></div>
             <div><Label htmlFor="pol-scanners" hint="(scanner keys)">Scanners</Label><Input id="pol-scanners" value={scannerText} onChange={(e) => setScannerText(e.target.value)} placeholder="gitleaks, trivy-fs" /></div>
@@ -230,7 +241,7 @@ function PolicyDialog({ open, onClose, policy }: { open: boolean; onClose: () =>
           {preview.isError ? <span className="text-danger">{preview.error.message}</span> : preview.isPending ? "Counting matching findings…" : (
             <>
               <strong>{preview.data.matching}</strong> open finding{preview.data.matching === 1 ? "" : "s"} you can see match now.
-              {!preview.data.applies_to_pull_requests && <span className="text-muted-foreground"> Conditions on risk, reachability, age or exploits apply to the scan branch only, not to pull requests.</span>}
+              {!preview.data.applies_to_pull_requests && <span className="text-muted-foreground"> Conditions on risk, reachability, age, exploits or material changes apply to the scan branch only, not to pull requests.</span>}
               {preview.data.sample.length > 0 && (
                 <ul className="mt-1 space-y-0.5">{preview.data.sample.slice(0, 5).map((m) => <li key={m.finding_id} className="flex gap-1.5"><SeverityBadge value={m.severity} /> <span className="truncate">{m.title}</span> <span className="text-muted-foreground">· {m.repository_name}</span></li>)}</ul>
               )}

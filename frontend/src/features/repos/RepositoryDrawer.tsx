@@ -19,8 +19,9 @@ import { clientErrors, diffMetadata, draftFromRepository, sectionForKey, section
 import { PublicExposureBadge, RepositoryKey } from "./badges";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
+import { RepositoryMaterialChanges } from "@/features/insights/MaterialChanges";
 
-type Tab = "details" | "source" | "security" | "dependencies";
+type Tab = "details" | "source" | "security" | "dependencies" | "material";
 
 interface ScanDraft {
   scan_branch: string;
@@ -91,8 +92,9 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
                 ["source", "Source"],
                 ["security", "Security"],
                 ["dependencies", "Dependencies"],
+                ["material", "Material changes"],
               ] as const
-            ).filter(([k]) => k !== "dependencies" || canDo("sbom.read")).map(([k, l]) => (
+            ).filter(([k]) => (k !== "dependencies" || canDo("sbom.read")) && (k !== "material" || canDo("scans.read"))).map(([k, l]) => (
               <button
                 key={k}
                 role="tab"
@@ -111,6 +113,7 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {tab === "source" && <SourcePanel r={r} />}
             {tab === "security" && <SecurityPanel r={r} />}
             {tab === "dependencies" && <DependencyPanel repoId={r.id} />}
+            {tab === "material" && <RepositoryMaterialChanges repoId={r.id} />}
           </div>
         </div>
       )}

@@ -55,6 +55,8 @@ import {
   FileSpreadsheet,
   Presentation,
   ShieldCheck,
+  UserRoundSearch,
+  Fingerprint,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -72,6 +74,7 @@ export const groups: NavGroup[] = [
       { label: "Dashboard", to: "/", icon: <LayoutDashboard /> },
       { label: "Executive overview", to: "/executive", icon: <Presentation />, perm: "findings.read" },
       { label: "Reports", to: "/reports", icon: <FileSpreadsheet />, perm: "findings.read" },
+      { label: "Developer insights", to: "/insights/developers", icon: <UserRoundSearch />, perm: "insights.people" },
     ],
   },
   {
@@ -157,6 +160,7 @@ export const groups: NavGroup[] = [
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
       { label: "Integrations", to: "/admin/integrations", icon: <Plug />, perm: "settings.manage" },
       { label: "Risk & intelligence", to: "/admin/risk-intelligence", icon: <Gauge />, perm: "settings.manage" },
+      { label: "Developer attribution", to: "/admin/developer-attribution", icon: <Fingerprint />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
