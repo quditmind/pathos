@@ -63,7 +63,8 @@ interface Match {
 }
 
 const categoryLabel: Record<string, string> = {
-  secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Containers", dast: "DAST", license: "Licences", other: "Other",
+  secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Containers", dast: "DAST", license: "Licences",
+  eol: "End of life", "supply-chain": "Supply chain (signatures)", other: "Other",
 };
 
 /** One-line description of a policy's conditions. */

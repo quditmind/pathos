@@ -33,7 +33,7 @@ All set conditions must hold; values in one list are alternatives. At least one 
 | Field | Type | Matches |
 |---|---|---|
 | `min_severity` | `critical` … `info` | Severity at or above |
-| `categories` | list | `secrets`, `sast`, `sca`, `iac`, `container`, `dast`, `license`, `other` |
+| `categories` | list | `secrets`, `sast`, `sca`, `iac`, `container`, `dast`, `license`, `eol`, `supply-chain`, `other` |
 | `scanners` | list | Detected by one of the scanners |
 | `cwe` | list | Any of the CWEs (`CWE-89` or `89`) |
 | `min_risk` | 0–100 | Contextual risk score at least *(scan branch only)* |

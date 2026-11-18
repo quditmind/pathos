@@ -313,7 +313,7 @@ func Load(ctx context.Context, pool *pgxpool.Pool, feed, mode string, by *[16]by
 	if feed == eol.Feed {
 		// Components, runtimes and images get their end-of-life status
 		// (and findings) from the new data.
-		if serr := eol.SyncAll(ctx, pool, nil); serr != nil {
+		if serr := eol.SyncAll(context.WithoutCancel(ctx), pool, nil); serr != nil {
 			return run, fmt.Errorf("end-of-life data loaded, but updating repositories failed: %w", serr)
 		}
 	}

@@ -57,6 +57,7 @@ Package health comes from the `depsdev` intelligence feed ([feeds](risk-intellig
 | `scorecard` | OpenSSF Scorecard (0–10) of the source repository (direct dependencies) |
 | `provenance` | `verified` (SLSA provenance verified by deps.dev), `unverified`, `none` (checked, no attestation) or absent (not checked; only direct dependencies are) |
 | `provenance_source` | The source repository named by the provenance |
+| `eol_status`, `eol_cycle`, `eol_date` | [End of life](#end-of-life) of the package's release cycle (`eol`, `approaching`, `supported`), when it is a tracked framework; from the `endoflife` feed |
 
 `stats` adds `outdated` and `deprecated` counts. A root component whose version is newer than the public package of the same name gets no health data (the public package is someone else's).
 
