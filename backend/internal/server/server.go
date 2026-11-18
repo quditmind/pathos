@@ -18,6 +18,7 @@ import (
 	"pathos/internal/compliance"
 	"pathos/internal/dashboard"
 	"pathos/internal/identity"
+	"pathos/internal/insights"
 	"pathos/internal/intel"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
@@ -104,6 +105,10 @@ func Build(d Deps) Handlers {
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
+		// Developer attribution (no-op unless enabled) before the queues.
+		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
+			d.Log.Warn("developer attribution failed", "job_id", jobID, "err", err)
+		}
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
 	}
@@ -138,6 +143,7 @@ func Build(d Deps) Handlers {
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
+	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)
 	mcpSvc.Register(protected)

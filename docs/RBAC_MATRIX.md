@@ -41,7 +41,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 
 | Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
+|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `dashboard.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `insights.people` | yes | ✓ |  | ✓ |  |  |  |  |  |  |  |  |
 | `users.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  | ✓ |  |
 | `users.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `teams.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
@@ -78,3 +81,7 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `ai.review` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
+
+### Developer attribution (`insights.people`)
+
+`insights.people` shows who introduced and who fixed findings, per git author name, per linked user and per team. It is **organization-only** because data about people is not divided by repository scope, and it is granted only to `super_admin` and `security_manager` by default; grant it through a custom role otherwise. Attribution itself is **off by default**: an administrator with `settings.manage` must enable it (Administration → Developer attribution), and linking git author names to users needs `users.manage`. See [the user guide](user-guide/developer-insights.md).

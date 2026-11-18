@@ -32,6 +32,20 @@ The security gate FAILED for this scan.
 Review: {{.Link}}`,
 	},
 	{
+		Key: "change.material", Label: "Security-material change", Severity: true, Repository: true,
+		Description: "A branch scan found security-material changes since the previous scanned commit (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data). Severity is high when a high-level rule matched, otherwise medium.",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] {{.Count}} security-material change{{if ne .Count 1}}s{{end}} in {{.Repository}}`,
+		Body: `A {{.Scan.Trigger}} scan of {{.Repository}} found {{.Count}} security-material change{{if ne .Count 1}}s{{end}} since the previously scanned commit:
+
+{{range .Findings}}- [{{.Severity}}] {{.Title}}{{if .Location}} ({{.Location}}){{end}}
+{{end}}{{if gt .More 0}}…and {{.More}} more.
+{{end}}
+Material changes are prompts for a closer look, detected by explainable rules; they are not findings.
+
+Review: {{.Link}}`,
+	},
+	{
 		Key: "scan.failed", Label: "Scan failed", Repository: true,
 		Description: "A scan job failed after its retries.",
 		Dynamic:     []string{"owners"},

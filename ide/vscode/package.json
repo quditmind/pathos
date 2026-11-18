@@ -1,0 +1,238 @@
+{
+  "name": "pathos-vscode",
+  "displayName": "PATHOS Security",
+  "description": "Shows open PATHOS ASPM findings of your repository in VS Code: Problems panel, findings tree, details and triage.",
+  "version": "0.1.0",
+  "publisher": "quditmind",
+  "license": "Apache-2.0",
+  "homepage": "https://github.com/quditmind/pathos/tree/main/ide/vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/quditmind/pathos",
+    "directory": "ide/vscode"
+  },
+  "bugs": {
+    "url": "https://github.com/quditmind/pathos/issues"
+  },
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "security",
+    "aspm",
+    "sast",
+    "vulnerabilities",
+    "pathos"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": true
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "configuration": {
+      "title": "PATHOS",
+      "properties": {
+        "pathos.url": {
+          "type": "string",
+          "default": "",
+          "scope": "application",
+          "markdownDescription": "Base URL of your PATHOS server, for example `https://pathos.example.com`. Must use `https://` (plain `http://` only for `localhost`). User setting only: a workspace cannot change where your API token is sent. The API token itself is stored with **PATHOS: Set API token** in the OS keychain, never in settings."
+        },
+        "pathos.refreshIntervalMinutes": {
+          "type": "number",
+          "default": 0,
+          "minimum": 0,
+          "maximum": 1440,
+          "markdownDescription": "Reload findings every N minutes. `0` turns automatic refresh off (findings still load when VS Code starts)."
+        },
+        "pathos.maxFindings": {
+          "type": "number",
+          "default": 5000,
+          "minimum": 1,
+          "maximum": 20000,
+          "markdownDescription": "Maximum number of open findings loaded for the repository (highest severity first)."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "pathos.setToken",
+        "title": "Set API token",
+        "category": "PATHOS",
+        "icon": "$(key)"
+      },
+      {
+        "command": "pathos.clearToken",
+        "title": "Clear API token",
+        "category": "PATHOS"
+      },
+      {
+        "command": "pathos.selectRepository",
+        "title": "Select repository",
+        "category": "PATHOS",
+        "icon": "$(repo)"
+      },
+      {
+        "command": "pathos.refresh",
+        "title": "Refresh findings",
+        "category": "PATHOS",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "pathos.toggleGrouping",
+        "title": "Toggle grouping (severity / file)",
+        "category": "PATHOS",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "pathos.openInPathos",
+        "title": "Open finding in PATHOS",
+        "category": "PATHOS",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "pathos.showDetails",
+        "title": "Show finding details",
+        "category": "PATHOS",
+        "icon": "$(info)"
+      },
+      {
+        "command": "pathos.requestReview",
+        "title": "Request Human Eye review",
+        "category": "PATHOS"
+      },
+      {
+        "command": "pathos.changeStatus",
+        "title": "Change finding status",
+        "category": "PATHOS"
+      },
+      {
+        "command": "pathos.openFinding",
+        "title": "Open finding location",
+        "category": "PATHOS"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "pathos",
+          "title": "PATHOS",
+          "icon": "media/pathos.svg"
+        }
+      ]
+    },
+    "views": {
+      "pathos": [
+        {
+          "id": "pathos.findings",
+          "name": "Findings",
+          "contextualTitle": "PATHOS"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "pathos.findings",
+        "contents": "Connect to your PATHOS server to see the open findings of this repository.\n[Set PATHOS URL](command:workbench.action.openSettings?%5B%22pathos.url%22%5D)\n[Set API token](command:pathos.setToken)",
+        "when": "!pathos.configured"
+      },
+      {
+        "view": "pathos.findings",
+        "contents": "No PATHOS repository is selected for this workspace.\n[Select repository](command:pathos.selectRepository)",
+        "when": "pathos.configured && !pathos.hasRepository"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "pathos.refresh",
+          "when": "view == pathos.findings",
+          "group": "navigation@1"
+        },
+        {
+          "command": "pathos.toggleGrouping",
+          "when": "view == pathos.findings",
+          "group": "navigation@2"
+        },
+        {
+          "command": "pathos.selectRepository",
+          "when": "view == pathos.findings",
+          "group": "navigation@3"
+        },
+        {
+          "command": "pathos.setToken",
+          "when": "view == pathos.findings",
+          "group": "settings@1"
+        },
+        {
+          "command": "pathos.clearToken",
+          "when": "view == pathos.findings",
+          "group": "settings@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "pathos.showDetails",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "inline@1"
+        },
+        {
+          "command": "pathos.openInPathos",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "inline@2"
+        },
+        {
+          "command": "pathos.showDetails",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "1_view@1"
+        },
+        {
+          "command": "pathos.openInPathos",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "1_view@2"
+        },
+        {
+          "command": "pathos.changeStatus",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "2_triage@1"
+        },
+        {
+          "command": "pathos.requestReview",
+          "when": "view == pathos.findings && viewItem == pathosFinding",
+          "group": "2_triage@2"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "pathos.openFinding",
+          "when": "false"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p tsconfig.json",
+    "watch": "tsc -w -p tsconfig.json",
+    "lint": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.test.json",
+    "test": "vitest run",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/vscode": "1.90.0",
+    "@vscode/vsce": "4.1.0",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

@@ -24,6 +24,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/insights"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
@@ -74,6 +75,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/imports", s.jobImports)
+	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/changes", s.jobChanges)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
@@ -230,6 +232,10 @@ type LeasedJob struct {
 	FullHistory bool       `json:"full_history"`
 	// Target replaces the repository source for scan-target jobs.
 	Target *LeasedTarget `json:"target,omitempty"`
+	// PreviousCommitSHA and CollectAuthors drive material change detection
+	// and developer attribution (package insights).
+	PreviousCommitSHA string `json:"previous_commit_sha,omitempty"`
+	CollectAuthors    bool   `json:"collect_authors,omitempty"`
 }
 
 // JobSource describes a snapshot to download instead of cloning.
@@ -352,6 +358,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		job.Credential = &cred
+	}
+	if job.Target == nil && job.Source == nil {
+		job.PreviousCommitSHA, job.CollectAuthors = insights.LeaseInfo(ctx, s.DB, wk.orgID, job.JobID)
 	}
 	if err := AddEvent(ctx, s.DB, wk.orgID, job.JobID, "leased", "", "info", "picked up by worker "+wk.Name); err == nil {
 		_ = updateProgress(ctx, s.DB, job.JobID)

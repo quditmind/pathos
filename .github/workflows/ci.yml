@@ -3,6 +3,7 @@
 #   backend      gofmt, go vet, unit tests with the race detector, gosec, govulncheck
 #   integration  Go integration tests against PostgreSQL 18 (race detector)
 #   frontend     typecheck, unit tests, production build, npm audit
+#   vscode-extension  typecheck, unit tests and .vsix package of ide/vscode, npm audit
 #   stack        builds every image, starts the full Compose stack from a fresh
 #                install, then: smoke test, Playwright browser tests, Trivy on
 #                our images and an OWASP ZAP baseline (scripts/security-scan.sh);
@@ -109,6 +110,34 @@ jobs:
       # High and critical advisories fail unless excepted, with a reason and an
       # expiry of at most 30 days, in frontend/audit-exceptions.json.
       - run: node ../scripts/npm-audit-gate.mjs
+
+  vscode-extension:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: ide/vscode
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: ide/vscode/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run lint
+      - run: npm test
+      - run: npm run package
+      # Same gate as the frontend, with ide/vscode/audit-exceptions.json.
+      - run: node ../../scripts/npm-audit-gate.mjs
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pathos-vscode-vsix
+          path: ide/vscode/*.vsix
+          if-no-files-found: error
+          retention-days: 14
 
   stack:
     needs: [backend, integration, frontend]

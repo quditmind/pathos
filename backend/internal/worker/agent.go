@@ -22,6 +22,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"pathos/internal/material"
 )
 
 // Config configures the agent.
@@ -214,6 +216,11 @@ type Job struct {
 	// Target, when set, replaces the source entirely: the job scans a
 	// container image, URL, API or SBOM instead of a repository.
 	Target *JobTarget `json:"target,omitempty"`
+	// PreviousCommitSHA is the commit of the repository's previous
+	// successful branch scan (material change detection); CollectAuthors
+	// lists commit author names for developer attribution.
+	PreviousCommitSHA string `json:"previous_commit_sha"`
+	CollectAuthors    bool   `json:"collect_authors"`
 }
 
 // JobSource identifies a non-Git source for a job.
@@ -304,6 +311,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	}
 	commit := ""
 	targetFile := ""
+	var changes *ChangeReport
 	if job.Target != nil {
 		job.Credential, job.Source = nil, nil
 		rep.event("source", "", "started", "preparing "+job.Target.Kind+" target "+job.Target.Reference)
@@ -333,6 +341,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		msg := fmt.Sprintf("snapshot sha256:%s verified and extracted in %s", job.Source.SHA256, time.Since(start).Round(time.Millisecond))
 		rep.event("source", "", "succeeded", msg)
 		rep.logf("info", "%s", msg)
+		changes = &ChangeReport{Version: 1, Status: "unavailable", Reason: "uploaded snapshots have no Git history to compare with", Changes: []material.Change{}}
 	} else {
 		cloneStart := time.Now()
 		mode := "shallow"
@@ -363,7 +372,11 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 			sourceFailed("clone failed: " + err.Error())
 			return
 		}
+		// Material changes since the previous scan (may fetch the two
+		// commits, so it runs while the credential is known).
+		changes = detectChanges(ctx, job, commit, gitDir, filepath.Join(ws, "changes"))
 		job.Credential = nil // not needed past this point
+		rep.logf("info", "material change detection: %s", changeSummary(changes))
 		log.Info("cloned", "duration_ms", time.Since(cloneStart).Milliseconds(), "commit", commit, "full_history", job.FullHistory)
 		msg := fmt.Sprintf("cloned %s at commit %s (%s) in %s", job.Ref, commit, mode, time.Since(cloneStart).Round(time.Millisecond))
 		rep.event("source", "", "succeeded", msg)
@@ -453,6 +466,12 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		} else {
 			rep.logf("info", "import inventory: %d source files, %d npm, %d Python, %d Go imports", inv.FilesScanned,
 				len(inv.Imports["npm"]), len(inv.Imports["pypi"]), len(inv.Imports["go"]))
+		}
+	}
+	if !stop && changes != nil {
+		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/changes", a.token, changes, nil); err != nil {
+			log.Warn("material change upload failed", "err", err)
+			rep.logf("warn", "material change upload failed: %v", err)
 		}
 	}
 	if !stop {

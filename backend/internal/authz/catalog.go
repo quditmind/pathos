@@ -10,6 +10,10 @@ type Permission string
 
 const (
 	PermDashboardRead Permission = "dashboard.read"
+	// PermInsightsPeople shows developer attribution (who introduced and
+	// who fixed findings). It is organization-wide on purpose: data about
+	// people is not split by repository scope.
+	PermInsightsPeople Permission = "insights.people"
 
 	PermUsersRead   Permission = "users.read"
 	PermUsersManage Permission = "users.manage"
@@ -72,6 +76,7 @@ type PermissionInfo struct {
 // Permissions is the full catalog, in display order.
 var Permissions = []PermissionInfo{
 	{PermDashboardRead, "Overview", "View dashboards and posture analytics", false},
+	{PermInsightsPeople, "Overview", "View developer attribution: who introduced and fixed findings, per developer and team (when enabled)", true},
 
 	{PermUsersRead, "Administration", "View users", true},
 	{PermUsersManage, "Administration", "Invite, provision, deactivate and reactivate users", true},
@@ -161,7 +166,7 @@ var SystemRoles = []SystemRole{
 			PermUsersRead, PermRolesRead, PermRolesAssign, PermAuditRead,
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview,
-			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure)},
+			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
 		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermReviewsAssess)},
