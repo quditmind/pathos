@@ -163,6 +163,13 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - **Malware scanning:** when `PATHOS_CLAMAV_ADDRESS` is set for the `api` service, the API streams every artifact to ClamAV before accepting it. A detection rejects the upload (`422 malware_detected`) and is audited (`scan_target.malware_detected`). With `PATHOS_CLAMAV_REQUIRED=true`, uploads are refused while ClamAV is unavailable; otherwise they are accepted and their malware status is recorded as `unavailable`.
 - Archives are extracted on the worker with the snapshot extractor (no links, no traversal, bomb limits) after their SHA-256 is verified. Java archives and binaries are scanned whole. Nothing is executed.
 
+### Content scanners
+
+- **Malware (`clamav`)**: the worker streams repository files to clamd (`zINSTREAM`) over the internal `malware` Compose network, which only `worker-core` and `clamav` join; the worker gains no route to PostgreSQL, Valkey or the API's internal listener. Nothing from the checkout is executed; files are opened through `os.Root`, symbolic links are counted, never followed. clamd accepts its full command set from any client on that network (including `SHUTDOWN`); a compromised worker could at worst stop clamd, which `restart: unless-stopped` brings back, and scans then fail instead of passing. Detections are critical findings; files clamd could not scan are reported, and a skipped or failed run never closes malware findings.
+- **Binary hardening (`binary-hardening`)**: executables and libraries are parsed with the Go standard library (`debug/elf`, `debug/pe`, `debug/macho`), never loaded or run; a panic on a malformed file is recovered and logged.
+- **File licences (`licensecheck`)**: reads at most 16 KiB of each file (1 MiB of licence files), skips binary content and links; detections are stored as the repository's file licence inventory, and only policy violations become findings.
+- **Framework configuration rules**: the Django `SECRET_KEY` rule matches the key itself, so its code context is not stored on the finding; the raw Opengrep report (scan artifact, kept for the profile's retention) still contains the matched line, as for every Opengrep rule.
+
 ### Scanner plugins
 
 Declarative scanner adapters let operators add tools without changing PATHOS ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)). The trust model:

@@ -115,7 +115,8 @@ erDiagram
 | `finding_status_history` | finding_id, from_status, to_status, actor_id, source (`user`,`scanner`,`ai`,`expiry`,`system`), reason | Written only by the `pathos_finding_lifecycle` trigger; append-only for the app role |
 | `sla_policies` | severity, days (null = no SLA) | Trigger sets `findings.sla_due_at` on insert; edits recompute open findings |
 | `risk_acceptances` | finding_id, justification, expires_at, status (`pending`,`approved`,`rejected`,`revoked`,`withdrawn`,`expired`), requested_by, decided_by | CHECK decided_by <> requested_by; one pending/active per finding |
-| `license_policies` | spdx_id, decision (`deny`,`review`) | Applied to SBOM components at query time |
+| `license_policies` | spdx_id, decision (`deny`,`review`) | Applied to SBOM components at query time and, through `pathos_license_decision()`, turned into licence findings (migration 00024) |
+| `repository_file_licenses` | repository_id, scan_job_id, file_path, spdx_id, method (`spdx-tag`,`license-text`), line, alternatives[] | File-level licences from the latest `licensecheck` run; replaced per repository (migration 00024) |
 | `ai_providers` / `ai_configurations` / `ai_configuration_versions` | provider, model, mode, instructions, thresholds, redaction policy, limits, human_approval | |
 | `ai_reviews` | finding_id, config_version_id, provider, model, model_version, verdict, confidence, output jsonb, transmitted_sha256, source (`automated`,`interactive_mcp`), approved_by | |
 | `ai_review_queue` | finding_id, config_version_id, status, attempts, lease_expires_at, not_before | Automated review queue (one active entry per finding) |
@@ -283,6 +284,16 @@ Compliance frameworks and their control mappings are a catalog in code (`backend
 | Object | Purpose |
 |---|---|
 | `pathos_register_plugin_scanner(key, name, category, homepage)` | `SECURITY DEFINER`, revoked from `PUBLIC` and granted to `pathos_app`. The only way the application role adds catalog rows for worker plugins: the key must match `plugin-<category>-<name>`, the category must match the key, and a non-https homepage is dropped. Existing rows are updated only when they are plugins (`worker_family = 'plugin'`) |
+
+## Content scanning (migration 00024)
+
+| Object | Purpose |
+|---|---|
+| `findings.category` | Adds `malware` (ClamAV), `misconfiguration` (framework configuration rules) and `binary` (binary hardening); `human_review_settings.auto_categories` accepts them too |
+| `repository_file_licenses` | File-level licence inventory from `licensecheck`, one row per file and licence (unique), with the other alternatives of an SPDX `OR` expression |
+| `pathos_license_decision(org, spdx)` | The strictest licence policy decision for a licence; a policy entry `X-only` or `X-or-later` also matches a detected licence text `X` |
+
+Licence findings (`category = 'license'`, `scanner_keys` `license-policy` for SBOM components and `licensecheck` for files) are maintained by `vuln.SyncLicenseFindings`: fingerprint `sha256(source | component name, version or file path | licence)`, upserted on each SBOM or licensecheck ingest, SBOM import and licence policy change, and set to `fixed` (never deleted) when no longer violated.
 
 ## Finding lifecycle trigger
 

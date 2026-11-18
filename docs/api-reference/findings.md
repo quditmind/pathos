@@ -32,7 +32,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `id`, `repository_id`, `repository_name`, `repository_key` | The finding and its repository |
 | `application_id`, `application_name` | The repository's application (`null` without one) |
 | `scan_target_id`, `scan_target_kind`, `scan_target_name` | The [scan target](scan-targets.md) the finding belongs to; `null` for the repository's source code |
-| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `other` |
+| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `malware`, `misconfiguration`, `binary`, `other` |
 | `scanner_keys` | Every scanner that reported it |
 | `rule_id`, `title`, `description` | As reported |
 | `severity` | `critical`, `high`, `medium`, `low`, `info` (scanner severity) |

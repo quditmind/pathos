@@ -13,7 +13,7 @@ summary: Remediation SLAs, the license policy, security policies that block risk
 ## Remediation SLAs and license policy
 
 - **Remediation SLAs.** Days from first detection, per severity (defaults: Critical 7, High 30, Medium 90, Low 180, Info none; 1–3,650 days, empty for no SLA). **Save SLAs** recomputes the deadlines of existing findings. How deadlines appear on findings is described in [Remediation SLAs](findings.md#remediation-slas).
-- **License policy.** One SPDX identifier per line followed by `deny` or `review` (at most 500 entries), then **Save license policy**. Components with a denied license count as violations in **Vulnerabilities → SBOM inventory** and on the dashboard (*License violations*). The default policy denies AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and marks GPL, LGPL-3.0 and BUSL-1.1 for review.
+- **License policy.** One SPDX identifier per line followed by `deny` or `review` (at most 500 entries), then **Save license policy**. Components with a denied license count as violations in **Vulnerabilities → SBOM inventory** and on the dashboard (*License violations*). Every violation, by an SBOM component or by a repository file, is also a **License** finding with an SLA; saving the policy re-evaluates them at once ([Licence findings](security-scanning.md#licence-findings)). The default policy denies AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and marks GPL, LGPL-3.0 and BUSL-1.1 for review.
 
 ## Security policies
 

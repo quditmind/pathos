@@ -26,7 +26,7 @@ Each finding also shows **First detected at commit**: the commit of the first sc
 
 ## Scan a build artifact
 
-In **Scanning → Scan targets**, choose **Add target** → **Build artifact** and upload a release file (up to 200 MiB): a zip or tar archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary. Scanning finds vulnerable components inside it. Archives are checked and unpacked safely on a worker, and nothing in them is ever run. See [Scan targets](scanning.md#scan-targets).
+In **Scanning → Scan targets**, choose **Add target** → **Build artifact** and upload a release file (up to 200 MiB): a zip or tar archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary. Scanning finds vulnerable components inside it and checks its executables and libraries for missing compiler and linker hardening ([Binary hardening](security-scanning.md#binary-hardening)). Archives are checked and unpacked safely on a worker, and nothing in them is ever run. See [Scan targets](scanning.md#scan-targets).
 
 ## Pull request checks
 

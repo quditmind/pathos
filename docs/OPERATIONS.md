@@ -179,6 +179,8 @@ Suggested alerts:
 
 Source archives are scanned by the `jobs` service; build artifacts are scanned by the `api` service when they are uploaded. `docker-compose.yml` passes `PATHOS_CLAMAV_ADDRESS` and `PATHOS_CLAMAV_REQUIRED` to both services, so one setting covers both.
 
+The same setting enables the **`clamav` scanner** (malware in repository content) in `worker-core`: add **ClamAV (repository content)** to a scan profile. The worker streams each file of the checkout to clamd over the internal `malware` network, which only `worker-core` and `clamav` join, so workers stay off the `data` network. Without `PATHOS_CLAMAV_ADDRESS` the scanner is skipped (*ClamAV is not configured for this worker*); when it is set but clamd does not answer, the scanner fails and the worker does not report its version. Files larger than `PATHOS_CLAMAV_STREAM_MAX`/`PATHOS_CLAMAV_MAX_FILE` are reported as *File could not be scanned for malware* findings. A worker on another host needs its own network path to clamd and the variable in its environment.
+
 ## Configuration reference
 
 `.env.example` documents the settings an installation normally changes. The table lists every variable the PATHOS services read, with the service that reads it. Variables marked *code only* are not passed through by `docker-compose.yml`; add them to the service's `environment` in an override file to change them.
@@ -211,7 +213,7 @@ Source archives are scanned by the `jobs` service; build artifacts are scanned b
 | `PATHOS_SOURCE_STORE_DIR`, `PATHOS_SOURCE_S3_PREFIX` | api, jobs | `/var/lib/pathos/sources`, `sources/` | Encrypted source store |
 | `PATHOS_UPLOAD_MAX_BYTES`, `PATHOS_IMPORT_MAX_FILES`, `PATHOS_IMPORT_MAX_EXTRACTED_BYTES`, `PATHOS_IMPORT_MAX_FILE_BYTES` | api, jobs | 2 GiB, 200,000, 8 GiB, 1 GiB | Upload and archive limits |
 | `PATHOS_IMPORT_CONCURRENCY`, `PATHOS_IMPORT_TIMEOUT` | jobs | `2`, `30m` | Import workers per `jobs` container, per-item timeout |
-| `PATHOS_CLAMAV_ADDRESS`, `PATHOS_CLAMAV_REQUIRED` | api, jobs | empty, `false` | Malware scanning |
+| `PATHOS_CLAMAV_ADDRESS`, `PATHOS_CLAMAV_REQUIRED` | api, jobs (`PATHOS_CLAMAV_ADDRESS` also worker-core) | empty, `false` | Malware scanning of uploads; in worker-core, the `clamav` scanner for repository content |
 | `PATHOS_CLAMAV_STREAM_MAX`, `PATHOS_CLAMAV_MAX_FILE` | clamav | `4000M`, `1000M` | clamd limits |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | all PATHOS services | empty | OpenTelemetry export |
 | `COMPOSE_PROFILES` | Compose | `dev` | Optional services: `dev`, `objectstore`, `clamav`, `ollama`, `observability` |

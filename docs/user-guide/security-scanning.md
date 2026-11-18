@@ -4,7 +4,7 @@ section: user-guide
 order: 10
 version: "1.0"
 updated: 2026-11-19
-summary: How registered repositories enter the scanning pipeline, which scanners run, scanner plugins, scan profiles, custom rules, SBOM and dependency analysis, source-version tracking and offline mode.
+summary: How registered repositories enter the scanning pipeline, which scanners run, scanner plugins, scan profiles, custom rules, framework configuration rules, malware scanning, binary hardening, licence findings, SBOM and dependency analysis, source-version tracking and offline mode.
 ---
 
 # Security scanning: scanners and profiles
@@ -47,8 +47,13 @@ Repository scanners of the `worker-core` image:
 | **Checkov** (`checkov`) | IaC | Misconfiguration checks for Terraform, CloudFormation, Kubernetes, Helm, Dockerfile, ARM, Bicep, Serverless, GitHub Actions, GitLab CI and Azure Pipelines files |
 | **actionlint** (`actionlint`) | IaC | GitHub Actions workflow checks (script injection, syntax, types); runs only when the repository has workflows |
 | **zizmor** (`zizmor`) | IaC | GitHub Actions workflow security, see [CI/CD workflow security](#cicd-workflow-security) |
+| **File licences (licensecheck)** (`licensecheck`) | License | Finds licences in repository files (SPDX-License-Identifier tags and licence texts); files whose licence the licence policy denies or flags for review become findings, see [Licence findings](#licence-findings). On by default in new profiles |
+| **ClamAV (repository content)** (`clamav`) | Malware | Checks every file of the checked-out source with ClamAV, see [Malware scanning](#malware-scanning). Opt-in: needs the ClamAV service |
+| **Binary hardening (checksec)** (`binary-hardening`) | Binary | Checks executables and shared libraries in the repository for missing compiler and linker hardening, see [Binary hardening](#binary-hardening). Always runs for build artifacts; add it to a profile to check repositories too |
 
-Scanners for [scan targets](scanning.md#scan-targets) run only for targets, never for repositories: **Trivy (image)** for container images, **Nuclei** for web applications and APIs, Grype for SBOMs and Trivy for build artifacts.
+Opengrep also runs the PATHOS **framework configuration rules**, whose findings have the type **Framework configuration**, see [Framework configuration rules](#framework-configuration-rules).
+
+Scanners for [scan targets](scanning.md#scan-targets) run only for targets, never for repositories: **Trivy (image)** for container images, **Nuclei** for web applications and APIs, Grype for SBOMs, and Trivy and the binary hardening checks for build artifacts.
 
 Application URLs, domains and IP addresses recorded on a repository are metadata only: PATHOS never scans them. Dynamic testing (DAST) runs only against web application and API **scan targets** that someone registered and authorized.
 
@@ -82,6 +87,52 @@ Managing profiles requires `profiles.manage`.
 ## CI/CD workflow security
 
 The **zizmor** scanner audits GitHub Actions workflows and actions in the repository: template injection, dangerous triggers such as `pull_request_target`, unpinned actions, excessive permissions and credential persistence. It works offline and runs only when the repository has workflows. **actionlint** adds syntax, type and script-injection checks. Add them to a scan profile to use them.
+
+## Framework configuration rules
+
+Opengrep runs PATHOS rules that find insecure **framework configuration** in code and configuration files. Their findings have the type **Framework configuration** (category `misconfiguration`), with the rule's CWE, a severity and references to the framework documentation:
+
+| Framework | Checks |
+|---|---|
+| **Spring Boot / Spring Security** (Java, Kotlin, `application*.properties`, `application*.yml`) | CSRF disabled; `permitAll()` on actuator, admin, H2 console, management, heap dump or Jolokia paths; `anyRequest().permitAll()`; CORS allowing any origin (`"*"`, `@CrossOrigin(origins = "*")`); `@EnableWebSecurity(debug = true)`; actuator endpoints exposed (`management.endpoints.web.exposure.include=*` or sensitive endpoints); H2 console enabled; `debug=true` and stack traces in error responses; `management.security.enabled=false` |
+| **Django** (settings modules `settings*.py`, `settings/*.py`; any module for `@csrf_exempt`) | `DEBUG = True`; `ALLOWED_HOSTS` with `"*"`; hard-coded `SECRET_KEY` (the key is never stored in the finding's code context); `CsrfViewMiddleware` or `SecurityMiddleware` missing from `MIDDLEWARE`; insecure session and CSRF cookie settings; HTTPS redirect or HSTS switched off; `CORS_ALLOW_ALL_ORIGINS`; `@csrf_exempt` views |
+| **Express / Node.js** (JavaScript, TypeScript) | Application without `helmet`; `X-Powered-By` not disabled; cookies or the session cookie with `secure: false` or `httpOnly: false`; CORS for any origin (`cors()` defaults, `origin: "*"`, reflected origins with credentials, `Access-Control-Allow-Origin: *`); `trust proxy` set to `true` |
+
+Rules you add yourself (custom rules or mounted rule sets) are reported as framework configuration too when their metadata has `category: misconfiguration`.
+
+## Malware scanning
+
+The **ClamAV (repository content)** scanner (`clamav`) checks every file of the checked-out repository for malware. It uses the optional ClamAV service that also scans uploaded archives: the worker streams each file to `clamd`, one file at a time, so each detection names its file. ClamAV also looks inside archives such as ZIP and JAR files.
+
+- An infected file becomes a **critical** finding of type **Malware** with the signature name, the file path, the file's SHA-256 and the ClamAV engine and signature database version as evidence. Test signatures such as EICAR are reported too, so that every detection is looked at by a person.
+- A file ClamAV could not scan (larger than clamd's limits, unreadable) becomes a **low** finding *File could not be scanned for malware*: files are never left out silently.
+- If ClamAV is configured but stops answering during a scan, the scanner **fails** rather than reporting the repository clean.
+- Without the ClamAV service the scanner is **skipped** with the reason *ClamAV is not configured for this worker*. A skipped or failed run never closes earlier malware findings.
+
+To use it, an administrator enables the `clamav` service and sets `PATHOS_CLAMAV_ADDRESS` (see **Malware scanning (ClamAV)** in `docs/OPERATIONS.md`), then adds **ClamAV (repository content)** to a scan profile.
+
+## Binary hardening
+
+The **Binary hardening (checksec)** scanner (`binary-hardening`) reads the headers of executables and shared libraries, without running them, and reports protections that the compiler or linker did not enable. Each finding names the missing protection, the file and its format, the SHA-256 and all detected properties as evidence, and the compiler or linker flag that fixes it.
+
+| Format | Checks |
+|---|---|
+| **ELF** (Linux) | PIE (executables), RELRO (none or partial), executable stack (NX), writable and executable segments, stack canaries, FORTIFY_SOURCE, insecure or deprecated RPATH/RUNPATH |
+| **PE** (Windows EXE, DLL) | ASLR (`DYNAMICBASE`, relocations present), high-entropy ASLR (64-bit), DEP (`NX_COMPAT`), Control Flow Guard, SafeSEH (32-bit), `/GS` stack cookie |
+| **Mach-O** (macOS) | PIE, stack execution allowed, stack canaries |
+
+Checks that do not apply are skipped: Go and .NET binaries have no stack canaries, FORTIFY_SOURCE, CFG or SafeSEH; a non-PIE Go executable is reported as low. Canary and FORTIFY checks need symbols; for stripped static binaries they are reported as *unknown* in the evidence, not as findings.
+
+The scanner always runs for [build artifact targets](scanning.md#scan-targets); add it to a scan profile to check binaries committed to repositories.
+
+## Licence findings
+
+The organization's **licence policy** (**Administration → Policies**, licences marked *deny* or *review*; see [Policies and compliance](policies-and-compliance.md)) is evaluated against two inventories of each repository, and every violation becomes a finding of type **License** with the normal lifecycle, SLA, assignment and risk acceptance:
+
+- **Dependencies**: components of the latest SBOM (Syft or an imported SBOM). One finding per component version and licence, *Detected by* `license-policy`.
+- **Files**: licences found in the repository's files by **File licences (licensecheck)**: `SPDX-License-Identifier` tags (deprecated `GPL-2.0+` is read as `GPL-2.0-or-later`; licence exceptions after `WITH` are ignored) and licence texts or notices in licence files and file headers. A licence text cannot say *only* or *or later*, so a detected `GPL-3.0` matches policy entries for `GPL-3.0-only` and `GPL-3.0-or-later`. A file under a choice such as `MIT OR GPL-2.0-or-later` is a violation only if every alternative is denied or flagged.
+
+A **deny** licence is a **high** finding, a **review** licence a **medium** one; tag-based and dependency findings have high confidence, licence-text matches medium. Findings are de-duplicated (one per component and licence, or file and licence) and re-opened when a violation returns. When the component or file disappears, or the policy no longer denies or flags the licence, the finding is set to **Fixed** at once, with the reason in its history; findings are never deleted. A policy change applies at once to every repository's recorded inventories (latest SBOM and latest licensecheck run): new violations are opened, resolved ones fixed and severities follow the new decision. Pull request scans do not create licence findings.
 
 ## SBOM and SCA
 
