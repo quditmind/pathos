@@ -1,0 +1,16 @@
+# Gitleaks configuration for scanning the PATHOS repository itself.
+# The default rules apply; only files that hold deliberately fake
+# credentials as test fixtures are allowlisted (import-parser fixtures and
+# redaction/notification tests). Commit-specific exceptions stay in
+# .gitleaksignore.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Fake credentials in test fixtures"
+paths = [
+  '''^backend/internal/scanners/testdata/imports/''',
+  '''^backend/test/integration/schedule_notify_test\.go$''',
+  '''^backend/internal/platform/logging/logging_test\.go$''',
+  '''^backend/test/integration/(analyst|tickets)_test\.go$''',
+]
