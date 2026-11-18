@@ -402,7 +402,9 @@ type configRequest struct {
 	ConfigVersion
 }
 
-var categories = []string{"secrets", "sast", "sca", "iac", "container", "license", "other"}
+// categories AI review can be configured for (DAST findings are
+// excluded: they carry no source code to review).
+var categories = slices.DeleteFunc(slices.Clone(scanners.FindingCategories), func(c string) bool { return c == "dast" })
 
 func (req *configRequest) validate() error {
 	v := &req.ConfigVersion

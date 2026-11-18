@@ -5,6 +5,7 @@
 //	PATHOS_WORKER_NAME              stable worker name (default: hostname)
 //	PATHOS_WORKER_FAMILY            worker family (default: core)
 //	PATHOS_WORK_DIR / PATHOS_CACHE_DIR / PATHOS_RULES_DIRS
+//	PATHOS_CLAMAV_ADDRESS           clamd host:port for the clamav scanner (optional)
 package main
 
 import (
@@ -47,6 +48,7 @@ func main() {
 		CacheDir:       env("PATHOS_CACHE_DIR", "/cache"),
 		Offline:        env("PATHOS_OFFLINE", "false") == "true",
 		PluginsDir:     env("PATHOS_SCANNER_PLUGINS_DIR", "/etc/pathos/scanners.d"),
+		ClamAVAddress:  strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
 		RulesDirs:      strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
 		Version:        version,
 	}

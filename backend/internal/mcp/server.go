@@ -16,6 +16,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/org"
+	"pathos/internal/scanners"
 )
 
 // The PATHOS MCP server speaks JSON-RPC 2.0 over the Streamable HTTP
@@ -95,7 +96,7 @@ var tools = []map[string]any{
 		"description": "List open findings that have no applied review yet, most severe first. Only findings you are allowed to see are returned.",
 		"inputSchema": map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{
 			"severity":   map[string]any{"type": "string", "enum": []string{"critical", "high", "medium", "low", "info"}},
-			"category":   map[string]any{"type": "string", "enum": []string{"secrets", "sast", "sca", "iac", "container", "license", "other"}},
+			"category":   map[string]any{"type": "string", "enum": scanners.FindingCategories},
 			"repository": map[string]any{"type": "string", "description": "Repository full name filter (substring)"},
 			"limit":      map[string]any{"type": "integer", "description": "1-50, default 20"},
 		}},

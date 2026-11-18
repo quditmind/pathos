@@ -266,11 +266,15 @@ def main():
 
     print("\nScanning engine (Phase 4)")
     s, cat = admin.api("GET", "/api/v1/scanners")
-    check("scanner catalog lists 52 integrations + Syft", s == 200 and len(cat["items"]) == 53, s)
+    check("scanner catalog lists 55 integrations + Syft", s == 200 and len(cat["items"]) == 56, s)
     if s == 200:
         avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
-        check("11 scanners runnable (7 core, zizmor, actionlint, image and DAST targets)", avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft",
-                                                                                                     "zizmor", "actionlint", "trivy-image", "nuclei"]), avail)
+        check("14 scanners runnable (7 core, zizmor, actionlint, licensecheck, clamav, binary-hardening, image and DAST targets)",
+              avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft", "zizmor", "actionlint",
+                               "licensecheck", "clamav", "binary-hardening", "trivy-image", "nuclei"]), avail)
+        cats = {x["key"]: x["category"] for x in cat["items"]}
+        check("content scanners in their finding categories", cats.get("clamav") == "malware" and cats.get("binary-hardening") == "binary"
+              and cats.get("licensecheck") == "license", cats)
     s, profs = admin.api("GET", "/api/v1/scan-profiles")
     check("default scan profile seeded", s == 200 and any(p["is_default"] for p in profs["items"]), s)
     if s == 200:
@@ -280,7 +284,11 @@ def main():
     online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
     check("at least one scan worker online", len(online) >= 1, workers)
     if online:
-        check("worker reports all tool versions", len(online[0]["scanners"]) == 11, online[0]["scanners"])
+        # 13 tools, plus ClamAV when PATHOS_CLAMAV_ADDRESS is set and clamd answers.
+        check("worker reports all tool versions", len(online[0]["scanners"]) in (13, 14) and "licensecheck" in online[0]["scanners"]
+              and "binary-hardening" in online[0]["scanners"], online[0]["scanners"])
+    s, fl = admin.api("GET", "/api/v1/findings?category=misconfiguration")
+    check("findings filter accepts the misconfiguration category", s == 200, s)
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
     check("internal worker API not reachable through the proxy -> 404", st == 404, st)
     st, _, body = anon.req("GET", "/api")

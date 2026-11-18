@@ -35,11 +35,14 @@ type Config struct {
 	// Offline: use only cached vulnerability databases (air-gapped).
 	Offline bool
 	// PluginsDir holds declarative scanner adapter definitions.
-	PluginsDir   string
-	RulesDirs    []string
-	PollInterval time.Duration
-	MaxRepoBytes int64
-	Version      string
+	PluginsDir string
+	// ClamAVAddress is clamd's host:port for malware scanning of
+	// repository content ("" = the clamav scanner is skipped).
+	ClamAVAddress string
+	RulesDirs     []string
+	PollInterval  time.Duration
+	MaxRepoBytes  int64
+	Version       string
 }
 
 // Agent runs jobs.

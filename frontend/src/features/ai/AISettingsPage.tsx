@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Alert, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useAIConfigs, useAIMutation, useAIProviders } from "./api";
+import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
 
 const kindLabel = { anthropic: "Anthropic (Claude)", openai: "OpenAI", xai: "xAI (Grok)", self_hosted: "Self-hosted (Ollama, vLLM, LM Studio…)" };
 
@@ -137,8 +138,8 @@ function ConfigEditor({ config, providers }: { config?: AIConfiguration; provide
         <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.auto_review} onChange={(e) => setF({ ...f, auto_review: e.target.checked })} /> Review new findings automatically after each scan</label>
         <div className="grid gap-3 sm:grid-cols-3">
           <div><div className="mb-1 text-[12px] font-medium">Finding types</div>
-            <div className="flex flex-wrap gap-2">{["sast", "sca", "iac", "secrets", "container", "license"].map((c) => (
-              <label key={c} className="flex items-center gap-1 text-[12px] uppercase"><input type="checkbox" className="accent-[var(--primary)]" checked={f.categories.includes(c)} onChange={() => toggleCat(c)} />{c}</label>))}</div></div>
+            <div className="flex flex-wrap gap-2">{FINDING_CATEGORIES.filter((c) => c !== "dast").map((c) => (
+              <label key={c} className="flex items-center gap-1 text-[12px]"><input type="checkbox" className="accent-[var(--primary)]" checked={f.categories.includes(c)} onChange={() => toggleCat(c)} />{categoryName(c)}</label>))}</div></div>
           <div><Label htmlFor="c-min">Minimum severity</Label>
             <Select id="c-min" className="w-full capitalize" value={f.min_severity} onChange={(e) => setF({ ...f, min_severity: e.target.value as "medium" })}>
               {["info", "low", "medium", "high", "critical"].map((v) => <option key={v} value={v}>{v}</option>)}

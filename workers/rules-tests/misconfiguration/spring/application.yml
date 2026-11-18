@@ -1,0 +1,22 @@
+# ruleid: pathos.misconfig.spring.yaml-debug
+debug: true
+spring:
+  application:
+    name: demo
+  h2:
+    console:
+      # ruleid: pathos.misconfig.spring.yaml-h2-console
+      enabled: true
+management:
+  endpoints:
+    web:
+      exposure:
+        # ruleid: pathos.misconfig.spring.yaml-actuator-exposed
+        include: "*"
+server:
+  error:
+    # ruleid: pathos.misconfig.spring.yaml-debug
+    include-stacktrace: always
+logging:
+  # ok: pathos.misconfig.spring.yaml-debug
+  debug: true

@@ -128,7 +128,7 @@ func (st *Settings) validate() error {
 	for _, err := range []error{
 		sub("auto_triggers", st.AutoTriggers, []string{"needs_review", "ai_needs_review", "ai_false_positive", "new_findings"}),
 		sub("auto_scanners", st.AutoScanners, scannerKeys),
-		sub("auto_categories", st.AutoCategories, []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "other"}),
+		sub("auto_categories", st.AutoCategories, scanners.FindingCategories),
 		sub("auto_min_severity", []string{st.AutoMinSeverity}, Severities),
 		sub("assignment_strategy", []string{st.AssignmentStrategy}, []string{"manual", "round_robin", "least_loaded"}),
 		sub("independent_review_severities", st.IndependentReviewSeverities, Severities),

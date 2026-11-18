@@ -10,6 +10,7 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { useUsers } from "@/features/users/api";
 import { formatDateTime } from "@/lib/utils";
+import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
 
 interface Definition { filters: Record<string, string>; group_by: string; columns: string[] }
 interface Report {
@@ -112,7 +113,7 @@ function ReportDialog({ open, onClose, report, meta }: { open: boolean; onClose:
                 </Select></div>
               <div><Label htmlFor="rp-cat">Type</Label>
                 <Select id="rp-cat" value={filters.category ?? ""} onChange={(e) => setF("category", e.target.value)}>
-                  <option value="">Any</option>{["sca", "sast", "secrets", "iac", "container", "dast", "license"].map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="">Any</option>{FINDING_CATEGORIES.filter((c) => c !== "other").map((c) => <option key={c} value={c}>{categoryName(c)}</option>)}
                 </Select></div>
               <div><Label htmlFor="rp-risk">Risk</Label>
                 <Select id="rp-risk" value={filters.risk_min ?? ""} onChange={(e) => setF("risk_min", e.target.value)}>

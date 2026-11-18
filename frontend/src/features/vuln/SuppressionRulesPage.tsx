@@ -9,6 +9,7 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { useApplications } from "@/features/repos/api";
 import { formatDateTime } from "@/lib/utils";
+import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
 
 export interface SuppressionRule {
   id: string;
@@ -126,7 +127,7 @@ function ProposeDialog({ open, onClose }: { open: boolean; onClose: () => void }
               <Label htmlFor="sr-cat" hint="(optional)">Type</Label>
               <Select id="sr-cat" className="w-full" value={f.match_category} onChange={(e) => set({ match_category: e.target.value })}>
                 <option value="">Any</option>
-                {["sast", "sca", "secrets", "iac", "container", "dast", "license", "other"].map((c) => <option key={c} value={c}>{c}</option>)}
+                {FINDING_CATEGORIES.map((c) => <option key={c} value={c}>{categoryName(c)}</option>)}
               </Select>
             </div>
           </div>

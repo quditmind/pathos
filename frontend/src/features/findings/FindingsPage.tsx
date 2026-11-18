@@ -1,4 +1,5 @@
 import { RelatedFindings } from "@/features/vuln/RelatedFindings";
+import { categoryLabel } from "@/lib/findingCategories";
 import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
@@ -44,7 +45,6 @@ export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch
   return out;
 };
 
-const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", dast: "Web and API (DAST)", other: "Other" };
 
 function location(f: Finding) {
   if ((f.category === "sca" || f.category === "container") && f.package_name) return `${f.package_name}@${f.package_version}`;
