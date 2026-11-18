@@ -170,12 +170,20 @@ func verifySignature(ctx context.Context, run runner, offline bool, in RunInput,
 
 // classifyCosign maps cosign's error output to unsigned, invalid or error.
 func classifyCosign(stderr string, err error) (string, string) {
-	msg := ""
+	msg, identity := "", ""
 	for _, l := range strings.Split(stderr, "\n") {
 		l = strings.TrimSpace(l)
-		if strings.HasPrefix(l, "Error: ") {
+		switch {
+		case strings.HasPrefix(l, "Error: "):
 			msg = strings.TrimPrefix(l, "Error: ")
+		case strings.Contains(l, "none of the expected identities") && identity == "":
+			// Names the identities actually found: more useful than the
+			// final error.
+			identity = l
 		}
+	}
+	if identity != "" {
+		msg = identity
 	}
 	if msg == "" {
 		msg = lastLine(firstNonEmptyStr(stderr, err.Error()))

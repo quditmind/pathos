@@ -559,28 +559,39 @@ func (c *endpointChecker) checkHTTP(ctx context.Context, start, host string) (ma
 	u := start
 	var resp *http.Response
 	var chain []string
+	redirectErr := ""
 	for i := 0; ; i++ {
-		var err error
-		if resp, err = c.get(ctx, cl, u); err != nil {
-			return nil, nil, err
+		next, err := c.get(ctx, cl, u)
+		if err != nil {
+			if resp == nil {
+				return nil, nil, err
+			}
+			// A redirect target that fails: judge the last response.
+			redirectErr = lastLine(err.Error())
+			u = resp.Request.URL.String()
+			break
 		}
+		resp = next
 		loc := resp.Header.Get("Location")
 		if resp.StatusCode < 300 || resp.StatusCode >= 400 || loc == "" || i >= maxRedirects {
 			break
 		}
-		next, err := resp.Request.URL.Parse(loc)
-		if err != nil || next.Scheme != "https" || !strings.EqualFold(next.Hostname(), host) {
+		nu, err := resp.Request.URL.Parse(loc)
+		if err != nil || nu.Scheme != "https" || !strings.EqualFold(nu.Hostname(), host) {
 			// Off-host or downgrading redirects are not followed (scope).
 			chain = append(chain, loc)
 			break
 		}
-		chain = append(chain, next.String())
-		u = next.String()
+		chain = append(chain, nu.String())
+		u = nu.String()
 	}
 	h := resp.Header
 	info := map[string]any{"url": start, "status": resp.StatusCode, "final_url": u}
 	if len(chain) > 0 {
 		info["redirects"] = chain
+	}
+	if redirectErr != "" {
+		info["redirect_error"] = redirectErr
 	}
 	headers := map[string]string{}
 	for _, k := range []string{"Strict-Transport-Security", "Content-Security-Policy", "X-Content-Type-Options", "X-Frame-Options", "Referrer-Policy", "Permissions-Policy"} {
