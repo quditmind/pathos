@@ -221,6 +221,41 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.More = max(d.Scan.New-len(items), 0)
 			d.Link = baseURL + "/findings?repository_id=" + ev.Repository.String()
 		}
+	case "change.material":
+		if ev.SubjectID == nil {
+			return nil, errors.New("event has no scan job")
+		}
+		if err := q.QueryRow(ctx, `SELECT trigger, findings_new, findings_fixed, gate_failed FROM scan_jobs WHERE id = $1`, *ev.SubjectID).
+			Scan(&d.Scan.Trigger, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed); err != nil {
+			return nil, fmt.Errorf("load scan job: %w", err)
+		}
+		d.Scan.ID = ev.SubjectID.String()
+		rows, err := q.Query(ctx, `SELECT c.level, c.category, c.rule_id, c.file_path, c.start_line, c.detail FROM material_changes c
+			WHERE c.scan_job_id = $1 ORDER BY CASE c.level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, c.category, c.file_path
+			LIMIT $2`, *ev.SubjectID, maxListed)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var level, cat, rule, path, detail string
+			var line *int
+			if err := rows.Scan(&level, &cat, &rule, &path, &line, &detail); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			title := materialLabels[cat]
+			if title == "" {
+				title = cat
+			}
+			if detail != "" {
+				title += ": " + detail
+			}
+			d.Findings = append(d.Findings, Item{Title: title + " (rule " + rule + ")", Severity: level, Location: location(path, line, "", "")})
+		}
+		rows.Close()
+		d.Count = payloadInt(p, "count")
+		d.More = max(d.Count-len(d.Findings), 0)
+		d.Link = baseURL + "/scans/" + d.Scan.ID + "?tab=material"
 	case "finding.sla_breached", "policy.violated":
 		if ev.Key == "policy.violated" {
 			d.Policy, _ = p["policy_name"].(string)
@@ -418,6 +453,13 @@ func loadFinding(ctx context.Context, q db.Querier, d *Data, id *uuid.UUID, base
 	d.Finding = items[0]
 	d.Link = baseURL + "/findings?status=all&finding=" + id.String()
 	return nil
+}
+
+// materialLabels names material change categories (see package material).
+var materialLabels = map[string]string{
+	"auth": "Authentication / authorization", "api_endpoint": "New API endpoint", "dependency": "New dependency",
+	"crypto": "Cryptography", "iac_exposure": "Infrastructure exposure", "secrets_handling": "Secrets handling",
+	"cicd": "CI/CD pipeline", "sensitive_data": "Sensitive data model",
 }
 
 // Sample returns representative data for template previews.

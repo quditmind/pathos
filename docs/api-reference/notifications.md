@@ -44,6 +44,7 @@ Every endpoint on this page needs `notifications.manage` at organization scope (
 | Event | Severity | Repository | Dynamic recipients |
 |---|:-:|:-:|---|
 | `findings.new` | yes | yes | `owners` |
+| `change.material` | yes | yes | `owners` |
 | `scan.failed` | | yes | `owners` |
 | `finding.sla_breached` | yes | yes | `assignee`, `owners` |
 | `policy.violated` | yes | yes | `assignee`, `owners` |

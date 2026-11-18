@@ -105,6 +105,11 @@ A repository belongs to at most one application; an application can have many re
 21. [Administration](administration.md): users and roles, organization, notifications, workers, audit log
 22. [Troubleshooting and FAQ](troubleshooting.md)
 
+**Developer tools**
+
+23. [IDE integration (VS Code)](ide-integration-vscode.md): findings in the editor, triage from VS Code
+24. [Material changes and developer insights](developer-insights.md): security-material changes between scans, opt-in developer attribution
+
 The [API reference](../api-reference/index.md) documents the endpoints behind every screen.
 
 > **Permissions.** What you can see and do depends on your role and its scope. This guide names the permission each task needs, for example `repos.manage` to import repositories. Ask your PATHOS administrator if a menu item or button is missing.

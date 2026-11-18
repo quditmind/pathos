@@ -10,6 +10,8 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+
+	"pathos/internal/material"
 )
 
 // Conditions all must hold (AND). Empty lists and nil pointers do not
@@ -33,6 +35,11 @@ type Conditions struct {
 	ComplianceScopes   []string `json:"compliance_scopes,omitempty"`
 	RepositoryIDs      []string `json:"repository_ids,omitempty"`
 	ApplicationIDs     []string `json:"application_ids,omitempty"`
+	// MaterialChangeCategories matches findings whose file had a
+	// security-material change of one of these categories in the scan that
+	// first reported the finding (for example: require a Human Eye review
+	// of findings that land with an authentication change).
+	MaterialChangeCategories []string `json:"material_change_categories,omitempty"`
 }
 
 // Actions taken for matching findings.
@@ -115,6 +122,7 @@ func Normalize(c *Conditions, a *Actions) error {
 		checkList("compliance_scopes", c.ComplianceScopes, keyRe.MatchString),
 		checkList("repository_ids", c.RepositoryIDs, uuidRe.MatchString),
 		checkList("application_ids", c.ApplicationIDs, uuidRe.MatchString),
+		checkList("material_change_categories", c.MaterialChangeCategories, in(material.Categories)),
 	)
 	if c.MinRisk != nil && (*c.MinRisk < 0 || *c.MinRisk > 100) {
 		errs = append(errs, errors.New("min_risk must be 0-100"))
@@ -139,26 +147,29 @@ func (c Conditions) Empty() bool {
 	return c.MinSeverity == "" && len(c.Categories) == 0 && len(c.Scanners) == 0 && len(c.CWE) == 0 && c.MinRisk == nil &&
 		c.KEV == nil && c.Malicious == nil && c.ExploitAvailable == nil && len(c.Reachability) == 0 && c.MinAgeDays == nil &&
 		len(c.Criticality) == 0 && len(c.InternetExposure) == 0 && len(c.Environments) == 0 && len(c.DataClassification) == 0 &&
-		len(c.ComplianceScopes) == 0 && len(c.RepositoryIDs) == 0 && len(c.ApplicationIDs) == 0
+		len(c.ComplianceScopes) == 0 && len(c.RepositoryIDs) == 0 && len(c.ApplicationIDs) == 0 && len(c.MaterialChangeCategories) == 0
 }
 
 // BranchOnly reports whether the policy uses conditions that only findings
 // tracked on the scan branch have (contextual risk, reachability, age,
 // exploit availability). Such policies do not apply to pull request checks.
 func (c Conditions) BranchOnly() bool {
-	return c.MinRisk != nil || len(c.Reachability) > 0 || c.MinAgeDays != nil || c.ExploitAvailable != nil
+	return c.MinRisk != nil || len(c.Reachability) > 0 || c.MinAgeDays != nil || c.ExploitAvailable != nil || len(c.MaterialChangeCategories) > 0
 }
 
 // Columns maps condition fields to SQL expressions of one row source.
 // Repository columns are always r.*.
 type Columns struct {
 	Severity, Category, Scanners, CWE, Risk, KEV, Malicious, Exploit, Reachability, FirstSeen string
+	// FirstScan and FilePath locate material changes ("" = unavailable).
+	FirstScan, FilePath string
 }
 
 // FindingColumns: findings f JOIN repositories r.
 var FindingColumns = Columns{
 	Severity: "f.severity", Category: "f.category", Scanners: "f.scanner_keys", CWE: "f.cwe", Risk: "f.risk_score",
 	KEV: "f.kev", Malicious: "f.malicious", Exploit: "f.exploit_available", Reachability: "f.reachability", FirstSeen: "f.first_seen_at",
+	FirstScan: "f.first_scan_job_id", FilePath: "f.file_path",
 }
 
 // PRColumns: pr_findings pf JOIN pr_checks c JOIN repositories r. KEV and
@@ -231,6 +242,13 @@ func Where(c Conditions, col Columns, args *[]any) (string, error) {
 			return "", err
 		}
 		parts = append(parts, col.FirstSeen+" <= now() - make_interval(days => "+arg(*c.MinAgeDays)+")")
+	}
+	if len(c.MaterialChangeCategories) > 0 {
+		if err := need(col.FirstScan, "material_change_categories"); err != nil {
+			return "", err
+		}
+		parts = append(parts, "EXISTS (SELECT 1 FROM material_changes mc WHERE mc.scan_job_id = "+col.FirstScan+" AND mc.file_path = "+col.FilePath+
+			" AND mc.file_path <> '' AND mc.category = ANY("+arg(c.MaterialChangeCategories)+"::text[]))")
 	}
 	if len(c.Criticality) > 0 {
 		parts = append(parts, "r.criticality = ANY("+arg(c.Criticality)+"::text[])")

@@ -144,7 +144,7 @@ The following record is illustrative (it was created for this guide from a small
 1. Open **Assets → Repositories**.
 2. Find the repository: type part of its name in **Search repositories**, or open **More filters** and enter the exact **Repository ID**, for example `QD-REPO-000042`.
    ![Repository inventory with KPI strip and Repository ID column](images/repositories-inventory.png "Repositories inventory: KPI strip, filters and the Repository ID column")
-3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and tabs: **Details**, **Source**, **Security** and **Dependencies** (the last needs `sbom.read`; see [Dependencies of a repository](posture.md#dependencies-of-a-repository)).
+3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and tabs: **Details**, **Source**, **Security**, **Dependencies** (needs `sbom.read`; see [Dependencies of a repository](posture.md#dependencies-of-a-repository)) and **Material changes** (needs `scans.read`; see [Material changes](developer-insights.md#material-changes)).
    ![Repository details panel](images/repository-drawer.png "The details panel opens over the inventory")
 4. On **Details**, select **Edit metadata**. The same sections as in the wizard appear.
 5. Change the fields, for example set **Production URL** to `https://payments.example.com`.

@@ -185,6 +185,14 @@ Declarative scanner adapters let operators add tools without changing PATHOS ([S
 
 The **`pathos` CLI** ([CI/CD integration](user-guide/ci-cd-integration.md)) authenticates with a REST API token (the owner's permissions, `api:read` or `api:write`). It always verifies TLS certificates (an extra CA with `--ca-cert`; there is no switch to disable verification), refuses plain HTTP except to loopback unless `--allow-http` is given, sends the token only to the configured host (never on a redirect elsewhere), never prints or logs it, and bounds every response it reads. Release binaries are listed with their SHA-256 in `checksums.txt`, which the release workflow signs with cosign keyless; the CI templates verify the checksum before running the binary.
 
+### Material change detection
+
+For branch scans of Git repositories the worker compares the scanned commit with the previously scanned commit of the same ref. It fetches only those two commits (the clone credential is still held for this step and dropped afterwards) into a private bare repository in the job workspace, runs `git diff` with `--no-ext-diff --no-textconv` and the clone hardening options (no hooks, no `file`/`ext` protocols, no redirects, fsck on transfer) and applies regular-expression rules to the changed lines. Nothing from the repository is executed. Only the matches are sent to the API, which redacts secrets in the matched line again before storing it. Uploads and scan targets are not compared.
+
+### Developer attribution and privacy
+
+Attribution of findings to people is **off by default** (`developer_insight_settings`). While it is off, the lease does not ask the worker for commit authors and the API discards any it receives. When an administrator (`settings.manage`) turns it on, workers send commit author **names** only; author e-mail addresses are never read or stored. Names map to PATHOS users only through links an administrator (`users.manage`) creates. Views of people data need the organization-wide `insights.people` permission. Turning attribution off deletes every stored author name, attribution and link in one transaction; switching and linking are audited.
+
 ## External data and offline mode
 
 PATHOS sends nothing to third parties unless a feature is configured.

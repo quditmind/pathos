@@ -1,0 +1,10 @@
+src/**
+test/**
+node_modules/**
+**/*.map
+**/*.ts
+tsconfig*.json
+vitest.config.mjs
+.gitignore
+*.vsix
+audit-exceptions.json

@@ -105,6 +105,18 @@ From `frontend/package.json`:
 
 End-to-end tests use `@playwright/test` 1.65.1 (Apache-2.0), in `e2e/`.
 
+## VS Code extension (ide/vscode)
+
+The extension has no runtime dependencies (it uses the `fetch` built into VS Code's Node.js); the packages below are build and test tools from `ide/vscode/package.json` and are not shipped in the `.vsix`.
+
+| Package | Version | Purpose | License |
+|---|---|---|---|
+| `typescript` | 6.0.3 | Language | Apache-2.0 |
+| `@types/vscode` | 1.90.0 | VS Code API types (matches `engines.vscode`) | MIT |
+| `@types/node` | 22.20.5 | Node.js types | MIT |
+| `vitest` | 5.1.0 | Unit tests | MIT |
+| `@vscode/vsce` | 4.1.0 | Packaging the `.vsix` | MIT (its optional `@vscode/vsce-sign` helper, used only for Marketplace signing, is under Microsoft's own licence) |
+
 ## Test and security tooling (not shipped)
 
 | Tool | Version | License | Used by |

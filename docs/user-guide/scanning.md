@@ -84,12 +84,13 @@ Filter by text (Scan ID, name, repository or Repository ID), repository, Reposit
 
 ## Scan details
 
-Select a Scan ID to open the execution. It has six tabs:
+Select a Scan ID to open the execution. It has seven tabs:
 
 | Tab | Shows |
 |---|---|
 | **Overview** | Status and progress, Scan ID, asset (with Repository ID), profile and version, trigger, schedule, retry link, branch and commit (Git) or snapshot (upload), worker, timing, a findings summary and the scanner engines with versions, statuses, findings and raw report downloads |
 | **Findings** | The findings this execution observed: severity, title, affected component, engine, evidence (file and line, or package and version), remediation (fixed version) and whether it was new in this execution |
+| **Material changes** | Security-material changes since the previously scanned commit of the branch (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data), each with its rule and explanation; see [Material changes and developer insights](developer-insights.md) |
 | **Execution Logs** | Time-stamped worker and scanner output, filterable by engine and minimum level, live while the scan runs, downloadable as text. Secrets are redacted before they are stored |
 | **Stages** | Queue, source checkout, one row per scanner engine job and results processing, with status, times, duration, scanner version, findings and errors, plus the raw event list |
 | **Configuration** | A read-only snapshot of the profile version used by this execution: scanners and their settings, exclusions, severity threshold, timeout, SBOM, security gate and retention. Later profile edits never change it |

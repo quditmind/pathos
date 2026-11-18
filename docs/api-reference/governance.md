@@ -42,6 +42,7 @@ All set conditions must hold; values in one list are alternatives. At least one 
 | `min_age_days` | 0–3650 | First seen at least this long ago *(scan branch only)* |
 | `criticality`, `internet_exposure`, `environments`, `data_classification`, `compliance_scopes` | lists of keys | The repository's classification |
 | `repository_ids`, `application_ids` | lists of UUIDs | Specific repositories or applications |
+| `material_change_categories` | list | The finding's file had a [security-material change](developer-context.md) of one of these categories (`auth`, `api_endpoint`, `dependency`, `crypto`, `iac_exposure`, `secrets_handling`, `cicd`, `sensitive_data`) in the scan that first reported it *(scan branch only)* |
 
 Conditions marked *scan branch only* need data that pull request findings do not have; policies using them are not applied to pull requests (`applies_to_pull_requests: false`).
 
