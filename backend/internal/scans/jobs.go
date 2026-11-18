@@ -31,6 +31,7 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/scans", s.bulkScan)
 	mux.HandleFunc("GET /api/v1/scans", s.listJobs)
 	mux.HandleFunc("GET /api/v1/scans/{id}", s.getJob)
+	mux.HandleFunc("GET /api/v1/scans/{id}/gate", s.scanGate)
 	mux.HandleFunc("POST /api/v1/scans/{id}/cancel", s.cancelJob)
 	s.registerExecutions(mux)
 	mux.HandleFunc("GET /api/v1/scans/{id}/results/{scanner}/artifact", s.downloadArtifact)
