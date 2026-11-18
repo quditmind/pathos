@@ -121,12 +121,17 @@ services:
       PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
       # Outbound proxy for SCM API calls (optional).
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
-      NO_PROXY: keycloak,localhost
+      NO_PROXY: keycloak,clamav,localhost
       PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN:?run deploy/scripts/install.sh}
       # Multiplies all API rate limits (0 disables; see docs/SECURITY.md).
       PATHOS_RATE_LIMIT_SCALE: ${PATHOS_RATE_LIMIT_SCALE:-1}
       # New users must enrol a TOTP authenticator at first login.
       PATHOS_REQUIRE_MFA: ${PATHOS_REQUIRE_MFA:-false}
+      # Malware scanning of build-artifact uploads (scan targets); source
+      # archives are scanned by jobs. COMPOSE_PROFILES=clamav and
+      # PATHOS_CLAMAV_ADDRESS=clamav:3310.
+      PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
+      PATHOS_CLAMAV_REQUIRED: ${PATHOS_CLAMAV_REQUIRED:-false}
     # Encrypted uploads and source snapshots (shared with jobs).
     volumes:
       - sources:/var/lib/pathos/sources
@@ -161,8 +166,8 @@ services:
       PATHOS_IMPORT_CONCURRENCY: ${PATHOS_IMPORT_CONCURRENCY:-2}
       PATHOS_IMPORT_TIMEOUT: ${PATHOS_IMPORT_TIMEOUT:-30m}
       PATHOS_IMPORT_WORK_DIR: /var/lib/pathos/work
-      # Malware scanning of uploads: COMPOSE_PROFILES=clamav and
-      # PATHOS_CLAMAV_ADDRESS=clamav:3310.
+      # Malware scanning of uploaded source archives: COMPOSE_PROFILES=clamav
+      # and PATHOS_CLAMAV_ADDRESS=clamav:3310.
       PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
       PATHOS_CLAMAV_REQUIRED: ${PATHOS_CLAMAV_REQUIRED:-false}
     volumes:
@@ -401,7 +406,7 @@ services:
       retries: 12
       start_period: 10s
 
-  # Malware scanning of uploaded archives (opt-in). Set
+  # Malware scanning of uploaded archives and build artifacts (opt-in). Set
   # PATHOS_CLAMAV_ADDRESS=clamav:3310; signatures update via freshclam
   # through the egress network. Needs about 2 GB of RAM.
   clamav:
@@ -414,7 +419,8 @@ services:
       CLAMD_CONF_MaxFileSize: ${PATHOS_CLAMAV_MAX_FILE:-1000M}
     volumes:
       - clamav_db:/var/lib/clamav
-    # data: reachable by jobs only. edge: signature downloads.
+    # data: reachable by api (build artifacts) and jobs (source archives).
+    # edge: signature downloads.
     networks: [data, edge]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
