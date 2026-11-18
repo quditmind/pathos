@@ -38,6 +38,7 @@ Bodies are JSON unless stated otherwise. Errors use the [common error format](in
 | `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM or artifact](#download-the-source-or-target-file) of a scan target job |
 | `POST` | `/internal/worker/v1/jobs/{id}/events` | [Report stage events and log lines](#events-and-logs) |
 | `POST` | `/internal/worker/v1/jobs/{id}/imports` | [Upload the code inventory](#code-inventory) used for reachability |
+| `POST` | `/internal/worker/v1/jobs/{id}/changes` | [Upload the material change report](#material-changes) |
 | `POST` | `/internal/worker/v1/jobs/{id}/results` | [Upload one scanner's output](#results) |
 | `POST` | `/internal/worker/v1/jobs/{id}/complete` | [Finish the job](#complete) |
 
@@ -70,6 +71,8 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
 | `source` | For uploaded repositories: `{ type: "snapshot", sha256, size }`; download it from `/internal/worker/v1/jobs/{id}/source`. |
 | `target` | For scan-target jobs (image, web application, API, artifact, SBOM): kind, reference and any decrypted target credential. |
 | `timeout_seconds`, `exclusions`, `scanners[]` | From the pinned scan profile version: `{ key, config }` per scanner. Opengrep's config includes the organization's custom rules. |
+| `previous_commit_sha` | Commit of the repository's previous successful scan of the same ref (Git branch scans only; omitted for the first scan, pull requests, uploads and targets). The worker compares it with the scanned commit. |
+| `collect_authors` | `true` only while the organization has developer attribution on: the worker then lists the commit author names between the two commits. |
 
 If no clone credential can be obtained, the job fails and `204` is returned.
 
@@ -95,6 +98,25 @@ Messages are redacted and cut to 2,000 characters; timestamps far in the future 
 ### Code inventory
 
 `POST /internal/worker/v1/jobs/{id}/imports` with `{ version: 1, files_scanned, imports: { … }, strings: { … } }` (at most 8 MiB) stores the repository's import inventory and recomputes the reachability of its dependency findings (see [Reachability](vulnerability-intelligence.md#reachability)). Returns `{ "findings_updated": n }`. Ignored (`0`) for pull request scans; `400` for scan-target jobs.
+
+### Material changes
+
+`POST /internal/worker/v1/jobs/{id}/changes` (at most 16 MiB), sent after the scanners and before `complete`:
+
+```json
+{
+  "version": 1, "status": "computed", "reason": "", "base_sha": "<sha>", "head_sha": "<sha>",
+  "files_changed": 12, "truncated": false,
+  "changes": [{ "category": "auth", "rule_id": "auth.spring-security", "file_path": "src/SecurityConfig.java", "change_type": "modified",
+                "side": "added", "start_line": 20, "end_line": 21, "match_count": 2, "snippet": "…", "explanation": "…" }],
+  "commits": [{ "sha": "<sha>", "author_name": "Ada Lovelace", "authored_at": "2026-11-18T10:00:00Z", "files": ["src/SecurityConfig.java"] }],
+  "commits_complete": true
+}
+```
+
+`status` is `computed`, `baseline`, `unchanged` or `unavailable` (with `reason`). Changes with unknown rules, and dependency changes (the API computes those from the SBOMs), are dropped; snippets are redacted. `commits` are ignored and never stored unless the organization has attribution on; the worker sends author names only, never e-mail addresses. A retried job replaces the earlier report. Ignored for pull request and scan-target jobs. Returns `{ "material_changes": n }` and queues the `change.material` notification event when `n > 0`; `400` for an invalid report.
+
+The worker fetches only the two commits (shallow, `--depth 1`, or `--depth 100` of the scanned commit when authors are collected) into a private bare repository with the job's clone credential, computes `git diff -U0` without external diff or textconv drivers and runs the rules on the changed lines; nothing in the repository is executed.
 
 ### Results
 

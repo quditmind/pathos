@@ -23,6 +23,14 @@ updates:
       - dependency-name: typescript
         update-types: ["version-update:semver-major"]
   - package-ecosystem: npm
+    directory: /ide/vscode
+    schedule: { interval: monthly }
+    cooldown: { default-days: 14 }
+    groups: { vscode-extension: { patterns: ["*"] } }
+    ignore:
+      # @types/vscode must not be newer than engines.vscode in package.json.
+      - dependency-name: "@types/vscode"
+  - package-ecosystem: npm
     directory: /e2e
     schedule: { interval: monthly }
     cooldown: { default-days: 14 }

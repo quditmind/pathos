@@ -21,6 +21,7 @@ A security policy says *"findings like this, in places like that, must be handle
 
 - **No actively exploited vulnerabilities in production**: KEV = yes, environment = production → block, deadline 7 days, notify.
 - **Hard-coded secrets in PCI repositories need a second look**: type = Secrets, compliance scope = PCI DSS → require a Human Eye review.
+- **Findings that land with an authentication change get a manual review**: landed with a security-material change = Authentication / authorization → require a Human Eye review (see [Material changes](developer-insights.md#security-policy-condition)).
 - **Malicious packages are never merged**: malicious package = yes → block.
 
 Open **Administration → Policies**, go to **Security policies** and select **New policy**. While you edit, PATHOS shows how many open findings would match right now, so you can check a policy before saving it.
@@ -36,7 +37,7 @@ What the actions do:
 
 Click a policy's **open violations** count to see the findings that violate it (and, with **Show resolved**, those that no longer do). A finding's details list the policies it violates. Every change is versioned and recorded in the audit log.
 
-Policies are checked after every scan, for every pull request check, and every 10 minutes, because a finding's risk, exploit status and age change between scans. Conditions on contextual risk, reachability, age or public exploits need data that pull request findings do not have yet, so those policies apply to the scan branch only (the list marks them).
+Policies are checked after every scan, for every pull request check, and every 10 minutes, because a finding's risk, exploit status and age change between scans. Conditions on contextual risk, reachability, age, public exploits or material changes need data that pull request findings do not have yet, so those policies apply to the scan branch only (the list marks them).
 
 ## Compliance
 

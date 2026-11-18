@@ -173,6 +173,14 @@ Declarative scanner adapters let operators add tools without changing PATHOS ([S
 - Plugins run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout. They scan repository source only, not scan targets.
 - The worker registers plugins in the catalog through a database function that accepts only `plugin-<category>-<name>` keys and cannot change built-in entries. At most 20 plugins load; invalid files are skipped with a log message.
 
+### Material change detection
+
+For branch scans of Git repositories the worker compares the scanned commit with the previously scanned commit of the same ref. It fetches only those two commits (the clone credential is still held for this step and dropped afterwards) into a private bare repository in the job workspace, runs `git diff` with `--no-ext-diff --no-textconv` and the clone hardening options (no hooks, no `file`/`ext` protocols, no redirects, fsck on transfer) and applies regular-expression rules to the changed lines. Nothing from the repository is executed. Only the matches are sent to the API, which redacts secrets in the matched line again before storing it. Uploads and scan targets are not compared.
+
+### Developer attribution and privacy
+
+Attribution of findings to people is **off by default** (`developer_insight_settings`). While it is off, the lease does not ask the worker for commit authors and the API discards any it receives. When an administrator (`settings.manage`) turns it on, workers send commit author **names** only; author e-mail addresses are never read or stored. Names map to PATHOS users only through links an administrator (`users.manage`) creates. Views of people data need the organization-wide `insights.people` permission. Turning attribution off deletes every stored author name, attribution and link in one transaction; switching and linking are audited.
+
 ## External data and offline mode
 
 PATHOS sends nothing to third parties unless a feature is configured.

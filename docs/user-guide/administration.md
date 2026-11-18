@@ -86,6 +86,7 @@ In the user's details:
 | Event | When |
 |---|---|
 | New findings | A scan found new findings |
+| Security-material change | A branch scan found security-material changes since the previous scanned commit ([details](developer-insights.md#notifications-and-webhooks)) |
 | Scan failed | A scan job failed after its retries |
 | SLA breached | Open findings passed their remediation deadline |
 | Security policy violated | Open findings newly violate a notifying security policy |
@@ -106,6 +107,10 @@ In the user's details:
 **Delivery history.** Every message with its status (*Sent*, *Pending*, *Failed*, *Suppressed*); **Retry** resends a failed one.
 
 **In-app notifications.** The bell beside **Help** in the top bar shows your unread notifications; **Mark all read** clears them. In-app notifications go to PATHOS users only, never to external addresses.
+
+## Developer attribution
+
+**Administration → Developer attribution** turns the opt-in attribution of findings to git authors on or off (`settings.manage`) and links git author names to users (`users.manage`). It is off by default, and turning it off erases all stored author data. See [Material changes and developer insights](developer-insights.md#developer-insights-attribution).
 
 ## Scanners and workers
 

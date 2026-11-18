@@ -38,6 +38,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Risk scoring and intelligence feeds](risk-intelligence.md) | Risk scores and model, EPSS, KEV, OSV and deps.dev feeds, CVE lookups |
 | [Reachability and related findings](vulnerability-intelligence.md) | Reachability and related findings |
 | [Posture](posture.md) | Posture rollups, coverage, unmanaged repositories, dependency graphs, blast radius, attack paths |
+| [Material changes and developer insights](developer-context.md) | Security-material changes per scan and repository, developer attribution, identity links |
 | [Dashboard and global search](dashboard-and-search.md) | Security dashboard KPIs and charts, top-bar search |
 | [Human Eye reviews](human-reviews.md) | Manual review queue, assessments, decisions, evidence and reports |
 | [AI providers, finding reviews and MCP](ai-and-mcp.md) | AI providers and configurations, AI reviews, MCP server registry, the PATHOS MCP endpoint |
