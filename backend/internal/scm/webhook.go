@@ -59,12 +59,16 @@ type WebhookEvent struct {
 	Ref         string
 	CommitSHA   string
 	PullRequest int
+	// Before is the branch head before a push (GitHub, GitLab); all zeros
+	// for a new branch, empty when the provider does not send it.
+	Before string
 }
 
 // ParseGitHubEvent normalizes a GitHub webhook payload.
 func ParseGitHubEvent(event string, body []byte) (WebhookEvent, error) {
 	var p struct {
 		Ref        string `json:"ref"`
+		Before     string `json:"before"`
 		After      string `json:"after"`
 		Deleted    bool   `json:"deleted"`
 		Action     string `json:"action"`
@@ -97,6 +101,7 @@ func ParseGitHubEvent(event string, body []byte) (WebhookEvent, error) {
 	case "push":
 		if !p.Deleted && strings.HasPrefix(p.Ref, "refs/heads/") {
 			ev.Kind, ev.Ref, ev.CommitSHA = "push", strings.TrimPrefix(p.Ref, "refs/heads/"), p.After
+			ev.Before = p.Before
 		}
 	case "pull_request":
 		ev.PullRequest = p.Number
@@ -177,6 +182,7 @@ func VerifyGitLabToken(secret []byte, header string) error {
 func ParseGitLabEvent(eventHeader string, body []byte) (WebhookEvent, string, error) {
 	var p struct {
 		Ref       string `json:"ref"`
+		Before    string `json:"before"`
 		After     string `json:"after"`
 		ProjectID int64  `json:"project_id"`
 		Project   struct {
@@ -209,6 +215,7 @@ func ParseGitLabEvent(eventHeader string, body []byte) (WebhookEvent, string, er
 	case "Push Hook":
 		if strings.HasPrefix(p.Ref, "refs/heads/") && strings.Trim(p.After, "0") != "" {
 			ev.Kind, ev.Ref, ev.CommitSHA = "push", strings.TrimPrefix(p.Ref, "refs/heads/"), p.After
+			ev.Before = p.Before
 		}
 	case "Merge Request Hook":
 		a := p.ObjectAttributes

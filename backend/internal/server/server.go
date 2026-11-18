@@ -29,6 +29,8 @@ import (
 	"pathos/internal/platform/telemetry"
 	"pathos/internal/policy"
 	"pathos/internal/posture"
+	"pathos/internal/pushprotect"
+	"pathos/internal/releases"
 	"pathos/internal/reporting"
 	"pathos/internal/repos"
 	"pathos/internal/review"
@@ -95,13 +97,18 @@ func Build(d Deps) Handlers {
 	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
 		CloneCredential: repoSvc.CloneCredential, BootstrapToken: d.WorkerBootstrapToken, OrgID: d.OrgID, Artifacts: d.Artifacts,
 		OpenSnapshot: repoSvc.OpenSnapshot, Secrets: d.Secrets}
-	repoSvc.OnEvent = scanSvc.OnWebhookEvent
+	pushSvc := &pushprotect.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Diff: repoSvc.PushDiffReader}
+	repoSvc.OnEvent = func(ctx context.Context, orgID, repoID uuid.UUID, ev scm.WebhookEvent) {
+		scanSvc.OnWebhookEvent(ctx, orgID, repoID, ev)
+		pushSvc.OnPush(ctx, orgID, repoID, ev) // secret push protection (opt-in per repository)
+	}
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
 	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
 	// After a scan: AI auto-review first, then the Human Eye queue picks
 	// up findings that need a person.
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
+	scanSvc.FixPRTarget = FixPRTarget(repoSvc)
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
@@ -127,10 +134,12 @@ func Build(d Deps) Handlers {
 	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	repoSvc.Register(protected)
+	pushSvc.Register(protected)
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
 	(&vuln.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Artifacts: d.Artifacts}).Register(protected)
 	(&policy.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&releases.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&compliance.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&reporting.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&tickets.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}).Register(protected)
@@ -215,6 +224,14 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 			_, err := scans.Enqueue(ctx, d.DB, orgID, repoID, trigger, "", "", by)
 			return err
 		}}
+}
+
+// FixPRTarget adapts the repository service for fix pull requests.
+func FixPRTarget(repoSvc *repos.Service) scans.FixPRTargetFunc {
+	return func(ctx context.Context, orgID, repoID uuid.UUID) (scm.PullRequestWriter, scm.RepoRef, string, error) {
+		t, err := repoSvc.PullRequestTarget(ctx, orgID, repoID)
+		return t.Writer, t.Ref, t.Branch, err
+	}
 }
 
 // NewIntelService builds the vulnerability intelligence service. Feeds

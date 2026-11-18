@@ -33,6 +33,15 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 | `debian:trixie-slim` | Downloading and verifying the scanner binaries |
 | `python:3.13-slim-trixie` | The `worker-core` runtime (Checkov needs Python); `pip` is removed after installing Checkov |
 
+## Optional Git hooks (`integrations/`)
+
+Not shipped in any image; installed by repository owners or Git server administrators (see the user guide page *Secret push protection*).
+
+| Tool | Version | License | Used by |
+|---|---|---|---|
+| Gitleaks | 8.30.1 (binary, `zricethezav/gitleaks:v8.30.1` image, or the upstream pre-commit hook at tag `v8.30.1`) | MIT | `integrations/pre-commit/` and `integrations/pre-receive/` |
+| pre-commit | any | MIT | Optional framework for `integrations/pre-commit/` |
+
 ## Scanners in worker-core
 
 | Tool | Version | License | How it is installed |

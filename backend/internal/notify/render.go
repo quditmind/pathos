@@ -72,6 +72,10 @@ type Data struct {
 	Review struct {
 		Key, Status, Disposition, Priority, DueAt, Outcome string
 	}
+	// Push is secret.pushed: the branch and head commit of the push.
+	Push struct {
+		Ref, Commit string
+	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
 	assignees        []uuid.UUID
@@ -341,6 +345,16 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		d.Schedule.Succeeded, d.Schedule.Failed = payloadInt(p, "succeeded"), payloadInt(p, "failed")
 		d.Link = baseURL + "/scans?schedule_id=" + ev.SubjectID.String()
+	case "secret.pushed":
+		if ev.SubjectID == nil {
+			return nil, errors.New("event has no push scan")
+		}
+		if err := loadPushedSecrets(ctx, q, d, *ev.SubjectID); err != nil {
+			return nil, err
+		}
+		if ev.Repository != nil {
+			d.Link = baseURL + "/repositories?repo=" + ev.Repository.String()
+		}
 	case "review.assigned", "review.independent_requested", "review.independent_decided", "review.overdue":
 		if ev.SubjectID == nil {
 			return nil, errors.New("event has no review")
@@ -429,7 +443,52 @@ func Sample(key, baseURL string) *Data {
 	d.Import.Status, d.Import.RequestedBy, d.Import.Total, d.Import.Failed = "failed", "Sam Developer", 4, 1
 	d.Review.Key, d.Review.Status, d.Review.Disposition, d.Review.Priority = "QD-HR-000042", "in progress", "false positive", "p1"
 	d.Review.DueAt, d.Review.Outcome = "2026-11-19 09:00 UTC", "approved"
+	d.Push.Ref, d.Push.Commit = "main", "9f2c4e1a7b3d"
+	if key == "secret.pushed" {
+		d.Findings = []Item{
+			{Title: "AWS access key ID", Severity: "critical", Location: "config/settings.py:12 (commit 9f2c4e1a7b3d)"},
+			{Title: "GitHub personal access token", Severity: "critical", Location: ".env:3 (commit 9f2c4e1a7b3d)"},
+		}
+		d.Count, d.More, d.Link = 2, 0, baseURL+"/repositories"
+	}
 	return d
+}
+
+// loadPushedSecrets lists what a push scan found: rule, file, line and
+// commit only (values are never stored).
+func loadPushedSecrets(ctx context.Context, q db.Querier, d *Data, scanID uuid.UUID) error {
+	if err := q.QueryRow(ctx, `SELECT ref, after_sha, alerts FROM push_secret_scans WHERE id = $1`, scanID).
+		Scan(&d.Push.Ref, &d.Push.Commit, &d.Count); err != nil {
+		return fmt.Errorf("load push scan: %w", err)
+	}
+	if len(d.Push.Commit) > 12 {
+		d.Push.Commit = d.Push.Commit[:12]
+	}
+	rows, err := q.Query(ctx, `SELECT description, file_path, line, commit_sha FROM pushed_secrets
+		WHERE push_scan_id = $1 ORDER BY file_path, line LIMIT $2`, scanID, maxListed)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var desc, path, commit string
+		var line *int
+		if err := rows.Scan(&desc, &path, &line, &commit); err != nil {
+			return err
+		}
+		if len(commit) > 12 {
+			commit = commit[:12]
+		}
+		loc := location(path, line, "", "")
+		if commit != "" {
+			loc += " (commit " + commit + ")"
+		}
+		d.Findings = append(d.Findings, Item{Title: desc, Severity: "critical", Location: loc})
+	}
+	if d.Count > len(d.Findings) {
+		d.More = d.Count - len(d.Findings)
+	}
+	return rows.Err()
 }
 
 // limitWriter stops template output beyond a size.

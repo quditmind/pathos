@@ -40,6 +40,8 @@ Bodies are JSON unless stated otherwise. Errors use the [common error format](in
 | `POST` | `/internal/worker/v1/jobs/{id}/imports` | [Upload the code inventory](#code-inventory) used for reachability |
 | `POST` | `/internal/worker/v1/jobs/{id}/results` | [Upload one scanner's output](#results) |
 | `POST` | `/internal/worker/v1/jobs/{id}/complete` | [Finish the job](#complete) |
+| `POST` | `/internal/worker/v1/fix-lease` | [Lease a fix job](#fix-jobs) (when no scan is waiting) |
+| `POST` | `/internal/worker/v1/fix-jobs/{id}/result` | [Report the edited files of a fix job](#fix-jobs) |
 
 Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that holds the job's lease: another worker gets `409 lease_lost`, an unknown job `404`. Except for the heartbeat, the job must still be `running` (`409 conflict` "job is …" otherwise).
 
@@ -114,3 +116,16 @@ The output is parsed into findings at once. Response `{ "findings": n }`. A deco
 ### Complete
 
 `POST /internal/worker/v1/jobs/{id}/complete` with `{ status: "succeeded" | "failed", error, commit_sha }`. `commit_sha` (the commit actually scanned) is stored when it is a full SHA. PATHOS finalizes the job (new and fixed findings, security gate, policies), then posts pull request statuses or starts follow-up work (AI review, Human Eye queue). Response `{ "status": "<final job status>" }`.
+
+### Fix jobs
+
+Fix jobs produce the file edits for [fix pull requests](findings.md#fix-pull-requests). The agent asks for one only when `lease` returned `204` (scans come first).
+
+`POST /internal/worker/v1/fix-lease` (empty JSON object) returns `204` when nothing is queued, otherwise `200` with `{ fix_id, full_name, clone_url, ref, credential, public, ecosystem, package_name, current_version, target_version, manifest_hint, timeout_seconds }`. The job is leased for 10 minutes; an expired lease returns it to the queue, at most 3 attempts. `ref` is the repository's scan branch.
+
+The worker clones `ref` (shallow, with the same hardening as scans: no hooks, filters, submodules or symbolic links), edits the manifests as text and never runs a package manager, build tool or repository code. It then calls `POST /internal/worker/v1/fix-jobs/{id}/result` with one of:
+
+- `{ "status": "ok", "base_commit": "<full SHA cloned>", "files": [{ "path": "requirements.txt", "content_base64": "…" }], "notes": [] }`: 1–20 files, each at most 5 MiB (20 MiB in total), relative paths without `..`. The API then creates the branch, commit and pull request itself; the worker never pushes.
+- `{ "status": "not_supported", "error": "…" }` or `{ "status": "failed", "error": "…" }`.
+
+Response `204`. Another worker gets `409 lease_lost`.

@@ -55,6 +55,8 @@ import {
   FileSpreadsheet,
   Presentation,
   ShieldCheck,
+  PackageSearch,
+  FileCheck2,
 } from "lucide-react";
 import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
@@ -122,6 +124,9 @@ export const groups: NavGroup[] = [
       { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
       { label: "Suppression rules", to: "/suppression-rules", icon: <FilterX />, perm: "findings.read" },
       { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
+      { label: "Component portfolio", to: "/portfolio", icon: <PackageSearch />, perm: "sbom.read" },
+      { label: "Component policies", to: "/sbom/policies", icon: <Scale />, perm: "sbom.read" },
+      { label: "VEX statements", to: "/vex", icon: <FileCheck2 />, perm: "findings.read" },
     ],
   },
   {

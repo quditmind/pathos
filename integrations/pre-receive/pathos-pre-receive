@@ -1,0 +1,103 @@
+#!/bin/sh
+# PATHOS secret push protection: server-side pre-receive hook.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+#
+# Rejects pushes whose new commits add secrets, using Gitleaks. Works on any
+# self-hosted Git server that runs pre-receive hooks: GitLab (server hooks),
+# Gitea / Forgejo (pre-receive.d), Bitbucket Server / Data Center (through a
+# hook add-on that runs external scripts). See README.md.
+#
+# Only commits that are new to the repository are scanned
+# (git rev-list <new> --not --all), so a new branch made from existing
+# history is cheap and re-pushing existing commits is never re-scanned.
+# Deleted refs are skipped. Secret values are redacted in all output.
+#
+# Settings (environment of the Git server process, or edit the defaults):
+#   PATHOS_GITLEAKS           gitleaks binary (default: gitleaks on PATH)
+#   PATHOS_GITLEAKS_CONFIG    config file (default: pathos-gitleaks.toml next to this script, if present)
+#   PATHOS_PRERECEIVE_TIMEOUT seconds per push (default 60)
+#   PATHOS_PRERECEIVE_MAX_COMMITS  larger pushes are not scanned (default 2000)
+#   PATHOS_PRERECEIVE_STRICT  1 = reject when the push could not be checked
+#                             (timeout, too large, gitleaks missing); default 0
+#                             lets it through with a warning
+set -u
+
+ZERO=0000000000000000000000000000000000000000
+GITLEAKS="${PATHOS_GITLEAKS:-gitleaks}"
+TIMEOUT="${PATHOS_PRERECEIVE_TIMEOUT:-60}"
+MAX_COMMITS="${PATHOS_PRERECEIVE_MAX_COMMITS:-2000}"
+STRICT="${PATHOS_PRERECEIVE_STRICT:-0}"
+here=$(cd "$(dirname "$0")" && pwd)
+CONFIG="${PATHOS_GITLEAKS_CONFIG:-}"
+if [ -z "$CONFIG" ] && [ -f "$here/pathos-gitleaks.toml" ]; then
+  CONFIG="$here/pathos-gitleaks.toml"
+fi
+
+say() { echo "PATHOS: $*" >&2; }
+
+# unchecked explains why a push was not scanned and applies the strict setting.
+unchecked() {
+  if [ "$STRICT" = "1" ]; then
+    say "push rejected: it could not be checked for secrets ($1)."
+    exit 1
+  fi
+  say "warning: this push was NOT checked for secrets ($1). PATHOS scans will still examine it."
+}
+
+if ! command -v "$GITLEAKS" >/dev/null 2>&1; then
+  unchecked "gitleaks is not installed on the Git server"
+  cat >/dev/null
+  exit 0
+fi
+
+# Collect the tips of all created or updated refs.
+tips=""
+while read -r _old new ref; do
+  [ -z "${new:-}" ] && continue
+  case "$new" in
+    "$ZERO"|0000000000000000000000000000000000000000000000000000000000000000) continue ;; # deletion (SHA-1 or SHA-256)
+  esac
+  case "$ref" in
+    refs/heads/*|refs/tags/*|refs/merge-requests/*|refs/pull/*) ;;
+    *) continue ;;
+  esac
+  # Annotated tags: scan the commit they point to.
+  commit=$(git rev-parse --verify --quiet "$new^{commit}") || continue
+  tips="$tips $commit"
+done
+
+[ -z "$tips" ] && exit 0
+# shellcheck disable=SC2086 # tips is a list of SHAs
+total=$(git rev-list --count $tips --not --all 2>/dev/null || echo 0)
+[ "$total" -eq 0 ] && exit 0
+if [ "$total" -gt "$MAX_COMMITS" ]; then
+  unchecked "$total new commits exceed the limit of $MAX_COMMITS"
+  exit 0
+fi
+
+log_opts="$(echo $tips) --not --all"
+set -- "$GITLEAKS" git --redact --no-banner --verbose --log-opts="$log_opts"
+if [ -n "$CONFIG" ]; then
+  set -- "$@" --config "$CONFIG"
+fi
+set -- "$@" .
+
+if command -v timeout >/dev/null 2>&1; then
+  timeout "$TIMEOUT" "$@" >&2
+  status=$?
+else
+  "$@" >&2
+  status=$?
+fi
+
+case "$status" in
+  0) exit 0 ;;
+  1)
+    say "push rejected: the new commits add what looks like a secret (values redacted above)."
+    say "Remove it from every commit (rewrite the branch, e.g. git rebase -i), then push again."
+    say "If it was ever valid, revoke and rotate it: it may already be in clones and CI logs."
+    say "False positive? Ask the repository maintainers to allowlist it in .gitleaks.toml."
+    exit 1 ;;
+  124) unchecked "the scan exceeded ${TIMEOUT}s" ; exit 0 ;;
+  *) unchecked "gitleaks failed with exit code $status" ; exit 0 ;;
+esac

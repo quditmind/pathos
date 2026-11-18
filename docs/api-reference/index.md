@@ -35,6 +35,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Scan targets](scan-targets.md) | Container images, web applications, APIs, build artifacts and SBOMs |
 | [Result and SBOM imports](result-imports.md) | Import SARIF, Grype or PATHOS JSON results and CycloneDX or SPDX SBOMs |
 | [Supply chain and pull request checks](supply-chain.md) | SBOM inventory and export, licence policies, package health, pull request checks |
+| [Application versions, VEX and component policies](releases-and-vex.md) | Releases with frozen SBOM and findings, component portfolio, OpenVEX and CycloneDX VEX export and import, component policies |
 | [Risk scoring and intelligence feeds](risk-intelligence.md) | Risk scores and model, EPSS, KEV, OSV and deps.dev feeds, CVE lookups |
 | [Reachability and related findings](vulnerability-intelligence.md) | Reachability and related findings |
 | [Posture](posture.md) | Posture rollups, coverage, unmanaged repositories, dependency graphs, blast radius, attack paths |

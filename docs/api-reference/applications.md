@@ -257,3 +257,7 @@ Cookie: __Host-pathos_session=<session-cookie>
 `GET /api/v1/repositories?owner=none` lists repositories without an application.
 
 Database entities: `repositories`.
+
+## Application versions
+
+Versions (releases) of an application, with frozen SBOM and findings snapshots and VEX export, are described in [Application versions, VEX and component policies](releases-and-vex.md#application-versions).

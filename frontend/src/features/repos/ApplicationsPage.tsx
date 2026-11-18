@@ -45,6 +45,15 @@ const columns: Column<Application>[] = [
     ),
     csv: (a) => a.repository_count,
   },
+  {
+    id: "versions",
+    header: "Versions",
+    cell: (a) => (
+      <Link to="/applications/$id/versions" params={{ id: a.id }} onClick={(e) => e.stopPropagation()} className="text-primary hover:underline">
+        Versions
+      </Link>
+    ),
+  },
 ];
 
 export function ApplicationsPage() {
