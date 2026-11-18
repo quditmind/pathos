@@ -4,6 +4,41 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-11-19
+
+Closes the remaining register capabilities (99 of 100 completed; multi-tenant stays out by decision) and adds the features other application security tools are known for.
+
+### Added
+- **Malware scanning of repository content**: the `clamav` scanner streams repository files to clamd over an isolated `malware` network (opt-in profile). Detections are critical `malware` findings with signature, SHA-256 and engine version; files clamd cannot scan are reported, never dropped.
+- **Licence findings**: licence policy violations from the SBOM and from file-level licences (built-in `licensecheck`) are `license` findings with lifecycle and SLA, re-evaluated when the policy changes, resolved and never deleted.
+- **Binary hardening** (`binary-hardening`): ELF, PE and Mach-O checks (PIE, RELRO, NX, stack canaries, FORTIFY_SOURCE, RPATH; ASLR, HIGH_ENTROPY_VA, DEP, CFG, SafeSEH, /GS) with compiler and linker remediation; always on for build artifacts.
+- **Framework configuration rules**: 27 Opengrep rules for Spring Boot, Django and Express in a new `misconfiguration` category.
+- **Declared endpoint verification**: opt-in, authorization-gated, rate-limited checks of a repository's public URLs, domains and IPs (DNS, reachability, TLS, HSTS, security headers, optional Nuclei exposure templates).
+- **End-of-life dates**: opt-in endoflife.date feed (offline file import) matched to SBOM components, declared runtimes, Dockerfile base images and image targets; `eol` findings with SLA.
+- **Introducing commit**: git blame of code findings records the commit and date (and the author name while developer attribution is on); push and merge scans store a change summary shown on the scan and sent with `findings.new`.
+- **Sigstore verification**: cosign verifies image and artifact signatures (key or keyless) and in-toto/SLSA attestations; "require signature" creates a `supply-chain` finding and fails the gate.
+- **25 import formats**: Semgrep, Snyk, SonarQube, ZAP, Burp, Trivy, Gitleaks, TruffleHog, Checkov, Bandit, gosec, ESLint, npm audit, pip-audit, OSV-Scanner, Dependency-Check, Nessus, OpenVAS, Nuclei, Checkmarx, generic CSV, plus SARIF, Grype and PATHOS JSON; explicit `format` or detection.
+- **`pathos` CLI and CI templates**: `import`, `scan`, `gate`, `findings` and `sbom export`, released for Linux, macOS and Windows with signed checksums; GitHub Action, GitLab, Azure Pipelines and Jenkins templates; `GET /api/v1/scans/{id}/gate`.
+- **Automatic fix pull requests** for vulnerable dependencies (pip requirements, Maven, Gradle, NuGet, npm without a lockfile) on GitHub, GitLab, Bitbucket and Azure DevOps, opt-in per repository; branches under `pathos/fix/` only; findings are resolved only by a later scan.
+- **VEX and application versions**: OpenVEX and CycloneDX VEX export; VEX import as suggestions that a second person approves; frozen application versions with portfolio search; component (SBOM) policies on age, outdated versions, licences and severity.
+- **Secret push protection**: pre-commit and pre-receive Gitleaks hooks, and push-event diff scanning for GitHub and GitLab with redacted `secret.pushed` alerts.
+- **Material change detection**: explainable rules for authentication and authorization, new endpoints, crypto, IaC exposure, CI/CD, secrets handling and PII fields between scans; `change.material` notifications and a security-policy condition.
+- **Developer insights**: who introduces and fixes findings, per developer and team, **off by default**; identity linking; turning it off erases the data. New permission `insights.people`.
+- **VS Code extension** (`ide/vscode`): findings as diagnostics and in a tree view, details, open in PATHOS, request review, change status; token kept in VS Code SecretStorage.
+- New finding categories: `malware`, `misconfiguration`, `binary`, `eol`, `supply-chain`.
+
+### Security
+- Repository-wide `.gitleaks.toml` allowlists only the files that hold fake test credentials; the pre-commit Docker hook pins Gitleaks by digest.
+- Fix pull requests never run repository code or package managers, and never write outside `pathos/fix/` branches.
+- Commit author names are stored only while developer attribution is on; e-mail addresses are never stored.
+
+### Known limits
+- Fix pull requests do not support Go, Cargo, Composer, Bundler or npm/yarn/pnpm projects with a lockfile, or transitive dependencies.
+- Push-event secret scanning alerts after the push (blocking needs the hooks) and supports GitHub and GitLab only.
+- Material changes and licence findings are computed for branch scans, not pull request scans; no AI summary of material changes.
+- Keyless signature verification is skipped offline; shallow clones record the introducing commit as unknown.
+- The VS Code extension, CI templates and pre-receive hook are tested in isolation, not yet against live services.
+
 ## [1.0.0] — 2026-11-19
 
 First stable release: the platform phases P1–P8 of 0.9.0 plus the ten ASPM phases (application security posture management), with the full documentation set reviewed against the code.

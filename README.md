@@ -4,7 +4,7 @@
 
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
-> **Status: 1.0.0 (stable).** The eight platform phases (P1–P8) and the ten ASPM phases are implemented and tested. Highlights:
+> **Status: 1.1.0 (stable).** The eight platform phases (P1–P8), the ten ASPM phases and the 1.1 gap closure are implemented and tested (99 of 100 register capabilities; multi-tenant is out by design). Highlights:
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
@@ -14,6 +14,7 @@
 > - Vulnerability lifecycle: SLAs, risk acceptance, security policies, compliance views, SBOM export and license policy.
 > - Supply chain: package health, malicious packages, pull request checks.
 > - Reporting and integrations: executive overview, scheduled reports, REST API tokens, webhooks (Slack, Teams), Jira and ServiceNow.
+> - 1.1: malware, licence, binary-hardening and framework-configuration scanning; endpoint verification, end-of-life dates, introducing commits and Sigstore verification; 25 import formats, the `pathos` CLI and CI templates; automatic fix pull requests; VEX and application versions; secret push protection; material change detection, opt-in developer insights and a VS Code extension.
 > - Production readiness: scheduling, notifications, rate limiting, backup, restore and upgrade, OpenTelemetry, S3 artifacts, offline (air-gapped) mode and security self-tests.
 >
 > See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) and [docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md](docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md) for the milestone reports.
