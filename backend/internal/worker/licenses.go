@@ -15,7 +15,8 @@ import (
 )
 
 const (
-	headerBytes      = 16 << 10 // SPDX tags and licence notices are in file headers
+	headerBytes      = 16 << 10 // SPDX tags are in file headers
+	noticeBytes      = 4 << 10  // licence notices are matched in the first 4 KiB
 	maxLicenseFile   = 1 << 20  // licence files are read whole up to this size
 	maxLicenseFiles  = 200000
 	maxLicenseBytes  = 1 << 30
@@ -134,6 +135,10 @@ func detectLicenses(rel string, text []byte, licenseText bool) []scanners.FileLi
 	}
 	if !licenseText && !noticeRe.Match(text) {
 		return out
+	}
+	if !licenseText {
+		// Notices in source files sit in the header comment.
+		text = text[:min(len(text), noticeBytes)]
 	}
 	cov := licensecheck.Scan(text)
 	if licenseText && cov.Percent < 10 {

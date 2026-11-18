@@ -145,7 +145,7 @@ func SyncLicenseFindings(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, repoID
 		WHERE f.decision IS NOT NULL
 		  -- an "OR" choice conflicts only if no alternative is allowed
 		  AND NOT EXISTS (SELECT 1 FROM unnest(f.alternatives) a WHERE pathos_license_decision($1, a) IS NULL)
-		LIMIT 200000`, orgID, repoID)
+		`, orgID, repoID)
 	if err != nil {
 		return 0, 0, err
 	}
