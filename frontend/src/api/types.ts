@@ -849,7 +849,7 @@ export interface ScanJob {
   scan_key: string;
   name: string;
   /** repository, or the kind of scan target the execution scanned. */
-  asset_type: "repository" | "image" | "url" | "api" | "sbom";
+  asset_type: "repository" | "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
   target_id?: string | null;
   target_name?: string | null;
   target_reference?: string | null;
@@ -870,6 +870,18 @@ export interface ScanJob {
   severity: Record<"critical" | "high" | "medium" | "low" | "info", number>;
   /** Immutable effective configuration (only on GET /scans/{id}). */
   config_snapshot?: ScanConfigSnapshot;
+  /** Push and merge scans: new and fixed findings since the previous scanned commit. */
+  change_summary?: ScanChangeSummary | null;
+}
+
+export interface ScanChangeSummary {
+  base_commit: string;
+  base_scan_id: string | null;
+  head_commit: string;
+  new: Partial<Record<Severity, number>>;
+  fixed: Partial<Record<Severity, number>>;
+  new_total: number;
+  fixed_total: number;
 }
 
 /** Read-only snapshot of the profile version used by an execution. */
@@ -1043,6 +1055,16 @@ export interface Finding {
   malicious?: boolean;
   /** Commit of the scan that first detected the finding. */
   introduced_commit?: string;
+  /**
+   * The commit that introduced the code (git blame of the scanned commit):
+   * known, shallow_clone (unknown: the repository is cloned without
+   * history), not_found (the line is not in the scanned commit) or "".
+   */
+  introduced_status?: "" | "known" | "shallow_clone" | "not_found";
+  introduced_commit_sha?: string;
+  /** Author name (e-mail addresses are not stored). */
+  introduced_author?: string;
+  introduced_at?: string | null;
   reachability?: "reachable" | "not_reachable" | "unknown";
   /** Why: e.g. "a dependency of express, which the code uses". */
   reachability_basis?: string;
@@ -1054,7 +1076,7 @@ export interface Finding {
   application_name?: string | null;
   /** Scan target (container image, web application, API, SBOM); null for the repository's code. */
   scan_target_id?: string | null;
-  scan_target_kind?: "image" | "url" | "api" | "sbom" | null;
+  scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | null;
   scan_target_name?: string | null;
   snippet?: string;
   snippet_start_line?: number | null;

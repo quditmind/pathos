@@ -1,5 +1,6 @@
 import { RelatedFindings } from "@/features/vuln/RelatedFindings";
 import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
+import { IntroducedBy } from "./IntroducedBy";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Bot, Search, ShieldCheck, X } from "lucide-react";
@@ -44,10 +45,11 @@ export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch
   return out;
 };
 
-const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", dast: "Web and API (DAST)", other: "Other" };
+const categoryLabel: Record<string, string> = { secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Container", license: "License", dast: "Web and API (DAST)", eol: "End of life", "supply-chain": "Supply chain (signatures)", other: "Other" };
 
 function location(f: Finding) {
   if ((f.category === "sca" || f.category === "container") && f.package_name) return `${f.package_name}@${f.package_version}`;
+  if (f.category === "eol" && f.package_name) return `${f.package_name} ${f.package_version}${f.file_path ? ` (${f.file_path})` : ""}`;
   return f.file_path ? `${f.file_path}${f.start_line ? `:${f.start_line}` : ""}` : "—";
 }
 
@@ -117,7 +119,7 @@ export function FindingsPage() {
     { key: "sort", label: "Order", options: [{ value: "", label: "Order by severity" }, { value: "risk", label: "Order by contextual risk" }] },
     { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
-    { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }, { value: "artifact", label: "Build artifacts" }] },
+    { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }, { value: "artifact", label: "Build artifacts" }, { value: "endpoints", label: "Declared public endpoints" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
     { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.repository_key ? `${r.full_name} · ${r.repository_key}` : r.full_name })) },
@@ -249,6 +251,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
                 <dd className="font-mono text-[12px]">{d.introduced_commit.slice(0, 12)}</dd>
               </div>
             )}
+            <IntroducedBy f={d} />
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
             {d.category === "sca" && d.reachability && (

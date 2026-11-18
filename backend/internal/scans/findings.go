@@ -334,7 +334,7 @@ func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 	case "":
 	case "repository":
 		where = append(where, "f.scan_target_id IS NULL")
-	case "image", "url", "api", "sbom":
+	case "image", "url", "api", "sbom", "artifact", "endpoints":
 		add("f.scan_target_id IN (SELECT id FROM scan_targets WHERE kind = ?)", v)
 	default:
 		return nil, nil, httpx.BadRequest("invalid target_kind")

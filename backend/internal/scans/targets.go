@@ -47,7 +47,7 @@ import (
 
 const secretKindTarget = "scan_target"
 
-var targetKinds = []string{"image", "url", "api", "sbom", "artifact"}
+var targetKinds = []string{"image", "url", "api", "sbom", "artifact", "endpoints"}
 
 func (s *Service) registerTargets(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/scan-targets", s.listTargets)
@@ -303,7 +303,7 @@ func (s *Service) listTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := q.Get("kind"); v != "" {
 		if !slices.Contains(targetKinds, v) {
-			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom or artifact"))
+			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom, artifact or endpoints"))
 			return
 		}
 		args = append(args, v)

@@ -6,6 +6,7 @@ import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
 import { Alert, Badge, EmptyState, Input, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { type DepComponent, type PathNode, relationLabel, useDependencyGraph } from "./api";
+import { EOLBadge } from "./EndOfLifePanel";
 
 export function relationOf(depth: number | null) {
   return depth == null ? "unknown" : depth === 0 ? "root" : depth === 1 ? "direct" : "transitive";
@@ -45,9 +46,14 @@ function Paths({ repoId, c }: { repoId: string; c: DepComponent }) {
 
 /** Package health from deps.dev: deprecated version, newer release, OpenSSF Scorecard. */
 function Health({ c }: { c: DepComponent }) {
-  if (!c.latest_version && c.scorecard == null && !c.provenance) return <span className="text-muted-foreground" title="Package health not fetched yet (deps.dev feed)">—</span>;
+  if (!c.latest_version && c.scorecard == null && !c.provenance && !c.eol_status) return <span className="text-muted-foreground" title="Package health not fetched yet (deps.dev feed)">—</span>;
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
+      {c.eol_status && c.eol_status !== "supported" && (
+        <span className="inline-flex items-center gap-1" title={c.eol_cycle}>
+          <EOLBadge status={c.eol_status} date={c.eol_date} />
+        </span>
+      )}
       {c.deprecated && <Badge tone="danger">Deprecated</Badge>}
       {c.outdated ? <span title="Latest release">latest {c.latest_version}</span> : c.latest_version && <span className="text-muted-foreground">Up to date</span>}
       {c.scorecard != null && <span className="text-muted-foreground" title="OpenSSF Scorecard of the source repository (0–10)">· Scorecard {c.scorecard.toFixed(1)}</span>}
@@ -69,7 +75,7 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
     const t = q.trim().toLowerCase();
     return (g.data?.components ?? []).filter(
       (c) => (!t || c.name.toLowerCase().includes(t)) && (!rel || relationOf(c.depth) === rel) && (!vulnOnly || c.open_vulnerabilities > 0) &&
-        (!health || (health === "outdated" ? c.outdated : c.deprecated)),
+        (!health || (health === "outdated" ? c.outdated : health === "eol" ? c.eol_status === "eol" || c.eol_status === "approaching" : c.deprecated)),
     );
   }, [g.data, q, rel, vulnOnly, health]);
   if (g.isError) return <Alert>{g.error.message}</Alert>;
@@ -108,6 +114,7 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
           <option value="">Any health</option>
           <option value="outdated">Outdated</option>
           <option value="deprecated">Deprecated version</option>
+          <option value="eol">End of life (or within six months)</option>
         </Select>
         <label className="flex items-center gap-1.5 text-[12.5px]">
           <input type="checkbox" className="accent-[var(--primary)]" checked={vulnOnly} onChange={(e) => setVulnOnly(e.target.checked)} /> Vulnerable only
