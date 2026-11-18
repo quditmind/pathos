@@ -1,0 +1,29 @@
+{
+  "actions": [],
+  "advisories": {
+    "1523": {
+      "findings": [
+        { "version": "4.17.15", "paths": ["lodash"] },
+        { "version": "4.17.11", "paths": ["webpack>lodash"] }
+      ],
+      "id": 1523,
+      "title": "Prototype Pollution",
+      "module_name": "lodash",
+      "cves": ["CVE-2019-10744"],
+      "vulnerable_versions": "<4.17.19",
+      "patched_versions": ">=4.17.19",
+      "overview": "Versions of lodash prior to 4.17.19 are vulnerable to Prototype Pollution.",
+      "cwe": "CWE-471",
+      "severity": "low",
+      "url": "https://npmjs.com/advisories/1523",
+      "github_advisory_id": "GHSA-p6mc-m468-83gw"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": { "info": 0, "low": 2, "moderate": 0, "high": 0, "critical": 0 },
+    "dependencies": 512,
+    "totalDependencies": 512
+  },
+  "runId": "00000000-0000-4000-8000-000000000001"
+}

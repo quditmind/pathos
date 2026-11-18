@@ -63,47 +63,6 @@ func Resolve(key string) (Scanner, bool) {
 	return Scanner{Key: key, Name: m[2] + " (imported)", Category: m[1], Decision: "use", Family: "import", OutputFormat: "sarif"}, true
 }
 
-// importFormat detects the format of an imported report: sarif, grype or
-// pathos (the generic JSON format below).
-func importFormat(raw []byte) string {
-	var probe struct {
-		Runs     json.RawMessage `json:"runs"`
-		Matches  json.RawMessage `json:"matches"`
-		Findings json.RawMessage `json:"findings"`
-	}
-	if json.Unmarshal(bytes.TrimSpace(raw), &probe) != nil {
-		return ""
-	}
-	switch {
-	case probe.Runs != nil:
-		return "sarif"
-	case probe.Matches != nil:
-		return "grype"
-	case probe.Findings != nil:
-		return "pathos"
-	}
-	return ""
-}
-
-// DetectImportFormat is importFormat for callers outside the package.
-func DetectImportFormat(raw []byte) string { return importFormat(raw) }
-
-func parseImported(key string, raw []byte) ([]Finding, error) {
-	switch importFormat(raw) {
-	case "sarif":
-		return ParseSARIF(key, raw)
-	case "grype":
-		fs, err := ParseGrypeJSON(raw)
-		for i := range fs {
-			fs[i].ScannerKey = key
-		}
-		return fs, err
-	case "pathos":
-		return parseGeneric(key, raw)
-	}
-	return nil, errors.New("unrecognised report: expected SARIF 2.1, Grype JSON or PATHOS findings JSON")
-}
-
 // GenericReport is the PATHOS findings JSON format for tools without SARIF
 // output (docs/api-reference/imports.md#pathos-findings-json).
 type GenericReport struct {

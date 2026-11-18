@@ -55,69 +55,99 @@ func ParseNucleiJSONL(raw []byte) ([]Finding, error) {
 		if len(out) >= MaxFindingsPerReport {
 			return out, errors.New("report truncated: too many findings")
 		}
-		var r nucleiResult
-		if err := json.Unmarshal(b, &r); err != nil {
-			return out, fmt.Errorf("nuclei: line %d: invalid JSON: %w", line, err)
+		f, snip, err := nucleiFinding(b, line)
+		if err != nil {
+			return out, err
 		}
-		if r.TemplateID == "" {
-			return out, fmt.Errorf("nuclei: line %d: missing template-id", line)
-		}
-		f := Finding{ScannerKey: Nuclei, Category: "dast", RuleID: truncate(r.TemplateID, 300)}
-		f.Title = firstNonEmpty(r.Info.Name, r.TemplateID)
-		if r.MatcherName != "" {
-			f.Title += " (" + r.MatcherName + ")"
-		}
-		if r.FuzzingParameter != "" {
-			f.Title += fmt.Sprintf(" in %s parameter %q", firstNonEmpty(r.FuzzingPosition, "request"), r.FuzzingParameter)
-		}
-		f.Title = truncate(logging.RedactString(f.Title), 300)
-		desc := strings.TrimSpace(r.Info.Description)
-		if r.Info.Remediation != "" {
-			desc += "\n\nRemediation: " + strings.TrimSpace(r.Info.Remediation)
-		}
-		if len(r.Extracted) > 0 {
-			desc += "\n\nExtracted: " + strings.Join(r.Extracted[:min(len(r.Extracted), 10)], ", ")
-		}
-		f.Description = truncate(logging.RedactString(strings.TrimSpace(desc)), 4000)
-		f.FilePath = locationOf("", firstNonEmpty(r.MatchedAt, r.URL, r.Host))
-		switch s := strings.ToLower(r.Info.Severity); s {
-		case "critical", "high", "medium", "low", "info":
-			f.Severity = s
-		default:
-			f.Severity = "info"
-			if r.Info.Classification.CVSSScore > 0 {
-				f.Severity = FromScore(r.Info.Classification.CVSSScore)
-			}
-		}
-		for _, c := range r.Info.Classification.CWEID {
-			if m := firstMatch(cweRe, c); m != "" {
-				f.CWE = append(f.CWE, "CWE-"+m)
-			}
-		}
-		for _, c := range r.Info.Classification.CVEID {
-			if m := firstMatch(cveRe, c); m != "" {
-				f.CVE = m
-				break
-			}
-		}
-		if r.Info.Classification.CVSSScore > 0 {
-			score := r.Info.Classification.CVSSScore
-			f.CVSS = &score
-		}
-		if v := r.Info.Classification.CVSSMetrics; vectorVersion(v) != "" && len(v) <= 300 {
-			f.CVSSVector, f.CVSSVersion = v, vectorVersion(v)
-		}
-		// A matched template is a confirmed response pattern; informational
-		// fingerprinting is not evidence of a weakness.
-		f.Confidence = "medium"
-		if f.Severity == "info" {
-			f.Confidence = "low"
-		}
-		f.Fingerprint = Fingerprint(f, hashOf(r.MatcherName+"|"+r.FuzzingPosition+"|"+r.FuzzingParameter))
+		f.ScannerKey = Nuclei
+		f.Fingerprint = Fingerprint(f, snip)
 		out = append(out, f)
 	}
 	if err := sc.Err(); err != nil {
 		return out, fmt.Errorf("nuclei: %w", err)
 	}
 	return out, nil
+}
+
+// nucleiFinding normalises one Nuclei result line (without key and
+// fingerprint) and returns its identity beyond template and URL.
+func nucleiFinding(b []byte, line int) (Finding, string, error) {
+	var r nucleiResult
+	if err := json.Unmarshal(b, &r); err != nil {
+		return Finding{}, "", fmt.Errorf("nuclei: line %d: invalid JSON: %w", line, err)
+	}
+	if r.TemplateID == "" {
+		return Finding{}, "", fmt.Errorf("nuclei: line %d: missing template-id", line)
+	}
+	f := Finding{Category: "dast", RuleID: truncate(r.TemplateID, 300)}
+	f.Title = firstNonEmpty(r.Info.Name, r.TemplateID)
+	if r.MatcherName != "" {
+		f.Title += " (" + r.MatcherName + ")"
+	}
+	if r.FuzzingParameter != "" {
+		f.Title += fmt.Sprintf(" in %s parameter %q", firstNonEmpty(r.FuzzingPosition, "request"), r.FuzzingParameter)
+	}
+	f.Title = truncate(logging.RedactString(f.Title), 300)
+	desc := strings.TrimSpace(r.Info.Description)
+	if r.Info.Remediation != "" {
+		desc += "\n\nRemediation: " + strings.TrimSpace(r.Info.Remediation)
+	}
+	if len(r.Extracted) > 0 {
+		desc += "\n\nExtracted: " + strings.Join(r.Extracted[:min(len(r.Extracted), 10)], ", ")
+	}
+	f.Description = truncate(logging.RedactString(strings.TrimSpace(desc)), 4000)
+	f.FilePath = locationOf("", firstNonEmpty(r.MatchedAt, r.URL, r.Host))
+	switch s := strings.ToLower(r.Info.Severity); s {
+	case "critical", "high", "medium", "low", "info":
+		f.Severity = s
+	default:
+		f.Severity = "info"
+		if r.Info.Classification.CVSSScore > 0 {
+			f.Severity = FromScore(r.Info.Classification.CVSSScore)
+		}
+	}
+	for _, c := range r.Info.Classification.CWEID {
+		if m := firstMatch(cweRe, c); m != "" {
+			f.CWE = append(f.CWE, "CWE-"+m)
+		}
+	}
+	for _, c := range r.Info.Classification.CVEID {
+		if m := firstMatch(cveRe, c); m != "" {
+			f.CVE = m
+			break
+		}
+	}
+	if r.Info.Classification.CVSSScore > 0 {
+		score := r.Info.Classification.CVSSScore
+		f.CVSS = &score
+	}
+	if v := r.Info.Classification.CVSSMetrics; vectorVersion(v) != "" && len(v) <= 300 {
+		f.CVSSVector, f.CVSSVersion = v, vectorVersion(v)
+	}
+	// A matched template is a confirmed response pattern; informational
+	// fingerprinting is not evidence of a weakness.
+	f.Confidence = "medium"
+	if f.Severity == "info" {
+		f.Confidence = "low"
+	}
+	return f, hashOf(r.MatcherName + "|" + r.FuzzingPosition + "|" + r.FuzzingParameter), nil
+}
+
+func init() {
+	registerImportFormat(ImportFormat{ID: "nuclei", Label: "Nuclei JSON Lines", Category: "dast", Media: "jsonl", Order: 60,
+		match: func(p *importProbe) bool {
+			return (p.kind == "jsonl" || p.kind == "object") && p.has("template-id") && p.hasAny("info", "matched-at", "host")
+		},
+		parse: func(raw []byte) ([]importRecord, error) {
+			var out []importRecord
+			err := jsonLines(raw, func(n int, line []byte) error {
+				f, snip, err := nucleiFinding(line, n)
+				if err != nil {
+					return err
+				}
+				out = append(out, importRecord{F: f, SnippetKey: snip, Raw: append(json.RawMessage(nil), line...)})
+				return nil
+			})
+			return out, err
+		}})
 }

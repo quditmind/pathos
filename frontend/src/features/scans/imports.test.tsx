@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { mockApi, renderApp } from "@/test/harness";
 import { ImportResultsPage } from "./ImportResultsPage";
 import { CustomRulesPage } from "./CustomRulesPage";
@@ -25,6 +25,47 @@ describe("import results", () => {
     expect(screen.getByText("QD-SCAN-000042")).toBeInTheDocument();
     expect(screen.getByText(/Failed: unrecognised SBOM/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Import results/ })).toBeDisabled();
+  });
+
+  it("imports with a selected format; the tool defaults to the format's tool", async () => {
+    const api = mockApi({
+      "GET /api/v1/imports/history": () => ({ items: [] }),
+      "GET /api/v1/imports/formats": () => ({
+        results: [
+          { id: "sarif", label: "SARIF 2.1", tool: "", category: "", media: "sarif" },
+          { id: "trivy", label: "Trivy JSON (fs, image, config)", tool: "Trivy", category: "", media: "json" },
+          { id: "gitleaks", label: "Gitleaks JSON", tool: "Gitleaks", category: "secrets", media: "json" },
+        ],
+      }),
+      "GET /api/v1/repositories": () => ({ items: [{ id: "r1", full_name: "acme/api", repository_key: "QD-REPO-000001" }] }),
+      "POST /api/v1/imports/results": () => ({ id: "i9", kind: "results", format: "gitleaks", tool: "Gitleaks", category: "secrets", repository_id: "r1",
+        repository_name: "acme/api", scan_job_id: "j9", scan_key: "QD-SCAN-000009", file_name: "leaks.json", sha256: "z", size_bytes: 2, commit_sha: "",
+        resolve_missing: true, status: "succeeded", records: 0, error: "", created_by: "Ada", created_at: "2026-11-19T10:00:00Z" }),
+    });
+    renderApp(<ImportResultsPage />, { permissions: ["scans.read", "scans.run"] });
+    const formatSelect = await screen.findByLabelText("Format");
+    await waitFor(() => expect(screen.getByRole("option", { name: "Gitleaks JSON" })).toBeInTheDocument());
+    // Generic formats need a tool name.
+    fireEvent.change(formatSelect, { target: { value: "sarif" } });
+    expect(screen.getByLabelText(/Tool that produced the results/)).toHaveAttribute("placeholder", "e.g. Snyk Code, Burp Suite, Contrast");
+    fireEvent.change(formatSelect, { target: { value: "gitleaks" } });
+    expect(screen.getByLabelText(/Tool that produced the results/)).toHaveAttribute("placeholder", "default: Gitleaks");
+    expect(screen.getByRole("option", { name: "Default (Secrets)" })).toBeInTheDocument();
+    const form = within(formatSelect.closest("form")!);
+    fireEvent.click(form.getByRole("combobox", { name: "Filter by repository" }));
+    fireEvent.click(await screen.findByRole("option", { name: /acme\/api/ }));
+    fireEvent.change(screen.getByLabelText(/^Report/), { target: { files: [new File(["[]"], "leaks.json", { type: "application/json" })] } });
+    fireEvent.click(screen.getByRole("checkbox"));
+    const submit = screen.getByRole("button", { name: /Import results/ });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.click(submit);
+    expect(await screen.findByText(/Imported 0 findings \(Gitleaks JSON\)/)).toBeInTheDocument();
+    const body = api.calls.find((c) => c.method === "POST")!.body as FormData;
+    expect(body.get("format")).toBe("gitleaks");
+    expect(body.get("repository_id")).toBe("r1");
+    expect(body.get("resolve_missing")).toBe("true");
+    expect(body.has("tool")).toBe(false);
+    expect(body.has("category")).toBe(false);
   });
 
   it("is read-only without scans.run", async () => {

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SnykCode",
+          "semanticVersion": "1.0.0",
+          "version": "1.0.0",
+          "rules": [
+            {
+              "id": "javascript/DOMXSS",
+              "name": "DOMXSS",
+              "shortDescription": { "text": "Cross-site Scripting (XSS)" },
+              "defaultConfiguration": { "level": "error" },
+              "help": { "markdown": "", "text": "" },
+              "properties": {
+                "tags": ["javascript", "DOMXSS", "Security", "SourceLocalStorage"],
+                "categories": ["Security"],
+                "exampleCommitFixes": [],
+                "precision": "very-high",
+                "repoDatasetSize": 211,
+                "cwe": ["CWE-79"]
+              }
+            },
+            {
+              "id": "javascript/HardcodedNonCryptoSecret",
+              "name": "HardcodedNonCryptoSecret",
+              "shortDescription": { "text": "Hardcoded Secret" },
+              "defaultConfiguration": { "level": "note" },
+              "properties": { "tags": ["javascript"], "precision": "very-high", "cwe": ["CWE-547"] }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "javascript/DOMXSS",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "Unsanitized input from the URL flows into innerHTML, where it is used to dynamically construct the HTML page on client side.",
+            "markdown": "Unsanitized input from {0} {1} into {2}, where it is used to dynamically construct the HTML page on client side.",
+            "arguments": ["[the URL](0)", "[flows](1)", "[innerHTML](2)"]
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/components/Banner.js", "uriBaseId": "%SRCROOT%" },
+                "region": { "startLine": 27, "endLine": 27, "startColumn": 5, "endColumn": 33 }
+              }
+            }
+          ],
+          "fingerprints": { "0": "a1f3c9e0b7d2", "1": "4c1d2e3f.4c1d2e3f.4c1d2e3f" },
+          "properties": { "priorityScore": 802, "priorityScoreFactors": [{ "label": true, "type": "hotFileSource" }] }
+        },
+        {
+          "ruleId": "javascript/HardcodedNonCryptoSecret",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": { "text": "Avoid hardcoding values that are meant to be secret." },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": { "uri": "src/config.js" },
+                "region": { "startLine": 4, "endLine": 4 }
+              }
+            }
+          ],
+          "fingerprints": { "0": "9e8d7c6b5a40" },
+          "properties": { "priorityScore": 401 }
+        }
+      ],
+      "properties": { "coverage": [{ "files": 12, "isSupported": true, "lang": "JavaScript" }] }
+    }
+  ]
+}

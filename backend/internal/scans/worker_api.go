@@ -417,6 +417,9 @@ type ResultUpload struct {
 	ContentType string `json:"content_type"`
 	// OutputGzip is the gzip-compressed raw tool output, base64 encoded.
 	OutputGzip string `json:"output_gzip"`
+	// Format is the import format of an imported report (never set by
+	// workers).
+	Format string `json:"-"`
 }
 
 const maxResultBody = 96 << 20
