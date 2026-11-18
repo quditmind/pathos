@@ -21,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"pathos/internal/ai"
 	"pathos/internal/material"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
@@ -158,7 +159,7 @@ func StoreChanges(ctx context.Context, pool *pgxpool.Pool, orgID, jobID uuid.UUI
 				ct = ""
 			}
 			rows = append(rows, []any{orgID, repoID, jobID, c.Category, clip(c.RuleID, 100), level, clip(c.FilePath, 1000), ct, side, start, end,
-				max(c.MatchCount, 1), clip(logging.RedactString(c.Snippet), 1000), clip(c.Explanation, 2000), clip(c.Detail, 500),
+				max(c.MatchCount, 1), clip(ai.Redact(c.Snippet, nil), 1000), clip(c.Explanation, 2000), clip(c.Detail, 500),
 				clip(authorOf[c.FilePath], 200)})
 		}
 		if len(rows) > 0 {

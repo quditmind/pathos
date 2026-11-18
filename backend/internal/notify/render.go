@@ -251,7 +251,7 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		rows.Close()
 		d.Count = payloadInt(p, "count")
 		d.More = max(d.Count-len(d.Findings), 0)
-		d.Link = baseURL + "/scans?job=" + d.Scan.ID + "&tab=material"
+		d.Link = baseURL + "/scans/" + d.Scan.ID + "?tab=material"
 	case "finding.sla_breached", "policy.violated":
 		if ev.Key == "policy.violated" {
 			d.Policy, _ = p["policy_name"].(string)
