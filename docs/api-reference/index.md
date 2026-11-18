@@ -33,7 +33,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Scan schedules](schedules.md) | Schedules with execution plans, scan windows, retries and run history |
 | [Scanners, scan profiles and custom rules](scan-configuration.md) | Scanner catalog, versioned scan profiles, custom Opengrep rules |
 | [Scan targets](scan-targets.md) | Container images, web applications, APIs, build artifacts and SBOMs |
-| [Result and SBOM imports](result-imports.md) | Import SARIF, Grype or PATHOS JSON results and CycloneDX or SPDX SBOMs |
+| [Result and SBOM imports](result-imports.md) | Import results in 25 formats (SARIF, Semgrep, Snyk, SonarQube, ZAP, Burp, Trivy, Nessus, CSV, ...) and CycloneDX or SPDX SBOMs; the `pathos` CLI and CI templates are described in [CI/CD integration](../user-guide/ci-cd-integration.md) |
 | [Supply chain and pull request checks](supply-chain.md) | SBOM inventory and export, licence policies, package health, pull request checks |
 | [Risk scoring and intelligence feeds](risk-intelligence.md) | Risk scores and model, EPSS, KEV, OSV and deps.dev feeds, CVE lookups |
 | [Reachability and related findings](vulnerability-intelligence.md) | Reachability and related findings |

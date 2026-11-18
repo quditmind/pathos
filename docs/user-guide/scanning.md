@@ -198,11 +198,13 @@ Scans send real requests, at most the configured rate (default 20 per second). T
 
 **Scanning → Import Results** brings in findings from tools PATHOS does not run: other SAST or SCA products, DAST and IAST tools, fuzzers, or your CI pipeline. Importing needs `scans.run` on the repository.
 
-1. Choose **Scanner results**, the repository, give the tool a name and pick a category. Optionally enter the **Branch** and **Commit SHA** the report belongs to.
-2. Upload the report. PATHOS accepts SARIF 2.1, Grype JSON, and the PATHOS findings JSON format (see [Result imports](../api-reference/result-imports.md)) for tools without SARIF.
+1. Choose **Scanner results** and the repository. Leave **Format** on *Detect from the file* or pick the tool's format; tool-specific formats fill in the tool name and category, generic ones (SARIF, PATHOS findings JSON, CSV) need the **Tool** name. Optionally enter the **Branch** and **Commit SHA** the report belongs to.
+2. Upload the report. PATHOS reads SARIF 2.1 and the native output of Semgrep, Snyk, SonarQube, OWASP ZAP, Burp Suite, Trivy, Gitleaks, TruffleHog, Checkov, Bandit, Gosec, ESLint, npm audit, pip-audit, OSV-Scanner, Grype, Nessus, OpenVAS, Nuclei, Dependency-Check and Checkmarx, plus a generic CSV and the PATHOS findings JSON ([supported formats](../api-reference/result-imports.md#supported-formats)). Secret values in Gitleaks, TruffleHog and Trivy reports are removed before the report is stored.
 3. If the file is the tool's complete result, tick **This file is the tool's complete result**. Findings the tool no longer reports are then marked fixed. Partial results never close anything.
 
 Each import appears as a scan execution. Its findings are de-duplicated, risk-scored and reviewable like any other, and they keep the tool's name.
+
+To import from a build pipeline, use the [`pathos` CLI and the CI templates](ci-cd-integration.md).
 
 The same page imports a **Software bill of materials** (CycloneDX or SPDX JSON). An imported SBOM replaces the repository's component inventory, and license policies apply immediately. **Import history** on the page lists earlier imports with their execution.
 
