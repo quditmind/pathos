@@ -1,7 +1,7 @@
 ---
 title: Supply chain and pull requests
 section: user-guide
-order: 17
+order: 18
 version: "1.0"
 updated: 2026-11-19
 summary: Export SBOMs, check package health, end-of-life dates and provenance, verify Sigstore signatures, spot malicious packages, scan build artifacts, check pull requests before they merge and open fix pull requests for vulnerable dependencies.

@@ -1,7 +1,7 @@
 ---
 title: IDE integration (VS Code)
 section: user-guide
-order: 23
+order: 24
 version: "1.0"
 updated: 2026-11-19
 summary: The PATHOS extension for Visual Studio Code: installation, API token, repository detection, findings in the Problems panel and the Findings view, details, triage actions, privacy and troubleshooting.

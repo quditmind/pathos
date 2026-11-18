@@ -1,7 +1,7 @@
 ---
 title: AI features
 section: user-guide
-order: 20
+order: 25
 version: "1.0"
 updated: 2026-11-19
 summary: AI providers, automated AI reviews of findings and their approval, reviewing findings from your own AI assistant over MCP, the MCP registry, the AI Security Analyst, AI reports and AI usage.

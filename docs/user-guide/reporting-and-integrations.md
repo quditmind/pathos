@@ -1,7 +1,7 @@
 ---
 title: Integrations and API tokens
 section: user-guide
-order: 19
+order: 22
 version: "1.0"
 updated: 2026-11-19
 summary: Webhooks to Slack, Teams or a SIEM, Jira and ServiceNow tickets, and personal REST API and MCP tokens.

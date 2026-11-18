@@ -1,7 +1,7 @@
 ---
 title: Security policies and compliance
 section: user-guide
-order: 18
+order: 21
 version: "1.0"
 updated: 2026-11-19
 summary: Remediation SLAs, the license policy, security policies that block risky changes, require reviews and tighten deadlines, and open findings against OWASP, PCI DSS, ISO 27001 and SOC 2 controls.

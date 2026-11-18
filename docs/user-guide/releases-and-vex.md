@@ -1,7 +1,7 @@
 ---
 title: Application versions, VEX and component policies
 section: user-guide
-order: 18
+order: 19
 version: "1.1"
 updated: 2026-11-19
 summary: Record application releases with their SBOM and findings, find which versions contain a vulnerable component, exchange VEX statements with suppliers and customers, and set component policies.

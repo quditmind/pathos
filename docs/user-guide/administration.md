@@ -1,7 +1,7 @@
 ---
 title: Administration
 section: user-guide
-order: 21
+order: 26
 version: "1.0"
 updated: 2026-11-19
 summary: Users and roles, organization structure, notifications (rules, e-mail, templates, in-app), scanners and workers, the audit log, and where every other administration page is described.

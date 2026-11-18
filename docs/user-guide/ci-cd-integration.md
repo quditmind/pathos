@@ -1,7 +1,7 @@
 ---
 title: CI/CD integration
 section: user-guide
-order: 19.5
+order: 23
 version: "1.1"
 updated: 2026-11-19
 summary: Use the pathos CLI and the GitHub Action, GitLab CI, Azure Pipelines and Jenkins templates to import results, start scans and fail builds on the PATHOS security gate.

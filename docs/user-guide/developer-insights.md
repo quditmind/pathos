@@ -1,7 +1,7 @@
 ---
 title: Material changes and developer insights
 section: user-guide
-order: 24
+order: 17
 version: "1.0"
 updated: 2026-11-19
 summary: Security-material change detection between scanned commits (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data), the change.material notification and policy condition, and opt-in developer attribution with its privacy controls.

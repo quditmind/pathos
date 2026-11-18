@@ -1,7 +1,7 @@
 ---
 title: Troubleshooting and FAQ
 section: user-guide
-order: 22
+order: 27
 version: "1.0"
 updated: 2026-11-19
 summary: Answers to common questions and problems with sign-in, repository import, connections, metadata, scanning, findings and notifications.

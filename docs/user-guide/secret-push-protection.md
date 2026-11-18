@@ -1,7 +1,7 @@
 ---
 title: Secret push protection
 section: user-guide
-order: 17
+order: 20
 version: "1.1"
 updated: 2026-11-19
 summary: Keep secrets out of Git with a pre-commit hook, a server-side pre-receive hook and PATHOS push-event scanning that alerts on secrets in pushed commits.
