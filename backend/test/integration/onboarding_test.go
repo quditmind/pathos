@@ -166,6 +166,10 @@ func TestOnboardingSCMImport(t *testing.T) {
 		t.Fatalf("connection: %d %v", code, conn)
 	}
 	connID := id(conn, "id")
+	// Re-syncing a connection that does not exist is a 404, not a provider error.
+	if code, res := o.do(admin, "POST", "/api/v1/scm-connections/0190c0de-0000-7000-8000-00000000dead/resync", nil); code != 404 {
+		t.Errorf("resync of unknown connection: %d %v", code, res)
+	}
 
 	// Settings and catalogs.
 	code, settings := o.do(admin, "GET", "/api/v1/asset-settings", nil)
@@ -348,6 +352,12 @@ func TestOnboardingSCMImport(t *testing.T) {
 	}
 	if code, _ := o.do(techOwner, "PATCH", "/api/v1/repositories/"+repoID, map[string]any{"business_unit_id": nil}); code != 403 {
 		t.Errorf("owner must not move placement: %d", code)
+	}
+	// Scan settings, technologies included, need repos.manage.
+	for _, body := range []map[string]any{{"technologies": []string{"Go"}}, {"scan_branch": "main"}, {"scan_enabled": false}} {
+		if code, _ := o.do(techOwner, "PATCH", "/api/v1/repositories/"+repoID, body); code != 403 {
+			t.Errorf("owner must not change scan settings %v: %d", body, code)
+		}
 	}
 	if code, res := o.do(admin, "PATCH", "/api/v1/repositories/"+repoID, map[string]any{"business_owner_id": nil}); code != 422 {
 		t.Errorf("required business owner cannot be cleared: %d %v", code, res)

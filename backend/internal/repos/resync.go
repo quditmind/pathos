@@ -144,7 +144,8 @@ func (s *Service) resyncConnection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	res, err := s.Resync(ctx, p.OrganizationID, id)
-	if errors.Is(err, pgx.ErrNoRows) {
+	// getConn maps a missing (or archived) connection to errNotFound.
+	if errors.Is(err, errNotFound) || errors.Is(err, pgx.ErrNoRows) {
 		s.fail(w, r, errNotFound)
 		return
 	}

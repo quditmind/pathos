@@ -738,7 +738,9 @@ func (s *Service) updateRepository(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if req.ScanEnabled != nil || req.ScanBranch != nil || req.FullHistory != nil {
+		// Scan settings, including the technologies that steer scanning and
+		// AI review context, stay with repository managers.
+		if req.ScanEnabled != nil || req.ScanBranch != nil || req.FullHistory != nil || req.Technologies != nil {
 			s.fail(w, r, httpx.E(http.StatusForbidden, "forbidden", "scan settings require repos.manage for this repository"))
 			return
 		}
