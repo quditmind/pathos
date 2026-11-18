@@ -5,6 +5,7 @@ import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Bot, Search, ShieldCheck, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { FindingTickets } from "@/features/integrations/IntegrationsPage";
+import { FindingFixPR } from "@/features/fixprs/FixPRPanel";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session";
@@ -269,6 +270,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
           </dl>
           <FindingPolicies findingId={d.id} />
           <FindingTickets findingId={d.id} />
+          {!d.scan_target_id && <FindingFixPR findingId={d.id} category={d.category} />}
           <RelatedFindings findingId={d.id} />
           {d.snippet && (
             <div>

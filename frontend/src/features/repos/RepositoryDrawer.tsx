@@ -17,6 +17,8 @@ import { MetadataSection } from "./metadata/MetadataSections";
 import { MetadataSummary } from "./metadata/MetadataSummary";
 import { clientErrors, diffMetadata, draftFromRepository, sectionForKey, sections, type MetadataDraft } from "./metadata/model";
 import { PublicExposureBadge, RepositoryKey } from "./badges";
+import { FixPRSettingsPanel } from "@/features/fixprs/FixPRPanel";
+import { PushProtectionPanel } from "./PushProtectionPanel";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
 
@@ -110,6 +112,8 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {tab === "details" && <DetailsPanel key={r.id} r={r} onDeleted={onClose} />}
             {tab === "source" && <SourcePanel r={r} />}
             {tab === "security" && <SecurityPanel r={r} />}
+            {tab === "security" && <PushProtectionPanel r={r} />}
+            {tab === "security" && <FixPRSettingsPanel r={r} />}
             {tab === "dependencies" && <DependencyPanel repoId={r.id} />}
           </div>
         </div>

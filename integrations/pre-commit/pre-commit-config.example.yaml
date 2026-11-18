@@ -1,0 +1,15 @@
+# Example .pre-commit-config.yaml for a repository scanned by PATHOS.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+#
+# 1. Copy pathos-gitleaks.toml to the repository root as .gitleaks.toml.
+# 2. Copy this file to the repository root as .pre-commit-config.yaml.
+# 3. Run `pre-commit install` once per clone.
+#
+# The upstream Gitleaks hook is pinned to the version the PATHOS worker image
+# runs; pre-commit builds it from source with Go (integrity: Go checksum
+# database). Gitleaks reads .gitleaks.toml automatically.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks

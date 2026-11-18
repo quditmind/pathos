@@ -4,7 +4,7 @@ section: user-guide
 order: 17
 version: "1.0"
 updated: 2026-11-19
-summary: Export SBOMs, check package health and provenance, spot malicious packages, scan build artifacts and check pull requests before they merge.
+summary: Export SBOMs, check package health and provenance, spot malicious packages, scan build artifacts, check pull requests before they merge and open fix pull requests for vulnerable dependencies.
 ---
 # Supply chain and pull requests
 
@@ -41,3 +41,27 @@ When a pull request is opened or updated, PATHOS scans its head with the reposit
 Only what the pull request **introduces** counts. Findings already known on the scan branch (open, accepted as a risk or marked false positive) are listed separately and never block it. Pull request scans never change the repository's findings.
 
 Open a check to see the new findings and the known ones, the scan execution, and whether the status reached the provider. **Post status again** retries a status that could not be posted. Pull requests from forks are not checked.
+
+## Fix pull requests
+
+For a vulnerable dependency with a known fixed version, PATHOS can open a pull request (merge request on GitLab) that upgrades it. This works on GitHub, GitLab, Bitbucket Cloud and Azure DevOps, for repositories imported from an SCM connection.
+
+1. Open the repository, go to the **Security** tab and, under **Fix pull requests**, select **Allow fix pull requests**. Choose the grouping: **one PR per package** (every open finding of that package version is fixed by one upgrade) or **one PR per finding**. Save. You need *repos.manage* on the repository.
+2. The repository's SCM connection must be allowed to write: GitHub *Contents: write* and *Pull requests: write*, GitLab Developer role with the `api` scope, Bitbucket *Repositories: write* and *Pull requests: write*, Azure DevOps *Code (read & write)*. If it cannot, the request fails with a message that says so.
+3. Open a dependency finding. The **Fix pull request** box shows the version PATHOS proposes; you may type another target version or change the grouping, then select **Open fix PR**. You need both *findings.triage* and *repos.manage* on the repository.
+
+A worker clones the scan branch and edits the manifest as text; no package manager, build or code from the repository runs. PATHOS then creates a branch named `pathos/fix/…`, commits the edited files and opens the pull request against the scan branch. It never pushes to the default branch or any other existing branch. The box follows the request (queued, editing, opening, open) and links to the pull request; the refresh button reads its state from the SCM, which PATHOS also does every 15 minutes.
+
+**Merging does not close the finding.** It is marked fixed when the next scan of the branch no longer detects the vulnerability, so a fix that does not actually remove the vulnerable version stays visible.
+
+What PATHOS can edit:
+
+| Ecosystem | Supported | Not supported (the box says why) |
+|---|---|---|
+| Python | `requirements*.txt` and `constraints*.txt` (the package is pinned) | Files with `--hash` lines; Pipfile, Poetry and uv lockfiles |
+| Java (Maven, Gradle) | `pom.xml` versions and properties; Gradle build files and version catalogs | Versions from a parent POM or BOM outside the repository; Gradle dependency locking |
+| .NET (NuGet) | Project files and `Directory.Packages.props` | Projects with `packages.lock.json` |
+| JavaScript (npm) | `package.json` when the project has no lockfile | Projects with `package-lock.json`, `yarn.lock` or `pnpm-lock.yaml`: the lockfile must be regenerated with the package manager, which PATHOS does not run |
+| Go, Rust, PHP, Ruby | — | `go.sum`, `Cargo.lock`, `composer.lock` and `Gemfile.lock` need the ecosystem's own tool |
+
+A dependency that is only pulled in transitively cannot be edited directly; PATHOS reports that instead of guessing. Every request, pull request and state change is in the audit log.

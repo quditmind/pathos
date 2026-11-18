@@ -832,6 +832,77 @@ Bulk scanning (`POST /api/v1/scans`) and scan job endpoints belong to the scanni
 
 Database entities: `scan_jobs`, `scan_profiles`, `audit_logs` (`scan.request`).
 
+## Secret push protection
+
+Push-event scanning of a repository (see the user guide page *Secret push protection*). Supported for GitHub, GitHub Enterprise Server and GitLab connections; the repository's webhook must be configured.
+
+### Get push protection settings
+
+| Property | Value |
+|---|---|
+| Method | `GET` |
+| Path | `/api/v1/repositories/{id}/push-protection` |
+| Authentication | Session, or API token with `api:read` |
+| Permission | `scans.read` on the repository |
+
+Response `200 OK`:
+
+```json
+{ "enabled": true, "supported": true, "provider": "github", "source_type": "scm" }
+```
+
+`supported` is `false` for providers whose push diffs PATHOS cannot read (Bitbucket Cloud, Azure DevOps) and for uploaded repositories.
+
+### Change push protection settings
+
+| Property | Value |
+|---|---|
+| Method | `PUT` |
+| Path | `/api/v1/repositories/{id}/push-protection` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
+| Permission | `repos.manage` on the repository |
+| Request body | `{ "enabled": true }` |
+
+Returns the settings as for `GET`.
+
+| Status | Meaning |
+|---|---|
+| 200 | Saved. |
+| 400 `invalid_request` | Enabling on an unsupported provider or an uploaded repository. |
+| 403 `forbidden` | No `repos.manage` on the repository. |
+| 404 `not_found` | Repository does not exist or is outside every scope of the caller. |
+
+Database entities: `repositories.push_secret_scan_enabled`, `audit_logs` (`repository.push_protection`).
+
+### List pushed secrets
+
+| Property | Value |
+|---|---|
+| Method | `GET` |
+| Path | `/api/v1/repositories/{id}/pushed-secrets` |
+| Authentication | Session, or API token with `api:read` |
+| Permission | `findings.read` on the repository |
+
+Response `200 OK` (`items`: newest 200 alerts; `scans`: newest 20 push scans):
+
+```json
+{
+  "items": [
+    { "id": "0190c0de-…", "push_scan_id": "0190c0de-…", "ref": "main", "commit_sha": "9f2c4e1a7b3d…",
+      "file_path": "config/app.env", "line": 3, "rule_id": "github-token", "description": "GitHub token",
+      "created_at": "2026-11-19T10:00:00Z" }
+  ],
+  "scans": [
+    { "id": "0190c0de-…", "ref": "main", "before_sha": "1a2b…", "after_sha": "9f2c…", "status": "done", "error": "",
+      "files_scanned": 4, "alerts": 1, "created_at": "2026-11-19T10:00:00Z", "finished_at": "2026-11-19T10:00:02Z" }
+  ]
+}
+```
+
+Scan `status`: `queued`, `running`, `done`, `failed` or `not_supported`. The secret value is never stored or returned; each alert also keeps a 16-character digest of the match (not returned) used only to avoid duplicates.
+
+Database entities: `push_secret_scans`, `pushed_secrets`, `notification_events` (`secret.pushed`), `audit_logs` (`push_protection.secret_detected`).
+
 ## Legacy synchronous imports
 
 These endpoints register SCM repositories synchronously, without import jobs, upload support, idempotency or asset-policy validation. They only set placement (application, business unit, country), environment, criticality, scan branch and tags. New integrations should use [repository imports](imports.md#start-an-import).

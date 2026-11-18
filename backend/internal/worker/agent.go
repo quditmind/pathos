@@ -181,6 +181,11 @@ func (a *Agent) Run(ctx context.Context) error {
 		case status == http.StatusOK:
 			a.runJob(ctx, job)
 			continue
+		default:
+			// No scan waiting: fix pull request jobs (manifest edits).
+			if a.tryFix(ctx) {
+				continue
+			}
 		}
 		select {
 		case <-ctx.Done():

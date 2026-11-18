@@ -245,6 +245,49 @@ Remediation deadlines per severity, in days: `sla_due_at` = first seen + the sev
 
 The defaults are the values above. A change recomputes the deadline of every finding of the organization and re-applies [security policies](governance.md#security-policies) that tighten deadlines. Audited (`sla_policy.update`).
 
+## Fix pull requests
+
+PATHOS can open a pull (merge) request that upgrades a vulnerable dependency to its fixed version, on GitHub, GitLab, Bitbucket Cloud and Azure DevOps. It is opt-in per repository. A [worker](worker-protocol.md#fix-jobs) clones the scan branch and edits the manifest as text (no package manager, build tool, hook or repository code runs); the API then creates a branch under `pathos/fix/`, commits the edited files and opens the pull request with the repository connection's credential. PATHOS never writes to any other branch. The pull request's state is tracked, but the finding keeps its status: only a later scan of the branch that no longer detects the vulnerability marks it fixed.
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/repositories/{id}/fix-pr-settings` | `scans.read` on the repository | `{ "enabled": false, "grouping": "package", "source_type": "scm", "provider": "github" }` |
+| `PUT` | `/api/v1/repositories/{id}/fix-pr-settings` | `repos.manage` on the repository | Body `{ "enabled": true, "grouping": "package" \| "finding" }`. `400` for uploaded repositories. Audited (`repository.fix_prs`). |
+| `GET` | `/api/v1/findings/{id}/fix-pr` | `findings.read` on the repository | Eligibility and the fix pull requests covering the finding (below) |
+| `POST` | `/api/v1/findings/{id}/fix-pr` | `findings.triage` **and** `repos.manage` on the repository | Request a fix pull request → `202` with the fix PR object |
+| `GET` | `/api/v1/repositories/{id}/fix-prs` | `findings.read` on the repository | `{ "items": [fix PR, …] }`, newest first (200 at most) |
+| `POST` | `/api/v1/fix-prs/{id}/refresh` | `findings.triage` on the repository | Read the pull request's state from the SCM now → the fix PR object; `502` with the reason when the SCM call fails |
+
+Requesting needs both permissions because a fix pull request changes how a finding is handled and writes to the repository. No new permission exists for it.
+
+**Eligibility** (`GET …/fix-pr`): `{ eligible, reason, ecosystem, package_name, target_version, support: { supported, reason, edits }, enabled, grouping, can_request, requests[] }`. A finding is eligible when it is a dependency (`sca`) finding of the repository itself (not of a scan target), open / in progress / needs review, the repository has fix PRs enabled and an SCM connection, a fixed version is known, and its ecosystem is supported. `reason` explains, in plain words, why not. The ecosystem comes from the package URL in the repository's SBOM, or else from the file the scanner reported. `target_version` is the lowest fixed version above the current one on the same major line (else the lowest above it); releases are preferred over pre-releases.
+
+| Ecosystem | What is edited | Not supported |
+|---|---|---|
+| PyPI | `requirements*.txt` / `constraints*.txt`: the package is pinned to `==<target>` (extras, markers and comments kept) | Files with `--hash` entries (hashes need pip-compile); Pipfile, Poetry and uv lockfiles |
+| Maven / Gradle | `pom.xml` dependency or `dependencyManagement` version, literal or `${property}` (also a property in another `pom.xml` of the repository); Gradle `group:artifact:version` strings, map notation and `libs.versions.toml` (literal or `version.ref`) | Versions defined outside the repository (parent POM, BOM); projects whose `gradle.lockfile` pins the package |
+| NuGet | `PackageReference` / `PackageVersion` / `packages.config` versions (attribute or child element) | Projects with `packages.lock.json` |
+| npm | `package.json` dependency ranges, only when the project has **no** lockfile | Any `package-lock.json`, `npm-shrinkwrap.json`, `yarn.lock`, `pnpm-lock.yaml` or `bun.lock`: the lockfile must be regenerated with npm, yarn or pnpm, which are not in the worker image, and PATHOS does not hand-edit lockfiles |
+| Go, Cargo, Composer, Bundler | — | Not supported: `go.sum`, `Cargo.lock`, `composer.lock` and `Gemfile.lock` need the ecosystem's tool |
+
+A transitive dependency (not declared in an editable manifest) ends as `not_supported` with an explanation.
+
+**Request** (`POST …/fix-pr`): optional body `{ "target_version": "4.2.11", "grouping": "package" }`. `target_version` overrides the computed version (a plain version above the current one). `grouping` overrides the repository default: `package` covers every open finding of the same package version in the repository with one pull request; `finding` covers only this one. Errors: `422 fix_pr_not_available` (with the eligibility reason), `409 conflict` when a fix pull request covering one of the findings is queued, running, being created or open. Audited (`fix_pr.request`).
+
+**The fix PR object**: `id`, `repository_id`, `repository_name`, `ecosystem`, `package_name`, `current_version`, `target_version`, `grouping`, `status`, `error`, `base_branch`, `branch`, `changed_files[]`, `pr_number`, `pr_url`, `finding_ids[]`, `requested_by` (e-mail), `created_at`, `updated_at`, `state_checked_at`.
+
+| `status` | Meaning |
+|---|---|
+| `queued` | Waiting for a worker |
+| `running` | A worker is editing the manifest (lease 10 minutes, at most 3 attempts) |
+| `creating` | The API is creating the branch, commit and pull request |
+| `open` | The pull request is open (`pr_url`, `pr_number`) |
+| `merged`, `closed` | Recorded from the SCM (polled every 15 minutes by the jobs process, or `refresh`). The finding is **not** changed. |
+| `failed` | `error` says why, for example that the credential lacks permission to create branches and pull requests (GitHub contents and pull requests write, GitLab Developer role with the `api` scope, Bitbucket `repository:write` and `pullrequest:write`, Azure DevOps Code read & write) |
+| `not_supported` | The worker could not produce a correct edit; `error` explains (for example a lockfile that must be regenerated) |
+
+State changes are audited: `fix_pr.request`, `fix_pr.opened`, `fix_pr.failed`, `fix_pr.not_supported`, `fix_pr.merged`, `fix_pr.closed`.
+
 ## Other finding endpoints
 
 These endpoints belong to other features and are described on their pages:

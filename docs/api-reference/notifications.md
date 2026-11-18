@@ -61,6 +61,7 @@ Every endpoint on this page needs `notifications.manage` at organization scope (
 | `review.independent_requested` | yes | yes | `independent_reviewers` |
 | `review.independent_decided` | yes | yes | `requester`, `assignee` |
 | `review.overdue` | yes | yes | see the `events` response |
+| `secret.pushed` | yes | yes | `owners` |
 
 Dynamic recipients: `assignee` (the finding's or review's assignee), `requester` (who asked for it), `approvers` (users who may accept risk for the repository, except the requester), `owners` (the application owner and security owner of the repository's application, plus the repository's business, technical and application owners), `independent_reviewers` (the named independent reviewer, otherwise users with `reviews.approve` for the repository, except the requester) and `report_recipients`. Only active users receive notifications.
 

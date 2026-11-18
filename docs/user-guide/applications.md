@@ -86,3 +86,7 @@ The **Owner** and **Security owner** pickers are shown only to users who may lis
 ## Archive an application
 
 Open the application, select **Archive** and confirm. Its repositories are **unlinked, not deleted**; it disappears from the application pickers. There is no unarchive or delete on the Applications page.
+
+## Versions
+
+Select **Versions** on an application's row to record releases with their components and findings, and to export VEX for them. See [Application versions, VEX and component policies](releases-and-vex.md#record-an-application-version).

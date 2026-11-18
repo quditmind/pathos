@@ -217,6 +217,21 @@ Open: {{.Link}}`,
 
 Open: {{.Link}}`,
 	},
+	{
+		Key: "secret.pushed", Label: "Secret pushed", Severity: true, Repository: true,
+		Description: "Secret push protection found a likely secret in the commits of a push (one message per push). The secret value is never included.",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] Secret pushed to {{.Repository}} ({{.Push.Ref}})`,
+		Body: `A push to {{.Repository}} (branch {{.Push.Ref}}) added {{.Count}} likely secret{{if ne .Count 1}}s{{end}}:
+
+{{range .Findings}}- {{.Title}} ({{.Location}})
+{{end}}{{if gt .More 0}}…and {{.More}} more.
+{{end}}
+The value is in the repository history: revoke and rotate the credential, then remove it from the code.
+Values are not stored or shown by PATHOS.
+
+Details: {{.Link}}`,
+	},
 }
 
 var testEvent = EventDef{

@@ -1,0 +1,41 @@
+# PATHOS baseline Gitleaks configuration for pre-commit and pre-receive hooks.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+#
+# Copy this file to the root of a repository as .gitleaks.toml (Gitleaks
+# reads it automatically), or pass it with --config.
+#
+# It keeps every default Gitleaks rule and only adds allowlists for content
+# that is never a real credential: lockfiles, vendored dependencies,
+# generated files and well-known documentation placeholders. Add
+# repository-specific exceptions below, never by deleting rules.
+
+title = "PATHOS baseline"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "PATHOS baseline: lockfiles, vendored and generated content, documentation placeholders"
+paths = [
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)npm-shrinkwrap\.json$''',
+  '''(^|/)yarn\.lock$''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)go\.sum$''',
+  '''(^|/)Cargo\.lock$''',
+  '''(^|/)composer\.lock$''',
+  '''(^|/)Gemfile\.lock$''',
+  '''(^|/)poetry\.lock$''',
+  '''(^|/)Pipfile\.lock$''',
+  '''(^|/)gradle\.lockfile$''',
+  '''(^|/)vendor/''',
+  '''(^|/)node_modules/''',
+  '''\.min\.(js|css)$''',
+  '''\.(png|jpe?g|gif|ico|svg|woff2?|ttf|eot|pdf)$''',
+]
+# Values published in vendor documentation as examples.
+regexes = [
+  '''AKIAIOSFODNN7EXAMPLE''',
+  '''wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY''',
+  '''(?i)\b(your|example|dummy|placeholder|changeme)[_-]?(api[_-]?)?(key|token|secret|password)\b''',
+]

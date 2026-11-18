@@ -52,6 +52,10 @@ import { RiskPage } from "@/features/vuln/RiskPage";
 import { SchedulesPage } from "@/features/schedule/SchedulesPage";
 import { NotificationsPage } from "@/features/notify/NotificationsPage";
 import { SbomPage } from "@/features/vuln/SbomPage";
+import { ApplicationVersionsRoute } from "@/features/releases/ApplicationVersionsPage";
+import { VexPage } from "@/features/releases/VexPage";
+import { PortfolioPage } from "@/features/releases/PortfolioPage";
+import { ComponentPoliciesPage } from "@/features/releases/ComponentPoliciesPage";
 import { PoliciesPage } from "@/features/vuln/PoliciesPage";
 import { RiskIntelPage } from "@/features/vuln/RiskIntelPage";
 import { AIReviewsPage } from "@/features/ai/AIReviewsPage";
@@ -187,6 +191,10 @@ const schedulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/sca
 const notifyRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/notifications", component: NotificationsPage });
 const riskRoute = createRoute({ getParentRoute: () => appRoute, path: "/risk", component: RiskPage });
 const sbomRoute = createRoute({ getParentRoute: () => appRoute, path: "/sbom", component: SbomPage });
+const appVersionsRoute = createRoute({ getParentRoute: () => appRoute, path: "/applications/$id/versions", component: ApplicationVersionsRoute });
+const vexRoute = createRoute({ getParentRoute: () => appRoute, path: "/vex", component: VexPage });
+const portfolioRoute = createRoute({ getParentRoute: () => appRoute, path: "/portfolio", component: PortfolioPage });
+const componentPoliciesRoute = createRoute({ getParentRoute: () => appRoute, path: "/sbom/policies", component: ComponentPoliciesPage });
 const riskIntelRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/risk-intelligence", component: RiskIntelPage });
 const policiesRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/policies", component: PoliciesPage });
 
@@ -215,7 +223,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 
