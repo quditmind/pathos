@@ -11,6 +11,7 @@ import { Alert, Badge, Card, EmptyState, Input, Label, Select, Skeleton, Table, 
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { materialCategories } from "@/features/insights/api";
+import { categoryLabel } from "@/lib/findingCategories";
 
 export interface PolicyConditions {
   min_severity?: string;
@@ -64,9 +65,6 @@ interface Match {
   resolved_at?: string;
 }
 
-const categoryLabel: Record<string, string> = {
-  secrets: "Secrets", sast: "Code (SAST)", sca: "Dependencies (SCA)", iac: "Infrastructure as code", container: "Containers", dast: "DAST", license: "Licences", other: "Other",
-};
 
 /** One-line description of a policy's conditions. */
 const materialLabel: Record<string, string> = Object.fromEntries(materialCategories);

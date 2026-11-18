@@ -19,7 +19,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | Field | Description |
 |---|---|
 | `key`, `name` | Scanner key (used in profiles, findings and results) and display name |
-| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `supply-chain` (`sbom` for Syft) |
+| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `malware` (ClamAV), `binary` (binary hardening), `supply-chain` (`sbom` for Syft). Findings use the same values plus `misconfiguration` (framework configuration rules run by Opengrep) and `other` |
 | `license_spdx`, `decision` | The scanner's licence and PATHOS's decision: `use`, `optional` or `restricted` (cannot be enabled) |
 | `worker_family` | Worker image that runs it (`core`, …) |
 | `adapter_available` | A worker can run it; others are catalogued only |
@@ -93,6 +93,16 @@ Scanner rules (`400 invalid_request` otherwise):
 - The key must be in the catalog (or a registered plugin), have an adapter, not be `target_only` and not be licence-restricted.
 - Mandatory scanners are added automatically; duplicates are ignored.
 - Grype scans the SBOM: it needs `sbom: true`, and Syft is then added automatically.
+
+Built-in content scanners (no `config` options):
+
+| Key | Default | Notes |
+|---|---|---|
+| `licensecheck` | on | File-level licences (SPDX tags, licence texts). Reports no findings itself: detections are stored as the repository's file licence inventory and the licence policy turns violations into `license` findings (see [Licence findings](../user-guide/security-scanning.md#licence-findings)); the scan result's `findings_count` is the number of violations |
+| `clamav` | off | Malware in repository files (`malware` findings). The result is `skipped` with *ClamAV is not configured for this worker* unless the worker has `PATHOS_CLAMAV_ADDRESS`; `failed` if clamd is configured but unreachable |
+| `binary-hardening` | off | Hardening of executables and shared libraries (`binary` findings). Always runs for `artifact` scan targets |
+
+The raw report of these scanners (`GET /api/v1/scans/{id}/results/{scanner}/artifact`) is JSON: `{ "tool", "version", "engine", "findings": [ { "rule_id", "title", "description", "severity", "confidence", "cwe", "file_path", "key", "evidence" } ], "licenses": [ { "path", "spdx", "method", "line", "percent", "alternatives" } ], "stats": { … } }`.
 
 ```json
 {

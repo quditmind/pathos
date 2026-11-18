@@ -1,5 +1,5 @@
 # Developer shortcuts. Every target runs its toolchain in a container.
-.PHONY: help install up down logs test test-go test-web test-integration lint smoke build rbac-matrix
+.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
@@ -32,6 +32,9 @@ test-web:
 
 test-integration: ## Go integration tests against a throwaway PostgreSQL
 	scripts/test-integration.sh
+
+test-rules: ## Run the Opengrep framework configuration rules against their fixtures (worker-core image)
+	scripts/test-opengrep-rules.py
 
 security: ## Security self-tests: gosec, govulncheck, npm audit, Trivy (images), ZAP baseline
 	scripts/security-scan.sh

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"pathos/internal/material"
+	"pathos/internal/scanners"
 )
 
 // Conditions all must hold (AND). Empty lists and nil pointers do not
@@ -58,7 +59,7 @@ type Actions struct {
 
 var (
 	severities   = []string{"critical", "high", "medium", "low", "info"}
-	categories   = []string{"secrets", "sast", "sca", "iac", "container", "dast", "license", "other"}
+	categories   = scanners.FindingCategories
 	reachability = []string{"reachable", "not_reachable", "unknown"}
 	criticality  = []string{"critical", "high", "medium", "low"}
 	keyRe        = regexp.MustCompile(`^[a-z0-9][a-z0-9_.-]{0,62}$`)

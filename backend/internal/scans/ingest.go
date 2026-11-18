@@ -83,6 +83,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	}
 
 	var written []string // objects to remove if the transaction fails
+	licenseFindings := 0 // licence policy violations in files (licensecheck)
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "detected again by "+up.Scanner); err != nil {
 			return err
@@ -102,6 +103,8 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			case scanners.Syft:
 				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
+				ct = "application/json"
+			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint:
 				ct = "application/json"
 			}
 			if scanners.IsImportKey(up.Scanner) {
@@ -128,19 +131,52 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			// findings or inventory.
 			return insertPRFindings(ctx, tx, jobID, findings)
 		}
-		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 {
+		licenses := false
+		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
+			} else {
+				licenses = true
 			}
 		}
-		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings)
+		if up.Scanner == scanners.LicenseCheck && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			ls, err := scanners.ParseFileLicenses(raw)
+			if err != nil {
+				return err
+			}
+			if err := vuln.StoreFileLicenses(ctx, tx, orgID, repoID, jobID, ls); err != nil {
+				return err
+			}
+			licenses = true
+		}
+		if err := upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings); err != nil {
+			return err
+		}
+		if licenses {
+			// The licence policy against the updated inventory: violations
+			// become (or stay) findings, resolved ones are fixed.
+			run := &vuln.LicenseRun{JobID: jobID, ResultID: resultID, Source: "component"}
+			if up.Scanner == scanners.LicenseCheck {
+				run.Source = "file"
+			}
+			n, _, err := vuln.SyncLicenseFindings(ctx, tx, orgID, &repoID, run)
+			if err != nil {
+				return err
+			}
+			if up.Scanner == scanners.LicenseCheck {
+				licenseFindings = n
+				_, err = tx.Exec(ctx, `UPDATE scan_results SET findings_count = $2 WHERE id = $1`, resultID, n)
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil && len(written) > 0 {
 		if derr := s.Artifacts.Delete(context.WithoutCancel(ctx), written); derr != nil {
 			s.Log.Warn("orphaned artifact objects after a failed ingest", "keys", written, "err", derr)
 		}
 	}
-	return len(findings), err
+	return len(findings) + licenseFindings, err
 }
 
 // recompress keeps the worker's gzip unless it was not a single stream.

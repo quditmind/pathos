@@ -26,7 +26,7 @@ Filters are kept in the page address, so a filtered view can be bookmarked or sh
 | Concept | Values |
 |---|---|
 | Severity | Critical, High, Medium, Low, Info. PATHOS never changes it; a Human Eye reviewer records an *assessed* severity separately |
-| Type | Secrets, Code (SAST), Dependencies (SCA), Infrastructure as code, Container, License, Web and API (DAST), Other |
+| Type | Secrets, Code (SAST), Dependencies (SCA), Infrastructure as code, Container, License, Web and API (DAST), Malware, Framework configuration, Binary hardening, Other |
 | Risk | Contextual risk score 0–100, see [Contextual risk](vulnerability-intelligence.md#contextual-risk) |
 
 ## Finding details

@@ -7,7 +7,7 @@ import (
 )
 
 func TestCatalog(t *testing.T) {
-	cats := []string{"secrets", "sast", "sca", "iac", "container", "dast", "license", "other"}
+	cats := []string{"secrets", "sast", "sca", "iac", "container", "dast", "license", "malware", "misconfiguration", "binary", "other"}
 	cwe := regexp.MustCompile(`^CWE-[0-9]+$`)
 	seen := map[string]bool{}
 	for _, f := range Frameworks {

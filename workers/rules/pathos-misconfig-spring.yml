@@ -1,0 +1,289 @@
+# PATHOS framework configuration rules: Spring Boot / Spring Security.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from rules with
+# "category: misconfiguration" (ids pathos.misconfig.*) are reported in the
+# "misconfiguration" finding category. Test fixtures: workers/rules-tests/.
+rules:
+  - id: pathos.misconfig.spring.csrf-disabled
+    languages: [java, kotlin]
+    severity: WARNING
+    message: >-
+      CSRF protection is disabled in Spring Security. Browser sessions that use cookies are then open to cross-site
+      request forgery. Keep CSRF enabled and exclude only stateless token-authenticated endpoints
+      (csrf.ignoringRequestMatchers(...)).
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-352: Cross-Site Request Forgery (CSRF)"]
+      confidence: MEDIUM
+      references:
+        - https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $HTTP.csrf().disable()
+      - pattern: $HTTP.csrf($C -> $C.disable())
+      - pattern: $HTTP.csrf($T::disable)
+      - pattern-regex: \.csrf\(\s*\w+::disable\s*\)
+
+  - id: pathos.misconfig.spring.permitall-sensitive-path
+    languages: [java, kotlin]
+    severity: ERROR
+    message: >-
+      A sensitive path (actuator, admin, H2 console, management, heap dump, Jolokia) is opened to everyone with
+      permitAll(). Require authentication and an administrator role for these endpoints, or do not expose them.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-306: Missing Authentication for Critical Function"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/actuator/endpoints.html#actuator.endpoints.security
+        - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $X.$M("$PATH", ...).permitAll()
+          - pattern: $X.$M($HM, "$PATH", ...).permitAll()
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(requestMatchers|antMatchers|mvcMatchers|regexMatchers)$
+      - metavariable-regex:
+          metavariable: $PATH
+          regex: (?i).*(actuator|/admin|h2-console|/manage|heapdump|jolokia|/env).*
+
+  - id: pathos.misconfig.spring.permitall-any-request
+    languages: [java, kotlin]
+    severity: WARNING
+    message: >-
+      anyRequest().permitAll() makes every endpoint not matched earlier public. Deny by default:
+      anyRequest().authenticated() (or denyAll()) and open individual public paths explicitly.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-284: Improper Access Control"]
+      confidence: MEDIUM
+      references:
+        - https://docs.spring.io/spring-security/reference/servlet/authorization/authorize-http-requests.html
+      license: Apache-2.0
+    pattern: $X.anyRequest().permitAll()
+
+  - id: pathos.misconfig.spring.cors-wildcard-origin
+    languages: [java, kotlin]
+    severity: WARNING
+    message: >-
+      CORS allows any origin ("*"). Any web site can then read responses of this API from a visitor's browser.
+      List the trusted origins explicitly.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-framework/reference/web/webmvc-cors.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.addAllowedOrigin("*")
+      - pattern: $C.addAllowedOriginPattern("*")
+      - pattern: $C.allowedOrigins(..., "*", ...)
+      - pattern: $C.allowedOriginPatterns(..., "*", ...)
+      - pattern: $C.setAllowedOrigins(List.of(..., "*", ...))
+      - pattern: $C.setAllowedOrigins(Arrays.asList(..., "*", ...))
+      - pattern: $C.setAllowedOrigins(Collections.singletonList("*"))
+      - pattern: $C.setAllowedOriginPatterns(List.of(..., "*", ...))
+      - pattern: |
+          @CrossOrigin("*")
+      - pattern: |
+          @CrossOrigin(origins = "*")
+      - pattern: |
+          @CrossOrigin(..., origins = "*", ...)
+      - pattern: |
+          @CrossOrigin(..., originPatterns = "*", ...)
+
+  - id: pathos.misconfig.spring.web-security-debug
+    languages: [java, kotlin]
+    severity: WARNING
+    message: >-
+      @EnableWebSecurity(debug = true) logs request details, headers and the security filter chain; it must not
+      be enabled outside local development.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-489: Active Debug Code"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-security/reference/servlet/configuration/java.html
+      license: Apache-2.0
+    pattern: |
+      @EnableWebSecurity(debug = true)
+
+  # --- application.properties ----------------------------------------------
+
+  - id: pathos.misconfig.spring.properties-actuator-exposed
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      All or sensitive Spring Boot actuator endpoints are exposed over HTTP (env, heapdump, threaddump,
+      configprops, loggers, shutdown...). They disclose secrets and internals or change the running application.
+      Expose only health and info, and protect the management port.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/actuator/endpoints.html#actuator.endpoints.exposing
+      license: Apache-2.0
+    paths:
+      include: ["*.properties"]
+    patterns:
+      - pattern-regex: (?m)^\s*management\.endpoints\.web\.exposure\.include\s*[=:]\s*.*(\*|env|heapdump|threaddump|configprops|shutdown|loggers|jolokia|beans|mappings).*$
+
+  - id: pathos.misconfig.spring.properties-h2-console
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      The H2 database console is enabled. It lets anyone who reaches it run SQL (and, through H2 features, code on
+      the server). Enable it only in a local development profile.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-306: Missing Authentication for Critical Function"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/data/sql.html#data.sql.h2-web-console
+      license: Apache-2.0
+    paths:
+      include: ["*.properties"]
+    pattern-regex: (?m)^\s*spring\.h2\.console\.enabled\s*[=:]\s*true\s*$
+
+  - id: pathos.misconfig.spring.properties-debug
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Debug mode or stack traces in error responses are enabled. They reveal internals that help attackers; turn
+      them off outside development (debug=false, server.error.include-stacktrace=never).
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-489: Active Debug Code", "CWE-209: Generation of Error Message Containing Sensitive Information"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/features/logging.html#features.logging.console-output
+        - https://docs.spring.io/spring-boot/appendix/application-properties/index.html#application-properties.server.server.error.include-stacktrace
+      license: Apache-2.0
+    paths:
+      include: ["*.properties"]
+    pattern-either:
+      - pattern-regex: (?m)^\s*debug\s*[=:]\s*true\s*$
+      - pattern-regex: (?m)^\s*server\.error\.include-(stacktrace|exception|message)\s*[=:]\s*(always|true)\s*$
+
+  - id: pathos.misconfig.spring.properties-management-security-disabled
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      management.security.enabled=false (Spring Boot 1.x) removes authentication from all actuator endpoints.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-306: Missing Authentication for Critical Function"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/docs/1.5.x/reference/html/production-ready-monitoring.html
+      license: Apache-2.0
+    paths:
+      include: ["*.properties"]
+    pattern-regex: (?m)^\s*management\.security\.enabled\s*[=:]\s*false\s*$
+
+  # --- application.yml -------------------------------------------------------
+
+  - id: pathos.misconfig.spring.yaml-actuator-exposed
+    languages: [yaml]
+    severity: ERROR
+    message: >-
+      All or sensitive Spring Boot actuator endpoints are exposed over HTTP. They disclose secrets and internals or
+      change the running application. Expose only health and info, and protect the management port.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/actuator/endpoints.html#actuator.endpoints.exposing
+      license: Apache-2.0
+    paths:
+      include: ["application*.yml", "application*.yaml", "bootstrap*.yml", "bootstrap*.yaml"]
+    patterns:
+      - pattern-inside: |
+          management:
+            ...
+            endpoints:
+              ...
+              web:
+                ...
+                exposure:
+                  ...
+                  include: $V
+      - pattern: $V
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(\*|env|heapdump|threaddump|configprops|shutdown|loggers|jolokia|beans|mappings).*
+
+  - id: pathos.misconfig.spring.yaml-h2-console
+    languages: [yaml]
+    severity: ERROR
+    message: >-
+      The H2 database console is enabled. It lets anyone who reaches it run SQL on the database. Enable it only in a
+      local development profile.
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-306: Missing Authentication for Critical Function"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/reference/data/sql.html#data.sql.h2-web-console
+      license: Apache-2.0
+    paths:
+      include: ["application*.yml", "application*.yaml"]
+    patterns:
+      - pattern-inside: |
+          spring:
+            ...
+            h2:
+              ...
+              console:
+                ...
+                enabled: $V
+      - pattern: $V
+      - metavariable-regex:
+          metavariable: $V
+          regex: ^true$
+
+  - id: pathos.misconfig.spring.yaml-debug
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      Debug mode or stack traces in error responses are enabled. Turn them off outside development
+      (debug: false, server.error.include-stacktrace: never).
+    metadata:
+      category: misconfiguration
+      framework: spring
+      cwe: ["CWE-489: Active Debug Code", "CWE-209: Generation of Error Message Containing Sensitive Information"]
+      confidence: HIGH
+      references:
+        - https://docs.spring.io/spring-boot/appendix/application-properties/index.html#application-properties.server.server.error.include-stacktrace
+      license: Apache-2.0
+    paths:
+      include: ["application*.yml", "application*.yaml"]
+    pattern-either:
+      - pattern-regex: (?m)^debug:\s*true\s*$
+      - patterns:
+          - pattern-inside: |
+              server:
+                ...
+                error:
+                  ...
+          - pattern-either:
+              - pattern: "include-stacktrace: always"
+              - pattern: "include-exception: true"

@@ -1,0 +1,199 @@
+# PATHOS framework configuration rules: Django.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from rules with
+# "category: misconfiguration" (ids pathos.misconfig.*) are reported in the
+# "misconfiguration" finding category. Test fixtures: workers/rules-tests/.
+# Settings rules apply to Django settings modules (settings.py,
+# settings_*.py, settings/*.py).
+rules:
+  - id: pathos.misconfig.django.debug-true
+    languages: [python]
+    severity: ERROR
+    message: >-
+      DEBUG = True in a Django settings module. Debug pages show source code, settings and local variables of every
+      error to anyone; set DEBUG from the environment and keep it False in production.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-489: Active Debug Code"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/settings/#debug
+        - https://docs.djangoproject.com/en/stable/howto/deployment/checklist/
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    pattern: DEBUG = True
+
+  - id: pathos.misconfig.django.allowed-hosts-wildcard
+    languages: [python]
+    severity: WARNING
+    message: >-
+      ALLOWED_HOSTS accepts any host ("*"). Django then trusts attacker-controlled Host headers, which enables
+      password-reset poisoning and cache poisoning. List the served host names.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-346: Origin Validation Error"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/settings/#allowed-hosts
+        - https://docs.djangoproject.com/en/stable/topics/security/#host-header-validation
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    pattern-either:
+      - pattern: ALLOWED_HOSTS = [..., "*", ...]
+      - pattern: ALLOWED_HOSTS = (..., "*", ...)
+
+  - id: pathos.misconfig.django.insecure-secret-key
+    languages: [python]
+    severity: ERROR
+    message: >-
+      SECRET_KEY is hard-coded in the settings (or still the generated "django-insecure-" development key). Anyone
+      with the source can forge sessions, password-reset tokens and signed data. Load it from the environment or a
+      secrets store and rotate the exposed key.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-798: Use of Hard-coded Credentials", "CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/settings/#secret-key
+        - https://docs.djangoproject.com/en/stable/howto/deployment/checklist/#secret-key
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    patterns:
+      - pattern: SECRET_KEY = "$KEY"
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: ^.{8,}$
+
+  - id: pathos.misconfig.django.csrf-middleware-missing
+    languages: [python]
+    severity: ERROR
+    message: >-
+      MIDDLEWARE does not include django.middleware.csrf.CsrfViewMiddleware, so no view is protected against
+      cross-site request forgery.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-352: Cross-Site Request Forgery (CSRF)"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/csrf/
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    patterns:
+      - pattern: MIDDLEWARE = [...]
+      - pattern-not: MIDDLEWARE = [..., "django.middleware.csrf.CsrfViewMiddleware", ...]
+
+  - id: pathos.misconfig.django.security-middleware-missing
+    languages: [python]
+    severity: WARNING
+    message: >-
+      MIDDLEWARE does not include django.middleware.security.SecurityMiddleware, which applies the HSTS, SSL
+      redirect, Referrer-Policy and X-Content-Type-Options settings. Add it as the first middleware.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-693: Protection Mechanism Failure"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/middleware/#module-django.middleware.security
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    patterns:
+      - pattern: MIDDLEWARE = [...]
+      - pattern-not: MIDDLEWARE = [..., "django.middleware.security.SecurityMiddleware", ...]
+
+  - id: pathos.misconfig.django.insecure-cookie-settings
+    languages: [python]
+    severity: WARNING
+    message: >-
+      Session or CSRF cookies are configured without the Secure or HttpOnly flag. Cookies are then sent over plain
+      HTTP or readable by scripts; set SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE and SESSION_COOKIE_HTTPONLY to True.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute", "CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/settings/#session-cookie-secure
+        - https://docs.djangoproject.com/en/stable/howto/deployment/checklist/#csrf-cookie-secure
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    pattern-either:
+      - pattern: SESSION_COOKIE_SECURE = False
+      - pattern: CSRF_COOKIE_SECURE = False
+      - pattern: SESSION_COOKIE_HTTPONLY = False
+
+  - id: pathos.misconfig.django.transport-security-disabled
+    languages: [python]
+    severity: INFO
+    message: >-
+      HTTPS enforcement is switched off (SECURE_SSL_REDIRECT = False or SECURE_HSTS_SECONDS = 0). Unless a proxy in
+      front of Django enforces HTTPS and HSTS, users can be downgraded to plain HTTP.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-319: Cleartext Transmission of Sensitive Information"]
+      confidence: MEDIUM
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/settings/#secure-ssl-redirect
+        - https://docs.djangoproject.com/en/stable/ref/settings/#secure-hsts-seconds
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    pattern-either:
+      - pattern: SECURE_SSL_REDIRECT = False
+      - pattern: SECURE_HSTS_SECONDS = 0
+
+  - id: pathos.misconfig.django.cors-allow-all
+    languages: [python]
+    severity: WARNING
+    message: >-
+      django-cors-headers allows every origin. Any web site can then read responses from a visitor's browser; list
+      the trusted origins in CORS_ALLOWED_ORIGINS.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      confidence: HIGH
+      references:
+        - https://github.com/adamchainz/django-cors-headers#cors_allow_all_origins-bool
+      license: Apache-2.0
+    paths:
+      include: ["settings*.py", "**/settings/*.py"]
+    pattern-either:
+      - pattern: CORS_ALLOW_ALL_ORIGINS = True
+      - pattern: CORS_ORIGIN_ALLOW_ALL = True
+
+  - id: pathos.misconfig.django.csrf-exempt
+    languages: [python]
+    severity: WARNING
+    message: >-
+      @csrf_exempt removes CSRF protection from this view. Keep it only for endpoints that do not use cookie
+      authentication (for example signed webhooks) and verify the request another way.
+    metadata:
+      category: misconfiguration
+      framework: django
+      cwe: ["CWE-352: Cross-Site Request Forgery (CSRF)"]
+      confidence: MEDIUM
+      references:
+        - https://docs.djangoproject.com/en/stable/ref/csrf/#django.views.decorators.csrf.csrf_exempt
+      license: Apache-2.0
+    pattern-either:
+      - pattern: |
+          @csrf_exempt
+          def $F(...):
+            ...
+      - pattern: |
+          @django.views.decorators.csrf.csrf_exempt
+          def $F(...):
+            ...
+      - pattern: csrf_exempt($VIEW)

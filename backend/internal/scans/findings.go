@@ -164,7 +164,7 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 
 var (
 	findingStatuses   = []string{"open", "fixed", "false_positive", "accepted_risk", "in_progress", "needs_review"}
-	findingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "other"}
+	findingCategories = scanners.FindingCategories
 )
 
 // findingsWhere builds the scoped WHERE clause shared by list and summary.

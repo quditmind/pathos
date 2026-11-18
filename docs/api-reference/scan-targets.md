@@ -16,7 +16,7 @@ A scan target is something PATHOS scans besides a repository's source code. Each
 | `url` | Base URL of a running application | Nuclei | Misconfigurations, exposures, known vulnerabilities (non-intrusive templates) |
 | `api` | Base URL plus an OpenAPI 3 / Swagger 2 document | Nuclei DAST templates | Injection and other flaws in each operation |
 | `sbom` | Uploaded CycloneDX or SPDX JSON | Grype | Known vulnerabilities in the SBOM's components |
-| `artifact` | Uploaded build artifact: zip or tar archive, Java archive, binary | Trivy (filesystem) | Vulnerable components inside the artifact ([details](supply-chain.md#build-artifact-targets)) |
+| `artifact` | Uploaded build artifact: zip or tar archive, Java archive, binary | Trivy (filesystem), binary hardening | Vulnerable components inside the artifact and missing hardening of its executables and libraries ([details](supply-chain.md#build-artifact-targets)) |
 
 ## Permissions
 

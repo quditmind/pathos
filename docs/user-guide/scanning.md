@@ -174,7 +174,7 @@ The comparison also shows severity counts, duration and its change, whether the 
 | **Web application (DAST)** | Nuclei | Misconfigurations, exposed files and panels, known vulnerabilities of a running application |
 | **API (OpenAPI)** | Nuclei DAST templates | Injection and similar flaws in each operation of your OpenAPI document |
 | **SBOM** | Grype | Vulnerabilities in software you receive but cannot scan as source (vendor products, appliances). CycloneDX JSON or SPDX 2.x JSON |
-| **Build artifact** | Trivy | Vulnerable components inside a release file (up to 200 MiB): a zip, tar or tar.gz archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary. Archives are checked and unpacked safely on a worker; nothing in them is run |
+| **Build artifact** | Trivy, binary hardening | Vulnerable components inside a release file (up to 200 MiB): a zip, tar or tar.gz archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary, and missing hardening of the executables and libraries in it ([Binary hardening](security-scanning.md#binary-hardening)). Archives are checked and unpacked safely on a worker; nothing in them is run |
 
 Each target belongs to a repository, so its findings reach that repository's application, owners and teams. Adding, changing and deleting targets needs `repos.manage` on the repository; scanning one needs `scans.run`.
 

@@ -7,6 +7,7 @@ import { useCatalog as useScannerCatalog } from "@/features/scans/api";
 import { reviewApi, useCatalog, useReviewers, useReviewMutation, useSettings } from "./api";
 import { dispositionLabel, humanize, priorityLabel, severities } from "./shared";
 import type { Disposition, Priority, Settings } from "./types";
+import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -59,7 +60,7 @@ const triggerLabel: Record<string, string> = {
   ai_false_positive: "AI review suggests a false positive (human confirms)",
   new_findings: "Every new finding matching the filters",
 };
-const categories = ["sast", "sca", "secrets", "iac", "container", "license", "dast", "other"] as const;
+const categories = FINDING_CATEGORIES;
 const finalDispositions = (Object.keys(dispositionLabel) as Disposition[]).filter((d) => d !== "needs_more_information");
 
 export function ConfigurationsPage() {
@@ -100,7 +101,7 @@ export function ConfigurationsPage() {
         <Section title="Automatic review queue" description="Which findings enter the queue on their own. Ingestion runs after every scan and every few minutes; findings are never queued twice.">
           <Toggle id="auto" label="Create reviews automatically" checked={s.auto_queue} disabled={dis} onChange={(v) => set("auto_queue", v)} />
           <Checks legend="Queue a finding when" options={triggers} value={s.auto_triggers as (typeof triggers)[number][]} disabled={dis || !s.auto_queue} onChange={(v) => set("auto_triggers", v)} label={(v) => triggerLabel[v]!} />
-          <Checks legend="Finding categories" options={categories} value={s.auto_categories as (typeof categories)[number][]} disabled={dis || !s.auto_queue} onChange={(v) => set("auto_categories", v)} label={(v) => v.toUpperCase()} />
+          <Checks legend="Finding categories" options={categories} value={s.auto_categories as (typeof categories)[number][]} disabled={dis || !s.auto_queue} onChange={(v) => set("auto_categories", v)} label={(v) => categoryName(v)} />
           <div>
             <Label htmlFor="minsev">Minimum severity</Label>
             <Select id="minsev" value={s.auto_min_severity} disabled={dis} onChange={(e) => set("auto_min_severity", e.target.value as Severity)}>

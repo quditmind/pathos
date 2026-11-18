@@ -66,7 +66,7 @@ const kindHelp: Record<TargetKind, string> = {
   api: "Nuclei's DAST templates test each operation of your OpenAPI document. Intrusive, brute-force and denial-of-service checks never run.",
   sbom: "Grype matches the SBOM's components against vulnerability databases, for software you receive but cannot scan as source.",
   artifact:
-    "Trivy looks for vulnerable components inside a release artifact (zip or tar archive, Java archive, binary). Archives are validated and extracted on a worker; nothing in them is run.",
+    "Trivy looks for vulnerable components inside a release artifact (zip or tar archive, Java archive, binary), and every executable and shared library in it is checked for binary hardening (PIE, RELRO, stack canaries, NX, FORTIFY_SOURCE, RPATH; ASLR, DEP, CFG and SafeSEH on Windows). Archives are validated and extracted on a worker; nothing in them is run.",
 };
 
 const statusTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {

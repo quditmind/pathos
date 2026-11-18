@@ -27,7 +27,7 @@ Each item: `name`, `version`, `purl`, `type`, `licenses`, `license_policy` (`den
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `GET` | `/api/v1/license-policies` | `sbom.read` at any scope | `{ "items": [{ "spdx_id", "decision" }] }` |
-| `PUT` | `/api/v1/license-policies` | `settings.manage` (organization-wide) | `{ "items": [{ "spdx_id", "decision" }] }` replaces the whole list (at most 500 entries; `decision` is `deny` or `review`; SPDX ID at most 100 characters) → `204`. Audited (`license_policy.update`) |
+| `PUT` | `/api/v1/license-policies` | `settings.manage` (organization-wide) | `{ "items": [{ "spdx_id", "decision" }] }` replaces the whole list (at most 500 entries; `decision` is `deny` or `review`; SPDX ID at most 100 characters) → `204`. Licence findings of every repository are re-evaluated in the same transaction (new violations opened, others fixed, severities follow the decision). Audited (`license_policy.update`, metadata `entries`, `violations`, `findings_resolved`) |
 
 New organizations start with `deny` for AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and `review` for GPL-2.0, GPL-3.0, LGPL-3.0 and BUSL-1.1 (the `-only` and `-or-later` SPDX IDs).
 

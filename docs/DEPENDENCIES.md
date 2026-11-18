@@ -20,7 +20,7 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 | PATHOS runtime base | `gcr.io/distroless/static-debian13:nonroot` | Apache-2.0 | API, jobs, scheduler and migrate |
 | Mailpit (profile `dev`) | `axllent/mailpit:v1.33.1` | MIT | SMTP sink for development |
 | SeaweedFS (profile `objectstore`) | `chrislusf/seaweedfs:4.51` | Apache-2.0 | Optional S3-compatible store (instead of MinIO, ARCHITECTURE D1) |
-| ClamAV (profile `clamav`) | `clamav/clamav:1.5` | GPL-2.0 | Optional malware scanning of uploads |
+| ClamAV (profile `clamav`) | `clamav/clamav:1.5` | GPL-2.0 | Optional malware scanning of uploads and (the `clamav` scanner) of repository content. A separate service; PATHOS talks to it over the clamd network protocol and does not link or distribute it |
 | Ollama (profile `ollama`) | `ollama/ollama:0.40.13` | MIT | Optional local model server |
 | Grafana otel-lgtm (profile `observability`) | `grafana/otel-lgtm:0.39.0` | Apache-2.0 | Local observability backend, evaluation only |
 
@@ -57,6 +57,7 @@ Not shipped in any image; installed by repository owners or Git server administr
 | actionlint | 1.7.12 | MIT | Built from its Go module |
 | Nuclei | 3.11.1 | MIT | Built from its Go module with patched dependencies (`kin-openapi`, `go-git`, `go-jose`, `grpc`, `x/crypto`, `x/net`, `x/text`) |
 | Nuclei templates | 10.5.1 | MIT | Source archive, SHA-256 pinned; a reviewed subset only ([SECURITY.md](SECURITY.md#scan-targets)) |
+| File licences (`licensecheck`), binary hardening (`binary-hardening`), ClamAV client (`clamav`) | PATHOS version | Apache-2.0 | Built into the worker agent (`pathos-worker`): no additional binary |
 
 The licensing review of all catalogued scanners is in [SCANNER_CATALOG.md](SCANNER_CATALOG.md).
 
@@ -79,6 +80,7 @@ Direct dependencies from `backend/go.mod`:
 | `go.opentelemetry.io/otel` (API, SDK, metric, trace, OTLP/HTTP exporters) | v1.47.0 | Traces and metrics | Apache-2.0 |
 | `go.opentelemetry.io/contrib` (`otelhttp`, `runtime`) | v0.72.0 | HTTP and runtime instrumentation | Apache-2.0 |
 | `go.yaml.in/yaml/v3` | v3.0.6 | Scanner plugin definitions, custom rules, OpenAPI documents | MIT and Apache-2.0 |
+| `github.com/google/licensecheck` | v0.3.1 | File-level licence detection in the worker (`licensecheck` scanner); embeds the SPDX licence texts it matches | BSD-3-Clause |
 
 Notable indirect modules: `github.com/go-jose/go-jose/v4` v4.1.6 (OIDC). The OpenAI, xAI and self-hosted providers, the MCP server and the SCM clients use the standard library only.
 
