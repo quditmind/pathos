@@ -157,6 +157,23 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - Target credentials (registry tokens, passwords, header values) are encrypted (kind `scan_target`), never returned by the API, given only to the worker holding the job's lease, and redacted from scan logs.
 - An SBOM target is served to the worker with its SHA-256, which the worker verifies before Grype reads it.
 
+### Declared endpoint verification
+
+- Verifying a repository's declared public URLs, domains and IPs is **opt-in** per repository and needs a recorded authorization statement (user, time, optional reference; audited as `endpoint_verification.*`). The statement covers the endpoints declared at that moment (`authorized_scope`); endpoints added later are skipped until someone confirms again, and enabling the Nuclei exposure templates needs a new statement too.
+- Checks run on a **worker**, never on the API server, and only against the declared hosts: redirects to other hosts are not followed, wildcard domains are skipped, and the worker contacts the hosts only through the egress proxy (CONNECT tunnels for TLS, the proxy for HTTP), so the proxy's allowlist and private-address rules apply. Requests are spaced at the configured rate (1–10 per second, default 2).
+- Nothing intrusive is sent: DNS lookups, at most four TLS handshakes per endpoint (certificate and protocol observation, legacy-protocol and weak-cipher probes), one HTTPS request (plus at most three same-host redirects) and one HTTP request, each reading at most 64 KiB. The optional Nuclei run is limited to the exposure, exposed-panel and takeover templates with `dos`, `intrusive`, `bruteforce` and `fuzz` excluded.
+- With `PATHOS_OFFLINE=true` endpoint verification cannot be enabled or run, and the worker refuses such jobs.
+
+### Signature verification
+
+- Image and artifact signatures are verified on the worker with the pinned **cosign** binary (built from its Go module, module hash pinned). The public key and identities are policy, not secrets; registry credentials are written to a per-job Docker configuration file, never to cosign's command line.
+- Verification results are evidence: they are stored per scan (`signature_verifications`) whatever the outcome, and cosign's raw report is kept with the scan. Only when a target **requires** a signature does a failure become a finding (`supply-chain`, high) and fail the security gate.
+- Keyless verification contacts the Sigstore public-good services (`tuf-repo-cdn.sigstore.dev`, `rekor.sigstore.dev`, `fulcio.sigstore.dev`) through the egress proxy; they are in the default allowlist. Offline, only key-based verification runs (without the transparency log) and keyless verification is reported as `skipped`.
+
+### Introducing commits
+
+- `git blame` runs on the worker against its own full-history checkout of the scanned commit, with hooks and fsmonitor disabled and only regular files inside the checkout. Only the commit SHA, the author's **name** and the commit date are sent to PATHOS; author e-mail addresses are never collected. Shallow clones are reported as unknown rather than guessed.
+
 ### Build artifacts
 
 - Uploads need `repos.manage` on the repository and are limited to 200 MiB. The file is stored gzip-compressed in the object store or the database.
@@ -209,6 +226,9 @@ PATHOS sends nothing to third parties unless a feature is configured.
 | EPSS and CISA KEV feeds | `jobs` | Nothing but the download request | Enabled, daily |
 | OSV lookups | `jobs` | The CVE and GHSA identifiers of open findings | Enabled |
 | deps.dev package health | `jobs` | **Package names** from the inventories, which can include private names | **Disabled**; an administrator enables it in **Risk & intelligence** |
+| endoflife.date end-of-life data | `jobs` (and `api` for **Download now**) | Nothing but the download request (`https://endoflife.date/api/v1/products/full`) | **Disabled**; an administrator enables it in **Risk & intelligence** |
+| Declared endpoint verification | workers, through the egress proxy | DNS lookups, TLS handshakes and GET requests to the repository's **declared** endpoints only | **Disabled**; enabled per repository with an authorization statement; never offline |
+| Sigstore (keyless signature verification) | workers, through the egress proxy | The image reference's signature lookup in Rekor; TUF trust root download | Only for targets configured for keyless verification; never offline |
 | AI providers | `jobs`, `api` | Redacted evidence (see below) | Only when a provider is configured |
 | Outbound webhooks, Jira, ServiceNow | `jobs`, `api` | Event and finding facts (redacted, no code) | Only when configured |
 | Vulnerability database updates | workers, through the egress proxy | Download requests | Enabled unless offline |
@@ -216,6 +236,7 @@ PATHOS sends nothing to third parties unless a feature is configured.
 With `PATHOS_OFFLINE=true` (air-gapped installations):
 
 - the API never downloads intelligence feeds; they are imported from files, and the UI says so;
+- declared endpoint verification is disabled and keyless signature verification is skipped (key-based verification still runs);
 - Trivy, Grype and OSV-Scanner use only the local databases imported from an offline bundle, and fail with an explicit error when one is missing;
 - `scripts/offline-bundle.sh import` refuses bundles with links or unsafe paths and verifies the SHA-256 of every file before replacing the databases.
 

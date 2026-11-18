@@ -903,6 +903,47 @@ Scan `status`: `queued`, `running`, `done`, `failed` or `not_supported`. The sec
 
 Database entities: `push_secret_scans`, `pushed_secrets`, `notification_events` (`secret.pushed`), `audit_logs` (`push_protection.secret_detected`).
 
+### Endpoint verification
+
+Opt-in verification of the repository's declared public endpoints (`public_urls`, `public_domains`, `public_ips`) by a scan worker: DNS, reachability, TLS (certificate validity, expiry within 30 days, host name, trust chain, TLS 1.0/1.1, weak cipher suites), HSTS and security headers, and optionally the Nuclei exposure templates. It is stored as a [scan target](scan-targets.md) of kind `endpoints`; problems become `dast` findings of that target (scanner `pathos-endpoints`, rules `endpoint/<check>`, e.g. `endpoint/tls-certificate-expired`, `endpoint/hsts-missing`).
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/repositories/{id}/endpoint-verification` | `scans.read` | Settings, authorization and the status of each declared endpoint |
+| `PUT` | `/api/v1/repositories/{id}/endpoint-verification` | `repos.manage` | Enable, configure or disable |
+| `POST` | `/api/v1/repositories/{id}/endpoint-verification/run` | `scans.run` | Queue a verification → `202 { job_id, coalesced }` |
+
+`PUT` body (every field optional):
+
+| Field | Description |
+|---|---|
+| `enabled` | Turn verification on or off (default on when first configured) |
+| `authorized`, `authorization_note` | `authorized: true` records that you are authorized to test the endpoints; your user and the time are stored and the statement covers the endpoints declared at that moment (`authorized_scope`). Required when verification is turned on and when `nuclei` is turned on |
+| `rate_limit` | Requests per second, 1–10 (default 2) |
+| `nuclei` | Also run the non-intrusive Nuclei exposure templates (`http/exposures`, `http/exposed-panels`, `http/takeovers`; never fuzzing, brute-force or denial-of-service) |
+
+Response (`GET` and `PUT`):
+
+```json
+{
+  "configured": true, "enabled": true, "scan_target_id": "0193…",
+  "authorized_by": "Dana Owner", "authorized_at": "2026-11-19T09:00:00Z", "authorization_note": "CHG-1234",
+  "rate_limit": 2, "nuclei": false, "offline": false, "open_findings": 3, "unauthorized": 0,
+  "last_scan": { "id": "0193…", "scan_key": "QD-SCAN-000120", "status": "succeeded", "queued_at": "…", "finished_at": "…", "error": "" },
+  "endpoints": [
+    { "kind": "url", "value": "https://shop.acme.example", "authorized": true, "status": "verified", "detail": "",
+      "checks": { "dns": { "resolver": "egress proxy" },
+                  "tls": { "protocol": "TLS 1.3", "cipher_suite": "TLS_AES_128_GCM_SHA256", "legacy_protocols": [], "weak_cipher_suites": [],
+                           "certificate": { "subject": "shop.acme.example", "issuer": "R11", "not_after": "2027-01-10T00:00:00Z", "days_remaining": 52, "trusted": true, "hostname_match": true } },
+                  "https": { "url": "https://shop.acme.example", "status": 200, "final_url": "https://shop.acme.example", "headers": { "strict-transport-security": "max-age=63072000" } },
+                  "http": { "url": "http://shop.acme.example", "status": 301, "location": "https://shop.acme.example/" } },
+      "checked_at": "2026-11-19T09:05:00Z", "scan_job_id": "0193…" }
+  ]
+}
+```
+
+`status` per endpoint: `verified` (answered over HTTPS or HTTP), `unreachable`, `dns_failed`, `blocked` (refused by the egress proxy: add the host to `deploy/egress/allowlist.txt`), `skipped` (not covered by the authorization statement, or a wildcard domain), `error` or `not_checked`. Errors: `400` without declared endpoints or without the authorization statement where it is required; `409` with `PATHOS_OFFLINE=true` (enabling or running) or when verification is not enabled (run). Changes are audited (`endpoint_verification.enable`, `endpoint_verification.update`, `scan.request`).
+
 ## Legacy synchronous imports
 
 These endpoints register SCM repositories synchronously, without import jobs, upload support, idempotency or asset-policy validation. They only set placement (application, business unit, country), environment, criticality, scan branch and tags. New integrations should use [repository imports](imports.md#start-an-import).

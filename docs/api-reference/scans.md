@@ -66,7 +66,8 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `retry_of`, `retry_count` | Set on retries, which are always new executions |
 | `asset_type`, `target_id`, `target_name`, `target_reference` | `repository` for source-code scans; otherwise the [scan target](scan-targets.md) kind and the target |
 | `trigger`, `priority` | `manual`, `schedule`, `push`, `merge`, `pull_request`, `onboarding`, `emergency` or `import`; the queue priority follows the trigger (emergency 100 … schedule 30) |
-| `gate_failed` | The profile's `fail_on_critical` gate or a blocking [security policy](governance.md#security-policies) failed |
+| `gate_failed` | The profile's `fail_on_critical` gate, a blocking [security policy](governance.md#security-policies) or a [required signature](scan-targets.md#signature-verification) failed |
+| `change_summary` | Push and merge scans of the repository's code: `{ base_commit, base_scan_id, head_commit, new: {severity: n}, fixed: {severity: n}, new_total, fixed_total }` comparing with the previous finished scan (`base_*` empty without one); absent for other scans. The [`findings.new` notification](notifications.md#notification-events) and its webhook payload (`scan.changes`) carry it |
 | `config_snapshot` | Only on `GET /scans/{id}`: profile id, name, version, change note, scanners and their configuration, exclusions, severity threshold, timeout, SBOM, fail on critical, retention, capture time. Immutable |
 
 Database entities: `scan_jobs`, `scan_results` (engine jobs), `scan_job_events`, `scan_job_logs`, `finding_occurrences`, `scan_profile_versions`.

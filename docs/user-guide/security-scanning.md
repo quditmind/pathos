@@ -148,6 +148,10 @@ Every scan is tied to an identified source version:
 
 Findings keep a **first seen** date and the commit of the first scan that found them (**First detected at commit**). When a scanner that ran successfully no longer reports a finding, it is set to **Fixed** automatically; if it reappears later it is reopened.
 
+**Introduced by.** For code (SAST), secret and IaC findings with a file and line, the worker runs `git blame` on the scanned commit and records the commit that introduced the line, its **author name** and **date** (e-mail addresses are not stored). This needs the repository's history: turn on **Clone full history** in the repository's scan settings. With the default shallow clone the finding shows **Unknown (shallow clone)** instead of a guess; a line that is not in the scanned commit (for example a secret found only in history) shows *Unknown (the line is not in the scanned commit)*. Once known, the introducing commit is kept.
+
+**Push summaries.** A scan started by a push or merge to the scan branch compares itself with the previous scan of the repository: the scan details show **Changes since the previous scanned commit** (previous commit → this commit, new and fixed findings by severity). The same summary is added to the *New findings* notification and to its webhook payload (`scan.changes`).
+
 ## Offline (air-gapped) operation
 
 PATHOS can run without internet access. With `PATHOS_OFFLINE=true`, workers use only local vulnerability databases (Trivy and Grype never update, OSV-Scanner uses its offline databases) and the intelligence feeds are imported from files on **Administration → Risk & intelligence**. Administrators bring the databases in as an offline bundle (`scripts/offline-bundle.sh`); the procedure is in `docs/AIRGAP.md` in the PATHOS repository. A scanner whose database is missing fails with *offline mode: vulnerability database missing; import an offline bundle*.

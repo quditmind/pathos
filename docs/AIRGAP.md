@@ -60,6 +60,9 @@ Vulnerability data is only as fresh as the last bundle. Create and import a bund
 | DAST (Nuclei) | Works against internal applications (templates are in the image) |
 | EPSS, KEV, OSV intelligence | File import (bundle) |
 | deps.dev package health | Not available (it is an online service) |
+| End-of-life data (endoflife.date) | File import: download `https://endoflife.date/api/v1/products/full` on a connected machine and import it in **Risk & intelligence** |
+| Declared endpoint verification | Disabled (it contacts the endpoints) |
+| Signature verification (cosign) | Key-based only, without the transparency log; keyless verification is reported as skipped |
 | SCM integrations | Internal servers (GitHub Enterprise Server, GitLab self-managed, Azure DevOps Server) |
 | Webhooks, Jira, ServiceNow | Internal endpoints (allow internal addresses on each) |
 | AI | Self-hosted model only |

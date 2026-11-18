@@ -498,7 +498,12 @@ func webhookPayload(format string, deliveryID uuid.UUID, key string, at time.Tim
 		out["policy"] = d.Policy
 	}
 	if d.Scan.ID != "" {
-		out["scan"] = map[string]any{"id": d.Scan.ID, "trigger": d.Scan.Trigger, "new": d.Scan.New, "fixed": d.Scan.Fixed, "gate_failed": d.Scan.GateFailed}
+		scan := map[string]any{"id": d.Scan.ID, "trigger": d.Scan.Trigger, "new": d.Scan.New, "fixed": d.Scan.Fixed, "gate_failed": d.Scan.GateFailed}
+		if c := d.Scan.Changes; c != nil {
+			scan["changes"] = map[string]any{"base_commit": c.BaseCommit, "head_commit": c.HeadCommit, "new": c.New, "fixed": c.Fixed,
+				"new_total": c.NewTotal, "fixed_total": c.FixedTotal}
+		}
+		out["scan"] = scan
 	}
 	return json.Marshal(out)
 }

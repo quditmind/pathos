@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Container, FileJson, Globe, Package, Pencil, Play, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { Boxes, Container, FileJson, Globe, Package, Pencil, Play, Plus, Radar, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
 import { api, ApiError, getCsrfToken } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
@@ -11,9 +11,43 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
 
-export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact";
+export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
+/** Kinds added on this page (declared endpoints are managed from the repository). */
+const creatableKinds: TargetKind[] = ["image", "url", "api", "sbom", "artifact"];
 /** Targets whose content is an uploaded file. */
 const uploaded = (k: TargetKind) => k === "sbom" || k === "artifact";
+/** Targets whose signature can be verified (cosign). */
+const signable = (k: TargetKind) => k === "image" || k === "artifact";
+
+/** Sigstore verification policy of an image or artifact target. */
+export interface SignatureConfig {
+  mode: "" | "key" | "keyless";
+  public_key?: string;
+  identity?: string;
+  identity_regexp?: string;
+  issuer?: string;
+  require?: boolean;
+  attestation?: string;
+  ignore_tlog?: boolean;
+}
+
+export interface SignatureVerification {
+  status: "verified" | "unsigned" | "invalid" | "skipped" | "error";
+  mode: "none" | "key" | "keyless";
+  required: boolean;
+  attestation_status: "" | "verified" | "missing" | "invalid" | "skipped" | "error";
+  details: {
+    subject?: string;
+    detail?: string;
+    offline?: boolean;
+    signatures?: { digest?: string; identity?: string; issuer?: string }[] | null;
+    attestation?: { type: string; status: string; detail?: string; predicate_type?: string; builder_id?: string; source_repository?: string } | null;
+  };
+  scan_job_id: string | null;
+  verified_at: string;
+}
+
+const attestationTypes = ["slsaprovenance", "slsaprovenance02", "slsaprovenance1", "spdx", "spdxjson", "cyclonedx", "vuln", "openvex", "link"];
 
 export interface ScanTarget {
   id: string;
@@ -23,7 +57,7 @@ export interface ScanTarget {
   name: string;
   reference: string;
   egress_host: string;
-  config: { rate_limit?: number; min_severity?: string };
+  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig };
   api_spec?: string;
   sbom_format: string;
   sbom_components: number;
@@ -37,6 +71,10 @@ export interface ScanTarget {
   authorization_note: string;
   enabled: boolean;
   scanners: string[];
+  /** An artifact's signature or Sigstore bundle was uploaded. */
+  has_signature?: boolean;
+  /** Latest signature verification evidence (image and artifact targets). */
+  last_verification?: SignatureVerification | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -50,6 +88,7 @@ export const targetKindLabel: Record<TargetKind, string> = {
   api: "API (OpenAPI)",
   sbom: "SBOM",
   artifact: "Build artifact",
+  endpoints: "Declared public endpoints",
 };
 
 const kindIcon: Record<TargetKind, React.ReactNode> = {
@@ -58,6 +97,7 @@ const kindIcon: Record<TargetKind, React.ReactNode> = {
   api: <Boxes className="size-4" />,
   sbom: <FileJson className="size-4" />,
   artifact: <Package className="size-4" />,
+  endpoints: <Radar className="size-4" />,
 };
 
 const kindHelp: Record<TargetKind, string> = {
@@ -67,7 +107,35 @@ const kindHelp: Record<TargetKind, string> = {
   sbom: "Grype matches the SBOM's components against vulnerability databases, for software you receive but cannot scan as source.",
   artifact:
     "Trivy looks for vulnerable components inside a release artifact (zip or tar archive, Java archive, binary), and every executable and shared library in it is checked for binary hardening (PIE, RELRO, stack canaries, NX, FORTIFY_SOURCE, RPATH; ASLR, DEP, CFG and SafeSEH on Windows). Archives are validated and extracted on a worker; nothing in them is run.",
+  endpoints:
+    "Verification of a repository's declared public URLs, domains and IPs (DNS, reachability, TLS, security headers). It is enabled and authorized on the repository's Details tab.",
 };
+
+const verificationTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {
+  verified: "success",
+  unsigned: "danger",
+  invalid: "danger",
+  skipped: "warning",
+  error: "warning",
+};
+
+/** The latest signature verification of a target. */
+export function VerificationBadge({ v }: { v: SignatureVerification }) {
+  const title = [
+    v.details.detail,
+    ...(v.details.signatures ?? []).map((s) => [s.identity, s.issuer].filter(Boolean).join(" · ")),
+    v.details.attestation ? `Attestation ${v.details.attestation.type}: ${v.details.attestation.status}${v.details.attestation.builder_id ? ` (builder ${v.details.attestation.builder_id})` : ""}` : "",
+    v.details.offline ? "Offline: transparency log not checked" : "",
+    `Checked ${formatDateTime(v.verified_at)}`,
+  ].filter(Boolean).join("\n");
+  return (
+    <span className="inline-flex items-center gap-1" title={title}>
+      <Badge tone={verificationTone[v.status] ?? "neutral"}><ShieldCheck className="size-3" /> Signature {v.status}</Badge>
+      {v.attestation_status && <Badge tone={verificationTone[v.attestation_status === "missing" ? "unsigned" : v.attestation_status] ?? "neutral"}>Attestation {v.attestation_status}</Badge>}
+      {v.required && <span className="text-[11px] text-muted-foreground">required</span>}
+    </span>
+  );
+}
 
 const statusTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {
   succeeded: "success",
@@ -93,6 +161,9 @@ interface FormState {
   authorized: boolean;
   authorization_note: string;
   enabled: boolean;
+  signature: SignatureConfig;
+  /** Artifact signature or Sigstore bundle text; undefined = unchanged. */
+  signature_material?: string;
 }
 
 const emptyForm = (kind: TargetKind): FormState => ({
@@ -109,7 +180,101 @@ const emptyForm = (kind: TargetKind): FormState => ({
   authorized: false,
   authorization_note: "",
   enabled: true,
+  signature: { mode: "" },
 });
+
+/** The signature policy as sent to the API (fields of the mode only). */
+export function signaturePayload(s: SignatureConfig): SignatureConfig | undefined {
+  if (!s.mode) return undefined;
+  const base = { mode: s.mode, require: !!s.require, attestation: s.attestation || undefined, ignore_tlog: !!s.ignore_tlog };
+  if (s.mode === "key") return { ...base, public_key: s.public_key ?? "" };
+  return { ...base, identity: s.identity_regexp ? undefined : s.identity, identity_regexp: s.identity_regexp || undefined, issuer: s.issuer ?? "" };
+}
+
+function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Partial<FormState>) => void; kind: TargetKind; target: ScanTarget | null }) {
+  const s = f.signature;
+  const setS = (p: Partial<SignatureConfig>) => set({ signature: { ...s, ...p } });
+  const onFile = async (file: File | undefined) => {
+    if (file) set({ signature_material: (await file.text()).trim() });
+  };
+  return (
+    <fieldset className="rounded-md border border-border p-3">
+      <legend className="px-1 text-[12px] font-medium">Signature verification (Sigstore cosign)</legend>
+      <div className="grid gap-3 md:grid-cols-2">
+        <div>
+          <Label htmlFor="sig-mode">Verify</Label>
+          <Select id="sig-mode" className="w-full" value={s.mode} onChange={(e) => setS({ mode: e.target.value as SignatureConfig["mode"] })}>
+            <option value="">Off</option>
+            <option value="key">With a public key</option>
+            <option value="keyless">Keyless (certificate identity and OIDC issuer)</option>
+          </Select>
+        </div>
+        {s.mode && kind === "image" && (
+          <div>
+            <Label htmlFor="sig-att" hint="(optional)">Attestation to verify</Label>
+            <Select id="sig-att" className="w-full" value={s.attestation ?? ""} onChange={(e) => setS({ attestation: e.target.value })}>
+              <option value="">None</option>
+              {attestationTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </div>
+        )}
+      </div>
+      {s.mode === "key" && (
+        <div className="mt-3">
+          <Label htmlFor="sig-key" hint="(PEM, e.g. cosign.pub)">Public key</Label>
+          <textarea id="sig-key" spellCheck={false} value={s.public_key ?? ""} onChange={(e) => setS({ public_key: e.target.value })}
+            placeholder="-----BEGIN PUBLIC KEY-----" className="h-24 w-full rounded-md border border-border bg-surface px-3 py-2 font-mono text-[11.5px] focus-visible:outline-2 focus-visible:outline-ring" />
+        </div>
+      )}
+      {s.mode === "keyless" && (
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div>
+            <Label htmlFor="sig-id" hint="(exact)">Certificate identity</Label>
+            <Input id="sig-id" className="font-mono text-[12px]" value={s.identity ?? ""} onChange={(e) => setS({ identity: e.target.value })}
+              placeholder="https://github.com/acme/api/.github/workflows/release.yml@refs/heads/main" />
+          </div>
+          <div>
+            <Label htmlFor="sig-idre" hint="(instead of the exact identity)">Identity regular expression</Label>
+            <Input id="sig-idre" className="font-mono text-[12px]" value={s.identity_regexp ?? ""} onChange={(e) => setS({ identity_regexp: e.target.value })}
+              placeholder="^https://github.com/acme/" />
+          </div>
+          <div className="md:col-span-2">
+            <Label htmlFor="sig-iss">OIDC issuer</Label>
+            <Input id="sig-iss" className="font-mono text-[12px]" value={s.issuer ?? ""} onChange={(e) => setS({ issuer: e.target.value })}
+              placeholder="https://token.actions.githubusercontent.com" />
+          </div>
+        </div>
+      )}
+      {s.mode && (
+        <div className="mt-3 space-y-1.5">
+          <label className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={!!s.require} onChange={(e) => setS({ require: e.target.checked })} />
+            <span>Require a valid signature{kind === "image" && s.attestation ? " and attestation" : ""}: otherwise a high-severity finding is created and the security gate fails.</span>
+          </label>
+          {s.mode === "key" && (
+            <label className="flex items-start gap-2 text-[12.5px]">
+              <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={!!s.ignore_tlog} onChange={(e) => setS({ ignore_tlog: e.target.checked })} />
+              <span>The signatures are not in a transparency log (private signing without Rekor)</span>
+            </label>
+          )}
+        </div>
+      )}
+      {s.mode && kind === "artifact" && (
+        <div className="mt-3">
+          <Label htmlFor="sig-file" hint={target?.has_signature && f.signature_material === undefined ? "(uploaded; choose a file to replace)" : "(cosign sign-blob output)"}>
+            Signature (base64) or Sigstore bundle (.sigstore.json)
+          </Label>
+          <input id="sig-file" type="file" accept=".sig,.json,.bundle,.txt" onChange={(e) => void onFile(e.target.files?.[0])}
+            className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
+        </div>
+      )}
+      <p className="mt-2 text-[11.5px] text-muted-foreground">
+        The verification result is kept as evidence with each scan. Keyless verification uses the public Sigstore infrastructure (Fulcio, Rekor);
+        offline, only key-based verification runs.
+      </p>
+    </fieldset>
+  );
+}
 
 async function uploadTarget(kind: TargetKind, fd: FormData): Promise<ScanTarget> {
   const res = await fetch(`/api/v1/scan-targets/${kind}`, { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json", "X-CSRF-Token": getCsrfToken() } });
@@ -155,6 +320,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
       authorized: false,
       authorization_note: t.authorization_note,
       enabled: t.enabled,
+      signature: { mode: "", ...t.config.signature },
     });
   }, [open, target, initialKind, full.data]);
   const set = (p: Partial<FormState>) => setF((x) => ({ ...x, ...p }));
@@ -162,12 +328,17 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
   const addressChanged = !!target && live && f.reference.trim() !== target.reference;
   const save = useMutation({
     mutationFn: async () => {
+      const signature = signable(f.kind) ? signaturePayload(f.signature) : undefined;
       if (uploaded(f.kind) && !target) {
         const fd = new FormData();
         fd.set("repository_id", f.repository_id!);
         fd.set("name", f.name);
         fd.set("file", file!);
-        return uploadTarget(f.kind, fd);
+        if (f.kind === "artifact" && f.signature_material) fd.set("signature", f.signature_material);
+        const created = await uploadTarget(f.kind, fd);
+        // The verification policy is set right after the upload.
+        if (signature) return api<ScanTarget>(`/api/v1/scan-targets/${created.id}`, { method: "PUT", body: { config: { signature } } });
+        return created;
       }
       const body: Record<string, unknown> = {
         name: f.name,
@@ -184,6 +355,8 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         if (live) body.config = { rate_limit: f.rate_limit ? Number(f.rate_limit) : undefined, min_severity: f.min_severity || undefined };
         if (f.kind === "api") body.api_spec = f.api_spec;
       }
+      if (signable(f.kind)) body.config = { ...(body.config as object | undefined), signature };
+      if (f.kind === "artifact" && f.signature_material !== undefined) body.signature_material = f.signature_material;
       if (target) return api<ScanTarget>(`/api/v1/scan-targets/${target.id}`, { method: "PUT", body });
       return api<ScanTarget>("/api/v1/scan-targets", { method: "POST", body: { ...body, repository_id: f.repository_id, kind: f.kind } });
     },
@@ -201,7 +374,9 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
     (f.kind !== "api" || f.api_spec.trim() !== "") &&
     (!needsAuthorization || f.authorized) &&
     (f.auth_type !== "basic" || f.auth_username.trim() !== "") &&
-    (f.auth_type !== "header" || f.auth_header_name.trim() !== "");
+    (f.auth_type !== "header" || f.auth_header_name.trim() !== "") &&
+    (f.signature.mode !== "key" || !!f.signature.public_key?.trim()) &&
+    (f.signature.mode !== "keyless" || (!!f.signature.issuer?.trim() && !!(f.signature.identity?.trim() || f.signature.identity_regexp?.trim())));
   const onApiFile = async (file: File | undefined) => {
     if (file) set({ api_spec: await file.text() });
   };
@@ -229,7 +404,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
             <div>
               <Label htmlFor="tgt-kind">Kind</Label>
               <Select id="tgt-kind" className="w-full" value={f.kind} onChange={(e) => setF({ ...emptyForm(e.target.value as TargetKind), repository_id: f.repository_id, name: f.name })}>
-                {(Object.keys(targetKindLabel) as TargetKind[]).map((k) => <option key={k} value={k}>{targetKindLabel[k]}</option>)}
+                {creatableKinds.map((k) => <option key={k} value={k}>{targetKindLabel[k]}</option>)}
               </Select>
             </div>
             <div>
@@ -346,6 +521,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
             </div>
           </div>
         )}
+        {signable(f.kind) && <SignatureFields f={f} set={set} kind={f.kind} target={target} />}
         {target && (
           <label className="flex items-center gap-1.5 text-[13px]">
             <input type="checkbox" className="accent-[var(--primary)]" checked={f.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Enabled
@@ -446,7 +622,8 @@ export function ScanTargetsPage() {
                     <div className="max-w-md truncate font-mono text-[11.5px] text-muted-foreground" title={t.reference}>
                       {t.kind === "sbom" ? `${t.reference} · ${t.sbom_format.toUpperCase()} · ${t.sbom_components} components` : t.reference}
                     </div>
-                    {(t.kind === "url" || t.kind === "api") && t.authorized_by && (
+                    {t.last_verification && <div className="mt-0.5"><VerificationBadge v={t.last_verification} /></div>}
+                    {(t.kind === "url" || t.kind === "api" || t.kind === "endpoints") && t.authorized_by && (
                       <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={t.authorization_note}>
                         <ShieldAlert className="size-3" /> Authorized by {t.authorized_by}, {formatDateTime(t.authorized_at!)}
                       </div>
@@ -480,7 +657,13 @@ export function ScanTargetsPage() {
                     )}
                     {canManage && (
                       <>
-                        <Button size="icon" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => setDialog({ target: t, kind: t.kind })}><Pencil /></Button>
+                        {t.kind === "endpoints" ? (
+                          <Link to="/repositories" search={{ repo: t.repository_id } as never} className="mx-2 text-[12px] text-primary hover:underline" aria-label={`Manage ${t.name} in the repository`}>
+                            Manage
+                          </Link>
+                        ) : (
+                          <Button size="icon" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => setDialog({ target: t, kind: t.kind })}><Pencil /></Button>
+                        )}
                         <Button size="icon" variant="ghost" aria-label={`Delete ${t.name}`} onClick={() => setDel(t)}><Trash2 /></Button>
                       </>
                     )}

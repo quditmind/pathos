@@ -17,6 +17,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/compliance"
 	"pathos/internal/dashboard"
+	"pathos/internal/eol"
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
@@ -111,6 +112,7 @@ func Build(d Deps) Handlers {
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
 	scanSvc.FixPRTarget = FixPRTarget(repoSvc)
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
+	scanSvc.Offline = d.Offline
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -155,6 +157,7 @@ func Build(d Deps) Handlers {
 	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)
+	(&eol.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)

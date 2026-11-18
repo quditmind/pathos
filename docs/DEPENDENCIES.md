@@ -28,7 +28,7 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 
 | Image | Used for |
 |---|---|
-| `golang:1.27.4-alpine` | The PATHOS binaries, the worker agent, and Gitleaks, Nuclei and actionlint built from source |
+| `golang:1.27.4-alpine` | The PATHOS binaries, the worker agent, and Gitleaks, Nuclei, actionlint and cosign built from source |
 | `node:26.13.1-alpine` | The frontend build (inside the proxy image) |
 | `debian:trixie-slim` | Downloading and verifying the scanner binaries |
 | `python:3.13-slim-trixie` | The `worker-core` runtime (Checkov needs Python); `pip` is removed after installing Checkov |
@@ -58,6 +58,9 @@ Not shipped in any image; installed by repository owners or Git server administr
 | Nuclei | 3.11.1 | MIT | Built from its Go module with patched dependencies (`kin-openapi`, `go-git`, `go-jose`, `grpc`, `x/crypto`, `x/net`, `x/text`) |
 | Nuclei templates | 10.5.1 | MIT | Source archive, SHA-256 pinned; a reviewed subset only ([SECURITY.md](SECURITY.md#scan-targets)) |
 | File licences (`licensecheck`), binary hardening (`binary-hardening`), ClamAV client (`clamav`) | PATHOS version | Apache-2.0 | Built into the worker agent (`pathos-worker`): no additional binary |
+| cosign (Sigstore) | 3.1.4 | Apache-2.0 | Built from its Go module; the module hash (`h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=`, Go checksum database) is checked before building. Signature and attestation verification of image and artifact targets |
+
+Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 
 The licensing review of all catalogued scanners is in [SCANNER_CATALOG.md](SCANNER_CATALOG.md).
 

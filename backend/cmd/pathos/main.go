@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"pathos/internal/eol"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/policy"
 	"pathos/internal/pushprotect"
@@ -312,6 +313,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go releases.RunBackground(ctx, pool, log) // component (SBOM) policies, hourly
 	// Fix pull requests: record merged/closed state (findings are resolved by scans only).
 	go scans.RunFixPRTracker(ctx, pool, log, server.FixPRTarget(reposSvc), 15*time.Minute)
+	// End-of-life status changes with the calendar: recomputed daily.
+	go eol.RunBackground(ctx, pool, log)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads
 		// are removed.

@@ -101,10 +101,22 @@ Count: **55 scanner integrations**: 48 "Use" plus 7 optional or license-restrict
 | cdxgen (OWASP) | SBOM generation (CycloneDX) | Apache-2.0 | active (repo moved) |
 | CycloneDX CLI | SBOM conversion/validation/merge | Apache-2.0 | active |
 | SPDX tools-python | SPDX validation/conversion | Apache-2.0 | maintained (2026-03) |
-| Cosign | Signature verification | Apache-2.0 | active |
+| Cosign | Signature verification | Apache-2.0 | active; **shipped** in worker-core (catalog key `cosign`): signature and in-toto attestation verification of image and artifact targets |
 | in-toto | Attestation verification | Apache-2.0 | active |
 | slsa-verifier | SLSA provenance verification | Apache-2.0 | active |
 | GUAC | Supply-chain graph (integration, later) | Apache-2.0 | active |
+
+## Built-in checks (not counted as scanners)
+
+The scanner catalog also lists three entries that are not third-party scanner integrations; they exist so their results and findings have a catalog key:
+
+| Key | What it is |
+|---|---|
+| `pathos-endpoints` | Verification of a repository's declared public endpoints, built into the worker agent (DNS, reachability, TLS, HSTS and security headers); runs only for `endpoints` targets |
+| `cosign` | The Sigstore cosign utility above, run for image and artifact targets with a signature verification policy |
+| `endoflife` | End-of-life findings from the endoflife.date intelligence feed; not run by a worker |
+
+`GET /api/v1/scanners` returns the 52 integrations, Syft and these three entries.
 
 ## Excluded
 

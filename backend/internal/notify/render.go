@@ -49,6 +49,9 @@ type Data struct {
 		New, Fixed         int
 		Attempts           int
 		GateFailed         bool
+		// Changes compares a push or merge scan with the previous scanned
+		// commit (nil for other scans).
+		Changes *ScanChanges
 	}
 	Risk struct {
 		Status, Justification, ExpiresAt, RequestedBy, DecidedBy, Note string
@@ -199,12 +202,14 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		var started *time.Time
 		var queued time.Time
-		err := q.QueryRow(ctx, `SELECT trigger, error, attempts, findings_new, findings_fixed, gate_failed, started_at, queued_at
+		var change []byte
+		err := q.QueryRow(ctx, `SELECT trigger, error, attempts, findings_new, findings_fixed, gate_failed, started_at, queued_at, change_summary
 			FROM scan_jobs WHERE id = $1`, *ev.SubjectID).
-			Scan(&d.Scan.Trigger, &d.Scan.Error, &d.Scan.Attempts, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed, &started, &queued)
+			Scan(&d.Scan.Trigger, &d.Scan.Error, &d.Scan.Attempts, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed, &started, &queued, &change)
 		if err != nil {
 			return nil, fmt.Errorf("load scan job: %w", err)
 		}
+		d.Scan.Changes = parseChanges(change)
 		d.Scan.ID = ev.SubjectID.String()
 		d.Link = baseURL + "/scans?job=" + d.Scan.ID
 		if ev.Key == "findings.new" {
@@ -476,6 +481,8 @@ func Sample(key, baseURL string) *Data {
 	d.Finding = d.Findings[0]
 	d.Scan.ID, d.Scan.Trigger, d.Scan.Error = "0190c0de-0000-7000-8000-000000000000", "schedule", "clone failed: repository not found"
 	d.Scan.New, d.Scan.Fixed, d.Scan.Attempts, d.Scan.GateFailed = 3, 1, 3, true
+	d.Scan.Changes = newScanChanges("3f6c1d2e9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d", "9a8b7c6d5e4f3a2b1c0d3f6c1d2e9a8b7c6d5e4f",
+		map[string]int{"critical": 1, "high": 2}, map[string]int{"medium": 1}, 3, 1)
 	d.Risk.Status, d.Risk.Justification, d.Risk.ExpiresAt = "approved", "Endpoint is internal only and protected by the WAF rule PAY-12.", "2027-02-15 00:00 UTC"
 	d.Risk.RequestedBy, d.Risk.DecidedBy, d.Risk.Note = "Sam Developer", "Riley Manager", "Re-assess after the Q1 migration."
 	d.Schedule.Name, d.Schedule.DueAt, d.Schedule.Missed = "Nightly EMEA", "2026-11-15 02:00 UTC", 2

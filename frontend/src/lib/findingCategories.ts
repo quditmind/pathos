@@ -13,6 +13,8 @@ export const FINDING_CATEGORIES = [
   "malware",
   "misconfiguration",
   "binary",
+  "eol",
+  "supply-chain",
   "other",
 ] as const;
 
@@ -29,6 +31,8 @@ export const categoryLabel: Record<string, string> = {
   malware: "Malware",
   misconfiguration: "Framework configuration",
   binary: "Binary hardening",
+  eol: "End of life",
+  "supply-chain": "Supply chain (signatures)",
   other: "Other",
 };
 

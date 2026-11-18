@@ -88,7 +88,7 @@ Select a Scan ID to open the execution. It has seven tabs:
 
 | Tab | Shows |
 |---|---|
-| **Overview** | Status and progress, Scan ID, asset (with Repository ID), profile and version, trigger, schedule, retry link, branch and commit (Git) or snapshot (upload), worker, timing, a findings summary and the scanner engines with versions, statuses, findings and raw report downloads |
+| **Overview** | Status and progress, Scan ID, asset (with Repository ID), profile and version, trigger, schedule, retry link, branch and commit (Git) or snapshot (upload), worker, timing, a findings summary, for push and merge scans the **Changes since the previous scanned commit** (new and fixed findings by severity), and the scanner engines with versions, statuses, findings and raw report downloads |
 | **Findings** | The findings this execution observed: severity, title, affected component, engine, evidence (file and line, or package and version), remediation (fixed version) and whether it was new in this execution |
 | **Material changes** | Security-material changes since the previously scanned commit of the branch (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data), each with its rule and explanation; see [Material changes and developer insights](developer-insights.md) |
 | **Execution Logs** | Time-stamped worker and scanner output, filterable by engine and minimum level, live while the scan runs, downloadable as text. Secrets are redacted before they are stored |
@@ -175,6 +175,9 @@ The comparison also shows severity counts, duration and its change, whether the 
 | **API (OpenAPI)** | Nuclei DAST templates | Injection and similar flaws in each operation of your OpenAPI document |
 | **SBOM** | Grype | Vulnerabilities in software you receive but cannot scan as source (vendor products, appliances). CycloneDX JSON or SPDX 2.x JSON |
 | **Build artifact** | Trivy, binary hardening | Vulnerable components inside a release file (up to 200 MiB): a zip, tar or tar.gz archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary, and missing hardening of the executables and libraries in it ([Binary hardening](security-scanning.md#binary-hardening)). Archives are checked and unpacked safely on a worker; nothing in them is run |
+| **Declared public endpoints** | PATHOS endpoint checks (and optionally Nuclei exposure templates) | The repository's declared public URLs, domains and IPs: DNS, reachability, TLS and security headers. Enabled and authorized from the repository, see [Verify declared public endpoints](repository-management.md#verify-declared-public-endpoints) |
+
+Container images and build artifacts can also have their **Sigstore signature** (and, for images, an in-toto attestation) verified with cosign on every scan; see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification).
 
 Each target belongs to a repository, so its findings reach that repository's application, owners and teams. Adding, changing and deleting targets needs `repos.manage` on the repository; scanning one needs `scans.run`.
 

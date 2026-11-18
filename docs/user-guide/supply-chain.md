@@ -4,7 +4,7 @@ section: user-guide
 order: 17
 version: "1.0"
 updated: 2026-11-19
-summary: Export SBOMs, check package health and provenance, spot malicious packages, scan build artifacts, check pull requests before they merge and open fix pull requests for vulnerable dependencies.
+summary: Export SBOMs, check package health, end-of-life dates and provenance, verify Sigstore signatures, spot malicious packages, scan build artifacts, check pull requests before they merge and open fix pull requests for vulnerable dependencies.
 ---
 # Supply chain and pull requests
 
@@ -18,11 +18,38 @@ The repository's **Dependencies** tab shows, for each package, whether a newer r
 
 This data comes from deps.dev. The feed is **off by default** because PATHOS sends the names of your packages, including private ones, to deps.dev. An administrator can turn it on in **Administration → Risk & intelligence** (deps.dev package health). It is not available offline. Until then the Health column shows a dash.
 
+## End of life
+
+A runtime, framework, database or operating system past its end of life gets no more security fixes, so every new vulnerability in it stays open. PATHOS compares what each repository uses with the release dates published by [endoflife.date](https://endoflife.date):
+
+- **dependencies** from the repository's SBOM (for example Django, Spring Boot, Angular, React, Express, jQuery), matched by package URL;
+- **declared runtimes** in the repository's files: `.nvmrc`, `.node-version`, `.python-version`, `.ruby-version`, `.java-version`, `.tool-versions`, `runtime.txt`, the `toolchain` line of `go.mod`, `global.json` and `TargetFramework` in .NET projects, the `ruby` line of a `Gemfile`, exact versions in `engines.node` (package.json) and `require.php` (composer.json), `java.version` / `maven.compiler.release` in `pom.xml` and the Java toolchain in Gradle builds. Version ranges such as `>=16` say nothing about what runs and are ignored. Java versions use the Eclipse Temurin (OpenJDK) support dates;
+- **base images** in Dockerfiles (`FROM node:16-alpine`) and **container image targets**: the image itself (Node.js, Python, Go, Ruby, PostgreSQL, Redis, MySQL, …) and the operating system its tag names (`-bullseye`, `-bookworm`, `-jammy`, `-alpine3.18`), plus `debian`, `ubuntu`, `alpine`, `nginx`, `php` and other official images.
+
+The repository's **Dependencies** tab opens with an **End of life** table: each release that has reached its end of life (**End of life**) or reaches it within six months (**EOL** with the date), where it was found, and the latest release of that cycle. The package table shows the same badge in the Health column; filter it with **Package health → End of life**.
+
+Every release past its end of life is also a **finding** (category **End of life**, detected by *endoflife.date*), one per product and release cycle, so the usual SLA, assignment, risk acceptance and policies apply. Severity is **Medium**, or **High** once support ended more than a year ago. The description lists the packages and files involved and the newest supported release. When the repository moves to a supported release (or stops using it), the finding is resolved automatically by the next scan or daily update.
+
+The data comes from the **endoflife.date** feed in **Administration → Risk & intelligence**. It is **off by default**: an administrator enables it (it downloads one public file and sends nothing about your repositories) or, offline, imports the file `https://endoflife.date/api/v1/products/full` downloaded elsewhere. Statuses are recomputed after every scan, after each feed update and daily, because releases reach their end of life on a date, not on a scan.
+
+## Signature and provenance verification
+
+Container images and build artifacts can be checked for a **Sigstore signature** with cosign before you trust them. Open the target in **Scanning → Scan targets**, and under **Signature verification** choose:
+
+- **With a public key**: paste the cosign public key (PEM). Select *The signatures are not in a transparency log* if you sign privately without Rekor.
+- **Keyless**: the signer's **certificate identity** (exact, or a regular expression) and the **OIDC issuer**, for example `https://token.actions.githubusercontent.com` and `^https://github.com/acme/` for images signed by your GitHub Actions workflows.
+
+For images you can also verify an **attestation** (in-toto), for example `slsaprovenance` for SLSA build provenance; the builder and source repository it names are recorded. Artifacts need their signature: upload the base64 signature (`cosign sign-blob --output-signature`) or the Sigstore bundle (`--bundle`) with the artifact or later.
+
+Each scan records the result as evidence (**Signature verified**, **unsigned**, **invalid**, **skipped** or **error**, with the signer identities and attestation details) on the target, and keeps cosign's report with the scan. Select **Require a valid signature** to make it a policy: a missing or invalid signature (or required attestation) creates a high-severity finding (category **Supply chain**) and fails the scan's security gate.
+
+Keyless verification contacts the public Sigstore services (Fulcio, Rekor and its TUF repository) through the egress proxy. Offline (`PATHOS_OFFLINE=true`) only key-based verification runs; keyless verification is reported as **skipped**.
+
 ## Malicious packages
 
 A finding marked **Malicious** is a package known to contain malware (for example an OSV `MAL-` advisory). Its code runs when it is installed, so PATHOS treats it as urgent as an actively exploited vulnerability. Remove the package, rotate credentials on every machine and CI runner that installed it, and check them for compromise. Use the **Malicious packages** filter on Findings to list them all.
 
-Each finding also shows **First detected at commit**: the commit of the first scan that found it. The finding was introduced at or before that commit.
+Each finding also shows **First detected at commit**: the commit of the first scan that found it. The finding was introduced at or before that commit. Code, secret and IaC findings also show **Introduced by**: the exact commit, author name and date that last changed the line (see [Commit-based tracking](security-scanning.md#commit-based-tracking)).
 
 ## Scan a build artifact
 

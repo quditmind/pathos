@@ -74,7 +74,7 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}
-	out := append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility)
+	out := append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...)
 	// Declarative adapters registered by workers.
 	// Only plugins an online, non-revoked worker currently provides.
 	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, '') FROM scanner_catalog c

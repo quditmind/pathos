@@ -266,12 +266,12 @@ def main():
 
     print("\nScanning engine (Phase 4)")
     s, cat = admin.api("GET", "/api/v1/scanners")
-    check("scanner catalog lists 55 integrations + Syft", s == 200 and len(cat["items"]) == 56, s)
+    check("scanner catalog lists 55 integrations + Syft + 3 built-in checks", s == 200 and len(cat["items"]) == 59, s)
     if s == 200:
         avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
-        check("14 scanners runnable (7 core, zizmor, actionlint, licensecheck, clamav, binary-hardening, image and DAST targets)",
+        check("16 scanners runnable (7 core, zizmor, actionlint, licensecheck, clamav, binary-hardening, image and DAST targets, endpoint checks, cosign)",
               avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft", "zizmor", "actionlint",
-                               "licensecheck", "clamav", "binary-hardening", "trivy-image", "nuclei"]), avail)
+                               "licensecheck", "clamav", "binary-hardening", "trivy-image", "nuclei", "pathos-endpoints", "cosign"]), avail)
         cats = {x["key"]: x["category"] for x in cat["items"]}
         check("content scanners in their finding categories", cats.get("clamav") == "malware" and cats.get("binary-hardening") == "binary"
               and cats.get("licensecheck") == "license", cats)
@@ -284,9 +284,10 @@ def main():
     online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
     check("at least one scan worker online", len(online) >= 1, workers)
     if online:
-        # 13 tools, plus ClamAV when PATHOS_CLAMAV_ADDRESS is set and clamd answers.
-        check("worker reports all tool versions", len(online[0]["scanners"]) in (13, 14) and "licensecheck" in online[0]["scanners"]
-              and "binary-hardening" in online[0]["scanners"], online[0]["scanners"])
+        # 15 tools, plus ClamAV when PATHOS_CLAMAV_ADDRESS is set and clamd answers.
+        check("worker reports all tool versions", len(online[0]["scanners"]) in (15, 16) and "licensecheck" in online[0]["scanners"]
+              and "binary-hardening" in online[0]["scanners"] and "pathos-endpoints" in online[0]["scanners"]
+              and "cosign" in online[0]["scanners"], online[0]["scanners"])
     s, fl = admin.api("GET", "/api/v1/findings?category=misconfiguration")
     check("findings filter accepts the misconfiguration category", s == 200, s)
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
@@ -295,6 +296,15 @@ def main():
     check("GET /api answers with the API's JSON 404 (not the web app)", st == 404 and '"not_found"' in body, st)
     s, fs = admin.api("GET", "/api/v1/findings")
     check("findings API -> 200", s == 200 and "items" in fs, s)
+    s, feeds = admin.api("GET", "/api/v1/intel/feeds")
+    check("endoflife.date feed listed", s == 200 and any(f["feed"] == "endoflife" for f in feeds.get("items", [])), s)
+    repos_now = lst.get("items", []) if isinstance(lst, dict) else []
+    if repos_now:
+        rid = repos_now[0]["id"]
+        s, ev = admin.api("GET", f"/api/v1/repositories/{rid}/endpoint-verification")
+        check("endpoint verification state -> 200", s == 200 and "endpoints" in ev, s)
+        s, eolv = admin.api("GET", f"/api/v1/repositories/{rid}/eol")
+        check("repository end-of-life view -> 200", s == 200 and "items" in eolv, s)
 
     print("\nAI review & MCP (Phase 5)")
     s, pv = admin.api("POST", "/api/v1/ai/providers", {"name": f"Smoke Claude {sfx}", "kind": "anthropic", "api_key": "sk-ant-invalid-smoke-key"})

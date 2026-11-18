@@ -39,13 +39,14 @@ type Scanner struct {
 // FindingCategories are the values of findings.category, in display order.
 // "misconfiguration" findings come from the framework configuration rules
 // (Opengrep rules tagged misconfiguration), "malware" from ClamAV and
-// "binary" from the binary hardening checks.
-var FindingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "misconfiguration", "binary", "other"}
+// "binary" from the binary hardening checks, "eol" from end-of-life dates
+// and "supply-chain" from signature verification.
+var FindingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "misconfiguration", "binary", "eol", "supply-chain", "other"}
 
 // FindingCategory maps a scanner category to the findings.category column.
 func (s Scanner) FindingCategory() string {
 	switch s.Category {
-	case "secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "binary":
+	case "secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "binary", "eol", "supply-chain":
 		return s.Category
 	}
 	return "other"
@@ -164,14 +165,18 @@ var SyftUtility = Scanner{Key: Syft, Name: "Syft", Category: "sbom", License: "A
 
 // Lookup returns a catalog entry.
 // TargetScanners maps a scan target kind to the scanners that run for it.
+// Cosign runs only when signature verification is configured on the
+// target, and Nuclei for declared endpoints only when enabled.
 var TargetScanners = map[string][]string{
-	"image": {TrivyImage},
+	"image": {TrivyImage, Cosign},
 	"url":   {Nuclei},
 	"api":   {Nuclei},
 	"sbom":  {Grype},
 	// Build artifacts: archives are extracted; Java archives and binaries
 	// are read as they are.
-	"artifact": {TrivyFS, BinaryHardening},
+	"artifact": {TrivyFS, BinaryHardening, Cosign},
+	// A repository's declared public endpoints.
+	"endpoints": {EndpointCheck, Nuclei},
 }
 
 // IsTargetOnly reports whether a scanner runs only for scan targets.
@@ -189,13 +194,18 @@ func Lookup(key string) (Scanner, bool) {
 	if key == Syft {
 		return SyftUtility, true
 	}
+	for _, sc := range Builtins {
+		if sc.Key == key {
+			return sc, true
+		}
+	}
 	return Scanner{}, false
 }
 
 // Sync upserts the catalog into the database.
 func Sync(ctx context.Context, pool *pgxpool.Pool) error {
 	return db.InTx(ctx, pool, func(tx pgx.Tx) error {
-		all := append(append([]Scanner{}, Catalog...), SyftUtility)
+		all := append(append(append([]Scanner{}, Catalog...), SyftUtility), Builtins...)
 		for i, sc := range all {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO scanner_catalog (key, name, category, license_spdx, decision, worker_family, requires_build,
