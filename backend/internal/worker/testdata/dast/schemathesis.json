@@ -1,0 +1,140 @@
+{
+  "schemathesis_version": "4.33.4",
+  "command": "st run /out/openapi.json --url http://b3-vulnapp/ --proxy http://127.0.0.1:35603 --rate-limit 20/s --workers 1 --phases examples,coverage,fuzzing,stateful --checks all --max-examples 10 --max-time 900 --request-timeout 10 --tls-verify false --generation-database none --report json --report-json-path /out/schemathesis.json --no-color",
+  "seed": 291112135179891884357057055614670049349,
+  "started_at": "2026-11-19T08:21:53.303065+00:00",
+  "running_time": 900.1288565470022,
+  "stop_reason": "max_time",
+  "complete": true,
+  "exit_code": 1,
+  "operations": {
+    "total": 3,
+    "selected": 3,
+    "tested": 3,
+    "errored": 0,
+    "skipped": 0,
+    "skip_reasons": []
+  },
+  "phases": {
+    "examples": {
+      "status": "skip",
+      "skip_reason": null
+    },
+    "coverage": {
+      "status": "failure",
+      "skip_reason": null
+    },
+    "fuzzing": {
+      "status": "failure",
+      "skip_reason": null
+    },
+    "stateful": {
+      "status": "skip",
+      "skip_reason": "not_applicable"
+    }
+  },
+  "test_cases": {
+    "generated": 17110,
+    "with_failures": 5,
+    "unique_failures": 9,
+    "without_checks": 0,
+    "errored": 0
+  },
+  "failures": [
+    {
+      "type": "ServerError",
+      "code": "ST101",
+      "title": "Server error",
+      "severity": "critical",
+      "count": 2,
+      "operations": [
+        "GET /api/echo",
+        "GET /api/users/{uid}"
+      ]
+    },
+    {
+      "type": "JsonSchemaError",
+      "code": "ST108",
+      "title": "Response violates schema",
+      "severity": "high",
+      "count": 2,
+      "operations": [
+        "POST /api/items"
+      ]
+    },
+    {
+      "type": "AcceptedNegativeData",
+      "code": "ST201",
+      "title": "Schema-violating request accepted",
+      "severity": "medium",
+      "count": 3,
+      "operations": [
+        "GET /api/echo",
+        "GET /api/users/{uid}",
+        "POST /api/items"
+      ]
+    },
+    {
+      "type": "UndefinedStatusCode",
+      "code": "ST103",
+      "title": "Undocumented status code",
+      "severity": "medium",
+      "count": 2,
+      "operations": [
+        "GET /api/echo",
+        "GET /api/users/{uid}"
+      ]
+    }
+  ],
+  "errors": [],
+  "baseline": null,
+  "filtered": 0,
+  "warnings": {
+    "missing_auth": [],
+    "base_url_mismatch": [],
+    "missing_test_data": [],
+    "validation_mismatch": [],
+    "missing_deserializer": [],
+    "unused_openapi_auth": [],
+    "unsupported_regex": [],
+    "method_not_allowed": [],
+    "constants_extraction": [],
+    "unmatched_filter": [],
+    "unresolvable_reference": [],
+    "unsupported_field": [],
+    "low_valid_rate": [],
+    "rate_limited": [],
+    "not_served": [],
+    "dictionary_mismatch": []
+  },
+  "valid_rates": {
+    "POST /api/items": {
+      "fuzzing": {
+        "accepted": 1,
+        "unreachable": 0,
+        "conflicts": 0,
+        "rejected": 0
+      }
+    },
+    "GET /api/echo": {
+      "fuzzing": {
+        "accepted": 5,
+        "unreachable": 0,
+        "conflicts": 0,
+        "rejected": 0
+      }
+    },
+    "GET /api/users/{uid}": {
+      "fuzzing": {
+        "accepted": 5,
+        "unreachable": 4,
+        "conflicts": 0,
+        "rejected": 0
+      }
+    }
+  },
+  "auth": {
+    "reauth_count": 0,
+    "reauth_broke": false
+  }
+}

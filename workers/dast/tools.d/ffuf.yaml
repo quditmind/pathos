@@ -1,0 +1,24 @@
+# ffuf: content discovery below the target URL with the image's small built-in
+# wordlist (/opt/pathos/dast/share/ffuf-wordlist.txt: exposed configuration,
+# backups, admin and debug endpoints), at the target's rate limit. Intrusive.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: ffuf
+display_name: ffuf
+category: dast
+scan_types: [dast, fuzzing]
+license_spdx: MIT
+homepage: https://github.com/ffuf/ffuf
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["ffuf", "--version"]
+args: ["ffuf", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 40m
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:ffuf

@@ -1,0 +1,135 @@
+{
+ "info": {
+  "title": "vulnapp",
+  "version": "1.0"
+ },
+ "openapi": "3.0.3",
+ "paths": {
+  "/api/echo": {
+   "get": {
+    "parameters": [
+     {
+      "in": "query",
+      "name": "msg",
+      "required": true,
+      "schema": {
+       "type": "string"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "length": {
+           "type": "integer"
+          },
+          "msg": {
+           "type": "string"
+          }
+         },
+         "type": "object"
+        }
+       }
+      },
+      "description": "echo"
+     }
+    }
+   }
+  },
+  "/api/items": {
+   "post": {
+    "requestBody": {
+     "content": {
+      "application/json": {
+       "schema": {
+        "properties": {
+         "name": {
+          "type": "string"
+         }
+        },
+        "required": [
+         "name"
+        ],
+        "type": "object"
+       }
+      }
+     },
+     "required": true
+    },
+    "responses": {
+     "201": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "count": {
+           "type": "integer"
+          },
+          "created": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "created",
+          "count"
+         ],
+         "type": "object"
+        }
+       }
+      },
+      "description": "created"
+     }
+    }
+   }
+  },
+  "/api/users/{uid}": {
+   "get": {
+    "parameters": [
+     {
+      "in": "path",
+      "name": "uid",
+      "required": true,
+      "schema": {
+       "type": "integer"
+      }
+     }
+    ],
+    "responses": {
+     "200": {
+      "content": {
+       "application/json": {
+        "schema": {
+         "properties": {
+          "id": {
+           "type": "integer"
+          },
+          "name": {
+           "type": "string"
+          }
+         },
+         "required": [
+          "id",
+          "name"
+         ],
+         "type": "object"
+        }
+       }
+      },
+      "description": "user"
+     },
+     "404": {
+      "description": "not found"
+     }
+    }
+   }
+  }
+ },
+ "servers": [
+  {
+   "url": "http://b3-vulnapp/"
+  }
+ ]
+}

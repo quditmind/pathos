@@ -1,0 +1,24 @@
+# Wapiti: crawls the target (folder scope) and runs its attack modules
+# (SQL, command and file injection, XSS, open redirect, CRLF, upload, ...).
+# Modules that contact third parties are not used (see dast-run). Intrusive.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: wapiti
+display_name: Wapiti
+category: dast
+scan_types: [dast]
+license_spdx: GPL-2.0-only
+homepage: https://github.com/wapiti-scanner/wapiti
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["wapiti", "--version"]
+args: ["wapiti", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 1h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:wapiti

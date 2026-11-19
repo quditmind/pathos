@@ -1,0 +1,24 @@
+# SSLyze: TLS configuration of an https target (protocols, cipher suites,
+# certificate, known TLS vulnerabilities) through the egress proxy. Not
+# intrusive; an http target gives an empty report.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: sslyze
+display_name: SSLyze
+category: misconfiguration
+scan_types: [configuration, crypto]
+license_spdx: AGPL-3.0-only
+homepage: https://github.com/nabla-c0d3/sslyze
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["sslyze", "--version"]
+args: ["sslyze", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 20m
+output: file
+network: target
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:sslyze

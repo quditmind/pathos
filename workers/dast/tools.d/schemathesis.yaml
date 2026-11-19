@@ -1,0 +1,26 @@
+# Schemathesis: property-based testing of an API target from its OpenAPI
+# document: generated requests for every operation (examples, coverage,
+# fuzzing and stateful phases) checked for server errors and responses that
+# do not conform to the schema. Intrusive (it sends generated data to every
+# operation, including ones that change data).
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: schemathesis
+display_name: Schemathesis
+category: api
+scan_types: [api, fuzzing]
+license_spdx: MIT
+homepage: https://github.com/schemathesis/schemathesis
+family: dast
+targets: [api]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["schemathesis", "--version"]
+args: ["schemathesis", "{target_url}", "{output}", "{tmp}", "{openapi}"]
+ok_exit_codes: [0]
+timeout: 1h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:schemathesis

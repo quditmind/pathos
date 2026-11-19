@@ -226,6 +226,11 @@ func TargetsOf(sc Scanner) []string {
 			add(kind)
 		}
 	}
+	// Family-image tools for web and API targets (worker-dast): their
+	// manifests narrow this when a worker registers them.
+	if len(out) == 0 && sc.Network == "target" {
+		return []string{"url", "api"}
+	}
 	return out
 }
 

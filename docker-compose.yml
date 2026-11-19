@@ -395,6 +395,28 @@ services:
       <<: *worker-env
       PATHOS_WORKER_FAMILY: sast
 
+  #   COMPOSE_PROFILES=dast  ->  OWASP ZAP (baseline, full and API scans), Wapiti,
+  #   Dalfox, ffuf, testssl.sh, SSLyze, Schemathesis, Arjun for authorized web
+  #   application and API targets (docs/user-guide/dast.md). sqlmap and Nikto
+  #   only with WITH_SQLMAP=true / WITH_NIKTO=true (licence terms, see
+  #   workers/dast/Dockerfile).
+  worker-dast:
+    <<: *worker
+    profiles: [dast]
+    build:
+      context: .
+      dockerfile: workers/dast/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args:
+        CORE_IMAGE: core
+        WITH_SQLMAP: ${PATHOS_DAST_WITH_SQLMAP:-false}
+        WITH_NIKTO: ${PATHOS_DAST_WITH_NIKTO:-false}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-dast:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: dast
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce

@@ -14,10 +14,12 @@ import (
 // security header).
 
 type niktoJSONHost struct {
-	Host            string `json:"host"`
-	IP              string `json:"ip"`
-	Port            string `json:"port"`
-	Banner          string `json:"banner"`
+	Host string `json:"host"`
+	IP   string `json:"ip"`
+	// Nikto 2.6 writes the port as a number and the banner as server_banner.
+	Port            looseString `json:"port"`
+	Banner          string      `json:"banner"`
+	ServerBanner    looseString `json:"server_banner"`
 	Vulnerabilities []struct {
 		ID         looseString `json:"id"`
 		OSVDB      looseString `json:"OSVDB"`
@@ -101,9 +103,9 @@ func parseNikto(raw []byte) ([]importRecord, error) {
 	}
 	var out []importRecord
 	for _, h := range hosts {
-		base := niktoBase(firstNonEmpty(h.Host, h.IP), h.Port)
+		base := niktoBase(firstNonEmpty(h.Host, h.IP), string(h.Port))
 		for _, v := range h.Vulnerabilities {
-			rec := niktoRecord{Host: h.Host, IP: h.IP, Port: h.Port, Banner: h.Banner, ID: string(v.ID), OSVDB: string(v.OSVDB),
+			rec := niktoRecord{Host: h.Host, IP: h.IP, Port: string(h.Port), Banner: firstNonEmpty(h.Banner, string(h.ServerBanner)), ID: string(v.ID), OSVDB: string(v.OSVDB),
 				Method: v.Method, URL: g1Resolve(base, v.URL), Msg: strings.TrimSpace(v.Msg), References: v.References}
 			out = append(out, niktoFinding(rec))
 		}

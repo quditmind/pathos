@@ -1,0 +1,24 @@
+# OWASP ZAP API scan: imports the API target's definition (OpenAPI; dast-run
+# also recognises a GraphQL schema or a WSDL document), then runs the passive
+# and active scan rules against every operation. Intrusive.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: zap-api-scan
+display_name: OWASP ZAP API scan
+category: api
+scan_types: [api, dast]
+license_spdx: Apache-2.0
+homepage: https://www.zaproxy.org
+family: dast
+targets: [api]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["zap-api-scan", "--version"]
+args: ["zap-api-scan", "{target_url}", "{output}", "{tmp}", "{openapi}"]
+ok_exit_codes: [0]
+timeout: 2h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:zap

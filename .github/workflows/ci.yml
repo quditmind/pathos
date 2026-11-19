@@ -160,7 +160,7 @@ jobs:
       - name: Build images
         # Family worker images are opt-in profiles; build them too so the
         # image scan covers them.
-        run: docker compose --profile sast build
+        run: docker compose --profile sast --profile dast build
       - name: Start the stack
         run: docker compose up -d --wait --wait-timeout 600
       - name: Smoke test

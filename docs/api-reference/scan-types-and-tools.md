@@ -65,6 +65,7 @@ A manifest is a YAML or JSON file read by the worker (never sent to the API). Th
 - **Routing**: a scan job that uses manifest tools is leased only by a worker that advertises all of them, unless no online worker does.
 - **Results** ([worker protocol](worker-protocol.md#results)): the worker uploads the tool's own output with the manifest's `parser`. The parser is stored with the raw report (`scan_artifacts.parser`) and is used again to locate a finding in it (for example when a Human Eye review captures the original output).
 - **Authorization**: tools with `network: target` run only for [web application and API targets](scan-targets.md) with an authorization statement; `intrusive` tools also need the target's intrusive testing flag (`intrusive_authorized`). Repository scan profiles refuse both.
+- **Rate limit**: a tool with `network: target` gets the target's rate limit (`config.rate_limit`, 1–100 requests per second, 20 when not set) in the environment variable `PATHOS_TARGET_RATE_LIMIT` (manifest `env` cannot set `PATHOS_` variables). The `worker-dast` tools pass it on to their own rate options and to the scope proxy of their `dast-run` helper ([DAST tools](../user-guide/dast.md)).
 
 ### Parsers
 

@@ -1,0 +1,33 @@
+# Arjun: finds hidden HTTP query parameters of the target URL by sending
+# its parameter wordlist in chunks and comparing the responses. Its passive
+# mode (third-party archives) is never used. Intrusive. dast-run keeps
+# Arjun's report unchanged under "arjun" and adds one record per parameter.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: arjun
+display_name: Arjun
+category: dast
+scan_types: [dast]
+license_spdx: AGPL-3.0-only
+homepage: https://github.com/s0md3v/Arjun
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["arjun", "--version"]
+args: ["arjun", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: records
+  rule_id: rule
+  title: "Hidden parameter: {param}"
+  message: "{method} {url} accepts the parameter {param}, which the page does not show. Check what it changes."
+  default_severity: info
+  url: url
+  identity: "{method} {url} {param}"

@@ -216,11 +216,7 @@ var nucleiTemplates = "/opt/pathos/nuclei-templates"
 // brute-force or intrusive templates; URL scans also skip fuzzing.
 func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	args := []string{"-jsonl", "-o", out, "-or", "-ot", "-silent", "-nc", "-duc", "-ni", "-timeout", "10", "-retries", "1"}
-	rate := t.RateLimit
-	if rate <= 0 || rate > 100 {
-		rate = 20
-	}
-	args = append(args, "-rl", strconv.Itoa(rate))
+	args = append(args, "-rl", strconv.Itoa(targetRate(t)))
 	if p := proxyURL(); p != "" {
 		args = append(args, "-proxy", p)
 	}
@@ -261,6 +257,15 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 		}
 	}
 	return args
+}
+
+// targetRate is a web or API target's rate limit in requests per second
+// (1-100; 20 when not set).
+func targetRate(t *JobTarget) int {
+	if t == nil || t.RateLimit <= 0 || t.RateLimit > 100 {
+		return 20
+	}
+	return t.RateLimit
 }
 
 func severityAtLeast(s, min string) bool {

@@ -37,6 +37,7 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 - `ghcr.io/quditmind/pathos-proxy`
 - `ghcr.io/quditmind/pathos-worker-core`
 - `ghcr.io/quditmind/pathos-worker-sast` (opt-in [family worker image](#family-worker-images), built on the signed `pathos-worker-core` of the same release)
+- `ghcr.io/quditmind/pathos-worker-dast` (opt-in family worker image for web application and API targets, without sqlmap and Nikto)
 
 Use them instead of building locally:
 
@@ -189,6 +190,7 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 | Family | Profile | Service | Tools |
 |---|---|---|---|
 | SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck |
+| DAST | `dast` | `worker-dast` | OWASP ZAP (baseline, full and API scans), Wapiti, Dalfox, ffuf, testssl.sh, SSLyze, Schemathesis, Arjun; sqlmap and Nikto only in an opt-in build ([DAST tools](user-guide/dast.md)) |
 
 To enable one:
 
@@ -199,7 +201,7 @@ To enable one:
 
 Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
 
-The family tools of `worker-sast` declare `network: none`: they run without the egress proxy variables and need no allowlist entry. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+The family tools of `worker-sast` declare `network: none`: they run without the egress proxy variables and need no allowlist entry. The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
 
 ## Endpoint verification, end-of-life data and signatures
 

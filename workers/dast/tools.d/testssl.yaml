@@ -1,0 +1,24 @@
+# testssl.sh: TLS protocols, cipher suites, certificate and known TLS
+# vulnerabilities of an https target (through the egress proxy). Not
+# intrusive; an http target gives an empty report.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: testssl
+display_name: testssl.sh
+category: misconfiguration
+scan_types: [configuration, crypto]
+license_spdx: GPL-2.0-only
+homepage: https://testssl.sh
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["testssl", "--version"]
+args: ["testssl", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: target
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:testssl
