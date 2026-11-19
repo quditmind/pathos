@@ -18,10 +18,10 @@ import (
 // the key alone.
 
 // ImportCategories are the categories an import may declare.
-var ImportCategories = []string{"sast", "sca", "secrets", "iac", "container", "license", "dast", "other"}
+var ImportCategories = ToolCategories
 
 var (
-	importKeyRe = regexp.MustCompile(`^import-(sast|sca|secrets|iac|container|license|dast|other)-([a-z0-9][a-z0-9-]{0,22})$`)
+	importKeyRe = regexp.MustCompile(`^import-(` + strings.Join(ImportCategories, "|") + `)-([a-z0-9][a-z0-9-]{0,22})$`)
 	slugRe      = regexp.MustCompile(`[^a-z0-9]+`)
 )
 

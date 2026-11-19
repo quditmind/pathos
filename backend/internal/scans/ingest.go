@@ -54,9 +54,12 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
-		if scanners.IsImportKey(up.Scanner) {
+		switch {
+		case scanners.IsImportKey(up.Scanner):
 			fs, err = scanners.ParseImport(up.Scanner, up.Format, raw)
-		} else {
+		case up.Parser != nil:
+			fs, err = scanners.ParseToolOutput(up.Scanner, *up.Parser, raw)
+		default:
 			fs, err = scanners.Parse(up.Scanner, raw)
 		}
 		if err != nil {
@@ -112,6 +115,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				// The content type records the format for evidence capture.
 				ct = scanners.ImportContentType(firstNonEmpty(up.Format, scanners.DetectImportFormat(raw)))
 			}
+			// Manifest tools with another parser: the parser is kept with
+			// the tool's original output.
+			var parser []byte
+			if up.Parser != nil {
+				ct = scanners.ToolContentType(*up.Parser)
+				parser, _ = json.Marshal(up.Parser)
+			}
 			sum := sha256.Sum256(raw)
 			artID := uuid.Must(uuid.NewV7())
 			key, inline, err := putArtifact(ctx, s.Artifacts, orgID, artID, recompress(gz, raw))
@@ -121,9 +131,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			if key != nil {
 				written = append(written, *key)
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip, object_key)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, artID, orgID, resultID, kind, ct,
-				hex.EncodeToString(sum[:]), len(raw), inline, key); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip, object_key, parser)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, artID, orgID, resultID, kind, ct,
+				hex.EncodeToString(sum[:]), len(raw), inline, key, parser); err != nil {
 				return err
 			}
 		}

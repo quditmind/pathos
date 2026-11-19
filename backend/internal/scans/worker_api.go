@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"maps"
 	"net/http"
 	"regexp"
 	"slices"
@@ -118,8 +119,84 @@ type registerRequest struct {
 	Family   string            `json:"family"`
 	Version  string            `json:"version"`
 	Scanners map[string]string `json:"scanners"`
-	// Plugins describes the declarative adapters among Scanners.
+	// Plugins describes the declarative adapters among Scanners (v1
+	// workers).
 	Plugins map[string]pluginMeta `json:"plugins"`
+	// Tools describes the manifest tools among Scanners: first-party
+	// manifests of family images (catalog keys) and operator plugins.
+	Tools map[string]ToolManifest `json:"tools"`
+}
+
+// ToolManifest is what a worker advertises about a manifest tool (never
+// its command or arguments).
+type ToolManifest struct {
+	Name          string   `json:"name"`
+	Category      string   `json:"category"`
+	ScanTypes     []string `json:"scan_types"`
+	LicenseSPDX   string   `json:"license_spdx"`
+	Homepage      string   `json:"homepage"`
+	Family        string   `json:"family"`
+	Targets       []string `json:"targets"`
+	Network       string   `json:"network"`
+	Intrusive     bool     `json:"intrusive"`
+	RequiresBuild bool     `json:"requires_build"`
+	Parser        string   `json:"parser"`
+	FirstParty    bool     `json:"first_party"`
+}
+
+var (
+	manifestTargets = []string{"repository", "image", "url", "api", "mobile-app", "binary", "model"}
+	spdxRe          = regexp.MustCompile(`^[A-Za-z0-9.+:() -]{1,100}$`)
+	familyRe        = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
+)
+
+// validManifest checks an advertised manifest of scanner key and
+// normalizes it.
+func validManifest(key string, m *ToolManifest) bool {
+	if scanners.IsPluginKey(key) {
+		sc, _ := scanners.ResolvePlugin(key)
+		if m.FirstParty || m.Category != sc.Category {
+			return false
+		}
+	} else {
+		sc, ok := scanners.Lookup(key)
+		if !ok || !scanners.ManifestRouted(key) || !m.FirstParty {
+			return false
+		}
+		m.Category = sc.Category
+	}
+	if len(m.Name) > 100 || len(m.Homepage) > 300 || (m.Homepage != "" && !strings.HasPrefix(m.Homepage, "https://")) ||
+		(m.LicenseSPDX != "" && !spdxRe.MatchString(m.LicenseSPDX)) || (m.Family != "" && !familyRe.MatchString(m.Family)) ||
+		len(m.Parser) > 60 || len(m.ScanTypes) > 10 || len(m.Targets) > len(manifestTargets) {
+		return false
+	}
+	for _, t := range m.ScanTypes {
+		if _, ok := scanners.LookupScanType(t); !ok {
+			return false
+		}
+	}
+	for _, t := range m.Targets {
+		if !slices.Contains(manifestTargets, t) {
+			return false
+		}
+	}
+	if len(m.Targets) == 0 {
+		m.Targets = []string{"repository"}
+	}
+	switch m.Network {
+	case "", "none":
+		m.Network = "none"
+	case "target", "registry":
+	default:
+		return false
+	}
+	if m.Intrusive {
+		m.Network = "target"
+	}
+	if m.ScanTypes == nil {
+		m.ScanTypes = []string{}
+	}
+	return true
 }
 
 type pluginMeta struct {
@@ -141,14 +218,22 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
-	if !workerNameRe.MatchString(req.Name) || req.Family == "" || len(req.Family) > 40 || len(req.Version) > 100 || len(req.Scanners) > 100 {
+	if !workerNameRe.MatchString(req.Name) || req.Family == "" || len(req.Family) > 40 || len(req.Version) > 100 || len(req.Scanners) > 700 {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid worker registration"))
 		return
 	}
 	plugins := map[string]pluginMeta{}
+	tools := map[string]ToolManifest{}
 	for k, v := range req.Scanners {
 		if len(v) > 100 {
 			delete(req.Scanners, k)
+			continue
+		}
+		if m, ok := req.Tools[k]; ok && validManifest(k, &m) {
+			tools[k] = m
+			if scanners.IsPluginKey(k) {
+				plugins[k] = pluginMeta{Name: m.Name, Homepage: m.Homepage}
+			}
 			continue
 		}
 		if _, ok := scanners.Lookup(k); ok {
@@ -160,6 +245,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		}
 		delete(req.Scanners, k)
 	}
+	toolsJSON, _ := json.Marshal(tools)
 	raw := make([]byte, 32)
 	_, _ = rand.Read(raw)
 	token := base64.RawURLEncoding.EncodeToString(raw)
@@ -172,15 +258,15 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		case err == nil && revoked != nil:
 			return httpx.E(http.StatusForbidden, "worker_revoked", "this worker was revoked by an administrator")
 		case err == nil:
-			_, err = tx.Exec(ctx, `UPDATE workers SET token_sha256 = $2, family = $3, version = $4, scanners = $5, last_seen_at = now() WHERE id = $1`,
-				id, hashToken(token), req.Family, req.Version, sc)
+			_, err = tx.Exec(ctx, `UPDATE workers SET token_sha256 = $2, family = $3, version = $4, scanners = $5, tools = $6, last_seen_at = now() WHERE id = $1`,
+				id, hashToken(token), req.Family, req.Version, sc, toolsJSON)
 			if err != nil {
 				return err
 			}
 		case errors.Is(err, pgx.ErrNoRows):
 			id = uuid.Must(uuid.NewV7())
-			if _, err := tx.Exec(ctx, `INSERT INTO workers (id, organization_id, name, family, version, token_sha256, scanners, last_seen_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, now())`, id, s.OrgID, req.Name, req.Family, req.Version, hashToken(token), sc); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO workers (id, organization_id, name, family, version, token_sha256, scanners, tools, last_seen_at)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())`, id, s.OrgID, req.Name, req.Family, req.Version, hashToken(token), sc, toolsJSON); err != nil {
 				return err
 			}
 		default:
@@ -193,7 +279,16 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 			if name == "" {
 				name = sc.Name
 			}
-			if _, err := tx.Exec(ctx, `SELECT pathos_register_plugin_scanner($1, $2, $3, $4)`, k, name, sc.Category, meta.Homepage); err != nil {
+			m, v2 := tools[k]
+			if !v2 {
+				m = ToolManifest{Targets: []string{"repository"}, Network: "none", ScanTypes: []string{}, Parser: "sarif"}
+			}
+			format := "sarif"
+			if m.Parser != "" && m.Parser != "sarif" {
+				format = m.Parser
+			}
+			if _, err := tx.Exec(ctx, `SELECT pathos_register_tool_manifest($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, k, name, sc.Category,
+				meta.Homepage, firstNonEmpty(m.LicenseSPDX, "NOASSERTION"), m.ScanTypes, m.Targets, m.Network, m.Intrusive, format); err != nil {
 				return err
 			}
 		}
@@ -203,7 +298,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: s.OrgID, Action: "worker.register", TargetType: "worker", TargetID: id.String(),
-			Metadata: map[string]any{"name": req.Name, "family": req.Family, "version": req.Version}})
+			Metadata: map[string]any{"name": req.Name, "family": req.Family, "version": req.Version, "tools": slices.Sorted(maps.Keys(tools))}})
 	})
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, err)
@@ -252,6 +347,25 @@ type JobSource struct {
 // online. Workers poll every few seconds while idle.
 const WorkerOnlineWindow = 2 * time.Minute
 
+// routingCondition (part of the lease query: $1 organization, $2 leasing
+// worker, $4 routed catalog keys, $5 online window) routes jobs that use
+// manifest tools. A job's routed tools are its scanners that a tool
+// manifest runs (operator plugins and the catalog tools of family images,
+// scanners.ManifestRouted); the built-in tools of the core image are not
+// routed. A worker leases a job when it advertises every routed tool of
+// the job, or when no online worker advertises all of them (the job then
+// runs on any worker, and the tools that worker lacks are recorded as
+// skipped).
+const routingCondition = `(
+	NOT EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(q.config_snapshot->'scanners') = 'array' THEN q.config_snapshot->'scanners' ELSE '[]' END) e(s)
+	            WHERE (e.s->>'key' LIKE 'plugin-%' OR e.s->>'key' = ANY($4::text[]))
+	              AND NOT ((SELECT lw.scanners FROM workers lw WHERE lw.id = $2) ? (e.s->>'key')))
+	OR NOT EXISTS (SELECT 1 FROM workers ow
+	               WHERE ow.organization_id = $1 AND ow.revoked_at IS NULL AND ow.last_seen_at > now() - $5::interval
+	                 AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(q.config_snapshot->'scanners') = 'array' THEN q.config_snapshot->'scanners' ELSE '[]' END) e(s)
+	                                 WHERE (e.s->>'key' LIKE 'plugin-%' OR e.s->>'key' = ANY($4::text[]))
+	                                   AND NOT (ow.scanners ? (e.s->>'key')))))`
+
 // RequeueExpired returns expired leases to the queue (or fails them). The
 // lease handler and the scheduler both call it, so jobs held by a dead worker
 // recover even when no other worker is polling.
@@ -287,9 +401,11 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			  SELECT q.id FROM scan_jobs q
 			  WHERE q.organization_id = $1 AND q.status = 'queued'
 			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running')
+			    AND `+routingCondition+`
 			  ORDER BY q.priority DESC, q.queued_at FOR UPDATE SKIP LOCKED LIMIT 1)
 			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id`,
-			wk.orgID, wk.ID, leaseDuration.String()).Scan(&job.JobID, &job.RepositoryID, &job.Ref, &job.CommitSHA, &profileVersion)
+			wk.orgID, wk.ID, leaseDuration.String(), scanners.RoutedCatalogKeys(), WorkerOnlineWindow.String()).
+			Scan(&job.JobID, &job.RepositoryID, &job.Ref, &job.CommitSHA, &profileVersion)
 		if err != nil {
 			return err
 		}
@@ -432,6 +548,9 @@ type ResultUpload struct {
 	// Format is the import format of an imported report (never set by
 	// workers).
 	Format string `json:"-"`
+	// Parser is the manifest parser of a tool whose output is not SARIF
+	// (import format or JSON mapping); accepted for manifest tools only.
+	Parser *scanners.ToolParser `json:"parser,omitempty"`
 }
 
 const maxResultBody = 96 << 20
@@ -466,6 +585,19 @@ func (s *Service) uploadResult(w http.ResponseWriter, r *http.Request) {
 	if _, ok := scanners.Lookup(up.Scanner); !ok && !scanners.IsPluginKey(up.Scanner) {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("unknown scanner"))
 		return
+	}
+	if up.Parser != nil {
+		if !scanners.ManifestRouted(up.Scanner) {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("a parser applies to manifest tools only"))
+			return
+		}
+		if err := up.Parser.Validate(); err != nil {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest(err.Error()))
+			return
+		}
+		if up.Parser.Kind == "sarif" || up.Parser.Kind == "" {
+			up.Parser = nil
+		}
 	}
 	var gz []byte
 	if up.OutputGzip != "" {

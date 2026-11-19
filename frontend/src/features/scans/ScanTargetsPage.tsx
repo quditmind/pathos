@@ -10,6 +10,8 @@ import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skele
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
+import type { CatalogScanner } from "@/api/types";
+import { useCatalog } from "./api";
 
 export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
 /** Kinds added on this page (declared endpoints are managed from the repository). */
@@ -57,7 +59,7 @@ export interface ScanTarget {
   name: string;
   reference: string;
   egress_host: string;
-  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig };
+  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig; tools?: string[] };
   api_spec?: string;
   sbom_format: string;
   sbom_components: number;
@@ -69,6 +71,10 @@ export interface ScanTarget {
   authorized_by: string | null;
   authorized_at: string | null;
   authorization_note: string;
+  /** Intrusive testing (active scans, fuzzing) authorized separately; url and api targets only. */
+  intrusive_authorized_by?: string | null;
+  intrusive_authorized_at?: string | null;
+  intrusive_authorization_note?: string;
   enabled: boolean;
   scanners: string[];
   /** An artifact's signature or Sigstore bundle was uploaded. */
@@ -164,6 +170,24 @@ interface FormState {
   signature: SignatureConfig;
   /** Artifact signature or Sigstore bundle text; undefined = unchanged. */
   signature_material?: string;
+  /** Manifest tools that also run for the target. */
+  tools: string[];
+  intrusive_authorized: boolean;
+  intrusive_note: string;
+}
+
+/** Manifest targets a tool must list to scan a target kind. */
+const toolTargetsFor: Partial<Record<TargetKind, string[]>> = {
+  image: ["image"],
+  url: ["url"],
+  api: ["api", "url"],
+  artifact: ["binary", "mobile-app", "model"],
+};
+
+/** Tools of family worker images and operator plugins that scan a target kind. */
+export function targetTools(catalog: CatalogScanner[], kind: TargetKind): CatalogScanner[] {
+  const want = toolTargetsFor[kind] ?? [];
+  return catalog.filter((s) => s.worker_family !== "core" && s.worker_family !== "intel" && s.adapter_available && (s.targets ?? []).some((t) => want.includes(t)));
 }
 
 const emptyForm = (kind: TargetKind): FormState => ({
@@ -181,6 +205,9 @@ const emptyForm = (kind: TargetKind): FormState => ({
   authorization_note: "",
   enabled: true,
   signature: { mode: "" },
+  tools: [],
+  intrusive_authorized: false,
+  intrusive_note: "",
 });
 
 /** The signature policy as sent to the API (fields of the mode only). */
@@ -276,6 +303,70 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
   );
 }
 
+/**
+ * Additional tools (family worker images, operator plugins) for a target,
+ * and the separate authorization of intrusive testing.
+ */
+function ToolFields({ f, set, target, addressChanged }: { f: FormState; set: (p: Partial<FormState>) => void; target: ScanTarget | null; addressChanged: boolean }) {
+  const catalog = useCatalog();
+  const tools = targetTools(catalog.data ?? [], f.kind);
+  const live = f.kind === "url" || f.kind === "api";
+  const selected = tools.filter((t) => f.tools.includes(t.key));
+  const needsIntrusive = selected.some((t) => t.intrusive);
+  // Tools selected earlier whose worker is not registered any more stay listed.
+  const missing = f.tools.filter((k) => !tools.some((t) => t.key === k));
+  if (!toolTargetsFor[f.kind] || (!tools.length && !missing.length)) return null;
+  const toggle = (k: string) => set({ tools: f.tools.includes(k) ? f.tools.filter((x) => x !== k) : [...f.tools, k] });
+  return (
+    <fieldset className="rounded-md border border-border p-3">
+      <legend className="px-1 text-[12px] font-medium">Additional tools</legend>
+      <p className="mb-2 text-[11.5px] text-muted-foreground">Tools of family worker images and operator plugins that scan this kind of target. They run in addition to the built-in scanners.</p>
+      <div className="grid gap-1.5 md:grid-cols-2">
+        {tools.map((t) => (
+          <label key={t.key} className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.tools.includes(t.key)} onChange={() => toggle(t.key)} />
+            <span>
+              <span className="font-medium">{t.name}</span>{" "}
+              {t.intrusive ? <Badge tone="danger">intrusive</Badge> : t.network === "target" ? <Badge tone="warning">sends requests</Badge> : null}
+              {!t.runnable && <span className="block text-[11px] text-muted-foreground">No online worker provides it now.</span>}
+            </span>
+          </label>
+        ))}
+        {missing.map((k) => (
+          <label key={k} className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <input type="checkbox" className="accent-[var(--primary)]" checked onChange={() => toggle(k)} />
+            <span className="font-mono text-[11.5px]">{k}</span> (not registered by any worker)
+          </label>
+        ))}
+      </div>
+      {live && (
+        <div className="mt-3 rounded-md border border-danger/40 bg-danger/5 p-3">
+          <label className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.intrusive_authorized} onChange={(e) => set({ intrusive_authorized: e.target.checked })} />
+            <span>
+              <span className="font-medium">Intrusive testing of this application is authorized.</span>
+              <span className="block text-[11.5px] text-muted-foreground">
+                Intrusive tools send attack traffic (active scans, fuzzing, injection probes) that can change data or degrade the service. They run only with this flag, in addition to the authorization above; setting and withdrawing it is audited.
+                {target?.intrusive_authorized_by && !addressChanged ? ` Currently: ${target.intrusive_authorized_by}, ${formatDateTime(target.intrusive_authorized_at!)}.` : ""}
+                {addressChanged && target?.intrusive_authorized_at ? " A new address withdraws it unless you confirm it again." : ""}
+              </span>
+            </span>
+          </label>
+          {f.intrusive_authorized && (
+            <div className="mt-2">
+              <Label htmlFor="tgt-inote" hint="(optional)">Intrusive testing reference</Label>
+              <Input id="tgt-inote" value={f.intrusive_note} maxLength={2000} onChange={(e) => set({ intrusive_note: e.target.value })} placeholder="e.g. penetration test window, change ticket" />
+            </div>
+          )}
+          {needsIntrusive && !f.intrusive_authorized && (
+            <p className="mt-2 text-[11.5px] text-danger">An intrusive tool is selected: scans of this target are refused until intrusive testing is authorized.</p>
+          )}
+        </div>
+      )}
+    </fieldset>
+  );
+}
+
 async function uploadTarget(kind: TargetKind, fd: FormData): Promise<ScanTarget> {
   const res = await fetch(`/api/v1/scan-targets/${kind}`, { method: "POST", body: fd, credentials: "same-origin", headers: { Accept: "application/json", "X-CSRF-Token": getCsrfToken() } });
   const data = await res.json().catch(() => ({}));
@@ -321,6 +412,9 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
       authorization_note: t.authorization_note,
       enabled: t.enabled,
       signature: { mode: "", ...t.config.signature },
+      tools: t.config.tools ?? [],
+      intrusive_authorized: !!t.intrusive_authorized_at,
+      intrusive_note: t.intrusive_authorization_note ?? "",
     });
   }, [open, target, initialKind, full.data]);
   const set = (p: Partial<FormState>) => setF((x) => ({ ...x, ...p }));
@@ -356,6 +450,11 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         if (f.kind === "api") body.api_spec = f.api_spec;
       }
       if (signable(f.kind)) body.config = { ...(body.config as object | undefined), signature };
+      if (toolTargetsFor[f.kind]) body.config = { ...(body.config as object | undefined), tools: f.tools.length ? f.tools : undefined };
+      if (live && (!target || f.intrusive_authorized !== !!target.intrusive_authorized_at || f.intrusive_note !== (target.intrusive_authorization_note ?? ""))) {
+        body.intrusive_authorized = f.intrusive_authorized;
+        body.intrusive_authorization_note = f.intrusive_note;
+      }
       if (f.kind === "artifact" && f.signature_material !== undefined) body.signature_material = f.signature_material;
       if (target) return api<ScanTarget>(`/api/v1/scan-targets/${target.id}`, { method: "PUT", body });
       return api<ScanTarget>("/api/v1/scan-targets", { method: "POST", body: { ...body, repository_id: f.repository_id, kind: f.kind } });
@@ -521,6 +620,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
             </div>
           </div>
         )}
+        <ToolFields f={f} set={set} target={target} addressChanged={addressChanged} />
         {signable(f.kind) && <SignatureFields f={f} set={set} kind={f.kind} target={target} />}
         {target && (
           <label className="flex items-center gap-1.5 text-[13px]">
@@ -626,6 +726,11 @@ export function ScanTargetsPage() {
                     {(t.kind === "url" || t.kind === "api" || t.kind === "endpoints") && t.authorized_by && (
                       <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={t.authorization_note}>
                         <ShieldAlert className="size-3" /> Authorized by {t.authorized_by}, {formatDateTime(t.authorized_at!)}
+                      </div>
+                    )}
+                    {t.intrusive_authorized_at && (
+                      <div className="flex items-center gap-1 text-[11px] text-danger" title={t.intrusive_authorization_note}>
+                        <ShieldAlert className="size-3" /> Intrusive testing authorized by {t.intrusive_authorized_by ?? "a former user"}, {formatDateTime(t.intrusive_authorized_at)}
                       </div>
                     )}
                   </Td>

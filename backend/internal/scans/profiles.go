@@ -74,10 +74,36 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}
-	out := append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...)
+	online, _, err := onlineTools(r.Context(), s.DB, p.OrganizationID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	out := []scanners.Scanner{}
+	for _, sc := range append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...) {
+		sc = scanners.WithScanTypes(sc)
+		sc.Targets = scanners.TargetsOf(sc)
+		if o := online[sc.Key]; o != nil {
+			// Runnable: an online worker advertises it (built-in tools and
+			// first-party manifests of family images).
+			sc.Runnable = true
+			if o.Manifest != nil {
+				sc.AdapterAvailable = true
+				if len(o.Manifest.Targets) > 0 {
+					sc.Targets = o.Manifest.Targets
+				}
+				sc.Intrusive = sc.Intrusive || o.Manifest.Intrusive
+				if o.Manifest.Network == "target" {
+					sc.Network = "target"
+				}
+			}
+		}
+		out = append(out, sc)
+	}
 	// Declarative adapters registered by workers.
 	// Only plugins an online, non-revoked worker currently provides.
-	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, '') FROM scanner_catalog c
+	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, ''), c.license_spdx,
+		c.output_format, c.scan_types, c.network, c.intrusive, c.targets FROM scanner_catalog c
 		WHERE c.worker_family = 'plugin' AND EXISTS (SELECT 1 FROM workers w WHERE w.revoked_at IS NULL AND w.scanners ? c.key
 		  AND w.last_seen_at > now() - $1::interval)
 		ORDER BY c.key`, WorkerOnlineWindow.String())
@@ -87,13 +113,17 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var key, name, home, notes string
-		if err := rows.Scan(&key, &name, &home, &notes); err != nil {
+		var key, name, home, notes, lic, format, network string
+		var types, targets []string
+		var intrusive bool
+		if err := rows.Scan(&key, &name, &home, &notes, &lic, &format, &types, &network, &intrusive, &targets); err != nil {
 			s.fail(w, r, err)
 			return
 		}
 		if sc, ok := scanners.ResolvePlugin(key); ok {
-			sc.Name, sc.Homepage, sc.Notes = name, home, notes
+			sc.Name, sc.Homepage, sc.Notes, sc.License, sc.OutputFormat = name, home, notes, lic, format
+			sc.ScanTypes, sc.Network, sc.Intrusive, sc.Runnable, sc.Targets = types, network, intrusive, true, targets
+			sc.TargetOnly = len(targets) > 0 && !slices.Contains(targets, "repository")
 			out = append(out, sc)
 		}
 	}
@@ -208,6 +238,31 @@ type profileRequest struct {
 	ProfileSettings
 }
 
+// repositoryTools rejects operator plugins that do not scan repositories
+// (their manifest's targets, network and intrusive declarations are known
+// once a worker registered them).
+func (s *Service) repositoryTools(ctx context.Context, sel []ProfileScanner) error {
+	var keys []string
+	for _, ps := range sel {
+		if scanners.IsPluginKey(ps.Key) {
+			keys = append(keys, ps.Key)
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	var name string
+	err := s.DB.QueryRow(ctx, `SELECT name FROM scanner_catalog WHERE key = ANY($1)
+		AND (intrusive OR network = 'target' OR (cardinality(targets) > 0 AND NOT ('repository' = ANY(targets)))) LIMIT 1`, keys).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return httpx.BadRequest(name + " scans running applications or other targets: select it on a scan target")
+}
+
 // validate checks settings and normalizes scanners (mandatory ones added).
 func (req *profileRequest) validate() error {
 	st := &req.ProfileSettings
@@ -258,6 +313,9 @@ func (req *profileRequest) validate() error {
 		}
 		if !sc.AdapterAvailable {
 			return httpx.BadRequest(sc.Name + " is catalogued but no worker image runs it yet")
+		}
+		if sc.Intrusive || sc.Network == "target" {
+			return httpx.BadRequest(sc.Name + " tests a running application: select it on a web application or API scan target")
 		}
 		if sc.TargetOnly {
 			return httpx.BadRequest(sc.Name + " runs for scan targets (Scan targets page), not in repository profiles")
@@ -363,6 +421,10 @@ func (s *Service) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if err := s.repositoryTools(ctx, req.Scanners); err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	pid := uuid.Must(uuid.NewV7())
 	var out Profile
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
@@ -411,6 +473,10 @@ func (s *Service) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := req.validate(); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err := s.repositoryTools(ctx, req.Scanners); err != nil {
 		s.fail(w, r, err)
 		return
 	}

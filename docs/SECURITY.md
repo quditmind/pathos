@@ -189,13 +189,15 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 
 ### Scanner plugins
 
-Declarative scanner adapters let operators add tools without changing PATHOS ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)). The trust model:
+Tool manifests let PATHOS and operators add tools without code ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#adding-a-tool-tool-manifests)). The trust model:
 
-- **Definitions are files on the worker host** (`deploy/scanners.d`, mounted read-only), never API input. A PATHOS administrator, or anyone with API access, cannot make a worker run a program.
-- The command must be an absolute path to an existing executable that is not writable by group or others. Arguments are passed without a shell; only the placeholders `{source}`, `{output}`, `{cache}` and `{tmp}` are substituted.
-- Extra environment variables cannot set `PATH`, `HOME`, `LD_*`, proxy variables or `PATHOS_*`.
-- Plugins run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout. They scan repository source only, not scan targets.
-- The worker registers plugins in the catalog through a database function that accepts only `plugin-<category>-<name>` keys and cannot change built-in entries. At most 20 plugins load; invalid files are skipped with a log message.
+- **Manifests are files**, never API input: first-party manifests are read-only in the family images (`/opt/pathos/tools.d`); operator plugins are on the worker host (`deploy/scanners.d`, mounted read-only). A PATHOS administrator, or anyone with API access, cannot make a worker run a program.
+- The command must be an absolute path to an existing executable that is not writable by group or others. Arguments are passed without a shell; only the documented placeholders are substituted.
+- Extra environment variables cannot set `PATH`, `HOME`, `LD_*`, proxy variables or `PATHOS_*`. Tools that declare `network: none` run without the egress proxy variables.
+- Tools run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout.
+- A tool that declares `network: target` runs only for url and api targets with an authorization statement; an `intrusive` tool also needs the target's **intrusive testing authorized** flag, which is recorded (who, when, reference), audited (`scan_target.intrusive_authorize`, `scan_target.intrusive_revoke`) and withdrawn when the address changes. The API checks both when a scan is queued; workers skip intrusive tools for targets without the flag. Repository scan profiles cannot select such tools.
+- First-party manifests can only name catalog tools that are not built into the core image; operator plugins always get `plugin-<category>-<name>` keys, so neither can replace a built-in tool. The worker registers plugins through a database function that accepts only plugin keys, cannot change built-in entries, and never lowers a tool's network or intrusive declaration. At most 500 first-party manifests and 50 operator plugins load; invalid files are skipped with a log message.
+- A worker's result upload may name the parser of a manifest tool (an import format or a JSON mapping): parsing is data only, on the API server, and the parser is accepted only for manifest tools.
 
 ### Result imports and the CLI
 

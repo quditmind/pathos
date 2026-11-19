@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { CircleDot, ExternalLink, Server, Trash2 } from "lucide-react";
 import { api } from "@/api/client";
 import type { CatalogScanner } from "@/api/types";
@@ -6,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, Badge, Card, EmptyState, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
 import { useSession } from "@/features/auth/session";
+import { categoryName } from "@/lib/findingCategories";
 import { formatDateTime } from "@/lib/utils";
 import { useCatalog, useScanMutation, useWorkers } from "./api";
 
@@ -25,14 +27,26 @@ const columns: Column<CatalogScanner>[] = [
     ),
     csv: (s) => s.name,
   },
-  { id: "category", header: "Category", cell: (s) => <span className="text-[12px] uppercase">{s.category}</span>, csv: (s) => s.category },
+  { id: "category", header: "Category", cell: (s) => <span className="text-[12px]">{categoryName(s.category)}</span>, csv: (s) => s.category },
+  {
+    id: "scan_types",
+    header: "Scan types",
+    cell: (s) => <span className="text-[12px]">{(s.scan_types ?? []).join(", ") || "—"}</span>,
+    csv: (s) => (s.scan_types ?? []).join(" "),
+  },
   { id: "license", header: "License", cell: (s) => <span className="font-mono text-[11.5px]">{s.license_spdx}</span>, csv: (s) => s.license_spdx },
   {
     id: "status",
     header: "Availability",
     cell: (s) =>
-      s.adapter_available ? <Badge tone="success">Available · {s.worker_family}</Badge> : <Badge>Planned · {s.worker_family} workers</Badge>,
-    csv: (s) => (s.adapter_available ? "available" : "planned"),
+      s.runnable ? (
+        <Badge tone="success">Runnable · {s.worker_family}</Badge>
+      ) : s.adapter_available ? (
+        <Badge tone="warning">Available · {s.worker_family} (no online worker)</Badge>
+      ) : (
+        <Badge>Planned · {s.worker_family} workers</Badge>
+      ),
+    csv: (s) => (s.runnable ? "runnable" : s.adapter_available ? "available" : "planned"),
   },
   {
     id: "decision",
@@ -43,6 +57,8 @@ const columns: Column<CatalogScanner>[] = [
         {s.decision === "restricted" && <Badge tone="danger">license-restricted</Badge>}
         {s.decision === "optional" && <Badge tone="warning">optional</Badge>}
         {s.requires_build && <Badge tone="warning">requires build</Badge>}
+        {s.intrusive && <Badge tone="danger">intrusive</Badge>}
+        {!s.intrusive && s.network === "target" && <Badge tone="warning">contacts target</Badge>}
       </span>
     ),
     csv: (s) => s.decision,
@@ -57,7 +73,8 @@ export function ScannersPage() {
   const revoke = useScanMutation((id: string) => api(`/api/v1/workers/${id}/revoke`, { method: "POST" }));
   const del = useScanMutation((id: string) => api(`/api/v1/workers/${id}`, { method: "DELETE" }));
   const manage = canOrgWide("scanners.manage");
-  const rows = (catalog.data ?? []).filter((s) => !filter || (filter === "available" ? s.adapter_available : s.category === filter));
+  const rows = (catalog.data ?? []).filter((s) =>
+    !filter || (filter === "available" ? s.adapter_available : filter === "runnable" ? !!s.runnable : s.category === filter));
   const cats = [...new Set((catalog.data ?? []).map((s) => s.category))].sort();
 
   return (
@@ -95,15 +112,19 @@ export function ScannersPage() {
           ))}
         </div>
       )}
-      <h2 className="mb-2 text-[13px] font-semibold">Scanner catalog</h2>
+      <h2 className="mb-2 flex items-center justify-between text-[13px] font-semibold">
+        Scanner catalog
+        <Link to="/configurations/scan-coverage" className="text-[12px] font-normal underline">Coverage by scan type</Link>
+      </h2>
       <Card>
         <DataTable tableId="scanner-catalog" exportName="pathos-scanner-catalog" columns={columns} rows={rows} rowKey={(s) => s.key}
           isPending={catalog.isPending} error={catalog.error} empty={<EmptyState title="No scanners" />}
           toolbar={
             <Select aria-label="Filter scanners" value={filter} onChange={(e) => setFilter(e.target.value)}>
               <option value="">All {catalog.data?.length ?? ""} integrations</option>
-              <option value="available">Available now</option>
-              {cats.map((c) => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+              <option value="runnable">Runnable on an online worker</option>
+              <option value="available">Available in a worker image</option>
+              {cats.map((c) => <option key={c} value={c}>{categoryName(c)}</option>)}
             </Select>
           } />
       </Card>

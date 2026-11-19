@@ -117,6 +117,7 @@ export const groups: NavGroup[] = [
     items: [
       { label: "Scan profiles", to: "/configurations/scan-profiles", icon: <SlidersHorizontal />, perm: "scans.read" },
       { label: "Scanners & workers", to: "/configurations/scanners", icon: <Server />, perm: "scanners.read" },
+      { label: "Scan coverage", to: "/configurations/scan-coverage", icon: <Grid3x3 />, perm: "scanners.read" },
       { label: "Custom rules", to: "/configurations/custom-rules", icon: <FileCode2 />, perm: "scanners.read" },
     ],
   },

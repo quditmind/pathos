@@ -48,6 +48,7 @@ func main() {
 		CacheDir:       env("PATHOS_CACHE_DIR", "/cache"),
 		Offline:        env("PATHOS_OFFLINE", "false") == "true",
 		PluginsDir:     env("PATHOS_SCANNER_PLUGINS_DIR", "/etc/pathos/scanners.d"),
+		ToolsDir:       env("PATHOS_TOOLS_DIR", "/opt/pathos/tools.d"),
 		ClamAVAddress:  strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
 		RulesDirs:      strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
 		Version:        version,

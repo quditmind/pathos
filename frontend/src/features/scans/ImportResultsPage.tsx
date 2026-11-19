@@ -8,6 +8,7 @@ import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skele
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
+import { TOOL_CATEGORIES, categoryName } from "@/lib/findingCategories";
 
 export interface ImportJob {
   id: string;
@@ -32,16 +33,8 @@ export interface ImportJob {
   created_at: string;
 }
 
-const categoryLabel: Record<string, string> = {
-  sast: "Code (SAST)",
-  sca: "Dependencies (SCA)",
-  secrets: "Secrets",
-  iac: "Infrastructure as code",
-  container: "Container",
-  license: "License",
-  dast: "Web and API (DAST, IAST)",
-  other: "Other (fuzzing, custom tools)",
-};
+/** Categories an import may declare (every finding category except end of life). */
+const importCategories = TOOL_CATEGORIES.map((c) => [c, c === "other" ? "Other (custom tools)" : categoryName(c)] as const);
 
 const formatLabel: Record<string, string> = { sarif: "SARIF 2.1", grype: "Grype JSON", pathos: "PATHOS findings JSON", cyclonedx: "CycloneDX", spdx: "SPDX", unknown: "Not recognised" };
 
@@ -110,7 +103,7 @@ function ImportForm({ kind, formats }: { kind: "results" | "sbom"; formats?: Imp
   // formats get it from the server, which explains when one is missing.
   const toolRequired = kind === "results" && !!selected && !selected.tool;
   const ok = repo && file && (!toolRequired || tool.trim());
-  const defaultCategory = selected ? (selected.category ? categoryLabel[selected.category] ?? selected.category : "per finding") : "from the format";
+  const defaultCategory = selected ? (selected.category ? categoryName(selected.category) : "per finding") : "from the format";
   return (
     <form
       key={key}
@@ -161,7 +154,7 @@ function ImportForm({ kind, formats }: { kind: "results" | "sbom"; formats?: Imp
               <Label htmlFor="imp-cat">Category</Label>
               <Select id="imp-cat" className="w-full" value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option value="">Default ({defaultCategory})</option>
-                {Object.entries(categoryLabel).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                {importCategories.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
               </Select>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -259,7 +252,7 @@ export function ImportResultsPage() {
               {hist.data.map((j) => (
                 <tr key={j.id}>
                   <Td className="tabular whitespace-nowrap text-[12px] text-muted-foreground">{formatDateTime(j.created_at)}</Td>
-                  <Td className="text-[12px]">{j.kind === "sbom" ? "SBOM" : categoryLabel[j.category] ?? j.category}</Td>
+                  <Td className="text-[12px]">{j.kind === "sbom" ? "SBOM" : categoryName(j.category)}</Td>
                   <Td className="text-[12px]">{j.tool || "—"}</Td>
                   <Td className="text-[12px]">{j.repository_name}</Td>
                   <Td className="text-[12px]">{labelOf(j.format)}</Td>

@@ -4,10 +4,12 @@ import (
 	"regexp"
 	"slices"
 	"testing"
+
+	"pathos/internal/scanners"
 )
 
 func TestCatalog(t *testing.T) {
-	cats := []string{"secrets", "sast", "sca", "iac", "container", "dast", "license", "malware", "misconfiguration", "binary", "other"}
+	cats := scanners.FindingCategories
 	cwe := regexp.MustCompile(`^CWE-[0-9]+$`)
 	seen := map[string]bool{}
 	for _, f := range Frameworks {
