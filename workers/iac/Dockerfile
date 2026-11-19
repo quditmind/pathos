@@ -146,7 +146,11 @@ RUN set -eux; \
     chmod -R go-w /opt/pathos/iac /opt/pathos/tools.d; \
     for t in kics kics-scan kube-linter kubescape kubescape-scan tflint conftest conftest-tree kube-score scorecard polaris hadolint \
              hadolint-tree cfn-lint-tree cfn-nag-tree kube-score-tree; do test -x "/opt/pathos/iac/bin/$t"; done; \
-    /opt/pathos/iac/bin/cfn-nag-tree --version; /opt/pathos/iac/bin/hadolint-tree --version | grep -q 2.15.1
+    /opt/pathos/iac/bin/cfn-nag-tree --version; /opt/pathos/iac/bin/hadolint-tree --version | grep -q 2.15.1; \
+    # A repository without Kubernetes manifests is an empty result, not a
+    # failure (the bundled Kubescape's wording is matched by kubescape-scan).
+    mkdir /tmp/ks-empty; echo 'foo: bar' > /tmp/ks-empty/config.yml; \
+    /opt/pathos/iac/bin/kubescape-scan /tmp/ks-empty /tmp/ks-empty.json; test ! -s /tmp/ks-empty.json; rm -rf /tmp/ks-empty /tmp/ks-empty.json
 USER 10001:10001
 ENV PATHOS_WORKER_FAMILY=iac PATHOS_TOOLS_DIR=/opt/pathos/tools.d
 ENTRYPOINT ["/usr/local/bin/pathos-worker"]
