@@ -69,6 +69,27 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-sast | Bandit | 1.9.4 | Apache-2.0 | `pip install --require-hashes` into `/opt/pathos/sast` (`workers/sast/requirements.txt`) |
 | worker-sast | njsscan (with libsast 3.2.0 and Semgrep CE 1.172.0) | 1.0.2 | LGPL-3.0-or-later (Semgrep: LGPL-2.1-or-later) | Same; mcp 1.28.1 and PyJWT 2.14.0 replace the versions Semgrep pins (fixable CVEs) |
 | worker-sast | ShellCheck | 0.11.0 | GPL-3.0-only | Release archive, SHA-256 pinned; run through the `shellcheck-tree` helper (`workers/sast/bin`) |
+| worker-iac | KICS (with the queries and Rego libraries of the release) | 2.2.1 | Apache-2.0 | Built from its Go module (Go checksum database) with Go 1.27.4 |
+| worker-iac | KubeLinter | 0.8.3 | Apache-2.0 | Built from its Go module; containerd 1.7.33, klauspost/compress 1.18.7, x/crypto 0.58.0, x/net 0.62.0, x/text 0.43.0, grpc 1.83.2 and oras-go 2.6.2 replace the required versions (fixable CVEs) |
+| worker-iac | Kubescape (frameworks from `kubescape download artifacts` at build time) | 4.0.21 | Apache-2.0 | Built from its Go module |
+| worker-iac | TFLint (bundled Terraform ruleset 0.17.0) | 0.66.0 | MPL-2.0 | Built from its Go module |
+| worker-iac | Conftest (OPA 1.21.1) | 0.71.1 | Apache-2.0 | Built from its Go module; go-jose 4.1.6 and x/net 0.62.0 replace the required versions |
+| worker-iac | kube-score | 1.20.0 | MIT | Built from its Go module; x/net 0.62.0 and x/text 0.43.0 replace the required versions |
+| worker-iac | Polaris | 10.2.6 | Apache-2.0 | Built from the GitHub source archive (SHA-256 pinned; its module path has no major version suffix); x/net 0.62.0 replaces the required version |
+| worker-iac | OpenSSF Scorecard | 5.7.0 | Apache-2.0 | Built from its Go module |
+| worker-iac | Hadolint | 2.15.1 | GPL-3.0-only | Release binary, SHA-256 pinned (release checksums) |
+| worker-iac | cfn-lint | 1.60.1 | MIT-0 | `pip install --require-hashes` into `/opt/pathos/iac/venv` (`workers/iac/requirements.txt`) |
+| worker-iac | cfn_nag (Ruby 3.3 from Debian) | 0.8.10 | MIT | Bundler from `workers/iac/ruby/Gemfile.lock` (versions and SHA-256 checksums) |
+| worker-iac | Trivy (config mode) | 0.76.2 | Apache-2.0 | The core image's binary |
+| worker-sca | govulncheck (with the Go 1.27.4 toolchain for package loading) | 1.10.0 | BSD-3-Clause | Built from its Go module (Go checksum database) |
+| worker-sca | pathos-depcheck | PATHOS version | Apache-2.0 | Built from this repository (`backend/cmd/pathos-depcheck`); popular-package lists from GuardDog 3.2.0 (Apache-2.0) |
+| worker-sca | pip-audit | 2.10.1 | Apache-2.0 | `pip install --require-hashes` (`workers/sca/requirements.txt`) |
+| worker-sca | GuardDog | 3.2.0 | Apache-2.0 | Same |
+| worker-sca | cargo-audit (RustSec advisory database snapshot) | 0.23.0 | Apache-2.0 OR MIT | Release binary and source archive of a database commit, SHA-256 pinned |
+| worker-sca | bundler-audit (Ruby advisory database snapshot; Ruby from Debian) | 0.9.3 | GPL-3.0-or-later | Gem and database archive, SHA-256 pinned |
+| worker-sca | Retire.js (repository snapshot), yarn 1.22.22, pnpm 11.28.12, npm 12.2.3, cdxgen 12.9.2 | 6.1.1 | Apache-2.0 (yarn BSD-2-Clause, pnpm MIT, npm Artistic-2.0, cdxgen Apache-2.0) | `npm ci` from `workers/sca/npm/package-lock.json` (integrity hashes), install scripts off; Node.js 24.22.3 release archive, SHA-256 pinned |
+| worker-sca | Composer (PHP from Debian) | 2.11.2 | MIT | Release phar, SHA-256 pinned |
+| worker-sca | OWASP Dependency-Check (Temurin JRE 21.0.13.1+2) | 13.0.0 | Apache-2.0 (JRE: GPL-2.0-with-classpath-exception) | Release archives, SHA-256 pinned; jackson 2.22.3, Guava 33.7.2 and jsoup 1.23.2 jars from Maven Central (SHA-256 pinned) replace the bundled versions (fixable CVEs) |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 
