@@ -13,6 +13,7 @@ import type {
   ScanProfile,
   ScanStage,
   StartScanItem,
+  ScanTypesResponse,
   StartScanRequest,
   Worker,
 } from "@/api/types";
@@ -159,6 +160,11 @@ export function useProfile(id: string | undefined) {
 
 export function useCatalog() {
   return useQuery({ queryKey: ["scanners"], queryFn: () => api<Page<CatalogScanner>>("/api/v1/scanners").then((r) => r.items), staleTime: 600_000 });
+}
+
+/** The 25 scan types with the tools, import formats and live workers of this deployment. */
+export function useScanTypes() {
+  return useQuery({ queryKey: ["scan-types"], queryFn: () => api<ScanTypesResponse>("/api/v1/scan-types"), refetchInterval: 30_000 });
 }
 
 export function useWorkers() {

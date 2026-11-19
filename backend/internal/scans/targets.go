@@ -71,6 +71,11 @@ type TargetConfig struct {
 	Nuclei bool `json:"nuclei,omitempty"`
 	// Signature verification of image and artifact targets (cosign).
 	Signature *SignatureConfig `json:"signature,omitempty"`
+	// Tools are manifest tools (family worker images or operator plugins)
+	// that also run for this target, e.g. a DAST tool for a url target.
+	// Tools that contact the target need its authorization statement;
+	// intrusive tools also need "intrusive testing authorized".
+	Tools []string `json:"tools,omitempty"`
 }
 
 // ScanTarget is the API representation (secrets are never returned).
@@ -94,7 +99,12 @@ type ScanTarget struct {
 	AuthorizedBy      *string      `json:"authorized_by"`
 	AuthorizedAt      *time.Time   `json:"authorized_at"`
 	AuthorizationNote string       `json:"authorization_note"`
-	Enabled           bool         `json:"enabled"`
+	// Intrusive testing (active scans, fuzzing, injection probes) is
+	// authorized separately, for url and api targets only.
+	IntrusiveAuthorizedBy      *string    `json:"intrusive_authorized_by"`
+	IntrusiveAuthorizedAt      *time.Time `json:"intrusive_authorized_at"`
+	IntrusiveAuthorizationNote string     `json:"intrusive_authorization_note"`
+	Enabled                    bool       `json:"enabled"`
 	Scanners          []string     `json:"scanners"`
 	// HasSignature: an artifact's signature or Sigstore bundle was uploaded.
 	HasSignature bool `json:"has_signature"`
@@ -126,10 +136,12 @@ const targetSelect = `
 	       t.signature_material IS NOT NULL,
 	       (SELECT jsonb_build_object('status', sv.status, 'mode', sv.mode, 'required', sv.required, 'attestation_status', sv.attestation_status,
 	                                  'details', sv.details, 'scan_job_id', sv.scan_job_id, 'verified_at', sv.created_at)
-	          FROM signature_verifications sv WHERE sv.scan_target_id = t.id ORDER BY sv.created_at DESC LIMIT 1)
+	          FROM signature_verifications sv WHERE sv.scan_target_id = t.id ORDER BY sv.created_at DESC LIMIT 1),
+	       COALESCE(NULLIF(iu.display_name, ''), iu.email), t.intrusive_authorized_at, t.intrusive_authorization_note
 	FROM scan_targets t
 	JOIN repositories r ON r.id = t.repository_id
 	LEFT JOIN users au ON au.id = t.authorized_by
+	LEFT JOIN users iu ON iu.id = t.intrusive_authorized_by
 	LEFT JOIN users cu ON cu.id = t.created_by`
 
 func scanTarget(row pgx.Row) (ScanTarget, error) {
@@ -138,7 +150,7 @@ func scanTarget(row pgx.Row) (ScanTarget, error) {
 	err := row.Scan(&t.ID, &t.RepositoryID, &t.RepositoryName, &t.Kind, &t.Name, &t.Reference, &t.EgressHost, &cfg,
 		&t.SBOMFormat, &t.SBOMComponents, &t.SBOMSize, &t.AuthType, &t.AuthUsername, &t.AuthHeaderName, &t.HasSecret,
 		&t.AuthorizedBy, &t.AuthorizedAt, &t.AuthorizationNote, &t.Enabled, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
-		&t.OpenFindings, &last, &t.HasSignature, &verification)
+		&t.OpenFindings, &last, &t.HasSignature, &verification, &t.IntrusiveAuthorizedBy, &t.IntrusiveAuthorizedAt, &t.IntrusiveAuthorizationNote)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, errNotFound
 	}
@@ -270,6 +282,14 @@ func validConfig(c TargetConfig) error {
 	if c.MinSeverity != "" && !slices.Contains([]string{"low", "medium", "high", "critical"}, c.MinSeverity) {
 		return errors.New("min_severity must be low, medium, high or critical")
 	}
+	if len(c.Tools) > 20 {
+		return errors.New("at most 20 tools per target")
+	}
+	for i, k := range c.Tools {
+		if !scanners.ManifestRouted(k) || slices.Contains(c.Tools[:i], k) {
+			return fmt.Errorf("tools: %q is not a tool manifest key (or is listed twice)", k)
+		}
+	}
 	return validSignatureConfig(c.Signature)
 }
 
@@ -375,7 +395,12 @@ type targetRequest struct {
 	// (required for url and api, and again when their address changes).
 	Authorized        bool    `json:"authorized"`
 	AuthorizationNote *string `json:"authorization_note"`
-	Enabled           *bool   `json:"enabled"`
+	// IntrusiveAuthorized records (true) or withdraws (false) the
+	// authorization for intrusive testing of a url or api target; nil keeps
+	// it. It is withdrawn when the address changes.
+	IntrusiveAuthorized        *bool   `json:"intrusive_authorized"`
+	IntrusiveAuthorizationNote *string `json:"intrusive_authorization_note"`
+	Enabled                    *bool   `json:"enabled"`
 	// SignatureMaterial is an artifact's detached signature (base64) or
 	// Sigstore bundle (JSON); "" removes it.
 	SignatureMaterial *string `json:"signature_material"`
@@ -513,6 +538,23 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("confirm that you are authorized to test this application"))
 		return
 	}
+	if err := validateTargetTools(ctx, s.DB, p.OrganizationID, f.kind, f.config.Tools, nil); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	intrusive := req.IntrusiveAuthorized != nil && *req.IntrusiveAuthorized
+	if intrusive && f.kind != "url" && f.kind != "api" {
+		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application and API targets"))
+		return
+	}
+	intrusiveNote := ""
+	if req.IntrusiveAuthorizationNote != nil {
+		intrusiveNote = strings.TrimSpace(*req.IntrusiveAuthorizationNote)
+	}
+	if len(intrusiveNote) > 2000 {
+		s.fail(w, r, httpx.BadRequest("the intrusive testing note is limited to 2000 characters"))
+		return
+	}
 	id := uuid.Must(uuid.NewV7())
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		secretID, err := s.storeTargetSecret(ctx, tx, p, nil, f.authType, req.AuthSecret, f.name)
@@ -536,10 +578,16 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 			}
 			return err
 		}
-		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"kind": f.kind, "name": f.name, "reference": f.reference, "repository_id": req.RepositoryID,
-				"authorized": authAt != nil, "authorization_note": f.note}})
+				"authorized": authAt != nil, "authorization_note": f.note, "tools": f.config.Tools}}); err != nil {
+			return err
+		}
+		if intrusive {
+			return s.setIntrusive(ctx, tx, p, id, true, intrusiveNote, f.reference)
+		}
+		return nil
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -647,6 +695,32 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	reauth := live && req.Authorized
+	if err := validateTargetTools(ctx, s.DB, p.OrganizationID, f.kind, f.config.Tools, nil); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	// Intrusive testing: a changed address withdraws it unless it is
+	// confirmed again in the same request.
+	var setIntrusive *bool
+	if req.IntrusiveAuthorized != nil {
+		v := *req.IntrusiveAuthorized
+		setIntrusive = &v
+	} else if live && f.reference != cur.Reference && cur.IntrusiveAuthorizedAt != nil {
+		v := false
+		setIntrusive = &v
+	}
+	if setIntrusive != nil && *setIntrusive && !live {
+		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application and API targets"))
+		return
+	}
+	intrusiveNote := cur.IntrusiveAuthorizationNote
+	if req.IntrusiveAuthorizationNote != nil {
+		intrusiveNote = strings.TrimSpace(*req.IntrusiveAuthorizationNote)
+	}
+	if len(intrusiveNote) > 2000 {
+		s.fail(w, r, httpx.BadRequest("the intrusive testing note is limited to 2000 characters"))
+		return
+	}
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var curSecret *uuid.UUID
 		if err := tx.QueryRow(ctx, `SELECT secret_id FROM scan_targets WHERE id = $1 FOR UPDATE`, id).Scan(&curSecret); err != nil {
@@ -677,11 +751,17 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 			}
 			return err
 		}
-		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.update", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"name": f.name, "reference": f.reference, "enabled": f.enabled, "reauthorized": reauth,
 				"credential_changed": req.AuthSecret != nil, "signature": signatureAudit(f.config.Signature),
-				"signature_material_changed": req.SignatureMaterial != nil}})
+				"signature_material_changed": req.SignatureMaterial != nil, "tools": f.config.Tools}}); err != nil {
+			return err
+		}
+		if setIntrusive != nil && (*setIntrusive != (cur.IntrusiveAuthorizedAt != nil) || (*setIntrusive && req.IntrusiveAuthorizationNote != nil)) {
+			return s.setIntrusive(ctx, tx, p, id, *setIntrusive, intrusiveNote, f.reference)
+		}
+		return nil
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -887,6 +967,9 @@ func EnqueueTarget(ctx context.Context, q db.Querier, orgID, targetID uuid.UUID,
 	if (kind == "url" || kind == "api" || kind == "endpoints") && authorizedAt == nil {
 		return res, fmt.Errorf("%w: testing this application has not been authorized", ErrScanPrerequisite)
 	}
+	if err := checkTargetTools(ctx, q, orgID, targetID, kind); err != nil {
+		return res, err
+	}
 	if profileVersion == nil {
 		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
 	}
@@ -966,6 +1049,9 @@ type LeasedTarget struct {
 	// Signature verification policy and an artifact's signature material.
 	Signature         *SignatureConfig `json:"signature,omitempty"`
 	SignatureMaterial string           `json:"signature_material,omitempty"`
+	// IntrusiveAuthorized: intrusive testing of the target is authorized
+	// (workers skip intrusive tools otherwise).
+	IntrusiveAuthorized bool `json:"intrusive_authorized,omitempty"`
 }
 
 // leaseTarget fills a leased job's target (with its decrypted credential)
@@ -978,9 +1064,10 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	var repoID uuid.UUID
 	var scope []string
 	if err := tx.QueryRow(ctx, `SELECT kind, reference, api_spec, sbom_sha256, sbom_size, auth_type, auth_username, auth_header_name,
-		secret_id, config, artifact_name, signature_material, repository_id, authorized_scope FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
+		secret_id, config, artifact_name, signature_material, repository_id, authorized_scope, intrusive_authorized_at IS NOT NULL
+		FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
 		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw, &t.FileName,
-			&material, &repoID, &scope); err != nil {
+			&material, &repoID, &scope, &t.IntrusiveAuthorized); err != nil {
 		return err
 	}
 	if spec != nil {

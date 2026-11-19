@@ -153,6 +153,12 @@ func targetScannerKeys(kind string, cfg TargetConfig) []string {
 		}
 		out = append(out, k)
 	}
+	// Manifest tools selected for the target.
+	for _, k := range cfg.Tools {
+		if !slices.Contains(out, k) {
+			out = append(out, k)
+		}
+	}
 	if out == nil {
 		out = []string{}
 	}

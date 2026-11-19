@@ -46,6 +46,9 @@ type JobTarget struct {
 	// uploaded signature or Sigstore bundle of an artifact.
 	Signature         *SignatureConfig `json:"signature,omitempty"`
 	SignatureMaterial string           `json:"signature_material,omitempty"`
+	// IntrusiveAuthorized: intrusive testing of this target was
+	// authorized; intrusive tools are skipped otherwise.
+	IntrusiveAuthorized bool `json:"intrusive_authorized,omitempty"`
 }
 
 // secrets lists credential values the reporter must never log.

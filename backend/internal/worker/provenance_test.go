@@ -150,7 +150,7 @@ func TestBlameLocations(t *testing.T) {
 	  {"ruleId":"r1","message":{"text":"z"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"../etc/passwd"},"region":{"startLine":1}}}]}]}]}`
 	write(t, out, "opengrep.out", sarif)
 	write(t, out, "trivy-fs.out", sarif) // SCA: no blame
-	locs := blameLocations(out, []string{"opengrep", "trivy-fs", "syft"})
+	locs := blameLocations(out, []string{"opengrep", "trivy-fs", "syft"}, func(string) (scanners.ToolParser, bool) { return scanners.ToolParser{}, false })
 	// Paths are confined to the checkout ("../etc/passwd" is etc/passwd in it).
 	if len(locs) != 2 || len(locs["app/db.py"]) != 1 || locs["app/db.py"][0] != 2 || locs["etc/passwd"] == nil {
 		t.Errorf("locations: %v", locs)

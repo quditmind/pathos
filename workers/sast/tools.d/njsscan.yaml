@@ -1,0 +1,25 @@
+# njsscan: Node.js SAST (pattern and semantic rules run by libsast with
+# Semgrep). SARIF output.
+name: njsscan
+display_name: njsscan
+category: sast
+scan_types: [sast]
+license_spdx: LGPL-3.0-or-later
+homepage: https://github.com/ajinabraham/njsscan
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/njsscan
+version_args: ["--version"]
+# Exit 1 means issues were found.
+args: ["--sarif", "-o", "{output}", "{source}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+env:
+  SEMGREP_SEND_METRICS: "off"
+  SEMGREP_ENABLE_VERSION_CHECK: "0"
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

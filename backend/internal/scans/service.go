@@ -72,6 +72,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerTargets(mux)
 	s.registerEndpointVerification(mux)
 	s.registerWorkersAdmin(mux)
+	s.registerScanTypes(mux)
 }
 
 func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {

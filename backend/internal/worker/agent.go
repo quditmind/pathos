@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"pathos/internal/material"
+	"pathos/internal/scanners"
 )
 
 // Config configures the agent.
@@ -38,6 +39,9 @@ type Config struct {
 	Offline bool
 	// PluginsDir holds declarative scanner adapter definitions.
 	PluginsDir string
+	// ToolsDir holds the first-party tool manifests shipped read-only in
+	// family worker images (trusted).
+	ToolsDir string
 	// ClamAVAddress is clamd's host:port for malware scanning of
 	// repository content ("" = the clamav scanner is skipped).
 	ClamAVAddress string
@@ -70,9 +74,17 @@ func New(cfg Config, log *slog.Logger) *Agent {
 		cfg.MaxRepoBytes = 2 << 30
 	}
 	tools := Tools(cfg)
-	plugins := LoadPlugins(cfg.PluginsDir, log)
-	for _, p := range plugins {
+	// First-party manifests first. Neither kind can replace a built-in
+	// tool, and operator plugin keys (plugin-<category>-<name>) never
+	// collide with first-party ones (catalog keys).
+	var plugins []PluginDef
+	for _, p := range append(LoadToolManifests(cfg.ToolsDir, log), LoadPlugins(cfg.PluginsDir, log)...) {
+		if _, dup := tools[p.Key()]; dup {
+			log.Warn("tool manifest ignored: the key is already provided", "key", p.Key())
+			continue
+		}
 		tools[p.Key()] = pluginTool{def: p, cacheDir: cfg.CacheDir}
+		plugins = append(plugins, p)
 	}
 	return &Agent{cfg: cfg, log: log, http: &http.Client{Timeout: 5 * time.Minute}, tools: tools, plugins: plugins}
 }
@@ -130,14 +142,20 @@ func (a *Agent) register(ctx context.Context) error {
 	var out struct {
 		Token string `json:"token"`
 	}
+	// Manifest tools are advertised with their metadata (never their
+	// command): the API routes jobs that use them to this worker.
 	plugins := map[string]map[string]string{}
+	manifests := map[string]toolAdvert{}
 	for _, p := range a.plugins {
 		if _, ok := versions[p.Key()]; ok {
-			plugins[p.Key()] = map[string]string{"name": firstNonEmptyStr(p.DisplayName, p.Name), "homepage": p.Homepage}
+			if !p.FirstParty {
+				plugins[p.Key()] = map[string]string{"name": firstNonEmptyStr(p.DisplayName, p.Name), "homepage": p.Homepage}
+			}
+			manifests[p.Key()] = p.advert()
 		}
 	}
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/register", a.cfg.BootstrapToken, map[string]any{
-		"name": a.cfg.Name, "family": a.cfg.Family, "version": a.cfg.Version, "scanners": versions, "plugins": plugins,
+		"name": a.cfg.Name, "family": a.cfg.Family, "version": a.cfg.Version, "scanners": versions, "plugins": plugins, "tools": manifests,
 	}, &out); err != nil {
 		return err
 	}
@@ -440,6 +458,11 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 					res.ContentType = "application/json"
 					res.OutputGzip = gzipB64(data)
 				}
+				// The tool's own output is uploaded unchanged; the API
+				// parses it with the manifest's parser.
+				if p, ok := a.manifestParser(js.Key); ok && p.Kind != "sarif" {
+					res.Parser = &p
+				}
 			}
 		}
 		res.DurationMS = int(time.Since(start).Milliseconds())
@@ -502,7 +525,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 // uploadBlame records the introducing commit of each code finding: git
 // blame with full history, "unknown (shallow clone)" otherwise.
 func (a *Agent) uploadBlame(ctx, parent context.Context, job Job, src, out string, keys []string, rep *reporter) {
-	locs := blameLocations(out, keys)
+	locs := blameLocations(out, keys, a.manifestParser)
 	if len(locs) == 0 {
 		return
 	}
@@ -561,6 +584,18 @@ type ResultUpload struct {
 	Error       string `json:"error"`
 	ContentType string `json:"content_type"`
 	OutputGzip  string `json:"output_gzip"`
+	// Parser is the manifest parser of a tool whose output is not SARIF.
+	Parser *scanners.ToolParser `json:"parser,omitempty"`
+}
+
+// manifestParser returns the output parser of a manifest tool.
+func (a *Agent) manifestParser(key string) (scanners.ToolParser, bool) {
+	for _, p := range a.plugins {
+		if p.Key() == key {
+			return p.ToolParser(), true
+		}
+	}
+	return scanners.ToolParser{}, false
 }
 
 func gzipB64(data []byte) string {

@@ -74,10 +74,32 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}
-	out := append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...)
+	online, _, err := onlineTools(r.Context(), s.DB, p.OrganizationID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	out := []scanners.Scanner{}
+	for _, sc := range append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...) {
+		sc = scanners.WithScanTypes(sc)
+		if o := online[sc.Key]; o != nil {
+			// Runnable: an online worker advertises it (built-in tools and
+			// first-party manifests of family images).
+			sc.Runnable = true
+			if o.Manifest != nil {
+				sc.AdapterAvailable = true
+				sc.Intrusive = sc.Intrusive || o.Manifest.Intrusive
+				if o.Manifest.Network == "target" {
+					sc.Network = "target"
+				}
+			}
+		}
+		out = append(out, sc)
+	}
 	// Declarative adapters registered by workers.
 	// Only plugins an online, non-revoked worker currently provides.
-	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, '') FROM scanner_catalog c
+	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, ''), c.license_spdx,
+		c.output_format, c.scan_types, c.network, c.intrusive FROM scanner_catalog c
 		WHERE c.worker_family = 'plugin' AND EXISTS (SELECT 1 FROM workers w WHERE w.revoked_at IS NULL AND w.scanners ? c.key
 		  AND w.last_seen_at > now() - $1::interval)
 		ORDER BY c.key`, WorkerOnlineWindow.String())
@@ -87,13 +109,17 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var key, name, home, notes string
-		if err := rows.Scan(&key, &name, &home, &notes); err != nil {
+		var key, name, home, notes, lic, format, network string
+		var types []string
+		var intrusive bool
+		if err := rows.Scan(&key, &name, &home, &notes, &lic, &format, &types, &network, &intrusive); err != nil {
 			s.fail(w, r, err)
 			return
 		}
 		if sc, ok := scanners.ResolvePlugin(key); ok {
-			sc.Name, sc.Homepage, sc.Notes = name, home, notes
+			sc.Name, sc.Homepage, sc.Notes, sc.License, sc.OutputFormat = name, home, notes, lic, format
+			sc.ScanTypes, sc.Network, sc.Intrusive, sc.Runnable = types, network, intrusive, true
+			sc.TargetOnly = !targetsInclude(online[key], "repository")
 			out = append(out, sc)
 		}
 	}
@@ -258,6 +284,9 @@ func (req *profileRequest) validate() error {
 		}
 		if !sc.AdapterAvailable {
 			return httpx.BadRequest(sc.Name + " is catalogued but no worker image runs it yet")
+		}
+		if sc.Intrusive || sc.Network == "target" {
+			return httpx.BadRequest(sc.Name + " tests a running application: select it on a web application or API scan target")
 		}
 		if sc.TargetOnly {
 			return httpx.BadRequest(sc.Name + " runs for scan targets (Scan targets page), not in repository profiles")

@@ -1,0 +1,37 @@
+# ShellCheck: shell script analysis. ShellCheck takes file names only, so
+# the image's shellcheck-tree helper finds the shell scripts of the
+# repository and prints one json1 document per ShellCheck run (JSON Lines);
+# each document's comments are mapped to findings.
+name: shellcheck
+display_name: ShellCheck
+category: code-quality
+scan_types: [code-quality]
+license_spdx: GPL-3.0-only
+homepage: https://github.com/koalaman/shellcheck
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/shellcheck-tree
+version_args: ["--version"]
+args: ["{source}"]
+# 123: ShellCheck reported issues (exit status of xargs).
+ok_exit_codes: [0, 123]
+timeout: 20m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  lines: true
+  records: comments
+  rule_id: "SC{code}"
+  title: message
+  message: message
+  severity: level
+  severity_map: {error: high, warning: medium, info: low, style: info}
+  file: file
+  line: line
+  end_line: endLine
+  # Several findings of one rule in a file are told apart by their order.
+  identity: "SC{code} {message}"
