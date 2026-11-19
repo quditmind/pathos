@@ -3,7 +3,7 @@ title: API reference overview
 section: api-reference
 order: 1
 version: "1.0"
-updated: 2026-11-19
+updated: 2026-11-20
 summary: How the PATHOS REST API works (base URL, sessions and CSRF, REST API tokens, errors, pagination, rate limits, idempotency, permissions) and a map of every API reference page.
 ---
 
@@ -54,6 +54,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Security policies and compliance](governance.md) | Policies (conditions → actions), violations, compliance framework views |
 | [Administration and your account](administration.md) | `/me`, API tokens, in-app notifications, users, role assignments, roles, organization structure, audit log, workers, MFA |
 | [Notifications and outbound webhooks](notifications.md) | SMTP, notification rules, email templates, delivery history, outbound webhooks |
+| [Product metadata, diagnostics and feature flags](diagnostics.md) | `GET /api/v1/meta`, the error catalogue, AI troubleshooting, feature flags |
 | [Worker protocol (internal)](worker-protocol.md) | The internal API scan workers use; not for API clients |
 
 ## Base URL
@@ -119,26 +120,46 @@ The [webhook receivers](integrations.md#webhook-receivers) under `/api/webhooks`
 
 ## Errors
 
-Errors use one JSON shape:
+Errors use one JSON shape. PATHOS 3.0 adds diagnostic fields inside `error`; every field that existed before is unchanged, so clients that match `error.code` keep working.
 
 ```json
 {
   "error": {
-    "code": "validation_failed",
-    "message": "check the highlighted fields: business_owner_id",
-    "fields": { "business_owner_id": "user does not exist or is deactivated" }
+    "code": "scm_error",
+    "message": "scm: authentication failed (check the token and its scopes) (HTTP 401 from api.github.com)",
+    "error_code": "PTH-CONN-1007",
+    "title": "Provider rejected the credential",
+    "cause": { "confirmed": true, "text": "The provider rejected the connection's credential (HTTP 401)." },
+    "probable_causes": ["The token was revoked or regenerated", "A token for another host or account"],
+    "impact": "All operations of this connection fail until the credential is replaced.",
+    "actions": ["Create a new token with the scopes in docs/user-guide/provider-integrations.md.", "Edit the connection and paste the new token."],
+    "verify": ["Test connection reports the authenticated account."],
+    "docs_url": "/help/troubleshooting/conn#PTH-CONN-1007",
+    "ai_help": true,
+    "request_id": "qjxkbtnmwpzrfhdcylvsageo"
   },
-  "request_id": "9c1e7a3b5d2f4e6a8b0c1d2e"
+  "request_id": "qjxkbtnmwpzrfhdcylvsageo"
 }
 ```
 
 | Member | Description |
 |---|---|
-| `error.code` | Stable machine-readable code. |
+| `error.code` | Stable machine-readable short code (`not_found`, `scm_error`, ...). Unchanged since 1.0; match on it in scripts. |
 | `error.message` | Human-readable explanation. |
 | `error.details` | Optional structured data, for example `items` for `invalid_items` or `missing_parts` for incomplete uploads. |
 | `error.fields` | Optional map of field name to message, for `validation_failed`. |
-| `request_id` | Same value as the `X-Request-Id` response header; quote it when reporting problems. |
+| `error.error_code` | The error catalogue code, `PTH-<AREA>-<NNNN>` (areas `PLAT`, `AUTH`, `CONN`, `SYNC`, `ONB`, `DISC`, `GRAPH`, `TM`, `REA`, `SCAN`, `WORK`, `AI`, `GATE`, `REM`, `REP`, `MON`). Always present; `PTH-PLAT-0001` when nothing closer applies. The same code is logged as `error_code` on the server's log lines for the request. |
+| `error.title` | Short title of the catalogue entry. |
+| `error.cause` | `confirmed` is `true` when the check that raised the error proves the cause (`text` then states it); otherwise work through `probable_causes`. |
+| `error.probable_causes` | Probable causes, most likely first. |
+| `error.impact` | What the failure affects. |
+| `error.actions` | Corrective actions, in order. |
+| `error.verify` | How to check the fix worked. |
+| `error.docs_url` | In-app help page of the code (`/help/troubleshooting/<area>#<code>`); the same pages are in `docs/troubleshooting/`. |
+| `error.ai_help` | Whether [AI troubleshooting](diagnostics.md#troubleshoot-an-error) is offered for the code. |
+| `error.request_id`, `request_id` | Same value as the `X-Request-Id` response header; quote it (and the `error_code`) when reporting problems. |
+
+The catalogue of every code is served by [`GET /api/v1/diagnostics/codes`](diagnostics.md#list-the-error-catalogue). Responses that add their own top-level members (an import record with `invalid_report`, an inventory run with `inventory_failed`) keep them next to `error` and `request_id`.
 
 Common status codes and codes (pages list further, endpoint-specific codes):
 

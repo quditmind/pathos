@@ -1,0 +1,260 @@
+---
+title: Troubleshooting: Onboarding and imports
+section: troubleshooting
+order: 105
+version: "1.0"
+updated: 2026-11-20
+summary: Repository import jobs, source uploads and asset registration (7 codes, PTH-ONB-*)
+---
+
+# Troubleshooting: Onboarding and imports
+
+Quditmind PATHOS · status: Production-ready
+
+> Generated from the PATHOS error catalogue (`backend/internal/platform/diag`) by `make docs-errors`. Do not edit by hand; change the catalogue and regenerate.
+
+Repository import jobs, source uploads and asset registration.
+
+| Code | Title | Severity |
+|---|---|---|
+| [PTH-ONB-1001](#PTH-ONB-1001) | Uploaded archive rejected | error |
+| [PTH-ONB-1002](#PTH-ONB-1002) | Repository not found for import | warning |
+| [PTH-ONB-1003](#PTH-ONB-1003) | Import not permitted | warning |
+| [PTH-ONB-1004](#PTH-ONB-1004) | Repository already registered | info |
+| [PTH-ONB-1005](#PTH-ONB-1005) | Import worker stopped during the item | warning |
+| [PTH-ONB-1006](#PTH-ONB-1006) | Mandatory tags missing | warning |
+| [PTH-ONB-1007](#PTH-ONB-1007) | Import item metadata no longer valid | warning |
+
+<a id="PTH-ONB-1001"></a>
+
+## PTH-ONB-1001: Uploaded archive rejected
+
+| | |
+|---|---|
+| Severity | error |
+| Category | integrity |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Short codes | `import:archive_rejected`, `import:upload_corrupt` |
+| Raised in | internal/repos/import_worker.go, internal/repos/uploads.go |
+
+**What it means.** The source archive failed safety checks (path traversal, links, size or file count limits) during import.
+
+**Confirmed cause.** The archive contains entries PATHOS refuses (see the item's message). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. Absolute paths or ".." entries
+2. Symbolic links pointing outside the archive
+3. Too many files or too large when extracted
+
+**Impact.** The item was not imported.
+
+**How to fix**
+
+1. Create the archive from inside the project folder (for example `git archive`).
+2. Upload it again as a new item.
+
+**Verify**
+
+1. The new item completes.
+
+
+<a id="PTH-ONB-1002"></a>
+
+## PTH-ONB-1002: Repository not found for import
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | not-found |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Short codes | `import:repository_not_found`, `import:invalid_branch` |
+| Raised in | internal/repos/import_worker.go |
+
+**What it means.** The repository to import does not exist or the connection cannot see it.
+
+**Confirmed cause.** The provider does not return the repository for this connection. Shown as confirmed only when the failing check proves it; otherwise use the probable causes.
+
+**Probable causes**
+
+1. The repository was renamed or deleted after selection
+2. The credential cannot see it
+
+**Impact.** The item failed; other items continue.
+
+**How to fix**
+
+1. Refresh the inventory and select the repository again.
+
+**Verify**
+
+1. The new import item completes.
+
+
+<a id="PTH-ONB-1003"></a>
+
+## PTH-ONB-1003: Import not permitted
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | authorization |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Short codes | `import:permission_denied`, `import:requester_unavailable` |
+| Raised in | internal/repos/import_worker.go |
+
+**What it means.** Either the connection's credential lacks read permission on the repository, or the requesting user no longer holds repos.manage for the selected placement.
+
+**Confirmed cause.** A permission needed for the import is missing (see the item's message). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The token cannot read this repository
+2. The requester's role changed or the user left
+
+**Impact.** The item needs attention; it is retried after the fix.
+
+**How to fix**
+
+1. Grant the credential read access, or ask an administrator with repos.manage to retry.
+
+**Verify**
+
+1. Retry the item; it completes.
+
+
+<a id="PTH-ONB-1004"></a>
+
+## PTH-ONB-1004: Repository already registered
+
+| | |
+|---|---|
+| Severity | info |
+| Category | conflict |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Short codes | `import:duplicate`, `import:name_clash`, `import:upload_consumed` |
+| Raised in | internal/repos/import_worker.go, internal/repos/imports.go |
+
+**What it means.** The repository is already registered (through this or another connection), or the asset name is taken.
+
+**Confirmed cause.** A registered asset already matches this repository or name. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The repository was imported before
+2. Another connection reaches the same repository
+
+**Impact.** The item waits for a decision; nothing is duplicated.
+
+**How to fix**
+
+1. Open the existing asset, or retry with "import anyway" to register it twice on purpose.
+2. Choose another asset name if the name clashes.
+
+**Verify**
+
+1. The item completes or is skipped as intended.
+
+
+<a id="PTH-ONB-1005"></a>
+
+## PTH-ONB-1005: Import worker stopped during the item
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | availability |
+| HTTP status | none (background work and logs) |
+| AI help | offered |
+| Short codes | `import:worker_lost`, `import:internal_error` |
+| Raised in | internal/repos/import_worker.go |
+
+**What it means.** The API instance working on the import item stopped (restart or crash) and the item used all its attempts.
+
+**Confirmed cause.** The import lease expired on the last attempt. Shown as confirmed only when the failing check proves it; otherwise use the probable causes.
+
+**Probable causes**
+
+1. The api container restarted during a long import
+2. Out of memory on a very large repository
+
+**Impact.** The item failed; it can be retried.
+
+**How to fix**
+
+1. Retry the item.
+2. Check the api container's memory and restarts.
+
+**Verify**
+
+1. The retried item completes.
+
+
+<a id="PTH-ONB-1006"></a>
+
+## PTH-ONB-1006: Mandatory tags missing
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | 422 |
+| AI help | not offered |
+| Short codes | `mandatory_tags_missing` |
+| Raised in | internal/repos/repositories.go |
+
+**What it means.** The organization requires tags of some categories on every asset, and the registration lacks them.
+
+**Confirmed cause.** Tags of mandatory categories are missing (listed in the message). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. A new mandatory tag category was added
+
+**Impact.** The asset was not saved.
+
+**How to fix**
+
+1. Add a tag from each mandatory category.
+
+**Verify**
+
+1. Save again; the asset is registered.
+
+
+<a id="PTH-ONB-1007"></a>
+
+## PTH-ONB-1007: Import item metadata no longer valid
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Short codes | `import:validation_failed`, `import:invalid_item`, `import:connection_unavailable`, `import:upload_missing`, `import:upload_incomplete` |
+| Raised in | internal/repos/import_worker.go |
+
+**What it means.** Between validation and import, a referenced owner, team, business unit, region or tag was deleted, or the item has no connection or upload.
+
+**Confirmed cause.** The item's metadata references something that no longer exists. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. An administrator deleted a business unit, team or tag
+2. The SCM connection or upload was deleted
+
+**Impact.** The item needs attention.
+
+**How to fix**
+
+1. Edit the item's metadata and import again.
+
+**Verify**
+
+1. The item completes.
+

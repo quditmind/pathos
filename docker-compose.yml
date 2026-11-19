@@ -125,7 +125,7 @@ services:
   migrate:
     build:
       context: backend
-      args: { VERSION: "${PATHOS_VERSION:-dev}" }
+      args: { VERSION: "${PATHOS_VERSION:-dev}", COMMIT: "${PATHOS_COMMIT:-unknown}", BUILD_DATE: "${PATHOS_BUILD_DATE:-unknown}" }
     image: ${PATHOS_IMAGE_PREFIX:-}pathos:${PATHOS_VERSION:-dev}
     <<: *hardening
     restart: "no"
@@ -377,7 +377,7 @@ services:
     build:
       context: .
       dockerfile: workers/core/Dockerfile
-      args: { VERSION: "${PATHOS_VERSION:-dev}" }
+      args: { VERSION: "${PATHOS_VERSION:-dev}", COMMIT: "${PATHOS_COMMIT:-unknown}", BUILD_DATE: "${PATHOS_BUILD_DATE:-unknown}" }
     image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-core:${PATHOS_VERSION:-dev}
     environment:
       <<: *worker-env

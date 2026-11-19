@@ -26,6 +26,7 @@ import (
 	"pathos/internal/identity"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/db"
+	"pathos/internal/platform/diag"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/tenant"
 	"pathos/internal/tenancy"
@@ -164,8 +165,15 @@ type idClaims struct {
 	Nonce             string `json:"nonce"`
 }
 
+// loginFailed sends the browser back to the login page with the reason
+// and its error catalogue code (?error=<reason>&code=PTH-AUTH-…).
 func (s *Service) loginFailed(w http.ResponseWriter, r *http.Request, reason string) {
-	http.Redirect(w, r, s.Cfg.PublicURL.String()+"/login?error="+url.QueryEscape(reason), http.StatusFound)
+	code := diag.ForLegacy("login:" + reason)
+	if code == "" {
+		code = diag.Fallback
+	}
+	s.Log.Warn("sign-in failed", "reason", reason, "request_id", httpx.RequestID(r), "error_code", code)
+	http.Redirect(w, r, s.Cfg.PublicURL.String()+"/login?error="+url.QueryEscape(reason)+"&code="+url.QueryEscape(code), http.StatusFound)
 }
 
 // HandleCallback completes the login, provisions the user and creates the

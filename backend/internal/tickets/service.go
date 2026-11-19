@@ -527,7 +527,7 @@ func (s *Service) createTicket(w http.ResponseWriter, r *http.Request) {
 	}
 	t, err := c.Create(ctx, is)
 	if err != nil {
-		s.Log.Warn("ticket not created", "connection_id", req.ConnectionID, "err", err)
+		s.Log.Warn("ticket not created", "connection_id", req.ConnectionID, "err", err, "request_id", httpx.RequestID(r), "error_code", "PTH-CONN-1250")
 		s.fail(w, r, httpx.E(http.StatusBadGateway, "ticket_failed", "could not create the ticket: "+logging.RedactString(err.Error())))
 		return
 	}

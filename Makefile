@@ -1,5 +1,10 @@
 # Developer shortcuts. Every target runs its toolchain in a container.
-.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix
+.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix docs-errors
+
+# Build metadata of locally built images (docs/OPERATIONS.md, "Build metadata").
+PATHOS_COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)
+PATHOS_BUILD_DATE ?= $(shell TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo unknown)
+export PATHOS_COMMIT PATHOS_BUILD_DATE
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'
@@ -57,6 +62,9 @@ triage-create: ## File the reviewed triage findings as GitHub issues (bug, from-
 
 smoke: ## End-to-end test against the running stack
 	python3 scripts/smoke-test.py
+
+docs-errors: ## Regenerate docs/troubleshooting/*.md from the error catalogue (backend/internal/platform/diag)
+	scripts/go.sh run ./cmd/pathos-docgen -out ../docs/troubleshooting
 
 rbac-matrix: ## Print the RBAC matrix for docs/RBAC_MATRIX.md
 	scripts/go.sh run ./cmd/pathosctl rbac-matrix

@@ -14,10 +14,13 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"pathos/internal/platform/buildinfo"
 )
 
-// version is set at build time: -ldflags "-X main.version=2.2.0".
-var version = "dev"
+// The version, commit and build date are set at build time in
+// pathos/internal/platform/buildinfo (-ldflags "-X
+// pathos/internal/platform/buildinfo.Version=2.2.0 ...").
 
 // Exit codes.
 const (
@@ -128,7 +131,7 @@ func (a *app) run(args []string) int {
 		return exitOK
 	}
 	if showVersion {
-		fmt.Fprintln(a.stdout, "pathos "+version)
+		fmt.Fprintln(a.stdout, buildinfo.Banner())
 		return exitOK
 	}
 	rest := gfs.Args()
@@ -140,7 +143,7 @@ func (a *app) run(args []string) int {
 	var err error
 	switch cmd {
 	case "version":
-		fmt.Fprintln(a.stdout, "pathos "+version)
+		fmt.Fprintln(a.stdout, buildinfo.Banner())
 		return exitOK
 	case "help":
 		fmt.Fprint(a.stdout, usageText)

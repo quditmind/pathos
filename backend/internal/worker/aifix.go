@@ -105,7 +105,7 @@ func (a *Agent) tryAIFix(ctx context.Context) bool {
 	}
 	res := a.runAIFix(ctx, job)
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/ai-fix-jobs/"+job.FixID+"/result", a.token, res, nil); err != nil {
-		a.log.Error("AI fix result upload failed", "ai_fix_id", job.FixID, "err", err)
+		a.log.Error("AI fix result upload failed", "ai_fix_id", job.FixID, "err", err, "error_code", "PTH-WORK-1005")
 	}
 	return true
 }

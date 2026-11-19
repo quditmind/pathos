@@ -53,7 +53,7 @@ func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case db.IsForeignKeyViolation(err):
 		err = httpx.BadRequest("a referenced item does not exist")
 	case errors.Is(err, ErrAuth), errors.Is(err, ErrRateLimited), errors.Is(err, ErrRefused):
-		err = httpx.E(http.StatusBadGateway, "ai_provider_error", err.Error())
+		err = httpx.E(http.StatusBadGateway, "ai_provider_error", err.Error()).WithDiag(DiagCode(err))
 	}
 	httpx.WriteError(w, r, s.Log, err)
 }

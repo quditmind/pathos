@@ -372,29 +372,32 @@ func (s *Service) bulkScan(w http.ResponseWriter, r *http.Request) {
 
 // Job is the API view of a scan job.
 type Job struct {
-	ID             uuid.UUID  `json:"id"`
-	PullRequest    int        `json:"pull_request,omitempty"`
-	RepositoryID   uuid.UUID  `json:"repository_id"`
-	RepositoryName string     `json:"repository_name"`
-	RepositoryKey  string     `json:"repository_key"`
-	ProfileName    string     `json:"profile_name"`
-	ProfileVersion int        `json:"profile_version"`
-	Trigger        string     `json:"trigger"`
-	Priority       int        `json:"priority"`
-	Status         string     `json:"status"`
-	Ref            string     `json:"ref"`
-	CommitSHA      string     `json:"commit_sha"`
-	Attempts       int        `json:"attempts"`
-	WorkerName     *string    `json:"worker_name"`
-	RequestedBy    *string    `json:"requested_by"`
-	Error          string     `json:"error"`
-	FindingsNew    int        `json:"findings_new"`
-	FindingsFixed  int        `json:"findings_fixed"`
-	GateFailed     bool       `json:"gate_failed"`
-	QueuedAt       time.Time  `json:"queued_at"`
-	StartedAt      *time.Time `json:"started_at"`
-	FinishedAt     *time.Time `json:"finished_at"`
-	Results        []Result   `json:"results,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	PullRequest    int       `json:"pull_request,omitempty"`
+	RepositoryID   uuid.UUID `json:"repository_id"`
+	RepositoryName string    `json:"repository_name"`
+	RepositoryKey  string    `json:"repository_key"`
+	ProfileName    string    `json:"profile_name"`
+	ProfileVersion int       `json:"profile_version"`
+	Trigger        string    `json:"trigger"`
+	Priority       int       `json:"priority"`
+	Status         string    `json:"status"`
+	Ref            string    `json:"ref"`
+	CommitSHA      string    `json:"commit_sha"`
+	Attempts       int       `json:"attempts"`
+	WorkerName     *string   `json:"worker_name"`
+	RequestedBy    *string   `json:"requested_by"`
+	Error          string    `json:"error"`
+	// ErrorCode is the error catalogue code of Error (empty when none
+	// applies).
+	ErrorCode     string     `json:"error_code,omitempty"`
+	FindingsNew   int        `json:"findings_new"`
+	FindingsFixed int        `json:"findings_fixed"`
+	GateFailed    bool       `json:"gate_failed"`
+	QueuedAt      time.Time  `json:"queued_at"`
+	StartedAt     *time.Time `json:"started_at"`
+	FinishedAt    *time.Time `json:"finished_at"`
+	Results       []Result   `json:"results,omitempty"`
 
 	// Scanning module fields.
 	ScanKey        string         `json:"scan_key"` // permanent Scan ID, e.g. QD-SCAN-000042
@@ -466,6 +469,7 @@ func scanJob(row pgx.Row) (Job, error) {
 	if len(change) > 0 {
 		_ = json.Unmarshal(change, &j.ChangeSummary)
 	}
+	j.ErrorCode = JobErrorCode(j.Error)
 	for _, k := range []string{"critical", "high", "medium", "low", "info"} {
 		if _, ok := j.Severity[k]; !ok {
 			if j.Severity == nil {
@@ -777,4 +781,19 @@ func (s *Service) setRepoProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// JobErrorCode maps a stored execution error to its error catalogue code
+// (backend/internal/platform/diag). The messages are written by failJob
+// and requeueExpired (worker_api.go).
+func JobErrorCode(msg string) string {
+	switch {
+	case msg == "":
+		return ""
+	case strings.HasPrefix(msg, "could not obtain clone credential"):
+		return "PTH-SCAN-1001"
+	case strings.HasPrefix(msg, "worker lease expired"):
+		return "PTH-SCAN-1002"
+	}
+	return ""
 }

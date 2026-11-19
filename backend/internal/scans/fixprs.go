@@ -468,7 +468,7 @@ func (s *Service) refreshFixPR(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := TrackFixPR(ctx, s.DB, s.Log, s.FixPRTarget, id); err != nil {
-		s.fail(w, r, httpx.E(http.StatusBadGateway, "scm_error", FixPRError(err)))
+		s.fail(w, r, httpx.E(http.StatusBadGateway, "scm_error", FixPRError(err)).WithDiag("PTH-REM-1004"))
 		return
 	}
 	out, err := scanFixPR(s.DB.QueryRow(ctx, `SELECT `+fixPRCols+` WHERE x.id = $1`, id))
@@ -733,7 +733,7 @@ func (s *Service) failFixPR(ctx context.Context, orgID, id uuid.UUID, msg string
 	_, _ = s.DB.Exec(ctx, `UPDATE fix_pull_requests SET status = 'failed', error = $2, finished_at = now(), updated_at = now() WHERE id = $1`,
 		id, truncate(msg, 1000))
 	_ = s.auditFix(ctx, s.DB, orgID, id, "fix_pr.failed", map[string]any{"error": truncate(msg, 500)})
-	s.Log.Warn("fix pull request failed", "fix_pr_id", id, "err", msg)
+	s.Log.Warn("fix pull request failed", "fix_pr_id", id, "err", msg, "error_code", "PTH-REM-1004")
 }
 
 // publishFixPR creates the branch (from base), commits files and opens the

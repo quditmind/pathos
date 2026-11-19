@@ -3,7 +3,7 @@ title: CI/CD integration
 section: user-guide
 order: 23
 version: "1.1"
-updated: 2026-11-19
+updated: 2026-11-20
 summary: Use the pathos CLI and the GitHub Action, GitLab CI, Azure Pipelines and Jenkins templates to import results, start scans and fail builds on the PATHOS security gate.
 ---
 # CI/CD integration
@@ -62,7 +62,7 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 | `pathos gate (--scan UUID \| --repo R) [--fail-on SEV] [--scope new\|all] [--allow-partial]` | Evaluates the security gate of an execution (with `--repo`: the repository's latest finished execution). See below |
 | `pathos findings [--repo R] [--severity critical,high] [--status open] [--category C] [--scanner KEY] [--limit 100] [--output table\|json]` | Lists findings |
 | `pathos sbom export --repo R [--format cyclonedx\|spdx] [--output FILE]` | Downloads the repository's SBOM |
-| `pathos version` | Prints the CLI version |
+| `pathos version` | Prints the CLI version and build, e.g. `Quditmind PATHOS v2.2.0 (build 0123456789ab, 2026-11-20T10:00:00Z)` (also `pathos --version`) |
 
 ### The gate
 

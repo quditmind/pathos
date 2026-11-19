@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/db"
 )
 
@@ -143,8 +144,9 @@ func SPDXDocument(name string, comps []invComponent, edges map[string][]string, 
 	doc := map[string]any{
 		"spdxVersion": "SPDX-2.3", "dataLicense": "CC0-1.0", "SPDXID": "SPDXRef-DOCUMENT", "name": name,
 		"documentNamespace": "urn:uuid:" + uuid.NewString(),
-		"creationInfo":      map[string]any{"created": now.UTC().Format(time.RFC3339), "creators": []string{"Tool: PATHOS"}},
-		"packages":          pkgs, "relationships": rels,
+		"creationInfo": map[string]any{"created": now.UTC().Format(time.RFC3339), "creators": []string{"Tool: " + buildinfo.Product + "-" + buildinfo.Version},
+			"comment": buildinfo.Stamp(now)},
+		"packages": pkgs, "relationships": rels,
 	}
 	return json.MarshalIndent(doc, "", "  ")
 }
@@ -193,7 +195,10 @@ func CycloneDXDocument(name string, comps []invComponent, edges map[string][]str
 	}
 	doc := map[string]any{
 		"bomFormat": "CycloneDX", "specVersion": "1.5", "serialNumber": "urn:uuid:" + uuid.NewString(), "version": 1,
-		"metadata":   map[string]any{"timestamp": now.UTC().Format(time.RFC3339), "tools": []map[string]string{{"name": "PATHOS"}}, "component": map[string]string{"type": "application", "name": name}},
+		"metadata": map[string]any{"timestamp": now.UTC().Format(time.RFC3339),
+			"tools":      []map[string]string{{"vendor": buildinfo.Vendor, "name": buildinfo.Product, "version": buildinfo.Version}},
+			"component":  map[string]string{"type": "application", "name": name},
+			"properties": []map[string]string{{"name": "pathos:generated-by", "value": buildinfo.Stamp(now)}, {"name": "pathos:build", "value": buildinfo.Commit}}},
 		"components": cs, "dependencies": deps,
 	}
 	return json.MarshalIndent(doc, "", "  ")

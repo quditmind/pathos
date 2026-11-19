@@ -3,13 +3,19 @@ title: Troubleshooting and FAQ
 section: user-guide
 order: 27
 version: "1.0"
-updated: 2026-11-19
+updated: 2026-11-20
 summary: Answers to common questions and problems with sign-in, repository import, connections, metadata, scanning, findings and notifications.
 ---
 
 # Troubleshooting and FAQ
 
 When you contact your PATHOS administrator, include the **Repository ID** (for example `QD-REPO-000042`), the **import job ID** (last part of the Import progress address) and the exact **error code** shown. Never include tokens or secrets.
+
+## Error codes (PTH-…)
+
+Every error PATHOS reports has a code of the form `PTH-<AREA>-<NNNN>` (for example `PTH-CONN-1007`, "Provider rejected the credential") and a **request ID**. The code leads to a page that explains the cause, the impact, the fix and how to check it; the pages are listed in [Troubleshooting codes](../troubleshooting/index.md) and are part of the in-app help, so they work without internet access. Quote both the code and the request ID when you ask for help: an administrator finds the matching server log lines by them (`request_id` and `error_code`).
+
+When the cause is proven by the check that failed (for example an expired API token), PATHOS shows it as **confirmed**; otherwise it lists **probable causes**, most likely first. For codes that offer it, **Troubleshoot with AI** asks the organization's AI model (a local model when one is configured) for steps; it sends only the code, the redacted message and non-secret context, never secrets or source code, and the catalogue steps remain available when AI is off. AI answers are suggestions, never confirmed causes.
 
 ## A repository does not appear in the list
 

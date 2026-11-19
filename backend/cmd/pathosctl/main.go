@@ -7,6 +7,7 @@
 //	pathosctl multi-tenancy enable|disable|status
 //	pathosctl installation-admin grant|revoke <email> | list
 //	pathosctl organizations       list organizations
+//	pathosctl version             print the version and build metadata
 package main
 
 import (
@@ -28,6 +29,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/notify"
 	"pathos/internal/org"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/crypto"
 	"pathos/internal/platform/db"
@@ -56,7 +58,8 @@ commands:
                       turn multi-tenancy (row-level security on every tenant table) on or off
   installation-admin grant <email> | revoke <email> | list
                       manage installation administrators (the person must have signed in once)
-  organizations       list organizations with their status`)
+  organizations       list organizations with their status
+  version             print the version and build metadata`)
 }
 
 func main() {
@@ -65,6 +68,10 @@ func main() {
 		os.Exit(2)
 	}
 	cmd := os.Args[1]
+	if cmd == "version" || cmd == "--version" || cmd == "-v" {
+		fmt.Println(buildinfo.Banner())
+		return
+	}
 	if cmd == "rbac-matrix" {
 		fmt.Print(authz.MarkdownMatrix())
 		return

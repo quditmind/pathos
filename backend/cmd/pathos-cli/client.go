@@ -16,6 +16,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"pathos/internal/platform/buildinfo"
 )
 
 // Response size limits.
@@ -155,7 +157,7 @@ func (c *client) do(ctx context.Context, method, path string, q url.Values, body
 	}
 	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "pathos-cli/"+version)
+	req.Header.Set("User-Agent", "pathos-cli/"+buildinfo.Version)
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}

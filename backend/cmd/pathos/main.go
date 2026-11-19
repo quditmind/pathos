@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/signal"
 	"pathos/internal/eol"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/policy"
 	"pathos/internal/pushprotect"
@@ -57,7 +58,7 @@ func main() {
 		os.Exit(healthcheck(os.Args[2:]))
 	}
 	if len(os.Args) > 1 && os.Args[1] == "version" {
-		fmt.Println(server.Version)
+		fmt.Println(buildinfo.Version)
 		return
 	}
 	cfg, err := config.Load()
@@ -65,14 +66,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "configuration error:\n%v\n", err)
 		os.Exit(2)
 	}
-	log := logging.New(os.Stdout, cfg.LogLevel).With("service", "pathos", "role", string(cfg.Role), "version", server.Version)
+	log := logging.New(os.Stdout, cfg.LogLevel).With("service", "pathos", "role", string(cfg.Role), "version", buildinfo.Version, "commit", buildinfo.ShortCommit())
 	slog.SetDefault(log)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	host, _ := os.Hostname()
-	shutdownTelemetry, err := telemetry.Setup(ctx, cfg.OTLPEndpoint, string(cfg.Role), server.Version, host)
+	shutdownTelemetry, err := telemetry.Setup(ctx, cfg.OTLPEndpoint, string(cfg.Role), buildinfo.Version, host)
 	if err != nil {
 		log.Error("telemetry setup failed", "err", err)
 		os.Exit(1)
@@ -380,7 +381,7 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Info("expired risk acceptances; findings reopened", "count", n)
 		}
 		if n, err := reporting.RunDue(ctx, pool); err != nil {
-			log.Warn("scheduled reports failed", "err", err)
+			log.Warn("scheduled reports failed", "err", err, "error_code", "PTH-REP-1004")
 		} else if n > 0 {
 			log.Info("scheduled reports sent", "count", n)
 		}

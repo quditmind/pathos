@@ -75,6 +75,7 @@ func (s *Service) Resync(ctx context.Context, orgID, connID uuid.UUID) (ResyncRe
 			serr = s.syncWith(rctx, cl, t, &run, nil)
 			if serr != nil {
 				res.Missing++
+				s.Log.Info("repository no longer visible to the connection", "repository_id", id, "error_code", "PTH-SYNC-1002", "err", serr)
 			}
 		}
 		cancel()
@@ -124,7 +125,7 @@ func (s *Service) ResyncAll(ctx context.Context) {
 		res, err := s.Resync(cctx, c.org, c.id)
 		cancel()
 		if err != nil {
-			s.Log.Warn("repository re-sync failed", "connection_id", c.id, "err", err)
+			s.Log.Warn("repository re-sync failed", "connection_id", c.id, "err", err, "error_code", resyncCode(err))
 			continue
 		}
 		s.Log.Info("repository metadata re-synced", "connection_id", c.id, "checked", res.Checked, "updated", res.Updated, "missing", res.Missing)
@@ -152,11 +153,19 @@ func (s *Service) resyncConnection(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		// SCM client errors are safe to show (they are already stored as
 		// connection status messages); they never contain credentials.
-		s.fail(w, r, httpx.E(http.StatusBadGateway, "scm_error", "re-sync failed: "+err.Error()))
+		s.fail(w, r, httpx.E(http.StatusBadGateway, "scm_error", "re-sync failed: "+err.Error()).WithDiag(resyncCode(err)))
 		return
 	}
 	_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 		Action: "scm.resync", TargetType: "scm_connection", TargetID: id.String(),
 		Metadata: map[string]any{"checked": res.Checked, "updated": res.Updated, "missing": res.Missing}})
 	httpx.WriteJSON(w, http.StatusOK, res)
+}
+
+// resyncCode is the catalogue code of a re-sync failure.
+func resyncCode(err error) string {
+	if c := scm.DiagCode(err); c != "" {
+		return c
+	}
+	return "PTH-CONN-1012"
 }

@@ -194,7 +194,7 @@ func TestConfigurationErrors(t *testing.T) {
 	if r := runCLI(t, nil, "bogus"); r.code != exitUsage {
 		t.Errorf("unknown command: %+v", r)
 	}
-	if r := runCLI(t, nil, "--version"); r.code != exitOK || !strings.Contains(r.stdout, "pathos dev") {
+	if r := runCLI(t, nil, "--version"); r.code != exitOK || !strings.Contains(r.stdout, "Quditmind PATHOS vdev (build unknown, unknown)") {
 		t.Errorf("version: %+v", r)
 	}
 	if r := runCLI(t, nil); r.code != exitUsage || !strings.Contains(r.stderr, "Commands:") {

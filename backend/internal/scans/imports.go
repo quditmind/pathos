@@ -261,7 +261,7 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
-		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid_report", "message": msg}, "import": rec})
+		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": httpx.ErrorObject(r, httpx.E(http.StatusUnprocessableEntity, "invalid_report", msg)), "request_id": httpx.RequestID(r), "import": rec})
 	}
 	switch {
 	case format == "":
@@ -387,7 +387,7 @@ func (s *Service) importSBOM(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
-		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid_sbom", "message": msg}, "import": rec})
+		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": httpx.ErrorObject(r, httpx.E(http.StatusUnprocessableEntity, "invalid_sbom", msg)), "request_id": httpx.RequestID(r), "import": rec})
 		return
 	}
 	if err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/db"
 )
 
@@ -583,7 +584,7 @@ func Render(subject, body string, d *Data) (string, string, error) {
 		return "", "", fmt.Errorf("body: %w", err)
 	}
 	out := strings.TrimSpace(bw.buf.String())
-	out += "\n\n—\nPATHOS · " + d.Org + "\nManage notifications: " + d.BaseURL + "/admin/notifications"
+	out += "\n\n—\nPATHOS · " + d.Org + "\nManage notifications: " + d.BaseURL + "/admin/notifications\n" + buildinfo.Stamp(time.Now())
 	return SanitizeHeader(sw.buf.String(), 200), out, nil
 }
 

@@ -15,6 +15,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/httpx"
 )
 
@@ -453,6 +454,8 @@ func (s *Service) exportCSV(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="human-reviews-%s.csv"`, time.Now().UTC().Format("20060102")))
+	// The stamp is a header: the CSV must start with its header row.
+	w.Header().Set("X-PATHOS-Generated-By", buildinfo.Stamp(time.Now()))
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"review_id", "finding_id", "title", "category", "scanner_severity", "assessed_severity", "assessed_cvss", "assessed_cvss_vector",

@@ -432,7 +432,7 @@ func (s *Service) RunBackground(ctx context.Context) {
 			for _, f := range due {
 				run, err := s.Fetch(ctx, f, nil)
 				if err != nil {
-					s.Log.Warn("intel feed update failed", "feed", f, "err", err)
+					s.Log.Warn("intel feed update failed", "feed", f, "err", err, "error_code", "PTH-SYNC-1020")
 				} else {
 					s.Log.Info("intel feed updated", "feed", f, "records", run.Records, "as_of", run.AsOf)
 				}

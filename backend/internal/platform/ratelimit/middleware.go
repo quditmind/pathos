@@ -106,10 +106,7 @@ func (m *Middleware) Wrap(next http.Handler) http.Handler {
 		}
 		if !d.Allowed {
 			w.Header().Set("Retry-After", strconv.Itoa(RetryAfterSeconds(d.RetryAfter)))
-			httpx.WriteJSON(w, http.StatusTooManyRequests, map[string]any{
-				"error":      httpx.E(http.StatusTooManyRequests, "rate_limited", "too many requests; retry later"),
-				"request_id": httpx.RequestID(r),
-			})
+			httpx.WriteJSON(w, http.StatusTooManyRequests, httpx.Body(r, httpx.E(http.StatusTooManyRequests, "rate_limited", "too many requests; retry later")))
 			return
 		}
 		next.ServeHTTP(w, r)
