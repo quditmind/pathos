@@ -285,7 +285,12 @@ Data ships with the build and in the offline bundle; no online fetch is needed (
 
 **Consequences.** The "no gate blocks without a policy" test becomes exact. Migrating legacy thresholds touches profile and repository settings pages; their old fields stay readable.
 
-**Status.** Proposed, needs owner decision on the legacy thresholds.
+**Status.** Accepted and implemented in M8 (decision C6 settled the legacy thresholds). Implementation notes:
+
+- Gates (`security_gates`) always reference a policy; `gate_decisions` refuses a blocking decision without one (`gate_decisions_block_needs_policy`), and `internal/gates` downgrades such a result to `pass` before storing it. With no gate the decision is `pass` with the reason `no_policy`. Integration tests `TestM8NoGateBlocksWithoutPolicy` and `TestM8GatesEveryStage` enforce it.
+- Repository pull request thresholds: option (b), migration 00057, **without** a flag (a data migration cannot be flagged and the behaviour is identical): each repository with checks enabled got a managed policy and pull request gate with its threshold, `pr_gate_mode = block`; threshold `none` became `warn`. Enabling checks now requires a choice (`repositories_pr_gate_mode_required`). Parity test: `TestM8C6PullRequestParity`.
+- The CLI's `--fail-on` stays the caller's explicit policy on the scan gate; `pathos gate --stage` uses the gates engine.
+- Not migrated (still explicit, opt-in, documented): the scan profile's `fail_on_critical` and the per-target signature requirement, which fail the scan execution's own gate (`scan_jobs.gate_failed`), not a stage gate.
 
 ---
 

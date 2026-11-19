@@ -41,8 +41,6 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 
 | Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
-|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `dashboard.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `insights.people` | yes | ✓ |  | ✓ |  |  |  |  |  |  |  |  |
 | `users.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  | ✓ |  |
@@ -82,6 +80,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `ai.fix` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
+| `remediation.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `remediation.manage` |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |  |
+| `gates.manage` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `gates.approve_exception` |  | ✓ |  | ✓ |  |  | ✓ |  |  |  |  |  |
 
 ### AI-proposed fixes (`ai.fix`)
 

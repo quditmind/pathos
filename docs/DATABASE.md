@@ -408,6 +408,20 @@ Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside
 
 The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.
 
+## Remediation and security gates (migrations 00055–00057)
+
+| Table | Purpose |
+|---|---|
+| `remediation_items` | One item per finding or group of findings of a repository: `title`, `kind`, `status` (`open`, `planned`, `in_progress`, `fix_submitted`, `verifying`, `closed`, `wont_fix`), `priority`, `root_cause`, `owner_id`, `due_at` with `due_source` (`sla`, `manual`, `none`), `fix_pull_request_id`, `ai_fix_id`. CHECK: `closed` needs `closed_by_verification_id` (the verification that proved the fix) and `closed_at` |
+| `remediation_item_findings` | The findings of an item (`PRIMARY KEY (item_id, finding_id)`); the service keeps a finding in at most one active item |
+| `remediation_verifications` | Before-and-after evidence: `trigger` (`manual`, `fix_pr_merged`, `existing_scan`), `status`, `result` (`fixed`, `still_present`, `regressed`, `inconclusive`), `scanner_keys`, `scanner_configs`, `scanner_versions`, `files`, `targets` (findings to prove gone), `before_scan_job_id`/`before_commit`/`before_count`, `after_scan_job_id`/`after_ref`/`after_commit`/`after_count`, `evidence` (per-finding verdicts, regressions, results), worker lease columns. A trigger makes finished rows immutable (references to deleted scans may still be cleared) |
+| `remediation_views` | Saved workspace filters per user (`shared` makes them visible in the organization) |
+| `security_gates` | `stage` (`ide`, `pre_commit`, `pull_request`, `ci`, `release`, `deploy`), `policy_id` **NOT NULL** (composite key to `security_policies`), `mode` (`block`, `warn`, `require_approval`), `allow_exceptions`, optional `application_id`/`repository_id`, `enabled`, `managed` (generated from a repository's pull request settings; unique per repository) |
+| `gate_decisions` | Append-only (trigger): `stage`, `outcome` (`pass`, `warn`, `block`, `approval_required`, `exception_applied`), `gate_ids`, `policy_ids`, `policy_versions`, `gates`, `reasons`, `evidence`, `commit_sha`, `pull_request`, `scan_job_id`, `pr_check_id`, `requested_by`, `request_id`. **CHECK `gate_decisions_block_needs_policy`: a `block` or `approval_required` decision needs at least one policy id** (rule 7) |
+| `gate_exceptions` | Exceptions and approvals: `kind`, `gate_id`, `decision_id`, `repository_id`/`application_id`, `scope` (`{commit_sha?, pull_request?}`), `reason`, `status` (`requested`, `approved`, `rejected`, `expired`, `revoked`), `requested_by`, `decided_by`, `decision_note`, `expires_at`. CHECK `gate_exceptions_four_eyes`: `decided_by <> requested_by` |
+
+All are tenant tables with the standard row-level security policy and composite `(organization_id, id)` keys (the migrations add the unique keys the referenced tables lacked). Other columns: `security_policies.managed_by` (`''` or `repository_pr_gate`) and `managed_repository_id`; `pr_checks.gate_mode` and `gate_decision_id`; `repositories.pr_gate_mode` (`block`, `warn` or NULL) with CHECK `repositories_pr_gate_mode_required` (pull request checks cannot be enabled without a choice). Migration 00057 (decision C6) gave every repository with pull request checks enabled `pr_gate_mode` with its previous behaviour and, for thresholds other than `none`, a managed policy and gate (keys from PostgreSQL 18's `uuidv7()`).
+
 ## Connectors (migration 00044)
 
 | Table | Purpose |

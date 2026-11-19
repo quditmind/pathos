@@ -102,8 +102,8 @@ Image and artifact targets can be verified with Sigstore cosign on every scan (k
 
 | Method | Path | Permission | Description |
 |---|---|---|---|
-| `GET` | `/api/v1/repositories/{id}/pr-settings` | `scans.read` | `{ enabled, gate_severity, source_type }` |
-| `PUT` | `/api/v1/repositories/{id}/pr-settings` | `repos.manage` | `{ enabled, gate_severity }`; `gate_severity` is `critical`, `high` (default), `medium`, `low` or `none`. Audited (`repository.pr_checks`). `400` for uploaded repositories |
+| `GET` | `/api/v1/repositories/{id}/pr-settings` | `scans.read` | `{ enabled, gate_severity, gate_mode, policy_id, gate_id, source_type }`. `gate_mode` is `block`, `warn` or `null` (never chosen); `policy_id` and `gate_id` are the generated, managed [security policy](governance.md#security-policies) and [pull request gate](remediation-and-gates.md#security-gates) that carry the threshold |
+| `PUT` | `/api/v1/repositories/{id}/pr-settings` | `repos.manage` | `{ enabled, gate_severity, gate_mode? }`; `gate_severity` is `critical`, `high`, `medium`, `low` or `none`; `gate_mode` is `block` or `warn`. **Enabling needs a `gate_mode`** when the repository has none (`422 pr_gate_mode_required`, `PTH-GATE-1106`); omitted, the stored choice is kept; with `gate_severity: none` and no choice the mode is `warn` (a `none` threshold cannot block). Keeps the managed policy (minimum severity = threshold, this repository only) and gate in line; threshold `none` disables them. Audited (`repository.pr_checks`, with `gate_mode`, `policy_id`, `gate_id`). `400` for uploaded repositories |
 | `GET` | `/api/v1/pr-checks?repository_id=&status=` | `scans.read` | Latest 200 checks in scope |
 | `GET` | `/api/v1/pr-checks/{id}` | `scans.read` | `{ check, findings }`; findings sorted new first, then by severity |
 | `POST` | `/api/v1/pr-checks/{id}/repost` | `scans.run` | Post the check's commit status again |
@@ -114,7 +114,9 @@ Image and artifact targets can be verified with Sigstore cosign on every scan (k
 
 **New or known.** A PR finding is new unless the repository has a finding with the same fingerprint that is not `fixed` (open, in progress, accepted risk or false positive); known findings link to it (`existing_finding_id`).
 
-**Result.** `failed` when a new finding is at or above `gate_severity`; `error` when the scan failed, or was partial without a blocking finding (incomplete results cannot vouch for the PR); otherwise `passed`. The summary lists new findings by severity.
+**Result.** The check asks the [gates engine](remediation-and-gates.md#security-gates) for a `pull_request` decision (recorded; `gate_decision_id` on the check) over the new findings: the repository's managed gate (its threshold, in `block` or `warn` mode), the organization's other `pull_request` gates, and security policies with the block action. `failed` when the decision is `block` or `approval_required`; `error` when the scan failed, or was partial without a block (incomplete results cannot vouch for the PR); otherwise `passed`. Summaries: `Blocked: … (gate: high and above)` (threshold), `Blocked by policy …`, `Approval required by policy …`, `Passed with warnings (policy …)`, `Passed by approved exception (policy …)`, `Passed: …`. Checks gain `gate_mode` and `gate_decision_id`.
+
+**Migration (decision C6, PATHOS 3.0 M8).** Pull request checks used to block at `high` when enabled without a threshold. Migration 00057 gave every repository with checks enabled an explicit choice with its current behaviour: a threshold other than `none` became `gate_mode: block` with a generated policy and gate (same threshold, this repository only); `none` became `warn`. Repositories with checks off keep their threshold as a suggestion and must choose when enabling.
 
 **Commit status.** Context `PATHOS / security`, linking to `/pull-requests?check=<id>`. GitHub (statuses API), GitLab (commit status), Bitbucket Cloud (build status) and Azure DevOps (Git status). The connection's credential needs permission to write statuses. `status_posted` records `pending`, `final`, `failed` (see `status_error`) or `not_supported`. Make the status a required check in branch protection to block merges.
 
