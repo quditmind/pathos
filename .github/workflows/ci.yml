@@ -65,6 +65,8 @@ jobs:
       - run: python3 -I ../workers/fuzz/test/test_pathos_fuzz.py
       # gosec-tree (stand-in gosec): chunked scans, OOM handling.
       - run: python3 -I ../workers/sast/test/test_gosec_tree.py
+      # tflint-tree (stand-in tflint): module errors reported, issues kept.
+      - run: python3 -I ../workers/iac/test/test_tflint_tree.py
       # The CLI (unit-tested above) must build for every release platform.
       - name: Build the pathos CLI (linux, darwin, windows; amd64, arm64)
         run: |

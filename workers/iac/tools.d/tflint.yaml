@@ -11,9 +11,11 @@ license_spdx: MPL-2.0
 homepage: https://github.com/terraform-linters/tflint
 family: iac
 targets: [repository]
-command: /opt/pathos/iac/bin/tflint
+# tflint-tree (2.2.2): writes the report even when a module cannot be
+# loaded, names the module errors, and exits 3 for a partial result.
+command: /opt/pathos/iac/bin/tflint-tree
 version_args: ["--version"]
-args: ["--chdir={source}", "--recursive", "--config=/opt/pathos/iac/tflint.hcl", "--format=json", "--force", "--no-color"]
+args: ["{source}"]
 ok_exit_codes: [0]
 timeout: 20m
 output: stdout
