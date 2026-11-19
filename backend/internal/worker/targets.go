@@ -309,7 +309,10 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 			}
 			args := append([]string{"image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
 				"--output", in.Out, "--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
-			_, err := command(ctx, env, []int{0}, bin, append(args, in.Target.Reference)...)
+			err := withTrivyDB(ctx, bin, cache("trivy"), cfg.Offline, func(extra []string) error {
+				_, err := command(ctx, env, []int{0}, bin, append(append(args, extra...), in.Target.Reference)...)
+				return err
+			})
 			return "", err
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {

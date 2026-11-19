@@ -297,7 +297,10 @@ func Tools(cfg Config) map[string]Tool {
 			}
 			args := append([]string{"fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
 				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
-			_, err := command(ctx, nil, []int{0}, bin, append(args, dir)...)
+			err := withTrivyDB(ctx, bin, cache("trivy"), cfg.Offline, func(extra []string) error {
+				_, err := command(ctx, nil, []int{0}, bin, append(append(args, extra...), dir)...)
+				return err
+			})
 			if err != nil {
 				return "", err
 			}
