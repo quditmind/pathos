@@ -50,7 +50,7 @@ type garakHit struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "garak", Label: "garak report or hit log (JSON Lines)", Tool: "garak", Category: "other", Media: "jsonl", Order: 370,
+	registerImportFormat(ImportFormat{ID: "garak", Label: "garak report or hit log (JSON Lines)", Tool: "garak", Category: "ai", Media: "jsonl", Order: 370,
 		match: func(p *importProbe) bool {
 			if p.kind != "jsonl" && p.kind != "object" {
 				return false
@@ -254,7 +254,7 @@ func garakFirstPositive(v ...int) int {
 
 func garakFinding(probe, detector, target string, info garakProbeInfo, hits []garakHit, fails, evaluated int, rate float64, raw json.RawMessage) importRecord {
 	det := strings.TrimPrefix(detector, "detectors.")
-	f := Finding{Category: "other", RuleID: "garak:" + probe + "/" + det,
+	f := Finding{Category: "ai", RuleID: "garak:" + probe + "/" + det,
 		Title:    fmt.Sprintf("garak probe %s succeeded against the model (detector %s)", probe, det),
 		FilePath: firstNonEmpty(target, "model"), Severity: "medium", Confidence: "medium"}
 	if rate >= 0.5 {

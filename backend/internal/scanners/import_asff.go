@@ -12,7 +12,10 @@ import (
 // Inspector, GuardDuty, Config, partners). Findings whose compliance
 // status is PASSED or whose record state is ARCHIVED are no longer active
 // and are not imported. Suppressed and resolved workflow states are kept
-// with the state in the description.
+// with the state in the description. Each finding keeps its own category:
+// controls and other posture checks compliance, threat detections (types
+// TTPs, Effects, Unusual Behaviors) runtime, package vulnerabilities sca or
+// container.
 
 type asffFinding struct {
 	ID            string            `json:"Id"`
@@ -70,7 +73,7 @@ type asffFinding struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "asff", Label: "AWS Security Hub findings (ASFF)", Tool: "AWS Security Hub", Category: "other", Media: "json", Order: 453,
+	registerImportFormat(ImportFormat{ID: "asff", Label: "AWS Security Hub findings (ASFF)", Tool: "AWS Security Hub", Media: "json", Order: 453,
 		match: func(p *importProbe) bool {
 			asff := func(m map[string]json.RawMessage) bool {
 				return hasKeys(m, "SchemaVersion", "ProductArn", "AwsAccountId") && hasKeys(m, "GeneratorId")
@@ -114,7 +117,7 @@ func asffRecord(a asffFinding, raw json.RawMessage) importRecord {
 		res, rtype, region = a.Resources[0].ID, a.Resources[0].Type, firstNonEmpty(a.Resources[0].Region, region)
 	}
 	rule := firstNonEmpty(a.Compliance.SecurityControl, a.ProductFields["ControlId"], a.ProductFields["RuleId"], a.GeneratorID)
-	f := Finding{Category: "misconfiguration", RuleID: rule, Title: firstNonEmpty(a.Title, rule),
+	f := Finding{Category: "compliance", RuleID: rule, Title: firstNonEmpty(a.Title, rule),
 		Severity: normSeverity(a.Severity.Label), FilePath: cspmLocation(res, "aws", a.AwsAccountID, region)}
 	if f.Severity == "" {
 		// Normalized 0-100 (ASFF): 90+ critical, 70+ high, 40+ medium, 1+ low.
@@ -127,6 +130,12 @@ func asffRecord(a asffFinding, raw json.RawMessage) importRecord {
 			f.Severity = "medium"
 		case n >= 1:
 			f.Severity = "low"
+		}
+	}
+	for _, t := range a.Types {
+		// GuardDuty and other threat detection findings.
+		if strings.HasPrefix(t, "TTPs/") || strings.HasPrefix(t, "Effects/") || strings.HasPrefix(t, "Unusual Behaviors/") {
+			f.Category = "runtime"
 		}
 	}
 	vuln := ""

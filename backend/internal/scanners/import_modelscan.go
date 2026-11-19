@@ -10,7 +10,10 @@ import (
 // issues[] (unsafe operators in serialised models: pickle, PyTorch, Keras,
 // TensorFlow) and errors[] (files ModelScan could not scan). One finding
 // per issue, located at the model file; scan errors are kept as info
-// findings so an unscanned model is never silent.
+// findings so an unscanned model is never silent. Imports are ai findings;
+// an unsafe operator (code that runs when the model is loaded, such as a
+// malicious pickle) is titled "Possible malicious code in model" and its
+// natural category is malware.
 
 type modelscanIssue struct {
 	Description string `json:"description"`
@@ -28,7 +31,7 @@ type modelscanError struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "modelscan", Label: "ModelScan JSON", Tool: "ModelScan", Category: "other", Media: "json", Order: 372,
+	registerImportFormat(ImportFormat{ID: "modelscan", Label: "ModelScan JSON", Tool: "ModelScan", Category: "ai", Media: "json", Order: 372,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("summary", "issues") && p.headHas(`"modelscan_version"`)
 		},
@@ -55,7 +58,7 @@ func parseModelScan(raw []byte) ([]importRecord, error) {
 		scanner := is.Scanner[strings.LastIndex(is.Scanner, ".")+1:]
 		op := strings.Trim(is.Module+"."+is.Operator, ".")
 		f := Finding{Category: "malware", RuleID: "modelscan:" + firstNonEmpty(scanner, "scan") + ":" + op,
-			Title:    firstNonEmpty(is.Description, "Unsafe operator "+op),
+			Title:    "Possible malicious code in model: " + firstNonEmpty(is.Description, "unsafe operator "+op),
 			Severity: firstNonEmpty(normSeverity(is.Severity), "high"), FilePath: NormalizePath(firstNonEmpty(is.Source, rep.Summary.InputPath)),
 			CWE: []string{"CWE-502"}, Confidence: "high"}
 		f.Description = joinText(fmt.Sprintf("ModelScan found the operator %s in the serialised model %s. Loading the model runs it.", op, is.Source),
@@ -68,7 +71,7 @@ func parseModelScan(raw []byte) ([]importRecord, error) {
 			return out, fmt.Errorf("modelscan: error %d: expected an object", i+1)
 		}
 		cat := firstNonEmpty(e.Category, "scan error")
-		f := Finding{Category: "other", RuleID: "modelscan:error:" + cat, Title: "ModelScan could not scan the model (" + cat + ")",
+		f := Finding{Category: "ai", RuleID: "modelscan:error:" + cat, Title: "ModelScan could not scan the model (" + cat + ")",
 			Severity: "info", FilePath: NormalizePath(firstNonEmpty(e.Source, rep.Summary.InputPath, "model")), Confidence: "low",
 			Description: joinText("The model was not scanned; review it manually.", e.Description)}
 		out = append(out, importRecord{F: f, SnippetKey: hashOf("error|" + e.Description), Raw: it})

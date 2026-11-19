@@ -23,7 +23,7 @@ import (
 // PATHOS category.
 var gitlabTypes = map[string]string{
 	"sast": "sast", "secret_detection": "secrets", "dependency_scanning": "sca", "container_scanning": "container",
-	"cluster_image_scanning": "container", "dast": "dast", "api_fuzzing": "other", "coverage_fuzzing": "other",
+	"cluster_image_scanning": "container", "dast": "dast", "api_fuzzing": "api", "coverage_fuzzing": "fuzz",
 }
 
 var gitlabSecretKeys = []string{"raw_source_code_extract"}

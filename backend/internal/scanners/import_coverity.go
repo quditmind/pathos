@@ -13,7 +13,7 @@ import (
 // strippedMainEventFilePathname, mainEventLineNumber, functionDisplayName,
 // events (the main event is the message) and checkerProperties
 // (category, cweCategory, impact High/Medium/Low, issueKinds). Issues of
-// kind SECURITY are sast; QUALITY-only issues are code quality (other).
+// kind SECURITY are sast; QUALITY-only issues are code-quality findings.
 // When the report was produced with server state, a triage
 // classification of False Positive or Intentional is noted and imported
 // with low confidence.
@@ -83,7 +83,7 @@ func parseCoverityJSON(raw []byte) ([]importRecord, error) {
 				msg = e.Description
 			}
 		}
-		cat := "other"
+		cat := "code-quality"
 		if slices.ContainsFunc(c.Props.IssueKinds, func(k string) bool { return strings.EqualFold(k, "SECURITY") }) {
 			cat = "sast"
 		}

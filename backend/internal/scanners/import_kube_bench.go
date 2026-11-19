@@ -13,7 +13,7 @@ import (
 // kube-bench has no severity: FAIL is medium; WARN (a check that needs
 // manual verification) is low with low confidence. PASS and INFO are not
 // findings. The checks audit a cluster node's configuration, not a file in
-// a repository; findings use the "other" category.
+// a repository; findings use the compliance category.
 
 type kubeBenchResult struct {
 	TestNumber     string `json:"test_number"`
@@ -27,7 +27,7 @@ type kubeBenchResult struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "kube-bench", Label: "kube-bench JSON", Tool: "kube-bench", Category: "other", Media: "json", Order: 271,
+	registerImportFormat(ImportFormat{ID: "kube-bench", Label: "kube-bench JSON", Tool: "kube-bench", Category: "compliance", Media: "json", Order: 271,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("Controls") && (p.has("Totals") || hasKeys(p.firstOf("Controls"), "tests", "node_type"))
 		},
@@ -63,7 +63,7 @@ func parseKubeBench(raw []byte) ([]importRecord, error) {
 				if st != "FAIL" && st != "WARN" {
 					continue
 				}
-				f := Finding{Category: "other", RuleID: "CIS " + r.TestNumber, Title: r.TestDesc, Severity: "medium",
+				f := Finding{Category: "compliance", RuleID: "CIS " + r.TestNumber, Title: r.TestDesc, Severity: "medium",
 					Description: joinText(r.TestDesc, fmt.Sprintf("%s %s, %s: %s (node type %s)", c.Version, c.ID, t.Section, t.Desc, c.NodeType),
 						"Expected: "+r.ExpectedResult, "Actual: "+r.ActualValue, r.Reason, "Remediation: "+r.Remediation)}
 				if st == "WARN" {

@@ -120,7 +120,7 @@ func parseSonarJSON(raw []byte) ([]importRecord, error) {
 		case "VULNERABILITY", "SECURITY_HOTSPOT":
 			f.Category = "sast"
 		default:
-			f.Category = "other"
+			f.Category = "code-quality"
 		}
 		desc := []string{is.Message, "Type: " + strings.ToLower(strings.ReplaceAll(kind, "_", " "))}
 		if is.SecurityCategory != "" {

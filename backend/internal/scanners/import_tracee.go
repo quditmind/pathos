@@ -38,7 +38,7 @@ type traceeEvent struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "tracee", Label: "Tracee JSON events (detections)", Tool: "Tracee", Category: "other", Media: "jsonl", Order: 341,
+	registerImportFormat(ImportFormat{ID: "tracee", Label: "Tracee JSON events (detections)", Tool: "Tracee", Category: "runtime", Media: "jsonl", Order: 341,
 		match: func(p *importProbe) bool {
 			return (p.kind == "jsonl" || p.kind == "object" || p.kind == "array") && p.has("eventName") &&
 				p.hasAny("processName", "eventId", "matchedPolicies") && p.hasAny("metadata", "args")
@@ -105,7 +105,7 @@ func parseTracee(raw []byte) ([]importRecord, error) {
 			loc = "container " + e.ContainerID
 		}
 		technique := strings.TrimSpace(traceeProp(props, "Technique") + " " + traceeProp(props, "external_id"))
-		f := Finding{Category: "other", RuleID: firstNonEmpty(sigID, sigName), Title: firstNonEmpty(sigName, e.EventName, sigID), Severity: sev,
+		f := Finding{Category: "runtime", RuleID: firstNonEmpty(sigID, sigName), Title: firstNonEmpty(sigName, e.EventName, sigID), Severity: sev,
 			FilePath: loc, Confidence: "high",
 			Description: joinText(e.Metadata.Description, labelled("Process", e.ProcessName), labelled("Event", e.EventName),
 				labelled("Category", traceeProp(props, "Category")), labelled("MITRE ATT&CK", technique), labelled("Image", image),

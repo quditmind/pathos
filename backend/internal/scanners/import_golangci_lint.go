@@ -12,7 +12,7 @@ import (
 // Severity (often empty), SourceLines and Pos {Filename, Line, Column}.
 // Issues of the gosec linter are sast findings (rule G<nnn> from the text,
 // gosec's CWE, gosec's severity, medium when empty); all other linters
-// are "other" (code quality) findings, rule "<linter>" or
+// are code-quality findings, rule "<linter>" or
 // "<linter>:<code>" (staticcheck SA4006), with the severity configured in
 // golangci-lint or low. Identity is the linter, the code line (or the
 // line number), the text and the file.
@@ -63,7 +63,7 @@ func parseGolangciLint(raw []byte) ([]importRecord, error) {
 		if err := json.Unmarshal(it, &r); err != nil || r.FromLinter == "" || r.Text == "" {
 			return out, fmt.Errorf("golangci-lint: issue %d: expected an object with FromLinter and Text", i+1)
 		}
-		f := Finding{Category: "other", RuleID: r.FromLinter, Title: r.Text, Description: r.Text, Severity: firstNonEmpty(normSeverity(r.Severity), "low"),
+		f := Finding{Category: "code-quality", RuleID: r.FromLinter, Title: r.Text, Description: r.Text, Severity: firstNonEmpty(normSeverity(r.Severity), "low"),
 			FilePath: NormalizePath(r.Pos.Filename), StartLine: intPtr(r.Pos.Line)}
 		m := golangciRuleCode.FindStringSubmatch(r.Text)
 		if m != nil {

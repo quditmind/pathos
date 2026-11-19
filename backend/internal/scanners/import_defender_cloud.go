@@ -45,7 +45,7 @@ type defenderAssessment struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "defender-cloud", Label: "Microsoft Defender for Cloud assessments JSON", Tool: "Defender for Cloud", Category: "other", Media: "json", Order: 455,
+	registerImportFormat(ImportFormat{ID: "defender-cloud", Label: "Microsoft Defender for Cloud assessments JSON", Tool: "Defender for Cloud", Category: "compliance", Media: "json", Order: 455,
 		match: func(p *importProbe) bool {
 			isAssessment := func(m map[string]json.RawMessage) bool {
 				var t string

@@ -9,7 +9,7 @@ import (
 // `-f json`: the array of comments). Each comment has file, line, endLine,
 // column, level (error, warning, info, style), code (SC number) and
 // message. ShellCheck finds shell bugs, not vulnerabilities: findings are
-// "other" (code quality), error medium, warning low, info and style info.
+// code-quality, error medium, warning low, info and style info.
 // The report has no code, so identity is the code, file, line and column.
 
 type shellcheckComment struct {
@@ -24,7 +24,7 @@ type shellcheckComment struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "shellcheck", Label: "ShellCheck JSON", Tool: "ShellCheck", Media: "json", Order: 160,
+	registerImportFormat(ImportFormat{ID: "shellcheck", Label: "ShellCheck JSON", Tool: "ShellCheck", Category: "code-quality", Media: "json", Order: 160,
 		match: func(p *importProbe) bool {
 			switch p.kind {
 			case "object":
@@ -58,7 +58,7 @@ func parseShellCheck(raw []byte) ([]importRecord, error) {
 			sev = "low"
 		}
 		rule := fmt.Sprintf("SC%d", c.Code)
-		f := Finding{Category: "other", RuleID: rule, Title: c.Message, Severity: sev, FilePath: NormalizePath(c.File),
+		f := Finding{Category: "code-quality", RuleID: rule, Title: c.Message, Severity: sev, FilePath: NormalizePath(c.File),
 			StartLine: intPtr(c.Line), EndLine: intPtr(c.EndLine),
 			Description: joinText(c.Message, "https://www.shellcheck.net/wiki/"+rule)}
 		out = append(out, importRecord{F: f, SnippetKey: hashOf(fmt.Sprintf("%d:%d", c.Line, c.Column)), Raw: it})

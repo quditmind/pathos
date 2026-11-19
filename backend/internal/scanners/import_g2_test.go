@@ -40,11 +40,11 @@ func TestImportG2Formats(t *testing.T) {
 	runImportCases(t, []importCase{
 		{file: "phpstan.json", format: "phpstan", count: 6, checks: map[int]want{
 			1: {sev: "low", file: "src/user.php", line: 4, rule: "binaryOp.invalid"},
-		}, cats: map[int]string{0: "other"}},
+		}, cats: map[int]string{0: "code-quality"}},
 		{file: "psalm.json", format: "psalm", count: 4, checks: map[int]want{
 			0: {sev: "low", file: "src/user.php", line: 4, rule: "PossiblyInvalidOperand"},
 			1: {sev: "high", cwe: "CWE-79", file: "src/user.php", line: 5, rule: "TaintedHtml"},
-		}, cats: map[int]string{0: "other", 1: "sast"}},
+		}, cats: map[int]string{0: "code-quality", 1: "sast"}},
 		{file: "njsscan.json", format: "njsscan", count: 2, checks: map[int]want{
 			0: {sev: "high", cwe: "CWE-95", file: "app.js", line: 8, rule: "eval_nodejs"},
 			1: {sev: "high", cwe: "CWE-78", line: 5, rule: "generic_os_command_exec"},
@@ -62,7 +62,7 @@ func TestImportG2Formats(t *testing.T) {
 			0: {sev: "low", file: "deploy.sh", line: 3, rule: "SC2115"},
 			2: {sev: "medium", line: 4, rule: "SC2045"},
 			3: {sev: "info", rule: "SC2006"},
-		}, cats: map[int]string{0: "other"}},
+		}, cats: map[int]string{0: "code-quality"}},
 		{file: "shellcheck-plain.json", format: "shellcheck", count: 4, checks: map[int]want{
 			0: {sev: "low", file: "deploy.sh", line: 3, rule: "SC2115"},
 		}},
@@ -70,18 +70,18 @@ func TestImportG2Formats(t *testing.T) {
 			1: {sev: "low", file: "home/runner/work/app/app/app.py", line: 1, rule: "F401"},
 			2: {sev: "high", cwe: "CWE-78", line: 8, rule: "S602"},
 			3: {sev: "medium", cwe: "CWE-502", line: 9, rule: "S301"},
-		}, cats: map[int]string{1: "other", 2: "sast"}},
+		}, cats: map[int]string{1: "code-quality", 2: "sast"}},
 		{file: "pylint.json", format: "pylint", count: 4, checks: map[int]want{
 			0: {sev: "info", file: "app.py", line: 1, rule: "missing-module-docstring"},
 			2: {sev: "medium", cwe: "CWE-95", line: 13, endLine: 13, rule: "eval-used"},
-		}, cats: map[int]string{0: "other", 2: "sast"}},
+		}, cats: map[int]string{0: "code-quality", 2: "sast"}},
 		{file: "pylint-json2.json", format: "pylint", count: 8, checks: map[int]want{
 			2: {sev: "medium", cwe: "CWE-95", file: "app.py", line: 13, rule: "eval-used"},
 		}},
 		{file: "golangci-lint.json", format: "golangci-lint", count: 8, checks: map[int]want{
 			0: {sev: "low", file: "main.go", line: 13, rule: "errcheck"},
 			4: {sev: "medium", cwe: "CWE-89", line: 12, rule: "G202"},
-		}, cats: map[int]string{0: "other", 4: "sast", 6: "other"}},
+		}, cats: map[int]string{0: "code-quality", 4: "sast", 6: "code-quality"}},
 		{file: "codacy.json", format: "codacy", count: 7, checks: map[int]want{
 			0: {sev: "medium", cwe: "CWE-502", file: "app.py", line: 9, rule: "Bandit_B301"},
 			6: {sev: "high", cwe: "CWE-78", line: 8, rule: "Bandit_B602"},
@@ -89,7 +89,7 @@ func TestImportG2Formats(t *testing.T) {
 		{file: "sonarcloud.json", format: "sonarcloud", count: 2, checks: map[int]want{
 			0: {sev: "high", file: "src/components/Banner.jsx", line: 27, rule: "javascript:S5247"},
 			1: {sev: "low", file: "src/util/format.js", line: 8},
-		}, cats: map[int]string{0: "sast", 1: "other"}},
+		}, cats: map[int]string{0: "sast", 1: "code-quality"}},
 		{file: "detect-secrets.json", format: "detect-secrets", count: 4, checks: map[int]want{
 			0: {sev: "high", cwe: "CWE-798", file: "config/settings.py", line: 2, rule: "AWS Access Key"},
 			3: {line: 4, rule: "Secret Keyword"},

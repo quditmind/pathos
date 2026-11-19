@@ -101,7 +101,7 @@ type sslyzeRecord struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "sslyze", Label: "SSLyze JSON (--json_out)", Tool: "SSLyze", Category: "other", Media: "json", Order: 332,
+	registerImportFormat(ImportFormat{ID: "sslyze", Label: "SSLyze JSON (--json_out)", Tool: "SSLyze", Category: "misconfiguration", Media: "json", Order: 332,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("server_scan_results") && p.hasAny("sslyze_version", "sslyze_url")
 		},
@@ -120,7 +120,7 @@ func parseSSLyze(raw []byte) ([]importRecord, error) {
 		host := firstNonEmpty(s.ServerLocation.Hostname, s.ServerLocation.IPAddress)
 		loc := hostLocation(host, fmt.Sprint(s.ServerLocation.Port), "")
 		add := func(check, title, sev, cwe, cve, desc string, details []string) {
-			f := Finding{Category: "other", RuleID: "sslyze." + check, Title: title, Severity: sev, FilePath: loc, CVE: cve, Confidence: "high",
+			f := Finding{Category: "misconfiguration", RuleID: "sslyze." + check, Title: title, Severity: sev, FilePath: loc, CVE: cve, Confidence: "high",
 				Description: joinText(desc, labelled("Details", clipText(strings.Join(details, "\n"), 2000)))}
 			if cwe != "" {
 				f.CWE = []string{cwe}

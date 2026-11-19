@@ -34,7 +34,7 @@ var (
 )
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "mobsf", Label: "MobSF static analysis JSON", Tool: "MobSF", Category: "other", Media: "json", Order: 373,
+	registerImportFormat(ImportFormat{ID: "mobsf", Label: "MobSF static analysis JSON", Tool: "MobSF", Category: "mobile", Media: "json", Order: 373,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("code_analysis", "app_type", "md5") && p.hasAny("package_name", "bundle_id", "manifest_analysis", "ats_analysis")
 		},

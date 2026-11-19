@@ -11,7 +11,7 @@ import (
 // location elements (the first is the primary location). error and
 // warning are bugs with a security impact in C and C++ (sast: error high,
 // warning medium); style, performance and portability are code quality
-// (other, low); information is info. Cppcheck's own diagnostics (missing
+// (code-quality, low); information is info. Cppcheck's own diagnostics (missing
 // includes, the checkers report, configuration limits) are not findings.
 
 type cppcheckError struct {
@@ -59,7 +59,7 @@ func parseCppcheckXML(raw []byte) ([]importRecord, error) {
 		if !ok {
 			sev = "info"
 		}
-		f := Finding{Category: "other", RuleID: e.ID, Severity: sev, Title: firstNonEmpty(e.Msg, e.ID),
+		f := Finding{Category: "code-quality", RuleID: e.ID, Severity: sev, Title: firstNonEmpty(e.Msg, e.ID),
 			Description: joinText(e.Verbose, "Cppcheck check "+e.ID+" ("+e.Severity+")."), CWE: []string{e.CWE}}
 		if e.Severity == "error" || e.Severity == "warning" {
 			f.Category = "sast"

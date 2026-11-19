@@ -14,7 +14,7 @@ import (
 // documentation, one level lower when the check scores 5 or more. The
 // details (with the files and lines of each warning) are in the
 // description; the finding has no file because a check covers the whole
-// repository. Supply-chain posture findings use the "other" category.
+// repository. Supply-chain posture findings use the supply-chain category.
 
 // scorecardRisk is the risk level of each check (docs/checks.md).
 var scorecardRisk = map[string]string{
@@ -26,7 +26,7 @@ var scorecardRisk = map[string]string{
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "scorecard", Label: "OpenSSF Scorecard JSON", Tool: "OpenSSF Scorecard", Category: "other", Media: "json", Order: 282,
+	registerImportFormat(ImportFormat{ID: "scorecard", Label: "OpenSSF Scorecard JSON", Tool: "OpenSSF Scorecard", Category: "supply-chain", Media: "json", Order: 282,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("repo", "scorecard", "checks")
 		},
@@ -66,7 +66,7 @@ func parseScorecard(raw []byte) ([]importRecord, error) {
 		if *c.Score >= 5 {
 			sev = map[string]string{"critical": "high", "high": "medium", "medium": "low", "low": "info"}[sev]
 		}
-		f := Finding{Category: "other", RuleID: c.Name, Title: fmt.Sprintf("Scorecard %s: %s", c.Name, c.Reason), Severity: sev,
+		f := Finding{Category: "supply-chain", RuleID: c.Name, Title: fmt.Sprintf("Scorecard %s: %s", c.Name, c.Reason), Severity: sev,
 			Description: joinText(fmt.Sprintf("%s (score %d of 10)", c.Documentation.Short, *c.Score), c.Reason,
 				strings.Join(c.Details, "\n"), c.Documentation.URL)}
 		// Identity is the check of the repository, not the score, reason

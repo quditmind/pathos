@@ -211,11 +211,11 @@ func TestImportW3af(t *testing.T) {
 }
 
 func TestImportSchemathesis(t *testing.T) {
-	fs := checkImport(t, "schemathesis.json", "schemathesis", "import-other-schemathesis", 6)
+	fs := checkImport(t, "schemathesis.json", "schemathesis", "import-api-schemathesis", 6)
 	if f := fs[0]; f.RuleID != "ST101" || f.Severity != "critical" || f.FilePath != "/api/items" || f.Title != "Server error (GET /api/items)" {
 		t.Errorf("json: %+v", f)
 	}
-	js := checkImport(t, "schemathesis-junit.xml", "schemathesis", "import-other-schemathesis", 6)
+	js := checkImport(t, "schemathesis-junit.xml", "schemathesis", "import-api-schemathesis", 6)
 	codes := map[string]string{}
 	for _, f := range js {
 		codes[f.RuleID+" "+f.FilePath] = f.Severity
@@ -223,7 +223,7 @@ func TestImportSchemathesis(t *testing.T) {
 	if codes["ST101 /api/items"] != "critical" || codes["ST201 /api/users/{id}"] != "medium" || codes["ST204 /api/users/{id}"] != "medium" {
 		t.Errorf("junit: %v", codes)
 	}
-	g1CheckClean(t, "schemathesis-junit.xml", "schemathesis", "import-other-schemathesis")
+	g1CheckClean(t, "schemathesis-junit.xml", "schemathesis", "import-api-schemathesis")
 	// A JUnit report of another tool is not Schemathesis.
 	junit := []byte(`<?xml version="1.0"?><testsuites><testsuite name="pytest" tests="1"><testcase name="test_x"><failure message="ST101">x</failure></testcase></testsuite></testsuites>`)
 	if DetectImportFormat(junit) != "" {
@@ -232,13 +232,13 @@ func TestImportSchemathesis(t *testing.T) {
 }
 
 func TestImportRestler(t *testing.T) {
-	fs := checkImport(t, "restler.json", "restler", "import-other-restler", 1)
+	fs := checkImport(t, "restler.json", "restler", "import-api-restler", 1)
 	if f := fs[0]; f.RuleID != "main_driver/500" || f.Severity != "medium" || f.FilePath != "/api/blog/posts/{postId}" ||
 		!strings.Contains(f.Description, "PUT /api/blog/posts/5882 HTTP/1.1") {
 		t.Errorf("detail: %+v", f)
 	}
-	g1CheckClean(t, "restler.json", "restler", "import-other-restler")
-	bs := checkImport(t, "restler-bugs.json", "restler", "import-other-restler", 2)
+	g1CheckClean(t, "restler.json", "restler", "import-api-restler")
+	bs := checkImport(t, "restler-bugs.json", "restler", "import-api-restler", 2)
 	if bs[1].Severity != "high" || bs[1].Confidence != "low" || bs[1].FilePath != "UseAfterFreeChecker_20x_1.json" {
 		t.Errorf("index: %+v", bs[1])
 	}

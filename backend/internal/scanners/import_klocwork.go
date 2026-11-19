@@ -21,7 +21,7 @@ var klocworkLineRe = regexp.MustCompile(`(?i)\bline \d+`)
 // Issues whose state is Fixed are gone from the code and not imported;
 // issues with status Ignore, Not a Problem or Defer are imported with low
 // confidence and the status noted. Coding-standard checkers (MISRA,
-// AUTOSAR) are code quality (other); every other checker is sast. CWE ids
+// AUTOSAR) are code-quality findings; every other checker is sast. CWE ids
 // come from the reference field when present. Identity is the checker,
 // method and message (without line numbers).
 
@@ -89,7 +89,7 @@ func parseKlocwork(raw []byte) ([]importRecord, error) {
 		}
 		cat := "sast"
 		if up := strings.ToUpper(k.Code); strings.HasPrefix(up, "MISRA.") || strings.HasPrefix(up, "AUTOSAR.") {
-			cat = "other"
+			cat = "code-quality"
 		}
 		f := Finding{Category: cat, RuleID: k.Code, Title: firstNonEmpty(k.Title, k.Code) + " (" + k.Code + ")", Severity: sev,
 			FilePath: NormalizePath(k.File), StartLine: intPtr(k.Line), CWE: []string{k.Reference},

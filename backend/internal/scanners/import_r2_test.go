@@ -80,7 +80,7 @@ func TestImportNmap(t *testing.T) {
 }
 
 func TestImportTLSScanners(t *testing.T) {
-	fs := checkImport(t, "testssl.json", "testssl", "import-other-testssl", 11)
+	fs := checkImport(t, "testssl.json", "testssl", "import-misconfiguration-testssl", 11)
 	if f := fs[2]; f.RuleID != "testssl.cipherlist_aNULL" || f.Severity != "critical" || f.FilePath != "a3-g2-target:443" || !slices.Equal(f.CWE, []string{"CWE-327"}) {
 		t.Errorf("aNULL: %+v", f)
 	}
@@ -92,7 +92,7 @@ func TestImportTLSScanners(t *testing.T) {
 			t.Errorf("BEAST: %+v", f)
 		}
 	}
-	pretty := checkImport(t, "testssl-pretty.json", "testssl", "import-other-testssl", 9)
+	pretty := checkImport(t, "testssl-pretty.json", "testssl", "import-misconfiguration-testssl", 9)
 	if pretty[0].RuleID != "testssl.BEAST" || pretty[0].FilePath != "a3-g2-target:443" {
 		t.Errorf("pretty: %+v", pretty[0])
 	}
@@ -101,7 +101,7 @@ func TestImportTLSScanners(t *testing.T) {
 		t.Errorf("flat and pretty BEAST differ: %+v %+v", fs[8], pretty[0])
 	}
 
-	sy := checkImport(t, "sslyze.json", "sslyze", "import-other-sslyze", 4)
+	sy := checkImport(t, "sslyze.json", "sslyze", "import-misconfiguration-sslyze", 4)
 	if sy[0].RuleID != "sslyze.tls_1.0_supported" || sy[0].Severity != "medium" || sy[0].FilePath != "a3-g2-target:443" {
 		t.Errorf("sslyze tls1.0: %+v", sy[0])
 	}
@@ -112,7 +112,7 @@ func TestImportTLSScanners(t *testing.T) {
 		t.Errorf("sslyze cert: %+v", c)
 	}
 
-	ss := checkImport(t, "sslscan.xml", "sslscan", "import-other-sslscan", 7)
+	ss := checkImport(t, "sslscan.xml", "sslscan", "import-misconfiguration-sslscan", 7)
 	if ss[2].RuleID != "sslscan.cipher.AECDH-AES256-SHA" || ss[2].Severity != "high" || !strings.Contains(ss[2].Description, "TLSv1.0") {
 		t.Errorf("sslscan anon: %+v", ss[2])
 	}
@@ -230,9 +230,9 @@ func TestImportRuntime(t *testing.T) {
 		n            int
 	}{{"falco.jsonl", "falco", 3}, {"tetragon.jsonl", "tetragon", 2}, {"tracee.jsonl", "tracee", 2}} {
 		raw := readImportFixture(t, c.file)
-		fs := checkImport(t, c.file, c.format, "import-other-"+c.format, c.n)
+		fs := checkImport(t, c.file, c.format, "import-runtime-"+c.format, c.n)
 		clean := SanitizeImport(c.format, raw)
-		again, err := ParseImport("import-other-"+c.format, "", clean)
+		again, err := ParseImport("import-runtime-"+c.format, "", clean)
 		if err != nil || len(again) != len(fs) {
 			t.Fatalf("%s: sanitised report: %v", c.file, err)
 		}
@@ -240,7 +240,7 @@ func TestImportRuntime(t *testing.T) {
 			if again[i].Fingerprint != f.Fingerprint {
 				t.Errorf("%s: identity depends on redacted values", c.file)
 			}
-			loc, _ := LocateImport("import-other-"+c.format, c.format, raw, f.Fingerprint)
+			loc, _ := LocateImport("import-runtime-"+c.format, c.format, raw, f.Fingerprint)
 			for _, s := range secrets {
 				if strings.Contains(string(clean), s) || strings.Contains(f.Title+f.Description, s) || (loc != nil && strings.Contains(string(loc.Raw), s)) {
 					t.Errorf("%s: %q kept", c.file, s)
@@ -248,14 +248,14 @@ func TestImportRuntime(t *testing.T) {
 			}
 		}
 	}
-	fa, _ := ParseImport("import-other-falco", "falco", readImportFixture(t, "falco.jsonl"))
+	fa, _ := ParseImport("import-runtime-falco", "falco", readImportFixture(t, "falco.jsonl"))
 	if f := fa[0]; f.Severity != "low" || f.FilePath != "shop/web-7d9f8 (web)" || !strings.Contains(f.Description, "Seen 2 times") || !strings.Contains(f.Description, "T1059") {
 		t.Errorf("falco aggregate: %+v", f)
 	}
 	if fa[1].Severity != "medium" || fa[1].FilePath != "container api" || fa[2].Severity != "critical" || fa[2].FilePath != "host node-2" {
 		t.Errorf("falco: %+v", fa[1:])
 	}
-	te, _ := ParseImport("import-other-tetragon", "tetragon", readImportFixture(t, "tetragon.jsonl"))
+	te, _ := ParseImport("import-runtime-tetragon", "tetragon", readImportFixture(t, "tetragon.jsonl"))
 	if e := te[0]; e.RuleID != "file-monitoring/security_file_permission" || e.Severity != "medium" || e.Title != "Sensitive file read" ||
 		!strings.Contains(e.Description, "/etc/shadow") {
 		t.Errorf("tetragon kprobe: %+v", e)
@@ -263,7 +263,7 @@ func TestImportRuntime(t *testing.T) {
 	if te[1].Severity != "high" || te[1].FilePath != "shop/api-55c6 (api)" {
 		t.Errorf("tetragon enforced: %+v", te[1])
 	}
-	tr, _ := ParseImport("import-other-tracee", "tracee", readImportFixture(t, "tracee.jsonl"))
+	tr, _ := ParseImport("import-runtime-tracee", "tracee", readImportFixture(t, "tracee.jsonl"))
 	if tr[0].RuleID != "TRC-102" || tr[0].Severity != "low" || !strings.Contains(tr[0].Description, "T1622") || tr[1].Severity != "high" {
 		t.Errorf("tracee: %+v", tr)
 	}
@@ -279,7 +279,7 @@ func TestImportRuntime(t *testing.T) {
 		}
 	}
 	// Only exec/exit events or only telemetry: no findings, no error.
-	if fs, err := ParseImport("import-other-tetragon", "tetragon", []byte(`{"process_exit":{"process":{}},"node_name":"n","time":"t"}`)); err != nil || len(fs) != 0 {
+	if fs, err := ParseImport("import-runtime-tetragon", "tetragon", []byte(`{"process_exit":{"process":{}},"node_name":"n","time":"t"}`)); err != nil || len(fs) != 0 {
 		t.Errorf("tetragon audit only: %v %d", err, len(fs))
 	}
 }

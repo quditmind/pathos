@@ -51,7 +51,7 @@ PATHOS reports on 25 **scan types** (SAST, DAST, SCA, secrets, IaC, container, A
 | `tools[].adapter_available` | A PATHOS worker image or manifest can run the tool |
 | `tools[].runnable`, `tools[].workers` | An online, non-revoked worker of this deployment advertises the tool, and how many do. For `server` tools: the check is active (the end-of-life feed only when it is enabled) |
 | `tools[].network`, `tools[].intrusive`, `tools[].targets` | What the tool contacts, whether it sends attack traffic, and what it scans ([manifests](#tool-manifests)) |
-| `import_formats` | [Result import formats](result-imports.md) specific to the type (the generic ones, listed once in `generic_import_formats`, apply to every type) |
+| `import_formats` | [Result import formats](result-imports.md) specific to the type: the formats whose default category is the type's first category, and the formats the type names because their findings keep their own categories (for example `gitlab`, `asff`, `gcp-scc`, the linters with `code-quality` rules) or are recorded under another category (DAST tools under API security, TLS scanners under cryptography). The generic ones, listed once in `generic_import_formats` (SARIF, PATHOS findings JSON, CSV), apply to every type |
 | `runnable_tools`, `runnable` | How many tools are runnable now; `true` when at least one is |
 | `importable` | At least one specific import format exists |
 

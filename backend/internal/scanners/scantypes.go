@@ -17,7 +17,10 @@ type ScanType struct {
 	// scan_types.
 	Tools []string `json:"tools"`
 	// ImportFormats are import formats that carry this type's results in
-	// addition to those whose default category is one of Categories.
+	// addition to those whose default category is the type's first
+	// category: formats whose findings keep their own categories (Trivy,
+	// GitLab, linters with security and code-quality rules), and formats
+	// recorded under another category (Nuclei and ZAP for API security).
 	ImportFormats []string `json:"-"`
 	// Note explains a mapping that is not obvious (empty for most types).
 	Note string `json:"note,omitempty"`
@@ -28,37 +31,44 @@ var ScanTypes = []ScanType{
 	{ID: "sast", Name: "SAST", Description: "Static analysis of source code for security weaknesses",
 		Categories: []string{"sast"},
 		Tools: []string{Opengrep, "semgrep-ce", "codeql", "bandit", "gosec", "brakeman", "spotbugs", "pmd", "flawfinder", "cppcheck", "infer",
-			"pysa", "psalm", "phpstan", "ruff", "eslint-security", "njsscan", "sobelow"}},
+			"pysa", "psalm", "phpstan", "ruff", "eslint-security", "njsscan", "sobelow"},
+		ImportFormats: []string{"veracode", "coverity", "klocwork", "horusec", "bearer", "spotbugs", "pmd", "cppcheck", "psalm", "ruff", "pylint",
+			"golangci-lint", "codacy", "gitlab"}},
 	{ID: "dast", Name: "DAST", Description: "Dynamic testing of running web applications",
-		Categories: []string{"dast"},
-		Tools:      []string{Nuclei, "zap", EndpointCheck}},
+		Categories:    []string{"dast"},
+		Tools:         []string{Nuclei, "zap", EndpointCheck},
+		ImportFormats: []string{"gitlab"}},
 	{ID: "sca", Name: "SCA", Description: "Known vulnerabilities in open-source dependencies",
 		Categories: []string{"sca", "eol"},
 		Tools: []string{TrivyFS, Grype, OSVScanner, "dependency-check", "retirejs", "govulncheck", "pip-audit", "cargo-audit", "bundler-audit",
 			"dep-scan", EndOfLife},
-		ImportFormats: []string{"trivy"}},
+		ImportFormats: []string{"trivy", "veracode", "gitlab"}},
 	{ID: "secrets", Name: "Secrets", Description: "Credentials and keys committed to repositories",
-		Categories: []string{"secrets"},
-		Tools:      []string{Gitleaks, "trufflehog", "detect-secrets", "kingfisher"}},
+		Categories:    []string{"secrets"},
+		Tools:         []string{Gitleaks, "trufflehog", "detect-secrets", "kingfisher"},
+		ImportFormats: []string{"trivy", "trivy-k8s", "bearer", "horusec", "gitlab"}},
 	{ID: "iac", Name: "Infrastructure as code", Description: "Misconfigurations in Terraform, Kubernetes, CloudFormation and similar files",
 		Categories:    []string{"iac"},
 		Tools:         []string{Checkov, "kics", "kube-linter", "kubescape", "tflint", "conftest", "hadolint"},
-		ImportFormats: []string{"trivy"}},
+		ImportFormats: []string{"trivy", "trivy-k8s", "polaris"}},
 	{ID: "container", Name: "Container", Description: "Vulnerabilities and misconfigurations of container images",
 		Categories:    []string{"container"},
 		Tools:         []string{TrivyImage, "dockle"},
-		ImportFormats: []string{"trivy"}},
+		ImportFormats: []string{"trivy", "trivy-k8s", "gitlab"}},
 	{ID: "api", Name: "API security", Description: "Testing of APIs described by an OpenAPI document",
-		Categories: []string{"api", "dast"},
-		Tools:      []string{Nuclei, "schemathesis"},
-		Note:       "Nuclei runs its DAST templates against API targets; those findings are recorded as dast"},
+		Categories:    []string{"api", "dast"},
+		Tools:         []string{Nuclei, "schemathesis"},
+		ImportFormats: []string{"nuclei", "zap", "burp", "burp-enterprise", "stackhawk", "gitlab"},
+		Note:          "Nuclei runs its DAST templates against API targets; those findings, and imports of DAST tools, are recorded as dast"},
 	{ID: "iast", Name: "IAST", Description: "Interactive testing by agents inside the running application",
 		Categories: []string{"iast"}},
 	{ID: "mobile", Name: "Mobile (MAST)", Description: "Security testing of Android and iOS applications",
-		Categories: []string{"mobile"},
-		Tools:      []string{"mobsfscan"}},
+		Categories:    []string{"mobile"},
+		Tools:         []string{"mobsfscan"},
+		ImportFormats: []string{"mobsfscan"}},
 	{ID: "fuzzing", Name: "Fuzzing", Description: "Generated inputs that look for crashes and unexpected behaviour",
-		Categories: []string{"fuzz"}},
+		Categories:    []string{"fuzz"},
+		ImportFormats: []string{"gitlab"}},
 	{ID: "license", Name: "Licence", Description: "Licences of dependencies and source files",
 		Categories: []string{"license"},
 		Tools:      []string{LicenseCheck, "scancode", "trivy-license"}},
@@ -71,12 +81,16 @@ var ScanTypes = []ScanType{
 		Tools:      []string{ClamAV}},
 	{ID: "code-quality", Name: "Code-quality security", Description: "Code-quality defects with security impact (unsafe shell, error handling, resource use)",
 		Categories: []string{"code-quality"},
-		Tools:      []string{"shellcheck", "pmd", "ruff"}},
+		Tools:      []string{"shellcheck", "pmd", "ruff"},
+		ImportFormats: []string{"coverity", "klocwork", "spotbugs", "pmd", "cppcheck", "psalm", "ruff", "pylint", "golangci-lint", "codacy",
+			"polaris"}},
 	{ID: "supply-chain", Name: "Supply chain", Description: "Provenance, signatures and project health of components",
 		Categories: []string{"supply-chain"},
 		Tools:      []string{Cosign, "scorecard"}},
 	{ID: "crypto", Name: "Cryptography", Description: "Weak algorithms, keys and certificates",
-		Categories: []string{"crypto"}},
+		Categories:    []string{"crypto"},
+		ImportFormats: []string{"testssl", "sslyze", "sslscan"},
+		Note:          "TLS scanner imports (testssl.sh, SSLyze, sslscan) are recorded as misconfiguration"},
 	{ID: "configuration", Name: "Configuration", Description: "Insecure framework and application configuration",
 		Categories: []string{"misconfiguration"},
 		Tools:      []string{Opengrep},
@@ -91,10 +105,12 @@ var ScanTypes = []ScanType{
 	{ID: "ai", Name: "AI / LLM", Description: "Security of AI models and LLM applications",
 		Categories: []string{"ai"}},
 	{ID: "runtime", Name: "Runtime", Description: "Detections from running workloads",
-		Categories: []string{"runtime"}},
+		Categories:    []string{"runtime"},
+		ImportFormats: []string{"asff", "gcp-scc"}},
 	{ID: "compliance", Name: "Compliance", Description: "Benchmark and compliance checks",
-		Categories: []string{"compliance"},
-		Tools:      []string{"kube-bench"}},
+		Categories:    []string{"compliance"},
+		Tools:         []string{"kube-bench"},
+		ImportFormats: []string{"asff", "gcp-scc"}},
 	{ID: "license-policy", Name: "Licence policy", Description: "The organization's licence policy applied to the SBOM inventory",
 		Categories: []string{"license"},
 		Tools:      []string{LicensePolicy},
@@ -102,8 +118,9 @@ var ScanTypes = []ScanType{
 	{ID: "database", Name: "Database security", Description: "Configuration and access of database systems",
 		Categories: []string{"database"}},
 	{ID: "manual", Name: "Manual review", Description: "Findings from manual testing and code review",
-		Categories: []string{},
-		Note:       "Recorded through result imports (PATHOS findings JSON, CSV, SARIF) and Human Eye reviews"},
+		Categories:    []string{},
+		ImportFormats: []string{"hackerone", "hackerone-csv", "bugcrowd", "intigriti"},
+		Note:          "Recorded through result imports (PATHOS findings JSON, CSV, SARIF, bug-bounty and pentest platform exports) and Human Eye reviews"},
 }
 
 // LookupScanType returns a scan type by id.
@@ -128,12 +145,14 @@ func ScanTypesOf(key string) []string {
 }
 
 // ScanTypeImportFormats returns the import formats of a scan type: the
-// formats whose default category is one of the type's categories, plus its
-// explicit ones. Generic formats (no default category) are not included.
+// formats whose default category is the type's first category, plus its
+// explicit ones. The other categories of a type (dast for API security,
+// iac for CI/CD) are where some of its tools record findings, not formats
+// of the type. Generic formats (no default category) are not included.
 func ScanTypeImportFormats(t ScanType) []ImportFormat {
 	var out []ImportFormat
 	for _, f := range ImportFormats() {
-		if (f.Category != "" && f.Category != "other" && slices.Contains(t.Categories, f.Category)) || slices.Contains(t.ImportFormats, f.ID) {
+		if (f.Category != "" && f.Category != "other" && len(t.Categories) > 0 && f.Category == t.Categories[0]) || slices.Contains(t.ImportFormats, f.ID) {
 			out = append(out, f)
 		}
 	}

@@ -70,7 +70,7 @@ type sslscanRecord struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "sslscan", Label: "sslscan XML (--xml)", Tool: "sslscan", Category: "other", Media: "xml", Order: 333,
+	registerImportFormat(ImportFormat{ID: "sslscan", Label: "sslscan XML (--xml)", Tool: "sslscan", Category: "misconfiguration", Media: "xml", Order: 333,
 		match: func(p *importProbe) bool {
 			if p.kind != "xml" || p.root != "document" {
 				return false
@@ -86,7 +86,7 @@ func parseSSLScan(raw []byte) ([]importRecord, error) {
 	err := eachXMLElement(raw, "document", "ssltest", func(t *sslscanTest) error {
 		loc := hostLocation(t.Host, t.Port, "")
 		add := func(check, title, sev, cwe, cve, desc string, details []string) {
-			f := Finding{Category: "other", RuleID: "sslscan." + check, Title: title, Severity: sev, FilePath: loc, CVE: cve, Confidence: "high",
+			f := Finding{Category: "misconfiguration", RuleID: "sslscan." + check, Title: title, Severity: sev, FilePath: loc, CVE: cve, Confidence: "high",
 				Description: joinText(desc, labelled("Details", strings.Join(details, "\n")))}
 			if cwe != "" {
 				f.CWE = []string{cwe}

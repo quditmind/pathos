@@ -118,7 +118,7 @@ func TestImportGitLabAndIaCFormats(t *testing.T) {
 		{file: "polaris.json", format: "polaris", count: 5, checks: map[int]want{
 			0: {sev: "medium", rule: "deploymentMissingReplicas"},
 			3: {sev: "high", rule: "runAsPrivileged"},
-		}, cats: map[int]string{0: "other", 1: "iac", 3: "iac", 4: "other"}},
+		}, cats: map[int]string{0: "code-quality", 1: "iac", 3: "iac", 4: "code-quality"}},
 		{file: "kube-bench.json", format: "kube-bench", count: 3, checks: map[int]want{
 			0: {sev: "medium", rule: "CIS 4.1.1"},
 			1: {sev: "low", rule: "CIS 4.1.6"},

@@ -14,7 +14,7 @@ import (
 // threat[], remediationSteps[], namespace}, violations[] {
 // violationEntityType, canonicalLink, aux, status}}}}. FAILED violations
 // are findings; PASSED and SKIPPED are not. The location is the GitHub or
-// GitLab entity's link. SCM posture findings use the "other" category.
+// GitLab entity's link. SCM posture findings use the cicd category.
 // Other output schemes (--scheme-type group-by-*) are not supported.
 
 type legitifyPolicy struct {
@@ -32,7 +32,7 @@ type legitifyPolicy struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "legitify", Label: "Legitify JSON", Tool: "Legitify", Category: "other", Media: "json", Order: 281,
+	registerImportFormat(ImportFormat{ID: "legitify", Label: "Legitify JSON", Tool: "Legitify", Category: "cicd", Media: "json", Order: 281,
 		match: func(p *importProbe) bool {
 			var t string
 			return p.kind == "object" && p.has("type", "content") && len(p.keys) == 2 && json.Unmarshal(p.keys["type"], &t) == nil &&
@@ -82,7 +82,7 @@ func parseLegitify(raw []byte) ([]importRecord, error) {
 			if entity != "" {
 				title += " (" + entity + ")"
 			}
-			f := Finding{Category: "other", RuleID: firstNonEmpty(info.FullyQualifiedPolicyName, name), Title: firstNonEmpty(title, name),
+			f := Finding{Category: "cicd", RuleID: firstNonEmpty(info.FullyQualifiedPolicyName, name), Title: firstNonEmpty(title, name),
 				Severity: info.Severity, FilePath: v.CanonicalLink,
 				Description: joinText(info.Description, "Entity: "+v.ViolationEntityType+" "+v.CanonicalLink,
 					"Threat: "+strings.Join(info.Threat, " "), "Remediation:\n"+strings.Join(info.RemediationSteps, "\n"))}

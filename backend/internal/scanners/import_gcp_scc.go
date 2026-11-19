@@ -10,8 +10,9 @@ import (
 // <parent> --format=json` (an array of {finding, resource}) or the REST
 // list response ({"listFindingsResults": [...]}). INACTIVE findings are no
 // longer detected and are not imported; muted findings are kept with low
-// confidence. Misconfigurations use the misconfiguration category,
-// vulnerabilities sca, threats and observations other.
+// confidence. Each finding keeps its own category: misconfigurations and
+// posture violations compliance, vulnerabilities sca, threats runtime,
+// observations and other classes other.
 
 type sccResult struct {
 	Finding struct {
@@ -61,7 +62,7 @@ type sccResult struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "gcp-scc", Label: "Google Cloud Security Command Center findings JSON", Tool: "Security Command Center", Category: "other", Media: "json", Order: 456,
+	registerImportFormat(ImportFormat{ID: "gcp-scc", Label: "Google Cloud Security Command Center findings JSON", Tool: "Security Command Center", Media: "json", Order: 456,
 		match: func(p *importProbe) bool {
 			scc := func(m map[string]json.RawMessage) bool {
 				if !hasKeys(m, "finding") {
@@ -100,7 +101,7 @@ func parseGCPSCC(raw []byte) ([]importRecord, error) {
 			FilePath: cspmLocation(g.ResourceName, "gcp", "", "")}
 		switch strings.ToUpper(g.FindingClass) {
 		case "MISCONFIGURATION", "POSTURE_VIOLATION", "SCC_ERROR":
-			f.Category = "misconfiguration"
+			f.Category = "compliance"
 		case "VULNERABILITY":
 			f.Category = "sca"
 			f.CVE = firstMatch(cveRe, g.Vulnerability.Cve.ID)
@@ -108,8 +109,10 @@ func parseGCPSCC(raw []byte) ([]importRecord, error) {
 			f.PackageName, f.PackageVersion = g.Vulnerability.OffendingPackage.PackageName, g.Vulnerability.OffendingPackage.PackageVersion
 			f.FixedVersion = g.Vulnerability.FixedPackage.PackageVersion
 			if f.CVE == "" && f.PackageName == "" {
-				f.Category = "misconfiguration" // Security Health Analytics vulnerabilities are settings
+				f.Category = "compliance" // Security Health Analytics vulnerabilities are settings
 			}
+		case "THREAT":
+			f.Category = "runtime"
 		default:
 			f.Category = "other"
 		}

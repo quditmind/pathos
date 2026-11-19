@@ -304,7 +304,7 @@ func TestImportStackHawk(t *testing.T) {
 }
 
 func Test42Crunch(t *testing.T) {
-	fs := checkImport(t, "42crunch.json", "42crunch", "import-other-42crunch", 4)
+	fs := checkImport(t, "42crunch.json", "42crunch", "import-api-42crunch", 4)
 	// Issues are sorted by section, then issue id.
 	if a := fs[0]; a.RuleID != "v3-global-securityscheme-apikey-inheader" || a.Severity != "info" || a.FilePath != "openapi#/components/securitySchemes/ApiKey" {
 		t.Errorf("global apikey: %+v", a)
@@ -322,7 +322,7 @@ func Test42Crunch(t *testing.T) {
 	if DetectImportFormat(bare) != "42crunch" {
 		t.Fatal("bare report")
 	}
-	if b, err := ParseImport("import-other-42crunch", "", bare); err != nil || len(b) != 1 || b[0].Severity != "critical" || b[0].FilePath != "openapi#/paths/~1a/get" {
+	if b, err := ParseImport("import-api-42crunch", "", bare); err != nil || len(b) != 1 || b[0].Severity != "critical" || b[0].FilePath != "openapi#/paths/~1a/get" {
 		t.Errorf("bare: %v %+v", err, b)
 	}
 }

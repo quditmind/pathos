@@ -62,7 +62,7 @@ type libfuzzerCrash struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "libfuzzer", Label: "libFuzzer / Jazzer crash log (text)", Tool: "libFuzzer", Category: "other", Media: "text", Order: 379,
+	registerImportFormat(ImportFormat{ID: "libfuzzer", Label: "libFuzzer / Jazzer crash log (text)", Tool: "libFuzzer", Category: "fuzz", Media: "text", Order: 379,
 		match: func(p *importProbe) bool {
 			if p.kind == "object" || p.kind == "array" || p.kind == "jsonl" || p.kind == "xml" {
 				return false
@@ -250,7 +250,7 @@ func libfuzzerFinding(c *libfuzzerCrash) importRecord {
 	if c.Function != "" {
 		title += " in " + c.Function
 	}
-	f := Finding{Category: "other", RuleID: strings.ToLower(c.Engine) + ":" + c.CrashType, Title: title, Severity: sev, CWE: cwe,
+	f := Finding{Category: "fuzz", RuleID: strings.ToLower(c.Engine) + ":" + c.CrashType, Title: title, Severity: sev, CWE: cwe,
 		FilePath: file, StartLine: intPtr(c.Line), Confidence: "high"}
 	f.Description = joinText("The fuzzer found an input that crashes the target ("+c.Sanitizer+").",
 		labelled("Error", clipText(c.Error, 500)), labelled("Access", c.Access), labelled("Summary", c.Summary),

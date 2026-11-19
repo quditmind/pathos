@@ -9,8 +9,8 @@ import (
 // path, line, endLine, symbol, message and message-id) and
 // `--output-format=json2` ({"messages": [...], "statistics": {...}} with
 // messageId and confidence). Pylint is a linter: eval-used and exec-used
-// (code injection) are sast findings; everything else is "other" (code
-// quality): fatal and error low, other types info. The report has no
+// (code injection) are sast findings; everything else is code-quality:
+// fatal and error low, other types info. The report has no
 // code, so identity is the symbol, file, object, message and line.
 
 type pylintMessage struct {
@@ -63,7 +63,7 @@ func parsePylint(raw []byte) ([]importRecord, error) {
 			return out, fmt.Errorf("pylint: message %d: expected an object with symbol", i+1)
 		}
 		id := firstNonEmpty(m.MessageID, m.MessageID2)
-		f := Finding{Category: "other", RuleID: m.Symbol, Title: m.Message, Severity: "info", FilePath: NormalizePath(m.Path),
+		f := Finding{Category: "code-quality", RuleID: m.Symbol, Title: m.Message, Severity: "info", FilePath: NormalizePath(m.Path),
 			StartLine: intPtr(m.Line), Description: joinText(m.Message, id+" "+m.Symbol)}
 		if m.EndLine != nil {
 			f.EndLine = intPtr(*m.EndLine)

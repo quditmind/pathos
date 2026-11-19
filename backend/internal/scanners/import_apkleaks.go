@@ -24,7 +24,7 @@ var apkleaksInventory = map[string]bool{"LinkFinder": true, "IP_Address": true, 
 var apkleaksRedactedRe = regexp.MustCompile(`^\[REDACTED:([0-9a-f]{16})\]$`)
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "apkleaks", Label: "APKLeaks JSON", Tool: "APKLeaks", Category: "other", Media: "json", Order: 374,
+	registerImportFormat(ImportFormat{ID: "apkleaks", Label: "APKLeaks JSON", Tool: "APKLeaks", Category: "mobile", Media: "json", Order: 374,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("package", "results") && len(p.keys) <= 3 && hasKeys(p.firstOf("results"), "name", "matches")
 		},
@@ -93,7 +93,7 @@ func parseAPKLeaks(raw []byte) ([]importRecord, error) {
 				vals = append(vals, redactHTTP(v))
 			}
 			sort.Strings(vals)
-			f := Finding{Category: "other", RuleID: "apkleaks:" + r.Name, Title: label + " found in " + app, Severity: "info", FilePath: app,
+			f := Finding{Category: "mobile", RuleID: "apkleaks:" + r.Name, Title: label + " found in " + app, Severity: "info", FilePath: app,
 				Confidence: "medium", Description: joinText(fmt.Sprintf("APKLeaks found %d value(s) of pattern %s in the app.", len(vals), r.Name),
 					clipText(strings.Join(vals, "\n"), 4000))}
 			out = append(out, importRecord{F: f, SnippetKey: hashOf(r.Name), Raw: rawJSON(map[string]any{"package": rep.Package, "name": r.Name, "matches": vals})})

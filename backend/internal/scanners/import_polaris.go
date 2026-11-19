@@ -15,7 +15,7 @@ import (
 // Efficiency, Reliability). Failed checks are findings: danger is high,
 // warning medium. Security checks are iac findings; Efficiency and
 // Reliability checks are not security findings and keep the category
-// "other". The audit does not report file names or lines.
+// code-quality. The audit does not report file names or lines.
 
 type polarisCheck struct {
 	ID       string `json:"ID"`
@@ -74,7 +74,7 @@ func parsePolaris(raw []byte) ([]importRecord, error) {
 			}
 			cat := "iac"
 			if !strings.EqualFold(c.Category, "security") {
-				cat = "other"
+				cat = "code-quality"
 			}
 			sev := "medium"
 			if strings.EqualFold(c.Severity, "danger") {

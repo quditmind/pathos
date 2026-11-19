@@ -35,7 +35,7 @@ type falcoAlert struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "falco", Label: "Falco JSON alerts", Tool: "Falco", Category: "other", Media: "jsonl", Order: 339,
+	registerImportFormat(ImportFormat{ID: "falco", Label: "Falco JSON alerts", Tool: "Falco", Category: "runtime", Media: "jsonl", Order: 339,
 		match: func(p *importProbe) bool {
 			return (p.kind == "jsonl" || p.kind == "object" || p.kind == "array") && p.has("rule", "priority", "output") && p.hasAny("output_fields", "time")
 		},
@@ -233,7 +233,7 @@ func parseFalco(raw []byte) ([]importRecord, error) {
 		}
 		cmd := runtimeRedact(falcoField(of, "proc.cmdline"))
 		image := strings.Trim(falcoField(of, "container.image.repository")+":"+falcoField(of, "container.image.tag"), ":")
-		f := Finding{Category: "other", RuleID: a.Rule, Title: a.Rule, Severity: sev, FilePath: loc, Confidence: "high",
+		f := Finding{Category: "runtime", RuleID: a.Rule, Title: a.Rule, Severity: sev, FilePath: loc, Confidence: "high",
 			Description: joinText(runtimeRedact(a.Output), labelled("Process", cmd), labelled("User", falcoField(of, "user.name")),
 				labelled("Image", image), labelled("Host", a.Hostname), labelled("Tags", strings.Join(a.Tags, ", ")), labelled("Source", a.Source))}
 		for _, t := range a.Tags {

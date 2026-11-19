@@ -238,9 +238,11 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 | Compliance (`compliance`) | compliance | kube-bench |
 | Licence policy (`license-policy`) | license | Licence policy (evaluated by the server) |
 | Database security (`database`) | database | (imports and plugins) |
-| Manual review (`manual`) | any | PATHOS findings JSON, CSV and SARIF imports, Human Eye reviews |
+| Manual review (`manual`) | any | PATHOS findings JSON, CSV and SARIF imports, HackerOne, Bugcrowd and Intigriti exports, Human Eye reviews |
 
 The finding categories added for these types are `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029). Configuration findings keep `misconfiguration`.
+
+Import formats are listed under a scan type when their default category is the type's first category, or when the type names them (`ImportFormats` in `scantypes.go`) because their findings keep their own categories. For example API security lists Schemathesis, RESTler and 42Crunch (`api`) and also Nuclei, ZAP, Burp and StackHawk (recorded as `dast`); code-quality security lists PHPStan and ShellCheck (`code-quality`) and the linters and SAST tools whose non-security rules are `code-quality` (Psalm, Ruff, Pylint, golangci-lint, Codacy, SpotBugs, PMD, Cppcheck, Coverity, Klocwork, Polaris); cryptography lists the TLS scanners, whose findings are recorded as `misconfiguration`; compliance and runtime list AWS Security Hub and Security Command Center (posture checks `compliance`, threat detections `runtime`); manual review lists the HackerOne, Bugcrowd and Intigriti exports. Licence, SBOM, malware, binary, licence policy and database security have no specific import format; the generic formats (SARIF, PATHOS findings JSON, CSV) apply to every type.
 
 ## Adding a tool (tool manifests)
 
@@ -335,66 +337,66 @@ Security: manifests are files on the worker host or in the image, never API inpu
 
 ## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
 
-These tools are not run by PATHOS workers; their reports are imported ([Result imports](api-reference/result-imports.md#dast-api-infrastructure-cloud-container-mobile-runtime-ai-pentest-and-fuzzing-formats)). Nothing of these tools is bundled, so their licences do not restrict redistribution of PATHOS; commercial tools are never required. Licences are listed as published by each project (not re-checked against the repositories for this change). "Test report" says whether the import format was checked against a report produced by running the tool against a local test service, or built from the published format only.
+These tools are not run by PATHOS workers; their reports are imported ([Result imports](api-reference/result-imports.md#dast-api-infrastructure-cloud-container-mobile-runtime-ai-pentest-and-fuzzing-formats)). The Category column names the default finding category of the import in brackets ("per finding": each finding keeps its own category, see the format notes). Nothing of these tools is bundled, so their licences do not restrict redistribution of PATHOS; commercial tools are never required. Licences are listed as published by each project (not re-checked against the repositories for this change). "Test report" says whether the import format was checked against a report produced by running the tool against a local test service, or built from the published format only.
 
 | Tool | Import format | Category | License | Test report |
 |---|---|---|---|---|
-| Nikto | `nikto` | DAST | GPL-2.0 | real run |
-| Wapiti | `wapiti` | DAST | GPL-2.0 | real run |
-| Arachni | `arachni` | DAST | Arachni Public Source License (NOASSERTION); unmaintained since 2018 | real run |
-| sqlmap | `sqlmap` | DAST (intrusive) | GPL-2.0-or-later | real run |
-| Dalfox | `dalfox` | DAST (XSS) | MIT | real run |
-| ffuf | `ffuf` | DAST (content discovery) | MIT | real run |
-| Wfuzz | `wfuzz` | DAST (content discovery) | GPL-2.0 | real run |
-| w3af | `w3af` | DAST | GPL-2.0; unmaintained | published format |
-| Schemathesis | `schemathesis` | API | MIT | real run |
-| RESTler | `restler` | API fuzzing | MIT | published format |
-| 42Crunch API Security Audit | `42crunch` | API | Commercial | published format |
-| Acunetix, Acunetix 360 | `acunetix` | DAST | Commercial | published format |
-| Invicti / Netsparker | `invicti` | DAST | Commercial | published format |
-| Rapid7 AppSpider | `appspider` | DAST | Commercial | published format |
-| Rapid7 InsightAppSec | `insightappsec` | DAST | Commercial | published format |
-| Qualys WAS | `qualys-was` | DAST | Commercial | published format |
-| HCL AppScan (DAST) | `appscan-dast` | DAST | Commercial | published format |
-| Burp Suite DAST / Enterprise | `burp-enterprise` | DAST | Commercial | published format |
-| StackHawk | `stackhawk` | DAST | Commercial | published format |
-| Nmap | `nmap` | Network | Nmap Public Source License (LicenseRef-NPSL) | real run |
-| Qualys VMDR | `qualys-vm` | Network | Commercial | published format |
-| Tenable.io / Nessus / Tenable.sc (CSV) | `tenable-csv` | Network | Commercial | published format |
-| Rapid7 Nexpose / InsightVM | `nexpose` | Network | Commercial | published format |
-| testssl.sh | `testssl` | TLS | GPL-2.0 | real run |
-| SSLyze | `sslyze` | TLS | AGPL-3.0 | real run |
-| sslscan | `sslscan` | TLS | GPL-3.0 | real run |
-| Wazuh | `wazuh` | Host vulnerabilities | GPL-2.0 | published format |
-| Prowler | `prowler`, `prowler-csv` | Cloud posture | Apache-2.0 | published format (needs a cloud account) |
-| ScoutSuite | `scoutsuite` | Cloud posture | GPL-2.0 | published format (needs a cloud account) |
-| CloudSploit | `cloudsploit` | Cloud posture | GPL-3.0 | published format (needs a cloud account) |
-| AWS Security Hub (ASFF) | `asff` | Cloud posture | Cloud service | published format |
-| Amazon Inspector | `inspector2` | Cloud vulnerabilities | Cloud service | published format |
-| Microsoft Defender for Cloud | `defender-cloud` | Cloud posture | Cloud service | published format |
-| Google Cloud Security Command Center | `gcp-scc` | Cloud posture | Cloud service | published format |
-| Dockle | `dockle` | Container image | Apache-2.0 | real run |
-| Clair | `clair` | Container image | Apache-2.0 | published format |
-| Harbor | `harbor` | Container registry | Apache-2.0 | published format |
-| Trivy (Kubernetes) | `trivy-k8s` | Kubernetes | Apache-2.0 | published format |
-| Anchore Engine / Enterprise | `anchore` | Container image | Apache-2.0 (Engine) / Commercial | published format |
-| Prisma Cloud / Twistlock | `twistlock`, `twistlock-csv` | Container image | Commercial | published format |
-| Sysdig Secure | `sysdig`, `sysdig-csv` | Container image | Commercial | published format |
-| Docker Scout | `docker-scout` (SARIF) | Container image | Proprietary (Docker subscription) | published format |
-| MobSF | `mobsf` | Mobile | GPL-3.0 | exports from the DefectDojo test corpus |
-| APKLeaks | `apkleaks` | Mobile | Apache-2.0 | published format |
-| NowSecure | `nowsecure` (SARIF) | Mobile | Commercial | published format |
-| Contrast Assess | `contrast` | IAST | Commercial | published format |
-| Falco | `falco` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
-| Tetragon | `tetragon` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
-| Tracee | `tracee` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
-| garak | `garak` | AI/LLM | Apache-2.0 | real run |
-| promptfoo | `promptfoo` | AI/LLM | MIT | real run |
-| ProtectAI ModelScan | `modelscan` | AI model files | Apache-2.0 | real run |
-| HackerOne | `hackerone`, `hackerone-csv` | Pentest / bug bounty | Commercial | published format |
-| Bugcrowd | `bugcrowd` | Pentest / bug bounty | Commercial | published format |
-| Intigriti | `intigriti` | Pentest / bug bounty | Commercial | published format |
-| ClusterFuzzLite / CIFuzz | `clusterfuzzlite` (SARIF) | Fuzzing | Apache-2.0 | published format |
-| libFuzzer, Jazzer | `libfuzzer` | Fuzzing | Apache-2.0 WITH LLVM-exception (libFuzzer), Apache-2.0 (Jazzer) | real run (libFuzzer); published format (Jazzer) |
+| Nikto | `nikto` | DAST (`dast`) | GPL-2.0 | real run |
+| Wapiti | `wapiti` | DAST (`dast`) | GPL-2.0 | real run |
+| Arachni | `arachni` | DAST (`dast`) | Arachni Public Source License (NOASSERTION); unmaintained since 2018 | real run |
+| sqlmap | `sqlmap` | DAST (intrusive) (`dast`) | GPL-2.0-or-later | real run |
+| Dalfox | `dalfox` | DAST (XSS) (`dast`) | MIT | real run |
+| ffuf | `ffuf` | DAST (content discovery) (`dast`) | MIT | real run |
+| Wfuzz | `wfuzz` | DAST (content discovery) (`dast`) | GPL-2.0 | real run |
+| w3af | `w3af` | DAST (`dast`) | GPL-2.0; unmaintained | published format |
+| Schemathesis | `schemathesis` | API (`api`) | MIT | real run |
+| RESTler | `restler` | API fuzzing (`api`) | MIT | published format |
+| 42Crunch API Security Audit | `42crunch` | API (`api`) | Commercial | published format |
+| Acunetix, Acunetix 360 | `acunetix` | DAST (`dast`) | Commercial | published format |
+| Invicti / Netsparker | `invicti` | DAST (`dast`) | Commercial | published format |
+| Rapid7 AppSpider | `appspider` | DAST (`dast`) | Commercial | published format |
+| Rapid7 InsightAppSec | `insightappsec` | DAST (`dast`) | Commercial | published format |
+| Qualys WAS | `qualys-was` | DAST (`dast`) | Commercial | published format |
+| HCL AppScan (DAST) | `appscan-dast` | DAST (`dast`) | Commercial | published format |
+| Burp Suite DAST / Enterprise | `burp-enterprise` | DAST (`dast`) | Commercial | published format |
+| StackHawk | `stackhawk` | DAST (`dast`) | Commercial | published format |
+| Nmap | `nmap` | Network (`other`) | Nmap Public Source License (LicenseRef-NPSL) | real run |
+| Qualys VMDR | `qualys-vm` | Network (`other`) | Commercial | published format |
+| Tenable.io / Nessus / Tenable.sc (CSV) | `tenable-csv` | Network (`other`) | Commercial | published format |
+| Rapid7 Nexpose / InsightVM | `nexpose` | Network (`other`) | Commercial | published format |
+| testssl.sh | `testssl` | TLS (`misconfiguration`) | GPL-2.0 | real run |
+| SSLyze | `sslyze` | TLS (`misconfiguration`) | AGPL-3.0 | real run |
+| sslscan | `sslscan` | TLS (`misconfiguration`) | GPL-3.0 | real run |
+| Wazuh | `wazuh` | Host vulnerabilities (`other`) | GPL-2.0 | published format |
+| Prowler | `prowler`, `prowler-csv` | Cloud posture (`compliance`) | Apache-2.0 | published format (needs a cloud account) |
+| ScoutSuite | `scoutsuite` | Cloud posture (`compliance`) | GPL-2.0 | published format (needs a cloud account) |
+| CloudSploit | `cloudsploit` | Cloud posture (`compliance`) | GPL-3.0 | published format (needs a cloud account) |
+| AWS Security Hub (ASFF) | `asff` | Cloud posture (per finding) | Cloud service | published format |
+| Amazon Inspector | `inspector2` | Cloud vulnerabilities (`other`) | Cloud service | published format |
+| Microsoft Defender for Cloud | `defender-cloud` | Cloud posture (`compliance`) | Cloud service | published format |
+| Google Cloud Security Command Center | `gcp-scc` | Cloud posture (per finding) | Cloud service | published format |
+| Dockle | `dockle` | Container image (`container`) | Apache-2.0 | real run |
+| Clair | `clair` | Container image (`container`) | Apache-2.0 | published format |
+| Harbor | `harbor` | Container registry (`container`) | Apache-2.0 | published format |
+| Trivy (Kubernetes) | `trivy-k8s` | Kubernetes (per finding) | Apache-2.0 | published format |
+| Anchore Engine / Enterprise | `anchore` | Container image (`container`) | Apache-2.0 (Engine) / Commercial | published format |
+| Prisma Cloud / Twistlock | `twistlock`, `twistlock-csv` | Container image (`container`) | Commercial | published format |
+| Sysdig Secure | `sysdig`, `sysdig-csv` | Container image (`container`) | Commercial | published format |
+| Docker Scout | `docker-scout` (SARIF) | Container image (`container`) | Proprietary (Docker subscription) | published format |
+| MobSF | `mobsf` | Mobile (`mobile`) | GPL-3.0 | exports from the DefectDojo test corpus |
+| APKLeaks | `apkleaks` | Mobile (`mobile`) | Apache-2.0 | published format |
+| NowSecure | `nowsecure` (SARIF) | Mobile (`mobile`) | Commercial | published format |
+| Contrast Assess | `contrast` | IAST (`iast`) | Commercial | published format |
+| Falco | `falco` | Runtime (`runtime`) | Apache-2.0 | published format (needs kernel privileges) |
+| Tetragon | `tetragon` | Runtime (`runtime`) | Apache-2.0 | published format (needs kernel privileges) |
+| Tracee | `tracee` | Runtime (`runtime`) | Apache-2.0 | published format (needs kernel privileges) |
+| garak | `garak` | AI/LLM (`ai`) | Apache-2.0 | real run |
+| promptfoo | `promptfoo` | AI/LLM (`ai`) | MIT | real run |
+| ProtectAI ModelScan | `modelscan` | AI model files (`ai`) | Apache-2.0 | real run |
+| HackerOne | `hackerone`, `hackerone-csv` | Pentest / bug bounty (`other`) | Commercial | published format |
+| Bugcrowd | `bugcrowd` | Pentest / bug bounty (`other`) | Commercial | published format |
+| Intigriti | `intigriti` | Pentest / bug bounty (`other`) | Commercial | published format |
+| ClusterFuzzLite / CIFuzz | `clusterfuzzlite` (SARIF) | Fuzzing (`fuzz`) | Apache-2.0 | published format |
+| libFuzzer, Jazzer | `libfuzzer` | Fuzzing (`fuzz`) | Apache-2.0 WITH LLVM-exception (libFuzzer), Apache-2.0 (Jazzer) | real run (libFuzzer); published format (Jazzer) |
 
 Not added: Oversecured (no published report format found), Akto (only HTML and PDF reports are documented), Black Duck Seeker and HCL AppScan IAST (no publicly documented export), Intigriti CSV (only the API JSON is documented).

@@ -54,7 +54,7 @@ type scoutRecord struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "scoutsuite", Label: "ScoutSuite results (.js or JSON)", Tool: "ScoutSuite", Category: "other", Media: "json", Order: 452,
+	registerImportFormat(ImportFormat{ID: "scoutsuite", Label: "ScoutSuite results (.js or JSON)", Tool: "ScoutSuite", Category: "compliance", Media: "json", Order: 452,
 		match: func(p *importProbe) bool {
 			if p.kind == "object" {
 				return p.has("provider_code", "services", "last_run")

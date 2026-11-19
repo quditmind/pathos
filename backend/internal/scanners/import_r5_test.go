@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"bytes"
 	"slices"
 	"strings"
 	"testing"
@@ -31,9 +32,9 @@ import (
 //	intigriti.json                                  Intigriti external API submissions; DefectDojo intigriti samples
 
 func TestImportProwler(t *testing.T) {
-	fs := checkImport(t, "prowler.json", "prowler", "import-other-prowler", 2) // PASS skipped
+	fs := checkImport(t, "prowler.json", "prowler", "import-compliance-prowler", 2) // PASS skipped
 	aa := fs[0]
-	if aa.Category != "misconfiguration" || aa.Severity != "low" || aa.RuleID != "accessanalyzer_enabled" ||
+	if aa.Category != "compliance" || aa.Severity != "low" || aa.RuleID != "accessanalyzer_enabled" ||
 		aa.FilePath != "arn:aws:accessanalyzer:eu-west-1:123456789012:analyzer/unknown" || !strings.Contains(aa.Description, "CIS-3.0: 1.20") ||
 		!strings.Contains(aa.Description, "is not enabled") {
 		t.Errorf("ocsf: %+v", aa)
@@ -41,11 +42,15 @@ func TestImportProwler(t *testing.T) {
 	if s3 := fs[1]; s3.Severity != "high" || s3.Confidence != "low" || !strings.Contains(s3.Description, "muted") {
 		t.Errorf("muted finding kept with low confidence: %+v", s3)
 	}
-	v3 := checkImport(t, "prowler-v3.json", "prowler", "import-other-prowler", 1)
+	// Imported with category other, posture checks keep the natural category misconfiguration.
+	if o, err := ParseImport("import-other-prowler", "prowler", readImportFixture(t, "prowler.json")); err != nil || o[0].Category != "misconfiguration" {
+		t.Errorf("natural category: %v %+v", err, o)
+	}
+	v3 := checkImport(t, "prowler-v3.json", "prowler", "import-compliance-prowler", 1)
 	if v3[0].Severity != "medium" || v3[0].RuleID != "ec2_ebs_default_encryption" || v3[0].FilePath != "arn:aws:ec2:eu-west-1:123456789012:volume" {
 		t.Errorf("v3: %+v", v3[0])
 	}
-	c := checkImport(t, "prowler-csv.csv", "prowler-csv", "import-other-prowler", 1) // MANUAL and PASS skipped
+	c := checkImport(t, "prowler-csv.csv", "prowler-csv", "import-compliance-prowler", 1) // MANUAL and PASS skipped
 	if c[0].Severity != "high" || c[0].RuleID != "cloudtrail_multi_region_enabled" || c[0].FilePath != "arn:aws:cloudtrail:eu-west-1:123456789012:trail" ||
 		!strings.Contains(c[0].Description, "No CloudTrail trails") {
 		t.Errorf("csv: %+v", c[0])
@@ -57,9 +62,9 @@ func TestImportProwler(t *testing.T) {
 }
 
 func TestImportScoutSuite(t *testing.T) {
-	fs := checkImport(t, "scoutsuite.js", "scoutsuite", "import-other-scoutsuite", 3) // the rule without flagged items is skipped
+	fs := checkImport(t, "scoutsuite.js", "scoutsuite", "import-compliance-scoutsuite", 3) // the rule without flagged items is skipped
 	ssh := fs[0]
-	if ssh.Severity != "high" || ssh.RuleID != "ec2-security-group-opens-SSH-port-to-all" || ssh.Category != "misconfiguration" ||
+	if ssh.Severity != "high" || ssh.RuleID != "ec2-security-group-opens-SSH-port-to-all" || ssh.Category != "compliance" ||
 		!strings.Contains(ssh.FilePath, "sg-0123456789abcdef0") || strings.HasSuffix(ssh.FilePath, "TCP-22") || !strings.Contains(ssh.Description, "CIS Amazon") {
 		t.Errorf("ssh: %+v", ssh)
 	}
@@ -76,7 +81,7 @@ func TestImportScoutSuite(t *testing.T) {
 func TestImportASFF(t *testing.T) {
 	fs := checkImport(t, "asff.json", "asff", "import-other-security-hub", 2) // PASSED and ARCHIVED skipped
 	iam := fs[0]
-	if iam.Category != "misconfiguration" || iam.Severity != "medium" || iam.RuleID != "IAM.5" || iam.FilePath != "arn:aws:iam::123456789012:user/deploy" {
+	if iam.Category != "compliance" || iam.Severity != "medium" || iam.RuleID != "IAM.5" || iam.FilePath != "arn:aws:iam::123456789012:user/deploy" {
 		t.Errorf("control: %+v", iam)
 	}
 	v := fs[1]
@@ -89,8 +94,13 @@ func TestImportASFF(t *testing.T) {
 	if DetectImportFormat(arr) != "asff" {
 		t.Error("array of findings not detected")
 	}
-	if a, err := ParseImport("import-other-security-hub", "asff", arr); err != nil || len(a) != 1 || a[0].Severity != "high" {
+	if a, err := ParseImport("import-other-security-hub", "asff", arr); err != nil || len(a) != 1 || a[0].Severity != "high" || a[0].Category != "compliance" {
 		t.Errorf("normalized severity: %v %+v", err, a)
+	}
+	// Threat detections (GuardDuty) are runtime findings.
+	gd := bytes.Replace(arr, []byte(`"GeneratorId":"g",`), []byte(`"GeneratorId":"g","Types":["TTPs/Initial Access/UnauthorizedAccess:EC2-SSHBruteForce"],`), 1)
+	if a, err := ParseImport("import-other-security-hub", "asff", gd); err != nil || len(a) != 1 || a[0].Category != "runtime" {
+		t.Errorf("threat detection: %v %+v", err, a)
 	}
 }
 
@@ -120,9 +130,9 @@ func TestImportInspector2(t *testing.T) {
 
 func TestImportDefenderCloud(t *testing.T) {
 	raw := readImportFixture(t, "defender-cloud.json")
-	fs := checkImport(t, "defender-cloud.json", "defender-cloud", "import-other-defender", 2) // Healthy and NotApplicable skipped
+	fs := checkImport(t, "defender-cloud.json", "defender-cloud", "import-compliance-defender", 2) // Healthy and NotApplicable skipped
 	st := fs[0]
-	if st.Severity != "high" || st.Category != "misconfiguration" || !strings.HasSuffix(st.FilePath, "storageAccounts/shopdata") ||
+	if st.Severity != "high" || st.Category != "compliance" || !strings.HasSuffix(st.FilePath, "storageAccounts/shopdata") ||
 		st.RuleID != "1c5de8e1-f68d-6a17-e0d2-ec259c42768c" || st.Title != "Storage accounts should restrict network access" {
 		t.Errorf("assessment: %+v", st)
 	}
@@ -132,7 +142,7 @@ func TestImportDefenderCloud(t *testing.T) {
 	if strings.Contains(string(SanitizeImport("defender-cloud", raw)), "partner-secret-value") {
 		t.Error("partner secret kept in the stored report")
 	}
-	if loc, _ := LocateImport("import-other-defender", "defender-cloud", raw, st.Fingerprint); strings.Contains(string(loc.Raw), "partner-secret-value") {
+	if loc, _ := LocateImport("import-compliance-defender", "defender-cloud", raw, st.Fingerprint); strings.Contains(string(loc.Raw), "partner-secret-value") {
 		t.Error("partner secret in the located record")
 	}
 	// Azure Resource Graph rows (lower-case type) in its response envelope.
@@ -140,22 +150,22 @@ func TestImportDefenderCloud(t *testing.T) {
 	if DetectImportFormat(arg) != "defender-cloud" {
 		t.Error("resource graph rows not detected")
 	}
-	if a, err := ParseImport("import-other-defender", "", arg); err != nil || len(a) != 1 || a[0].Severity != "medium" {
+	if a, err := ParseImport("import-compliance-defender", "", arg); err != nil || len(a) != 1 || a[0].Severity != "medium" {
 		t.Errorf("resource graph: %v %+v", err, a)
 	}
 }
 
 func TestImportGCPSCC(t *testing.T) {
 	fs := checkImport(t, "gcp-scc.json", "gcp-scc", "import-other-scc", 3) // INACTIVE skipped
-	if b := fs[0]; b.Category != "misconfiguration" || b.Severity != "high" || b.RuleID != "PUBLIC_BUCKET_ACL" ||
+	if b := fs[0]; b.Category != "compliance" || b.Severity != "high" || b.RuleID != "PUBLIC_BUCKET_ACL" ||
 		b.FilePath != "//storage.googleapis.com/example-shop-uploads" || !strings.Contains(b.Description, "cis 1.3 5.1") {
-		t.Errorf("misconfiguration: %+v", b)
+		t.Errorf("posture: %+v", b)
 	}
 	if v := fs[1]; v.Category != "sca" || v.CVE != "CVE-2024-5535" || v.PackageName != "openssl" || v.FixedVersion != "3.0.14" ||
 		v.Severity != "critical" || v.CVSS == nil || *v.CVSS != 9.1 {
 		t.Errorf("vulnerability: %+v", v)
 	}
-	if th := fs[2]; th.Category != "other" || th.Confidence != "low" || !strings.Contains(th.Description, "muted") {
+	if th := fs[2]; th.Category != "runtime" || th.Confidence != "low" || !strings.Contains(th.Description, "muted") {
 		t.Errorf("muted threat: %+v", th)
 	}
 	list := []byte(`{"listFindingsResults":` + string(readImportFixture(t, "gcp-scc.json")) + `,"totalSize":4}`)
@@ -165,7 +175,7 @@ func TestImportGCPSCC(t *testing.T) {
 }
 
 func TestImportCloudSploit(t *testing.T) {
-	fs := checkImport(t, "cloudsploit.json", "cloudsploit", "import-other-cloudsploit", 3) // OK skipped
+	fs := checkImport(t, "cloudsploit.json", "cloudsploit", "import-compliance-cloudsploit", 3) // OK skipped
 	if fs[0].Severity != "medium" || fs[0].RuleID != "openSSH" || !strings.Contains(fs[0].FilePath, "sg-0123456789abcdef0") {
 		t.Errorf("fail: %+v", fs[0])
 	}
@@ -237,7 +247,7 @@ func TestImportSysdig(t *testing.T) {
 
 func TestImportContrast(t *testing.T) {
 	raw := readImportFixture(t, "contrast.csv")
-	fs := checkImport(t, "contrast.csv", "contrast", "import-other-contrast", 2) // Fixed skipped
+	fs := checkImport(t, "contrast.csv", "contrast", "import-iast-contrast", 2) // Fixed skipped
 	sqli := fs[0]
 	if sqli.Severity != "critical" || sqli.RuleID != "sql-injection" || !slices.Equal(sqli.CWE, []string{"CWE-89"}) || sqli.FilePath != "shop-api/api/orders" ||
 		!strings.Contains(sqli.Description, "GET /api/orders?id=1") {
@@ -246,7 +256,7 @@ func TestImportContrast(t *testing.T) {
 	if fs[1].Confidence != "low" || !strings.Contains(fs[1].Description, "Not a Problem") {
 		t.Errorf("not a problem: %+v", fs[1])
 	}
-	assertNoSecrets(t, "contrast", "import-other-contrast", raw, fs, "planted-token-123456", "planted-password-xyz")
+	assertNoSecrets(t, "contrast", "import-iast-contrast", raw, fs, "planted-token-123456", "planted-password-xyz")
 }
 
 func TestImportHackerOne(t *testing.T) {

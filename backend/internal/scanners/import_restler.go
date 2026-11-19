@@ -39,7 +39,7 @@ type restlerBug struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "restler", Label: "RESTler bug buckets (JSON)", Tool: "RESTler", Category: "other", Media: "json", Order: 309,
+	registerImportFormat(ImportFormat{ID: "restler", Label: "RESTler bug buckets (JSON)", Tool: "RESTler", Category: "api", Media: "json", Order: 309,
 		match: func(p *importProbe) bool {
 			if p.kind != "object" {
 				return false

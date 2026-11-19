@@ -10,7 +10,7 @@ import "fmt"
 // to the source root, start, end); BugPattern elements carry the
 // pattern's description. Categories SECURITY and MALICIOUS_CODE are sast;
 // the others (CORRECTNESS, BAD_PRACTICE, PERFORMANCE, STYLE, ...) are code
-// quality (other).
+// quality (code-quality).
 
 type spotbugsSourceLine struct {
 	Primary    string `xml:"primary,attr" json:"primary,omitempty"`
@@ -81,7 +81,7 @@ func parseSpotBugsXML(raw []byte) ([]importRecord, error) {
 		if !ok {
 			sev = "medium"
 		}
-		cat := "other"
+		cat := "code-quality"
 		if b.Category == "SECURITY" || b.Category == "MALICIOUS_CODE" {
 			cat = "sast"
 		}

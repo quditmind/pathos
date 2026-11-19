@@ -32,7 +32,7 @@ type testsslPretty struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "testssl", Label: "testssl.sh JSON (--jsonfile or --jsonfile-pretty)", Tool: "testssl.sh", Category: "other", Media: "json", Order: 331,
+	registerImportFormat(ImportFormat{ID: "testssl", Label: "testssl.sh JSON (--jsonfile or --jsonfile-pretty)", Tool: "testssl.sh", Category: "misconfiguration", Media: "json", Order: 331,
 		match: func(p *importProbe) bool {
 			switch p.kind {
 			case "array":
@@ -64,7 +64,7 @@ func parseTestssl(raw []byte) ([]importRecord, error) {
 		e.IP = firstNonEmpty(e.IP, strings.Trim(host+"/"+ip, "/"))
 		e.Port = looseString(firstNonEmpty(string(e.Port), port))
 		name, _, _ := strings.Cut(e.IP, "/")
-		f := Finding{Category: "other", RuleID: "testssl." + e.ID, Title: testsslTitle(e), Severity: sev, FilePath: hostLocation(firstNonEmpty(name, host), string(e.Port), ""),
+		f := Finding{Category: "misconfiguration", RuleID: "testssl." + e.ID, Title: testsslTitle(e), Severity: sev, FilePath: hostLocation(firstNonEmpty(name, host), string(e.Port), ""),
 			CWE: strings.Fields(strings.ReplaceAll(e.CWE, ",", " ")), CVE: firstMatch(cveRe, e.CVE), Confidence: "high",
 			Description: joinText(fmt.Sprintf("testssl.sh check %s: %s", e.ID, e.Finding), labelled("CVE", e.CVE), labelled("Hint", e.Hint), labelled("Address", e.IP))}
 		out = append(out, importRecord{F: f, SnippetKey: hashOf(e.ID), Raw: rawJSON(e)})

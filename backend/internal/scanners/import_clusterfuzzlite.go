@@ -6,6 +6,6 @@ package scanners
 // by the SARIF importer.
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "clusterfuzzlite", Label: "ClusterFuzzLite / CIFuzz crashes (SARIF)", Tool: "ClusterFuzzLite", Category: "other",
+	registerImportFormat(ImportFormat{ID: "clusterfuzzlite", Label: "ClusterFuzzLite / CIFuzz crashes (SARIF)", Tool: "ClusterFuzzLite", Category: "fuzz",
 		Media: "sarif", Parser: "sarif", Order: 377})
 }

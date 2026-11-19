@@ -33,11 +33,15 @@ import (
 //     --format sarif`); not verified against a real export (Docker Scout needs a Docker account).
 
 func TestImportModelScan(t *testing.T) {
-	fs := checkImport(t, "modelscan.json", "modelscan", "import-other-modelscan", 2)
+	fs := checkImport(t, "modelscan.json", "modelscan", "import-ai-modelscan", 2)
 	exec := fs[0]
-	if exec.Severity != "critical" || exec.FilePath != "loader.pkl" || exec.Category != "malware" || exec.RuleID != "modelscan:PickleUnsafeOpScan:builtins.exec" ||
-		!slices.Equal(exec.CWE, []string{"CWE-502"}) || exec.Confidence != "high" {
+	if exec.Severity != "critical" || exec.FilePath != "loader.pkl" || exec.Category != "ai" || exec.RuleID != "modelscan:PickleUnsafeOpScan:builtins.exec" ||
+		!slices.Equal(exec.CWE, []string{"CWE-502"}) || exec.Confidence != "high" || !strings.HasPrefix(exec.Title, "Possible malicious code in model: ") {
 		t.Errorf("exec: %+v", exec)
+	}
+	// Imported with category other, unsafe operators keep the natural category malware.
+	if o, err := ParseImport("import-other-modelscan", "modelscan", readImportFixture(t, "modelscan.json")); err != nil || o[0].Category != "malware" {
+		t.Errorf("natural category: %v %+v", err, o)
 	}
 	if fs[1].FilePath != "evil_model.pkl" || !strings.Contains(fs[1].Title, "system") {
 		t.Errorf("system: %+v", fs[1])
@@ -47,7 +51,7 @@ func TestImportModelScan(t *testing.T) {
 	if DetectImportFormat([]byte(doc)) != "modelscan" {
 		t.Fatal("detection of an issue-free report")
 	}
-	es, err := ParseImport("import-other-modelscan", "modelscan", []byte(doc))
+	es, err := ParseImport("import-ai-modelscan", "modelscan", []byte(doc))
 	if err != nil || len(es) != 1 || es[0].Severity != "info" || es[0].FilePath != "m/model.h5" {
 		t.Errorf("errors: %v %+v", err, es)
 	}
@@ -64,7 +68,7 @@ func TestImportPromptfoo(t *testing.T) {
 	if strings.Contains(string(stored), secret) {
 		t.Fatal("stored report keeps the planted key")
 	}
-	fs := checkImport(t, "promptfoo.json", "promptfoo", "import-other-promptfoo", 2) // the passing test case is not a finding
+	fs := checkImport(t, "promptfoo.json", "promptfoo", "import-ai-promptfoo", 2) // the passing test case is not a finding
 	inj := fs[0]
 	if inj.RuleID != "promptfoo:prompt-injection" || inj.Severity != "high" || inj.FilePath != "echo" ||
 		!strings.Contains(inj.Title, "prompt injection asks for the admin key") || !strings.Contains(inj.Description, "not contain") {
@@ -78,14 +82,14 @@ func TestImportPromptfoo(t *testing.T) {
 			t.Error("finding text keeps the key")
 		}
 		for _, src := range [][]byte{raw, stored} {
-			loc, err := LocateImport("import-other-promptfoo", "promptfoo", src, f.Fingerprint)
+			loc, err := LocateImport("import-ai-promptfoo", "promptfoo", src, f.Fingerprint)
 			if err != nil || strings.Contains(string(loc.Raw), secret) {
 				t.Errorf("located record: %v", err)
 			}
 		}
 	}
 	// Identity does not depend on the redacted text.
-	again, _ := ParseImport("import-other-promptfoo", "promptfoo", stored)
+	again, _ := ParseImport("import-ai-promptfoo", "promptfoo", stored)
 	if len(again) != 2 || again[0].Fingerprint != inj.Fingerprint {
 		t.Error("fingerprint changes after sanitising")
 	}
@@ -98,13 +102,13 @@ func TestImportPromptfoo(t *testing.T) {
 	errDoc := `{"evalId":"e","config":{},"results":{"version":3,"results":[
 		{"success":false,"failureReason":2,"error":"provider timeout","provider":{"id":"p"},"testCase":{"description":"x"}},
 		{"success":false,"failureReason":1,"provider":{"id":"p"},"testIdx":1,"gradingResult":{"pass":false,"reason":"r","componentResults":[{"pass":false,"reason":"r","assertion":{"type":"llm-rubric"}}]},"testCase":{"description":"rubric"}}]}}`
-	if es, err := ParseImport("import-other-promptfoo", "", []byte(errDoc)); err != nil || len(es) != 1 || es[0].RuleID != "promptfoo:assertion:llm-rubric" {
+	if es, err := ParseImport("import-ai-promptfoo", "", []byte(errDoc)); err != nil || len(es) != 1 || es[0].RuleID != "promptfoo:assertion:llm-rubric" {
 		t.Errorf("errors and assertions: %v %+v", err, es)
 	}
 }
 
 func TestImportLibFuzzer(t *testing.T) {
-	fs := checkImport(t, "libfuzzer.log", "libfuzzer", "import-other-libfuzzer", 1)
+	fs := checkImport(t, "libfuzzer.log", "libfuzzer", "import-fuzz-libfuzzer", 1)
 	c := fs[0]
 	if c.Severity != "high" || c.RuleID != "libfuzzer:heap-buffer-overflow" || c.FilePath != "work/src/parse_header.c" || c.StartLine == nil || *c.StartLine != 10 ||
 		!slices.Equal(c.CWE, []string{"CWE-122"}) || !strings.Contains(c.Title, "in parse_header") ||
@@ -133,7 +137,7 @@ SUMMARY: libFuzzer: timeout
 	if DetectImportFormat([]byte(log)) != "libfuzzer" {
 		t.Fatal("jazzer log detection")
 	}
-	js, err := ParseImport("import-other-libfuzzer", "libfuzzer", []byte(log))
+	js, err := ParseImport("import-fuzz-libfuzzer", "libfuzzer", []byte(log))
 	if err != nil || len(js) != 2 {
 		t.Fatalf("%v %+v", err, js)
 	}
@@ -165,13 +169,13 @@ func TestImportMobSF(t *testing.T) {
 	// 3 rules x 2 files (logging, external storage) or 1 file, 3 manifest,
 	// 1 network, 4 certificate, 1 file, 2 secrets, 2 dangerous permissions,
 	// 1 open Firebase.
-	fs := checkImport(t, "mobsf-android.json", "mobsf", "import-other-mobsf", 19)
+	fs := checkImport(t, "mobsf-android.json", "mobsf", "import-mobile-mobsf", 19)
 	byRule := map[string][]Finding{}
 	for _, f := range fs {
 		byRule[f.RuleID] = append(byRule[f.RuleID], f)
 	}
 	if l := byRule["mobsf:android_logging"]; len(l) != 2 || l[0].Severity != "info" || l[0].StartLine == nil || *l[0].StartLine != 138 ||
-		!slices.Equal(l[0].CWE, []string{"CWE-532"}) || l[0].FilePath != "com/bumptech/glide/Glide.java" || l[0].Category != "sast" {
+		!slices.Equal(l[0].CWE, []string{"CWE-532"}) || l[0].FilePath != "com/bumptech/glide/Glide.java" || l[0].Category != "mobile" {
 		t.Errorf("code: %+v", l)
 	}
 	if m := byRule["mobsf:manifest:clear_text_traffic"]; len(m) != 1 || m[0].Severity != "high" || m[0].FilePath != "AndroidManifest.xml" || strings.Contains(m[0].Title, "<br>") {
@@ -181,10 +185,19 @@ func TestImportMobSF(t *testing.T) {
 		t.Errorf("certificate: %+v", c)
 	}
 	s := byRule["mobsf:secret"]
-	if len(s) != 2 || s[1].Category != "secrets" || !strings.Contains(s[1].Title, "stripe_secret_key") || s[1].Confidence != "low" {
+	if len(s) != 2 || s[1].Category != "mobile" || !strings.Contains(s[1].Title, "stripe_secret_key") || s[1].Confidence != "low" {
 		t.Fatalf("secrets: %+v", s)
 	}
-	clean, _ := ParseImport("import-other-mobsf", "mobsf", stored)
+	// Imported with category other, findings keep their natural categories.
+	natural := map[string]string{}
+	nf, _ := ParseImport("import-other-mobsf", "mobsf", stored)
+	for _, f := range nf {
+		natural[f.RuleID] = f.Category
+	}
+	if natural["mobsf:android_logging"] != "sast" || natural["mobsf:secret"] != "secrets" {
+		t.Errorf("natural categories: %v", natural)
+	}
+	clean, _ := ParseImport("import-mobile-mobsf", "mobsf", stored)
 	for i := range fs {
 		if clean[i].Fingerprint != fs[i].Fingerprint {
 			t.Errorf("finding %d: fingerprint depends on the secret value", i)
@@ -192,7 +205,7 @@ func TestImportMobSF(t *testing.T) {
 		if strings.Contains(fs[i].Description+fs[i].Title, secret) {
 			t.Error("secret in finding text")
 		}
-		loc, err := LocateImport("import-other-mobsf", "mobsf", raw, fs[i].Fingerprint)
+		loc, err := LocateImport("import-mobile-mobsf", "mobsf", raw, fs[i].Fingerprint)
 		if err != nil || strings.Contains(string(loc.Raw), secret) {
 			t.Errorf("located record %d: %v", i, err)
 		}
@@ -205,7 +218,7 @@ func TestImportMobSF(t *testing.T) {
 	}
 
 	// iOS: 2 binary findings, 2 Mach-O weaknesses (passed checks skipped), 1 plist file.
-	is := checkImport(t, "mobsf-ios.json", "mobsf", "import-other-mobsf", 5)
+	is := checkImport(t, "mobsf-ios.json", "mobsf", "import-mobile-mobsf", 5)
 	if is[0].RuleID != "mobsf:binary:Binary makes use of insecure API(s)" || is[0].Severity != "high" || !slices.Equal(is[0].CWE, []string{"CWE-676"}) ||
 		is[0].FilePath != "bitbar-ios-sample.ipa" || is[0].CVSS == nil || *is[0].CVSS != 6 {
 		t.Errorf("ios binary: %+v", is[0])
@@ -218,7 +231,7 @@ func TestImportMobSF(t *testing.T) {
 	if DetectImportFormat([]byte(old)) != "mobsf" {
 		t.Fatal("old shape detection")
 	}
-	os, err := ParseImport("import-other-mobsf", "mobsf", []byte(old))
+	os, err := ParseImport("import-mobile-mobsf", "mobsf", []byte(old))
 	if err != nil || len(os) != 3 || os[1].Title != "Debug enabled" || os[2].RuleID != "mobsf:ats:Insecure communication allowed" || os[2].Severity != "high" {
 		t.Errorf("old shape: %v %+v", err, os)
 	}
@@ -237,9 +250,12 @@ func TestImportAPKLeaks(t *testing.T) {
 		t.Error("endpoints are kept")
 	}
 	// 3 secret matches, 2 inventories (IP addresses, LinkFinder).
-	fs := checkImport(t, "apkleaks.json", "apkleaks", "import-other-apkleaks", 5)
-	if fs[0].Category != "secrets" || fs[0].Severity != "high" || fs[0].FilePath != "com.example.shop" || fs[0].RuleID != "apkleaks:Amazon_AWS_Access_Key_ID" {
+	fs := checkImport(t, "apkleaks.json", "apkleaks", "import-mobile-apkleaks", 5)
+	if fs[0].Category != "mobile" || fs[0].Severity != "high" || fs[0].FilePath != "com.example.shop" || fs[0].RuleID != "apkleaks:Amazon_AWS_Access_Key_ID" {
 		t.Errorf("aws: %+v", fs[0])
+	}
+	if nf, _ := ParseImport("import-other-apkleaks", "apkleaks", stored); nf[0].Category != "secrets" || nf[4].Category != "mobile" {
+		t.Errorf("natural categories: %+v", nf)
 	}
 	if fs[1].Fingerprint == fs[2].Fingerprint {
 		t.Error("two keys of one pattern are distinct findings")
@@ -247,7 +263,7 @@ func TestImportAPKLeaks(t *testing.T) {
 	if l := fs[4]; l.Severity != "info" || l.RuleID != "apkleaks:LinkFinder" || !strings.Contains(l.Description, "/api/v1/users") {
 		t.Errorf("linkfinder: %+v", l)
 	}
-	clean, _ := ParseImport("import-other-apkleaks", "apkleaks", stored)
+	clean, _ := ParseImport("import-mobile-apkleaks", "apkleaks", stored)
 	for i := range fs {
 		if clean[i].Fingerprint != fs[i].Fingerprint {
 			t.Errorf("finding %d: identity depends on the secret", i)
@@ -257,7 +273,7 @@ func TestImportAPKLeaks(t *testing.T) {
 				t.Errorf("finding %d text keeps %q", i, s)
 			}
 		}
-		loc, _ := LocateImport("import-other-apkleaks", "apkleaks", raw, fs[i].Fingerprint)
+		loc, _ := LocateImport("import-mobile-apkleaks", "apkleaks", raw, fs[i].Fingerprint)
 		for _, s := range secrets {
 			if loc == nil || strings.Contains(string(loc.Raw), s) {
 				t.Errorf("located record %d keeps %q", i, s)
@@ -275,8 +291,8 @@ func TestImportSARIFAliasesG3(t *testing.T) {
 		file, format, key string
 		n                 int
 	}{
-		{"clusterfuzzlite.sarif", "clusterfuzzlite", "import-other-clusterfuzzlite", 1},
-		{"nowsecure.sarif", "nowsecure", "import-other-nowsecure", 2},
+		{"clusterfuzzlite.sarif", "clusterfuzzlite", "import-fuzz-clusterfuzzlite", 1},
+		{"nowsecure.sarif", "nowsecure", "import-mobile-nowsecure", 2},
 		{"docker-scout.sarif", "docker-scout", "import-container-docker-scout", 2},
 	} {
 		raw := readImportFixture(t, c.file)
@@ -301,7 +317,7 @@ func TestImportSARIFAliasesG3(t *testing.T) {
 	if f, _ := LookupImportFormat("docker-scout"); f.Category != "container" {
 		t.Error("docker scout category")
 	}
-	cf, _ := ParseImport("import-other-clusterfuzzlite", "clusterfuzzlite", readImportFixture(t, "clusterfuzzlite.sarif"))
+	cf, _ := ParseImport("import-fuzz-clusterfuzzlite", "clusterfuzzlite", readImportFixture(t, "clusterfuzzlite.sarif"))
 	if cf[0].RuleID != "heap-buffer-overflow" || cf[0].Severity != "high" || cf[0].FilePath != "src/parse_header.c" || *cf[0].StartLine != 11 {
 		t.Errorf("clusterfuzzlite: %+v", cf[0])
 	}
@@ -312,13 +328,13 @@ func TestImportSARIFAliasesG3(t *testing.T) {
 // and the probes encoding.InjectBase64 (passes) and promptinject.HijackHateHumans (fails);
 // the report is trimmed to two evaluated attempts per probe and the hit log to three hits.
 func TestImportGarak(t *testing.T) {
-	fs := checkImport(t, "garak.jsonl", "garak", "import-other-garak", 1)
+	fs := checkImport(t, "garak.jsonl", "garak", "import-ai-garak", 1)
 	g := fs[0]
 	if g.RuleID != "garak:promptinject.HijackHateHumans/promptinject.AttackRogueString" || g.Severity != "high" || g.FilePath != "test.Repeat" ||
 		!strings.Contains(g.Description, "100.0% (256 of 256") || !strings.Contains(g.Description, "I hate humans") || !strings.Contains(g.Description, "owasp:llm01") {
 		t.Errorf("garak: %+v", g)
 	}
-	hs := checkImport(t, "garak-hitlog.jsonl", "garak", "import-other-garak", 1)
+	hs := checkImport(t, "garak-hitlog.jsonl", "garak", "import-ai-garak", 1)
 	if hs[0].Fingerprint != g.Fingerprint || !strings.Contains(hs[0].Description, "3 successful attack") {
 		t.Errorf("hit log finding must have the report's identity: %+v", hs[0])
 	}
@@ -329,7 +345,7 @@ func TestImportGarak(t *testing.T) {
 	if strings.Contains(clean, "not-a-real-key-123") || !strings.Contains(clean, `"run.generations":1`) {
 		t.Errorf("sanitised: %s", clean)
 	}
-	if fs, err := ParseImport("import-other-garak", "", []byte(cfg)); err != nil || len(fs) != 0 {
+	if fs, err := ParseImport("import-ai-garak", "", []byte(cfg)); err != nil || len(fs) != 0 {
 		t.Errorf("a report without failures: %v %d", err, len(fs))
 	}
 	if DetectImportFormat([]byte(`{"entry_type":"x","tool":"other"}`+"\n")) == "garak" {

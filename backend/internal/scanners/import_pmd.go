@@ -10,7 +10,7 @@ import (
 // method, variable, externalInfoUrl, priority (1 high, 2 medium, 3-4 low,
 // 5 info) and the message as text. Violations of the Security ruleset are
 // sast; the others (Best Practices, Error Prone, Design, ...) are code
-// quality (other). Processing errors (error elements) are not findings.
+// quality (code-quality). Processing errors (error elements) are not findings.
 // Identity is the rule, class, method, variable and message.
 
 type pmdViolation struct {
@@ -51,7 +51,7 @@ func parsePMDXML(raw []byte) ([]importRecord, error) {
 			if !ok {
 				sev = "medium"
 			}
-			cat := "other"
+			cat := "code-quality"
 			if strings.EqualFold(v.RuleSet, "Security") {
 				cat = "sast"
 			}

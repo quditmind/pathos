@@ -23,7 +23,7 @@ type cloudsploitResult struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "cloudsploit", Label: "CloudSploit JSON", Tool: "CloudSploit", Category: "other", Media: "json", Order: 457,
+	registerImportFormat(ImportFormat{ID: "cloudsploit", Label: "CloudSploit JSON", Tool: "CloudSploit", Category: "compliance", Media: "json", Order: 457,
 		match: func(p *importProbe) bool {
 			return p.kind == "array" && p.has("plugin", "category", "title", "resource", "region", "status", "message")
 		},

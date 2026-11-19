@@ -6,6 +6,6 @@ package scanners
 // carry NowSecure's placeholder location "Unknown".
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "nowsecure", Label: "NowSecure (SARIF)", Tool: "NowSecure", Category: "other",
+	registerImportFormat(ImportFormat{ID: "nowsecure", Label: "NowSecure (SARIF)", Tool: "NowSecure", Category: "mobile",
 		Media: "sarif", Parser: "sarif", Order: 376})
 }

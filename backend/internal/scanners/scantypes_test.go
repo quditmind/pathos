@@ -1,6 +1,7 @@
 package scanners
 
 import (
+	"bytes"
 	"slices"
 	"testing"
 )
@@ -91,6 +92,93 @@ func TestTargetsOf(t *testing.T) {
 		}
 		if sc.Intrusive && sc.Network != "target" {
 			t.Errorf("%s: intrusive tools contact the target", sc.Key)
+		}
+	}
+}
+
+// TestImportFormatCategories checks the default category of the import
+// formats of the PATHOS 2.0 categories, the natural category of their
+// findings (import category "other") and the formats of each scan type.
+func TestImportFormatCategories(t *testing.T) {
+	defaults := map[string]string{
+		"schemathesis": "api", "restler": "api", "42crunch": "api",
+		"mobsf": "mobile", "apkleaks": "mobile", "nowsecure": "mobile",
+		"clusterfuzzlite": "fuzz", "libfuzzer": "fuzz", "gl-coverage-fuzzing": "fuzz",
+		"garak": "ai", "promptfoo": "ai", "modelscan": "ai",
+		"falco": "runtime", "tetragon": "runtime", "tracee": "runtime",
+		"contrast": "iast",
+		"prowler":  "compliance", "prowler-csv": "compliance", "scoutsuite": "compliance", "defender-cloud": "compliance",
+		"cloudsploit": "compliance", "kube-bench": "compliance",
+		"poutine": "cicd", "legitify": "cicd", "scorecard": "supply-chain",
+		"testssl": "misconfiguration", "sslyze": "misconfiguration", "sslscan": "misconfiguration",
+		"phpstan": "code-quality", "shellcheck": "code-quality",
+		// Per finding: each finding keeps its own category.
+		"asff": "", "gcp-scc": "", "gitlab": "", "psalm": "", "ruff": "", "pylint": "", "golangci-lint": "", "codacy": "",
+		"spotbugs": "", "pmd": "", "cppcheck": "", "coverity": "", "klocwork": "", "polaris": "",
+	}
+	for id, want := range defaults {
+		f, ok := LookupImportFormat(id)
+		if !ok || f.Category != want {
+			t.Errorf("%s: default category %q, want %q", id, f.Category, want)
+		}
+	}
+	natural := []struct{ file, format, cat string }{
+		{"garak.jsonl", "garak", "ai"}, {"promptfoo.json", "promptfoo", "ai"},
+		{"falco.jsonl", "falco", "runtime"}, {"tetragon.jsonl", "tetragon", "runtime"}, {"tracee.jsonl", "tracee", "runtime"},
+		{"contrast.csv", "contrast", "iast"}, {"kube-bench.json", "kube-bench", "compliance"},
+		{"poutine.json", "poutine", "cicd"}, {"legitify.json", "legitify", "cicd"}, {"scorecard.json", "scorecard", "supply-chain"},
+		{"testssl.json", "testssl", "misconfiguration"}, {"sslyze.json", "sslyze", "misconfiguration"}, {"sslscan.xml", "sslscan", "misconfiguration"},
+		{"libfuzzer.log", "libfuzzer", "fuzz"}, {"gl-coverage-fuzzing.json", "gitlab", "fuzz"},
+		{"phpstan.json", "phpstan", "code-quality"}, {"shellcheck.json", "shellcheck", "code-quality"},
+	}
+	for _, c := range natural {
+		raw := readImportFixture(t, c.file)
+		for _, key := range []string{"import-other-x", "import-" + firstNonEmpty(defaults[c.format], "other") + "-x"} {
+			fs, err := ParseImport(key, c.format, raw)
+			if err != nil || len(fs) == 0 {
+				t.Fatalf("%s: %v (%d findings)", c.file, err, len(fs))
+			}
+			for i, f := range fs {
+				if f.Category != c.cat {
+					t.Errorf("%s (%s): finding %d category %q, want %q", c.file, key, i, f.Category, c.cat)
+				}
+			}
+		}
+	}
+	// GitLab API fuzzing reports are api findings.
+	api := bytes.ReplaceAll(readImportFixture(t, "gl-coverage-fuzzing.json"), []byte(`"coverage_fuzzing"`), []byte(`"api_fuzzing"`))
+	if fs, err := ParseImport("import-other-x", "gitlab", api); err != nil || len(fs) == 0 || fs[0].Category != "api" {
+		t.Errorf("gitlab api_fuzzing: %v %+v", err, fs)
+	}
+	// Every scan type that has import formats lists them.
+	want := map[string][]string{
+		"api": {"schemathesis", "restler", "42crunch", "zap", "nuclei"}, "iast": {"contrast"}, "mobile": {"mobsf", "apkleaks", "nowsecure", "mobsfscan"},
+		"fuzzing": {"clusterfuzzlite", "libfuzzer", "gl-coverage-fuzzing"}, "ai": {"garak", "promptfoo", "modelscan"},
+		"runtime": {"falco", "tetragon", "tracee", "gcp-scc", "asff"}, "compliance": {"prowler", "prowler-csv", "scoutsuite", "asff", "defender-cloud", "gcp-scc", "cloudsploit", "kube-bench"},
+		"cicd": {"poutine", "legitify"}, "supply-chain": {"scorecard"}, "configuration": {"testssl", "sslyze", "sslscan"}, "crypto": {"testssl", "sslyze", "sslscan"},
+		"code-quality": {"phpstan", "psalm", "shellcheck", "ruff", "pylint", "golangci-lint", "codacy", "spotbugs", "pmd", "cppcheck", "coverity", "klocwork", "polaris"},
+		"sast":         {"bandit", "psalm", "ruff", "coverity", "gitlab"}, "secrets": {"gitleaks", "trivy"}, "manual": {"hackerone", "hackerone-csv", "bugcrowd", "intigriti"},
+	}
+	for id, formats := range want {
+		st, _ := LookupScanType(id)
+		got := ScanTypeImportFormats(st)
+		for _, f := range formats {
+			if !slices.ContainsFunc(got, func(g ImportFormat) bool { return g.ID == f }) {
+				t.Errorf("%s: import format %s not listed", id, f)
+			}
+		}
+	}
+	// API security lists API tools, not every DAST tool; CI/CD not every IaC tool.
+	for id, f := range map[string]string{"api": "nikto", "cicd": "checkov"} {
+		st, _ := LookupScanType(id)
+		if slices.ContainsFunc(ScanTypeImportFormats(st), func(g ImportFormat) bool { return g.ID == f }) {
+			t.Errorf("%s lists %s", id, f)
+		}
+	}
+	// Formats with per-finding categories are listed by their scan types, not as generic formats.
+	for _, f := range GenericImportFormats() {
+		if f.ID != "sarif" && f.ID != "pathos" && f.ID != "csv" {
+			t.Errorf("generic format %s", f.ID)
 		}
 	}
 }

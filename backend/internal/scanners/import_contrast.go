@@ -15,7 +15,7 @@ import (
 // before the report is stored.
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "contrast", Label: "Contrast Assess vulnerabilities CSV", Tool: "Contrast Assess", Category: "other", Media: "csv", Order: 470,
+	registerImportFormat(ImportFormat{ID: "contrast", Label: "Contrast Assess vulnerabilities CSV", Tool: "Contrast Assess", Category: "iast", Media: "csv", Order: 470,
 		match: func(p *importProbe) bool {
 			return p.kind == "csv" && headerHas(p.header, "vulnerability_name", "vulnerability_id", "rule_name", "severity", "status", "application_name", "request_uri")
 		},
@@ -45,7 +45,7 @@ func parseContrastCSV(raw []byte) ([]importRecord, error) {
 		if uri == "" {
 			loc = firstNonEmpty(app, "application")
 		}
-		f := Finding{Category: "other", RuleID: firstNonEmpty(rule, id), Title: firstNonEmpty(r.get("vulnerability_name"), rule),
+		f := Finding{Category: "iast", RuleID: firstNonEmpty(rule, id), Title: firstNonEmpty(r.get("vulnerability_name"), rule),
 			Severity: normSeverity(r.get("severity")), FilePath: loc, CWE: []string{contrastCWE(r.get("cwe_id"))}}
 		if strings.EqualFold(r.get("severity"), "note") {
 			f.Severity = "info" // Contrast "Note" is its lowest level, below Low

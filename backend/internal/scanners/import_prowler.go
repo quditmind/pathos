@@ -12,8 +12,8 @@ import (
 // (`-M json`) and the CSV output (`-M csv`, semicolon separated). One
 // finding per failed check and resource; PASS and MANUAL results are
 // checks, not findings, and are not imported. Muted results are imported
-// with low confidence. Cloud posture findings use the misconfiguration
-// category.
+// with low confidence. Prowler imports are compliance
+// findings (natural category misconfiguration).
 
 type prowlerOCSF struct {
 	Message  string `json:"message"`
@@ -83,7 +83,7 @@ type prowlerV3 struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "prowler", Label: "Prowler JSON (OCSF, or Prowler 3 JSON)", Tool: "Prowler", Category: "other", Media: "json", Order: 450,
+	registerImportFormat(ImportFormat{ID: "prowler", Label: "Prowler JSON (OCSF, or Prowler 3 JSON)", Tool: "Prowler", Category: "compliance", Media: "json", Order: 450,
 		match: func(p *importProbe) bool {
 			if p.kind != "array" {
 				return false
@@ -91,7 +91,7 @@ func init() {
 			return p.has("finding_info", "metadata", "status_code", "cloud") || p.has("CheckID", "CheckTitle", "StatusExtended", "ServiceName")
 		},
 		parse: parseProwlerJSON})
-	registerImportFormat(ImportFormat{ID: "prowler-csv", Label: "Prowler CSV", Tool: "Prowler", Category: "other", Media: "csv", Order: 451,
+	registerImportFormat(ImportFormat{ID: "prowler-csv", Label: "Prowler CSV", Tool: "Prowler", Category: "compliance", Media: "csv", Order: 451,
 		match: func(p *importProbe) bool {
 			return p.kind == "csv" && headerHas(p.header, "check_id", "check_title", "status", "severity", "provider") &&
 				(headerHas(p.header, "resource_uid") || headerHas(p.header, "resource_id") || headerHas(p.header, "resource_arn"))

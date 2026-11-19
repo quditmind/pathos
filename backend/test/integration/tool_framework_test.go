@@ -150,6 +150,18 @@ func TestToolFramework(t *testing.T) {
 	if fmts := types25["sast"]["import_formats"].([]any); len(fmts) == 0 || types25["sast"]["importable"] != true {
 		t.Errorf("sast import formats: %v", fmts)
 	}
+	// Every scan type with import formats lists them (licence, SBOM,
+	// malware, binary, licence policy and database have none).
+	for id, typ := range types25 {
+		fmts, _ := typ["import_formats"].([]any)
+		switch id {
+		case "license", "sbom", "malware", "binary", "license-policy", "database":
+		default:
+			if len(fmts) == 0 {
+				t.Errorf("%s: no import formats", id)
+			}
+		}
+	}
 
 	// --- routing: a job with bandit goes to the worker that has it ----------
 	_, core := h.worker(bootstrap, "POST", "/internal/worker/v1/register", map[string]any{"name": "core-" + tag, "family": "core",

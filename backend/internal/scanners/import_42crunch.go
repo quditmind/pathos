@@ -57,7 +57,7 @@ type crunch42Record struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "42crunch", Label: "42Crunch API Security Audit JSON", Tool: "42Crunch", Category: "other", Media: "json", Order: 408,
+	registerImportFormat(ImportFormat{ID: "42crunch", Label: "42Crunch API Security Audit JSON", Tool: "42Crunch", Category: "api", Media: "json", Order: 408,
 		match: func(p *importProbe) bool {
 			crunch := func(m map[string]json.RawMessage) bool {
 				return hasKeys(m, "index", "security") && (hasKeys(m, "assessmentVersion") || hasKeys(m, "score"))

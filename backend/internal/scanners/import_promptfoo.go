@@ -57,7 +57,7 @@ type promptfooResult struct {
 var promptfooSecretKeys = []string{"apiKey", "api_key", "apiKeyEnvar", "token", "accessToken", "password", "secret", "clientSecret"}
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "promptfoo", Label: "promptfoo eval / red-team results JSON", Tool: "promptfoo", Category: "other", Media: "json", Order: 371,
+	registerImportFormat(ImportFormat{ID: "promptfoo", Label: "promptfoo eval / red-team results JSON", Tool: "promptfoo", Category: "ai", Media: "json", Order: 371,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("evalId", "results") && p.hasAny("config", "shareableUrl")
 		},
@@ -135,7 +135,7 @@ func promptfooFinding(r promptfooResult, raw json.RawMessage) importRecord {
 	if plugin != "" {
 		title = "Red-team plugin " + plugin + " failed: " + desc
 	}
-	f := Finding{Category: "other", RuleID: "promptfoo:" + rule, Title: title,
+	f := Finding{Category: "ai", RuleID: "promptfoo:" + rule, Title: title,
 		Severity: firstNonEmpty(normSeverity(promptfooMeta(r, "severity")), "medium"),
 		FilePath: firstNonEmpty(r.Provider.ID, r.Provider.Label, "provider"), Confidence: "medium"}
 	output := ""

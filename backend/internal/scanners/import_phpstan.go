@@ -11,7 +11,7 @@ import (
 // from file path to its messages: message, line, identifier, tip) and
 // errors (analysis errors without a file, which are not findings, like
 // ESLint parse errors). PHPStan is a type checker: it has no
-// severity and no security rules, so every message is a low "other"
+// severity and no security rules, so every message is a low code-quality
 // (code quality) finding. The report has no code, so identity is the
 // identifier, file, message and line.
 
@@ -23,7 +23,7 @@ type phpstanMessage struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "phpstan", Label: "PHPStan JSON", Tool: "PHPStan", Media: "json", Order: 150,
+	registerImportFormat(ImportFormat{ID: "phpstan", Label: "PHPStan JSON", Tool: "PHPStan", Category: "code-quality", Media: "json", Order: 150,
 		match: func(p *importProbe) bool { return p.kind == "object" && p.has("totals", "files") },
 		parse: parsePHPStan})
 }
@@ -57,7 +57,7 @@ func parsePHPStan(raw []byte) ([]importRecord, error) {
 				return out, fmt.Errorf("phpstan: %s: message %d: expected an object with message", file, i+1)
 			}
 			rule := firstNonEmpty(m.Identifier, "phpstan")
-			f := Finding{Category: "other", RuleID: rule, Title: m.Message, Description: joinText(m.Message, m.Tip),
+			f := Finding{Category: "code-quality", RuleID: rule, Title: m.Message, Description: joinText(m.Message, m.Tip),
 				Severity: "low", FilePath: NormalizePath(file), StartLine: intPtr(m.Line)}
 			out = append(out, importRecord{F: f, SnippetKey: hashOf(fmt.Sprintf("%s|%d", m.Message, m.Line)), Raw: it})
 		}

@@ -53,7 +53,7 @@ type tetragonPolicyEvent struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "tetragon", Label: "Tetragon JSON events", Tool: "Tetragon", Category: "other", Media: "jsonl", Order: 340,
+	registerImportFormat(ImportFormat{ID: "tetragon", Label: "Tetragon JSON events", Tool: "Tetragon", Category: "runtime", Media: "jsonl", Order: 340,
 		match: func(p *importProbe) bool {
 			if (p.kind != "jsonl" && p.kind != "object" && p.kind != "array") || !p.has("node_name", "time") {
 				return false
@@ -117,7 +117,7 @@ func parseTetragon(raw []byte) ([]importRecord, error) {
 		}
 		proc := strings.TrimSpace(p.Process.Binary + " " + runtimeRedact(p.Process.Arguments))
 		title := firstNonEmpty(p.Message, fmt.Sprintf("%s: %s by %s", policy, hook, firstNonEmpty(p.Process.Binary, "a process")))
-		f := Finding{Category: "other", RuleID: policy + "/" + hook, Title: title, Severity: sev, FilePath: loc, Confidence: "high",
+		f := Finding{Category: "runtime", RuleID: policy + "/" + hook, Title: title, Severity: sev, FilePath: loc, Confidence: "high",
 			Description: joinText(fmt.Sprintf("Tetragon policy %s matched %s (%s).", policy, hook, kind), labelled("Process", proc),
 				labelled("UID", fmt.Sprint(p.Process.UID)), labelled("Arguments", strings.Join(args, "\n")), labelled("Action", p.Action),
 				labelled("Image", image), labelled("Node", node), labelled("Tags", strings.Join(p.Tags, ", ")))}

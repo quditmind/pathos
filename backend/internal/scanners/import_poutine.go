@@ -10,7 +10,7 @@ import (
 // json`): findings[] (rule_id, purl of the analysed repository, meta with
 // path, line, job, step and details), rules (by id: title, description,
 // level error/warning/note, refs) and packages. CI/CD pipeline findings use
-// the "other" category until PATHOS has a CI/CD category.
+// the cicd category.
 
 type poutineFinding struct {
 	RuleID string `json:"rule_id"`
@@ -26,7 +26,7 @@ type poutineFinding struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "poutine", Label: "poutine JSON", Tool: "poutine", Category: "other", Media: "json", Order: 280,
+	registerImportFormat(ImportFormat{ID: "poutine", Label: "poutine JSON", Tool: "poutine", Category: "cicd", Media: "json", Order: 280,
 		match: func(p *importProbe) bool {
 			return p.kind == "object" && p.has("findings", "rules") && (hasKeys(p.firstOf("findings"), "rule_id", "meta") || p.has("packages"))
 		},
@@ -52,7 +52,7 @@ func parsePoutine(raw []byte) ([]importRecord, error) {
 			return out, fmt.Errorf("poutine: finding %d: expected an object with rule_id", i+1)
 		}
 		rule := doc.Rules[p.RuleID]
-		f := Finding{Category: "other", RuleID: p.RuleID, Title: firstNonEmpty(rule.Title, p.RuleID), Severity: firstNonEmpty(normSeverity(rule.Level), "medium"),
+		f := Finding{Category: "cicd", RuleID: p.RuleID, Title: firstNonEmpty(rule.Title, p.RuleID), Severity: firstNonEmpty(normSeverity(rule.Level), "medium"),
 			FilePath: NormalizePath(p.Meta.Path), StartLine: intPtr(p.Meta.Line)}
 		var where []string
 		if p.Meta.Job != "" {

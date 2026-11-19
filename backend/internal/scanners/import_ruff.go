@@ -10,8 +10,8 @@ import (
 // with code, message, filename (absolute), location and end_location
 // ({row, column}) and url. Ruff's "severity" is the same for every rule, so
 // it is not used. The flake8-bandit rules (S, Bandit's checks) are sast
-// findings with Bandit's CWE and severity; every other rule is an "other"
-// (code quality) finding of low severity. The report has no code, so
+// findings with Bandit's CWE and severity; every other rule is a
+// code-quality finding of low severity. The report has no code, so
 // identity is the code, file, message and line.
 
 type ruffDiagnostic struct {
@@ -76,7 +76,7 @@ func parseRuff(raw []byte) ([]importRecord, error) {
 		}
 		// Syntax errors have no code.
 		rule := firstNonEmpty(d.Code, d.Name, "syntax-error")
-		f := Finding{Category: "other", RuleID: rule, Title: d.Message, Severity: "low", FilePath: NormalizePath(d.Filename),
+		f := Finding{Category: "code-quality", RuleID: rule, Title: d.Message, Severity: "low", FilePath: NormalizePath(d.Filename),
 			StartLine: intPtr(d.Location.Row), EndLine: intPtr(d.EndLocation.Row), Description: joinText(d.Message, d.URL)}
 		if ruffSecurity(d.Code) {
 			f.Category, f.Severity = "sast", "medium"

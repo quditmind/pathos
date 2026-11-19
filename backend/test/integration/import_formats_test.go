@@ -141,4 +141,49 @@ func TestImportNativeFormats(t *testing.T) {
 	if open != 0 {
 		t.Errorf("complete empty import resolves: %d open", open)
 	}
+
+	// The PATHOS 2.0 categories: garak is detected and imported as ai.
+	findingCats := func(key string) []string {
+		t.Helper()
+		var cats []string
+		rows, err := appPool.Query(ctx, `SELECT category FROM findings WHERE repository_id = $1 AND $2 = ANY(scanner_keys) ORDER BY category`, repo, key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var c string
+			_ = rows.Scan(&c)
+			cats = append(cats, c)
+		}
+		return cats
+	}
+	code, out = upload(analyst, map[string]string{"repository_id": repo.String()}, fixture("garak.jsonl"))
+	if code != 201 || out["format"] != "garak" || out["category"] != "ai" || out["scanner_key"] != "import-ai-garak" || out["records"].(float64) != 1 {
+		t.Fatalf("garak import: %d %v", code, out)
+	}
+	if cats := findingCats("import-ai-garak"); strings.Join(cats, ",") != "ai" {
+		t.Errorf("garak categories: %v", cats)
+	}
+	// Formats with per-finding categories keep them under category other
+	// (Security Command Center: posture compliance, vulnerability sca, threat runtime).
+	code, out = upload(analyst, map[string]string{"repository_id": repo.String()}, fixture("gcp-scc.json"))
+	if code != 201 || out["format"] != "gcp-scc" || out["scanner_key"] != "import-other-security-command-center" {
+		t.Fatalf("gcp-scc import: %d %v", code, out)
+	}
+	if cats := findingCats("import-other-security-command-center"); strings.Join(cats, ",") != "compliance,runtime,sca" {
+		t.Errorf("gcp-scc categories: %v", cats)
+	}
+	// An explicit new category is accepted end to end.
+	doc := []byte(`{"tool":"pgaudit","findings":[{"title":"Superuser login over TCP","severity":"high","file_path":"db/pg_hba.conf"}]}`)
+	code, out = upload(analyst, map[string]string{"repository_id": repo.String(), "tool": "pgaudit", "category": "database"}, doc)
+	if code != 201 || out["scanner_key"] != "import-database-pgaudit" || out["category"] != "database" {
+		t.Fatalf("database import: %d %v", code, out)
+	}
+	if cats := findingCats("import-database-pgaudit"); strings.Join(cats, ",") != "database" {
+		t.Errorf("database categories: %v", cats)
+	}
+	if code, _ := upload(analyst, map[string]string{"repository_id": repo.String(), "tool": "x", "category": "eol"}, doc); code != 400 {
+		t.Errorf("category eol: %d", code)
+	}
 }

@@ -42,7 +42,7 @@ type schemathesisRecord struct {
 }
 
 func init() {
-	registerImportFormat(ImportFormat{ID: "schemathesis", Label: "Schemathesis report (JSON or JUnit XML)", Tool: "Schemathesis", Category: "other",
+	registerImportFormat(ImportFormat{ID: "schemathesis", Label: "Schemathesis report (JSON or JUnit XML)", Tool: "Schemathesis", Category: "api",
 		Media: "json", Order: 308,
 		match: func(p *importProbe) bool {
 			switch p.kind {

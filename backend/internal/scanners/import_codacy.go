@@ -12,7 +12,7 @@ import (
 // category, location.LineLocation.line}} or {"FileError": {...}} (a file
 // the tool could not analyse; not a finding). Issues of category Security,
 // or of the security tools Codacy runs (Bandit, Brakeman, gosec, ...;
-// their category is often null), are sast findings, others "other" (code
+// their category is often null), are sast findings, others code-quality (code
 // quality); Bandit patterns get Bandit's CWE. Codacy CLI v2 writes SARIF:
 // import that as sarif.
 
@@ -76,7 +76,7 @@ func parseCodacy(raw []byte) ([]importRecord, error) {
 		} else if l := r.Location.FullLocation; l != nil {
 			line = l.Line
 		}
-		f := Finding{Category: "other", RuleID: r.PatternID.Value, Title: firstNonEmpty(r.Message.Text, r.PatternID.Value),
+		f := Finding{Category: "code-quality", RuleID: r.PatternID.Value, Title: firstNonEmpty(r.Message.Text, r.PatternID.Value),
 			Description: r.Message.Text, Severity: firstNonEmpty(normSeverity(r.Level), "low"), FilePath: NormalizePath(r.Filename), StartLine: intPtr(line)}
 		pid := strings.ToLower(r.PatternID.Value)
 		if r.Category != nil && strings.EqualFold(*r.Category, "security") {

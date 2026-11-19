@@ -11,7 +11,7 @@ import (
 // level), file_name, line_from/line_to, snippet, is_security and cwe_ids.
 // Taint-analysis issues (is_security, types Tainted*) are high sast
 // findings with their CWE; the taint trace stays in the original record.
-// Other issues are type and code-quality problems: "other" findings, low
+// Other issues are type and code-quality problems: code-quality findings, low
 // (error) or info.
 
 type psalmIssue struct {
@@ -53,7 +53,7 @@ func parsePsalm(raw []byte) ([]importRecord, error) {
 		if err := json.Unmarshal(it, &r); err != nil || r.Type == "" {
 			return out, fmt.Errorf("psalm: issue %d: expected an object with type", i+1)
 		}
-		f := Finding{Category: "other", RuleID: r.Type, Title: firstNonEmpty(r.Message, r.Type), FilePath: NormalizePath(firstNonEmpty(r.FileName, r.FilePath)),
+		f := Finding{Category: "code-quality", RuleID: r.Type, Title: firstNonEmpty(r.Message, r.Type), FilePath: NormalizePath(firstNonEmpty(r.FileName, r.FilePath)),
 			StartLine: intPtr(r.LineFrom), EndLine: intPtr(r.LineTo), Description: joinText(r.Message, r.Link)}
 		if r.IsSecurity || strings.HasPrefix(r.Type, "Tainted") {
 			f.Category, f.Severity = "sast", "high"

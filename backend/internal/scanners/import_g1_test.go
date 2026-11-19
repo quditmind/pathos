@@ -51,7 +51,7 @@ func TestImportSASTFormats(t *testing.T) {
 		{file: "coverity.json", format: "coverity", count: 2, checks: map[int]want{
 			0: {sev: "high", cwe: "CWE-89", file: "src/main/java/com/acme/OrderDao.java", line: 14, rule: "SQLI"},
 			1: {sev: "medium", cwe: "CWE-476", line: 13, rule: "FORWARD_NULL"},
-		}, cats: map[int]string{0: "sast", 1: "other"}},
+		}, cats: map[int]string{0: "sast", 1: "code-quality"}},
 		{file: "appscan-source.ozasmt", format: "appscan-source", count: 3, checks: map[int]want{
 			0: {sev: "high", cwe: "CWE-89", file: "src/main/java/com/acme/OrderDao.java", line: 14, rule: "Validation.Required.SQL"},
 			1: {sev: "medium", cwe: "CWE-327", line: 18},
@@ -65,7 +65,7 @@ func TestImportSASTFormats(t *testing.T) {
 		{file: "klocwork-api.jsonl", format: "klocwork", count: 2, checks: map[int]want{
 			0: {sev: "critical", file: "builds/app/src/vuln.c", rule: "SV.TAINTED.INJECTION"},
 			1: {sev: "low", rule: "MISRA.FUNC.UNUSEDPAR"},
-		}, cats: map[int]string{0: "sast", 1: "other"}},
+		}, cats: map[int]string{0: "sast", 1: "code-quality"}},
 		{file: "horusec.json", format: "horusec", count: 5, checks: map[int]want{
 			0: {sev: "critical", cwe: "CWE-798", file: "config.js", line: 2, rule: "HS-LEAKS-26"},
 			1: {sev: "high", file: "config.js", line: 5, rule: "HS-JAVASCRIPT-4"},
@@ -82,16 +82,16 @@ func TestImportSASTFormats(t *testing.T) {
 			0: {sev: "high", cwe: "CWE-788", file: "vuln.c", line: 13, rule: "arrayIndexOutOfBounds"},
 			1: {sev: "high", cwe: "CWE-401", line: 17, rule: "memleak"},
 			2: {sev: "low", cwe: "CWE-398", rule: "constParameterPointer"},
-		}, cats: map[int]string{0: "sast", 2: "other"}},
+		}, cats: map[int]string{0: "sast", 2: "code-quality"}},
 		{file: "spotbugs.xml", format: "spotbugs", count: 11, checks: map[int]want{
 			0:  {sev: "high", cwe: "CWE-440", file: "com/acme/OrderDao.java", line: 24, rule: "DMI_RANDOM_USED_ONLY_ONCE"},
 			7:  {sev: "medium", cwe: "CWE-89", file: "com/acme/OrderDao.java", line: 14, rule: "SQL_INJECTION_JDBC"},
 			10: {sev: "high", cwe: "CWE-328", line: 18, rule: "WEAK_MESSAGE_DIGEST_MD5"},
-		}, cats: map[int]string{0: "other", 7: "sast", 10: "sast"}},
+		}, cats: map[int]string{0: "code-quality", 7: "sast", 10: "sast"}},
 		{file: "pmd.xml", format: "pmd", count: 5, checks: map[int]want{
 			0: {sev: "low", file: "src/main/java/com/acme/OrderDao.java", line: 13, rule: "CloseResource"},
 			4: {sev: "medium", line: 30, rule: "SystemPrintln"},
-		}, cats: map[int]string{0: "other"}},
+		}, cats: map[int]string{0: "code-quality"}},
 		{file: "flawfinder.csv", format: "flawfinder", count: 5, checks: map[int]want{
 			0: {sev: "high", cwe: "CWE-120", file: "vuln.c", line: 7, rule: "FF1001"},
 			2: {sev: "high", cwe: "CWE-78", line: 16, rule: "FF1044"},
