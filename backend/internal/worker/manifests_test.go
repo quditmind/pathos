@@ -131,6 +131,67 @@ func TestShellCheckSeverityMapping(t *testing.T) {
 	}
 }
 
+func TestOperatorExampleIsValid(t *testing.T) {
+	raw, err := os.ReadFile("../../../deploy/scanners.d/example.yaml.disabled")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d, err := decodeManifestSpec(raw, false)
+	if err != nil || d.Key() != "plugin-sast-semgrep-custom" || d.ToolParser().Kind != "sarif" {
+		t.Errorf("example plugin: %v %s", err, d.Key())
+	}
+}
+
+func TestManifestV2Validation(t *testing.T) {
+	base := "name: x\ncategory: dast\ncommand: /bin/true\n"
+	for _, c := range []struct {
+		body string
+		ok   bool
+	}{
+		{base + "args: [\"{source}\", \"{output}\"]\n", true},
+		{base + "targets: [url]\nnetwork: target\nintrusive: true\nargs: [\"-u\", \"{target_url}\", \"-o\", \"{output}\"]\n", true},
+		{base + "targets: [api]\nnetwork: target\nargs: [\"--spec\", \"{openapi}\", \"{output}\"]\n", true},
+		{base + "targets: [url]\nintrusive: true\nargs: [\"{target_url}\", \"{output}\"]\n", false},    // intrusive needs network: target
+		{base + "targets: [repository]\nnetwork: target\nargs: [\"{source}\", \"{output}\"]\n", false}, // target network on a repository tool
+		{base + "targets: [url]\nargs: [\"{source}\", \"{output}\"]\n", false},                         // url target without {target_url}
+		{base + "targets: [binary]\nargs: [\"{artifact}\", \"{output}\"]\nparser: import:bandit\n", true},
+		{base + "args: [\"{source}\", \"{output}\"]\nparser: jsonmap\n", false}, // jsonmap without mapping
+		{base + "args: [\"{source}\", \"{output}\"]\nparser: jsonmap\njsonmap: {rule_id: id}\n", true},
+		{base + "args: [\"{source}\", \"{output}\"]\ntimeout: 1s\n", false},
+		{base + "args: [\"{source}\", \"{output}\"]\nscan_types: [nope]\n", false},
+		{base + "args: [\"{source}\", \"{output}\"]\ntargets: [mainframe]\n", false},
+		{base + "args: [\"{source}\", \"{output}\"]\nlicense_spdx: \"MIT; rm -rf\"\n", false},
+		{"name: x\ncategory: eol\ncommand: /bin/true\nargs: [\"{source}\", \"{output}\"]\n", false},
+	} {
+		_, err := decodeManifestSpec([]byte(c.body), false)
+		if (err == nil) != c.ok {
+			t.Errorf("%q: %v", c.body, err)
+		}
+	}
+	// Placeholders take the target's values.
+	d, _ := decodeManifestSpec([]byte(base+"targets: [url, api]\nnetwork: target\nargs: [\"{target_url}\", \"{openapi}\", \"{output}\"]\n"), false)
+	tool := pluginTool{def: d}
+	got := tool.expand(d.Args, RunInput{Out: "/o", TargetFile: "/t/openapi.yaml", Target: &JobTarget{Kind: "api", Reference: "https://a.test"}}, "/tmp/x")
+	if strings.Join(got, " ") != "https://a.test /t/openapi.yaml /o" {
+		t.Errorf("expand: %v", got)
+	}
+	if !d.RunsOn("api") || !d.RunsOn("url") || d.RunsOn("") || d.RunsOn("image") {
+		t.Error("RunsOn")
+	}
+	// Intrusive tools skip targets without the intrusive flag.
+	d, _ = decodeManifestSpec([]byte(base+"targets: [url]\nnetwork: target\nintrusive: true\nargs: [\"{target_url}\", \"{output}\"]\n"), false)
+	if s, _ := (pluginTool{def: d}).Run(context.Background(), RunInput{Out: "/nonexistent/o", Target: &JobTarget{Kind: "url"}}); !strings.Contains(s, "intrusive") {
+		t.Errorf("intrusive skip: %q", s)
+	}
+}
+
+func TestMergeEnv(t *testing.T) {
+	got := mergeEnv([]string{"PATH=/bin", "HTTPS_PROXY=http://egress:3128", "https_proxy=http://egress:3128"}, append(append([]string{}, noProxyEnv...), "A=1"))
+	if strings.Join(got, ",") != "PATH=/bin,A=1" {
+		t.Errorf("proxy variables removed, others kept: %v", got)
+	}
+}
+
 func TestToolManifestsLoad(t *testing.T) {
 	// The shipped manifests load as first-party tools once their commands
 	// exist (here: stand-ins in a temporary directory).

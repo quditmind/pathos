@@ -3,7 +3,9 @@
 # not be writable by group or others.
 name: semgrep-custom          # key becomes plugin-sast-semgrep-custom
 display_name: Semgrep (custom rules)
-category: sast                # sast | sca | secrets | iac | container | license | dast | other
+category: sast                # a finding category, e.g. sast, sca, secrets, iac, dast, api, crypto, code-quality, other
+scan_types: [sast]            # optional (version 2): scan types the tool covers
+license_spdx: LGPL-2.1-or-later
 homepage: https://semgrep.dev
 command: /opt/plugins/semgrep/bin/semgrep
 version_args: ["--version"]
@@ -12,5 +14,7 @@ version_args: ["--version"]
 args: ["scan", "--config", "/opt/plugins/semgrep/rules", "--sarif", "--output", "{output}", "--metrics", "off", "{source}"]
 ok_exit_codes: [0, 1]
 output: file                  # or stdout
+network: none                 # none (no egress proxy) | registry | target
+parser: sarif                 # sarif | import:<format> | jsonmap
 env:
   SEMGREP_SEND_METRICS: "off"

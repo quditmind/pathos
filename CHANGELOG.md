@@ -4,6 +4,20 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Added
+- **25 scan types**: a scan-type registry (SAST, DAST, SCA, secrets, IaC, container, API security, IAST, mobile, fuzzing, licence, SBOM, malware, code-quality security, supply chain, cryptography, configuration, CI/CD pipeline, binary, AI/LLM, runtime, compliance, licence policy, database security, manual review), `GET /api/v1/scan-types` with the tools, import formats and online workers of each type, and a **Scan coverage** page under Configurations.
+- New finding categories `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029), accepted in findings, Human Eye auto-queue settings, imports and plugins. ShellCheck findings use `code-quality`, mobsfscan `mobile`, Schemathesis `api`.
+- **Tool manifests (v2)**: scan types, SPDX licence, family, targets (repository, image, url, api, mobile-app, binary, model), placeholders `{target_url}`, `{openapi}`, `{image}`, `{artifact}`, per-tool timeout, `network` and `intrusive` declarations, and the parsers `sarif`, `import:<format>` (the result import parsers) and `jsonmap` (a declarative JSON or JSON Lines mapping). Version 1 plugin files keep working.
+- First-party manifests shipped read-only in family images (`/opt/pathos/tools.d`, up to 500); operator plugins stay in `PATHOS_SCANNER_PLUGINS_DIR` (up to 50, was 20). Workers advertise their manifests when they register; jobs that use manifest tools go to the workers that advertise them.
+- The original output of manifest tools is stored with its parser, so findings can be located in it later.
+- **worker-sast family image** (Compose profile `sast`): Bandit 1.9.4, njsscan 1.0.2 and ShellCheck 0.11.0, defined only by manifests; built in CI, scanned by the Trivy gate, published and signed by the release workflow.
+- **Intrusive testing authorization**: a per-target flag (who, when, reference; audited as `scan_target.intrusive_authorize` and `scan_target.intrusive_revoke`) required for intrusive tools in addition to the target's authorization statement; scan targets can select family and plugin tools (`config.tools`).
+
+### Changed
+- `worker-core` builds Trivy, Syft, Grype and OSV-Scanner from their Go modules with Go 1.27.4: the upstream release binaries were built with Go 1.27.3 (CVE-2026-97054, fixable high).
+- Manifest tools with `network: none` run without the egress proxy variables.
+- Scanner and import keys may be up to 60 characters (`plugin-code-quality-<name>`).
+
 ## [1.1.0] — 2026-11-19
 
 Closes the remaining register capabilities (99 of 100 completed; multi-tenant stays out by decision) and adds the features other application security tools are known for.

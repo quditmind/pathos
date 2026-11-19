@@ -57,9 +57,14 @@ Scanners for [scan targets](scanning.md#scan-targets) run only for targets, neve
 
 Application URLs, domains and IP addresses recorded on a repository are metadata only: PATHOS never scans them. Dynamic testing (DAST) runs only against web application and API **scan targets** that someone registered and authorized.
 
-### Scanner plugins
+### Family workers and scanner plugins
 
-Operators can add a scanner that produces SARIF 2.1.0 without changing PATHOS: they place a definition file in `deploy/scanners.d/` on the worker host and make the tool available in the worker container. When the worker registers, the plugin appears in **Scanners & workers** as *`<name>` (plugin)* and can be added to scan profiles. Its results are normalized, de-duplicated, risk-scored and triaged like any other scanner's. Plugins scan repository source only (not scan targets). Definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. The file format is described in `docs/SCANNER_CATALOG.md` in the PATHOS repository.
+Tools beyond the core set come from **tool manifests**:
+
+- **Family worker images** add groups of tools. The `worker-sast` image (Compose profile `sast`, enabled by an administrator) adds **Bandit** (Python), **njsscan** (Node.js) and **ShellCheck** (shell scripts, findings of type *Code-quality security*). Once a family worker is online, its tools are marked *Runnable* in **Scanners & workers** and can be added to scan profiles; scans that use them run on that worker.
+- **Scanner plugins**: operators can add a tool without changing PATHOS by placing a manifest in `deploy/scanners.d/` on the worker host and making the tool available in the worker container. When the worker registers, the plugin appears in **Scanners & workers** as *`<name>` (plugin)*. Plugins that scan repositories can be added to scan profiles; plugins for web applications, APIs, images or artifacts are selected on the [scan target](scanning.md#scan-targets) (**Additional tools**).
+
+Results are normalized, de-duplicated, risk-scored and triaged like any other scanner's, and the tool's original output is kept as evidence. Manifests are files on the worker, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. **Configurations → Scan coverage** shows which of the 25 scan types this installation can run ([Scan coverage](scan-coverage.md)). The manifest format is described in `docs/SCANNER_CATALOG.md` in the PATHOS repository.
 
 ## Scan profiles
 

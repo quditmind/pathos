@@ -89,7 +89,7 @@ Repositories are imported from **Assets → Repositories → Import** (local upl
 - **Egress:** allowed destinations are in `deploy/egress/allowlist.txt`. For GitHub Enterprise Server or Azure DevOps Server on a private network, add a file in `deploy/egress/conf.d/` (example inside) and restart `egress`. Access log: `docker compose exec egress tail -f /var/log/squid/access.log`.
 - **Scan targets:** container registries, web applications and APIs scanned from *Scanning → Scan targets* must be reachable through the proxy. Add each host to `deploy/egress/allowlist.txt` (for example `registry-1.docker.io`, `auth.docker.io` and `production.cloudflare.docker.com` for Docker Hub; `ghcr.io` is already allowed) and restart `egress`. Applications on private addresses also need a `conf.d` override. A scan of a host the proxy blocks fails with that explanation.
 - **Opengrep rules:** PATHOS ships its own baseline rules. Mount additional rule sets as `*.yml` in `workers/rules-extra/`; they are read-only at `/rules` in every worker. Rules can also be managed in the UI (custom rules).
-- **Scanner plugins:** additional SARIF-producing tools can be declared in `deploy/scanners.d/` ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)).
+- **Scanner plugins:** additional tools (SARIF, a result import format or a JSON mapping) can be declared in `deploy/scanners.d/` ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#adding-a-tool-tool-manifests)).
 - **Air-gapped hosts:** see [AIRGAP.md](AIRGAP.md).
 - **Workers page:** *Configurations → Scanners & workers* shows online workers and tool versions. Revoking a worker stops it immediately.
 

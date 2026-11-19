@@ -23,7 +23,15 @@ These run in the `worker-core` image today, pinned by version and SHA-256 (or bu
 | Binary hardening (`binary-hardening`, built in) | Build artifacts; repositories when a profile selects it | PATHOS JSON |
 | ClamAV (`clamav`, client of the optional clamd service) | Repositories when a profile selects it and `PATHOS_CLAMAV_ADDRESS` is set | PATHOS JSON |
 
-Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#declarative-scanner-adapters-plugins). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
+The opt-in `worker-sast` family image adds three tools defined only by [tool manifests](#adding-a-tool-tool-manifests) (`workers/sast/tools.d`):
+
+| Tool | Runs on | Output (parser) |
+|---|---|---|
+| Bandit 1.9.4 | Repositories (Python) | Bandit JSON (`import:bandit`, the result import parser) |
+| njsscan 1.0.2 | Repositories (Node.js) | SARIF |
+| ShellCheck 0.11.0 | Repositories (shell scripts; findings in the `code-quality` category) | json1 (`jsonmap`) |
+
+Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#adding-a-tool-tool-manifests). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
 Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
 
@@ -42,7 +50,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 5 | Opengrep | SAST | LGPL-2.1 | active | **Use (default Semgrep-compatible engine)** | **Implemented**. Rule licensing: ARCHITECTURE D5 |
 | 6 | Semgrep CE | SAST | LGPL-2.1 | active | Opt | Registry rules restricted |
 | 7 | CodeQL | SAST | GitHub CodeQL Terms | active | **Opt, license-restricted** | Free only for OSS/research. Build for compiled languages |
-| 8 | Bandit | SAST (Python) | Apache-2.0 | active | Use | |
+| 8 | Bandit | SAST (Python) | Apache-2.0 | active | Use | **Implemented** (`worker-sast` manifest) |
 | 9 | Gosec | SAST (Go) | Apache-2.0 | active | Use | |
 | 10 | Brakeman | SAST (Ruby) | custom (NOASSERTION) | active | Opt (verify license) | License has changed historically |
 | 11 | SpotBugs + FindSecBugs | SAST (JVM) | LGPL-2.1 / LGPL-3.0 | active | Opt (Build) | Needs compiled bytecode |
@@ -55,7 +63,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 18 | PHPStan | Static analysis (PHP) | MIT | active | Use | |
 | 19 | Ruff | Lint incl. `S` (bandit) rules | MIT | active | Use | |
 | 20 | ESLint + eslint-plugin-security | SAST (JS/TS) | MIT / Apache-2.0 | active | Use | |
-| 21 | njsscan | SAST (Node) | LGPL-3.0 (*unverified*) | *unverified* | Use (verify) | |
+| 21 | njsscan | SAST (Node) | LGPL-3.0-or-later (package metadata of 1.0.2) | active | Use | **Implemented** (`worker-sast` manifest; runs Semgrep CE 1.172.0, LGPL-2.1-or-later, through libsast, LGPL-3.0-or-later) |
 | 22 | mobsfscan | SAST (Android/iOS) | LGPL-3.0 (*unverified*) | *unverified* | Use (verify) | |
 | 23 | Sobelow | SAST (Elixir/Phoenix) | Apache-2.0 (*unverified*) | *unverified* | Use (verify) | |
 | 24 | ShellCheck | Shell script analysis | GPL-3.0 | active | Use | |
@@ -130,24 +138,127 @@ The scanner catalog also lists three entries that are not third-party scanner in
 | FOSSology | Full server platform. ScanCode covers repo license scanning |
 | tfsec | Merged into Trivy |
 
-## Declarative scanner adapters (plugins)
+## Scan types
 
-Operators can add a scanner to `worker-core` without changing PATHOS: put a definition file in `deploy/scanners.d/` (mounted read-only at `/etc/pathos/scanners.d`; `PATHOS_SCANNER_PLUGINS_DIR` changes the path) and make the tool's executable available in the worker container (a derived image or a read-only mount). See `deploy/scanners.d/example.yaml.disabled`.
+PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanners/scantypes.go`): each type has an id, a name, the finding categories its findings are recorded under and the catalog tools that cover it. `GET /api/v1/scan-types` ([API](api-reference/scan-types-and-tools.md)) and the **Scan coverage** page add what a deployment provides: the tools an online worker can run, and the import formats.
+
+| Scan type (id) | Finding categories | Tools in the catalog |
+|---|---|---|
+| SAST (`sast`) | sast | Opengrep, Bandit, njsscan, Semgrep CE, CodeQL, Gosec, … |
+| DAST (`dast`) | dast | Nuclei, OWASP ZAP, PATHOS endpoint verification |
+| SCA (`sca`) | sca, eol | Trivy, Grype, OSV-Scanner, Dependency-Check, …, endoflife.date |
+| Secrets (`secrets`) | secrets | Gitleaks, TruffleHog, detect-secrets, Kingfisher |
+| IaC (`iac`) | iac | Checkov, KICS, KubeLinter, Kubescape, TFLint, Conftest, Hadolint |
+| Container (`container`) | container | Trivy (image), Dockle |
+| API security (`api`) | api, dast | Nuclei (API targets), Schemathesis |
+| IAST (`iast`) | iast | (imports only) |
+| Mobile (`mobile`) | mobile | mobsfscan |
+| Fuzzing (`fuzzing`) | fuzz | (imports and plugins) |
+| Licence (`license`) | license | licensecheck, ScanCode, Trivy (license) |
+| SBOM (`sbom`) | (inventory, no findings) | Syft |
+| Malware (`malware`) | malware | ClamAV |
+| Code-quality security (`code-quality`) | code-quality | ShellCheck, PMD, Ruff |
+| Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard |
+| Cryptography (`crypto`) | crypto | (imports and plugins) |
+| Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules) |
+| CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac) |
+| Binary (`binary`) | binary | Binary hardening |
+| AI / LLM (`ai`) | ai | (imports and plugins) |
+| Runtime (`runtime`) | runtime | (imports and plugins) |
+| Compliance (`compliance`) | compliance | kube-bench |
+| Licence policy (`license-policy`) | license | Licence policy (evaluated by the server) |
+| Database security (`database`) | database | (imports and plugins) |
+| Manual review (`manual`) | any | PATHOS findings JSON, CSV and SARIF imports, Human Eye reviews |
+
+The finding categories added for these types are `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029). Configuration findings keep `misconfiguration`.
+
+## Adding a tool (tool manifests)
+
+A tool is added to PATHOS with a **manifest**: a YAML (or JSON) file that says how to run the tool and how to read its output. No Go code is needed unless the output format has no parser yet. There are two kinds of manifest:
+
+| | First-party manifests | Operator plugins |
+|---|---|---|
+| Where | In a family worker image, read-only at `/opt/pathos/tools.d` (`PATHOS_TOOLS_DIR`); source: `workers/<family>/tools.d/` | On the worker host in `deploy/scanners.d/`, mounted at `/etc/pathos/scanners.d` (`PATHOS_SCANNER_PLUGINS_DIR`) |
+| Trust | Trusted: shipped and reviewed with PATHOS | Operator-defined; same safety checks as before |
+| Scanner key | The manifest `name`, which must be a catalog key of a tool that is not built into the core image (for example `bandit`) | `plugin-<category>-<name>` |
+| Limit | 500 per image | 50 per worker |
+
+To ship a new first-party tool: add (or update) its catalog entry in `catalog.go` (licence, family, `available`), add it to the scan types it covers in `scantypes.go`, install it in `workers/<family>/Dockerfile` pinned by version and SHA-256 (or pip hashes), add `workers/<family>/tools.d/<name>.yaml`, and add a Go test that parses real output of the tool (generated by running it on a small sample in the image) with the manifest's parser, as in `backend/internal/worker/manifests_test.go`.
+
+### Manifest fields
+
+Version 1 files (the plugin format of PATHOS 1.x: `name`, `display_name`, `category`, `homepage`, `command`, `version_args`, `args`, `ok_exit_codes`, `env`, `output`) keep working unchanged. Unknown fields are rejected.
 
 | Field | Meaning |
 |---|---|
-| `name` | Lowercase letters, digits, dashes (≤ 23). The scanner key is `plugin-<category>-<name>` |
+| `name` | First-party: the catalog key. Plugins: lowercase letters, digits, dashes (≤ 23); key `plugin-<category>-<name>` |
 | `display_name`, `homepage` | Shown in the catalog (homepage must be https) |
-| `category` | `sast`, `sca`, `secrets`, `iac`, `container`, `license`, `dast` or `other` (the findings' type) |
+| `category` | The findings' category: one of the finding categories except `eol` (for first-party manifests, the catalog's category) |
+| `scan_types` | Scan type ids the tool covers (at most 10), e.g. `[sast]`, `[dast, fuzzing]` |
+| `license_spdx` | SPDX licence expression of the tool |
+| `family` | The worker family that ships it (informational) |
+| `targets` | What the tool scans: `repository` (default), `image`, `url`, `api`, `mobile-app`, `binary`, `model` |
 | `command` | Absolute path of an existing executable that is not writable by group or others |
+| `args` | Arguments, no shell. Placeholders: `{source}` (repository checkout), `{output}` (report file), `{target_url}` (url and api targets), `{openapi}` (the api target's OpenAPI file), `{image}` (image reference), `{artifact}` (uploaded artifact file), `{cache}` (persistent per tool), `{tmp}` (per run). Every declared target needs its placeholder |
 | `version_args` | Arguments that print the version (default `--version`) |
-| `args` | Arguments; placeholders `{source}` (required), `{output}` (required unless `output: stdout`), `{cache}` (persistent per plugin), `{tmp}` (per run) |
 | `ok_exit_codes` | Exit codes meaning success (default `0`; many tools exit `1` when they find something) |
-| `output` | `file` (SARIF written to `{output}`, default) or `stdout` |
+| `timeout` | Go duration between `10s` and `6h` (default: the job's timeout) |
 | `env` | Extra variables (not `PATH`, `HOME`, `LD_*`, `*_PROXY`, `PATHOS_*`) |
+| `output` | `file` (written to `{output}`, default) or `stdout` |
+| `network` | `none`: the egress proxy variables are removed from the tool's environment (the worker networks reach nothing else). `registry`: the tool downloads databases or packages through the egress proxy. `target`: the tool sends requests to the scan target (url and api targets only); scans then need the target's authorization statement |
+| `intrusive` | `true` for tools that send attack traffic (active scans, fuzzers, injection probes). Requires `network: target`; such tools run only for targets with the **intrusive testing authorized** flag |
+| `requires_build` | The tool needs a built project (informational) |
+| `default_enabled` | Informational; manifest tools are never enabled by default |
+| `parser` | `sarif` (default), `import:<format>` (any [result import format](api-reference/result-imports.md), e.g. `import:bandit`) or `jsonmap` |
+| `jsonmap` | The mapping for `parser: jsonmap` (below) |
 
-The tool must produce **SARIF 2.1.0**. When the worker registers, the plugin appears in **Scanners & workers** and can be added to scan profiles; results are normalized, deduplicated, risk-scored and triaged like any other scanner's. Invalid files are skipped with a log message; at most 20 plugins load.
+The worker uploads the tool's own output unchanged together with its parser; the API parses it and stores the parser with the raw report, so findings can always be located in the original output ([API](api-reference/scan-types-and-tools.md#tool-manifests)).
 
-Security: definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Plugins run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. They scan repository source only (not scan targets). The full trust model is in [SECURITY.md](SECURITY.md#scanner-plugins).
+### jsonmap: mapping a JSON report
+
+`jsonmap` maps each record of a JSON report (or JSON Lines) to a finding. Values are **paths** into a record: dot-separated keys and array indexes (`location.path`, `identifiers.0.value`), several **alternatives** separated by `|` (`rule|id`: the first non-empty one), or a **template** with paths in braces (`SC{code}`). An array of strings or numbers (for `cve`, `cwe`) is read as a list.
+
+| Key | Meaning |
+|---|---|
+| `records` | Path of the array of records (empty: the report is the array). With `lines`, the path of the array inside each line (empty: each line is one record) |
+| `lines` | `true` for JSON Lines (one JSON document per line) |
+| `rule_id` | Required. The rule or check identifier |
+| `title`, `message` | Title (default: the first line of the message) and description |
+| `severity`, `severity_map`, `default_severity` | The severity value, a map from the tool's values to `critical`, `high`, `medium`, `low`, `info` (common words such as `error`, `warning`, `moderate` are recognised without a map), and the severity when none matches (default `info`) |
+| `confidence` | `high`, `medium` or `low` |
+| `file`, `line`, `end_line`, `url` | Location (workspace prefixes are removed from paths) |
+| `package`, `version`, `fixed_version` | Affected package |
+| `cve`, `cwe`, `cvss` | Identifiers (`CVE-…`, `CWE-…` or numbers) and a CVSS base score |
+| `category` | The finding category of every record (default: the tool's) |
+| `identity` | What distinguishes two findings of the same rule in the same file (default: the message). Records that are still identical are told apart by their order in the file, so no finding is merged into another; line numbers are not part of a finding's identity |
+
+Example (ShellCheck, `workers/sast/tools.d/shellcheck.yaml`):
+
+```yaml
+parser: jsonmap
+jsonmap:
+  lines: true
+  records: comments
+  rule_id: "SC{code}"
+  title: message
+  severity: level
+  severity_map: {error: high, warning: medium, info: low, style: info}
+  file: file
+  line: line
+  end_line: endLine
+  identity: "SC{code} {message}"
+```
+
+A record without a rule id fails the report (the error is shown on the scan); secrets in messages are redacted like in every import.
+
+### Routing and family workers
+
+Workers advertise their manifests (never their commands) when they register. A scan job that uses a manifest tool goes to a worker that advertises every manifest tool of the job; when no online worker has all of them, any worker takes the job and records the missing tools as skipped. Family images extend the core image, so a family worker also runs every core tool ([OPERATIONS.md](OPERATIONS.md#family-worker-images)).
+
+### Operator plugins
+
+Operators can add a tool to a worker without changing PATHOS: put a manifest in `deploy/scanners.d/` and make the tool's executable available in the worker container (a derived image or a read-only mount). See `deploy/scanners.d/example.yaml.disabled`. When the worker registers, the plugin appears in **Scanners & workers** and, if it scans repositories, can be added to scan profiles; tools for other targets are selected on the scan target. Results are normalized, deduplicated, risk-scored and triaged like any other scanner's. Invalid files are skipped with a log message; at most 50 plugins load.
+
+Security: manifests are files on the worker host or in the image, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Tools run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. Tools that contact a target need its authorization statement, intrusive tools also its intrusive testing flag. The full trust model is in [SECURITY.md](SECURITY.md#scanner-plugins).
 
 

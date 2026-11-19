@@ -48,10 +48,10 @@ Not shipped in any image; installed by repository owners or Git server administr
 |---|---|---|---|
 | Gitleaks | 8.30.1 | MIT | Built from its Go module with Go 1.27.4 and patched `x/crypto` v0.55.0, `x/text` v0.41.0, `klauspost/compress` v1.18.7 |
 | Opengrep | 2.0.0 | LGPL-2.1 | Release binary, SHA-256 pinned |
-| Trivy | 0.76.2 | Apache-2.0 | Release archive, SHA-256 pinned |
-| Syft | 1.57.1 | Apache-2.0 | Release archive, SHA-256 pinned |
-| Grype | 0.121.3 | Apache-2.0 | Release archive, SHA-256 pinned |
-| OSV-Scanner | 2.7.1 | Apache-2.0 | Release binary, SHA-256 pinned |
+| Trivy | 0.76.2 | Apache-2.0 | Built from its Go module with Go 1.27.4 (the release binary was built with Go 1.27.3: CVE-2026-97054) |
+| Syft | 1.57.1 | Apache-2.0 | Built from its Go module with Go 1.27.4 (same reason) |
+| Grype | 0.121.3 | Apache-2.0 | Built from its Go module with Go 1.27.4 (same reason) |
+| OSV-Scanner | 2.7.1 | Apache-2.0 | Built from its Go module with Go 1.27.4 (same reason) |
 | Checkov | 3.4.5 | Apache-2.0 | `pip install` |
 | zizmor | 1.32.0 | MIT | Release archive, SHA-256 pinned |
 | actionlint | 1.7.12 | MIT | Built from its Go module |
@@ -59,6 +59,16 @@ Not shipped in any image; installed by repository owners or Git server administr
 | Nuclei templates | 10.5.1 | MIT | Source archive, SHA-256 pinned; a reviewed subset only ([SECURITY.md](SECURITY.md#scan-targets)) |
 | File licences (`licensecheck`), binary hardening (`binary-hardening`), ClamAV client (`clamav`) | PATHOS version | Apache-2.0 | Built into the worker agent (`pathos-worker`): no additional binary |
 | cosign (Sigstore) | 3.1.4 | Apache-2.0 | Built from its Go module; the module hash (`h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=`, Go checksum database) is checked before building. Signature and attestation verification of image and artifact targets |
+
+## Scanners in family worker images
+
+Family images extend `worker-core`; their tools are defined by manifests in `workers/<family>/tools.d`.
+
+| Image | Tool | Version | License | How it is installed |
+|---|---|---|---|---|
+| worker-sast | Bandit | 1.9.4 | Apache-2.0 | `pip install --require-hashes` into `/opt/pathos/sast` (`workers/sast/requirements.txt`) |
+| worker-sast | njsscan (with libsast 3.2.0 and Semgrep CE 1.172.0) | 1.0.2 | LGPL-3.0-or-later (Semgrep: LGPL-2.1-or-later) | Same; mcp 1.28.1 and PyJWT 2.14.0 replace the versions Semgrep pins (fixable CVEs) |
+| worker-sast | ShellCheck | 0.11.0 | GPL-3.0-only | Release archive, SHA-256 pinned; run through the `shellcheck-tree` helper (`workers/sast/bin`) |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 

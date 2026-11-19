@@ -32,10 +32,11 @@ The deploy scripts (`backup.sh`, `upgrade.sh`, `restore.sh`) pick up the product
 
 ## Installing a release (signed images)
 
-Each tagged release publishes three images to the GitHub Container Registry, built and tested by the release workflow:
+Each tagged release publishes these images to the GitHub Container Registry, built and tested by the release workflow:
 - `ghcr.io/quditmind/pathos`
 - `ghcr.io/quditmind/pathos-proxy`
 - `ghcr.io/quditmind/pathos-worker-core`
+- `ghcr.io/quditmind/pathos-worker-sast` (opt-in [family worker image](#family-worker-images), built on the signed `pathos-worker-core` of the same release)
 
 Use them instead of building locally:
 
@@ -130,7 +131,7 @@ If the upgrade does not become healthy, it prints the rollback command: check ou
 
 | Component | How | Notes |
 |---|---|---|
-| Scan throughput | `docker compose up -d --scale worker-core=N` | 1–4 GB RAM per concurrent scan (`PATHOS_WORKER_MEMORY`). Jobs are leased with `SKIP LOCKED`, so any number of workers is safe |
+| Scan throughput | `docker compose up -d --scale worker-core=N` (and `--scale worker-sast=N` for family workers) | 1–4 GB RAM per concurrent scan (`PATHOS_WORKER_MEMORY`). Jobs are leased with `SKIP LOCKED`, so any number of workers is safe; scans that use family tools go to family workers |
 | Scheduler | `--scale scheduler=2` (production default) | Postgres advisory-lock leader election; standbys take over within 15 s |
 | Background jobs | `--scale jobs=N` | Notification, e-mail, webhook, AI review and import queues all use `SKIP LOCKED` claims |
 | API | Vertical first: one replica served 80 req/s at p95 < 500 ms with 100k findings (platform phase P8 load test) | Sessions are in Valkey, and rate limits are shared through Valkey |
@@ -180,6 +181,25 @@ Suggested alerts:
 Source archives are scanned by the `jobs` service; build artifacts are scanned by the `api` service when they are uploaded. `docker-compose.yml` passes `PATHOS_CLAMAV_ADDRESS` and `PATHOS_CLAMAV_REQUIRED` to both services, so one setting covers both.
 
 The same setting enables the **`clamav` scanner** (malware in repository content) in `worker-core`: add **ClamAV (repository content)** to a scan profile. The worker streams each file of the checkout to clamd over the internal `malware` network, which only `worker-core` and `clamav` join, so workers stay off the `data` network. Without `PATHOS_CLAMAV_ADDRESS` the scanner is skipped (*ClamAV is not configured for this worker*); when it is set but clamd does not answer, the scanner fails and the worker does not report its version. Files larger than `PATHOS_CLAMAV_STREAM_MAX`/`PATHOS_CLAMAV_MAX_FILE` are reported as *File could not be scanned for malware* findings. A worker on another host needs its own network path to clamd and the variable in its environment.
+
+## Family worker images
+
+Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.md#adding-a-tool-tool-manifests), to the worker. Each family image is built on `worker-core` of the same version (it runs every core tool too), has its own Compose profile and the same isolation as `worker-core`: read-only root file system, no capabilities, unprivileged user, tmpfs workspace, the egress proxy as the only route out, and the `scan`, `worker-api` and `malware` networks.
+
+| Family | Profile | Service | Tools |
+|---|---|---|---|
+| SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck |
+
+To enable one:
+
+1. Add the profile to `COMPOSE_PROFILES` in `.env` (for example `COMPOSE_PROFILES=sast`, or `clamav,sast`).
+2. Build or pull the image: `docker compose --profile sast build worker-sast` builds `worker-core` first and then the family image on top of it; with released images (`PATHOS_IMAGE_PREFIX`), `deploy/scripts/upgrade.sh --pull` pulls it.
+3. Start it: `docker compose up -d worker-sast`. The worker registers with `PATHOS_WORKER_FAMILY=sast` and advertises its tools; they appear as runnable in **Configurations → Scanners & workers** and **Scan coverage**.
+4. Add the tools to a scan profile (for example Bandit and ShellCheck).
+
+Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
+
+The family tools of `worker-sast` declare `network: none`: they run without the egress proxy variables and need no allowlist entry. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
 
 ## Endpoint verification, end-of-life data and signatures
 
@@ -304,7 +324,7 @@ make security        # scripts/security-scan.sh
 The script runs:
 - gosec and govulncheck on the Go code.
 - `npm audit` on the frontend.
-- Trivy on the three PATHOS images.
+- Trivy on the three PATHOS images and on the family worker images that are built locally (`PATHOS_REQUIRE_FAMILY_IMAGES=1` makes a missing one fail; CI sets it).
 - An OWASP ZAP baseline against the running stack.
 
 It exits non-zero on any gosec issue, on a reachable Go vulnerability, on a high or critical npm advisory, on a fixable high or critical image vulnerability, or on a ZAP FAIL. Reports go to `reports/security/<UTC>/`. Accepted ZAP warnings are listed with reasons in `deploy/security/zap-baseline.conf`.

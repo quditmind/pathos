@@ -189,13 +189,22 @@ Each target belongs to a repository, so its findings reach that repository's app
 4. Tick **I am authorized to security-test this application** and add a reference (change ticket, owner's approval). Your name and the time are recorded.
 5. Select **Scan**. Follow the execution from the link, or open the target's findings from **Open findings**.
 
-Scans send real requests, at most the configured rate (default 20 per second). They never run intrusive, brute-force or denial-of-service checks, and web application scans do not fuzz. API scans test the operations in your OpenAPI document, which must point at the same host.
+Scans send real requests, at most the configured rate (default 20 per second). The built-in scanners never run intrusive, brute-force or denial-of-service checks, and web application scans do not fuzz. API scans test the operations in your OpenAPI document, which must point at the same host.
+
+### Additional tools and intrusive testing
+
+When a family worker or an operator plugin provides tools for a kind of target, the target's dialog lists them under **Additional tools**; the selected ones run in addition to the built-in scanners. Tools marked **intrusive** send attack traffic (active scans, fuzzing, injection probes) that can change data or slow the application down. They run only when **Intrusive testing of this application is authorized** is ticked on the target, in addition to the authorization statement:
+
+1. Agree a test window with the application's owner.
+2. Edit the target, select the tool under **Additional tools**, tick **Intrusive testing of this application is authorized** and enter a reference (for example the penetration test ticket).
+3. Select **Scan**. Without the flag, PATHOS refuses the scan and says which tool needs it.
+4. Untick the flag when the window ends. Setting and removing it are recorded in the audit log with your name; changing the target's address removes it.
 
 ### Notes
 
 - **Container images:** for private registries choose **Registry username and token**. `ghcr.io` is allowed out of the box; Docker Hub and other registries need their hosts in the egress allowlist.
 - **Findings** of a target are kept apart from the repository's own findings. Filter them with **Asset** on the Findings page. Only a successful scan of the same target marks them fixed.
-- **Changing the address** of a web or API target needs a new authorization statement.
+- **Changing the address** of a web or API target needs a new authorization statement, and removes the intrusive testing authorization.
 - **Targets with findings** cannot be deleted (their evidence is kept). Disable them instead.
 
 ## Importing results from other tools

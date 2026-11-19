@@ -40,7 +40,7 @@ Image and artifact targets also run **cosign** when a [signature verification po
 | `POST` | `/api/v1/scan-targets/artifact` | Create a build artifact target (`multipart/form-data`: `file` up to 200 MiB, `repository_id`, optional `name`, optional `signature`: a base64 signature or Sigstore bundle JSON, ≤ 64 KiB) |
 | `PUT` | `/api/v1/scan-targets/{id}` | Update (any field below; the kind cannot change) |
 | `DELETE` | `/api/v1/scan-targets/{id}` | Delete. `409` while it has findings (disable it instead) or a scan is queued or running |
-| `POST` | `/api/v1/scan-targets/{id}/scan` | Queue a scan → `202 { job_id, coalesced }`. `409` if disabled or not authorized |
+| `POST` | `/api/v1/scan-targets/{id}/scan` | Queue a scan → `202 { job_id, coalesced }`. `409` if disabled or not authorized, if a tool in `config.tools` contacts the target (`network: target`) and the target has no authorization statement, or if an intrusive tool is selected and intrusive testing is not authorized |
 
 ### Create and update fields
 
@@ -54,7 +54,8 @@ Image and artifact targets also run **cosign** when a [signature verification po
 | `auth_username`, `auth_header_name` | For `basic` and `header` |
 | `auth_secret` | Password, token or header value. Encrypted at rest and never returned (`has_secret` shows that one is stored). On update, omit to keep it, `""` to remove it |
 | `authorized`, `authorization_note` | Web and API targets: `authorized: true` records that you are authorized to test the application (your user and the time are stored as `authorized_by` / `authorized_at`). Required on create and whenever the address changes |
-| `config` | `{ rate_limit: 1–100 (requests/s, default 20), min_severity: low|medium|high|critical }` for web and API targets; `{ signature: {…} }` for image and artifact targets ([signature verification](#signature-verification)) |
+| `config` | `{ rate_limit: 1–100 (requests/s, default 20), min_severity: low|medium|high|critical }` for web and API targets; `{ signature: {…} }` for image and artifact targets ([signature verification](#signature-verification)); `tools`: up to 20 keys of [manifest tools](scan-types-and-tools.md#tool-manifests) (family images or operator plugins) that also run for the target. Each must scan the target's kind (`url`; `api`: api or url tools; `image`; `artifact`: binary, mobile-app or model tools) and be registered by a worker, otherwise `400` |
+| `intrusive_authorized`, `intrusive_authorization_note` | Web and API targets with an authorization statement: `true` records that **intrusive testing** (active scans, fuzzing, injection probes) is authorized (`intrusive_authorized_by` / `intrusive_authorized_at` in the response), `false` withdraws it. A changed address withdraws it unless the same request sets it again. Audited as `scan_target.intrusive_authorize` and `scan_target.intrusive_revoke` |
 | `signature_material` | Artifact targets: the detached signature (base64, `cosign sign-blob --output-signature`) or Sigstore bundle (JSON); `""` removes it. Stored as given; `has_signature` shows that one is attached |
 | `enabled` | Disabled targets are kept with their findings but cannot be scanned |
 
