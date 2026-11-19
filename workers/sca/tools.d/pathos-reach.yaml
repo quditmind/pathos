@@ -1,0 +1,30 @@
+# pathos-reach: function-level reachability of dependency vulnerabilities.
+# For the repository's JavaScript/TypeScript, Python and Java code it lists
+# the members of external modules the code calls or references (through
+# aliases, re-exports and typed variables), with call sites and caller
+# chains, the method calls it cannot type, and the dynamic constructs it
+# cannot follow (computed module members, dynamic imports, getattr, eval,
+# reflection); for Go it marks packages that call methods through reflect,
+# which govulncheck's call graph cannot see. It reads source files only:
+# nothing is built or run, nothing is downloaded. Written for PATHOS
+# (backend/internal/reachscan). Its report is reachability evidence: the
+# server matches it with the vulnerable functions of the advisories, it
+# produces no findings (parser: sarif is not used for it).
+name: pathos-reach
+display_name: PATHOS function-level reachability (pathos-reach)
+category: sca
+scan_types: [sca]
+license_spdx: Apache-2.0
+homepage: https://github.com/quditmind/pathos
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["reach", "--version"]
+args: ["reach", "{source}", "{output}", "{tmp}"]
+timeout: 20m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

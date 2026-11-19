@@ -42,7 +42,7 @@ import (
 // Version 1 files (the fields above plus homepage, version_args, env and
 // output) keep working unchanged. Version 2 adds scan_types,
 // license_spdx, family, targets, timeout, network, intrusive,
-// requires_build, default_enabled, parser and jsonmap (see
+// requires_build, default_enabled, sandbox, parser and jsonmap (see
 // docs/SCANNER_CATALOG.md). Definitions live on the worker, never in the
 // API: a PATHOS administrator cannot make workers run arbitrary programs.
 // Tools run like the built-in scanners: no shell, the worker's user, its
@@ -69,8 +69,13 @@ type PluginDef struct {
 	Intrusive      bool              `yaml:"intrusive" json:"intrusive"`
 	RequiresBuild  bool              `yaml:"requires_build" json:"requires_build"`
 	DefaultEnabled bool              `yaml:"default_enabled" json:"default_enabled"`
-	Parser         string            `yaml:"parser" json:"parser"`
-	JSONMap        *scanners.JSONMap `yaml:"jsonmap" json:"jsonmap,omitempty"`
+	// Sandbox: the tool runs repository code, so it runs in the sandbox
+	// runner (sandbox.go), never in the worker container; without a runner
+	// it is skipped. Requires network: none, targets [repository],
+	// output: file and only the {source}, {output} and {tmp} placeholders.
+	Sandbox bool              `yaml:"sandbox" json:"sandbox"`
+	Parser  string            `yaml:"parser" json:"parser"`
+	JSONMap *scanners.JSONMap `yaml:"jsonmap" json:"jsonmap,omitempty"`
 
 	// FirstParty marks a manifest from the image's trusted directory.
 	FirstParty bool `yaml:"-" json:"first_party"`
@@ -243,6 +248,16 @@ func (d *PluginDef) validateSpec() error {
 	if d.Output == "file" && !strings.Contains(joined, "{output}") {
 		return errors.New("args must contain {output} (or set output: stdout)")
 	}
+	if d.Sandbox {
+		if (d.Network != "" && d.Network != "none") || len(d.Targets) != 1 || d.Targets[0] != "repository" || d.Output != "file" {
+			return errors.New("sandbox tools scan repositories, without network, and write their report to {output}")
+		}
+		for _, ph := range placeholderRe.FindAllString(joined, -1) {
+			if ph != "{source}" && ph != "{output}" && ph != "{tmp}" {
+				return fmt.Errorf("sandbox tools use only {source}, {output} and {tmp}, not %s", ph)
+			}
+		}
+	}
 	for _, a := range append(append([]string{}, d.Args...), d.VersionArgs...) {
 		for _, ph := range placeholderRe.FindAllString(a, -1) {
 			if !slices.Contains(placeholders, ph) {
@@ -381,6 +396,7 @@ func (d PluginDef) advert() toolAdvert {
 type pluginTool struct {
 	def      PluginDef
 	cacheDir string
+	sandbox  *Sandbox
 }
 
 func (t pluginTool) Version(ctx context.Context) (string, error) {
@@ -416,6 +432,60 @@ func (t pluginTool) expand(args []string, in RunInput, tmp string) []string {
 	return out
 }
 
+// runSandboxed runs a tool that executes repository code in the sandbox
+// runner (no network, no worker credentials, its own UID and limits).
+func (t pluginTool) runSandboxed(ctx context.Context, in RunInput) (string, error) {
+	if t.sandbox == nil {
+		return "this tool runs repository code and needs the sandbox runner, which this worker does not have (" + SandboxDirEnv +
+			"; see docs/SECURITY.md)", nil
+	}
+	timeout := t.def.timeout
+	if dl, ok := ctx.Deadline(); ok && (timeout == 0 || time.Until(dl) < timeout) {
+		timeout = time.Until(dl)
+	}
+	if timeout <= 0 || timeout > sandboxMaxTimeout {
+		timeout = sandboxMaxTimeout
+	}
+	keys := make([]string, 0, len(t.def.Env))
+	for k := range t.def.Env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	env := make([]string, 0, len(keys))
+	for _, k := range keys {
+		env = append(env, k+"="+t.def.Env[k])
+	}
+	res, err := t.sandbox.RunUntrusted(ctx, UntrustedJob{Source: in.Src, Command: t.def.Command, Args: t.def.Args, Env: env,
+		Timeout: timeout, Output: in.Out})
+	if err != nil {
+		return "", err
+	}
+	if c := collectorFrom(ctx); c != nil {
+		w := c.writer()
+		_, _ = w.Write(res.Log)
+		w.close()
+	}
+	codes := t.def.OKExitCodes
+	if len(codes) == 0 {
+		codes = []int{0}
+	}
+	switch {
+	case res.TimedOut:
+		return "", fmt.Errorf("%s timed out in the sandbox after %s", filepath.Base(t.def.Command), timeout.Round(time.Second))
+	case res.Signal != "":
+		return "", fmt.Errorf("%s was killed by %s in the sandbox: %s", filepath.Base(t.def.Command), res.Signal, lastLogLine(res.Log))
+	case !slices.Contains(codes, res.ExitCode):
+		return "", fmt.Errorf("%s exited with %d: %s", filepath.Base(t.def.Command), res.ExitCode, lastLogLine(res.Log))
+	}
+	if t.def.parser.Kind == "sarif" {
+		return "", ensureReport(in.Out, t.def.Key())
+	}
+	if !res.OutputWritten {
+		return "", os.WriteFile(in.Out, nil, 0o600)
+	}
+	return "", nil
+}
+
 // noProxyEnv removes the egress proxy from the environment of tools that
 // declare network: none (the worker's networks reach nothing else).
 var noProxyEnv = []string{"HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"}
@@ -444,6 +514,9 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, t.def.timeout)
 		defer cancel()
+	}
+	if t.def.Sandbox {
+		return t.runSandboxed(ctx, in)
 	}
 	tmp, err := os.MkdirTemp(filepath.Dir(in.Out), "plugin-")
 	if err != nil {

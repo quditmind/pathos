@@ -41,6 +41,7 @@ import {
   FileBarChart,
   FileUp,
   Container,
+  Ship,
   Grid3x3,
   ShieldQuestion,
   BarChart3,
@@ -85,6 +86,7 @@ export const groups: NavGroup[] = [
       { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
+      { label: "Runtime", to: "/runtime", icon: <Ship />, perm: "findings.read" },
     ],
   },
   {
@@ -167,6 +169,7 @@ export const groups: NavGroup[] = [
       { label: "Integrations", to: "/admin/integrations", icon: <Plug />, perm: "settings.manage" },
       { label: "Risk & intelligence", to: "/admin/risk-intelligence", icon: <Gauge />, perm: "settings.manage" },
       { label: "Developer attribution", to: "/admin/developer-attribution", icon: <Fingerprint />, perm: "settings.manage" },
+      { label: "Secret validation", to: "/admin/secret-validation", icon: <KeyRound />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],

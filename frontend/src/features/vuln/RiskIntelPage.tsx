@@ -114,8 +114,10 @@ const groups: { key: keyof RiskWeights; label: string; keys: string[] }[] = [
   { key: "severity", label: "Base score by severity (0-10, used without CVSS)", keys: ["critical", "high", "medium", "low", "info"] },
   { key: "criticality", label: "Business criticality multiplier", keys: ["critical", "high", "medium", "low"] },
   { key: "exposure", label: "Internet exposure multiplier", keys: ["yes", "unknown", "no"] },
-  { key: "reachability", label: "Reachability multiplier", keys: ["reachable", "unknown", "not_reachable"] },
+  { key: "reachability", label: "Reachability multiplier (package level: imports)", keys: ["reachable", "unknown", "not_reachable"] },
+  { key: "function_reachability", label: "Reachability multiplier (function level: vulnerable function called)", keys: ["reachable", "unknown", "not_reachable"] },
   { key: "confidence", label: "Scanner confidence multiplier", keys: ["high", "medium", "low", "unknown"] },
+  { key: "deployment", label: "Deployment multiplier (connected Kubernetes clusters)", keys: ["deployed", "not_deployed"] },
 ];
 
 const scalars: { key: keyof RiskWeights; label: string; hint: string }[] = [
@@ -126,6 +128,9 @@ const scalars: { key: keyof RiskWeights; label: string; hint: string }[] = [
   { key: "human_confirmed", label: "Confirmed by a human reviewer", hint: "multiplier" },
   { key: "compensating_controls", label: "Compensating controls recorded", hint: "multiplier" },
   { key: "fix_available", label: "Fix available", hint: "multiplier" },
+  { key: "runtime_exposed", label: "Internet-exposed in a cluster (replaces declared exposure)", hint: "multiplier" },
+  { key: "privileged_workload", label: "Runs in a privileged workload", hint: "multiplier" },
+  { key: "runtime_alert", label: "Runtime alert matched to the workload", hint: "multiplier" },
 ];
 
 function ModelEditor({ data, editable }: { data: ModelResponse; editable: boolean }) {
@@ -172,8 +177,8 @@ function ModelEditor({ data, editable }: { data: ModelResponse; editable: boolea
                     step="0.05"
                     className="w-20"
                     aria-label={`${g.label}: ${k}`}
-                    value={(w[g.key] as Record<string, number>)[k] ?? ""}
-                    onChange={(e) => setW({ ...w, [g.key]: { ...(w[g.key] as Record<string, number>), [k]: num(e.target.value) } })}
+                    value={(w[g.key] as Record<string, number> | undefined)?.[k] ?? ""}
+                    onChange={(e) => setW({ ...w, [g.key]: { ...((w[g.key] as Record<string, number> | undefined) ?? {}), [k]: num(e.target.value) } })}
                   />
                 </label>
               ))}

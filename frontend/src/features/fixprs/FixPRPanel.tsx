@@ -31,6 +31,9 @@ export interface FixPR {
   created_at: string;
   updated_at: string;
   state_checked_at: string | null;
+  /** dependency (manifest upgrade) or ai_code (verified AI fix). */
+  kind?: "dependency" | "ai_code";
+  ai_fix_id?: string | null;
 }
 
 export interface FixEligibility {

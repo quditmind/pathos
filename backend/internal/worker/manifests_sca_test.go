@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/vuln"
 )
@@ -151,8 +152,9 @@ func TestSCAManifestsParseRealOutput(t *testing.T) {
 	}
 }
 
-// Every shipped manifest is covered above, except cdxgen (an SBOM, tested
-// below), and loads as a first-party tool.
+// Every shipped manifest is covered above, except cdxgen (an SBOM) and
+// pathos-reach (reachability evidence), tested below, and loads as a
+// first-party tool.
 func TestSCAManifestsLoad(t *testing.T) {
 	dir := t.TempDir()
 	bin := fakeTool(t, dir)
@@ -171,7 +173,7 @@ func TestSCAManifestsLoad(t *testing.T) {
 		t.Fatalf("loaded %d of %d manifests", len(defs), len(files))
 	}
 	for _, d := range defs {
-		if d.Key() == scanners.CDXGen {
+		if d.Key() == scanners.CDXGen || d.Key() == scanners.PathosReach {
 			continue
 		}
 		if !slices.ContainsFunc(scaCases, func(c scaCase) bool { return c.key == d.Key() }) {
@@ -229,5 +231,57 @@ func TestCDXGenManifestAndSBOM(t *testing.T) {
 	comps, err := vuln.ParseCycloneDX(raw)
 	if err != nil || len(comps) < len(bom.Components)-1 {
 		t.Errorf("inventory: %d components, %v", len(comps), err)
+	}
+}
+
+// pathos-reach's report is reachability evidence: the ingestion stores it
+// with the repository and parses no findings from it. The fixture
+// (testdata/manifests/sca/pathos-reach.json) is real output of the
+// manifest's command in the worker-sca image with --network none, on the
+// reachability benchmark samples (internal/reachscan/testdata/bench)
+// mounted at /work/fixture/src:
+//
+//	docker run --rm --network none --entrypoint /opt/pathos/sca/bin/pathos-sca \
+//	  -v $PWD/internal/reachscan/testdata/bench:/work/fixture/src:ro -v /tmp/out:/out c1-pathos-worker-sca:dev \
+//	  reach /work/fixture/src /out/pathos-reach.json /tmp/x
+func TestPathosReachManifestAndReport(t *testing.T) {
+	d := loadSCASpec(t, "pathos-reach.yaml")
+	if d.Key() != scanners.PathosReach || d.Category != "sca" || d.Network != "none" || d.Intrusive || d.RequiresBuild ||
+		!scanners.IsReachabilityTool(d.Key()) || scanners.IsReachabilityTool("govulncheck") {
+		t.Fatalf("pathos-reach manifest: %+v", d)
+	}
+	if len(d.VersionArgs) != 2 || d.Args[0] != "reach" || d.VersionArgs[0] != "reach" {
+		t.Errorf("args %v, version args %v", d.Args, d.VersionArgs)
+	}
+	if sc, _ := scanners.Lookup(d.Key()); sc.Network != "none" || !sc.AdapterAvailable || sc.Family != "sca" {
+		t.Errorf("catalog: %+v", sc)
+	}
+	if !slices.Contains(scanners.ScanTypesOf(scanners.PathosReach), "sca") {
+		t.Error("pathos-reach covers the sca scan type")
+	}
+	raw, err := os.ReadFile(filepath.Join("testdata", "manifests", "sca", "pathos-reach.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	r, err := reach.ParseReachReport(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, eco := range []string{"npm", "pypi", "maven", "go"} {
+		if st := r.Languages[eco]; st == nil || st.Files == 0 {
+			t.Errorf("%s not analysed: %+v", eco, r.Languages)
+		}
+	}
+	var uses []string
+	for _, u := range r.Uses {
+		uses = append(uses, u.Ecosystem+":"+u.Module+":"+u.Symbol)
+	}
+	for _, want := range []string{"npm:lodash:template", "pypi:yaml:load", "maven:org.apache.commons.text:StringSubstitutor.replace"} {
+		if !slices.Contains(uses, want) {
+			t.Errorf("use %s not in %v", want, uses)
+		}
+	}
+	if len(r.Dynamic) < 4 {
+		t.Errorf("dynamic constructs: %+v", r.Dynamic)
 	}
 }

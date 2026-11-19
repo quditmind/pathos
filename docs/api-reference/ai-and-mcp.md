@@ -23,6 +23,8 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `ai.review` and `findings.triage` | Approving and rejecting AI reviews (on the finding's repository) |
 | `findings.read` | Reading AI reviews |
 | `mcp.manage` (organization-wide) | Deciding on MCP servers, their tools, deleting them |
+| `ai.fix` | Requesting AI-proposed code fixes (on the finding's repository) |
+| `ai.fix`, `findings.triage` and `repos.manage` | Opening a pull request from a verified AI fix |
 
 ## Providers
 
@@ -98,6 +100,38 @@ Review fields: `id`, `finding_id`, `finding_title`, `finding_severity`, `finding
 **Queue.** Reviews run in the background, one finding at a time, each with a 4-minute timeout. Provider rate limits are retried up to 5 times with growing delays; other errors set the finding's `ai_status` to `failed`.
 
 Audit actions: `ai_review.request`, `ai_review.create`, `ai_review.approve`, `ai_review.reject`.
+
+## AI-proposed fixes
+
+A user with `ai.fix` asks the organization's **default AI configuration** for a code fix of a SAST, secrets or IaC finding. The provider returns a unified diff; PATHOS checks it, a worker verifies it, and only a **verified** fix can become a pull request, opened by a person. Nothing is merged automatically, and the finding is resolved only by a later scan. The user guide explains the flow: [AI-proposed fixes](../user-guide/findings.md#ai-proposed-fixes).
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/findings/{id}/ai-fixes` | `findings.read` | Whether a fix can be proposed (`available`, `reason`), the scanner that will verify it (`scanner`), the repository's `test_runner` and `fix_prs_enabled`, the caller's `can_request` and `can_open_pr`, and the 10 latest `proposals` (without test logs) |
+| `POST` | `/api/v1/findings/{id}/ai-fixes` | `ai.fix` on the finding's repository | Request a fix → `202` with the proposal (`status: "generating"`). The provider call runs in the background; poll the proposal |
+| `GET` | `/api/v1/ai-fixes/{id}` | `findings.read` | One proposal with its diff, steps, scanner evidence and test log |
+| `GET` | `/api/v1/ai-fixes/{id}/reports/{before\|after}` | `findings.read` | The scanner's raw report on the original or the fixed files (download) |
+| `POST` | `/api/v1/ai-fixes/{id}/pull-request` | `ai.fix`, `findings.triage` and `repos.manage` | Open a pull request from a verified fix → `202` with the [fix pull request](scans.md) (`kind: "ai_code"`, `status: "creating"`) |
+| `GET` / `PUT` | `/api/v1/repositories/{id}/ai-fix-settings` | `scans.read` / `repos.manage` | `{ "test_runner": "" \| "go" \| "python" }`: the repository's tests run during verification only when a runner is chosen (off by default) |
+
+**When a fix cannot be requested** (`available: false`, and `422 ai_fix_not_available` on `POST`), `reason` says why: the finding is not SAST, secrets or IaC; it comes from a scan target or an uploaded repository; it is not open; it has no file; it comes only from an imported report (the tool cannot be re-run); its last scan recorded no commit; **no AI provider and default configuration exist** (the feature is off until an administrator adds them); or the default configuration does not allow sending code (`send_code_context`).
+
+**Other errors:** `409` when a fix for the finding is already being prepared or verified; `429 rate_limited` after 10 requests per user per hour or 200 per organization per day (counted over all proposals); `502 source_unavailable` when the file cannot be read at the scanned commit through the SCM connection. On `pull-request`: `422 not_verified`, `422 fix_pr_not_available` (fix pull requests not enabled for the repository, or the finding is not open), `409` when a pull request was already opened for the fix (a failed one can be retried).
+
+**Proposal fields:** `id`, `finding_id`, `repository_id`, `status`, `failure_reason`, `scanner_key`, `rule_id`, `file_path`, `commit_sha` (the scanned commit), `base_commit` (the commit the fix was verified on), `test_runner`, `provider`, `model`, `transmitted_sha256` (hash of what was sent to the provider), `summary`, `diff`, `changed_files`, `steps`, `scan_evidence`, `test_log`, `has_reports`, `pull_request`, `requested_by`, `created_at`, `updated_at`, `finished_at`.
+
+**Statuses:** `generating` (provider call) → `rejected` (the diff failed the checks below) or `queued` → `running` (worker: apply and re-scan) → `tests_queued` → `testing` (only with a test runner) → `verified` or `failed`. Proposals stuck in `generating` for 20 minutes fail; worker leases expire after 20 minutes, at most 3 attempts.
+
+**Steps** (`key`, `label`, `status` `pending|running|passed|failed|skipped`, `detail`):
+
+1. `policy`: the diff parses as a unified diff and changes the finding's file, optionally up to two other files in the same directory (at most 3 files, 20,000 bytes, 200 changed lines, 30 hunks). It may not create, delete, rename or change the mode of a file, contain a binary patch, or change a CI/CD definition, build script, dependency manifest or lockfile or repository control file (`.git/`, hooks, `.gitmodules`, CODEOWNERS) other than the finding's own file. Added lines may not contain the redaction marker `[REDACTED]`, and a whitespace-only change is refused.
+2. `apply`: the worker clones the scanned commit, checks the diff again and applies it. Each hunk must match the file's text (lines containing `[REDACTED]` match any value there); symbolic links, binary files and files over 1 MiB are refused.
+3. `scan`: the worker runs the scanner that reported the finding, with its profile configuration, on the changed files only, once with the original and once with the fixed content. The fix passes when the scanner reported the finding's rule in its file before, reports it fewer times after and not on the changed lines, and reports no new result (any rule) in the changed files. `scan_evidence` holds both result lists and the verdict; the raw reports are stored.
+4. `tests` (only when the repository has a test runner): the worker-fuzz worker runs the tests without and with the fix in the sandbox runner (no network, its own UID, no worker credentials, CPU, memory and time limits). The tests must pass both times; tests that already fail without the fix fail the step. Without a sandbox runner the step is `skipped` ("tests not run: no sandbox") and the repository code is not run anywhere.
+
+**Provider request:** the finding (rule, title, description, severity, CWE, file, lines) and the file's code (whole files up to 200 lines, otherwise 60 lines around the finding, at most 24,000 bytes), JSON-encoded inside a per-request nonce delimiter. All text passes the built-in and organization redaction patterns; for secrets findings the values on the finding's lines (and every other occurrence of those values) are replaced by `[REDACTED]` as well. The schema is `{ "summary", "diff" }`, unknown fields rejected; an empty diff fails with the model's explanation.
+
+Audit actions: `ai_fix.request`, `ai_fix.proposed`, `ai_fix.rejected`, `ai_fix.verified`, `ai_fix.failed`, `ai_fix.rate_limited`, `ai_fix.pull_request` (target: the finding), `repository.ai_fix_tests`, and the `fix_pr.*` actions of the pull request.
 
 ## MCP server registry
 

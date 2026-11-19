@@ -30,13 +30,31 @@ type Weights struct {
 	Criticality  map[string]float64 `json:"criticality"`
 	Exposure     map[string]float64 `json:"exposure"`
 	Reachability map[string]float64 `json:"reachability"`
-	Confidence   map[string]float64 `json:"confidence"`
+	// FunctionReachability replaces Reachability when the answer is
+	// function level (the vulnerable function is or is not called, from a
+	// call graph or the calls in the code), a stronger signal than whether
+	// the package is imported.
+	FunctionReachability map[string]float64 `json:"function_reachability"`
+	Confidence           map[string]float64 `json:"confidence"`
 
 	// HumanConfirmed applies when a reviewer confirmed the finding;
 	// CompensatingControls when the review recorded such controls.
 	HumanConfirmed       float64 `json:"human_confirmed"`
 	CompensatingControls float64 `json:"compensating_controls"`
 	FixAvailable         float64 `json:"fix_available"`
+
+	// Runtime context from the Kubernetes inventory: Deployment applies
+	// when a connected cluster runs the finding's image (deployed) or when
+	// PATHOS knows the finding's image and no connected cluster runs it
+	// (not_deployed); RuntimeExposed when an Ingress or a public
+	// LoadBalancer routes to a workload that runs it (it replaces the
+	// declared exposure); PrivilegedWorkload when such a workload is
+	// privileged or uses the host network or PID namespace; RuntimeAlert
+	// when an imported Falco, Tetragon or Tracee alert matched the workload.
+	Deployment         map[string]float64 `json:"deployment"`
+	RuntimeExposed     float64            `json:"runtime_exposed"`
+	PrivilegedWorkload float64            `json:"privileged_workload"`
+	RuntimeAlert       float64            `json:"runtime_alert"`
 }
 
 // Default is the built-in model (version 0).
@@ -51,10 +69,15 @@ func Default() Weights {
 		Criticality:          map[string]float64{"critical": 1.3, "high": 1.15, "medium": 1.0, "low": 0.8},
 		Exposure:             map[string]float64{"yes": 1.3, "unknown": 1.1, "no": 0.85},
 		Reachability:         map[string]float64{"reachable": 1.2, "unknown": 1.0, "not_reachable": 0.6},
+		FunctionReachability: map[string]float64{"reachable": 1.3, "unknown": 1.0, "not_reachable": 0.5},
 		Confidence:           map[string]float64{"high": 1.0, "medium": 0.9, "low": 0.75, "unknown": 0.9},
 		HumanConfirmed:       1.1,
 		CompensatingControls: 0.7,
 		FixAvailable:         1.05,
+		Deployment:           map[string]float64{"deployed": 1.1, "not_deployed": 0.7},
+		RuntimeExposed:       1.3,
+		PrivilegedWorkload:   1.15,
+		RuntimeAlert:         1.3,
 	}
 }
 
@@ -64,6 +87,7 @@ var (
 	exposures    = []string{"yes", "unknown", "no"}
 	reachability = []string{"reachable", "unknown", "not_reachable"}
 	confidences  = []string{"high", "medium", "low", "unknown"}
+	deployments  = []string{"deployed", "not_deployed"}
 )
 
 // Validate checks a model and fills missing keys from Default.
@@ -95,7 +119,9 @@ func (w *Weights) Validate() error {
 		fill("criticality", &w.Criticality, criticality, d.Criticality, 0.1, 3),
 		fill("exposure", &w.Exposure, exposures, d.Exposure, 0.1, 3),
 		fill("reachability", &w.Reachability, reachability, d.Reachability, 0.1, 3),
+		fill("function_reachability", &w.FunctionReachability, reachability, d.FunctionReachability, 0.1, 3),
 		fill("confidence", &w.Confidence, confidences, d.Confidence, 0.1, 3),
+		fill("deployment", &w.Deployment, deployments, d.Deployment, 0.1, 3),
 	} {
 		if f != nil {
 			return f
@@ -107,8 +133,16 @@ func (w *Weights) Validate() error {
 			return fmt.Errorf("%s must be between 0 and 1", name)
 		}
 	}
+	// Runtime weights arrived in PATHOS 2.0: models stored before have none.
+	for _, x := range []struct{ v, def *float64 }{{&w.RuntimeExposed, &d.RuntimeExposed}, {&w.PrivilegedWorkload, &d.PrivilegedWorkload},
+		{&w.RuntimeAlert, &d.RuntimeAlert}} {
+		if *x.v == 0 {
+			*x.v = *x.def
+		}
+	}
 	for name, v := range map[string]float64{"human_confirmed": w.HumanConfirmed, "compensating_controls": w.CompensatingControls,
-		"fix_available": w.FixAvailable} {
+		"fix_available": w.FixAvailable, "runtime_exposed": w.RuntimeExposed, "privileged_workload": w.PrivilegedWorkload,
+		"runtime_alert": w.RuntimeAlert} {
 		if math.IsNaN(v) || v < 0.1 || v > 3 {
 			return fmt.Errorf("%s must be between 0.1 and 3", name)
 		}
@@ -140,13 +174,32 @@ type Input struct {
 	Criticality      string // highest of application and repository criticality
 	Exposure         string // yes | no | unknown
 	Reachability     string
-	Confidence       string
-	HumanDisposition string // "" or a Human Eye disposition
-	Compensating     bool   // a review recorded compensating controls
-	FixAvailable     bool
+	// ReachabilityMethod: import (package level), call_graph or
+	// symbol_calls (function level), "" (none).
+	ReachabilityMethod string
+	Confidence         string
+	HumanDisposition   string // "" or a Human Eye disposition
+	Compensating       bool   // a review recorded compensating controls
+	FixAvailable       bool
 	// Malicious: the package itself is malware (OSV MAL-*): it runs when
 	// installed, so likelihood is maximal and reachability does not lower it.
 	Malicious bool
+	// SecretActive: live validation found the leaked credential still
+	// active (it can be used right now).
+	SecretActive bool
+
+	// Runtime context (see Weights.Deployment): RuntimeStatus is "",
+	// deployed or not_deployed. RuntimeEvidence explains each factor.
+	RuntimeStatus     string
+	RuntimeExposed    bool
+	RuntimePrivileged bool
+	RuntimeAlert      bool
+	RuntimeEvidence   RuntimeEvidence
+}
+
+// RuntimeEvidence lists where a finding runs, per runtime factor.
+type RuntimeEvidence struct {
+	Deployed, Exposed, Privileged, Alerts []string
 }
 
 // Factor is one term of the explanation.
@@ -155,6 +208,9 @@ type Factor struct {
 	Label  string  `json:"label"`
 	Value  string  `json:"value"`
 	Weight float64 `json:"weight"`
+	// Evidence backs runtime factors (cluster, namespace, workload,
+	// ingress host, alert).
+	Evidence []string `json:"evidence,omitempty"`
 }
 
 // Result is a score with its explanation.
@@ -185,6 +241,9 @@ func Compute(in Input, w Weights) Result {
 	add := func(key, label, value string, weight float64) {
 		r.Factors = append(r.Factors, Factor{Key: key, Label: label, Value: value, Weight: round(weight, 3)})
 	}
+	addEv := func(key, label, value string, weight float64, ev []string) {
+		r.Factors = append(r.Factors, Factor{Key: key, Label: label, Value: value, Weight: round(weight, 3), Evidence: ev})
+	}
 	switch {
 	case in.HumanSeverity != "":
 		r.Base = w.Severity[in.HumanSeverity]
@@ -212,6 +271,9 @@ func Compute(in Input, w Weights) Result {
 	if in.Malicious && w.KEV >= likelihood {
 		likelihood, lsrc = w.KEV, "malicious package (runs when installed)"
 	}
+	if in.SecretActive && w.KEV >= likelihood {
+		likelihood, lsrc = w.KEV, "leaked credential validated as active"
+	}
 	add("likelihood", "Exploit likelihood", lsrc, 0.5+likelihood)
 
 	mult := 1.0
@@ -224,10 +286,48 @@ func Compute(in Input, w Weights) Result {
 		add(key, label, value, v)
 	}
 	m("criticality", "Business criticality", orUnknown(in.Criticality, "medium"), w.Criticality)
-	m("exposure", "Internet exposure", orUnknown(in.Exposure, "unknown"), w.Exposure)
+	if in.RuntimeExposed {
+		// Observed exposure replaces the declared one (not both).
+		add("exposure", "Internet exposure (declared)", orUnknown(in.Exposure, "unknown")+"; replaced by the observed exposure", 1)
+		mult *= w.RuntimeExposed
+		addEv("runtime_exposure", "Internet-exposed in a cluster", "an Ingress or a public LoadBalancer routes to the workload",
+			w.RuntimeExposed, in.RuntimeEvidence.Exposed)
+	} else {
+		m("exposure", "Internet exposure", orUnknown(in.Exposure, "unknown"), w.Exposure)
+	}
+	switch in.RuntimeStatus {
+	case "deployed":
+		v := w.Deployment["deployed"]
+		mult *= v
+		addEv("deployed", "Deployed", "running in a connected cluster", v, in.RuntimeEvidence.Deployed)
+	case "not_deployed":
+		v := w.Deployment["not_deployed"]
+		mult *= v
+		addEv("deployed", "Deployed", "not running in any connected cluster", v, in.RuntimeEvidence.Deployed)
+	}
+	if in.RuntimePrivileged {
+		mult *= w.PrivilegedWorkload
+		addEv("privileged", "Privileged workload", "privileged container, hostNetwork or hostPID", w.PrivilegedWorkload, in.RuntimeEvidence.Privileged)
+	}
+	if in.RuntimeAlert {
+		mult *= w.RuntimeAlert
+		addEv("runtime_alert", "Runtime alert seen", "an imported runtime alert matched the workload", w.RuntimeAlert, in.RuntimeEvidence.Alerts)
+	}
 	if in.Malicious {
 		// Malware acts at install time, whether or not the code imports it.
 		m("reachability", "Reachability", "reachable", w.Reachability)
+	} else if fl, ok := functionLevel[in.ReachabilityMethod]; ok && in.Reachability != "" {
+		// The vulnerable function is (not) called: a function-level answer.
+		table := w.FunctionReachability
+		if table == nil {
+			table = Default().FunctionReachability
+		}
+		v, ok := table[in.Reachability]
+		if !ok {
+			v = 1
+		}
+		mult *= v
+		add("reachability", "Reachability (vulnerable function, "+fl+")", functionValue[in.Reachability], v)
 	} else {
 		m("reachability", "Reachability", orUnknown(in.Reachability, "unknown"), w.Reachability)
 	}
@@ -249,6 +349,11 @@ func Compute(in Input, w Weights) Result {
 	r.Score = round(math.Max(0, math.Min(100, score)), 2)
 	return r
 }
+
+// functionLevel names the function-level reachability methods.
+var functionLevel = map[string]string{"call_graph": "call graph", "symbol_calls": "calls in the code"}
+
+var functionValue = map[string]string{"reachable": "called", "not_reachable": "not called", "unknown": "unknown"}
 
 func orUnknown(v, def string) string {
 	if v == "" {

@@ -370,6 +370,14 @@ def depcheck(src, out, cache):
     return 0 if run([BIN + "/pathos-depcheck", "-o", out, src]) is not None else 3
 
 
+def reach(src, out, cache):
+    """pathos-reach: calls of dependency functions (and dynamic constructs) in
+    the repository's JavaScript/TypeScript, Python and Java code, reflection
+    in Go packages, for function-level reachability. Reads source files
+    only; offline."""
+    return 0 if run([BIN + "/pathos-reach", "-o", out, src]) is not None else 3
+
+
 def cdxgen(src, out, cache):
     """cdxgen CycloneDX SBOM (with cryptographic assets) of the repository,
     from lockfiles and manifests only. It runs under the Node.js permission
@@ -414,6 +422,7 @@ def version(tool):
         "guarddog": [SCA + "/bin/guarddog", "--version"],
         "depcheck": [BIN + "/pathos-depcheck", "--version"],
         "cdxgen": [NODE, SCA + "/npm/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js", "--version"],
+        "reach": [BIN + "/pathos-reach", "--version"],
     }
     env = {"JAVA_HOME": SCA + "/jre", "COMPOSER_HOME": "/tmp/composer-version", "PIPAPI_PYTHON_LOCATION": BIN + "/pip-version",
            **GUARDDOG_ENV}
@@ -431,7 +440,7 @@ TOOLS = {
     "govulncheck": govulncheck, "pip-audit": pip_audit, "cargo-audit": cargo_audit, "bundler-audit": bundler_audit,
     "retire": retire, "npm-audit": npm_audit, "yarn-audit": yarn_audit, "pnpm-audit": pnpm_audit,
     "composer-audit": composer_audit, "dependency-check": dependency_check, "guarddog": guarddog, "depcheck": depcheck,
-    "cdxgen": cdxgen,
+    "cdxgen": cdxgen, "reach": reach,
 }
 
 

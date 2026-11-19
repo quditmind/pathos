@@ -5,10 +5,13 @@
 # (workers/fuzz/tools.d, installed read-only at /opt/pathos/tools.d).
 # Build context: repository root.
 #
-# These tools build and run repository code. They run only in this worker's
-# sandbox, only when a scan profile selects them, without network access
-# and under CPU, memory, file size and time limits (bin/pathos-fuzz). The
-# compose service adds CPU and memory limits for the whole container.
+# These tools build and run repository code. The worker never runs them
+# itself: the same image also runs as the sandbox runner
+# (`pathos-worker sandbox-runner`, compose service worker-fuzz-sandbox:
+# network_mode none, UID 10002, no worker token, its own CPU, memory and
+# pids limits), which executes them for the worker through a shared
+# volume. bin/pathos-fuzz adds CPU, address space, file size and time
+# limits per target.
 #
 # The family image extends the core image (CORE_IMAGE, the worker-core
 # image of the same PATHOS version), so it also runs every core tool.
@@ -39,10 +42,13 @@ USER root
 COPY --from=python-tools /opt/pathos/fuzz/ /opt/pathos/fuzz/
 COPY --from=go /out-go/ /opt/pathos/fuzz/go/
 COPY --chmod=0755 workers/fuzz/bin/pathos-fuzz /opt/pathos/fuzz/bin/pathos-fuzz
+# AI fix verification: runs a repository's tests (go, python) with and
+# without a proposed fix, when an administrator enabled it for the repository.
+COPY --chmod=0755 workers/fuzz/bin/pathos-fixtest /opt/pathos/fuzz/bin/pathos-fixtest
 COPY workers/fuzz/tools.d/ /opt/pathos/tools.d/
 RUN set -eux; \
     chmod -R go-w /opt/pathos/fuzz /opt/pathos/tools.d; \
-    for t in /opt/pathos/fuzz/bin/pathos-fuzz /opt/pathos/fuzz/go/bin/go; do test -x "$t"; done; \
+    for t in /opt/pathos/fuzz/bin/pathos-fuzz /opt/pathos/fuzz/bin/pathos-fixtest /opt/pathos/fuzz/go/bin/go; do test -x "$t"; done; \
     for t in go atheris; do /opt/pathos/fuzz/bin/pathos-fuzz version "$t"; done
 USER 10001:10001
 ENV PATHOS_WORKER_FAMILY=fuzz PATHOS_TOOLS_DIR=/opt/pathos/tools.d \

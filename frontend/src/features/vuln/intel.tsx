@@ -103,9 +103,16 @@ export function RiskPanel({ findingId }: { findingId: string }) {
               <tbody>
                 {r.explanation.factors.map((f) => (
                   <tr key={f.key} className="border-b border-border last:border-0">
-                    <td className="py-1 text-muted-foreground">{f.label}</td>
-                    <td className="py-1">{f.value}</td>
-                    <td className="tabular py-1 text-right font-mono">{f.key === "base" ? f.weight.toFixed(1) : `× ${f.weight.toFixed(2)}`}</td>
+                    <td className="py-1 align-top text-muted-foreground">{f.label}</td>
+                    <td className="py-1">
+                      {f.value}
+                      {f.evidence && f.evidence.length > 0 && (
+                        <ul className="mt-0.5 list-disc pl-4 text-[11px] text-muted-foreground">
+                          {f.evidence.map((e, i) => <li key={i} className="break-words">{e}</li>)}
+                        </ul>
+                      )}
+                    </td>
+                    <td className="tabular py-1 text-right align-top font-mono">{f.key === "base" ? f.weight.toFixed(1) : `× ${f.weight.toFixed(2)}`}</td>
                   </tr>
                 ))}
               </tbody>
@@ -119,7 +126,10 @@ export function RiskPanel({ findingId }: { findingId: string }) {
             <dt className="text-muted-foreground">Confidence</dt>
             <dd className="capitalize">{r.confidence}</dd>
             <dt className="text-muted-foreground">Reachability</dt>
-            <dd>{r.reachability === "unknown" ? "Not analysed" : r.reachability.replace("_", " ")}</dd>
+            <dd>
+              {r.reachability === "unknown" && !r.reachability_method ? "Not analysed" : r.reachability.replace("_", " ")}
+              {r.reachability_method === "call_graph" || r.reachability_method === "symbol_calls" ? " (vulnerable function)" : r.reachability_method === "import" ? " (package)" : ""}
+            </dd>
             {r.cvss_vector && (
               <>
                 <dt className="text-muted-foreground">CVSS {r.cvss_version}</dt>

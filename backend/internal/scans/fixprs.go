@@ -73,19 +73,22 @@ type FixPR struct {
 	CreatedAt      time.Time   `json:"created_at"`
 	UpdatedAt      time.Time   `json:"updated_at"`
 	StateCheckedAt *time.Time  `json:"state_checked_at"`
+	// Kind is dependency (manifest upgrade) or ai_code (verified AI fix).
+	Kind    string     `json:"kind"`
+	AIFixID *uuid.UUID `json:"ai_fix_id"`
 }
 
 const fixPRCols = `x.id, x.repository_id, r.full_name, x.ecosystem, x.package_name, x.current_version, x.target_version, x.grouping,
 	x.status, x.error, x.base_branch, x.branch, x.changed_files, x.pr_number, x.pr_url,
 	COALESCE((SELECT array_agg(ff.finding_id ORDER BY ff.finding_id) FROM fix_pull_request_findings ff WHERE ff.fix_pull_request_id = x.id), '{}'),
-	COALESCE(u.email, ''), x.created_at, x.updated_at, x.state_checked_at
+	COALESCE(u.email, ''), x.created_at, x.updated_at, x.state_checked_at, x.kind, x.ai_fix_id
 	FROM fix_pull_requests x JOIN repositories r ON r.id = x.repository_id LEFT JOIN users u ON u.id = x.requested_by`
 
 func scanFixPR(row pgx.Row) (FixPR, error) {
 	var f FixPR
 	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.Ecosystem, &f.PackageName, &f.CurrentVersion, &f.TargetVersion, &f.Grouping,
 		&f.Status, &f.Error, &f.BaseBranch, &f.Branch, &f.ChangedFiles, &f.PRNumber, &f.PRURL, &f.FindingIDs,
-		&f.RequestedBy, &f.CreatedAt, &f.UpdatedAt, &f.StateCheckedAt)
+		&f.RequestedBy, &f.CreatedAt, &f.UpdatedAt, &f.StateCheckedAt, &f.Kind, &f.AIFixID)
 	return f, err
 }
 
@@ -698,60 +701,76 @@ func (s *Service) auditFix(ctx context.Context, q db.Querier, orgID, id uuid.UUI
 	return audit.Write(ctx, q, audit.Entry{OrganizationID: orgID, Action: action, TargetType: "fix_pull_request", TargetID: id.String(), Metadata: meta})
 }
 
-// openFixPR creates the branch, commit and pull request.
+// openFixPR creates the branch, commit and pull request of a dependency
+// upgrade.
 func (s *Service) openFixPR(ctx context.Context, orgID, id uuid.UUID, base string, files []scm.FileChange, notes []string) {
 	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
 	defer cancel()
-	fail := func(msg string) {
-		_, _ = s.DB.Exec(ctx, `UPDATE fix_pull_requests SET status = 'failed', error = $2, finished_at = now(), updated_at = now() WHERE id = $1`,
-			id, truncate(msg, 1000))
-		_ = s.auditFix(ctx, s.DB, orgID, id, "fix_pr.failed", map[string]any{"error": truncate(msg, 500)})
-		s.Log.Warn("fix pull request failed", "fix_pr_id", id, "err", msg)
-	}
-	if s.FixPRTarget == nil {
-		fail("pull request creation is not configured")
-		return
-	}
 	var repoID uuid.UUID
 	var eco, pkg, from, to string
 	if err := s.DB.QueryRow(ctx, `SELECT repository_id, ecosystem, package_name, current_version, target_version FROM fix_pull_requests WHERE id = $1`, id).
 		Scan(&repoID, &eco, &pkg, &from, &to); err != nil {
-		fail("fix request not found")
-		return
-	}
-	writer, ref, baseBranch, err := s.FixPRTarget(ctx, orgID, repoID)
-	if err != nil {
-		fail(err.Error())
+		s.failFixPR(ctx, orgID, id, "fix request not found")
 		return
 	}
 	findings, err := s.fixFindingsSummary(ctx, id)
 	if err != nil {
-		fail("could not load the findings: " + safeErr(err))
+		s.failFixPR(ctx, orgID, id, "could not load the findings: "+safeErr(err))
 		return
 	}
-	branch := FixBranchName(id, eco, pkg, to)
-	if !scm.ValidFixBranch(branch) {
-		fail("could not build a valid branch name")
-		return
-	}
-	title := fmt.Sprintf("Upgrade %s from %s to %s (security fix)", pkg, from, to)
 	paths := make([]string, len(files))
 	for i, f := range files {
 		paths[i] = f.Path
 	}
-	body := fixPRBody(pkg, from, to, eco, baseBranch, findings, paths, notes, s.PublicURL)
+	title := fmt.Sprintf("Upgrade %s from %s to %s (security fix)", pkg, from, to)
+	s.publishFixPR(ctx, orgID, id, repoID, base, FixBranchName(id, eco, pkg, to), title, title+"\n\n"+fixCommitBody(findings), files,
+		func(baseBranch string) string {
+			return fixPRBody(pkg, from, to, eco, baseBranch, findings, paths, notes, s.PublicURL)
+		})
+}
+
+func (s *Service) failFixPR(ctx context.Context, orgID, id uuid.UUID, msg string) {
+	_, _ = s.DB.Exec(ctx, `UPDATE fix_pull_requests SET status = 'failed', error = $2, finished_at = now(), updated_at = now() WHERE id = $1`,
+		id, truncate(msg, 1000))
+	_ = s.auditFix(ctx, s.DB, orgID, id, "fix_pr.failed", map[string]any{"error": truncate(msg, 500)})
+	s.Log.Warn("fix pull request failed", "fix_pr_id", id, "err", msg)
+}
+
+// publishFixPR creates the branch (from base), commits files and opens the
+// pull request of fix request id, and records the outcome. The body is
+// built once the target branch is known. Shared by dependency upgrades and
+// verified AI fixes.
+func (s *Service) publishFixPR(ctx context.Context, orgID, id, repoID uuid.UUID, base, branch, title, commitMessage string, files []scm.FileChange,
+	body func(baseBranch string) string) {
+	if s.FixPRTarget == nil {
+		s.failFixPR(ctx, orgID, id, "pull request creation is not configured")
+		return
+	}
+	writer, ref, baseBranch, err := s.FixPRTarget(ctx, orgID, repoID)
+	if err != nil {
+		s.failFixPR(ctx, orgID, id, err.Error())
+		return
+	}
+	if !scm.ValidFixBranch(branch) {
+		s.failFixPR(ctx, orgID, id, "could not build a valid branch name")
+		return
+	}
+	paths := make([]string, len(files))
+	for i, f := range files {
+		paths[i] = f.Path
+	}
 	if err := writer.CreateBranch(ctx, ref, branch, base); err != nil {
-		fail("creating branch " + branch + ": " + FixPRError(err))
+		s.failFixPR(ctx, orgID, id, "creating branch "+branch+": "+FixPRError(err))
 		return
 	}
-	commit, err := writer.CommitFiles(ctx, ref, branch, base, title+"\n\n"+fixCommitBody(findings), files)
+	commit, err := writer.CommitFiles(ctx, ref, branch, base, commitMessage, files)
 	if err != nil {
-		fail("committing to " + branch + ": " + FixPRError(err))
+		s.failFixPR(ctx, orgID, id, "committing to "+branch+": "+FixPRError(err))
 		return
 	}
-	pr, err := writer.CreatePullRequest(ctx, ref, scm.PullRequestSpec{Branch: branch, BaseBranch: baseBranch, Title: title, Body: body})
+	pr, err := writer.CreatePullRequest(ctx, ref, scm.PullRequestSpec{Branch: branch, BaseBranch: baseBranch, Title: title, Body: body(baseBranch)})
 	if err != nil {
-		fail("opening the pull request: " + FixPRError(err))
+		s.failFixPR(ctx, orgID, id, "opening the pull request: "+FixPRError(err))
 		return
 	}
 	link := pr.URL

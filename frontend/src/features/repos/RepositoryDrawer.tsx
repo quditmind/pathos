@@ -19,6 +19,7 @@ import { MetadataSummary } from "./metadata/MetadataSummary";
 import { clientErrors, diffMetadata, draftFromRepository, sectionForKey, sections, type MetadataDraft } from "./metadata/model";
 import { PublicExposureBadge, RepositoryKey } from "./badges";
 import { FixPRSettingsPanel } from "@/features/fixprs/FixPRPanel";
+import { AIFixSettingsPanel } from "@/features/aifix/AIFixPanel";
 import { PushProtectionPanel } from "./PushProtectionPanel";
 import { EndpointVerificationSection } from "./EndpointVerification";
 import { SecurityPanel } from "./SecurityPanel";
@@ -118,6 +119,7 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {tab === "security" && <SecurityPanel r={r} />}
             {tab === "security" && <PushProtectionPanel r={r} />}
             {tab === "security" && <FixPRSettingsPanel r={r} />}
+            {tab === "security" && <AIFixSettingsPanel r={r} />}
             {tab === "dependencies" && (
               <div className="space-y-5">
                 <EndOfLifePanel repoId={r.id} />

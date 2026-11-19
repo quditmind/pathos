@@ -8,7 +8,7 @@ import { KevBadge, RiskBadge } from "@/features/vuln/intel";
 import { cn } from "@/lib/utils";
 
 interface Step {
-  type: "internet" | "target" | "repository" | "application" | "component" | "image" | "finding";
+  type: "internet" | "target" | "repository" | "application" | "component" | "image" | "workload" | "finding";
   label: string;
   sub?: string;
   link?: string;
@@ -20,7 +20,7 @@ interface AttackPath {
   severity: string;
   kev: boolean;
   exploit_available: boolean;
-  entry: "dast_target" | "exposed_repository";
+  entry: "dast_target" | "exposed_repository" | "runtime_exposure";
   steps: Step[];
   reasons: string[];
 }
@@ -49,7 +49,8 @@ export function AttackPathsPage() {
         </Select>
         {q.data && (
           <span className="text-[12px] text-muted-foreground">
-            {q.data.counts.dast_target ?? 0} through tested applications · {q.data.counts.exposed_repository ?? 0} through exposed assets
+            {q.data.counts.dast_target ?? 0} through tested applications · {q.data.counts.exposed_repository ?? 0} through exposed assets ·{" "}
+            {q.data.counts.runtime_exposure ?? 0} observed in Kubernetes clusters
           </span>
         )}
       </div>
@@ -60,7 +61,8 @@ export function AttackPathsPage() {
       ) : !q.data.items.length ? (
         <Card>
           <EmptyState icon={<Route />} title="No attack paths at this risk level">
-            Paths need an internet-exposed asset (Public internet exposure: yes) or a web or API scan target. Unused dependencies never count.
+            Paths need an internet-exposed asset (Public internet exposure: yes), a web or API scan target, or a workload that an Ingress or a public
+            load balancer exposes in a connected Kubernetes cluster (Runtime). Unused dependencies never count.
           </EmptyState>
         </Card>
       ) : (

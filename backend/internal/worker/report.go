@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -52,6 +53,9 @@ type reporter struct {
 	a       *Agent
 	path    string
 	secrets []string
+	// extra are values registered while the job runs (secrets read for
+	// live validation); guarded by mu.
+	extra []string
 
 	mu      sync.Mutex
 	events  []jobEvent
@@ -133,12 +137,30 @@ func (r *reporter) clean(msg string) (string, bool) {
 	for _, s := range r.secrets {
 		msg = strings.ReplaceAll(msg, s, "[REDACTED]")
 	}
+	r.mu.Lock()
+	extra := r.extra
+	r.mu.Unlock()
+	for _, s := range extra {
+		msg = strings.ReplaceAll(msg, s, "[REDACTED]")
+	}
 	msg = credRe.ReplaceAllString(msg, "$1$2[REDACTED]")
 	msg = strings.ToValidUTF8(strings.TrimRight(msg, "\r\n"), "?")
 	if len(msg) > maxMessageLen {
 		msg = strings.ToValidUTF8(msg[:maxMessageLen], "")
 	}
 	return msg, true
+}
+
+// redact registers values that must never appear in what the job sends
+// (defence in depth: nothing logs them).
+func (r *reporter) redact(values ...string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, v := range values {
+		if len(v) >= 8 && !slices.Contains(r.extra, v) {
+			r.extra = append(r.extra, v)
+		}
+	}
 }
 
 // event queues a stage event.

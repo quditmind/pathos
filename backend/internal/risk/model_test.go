@@ -121,3 +121,156 @@ func TestMaliciousPackages(t *testing.T) {
 		t.Errorf("malware ignores reachability and has maximal likelihood: %q %q", reach, like)
 	}
 }
+
+func TestActiveSecret(t *testing.T) {
+	w := Default()
+	base := Input{Status: "open", Severity: "critical", Criticality: "medium", Exposure: "unknown", Confidence: "medium"}
+	plain := Compute(base, w)
+	live := base
+	live.SecretActive = true
+	r := Compute(live, w)
+	if r.Score <= plain.Score || Band(r.Score) != "critical" {
+		t.Fatalf("an active secret is critical risk: %v (plain %v)", r.Score, plain.Score)
+	}
+	for _, f := range r.Factors {
+		if f.Key == "likelihood" && f.Value != "leaked credential validated as active" {
+			t.Errorf("likelihood source: %q", f.Value)
+		}
+	}
+}
+
+func factor(r Result, key string) *Factor {
+	for i := range r.Factors {
+		if r.Factors[i].Key == key {
+			return &r.Factors[i]
+		}
+	}
+	return nil
+}
+
+func TestRuntimeFactors(t *testing.T) {
+	w := Default()
+	base := Input{Status: "open", Severity: "high", Exposure: "unknown"}
+	plain := Compute(base, w)
+	for _, k := range []string{"deployed", "runtime_exposure", "privileged", "runtime_alert"} {
+		if factor(plain, k) != nil {
+			t.Errorf("no runtime data, no %s factor", k)
+		}
+	}
+
+	dep := base
+	dep.RuntimeStatus = "deployed"
+	dep.RuntimeEvidence.Deployed = []string{"cluster prod, namespace shop, Deployment web"}
+	deployed := Compute(dep, w)
+	nd := base
+	nd.RuntimeStatus = "not_deployed"
+	nd.RuntimeEvidence.Deployed = []string{"no workload in the 1 connected cluster(s) (prod) runs ghcr.io/acme/shop:1.0"}
+	notDeployed := Compute(nd, w)
+	if !(notDeployed.Score < plain.Score && plain.Score < deployed.Score) {
+		t.Errorf("not deployed %v < unknown %v < deployed %v", notDeployed.Score, plain.Score, deployed.Score)
+	}
+	if f := factor(deployed, "deployed"); f == nil || len(f.Evidence) != 1 || !strings.Contains(f.Evidence[0], "namespace shop") {
+		t.Errorf("deployed factor carries its evidence: %+v", f)
+	}
+	if f := factor(notDeployed, "deployed"); f == nil || f.Weight >= 1 || f.Value != "not running in any connected cluster" {
+		t.Errorf("not deployed factor: %+v", f)
+	}
+
+	// Observed exposure replaces the declared one (no double counting).
+	exp := dep
+	exp.Exposure = "yes"
+	exp.RuntimeExposed = true
+	exp.RuntimeEvidence.Exposed = []string{"Ingress shop routes https://shop.example.com/"}
+	observed := Compute(exp, w)
+	declaredOnly := dep
+	declaredOnly.Exposure = "yes"
+	declared := Compute(declaredOnly, w)
+	if f := factor(observed, "exposure"); f == nil || f.Weight != 1 {
+		t.Errorf("declared exposure neutral when observed: %+v", f)
+	}
+	if f := factor(observed, "runtime_exposure"); f == nil || f.Evidence[0] != exp.RuntimeEvidence.Exposed[0] {
+		t.Errorf("runtime exposure factor: %+v", f)
+	}
+	if observed.Score != declared.Score {
+		// Same default weight (1.3) for declared and observed exposure.
+		t.Errorf("observed %v vs declared %v exposure with equal weights", observed.Score, declared.Score)
+	}
+
+	all := exp
+	all.RuntimePrivileged, all.RuntimeAlert = true, true
+	all.RuntimeEvidence.Privileged = []string{"privileged container"}
+	all.RuntimeEvidence.Alerts = []string{"Terminal shell in container"}
+	worst := Compute(all, w)
+	if worst.Score <= observed.Score || factor(worst, "privileged") == nil || factor(worst, "runtime_alert") == nil {
+		t.Errorf("privileged + alert raise risk: %v vs %v", worst.Score, observed.Score)
+	}
+	// Closed findings stay at zero whatever runs.
+	all.Status = "fixed"
+	if Compute(all, w).Score != 0 {
+		t.Error("closed finding")
+	}
+}
+
+func TestRuntimeWeightsBackwardCompatible(t *testing.T) {
+	// A model stored before the runtime weights existed validates and gets
+	// the defaults.
+	old := Weights{Severity: map[string]float64{}, KEV: 1, ExploitAvailable: 0.8, EPSSWeight: 1, LikelihoodUnknown: 0.5,
+		HumanConfirmed: 1.1, CompensatingControls: 0.7, FixAvailable: 1.05}
+	if err := old.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	d := Default()
+	if old.RuntimeExposed != d.RuntimeExposed || old.Deployment["not_deployed"] != d.Deployment["not_deployed"] || old.RuntimeAlert != d.RuntimeAlert {
+		t.Errorf("defaults filled: %+v", old)
+	}
+	bad := Default()
+	bad.Deployment["not_deployed"] = 5
+	if bad.Validate() == nil {
+		t.Error("deployment weight out of range")
+	}
+	bad = Default()
+	bad.Deployment["running"] = 1
+	if bad.Validate() == nil {
+		t.Error("unknown deployment key")
+	}
+}
+
+// A function-level answer uses its own weights and says how it was found.
+func TestFunctionReachability(t *testing.T) {
+	w := Default()
+	base := Input{Status: "open", Severity: "high", Criticality: "medium", Exposure: "unknown", Confidence: "high"}
+	score := func(reach, method string) (float64, Factor) {
+		in := base
+		in.Reachability, in.ReachabilityMethod = reach, method
+		r := Compute(in, w)
+		for _, f := range r.Factors {
+			if f.Key == "reachability" {
+				return r.Score, f
+			}
+		}
+		t.Fatal("no reachability factor")
+		return 0, Factor{}
+	}
+	pkgReach, f1 := score("reachable", "import")
+	fnReach, f2 := score("reachable", "call_graph")
+	fnNot, f3 := score("not_reachable", "symbol_calls")
+	pkgNot, _ := score("not_reachable", "import")
+	if !(fnReach > pkgReach && pkgReach > pkgNot && pkgNot > fnNot && fnNot > 0) {
+		t.Errorf("order: %v %v %v %v", fnReach, pkgReach, pkgNot, fnNot)
+	}
+	if f1.Label != "Reachability" || f2.Label != "Reachability (vulnerable function, call graph)" || f2.Value != "called" ||
+		f3.Label != "Reachability (vulnerable function, calls in the code)" || f3.Value != "not called" || f3.Weight != 0.5 {
+		t.Errorf("factors: %+v %+v %+v", f1, f2, f3)
+	}
+	// stored models without the new weights get the defaults
+	old := Default()
+	old.FunctionReachability = nil
+	if err := old.Validate(); err != nil || old.FunctionReachability["reachable"] != 1.3 {
+		t.Errorf("validate: %v %v", err, old.FunctionReachability)
+	}
+	bad := Default()
+	bad.FunctionReachability["maybe"] = 1
+	if bad.Validate() == nil {
+		t.Error("unknown key accepted")
+	}
+}

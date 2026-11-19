@@ -98,6 +98,7 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-iac | Trivy (config mode) | 0.76.2 | Apache-2.0 | The core image's binary |
 | worker-sca | govulncheck (with the Go 1.27.4 toolchain for package loading) | 1.10.0 | BSD-3-Clause | Built from its Go module (Go checksum database) |
 | worker-sca | pathos-depcheck | PATHOS version | Apache-2.0 | Built from this repository (`backend/cmd/pathos-depcheck`); popular-package lists from GuardDog 3.2.0 (Apache-2.0) |
+| worker-sca | pathos-reach | PATHOS version | Apache-2.0 | Built from this repository (`backend/cmd/pathos-reach`, standard library only) |
 | worker-sca | pip-audit | 2.10.1 | Apache-2.0 | `pip install --require-hashes` (`workers/sca/requirements.txt`) |
 | worker-sca | GuardDog | 3.2.0 | Apache-2.0 | Same |
 | worker-sca | cargo-audit (RustSec advisory database snapshot) | 0.23.0 | Apache-2.0 OR MIT | Release binary and source archive of a database commit, SHA-256 pinned |

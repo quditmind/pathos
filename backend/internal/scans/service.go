@@ -56,6 +56,10 @@ type Service struct {
 	// Offline (PATHOS_OFFLINE=true): declared endpoint verification, which
 	// contacts the endpoints, is disabled.
 	Offline bool
+	// AIFix proposes code fixes (the AI service); ReadSource reads the
+	// finding's file for its context. Either nil disables AI fixes.
+	AIFix      AIFixer
+	ReadSource SourceFileFunc
 }
 
 var errNotFound = errors.New("not found")
@@ -65,6 +69,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerProfiles(mux)
 	s.registerPRChecks(mux)
 	s.registerFixPRs(mux)
+	s.registerAIFixes(mux)
 	s.registerJobs(mux)
 	s.registerFindings(mux)
 	s.registerImports(mux)
@@ -73,6 +78,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	s.registerEndpointVerification(mux)
 	s.registerWorkersAdmin(mux)
 	s.registerScanTypes(mux)
+	s.registerSecretValidation(mux)
 }
 
 func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {

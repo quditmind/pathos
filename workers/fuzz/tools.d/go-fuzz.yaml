@@ -1,11 +1,13 @@
 # Go native fuzzing: `go test -fuzz` for each Fuzz* target in the
 # repository's *_test.go files (FUZZ_SECONDS each, FUZZ_TOTAL_SECONDS in
-# all, at most FUZZ_MAX_TARGETS targets). Builds and runs repository code
-# in the worker sandbox, on a copy of the checkout, without network access
-# (GOPROXY=off: only vendored or no module dependencies) and under CPU,
-# file size and time limits. Crashes are findings with the reproducer
-# input (base64, at most 4 KiB) in the report as evidence; targets that do
-# not build are listed in the report, not reported as findings.
+# all, at most FUZZ_MAX_TARGETS targets). Builds and runs repository code,
+# so it runs in the sandbox runner (sandbox: true; the worker-fuzz-sandbox
+# container: no network interface, no worker credentials, its own UID and
+# cgroup limits), on a copy of the checkout (GOPROXY=off: only vendored or
+# no module dependencies), under CPU, file size and time limits. Crashes
+# are findings with the reproducer input (base64, at most 4 KiB) in the
+# report as evidence; targets that do not build are listed in the report,
+# not reported as findings.
 name: go-fuzz
 display_name: Go native fuzzing
 category: fuzz
@@ -27,6 +29,7 @@ output: file
 network: none
 intrusive: false
 requires_build: true
+sandbox: true
 default_enabled: false
 parser: jsonmap
 jsonmap:

@@ -37,6 +37,7 @@ import (
 	"pathos/internal/repos"
 	"pathos/internal/review"
 	"pathos/internal/risk"
+	"pathos/internal/runtimectx"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
 	"pathos/internal/scm"
@@ -111,12 +112,23 @@ func Build(d Deps) Handlers {
 	// up findings that need a person.
 	scanSvc.StatusWriter, scanSvc.PublicURL = repoSvc.StatusWriter, d.PublicURL
 	scanSvc.FixPRTarget = FixPRTarget(repoSvc)
+	// Verified AI fixes: the AI service proposes, workers verify.
+	scanSvc.AIFix = aiSvc
+	scanSvc.ReadSource = func(ctx context.Context, orgID, repoID uuid.UUID, commit, path string) ([]byte, error) {
+		b, _, err := repoSvc.ReadSourceFile(ctx, orgID, repoID, repos.SourceRef{Commit: commit}, path)
+		return b, err
+	}
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
 	scanSvc.Offline = d.Offline
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
 			d.Log.Warn("developer attribution failed", "job_id", jobID, "err", err)
+		}
+		// Runtime facts of the new findings (database only; no-op
+		// without a connected cluster).
+		if err := runtimectx.LinkAfterScan(ctx, d.DB, orgID); err != nil {
+			d.Log.Warn("runtime linking failed", "job_id", jobID, "err", err)
 		}
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
@@ -152,6 +164,7 @@ func Build(d Deps) Handlers {
 	(&tickets.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}).Register(protected)
 	reviewSvc.Register(protected)
 	(&risk.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	NewRuntimeService(d, az).Register(protected)
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
 	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
@@ -286,4 +299,11 @@ func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {
 		}
 	}
 	return &ai.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, HTTP: client, LocalHTTP: local}
+}
+
+// NewRuntimeService builds the runtime context service. The API role only
+// serves it; synchronisations (outbound calls to clusters and registries)
+// run in the jobs role.
+func NewRuntimeService(d Deps, az *authz.Authorizer) *runtimectx.Service {
+	return &runtimectx.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, AllowHTTP: d.SCMNet.AllowHTTP}
 }

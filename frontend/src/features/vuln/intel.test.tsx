@@ -13,7 +13,7 @@ const defaults: RiskWeights = {
   severity: { critical: 9.5, high: 7.5, medium: 5, low: 2.5, info: 0 }, use_cvss: true, kev: 1, exploit_available: 0.8, epss_weight: 1, likelihood_unknown: 0.5,
   criticality: { critical: 1.3, high: 1.15, medium: 1, low: 0.8 }, exposure: { yes: 1.3, unknown: 1.1, no: 0.85 },
   reachability: { reachable: 1.2, unknown: 1, not_reachable: 0.6 }, confidence: { high: 1, medium: 0.9, low: 0.75, unknown: 0.9 },
-  human_confirmed: 1.1, compensating_controls: 0.7, fix_available: 1.05,
+  human_confirmed: 1.1, compensating_controls: 0.7, fix_available: 1.05, deployment: { deployed: 1.1, not_deployed: 0.7 }, runtime_exposed: 1.3, privileged_workload: 1.15, runtime_alert: 1.3,
 };
 
 describe("risk display", () => {

@@ -312,6 +312,40 @@ List response, sorted by name:
 
 How workers register and receive jobs is described in [Worker protocol](worker-protocol.md).
 
+## Secret validation settings
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/api/v1/settings/secret-validation` | `settings.manage` (org-wide) | Providers and limits of [live secret validation](../user-guide/secret-validation.md) |
+| `PUT` | `/api/v1/settings/secret-validation` | `settings.manage` (org-wide) | Replace them |
+
+`GET` returns:
+
+```json
+{
+  "providers": [
+    { "id": "aws", "name": "AWS access key", "hosts": ["sts.amazonaws.com"], "checkable": true,
+      "endpoint": "POST https://sts.amazonaws.com/ Action=GetCallerIdentity (SigV4, us-east-1)", "note": "…", "enabled": false },
+    { "id": "pypi", "name": "PyPI API token", "hosts": null, "checkable": false, "endpoint": "", "note": "…", "enabled": false }
+  ],
+  "rate_per_second": 1,
+  "max_checks_per_scan": 50,
+  "updated_at": null,
+  "can_manage": true,
+  "offline": false
+}
+```
+
+Every provider is listed; `hosts` are the egress allowlist entries the provider needs (Squid syntax, a leading dot matches subdomains). Nothing is enabled by default.
+
+`PUT` body (all fields required):
+
+```json
+{ "providers": ["aws", "github"], "rate_per_second": 2, "max_checks_per_scan": 100 }
+```
+
+`providers` must be known, checkable provider IDs (`400` otherwise; an empty list turns validation off), `rate_per_second` 1–10, `max_checks_per_scan` 1–500. Returns the settings as `GET` does. Audited as `secret_validation.settings.update` with the previous and new providers.
+
 ## MFA and recovery codes
 
 Multi-factor authentication is managed in Keycloak; PATHOS shows the status and can require enrolment.

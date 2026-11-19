@@ -22,6 +22,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Source provider (SCM) connections](integrations.md#providers-and-authentication-methods) | Providers, connections, discovery, SCM inventory, OAuth applications, webhook receivers |
 | [Imports and uploads](imports.md#upload-sessions) | Chunked uploads and asynchronous repository import jobs |
 | [Applications](applications.md#the-application-object) | Applications and how repositories link to them |
+| [Runtime context](runtime.md#clusters) | Kubernetes clusters and container registries (read-only inventories), workloads, application mappings, where a finding runs |
 | [Ticketing and reports](integrations-reporting.md#ticketing-jira-servicenow) | Jira and ServiceNow, executive overview, custom reports |
 
 **Findings and scanning**

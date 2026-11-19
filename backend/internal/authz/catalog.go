@@ -56,7 +56,10 @@ const (
 
 	PermAIReview    Permission = "ai.review"
 	PermAIConfigure Permission = "ai.configure"
-	PermMCPManage   Permission = "mcp.manage"
+	// PermAIFix requests AI-proposed code fixes, which PATHOS verifies
+	// before a pull request can be opened from them.
+	PermAIFix     Permission = "ai.fix"
+	PermMCPManage Permission = "mcp.manage"
 
 	PermNotificationsManage Permission = "notifications.manage"
 	PermSettingsManage      Permission = "settings.manage"
@@ -118,6 +121,7 @@ var Permissions = []PermissionInfo{
 
 	{PermAIReview, "AI & MCP", "Run and approve AI reviews", false},
 	{PermAIConfigure, "AI & MCP", "Manage AI providers and configurations", true},
+	{PermAIFix, "AI & MCP", "Request AI-proposed code fixes for findings (verified by a worker before a pull request can be opened)", false},
 	{PermMCPManage, "AI & MCP", "Manage MCP servers and tool permissions", true},
 }
 
@@ -165,15 +169,15 @@ var SystemRoles = []SystemRole{
 		with(readOnly,
 			PermUsersRead, PermRolesRead, PermRolesAssign, PermAuditRead,
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview,
+			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview, PermAIFix,
 			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermReviewsAssess)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
 		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsExport, PermAIReview, PermReviewsAssess)},
+			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess)},
 	{"independent_reviewer", "Independent Reviewer",
 		"Second-level reviewer: validates other analysts' Human Eye decisions before closure",
 		with(readOnly, PermReviewsApprove, PermFindingsExport)},

@@ -20,6 +20,7 @@ import (
 	"pathos/internal/platform/logging"
 	"pathos/internal/policy"
 	"pathos/internal/reach"
+	"pathos/internal/runtimectx"
 	"pathos/internal/scanners"
 	"pathos/internal/vuln"
 )
@@ -54,7 +55,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	// SBOM generators (Syft, cdxgen, the AI-BOM) produce the component inventory, not
 	// findings.
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
-	if up.Status == "succeeded" && !sbomTool && len(raw) > 0 {
+	// pathos-reach reports are reachability evidence, not findings.
+	reachTool := scanners.IsReachabilityTool(up.Scanner)
+	if up.Status == "succeeded" && !sbomTool && !reachTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -119,7 +122,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			switch up.Scanner {
 			case scanners.Grype:
 				ct = "application/json"
-			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint:
+			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint, scanners.PathosReach:
 				ct = "application/json"
 			}
 			if sbomTool {
@@ -183,6 +186,26 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				if err := recordSignature(ctx, tx, orgID, jobID, targetID, raw); err != nil {
 					return err
 				}
+			case scanners.TrivyImage:
+				// The digests the image reference resolved to: running
+				// images are linked to this scan by digest.
+				if targetID != nil && pr == nil {
+					for _, d := range runtimectx.TrivyRepoDigests(raw) {
+						if _, err := tx.Exec(ctx, `INSERT INTO image_scan_digests (organization_id, scan_target_id, digest, reference, scan_job_id)
+							VALUES ($1, $2, $3, $4, $5) ON CONFLICT (scan_target_id, digest) DO UPDATE SET reference = EXCLUDED.reference,
+							scan_job_id = EXCLUDED.scan_job_id, scanned_at = now()`, orgID, *targetID, d.Digest, d.Reference, jobID); err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+		// Reachability reports of the repository's code: pathos-reach, and
+		// the depth of each vulnerability in govulncheck output (run by the
+		// worker or imported). Applied to findings when the job finishes.
+		if up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			if err := s.storeReachReport(ctx, tx, orgID, repoID, jobID, up, raw); err != nil {
+				return err
 			}
 		}
 		if up.Scanner == scanners.LicenseCheck && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
@@ -538,4 +561,27 @@ func confidenceOrUnknown(c string) string {
 func targetFingerprint(targetID uuid.UUID, fp string) string {
 	sum := sha256.Sum256([]byte("target:" + targetID.String() + ":" + fp))
 	return hex.EncodeToString(sum[:])
+}
+
+// storeReachReport keeps a pathos-reach report, or the reachability depths
+// of a govulncheck run, as the repository's latest. A report that cannot be
+// read is logged and skipped: the result itself is stored either way.
+func (s *Service) storeReachReport(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, up ResultUpload, raw []byte) error {
+	switch {
+	case up.Scanner == scanners.PathosReach:
+		r, err := reach.ParseReachReport(raw)
+		if err != nil {
+			s.Log.Warn("pathos-reach report not stored", "job_id", jobID, "err", err)
+			return nil
+		}
+		return reach.StoreReport(ctx, tx, orgID, repoID, jobID, reach.ToolPathosReach, r)
+	case up.Scanner == "govulncheck" || scanners.IsImportKey(up.Scanner) && firstNonEmpty(up.Format, scanners.DetectImportFormat(raw)) == "govulncheck":
+		res, err := scanners.GovulncheckResults(raw)
+		if err != nil {
+			s.Log.Warn("govulncheck reachability not stored", "job_id", jobID, "err", err)
+			return nil
+		}
+		return reach.StoreReport(ctx, tx, orgID, repoID, jobID, reach.ToolGovulncheck, map[string]any{"results": res})
+	}
+	return nil
 }

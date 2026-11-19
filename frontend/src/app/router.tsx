@@ -42,6 +42,7 @@ import { BenchmarkPage } from "@/features/posture/BenchmarkPage";
 import { BlastRadiusPage, validateBlastSearch } from "@/features/posture/BlastRadiusPage";
 import { ContextGraphPage, validateGraphSearch } from "@/features/posture/ContextGraphPage";
 import { AttackPathsPage } from "@/features/posture/AttackPathsPage";
+import { RuntimePage } from "@/features/runtime/RuntimePage";
 import { VulnerabilityPage } from "@/features/vuln/VulnerabilityPage";
 import { SuppressionRulesPage } from "@/features/vuln/SuppressionRulesPage";
 import { AnalystPage } from "@/features/ai/AnalystPage";
@@ -72,6 +73,7 @@ import { ConfigurationsPage as ReviewConfigurationsPage } from "@/features/revie
 import { WorkspacePage, validateWorkspaceSearch } from "@/features/review/workspace/WorkspacePage";
 import { DeveloperInsightsPage } from "@/features/insights/DeveloperInsightsPage";
 import { AttributionSettingsPage } from "@/features/insights/AttributionSettingsPage";
+import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
 
 function Authenticated() {
   const me = useMe();
@@ -182,6 +184,7 @@ const unmanagedRoute = createRoute({ getParentRoute: () => appRoute, path: "/pos
 const benchmarkRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/benchmark", component: BenchmarkPage });
 const blastRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/blast-radius", component: BlastRadiusPage, validateSearch: validateBlastSearch });
 const attackRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/attack-paths", component: AttackPathsPage });
+const runtimeRoute = createRoute({ getParentRoute: () => appRoute, path: "/runtime", component: RuntimePage });
 const vulnRoute = createRoute({ getParentRoute: () => appRoute, path: "/vulnerabilities/$id", component: VulnerabilityPage });
 const suppressionRoute = createRoute({ getParentRoute: () => appRoute, path: "/suppression-rules", component: SuppressionRulesPage });
 const analystRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/analyst", component: AnalystPage });
@@ -203,6 +206,7 @@ const riskIntelRoute = createRoute({ getParentRoute: () => appRoute, path: "/adm
 const policiesRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/policies", component: PoliciesPage });
 const devInsightsRoute = createRoute({ getParentRoute: () => appRoute, path: "/insights/developers", component: DeveloperInsightsPage });
 const attributionRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/developer-attribution", component: AttributionSettingsPage });
+const secretValidationRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/secret-validation", component: SecretValidationPage });
 
 const aiRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai", component: AIReviewsPage });
 const aiSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/ai", component: AISettingsPage });
@@ -229,7 +233,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

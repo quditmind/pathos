@@ -1,0 +1,165 @@
+#!/opt/pathos/fuzz/bin/python
+"""Runs a repository's tests to verify an AI-proposed fix.
+
+    pathos-fixtest go     <source> <log> <tmp>
+    pathos-fixtest python <source> <log> <tmp>
+
+  go      `go test ./...` in the repository root (go.mod required). Module
+          downloads are off (GOPROXY=off): only vendored dependencies (or
+          none) are available.
+  python  `python -m unittest discover` in the repository root, with the
+          worker's Python and no third-party packages (nothing is
+          installed).
+
+Exit status: 0 the tests passed, 1 they failed, 2 the runner does not apply
+to this repository (no go.mod, no tests, dependencies not vendored); the
+reason is the last line of the log.
+
+This runs repository code. The PATHOS worker calls it only for repositories
+where an administrator enabled a test runner for AI fix verification, and
+only through the sandbox runner (Sandbox.RunUntrusted, see
+docs/ARCHITECTURE.md "Running repository code"): network none, its own
+UID, no worker token, read-only root and the runner's cgroup limits. In
+addition the helper removes proxy settings, sets GOPROXY=off, works on a
+copy of the source, and applies nice 10, CPU time, file size and address
+space limits (rlimits) and a wall-clock limit (FIXTEST_SECONDS, default
+600).
+"""
+import os
+import re
+import resource
+import shutil
+import subprocess
+import sys
+
+GO = "/opt/pathos/fuzz/go/bin/go"
+PYTHON = os.path.join(os.path.dirname(os.path.realpath(__file__)), "python")
+MAX_COPY_BYTES = 1 << 30
+MAX_FILE_BYTES = 64 << 20
+MAX_LOG = 200 << 10
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".tox"}
+
+
+def setting(name, default):
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except ValueError:
+        return default
+
+
+SECONDS = setting("FIXTEST_SECONDS", 600)
+MEMORY_MB = setting("FIXTEST_MEMORY_MB", 4096)
+
+
+def copy_tree(src, dst):
+    """Copies the checkout (regular files only, no links) within limits."""
+    total = 0
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not os.path.islink(os.path.join(root, d))]
+        rel = os.path.relpath(root, src)
+        os.makedirs(os.path.join(dst, rel), exist_ok=True)
+        for f in files:
+            p = os.path.join(root, f)
+            if os.path.islink(p) or not os.path.isfile(p):
+                continue
+            size = os.path.getsize(p)
+            if size > MAX_FILE_BYTES:
+                continue
+            total += size
+            if total > MAX_COPY_BYTES:
+                raise NotApplicable("the repository is larger than %d MiB" % (MAX_COPY_BYTES >> 20))
+            shutil.copyfile(p, os.path.join(dst, rel, f))
+
+
+class NotApplicable(Exception):
+    pass
+
+
+def limits(cpu_seconds, address_space):
+    def apply():
+        os.nice(10)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 5))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (256 << 20, 256 << 20))
+        if address_space:
+            resource.setrlimit(resource.RLIMIT_AS, (address_space, address_space))
+        os.setsid()
+    return apply
+
+
+def base_env(tmp):
+    e = {k: v for k, v in os.environ.items()
+         if not k.startswith(("PATHOS_", "FIXTEST_")) and not k.lower().endswith("_proxy")}
+    e.update({"HOME": os.path.join(tmp, "home"), "TMPDIR": tmp, "PYTHONDONTWRITEBYTECODE": "1", "CI": "true"})
+    os.makedirs(e["HOME"], exist_ok=True)
+    return e
+
+
+def run(args, cwd, env, address_space=0):
+    try:
+        p = subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           timeout=SECONDS, preexec_fn=limits(SECONDS * 2, address_space), check=False)
+        return p.returncode, p.stdout.decode("utf-8", "replace")
+    except subprocess.TimeoutExpired as e:
+        return None, (e.stdout or b"").decode("utf-8", "replace") + "\nthe tests did not finish within %d seconds" % SECONDS
+
+
+def go(src, tmp):
+    if not os.path.isfile(os.path.join(src, "go.mod")):
+        raise NotApplicable("no go.mod at the repository root")
+    env = base_env(tmp)
+    flags = "-buildvcs=false"
+    if os.path.isfile(os.path.join(src, "vendor", "modules.txt")):
+        flags += " -mod=vendor"
+    env.update({"GOTOOLCHAIN": "local", "GOPROXY": "off", "GOFLAGS": flags, "GOSUMDB": "off", "GONOSUMDB": "*",
+                "GOCACHE": os.path.join(tmp, "gocache"), "GOMODCACHE": os.path.join(tmp, "gomodcache"), "GOTMPDIR": tmp,
+                "CGO_ENABLED": "0", "GOTELEMETRY": "off", "PATH": os.path.dirname(GO) + ":" + env.get("PATH", "")})
+    rc, out = run([GO, "test", "-count=1", "./..."], src, env)
+    if rc not in (0, None) and any(m in out for m in ("module lookup disabled by GOPROXY=off", "cannot find module providing package",
+                                                      "missing go.sum entry")):
+        raise NotApplicable(out[-2000:] + "\nthe module's dependencies are not vendored; they cannot be downloaded in the sandbox")
+    if rc == 0 and not re.search(r"^ok\s", out, re.M):
+        raise NotApplicable(out[-2000:] + "\nthe module has no tests")
+    return rc, out
+
+
+def python(src, tmp):
+    env = base_env(tmp)
+    env["PYTHONPATH"] = src
+    rc, out = run([PYTHON, "-m", "unittest", "discover", "-v"], src, env, address_space=MEMORY_MB << 20)
+    if rc == 5 or "Ran 0 tests" in out:
+        raise NotApplicable(out[-2000:] + "\nno unittest tests were found")
+    return rc, out
+
+
+def main(argv):
+    if len(argv) == 3 and argv[1] == "version":
+        return 0
+    if len(argv) != 5 or argv[1] not in ("go", "python"):
+        print(__doc__, file=sys.stderr)
+        return 2
+    source, log, tmp = os.path.realpath(argv[2]), argv[3], argv[4]
+    src = os.path.join(tmp, "src")
+    try:
+        if not os.path.isdir(source):
+            raise NotApplicable("the source is not a directory")
+        copy_tree(source, src)
+        rc, out = {"go": go, "python": python}[argv[1]](src, tmp)
+        status = 0 if rc == 0 else 1
+        if rc is None:
+            out += "\n(time limit reached)"
+    except NotApplicable as e:
+        out, status = str(e), 2
+    except Exception as e:  # the sandbox itself failed: neither pass nor fail
+        out, status = "the test sandbox failed: %s" % e, 3
+    finally:
+        shutil.rmtree(src, ignore_errors=True)
+    if len(out) > MAX_LOG:
+        out = out[:MAX_LOG // 2] + "\n... [output truncated] ...\n" + out[-MAX_LOG // 2:]
+    with open(log, "w", encoding="utf-8") as f:
+        f.write(out)
+    return status
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
