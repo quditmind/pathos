@@ -255,7 +255,12 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	switch t.Kind {
 	case "api":
 		if t.IntrusiveAuthorized {
-			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
+			// -skip-format-validation: an operation with a required
+			// parameter that has no example otherwise stops Nuclei
+			// ("Found 2 missing parameters", exit 1, and it tries to write
+			// required_openapi_params.yaml to the read-only working
+			// directory); with it, Nuclei fills the parameters and fuzzes.
+			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-skip-format-validation", "-t", filepath.Join(nucleiTemplates, "dast"),
 				"-etags", "dos,intrusive,bruteforce")
 		} else {
 			// specFile is the URL list from apiOperationURLs here: Nuclei

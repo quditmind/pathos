@@ -36,7 +36,7 @@ func TestNucleiArgs(t *testing.T) {
 	api := nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example", RateLimit: 500, AuthType: "basic", Username: "u", Password: "p",
 		IntrusiveAuthorized: true}, "/o", "/w/openapi.yaml")
 	joined = strings.Join(api, " ")
-	for _, want := range []string{"-l /w/openapi.yaml", "-im openapi", "-dast", "-rl 20", "-H Authorization: Basic dTpw"} {
+	for _, want := range []string{"-l /w/openapi.yaml", "-im openapi", "-dast", "-skip-format-validation", "-rl 20", "-H Authorization: Basic dTpw"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("api args missing %q: %s", want, joined)
 		}
