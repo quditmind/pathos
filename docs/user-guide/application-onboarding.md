@@ -34,7 +34,7 @@ Open **1 · Connect › Onboard an application**. The step bar shows the seven s
    - **Applications**: those that already contain the repository, those whose repositories share the owner or team (the namespace, for example `acme` in `acme/payments-api`), and those with a similar name. Each candidate shows a match percentage and the reasons.
 4. **Register**: choose **Link to <application ID>** for a candidate, or **Register as new** with a name (suggested from the repository name). Registering creates the application as a **draft** and fills what PATHOS can detect.
 5. **Tag & classify**: fill the gaps. Fields with a green background and the *detected* mark were filled automatically (see [Detected fields](#detected-fields)). **Save as draft** saves at any point.
-6. **Save to inventory**: checks the mandatory fields and tag categories and registers the application. Repositories already in PATHOS move into the application.
+6. **Save to inventory**: checks the mandatory fields and tag categories and registers the application. Repositories already in PATHOS without an application join it. A repository that **belongs to another application never moves silently**: see [Repositories of other applications](#repositories-of-other-applications).
 7. **Start discovery**: new repositories are registered through the import pipeline with the application's classification (two extra answers are asked: business region and whether the repository is publicly exposed), and every repository gets its first scan. CodeGraph discovery arrives in M4.
 
 To continue a draft later, open it from **Applications** (status *Onboarding: N of M fields*) or from its profile (**Continue onboarding**).
@@ -42,6 +42,15 @@ To continue a draft later, open it from **Applications** (status *Onboarding: N 
 ### No duplicates
 
 Onboarding the same repository twice never creates a second application, onboarding record or repository, also when two people start it at the same time. The database enforces it: one onboarding record per repository location per organization. The second attempt fails with [PTH-ONB-1008](#troubleshooting) and creates nothing. Registering a new application with the name of an existing one fails with PTH-ONB-1011.
+
+### Repositories of other applications
+
+When a repository you onboard already belongs to another application, the *Find existing asset* step shows **"<repository> belongs to <App X>. Move it to <this application>?"**, unticked by default. *Save to inventory* asks again with your earlier choice filled in.
+
+- **Unticked** (default): the repository stays in App X and is listed as *kept in App X* (also on the profile's Repositories tab).
+- **Ticked**: the repository moves into this application. Each move is recorded in the audit log as `repository.application_move` with who moved it, the repository, and the old and new application.
+
+The API enforces the same rule: completing an onboarding without saying, for each such repository, whether it moves or stays is refused with PTH-ONB-1012, and nothing moves.
 
 ### Drafts
 
@@ -117,6 +126,7 @@ Repository topics: PATHOS does not read topics from the providers yet; topic rul
 | PTH-ONB-1004 | *… is already registered in PATHOS in a scope you cannot see* | The repository exists in a business unit you have no access to. Ask an administrator to link it. |
 | PTH-ONB-1011 | *An application named … already exists* | Choose **Link to existing** for that application, or another name. |
 | PTH-ONB-1009 | *Fill the mandatory fields before saving to the inventory* | Fill the fields marked *Needed to save to the inventory* in **Tag & classify**. The application stays a draft until then. |
+| PTH-ONB-1012 | *These repositories belong to another application* | Decide for each listed repository: tick *Move it to this application* or leave it unticked to keep it where it is, then save again. Nothing moved. |
 | PTH-ONB-1010 | *A tag is required in: …* | The application type has mandatory tag categories. Add a tag from each listed category. |
 | PTH-ONB-1006 | *A tag is required in* when starting discovery | Repository registration needs a tag of a category mandatory for repositories. Add it to the application's tags, or complete the registration in the import wizard. |
 | PTH-PLAT-0003 | *unknown value … (see Configurations › Asset settings)* | A catalogue value was archived meanwhile. Choose another value. |

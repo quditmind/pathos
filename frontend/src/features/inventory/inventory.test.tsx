@@ -7,7 +7,7 @@ import { ApplicationProfile } from "./ApplicationProfilePage";
 import { draftFrom, patchFrom } from "./ClassificationForm";
 import { LifecyclePage } from "./LifecyclePage";
 import { OnboardingFlowPage, importMetadata } from "./OnboardingFlowPage";
-import type { AppLifecycle, ApplicationProfile as Profile, Phase } from "./api";
+import { moveDecision, type AppLifecycle, type ApplicationProfile as Profile, type OnboardingSource, type Phase } from "./api";
 
 // Example data for tests only (not real assets).
 const meta = (flags: Record<string, boolean>) => () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: flags });
@@ -231,6 +231,37 @@ describe("onboarding flow", () => {
     expect(body).toMatchObject({ mode: "new", application: { name: "Payments API" }, repositories: [{ external_id: "101" }] });
   });
 
+  it.each([
+    [false, []],
+    [true, ["r1"]],
+  ])("never moves a repository of another application unless the box is ticked (ticked: %s)", async (tick, expected) => {
+    const bodies: unknown[] = [];
+    const base = routes((b) => {
+      bodies.push(b);
+      return { application: { ...profile, id: "a2" }, sources: [] };
+    });
+    const r = { ...base, "POST /api/v1/onboarding/match": () => ({
+      sources: [{ scm_connection_id: "c1", external_id: "101", full_name: repo.full_name, url: repo.url, organization: "acme", project: "", language: "Go",
+        source_key: "github.com/acme/payments-api", registered_elsewhere: false, onboarding: null,
+        existing_repository: { id: "r1", name: "payments-api", full_name: repo.full_name, url: repo.url, application: { id: "x1", name: "App X" } } }],
+      candidates: [], suggested_name: "Payments API",
+    }) };
+    mockApi(r);
+    renderApp(<OnboardingFlowPage />, { permissions: ["repos.read", "repos.manage"] });
+    fireEvent.click(await screen.findByRole("checkbox", { name: "Select acme/payments-api" }));
+    fireEvent.click(screen.getByRole("button", { name: /Find existing assets/ }));
+    const box = await screen.findByRole("checkbox", { name: "acme/payments-api belongs to App X. Move it to Payments API?" });
+    expect(box).not.toBeChecked();
+    expect(screen.getByText("kept in App X")).toBeInTheDocument();
+    if (tick) {
+      fireEvent.click(box);
+      expect(screen.queryByText("kept in App X")).toBeNull();
+    }
+    fireEvent.click(screen.getByRole("button", { name: /Register as new/ }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toMatchObject({ move_repositories: expected });
+  });
+
   it("explains a duplicate onboarding and links to the existing application", async () => {
     mockApi(
       routes(() =>
@@ -285,5 +316,40 @@ describe("tag framework", () => {
     expect(calls.find((c) => c.method === "POST" && c.path === "/api/v1/tag-rules")!.body).toEqual({
       name: "Web repos", tag_id: "t1", target_type: "repository", condition: "path_pattern", field: "", value: "acme/web-*", apply: true,
     });
+  });
+});
+
+describe("save to inventory with repositories of other applications", () => {
+  const src = (over: Partial<OnboardingSource>): OnboardingSource => ({
+    id: "s1", full_name: "acme/payments-api", url: "", scm_connection_id: "c1", external_id: "101", organization: "acme", project: "",
+    decision: "linked_existing", status: "draft", repository_id: "r1", repository_name: "payments-api", import_job_id: null, import_status: null,
+    language: "", created_at: "", current_application: { id: "x1", name: "App X" }, move_requested: false, ...over,
+  });
+
+  it("lists every such repository as moved or kept", () => {
+    const sources = [src({}), src({ id: "s2", repository_id: "r2", move_requested: true }), src({ id: "s3", repository_id: "r3", current_application: null })];
+    expect(moveDecision(sources, new Set(["r2"]))).toEqual({ move_repositories: ["r2"], keep_repositories: ["r1"] });
+  });
+
+  it("keeps by default and moves only what is ticked", async () => {
+    const draft: Profile = { ...profile, progress: { ...profile.progress, missing: [], filled: 9 } };
+    const bodies: unknown[] = [];
+    mockApi({
+      ...common,
+      "GET /api/v1/meta": meta({ onboarding: true }),
+      "GET /api/v1/applications/a1/onboarding": () => ({ application: draft, sources: [src({})] }),
+      "POST /api/v1/applications/a1/onboarding/complete": (_u: URL, init: { json?: unknown }) => {
+        bodies.push(init.json);
+        return { application: { ...draft, onboarding_status: "complete" }, sources: [src({ status: "kept" })] };
+      },
+    });
+    renderApp(<OnboardingFlowPage />, { permissions: ["repos.read", "repos.manage"], path: "/?app=a1" });
+    fireEvent.click(await screen.findByRole("button", { name: /Continue/ }));
+    const box = await screen.findByRole("checkbox", { name: "acme/payments-api belongs to App X. Move it to Payments Platform?" });
+    expect(box).not.toBeChecked();
+    expect(screen.getByText("kept in App X")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save to inventory" }));
+    await waitFor(() => expect(bodies).toHaveLength(1));
+    expect(bodies[0]).toEqual({ move_repositories: [], keep_repositories: ["r1"] });
   });
 });

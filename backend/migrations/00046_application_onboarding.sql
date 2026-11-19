@@ -63,7 +63,13 @@ CREATE TABLE asset_onboardings (
     -- The repository once it exists in PATHOS (linked or imported).
     repository_id     uuid,
     decision          text NOT NULL CHECK (decision IN ('linked_existing', 'registered_new')),
-    status            text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'saved', 'discovery_started')),
+    -- kept: the repository belongs to another application and the person
+    -- chose to leave it there at "Save to inventory".
+    status            text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'saved', 'discovery_started', 'kept')),
+    -- The person asked (at registration) to move the repository out of its
+    -- current application; the move itself needs the explicit list at
+    -- completion (move_repositories).
+    move_requested    boolean NOT NULL DEFAULT false,
     import_job_id     uuid,
     -- Discovery hints (primary language reported by the provider).
     hints             jsonb NOT NULL DEFAULT '{}'::jsonb,

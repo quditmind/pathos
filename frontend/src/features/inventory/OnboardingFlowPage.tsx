@@ -23,6 +23,7 @@ import {
   conflictApplication,
   fieldLabels,
   matchSources,
+  moveDecision,
   registerOnboarding,
   startDiscovery,
   useApplicationSettings,
@@ -136,6 +137,8 @@ function NewFlow() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>(null);
   const [name, setName] = useState("");
+  // Repositories of other applications the person chose to move (unticked by default).
+  const [move, setMove] = useState<Set<string>>(new Set());
 
   const refs: SourceRef[] = scm.items.map((it) => ({
     scm_connection_id: scm.connectionId,
@@ -165,7 +168,15 @@ function NewFlow() {
     setBusy(true);
     setError(null);
     try {
-      const o = await registerOnboarding(mode === "link" ? { mode, application_id: applicationId, repositories: refs } : { mode, application: { name: name.trim() }, repositories: refs });
+      // Linking to the application a repository already belongs to is no move.
+      const moving = (match?.sources ?? [])
+        .filter((s) => s.existing_repository?.application && move.has(s.existing_repository.id) && s.existing_repository.application.id !== applicationId)
+        .map((s) => s.existing_repository!.id);
+      const o = await registerOnboarding(
+        mode === "link"
+          ? { mode, application_id: applicationId, repositories: refs, move_repositories: moving }
+          : { mode, application: { name: name.trim() }, repositories: refs, move_repositories: moving },
+      );
       void navigate({ to: "/onboarding", search: { app: o.application.id } as never, replace: true });
     } catch (e) {
       setError(e);
@@ -222,6 +233,20 @@ function NewFlow() {
                     </Badge>
                   )}
                   {!s.existing_repository && !s.registered_elsewhere && !s.onboarding && <Badge>New to PATHOS</Badge>}
+                  {s.existing_repository?.application && !s.onboarding && (
+                    <MoveChoice
+                      repo={s.full_name}
+                      from={s.existing_repository.application.name}
+                      to={name.trim() || "the application you register or link below"}
+                      checked={move.has(s.existing_repository.id)}
+                      onChange={(on) => {
+                        const n = new Set(move);
+                        if (on) n.add(s.existing_repository!.id);
+                        else n.delete(s.existing_repository!.id);
+                        setMove(n);
+                      }}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -373,6 +398,22 @@ export function importMetadata(a: ApplicationProfile, extra: { business_region_i
   return m as AssetMetadata;
 }
 
+/**
+ * "<repo> belongs to <App X>. Move it to <this app>?" — unticked by default;
+ * unticked, the repository stays where it is ("kept in <App X>").
+ */
+export function MoveChoice({ repo, from, to, checked, onChange }: { repo: string; from: string; to: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <span className="flex flex-wrap items-center gap-2 text-[12.5px]">
+      <label className="flex items-center gap-1.5">
+        <input type="checkbox" className="accent-[var(--primary)]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        {`${repo} belongs to ${from}. Move it to ${to}?`}
+      </label>
+      {!checked && <Badge>{`kept in ${from}`}</Badge>}
+    </span>
+  );
+}
+
 function SaveStep({ o, onBack, onDone }: { o: Onboarding; onBack: () => void; onDone: () => void }) {
   const a = o.application;
   const invalidate = useInvalidateInventory();
@@ -385,14 +426,17 @@ function SaveStep({ o, onBack, onDone }: { o: Onboarding; onBack: () => void; on
   const [exposure, setExposure] = useState("unknown");
   const [idem] = useState(randomId);
   const toImport = o.sources.filter((s) => !s.repository_id && s.scm_connection_id);
-  const linked = o.sources.filter((s) => s.repository_id);
+  // Repositories of other applications: moved only when ticked (prefilled from registration).
+  const others = o.sources.filter((s) => s.repository_id && s.current_application && s.status !== "kept");
+  const [move, setMove] = useState<Set<string>>(() => new Set(others.filter((s) => s.move_requested).map((s) => s.repository_id!)));
+  const linked = o.sources.filter((s) => s.repository_id && s.status !== "kept" && !s.current_application);
   const conns = [...new Set(toImport.map((s) => s.scm_connection_id!))];
 
   const saveToInventory = async () => {
     setBusy(true);
     setError(null);
     try {
-      await completeOnboarding(a.id);
+      await completeOnboarding(a.id, moveDecision(o.sources, move));
       invalidate();
     } catch (e) {
       setError(e);
@@ -454,6 +498,26 @@ function SaveStep({ o, onBack, onDone }: { o: Onboarding; onBack: () => void; on
           {a.progress.missing.length > 0 && <> Missing: {a.progress.missing.map((f) => fieldLabels[f] ?? f).join(", ")}.</>}
           {a.progress.missing_tag_categories.length > 0 && <> A tag is required in: {a.progress.missing_tag_categories.map((c) => c.name).join(", ")}.</>}
         </p>
+        {others.length > 0 && (
+          <ul className="space-y-1.5 text-[13px]" aria-label="Repositories of other applications">
+            {others.map((s) => (
+              <li key={s.id} className="flex flex-wrap items-center gap-2">
+                <MoveChoice
+                  repo={s.full_name}
+                  from={s.current_application!.name}
+                  to={a.name}
+                  checked={move.has(s.repository_id!)}
+                  onChange={(on) => {
+                    const n = new Set(move);
+                    if (on) n.add(s.repository_id!);
+                    else n.delete(s.repository_id!);
+                    setMove(n);
+                  }}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
         <p className="text-[12.5px] text-muted-foreground">
           {linked.length > 0 && `${linked.length} existing repositories will be linked to the application. `}
           {toImport.length > 0 && `${toImport.length} new repositories are registered in the next step through the import pipeline.`}

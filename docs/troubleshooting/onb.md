@@ -4,7 +4,7 @@ section: troubleshooting
 order: 105
 version: "1.0"
 updated: 2026-11-20
-summary: Repository import jobs, source uploads and asset registration (11 codes, PTH-ONB-*)
+summary: Repository import jobs, source uploads and asset registration (12 codes, PTH-ONB-*)
 ---
 
 # Troubleshooting: Onboarding and imports
@@ -28,6 +28,7 @@ Repository import jobs, source uploads and asset registration.
 | [PTH-ONB-1009](#PTH-ONB-1009) | Mandatory application fields missing | warning |
 | [PTH-ONB-1010](#PTH-ONB-1010) | Mandatory application tags missing | warning |
 | [PTH-ONB-1011](#PTH-ONB-1011) | Application name already exists | info |
+| [PTH-ONB-1012](#PTH-ONB-1012) | Repository belongs to another application | info |
 
 <a id="PTH-ONB-1001"></a>
 
@@ -393,4 +394,38 @@ Repository import jobs, source uploads and asset registration.
 **Verify**
 
 1. Registration succeeds and the application appears once in the inventory.
+
+
+<a id="PTH-ONB-1012"></a>
+
+## PTH-ONB-1012: Repository belongs to another application
+
+| | |
+|---|---|
+| Severity | info |
+| Category | conflict |
+| HTTP status | 409 |
+| AI help | not offered |
+| Short codes | `repository_in_other_application` |
+| Raised in | internal/inventory/onboarding.go (completeOnboarding) |
+
+**What it means.** Save to inventory found repositories of the onboarding that already belong to another application. PATHOS never moves a repository between applications silently: each one must be listed explicitly as moved or kept.
+
+**Confirmed cause.** A repository being onboarded is linked to another application (listed in the message and in error.details.conflicts). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The repository was linked to another application before onboarding started
+2. Someone linked it to another application while the draft was open
+
+**Impact.** Nothing was saved; the application stays a draft and no repository moved.
+
+**How to fix**
+
+1. In Save to inventory, tick "Move it to this application" for repositories that belong here, or leave it unticked to keep them where they are.
+2. API: list each repository in move_repositories or keep_repositories.
+
+**Verify**
+
+1. Save to inventory succeeds; moved repositories appear in the audit log as repository.application_move.
 

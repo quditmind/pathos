@@ -326,11 +326,11 @@ Errors: `400` (no repositories, unknown connection, the same repository twice).
 
 `POST /api/v1/onboarding` · permission `repos.manage` (on the business unit for a new application; on the application to link; on each existing repository).
 
-Body: `{ "mode": "new", "application": { "name": "Payments Platform", "description": "", "business_unit_id": null, "external_ref": "" }, "repositories": [source, …] }` or `{ "mode": "link", "application_id": "…", "repositories": [...] }`.
+Body: `{ "mode": "new", "application": { "name": "Payments Platform", "description": "", "business_unit_id": null, "external_ref": "" }, "repositories": [source, …] }` or `{ "mode": "link", "application_id": "…", "repositories": [...] }`. Optional `move_repositories: [repository_id, …]` records that existing repositories of another application should move here (`move_requested` on the source); it moves nothing by itself.
 
 A new application is created as a **draft**. Each source gets an onboarding record (`linked_existing` when the repository is in PATHOS, else `registered_new`). Empty fields are filled from repository metadata, the SBOM and provider hints (see `detected`), and application rules run. Audited as `application.onboard`.
 
-Response `201`: `{ "application": <profile>, "sources": [<onboarding source>] }` where an onboarding source is `{ "id", "full_name", "url", "scm_connection_id", "external_id", "organization", "project", "decision", "status" ("draft" | "saved" | "discovery_started"), "repository_id", "repository_name", "import_job_id", "import_status", "language", "created_at" }`.
+Response `201`: `{ "application": <profile>, "sources": [<onboarding source>] }` where an onboarding source is `{ "id", "full_name", "url", "scm_connection_id", "external_id", "organization", "project", "decision", "status" ("draft" | "saved" | "discovery_started"), "repository_id", "repository_name", "import_job_id", "import_status", "language", "created_at", "current_application", "move_requested" }`. `status` is `draft`, `saved`, `discovery_started` or `kept`; `current_application` (`{id, name}` or `null`) is the other application the repository belongs to.
 
 Errors: `409 already_onboarding` (PTH-ONB-1008, `error.details.application_id` when visible), `409 application_exists` (PTH-ONB-1011), `409 already_registered` (PTH-ONB-1004, registered in a scope the caller cannot see), `400`, `403`, `404`.
 
@@ -344,7 +344,11 @@ Errors: `409 already_onboarding` (PTH-ONB-1008, `error.details.application_id` w
 
 ### Save to inventory
 
-`POST /api/v1/applications/{id}/onboarding/complete` · `repos.manage` on the application and on each linked repository. Requires every mandatory field and mandatory tag category; links existing repositories to the application (`repositories.application_id`), marks the sources `saved` and the application `complete`. Audited as `application.onboarding_complete`. Response `200`: the onboarding. Errors: `422 mandatory_fields_missing` with `error.fields` (PTH-ONB-1009), `422 mandatory_tags_missing` (PTH-ONB-1010), `403`, `404`.
+`POST /api/v1/applications/{id}/onboarding/complete` · `repos.manage` on the application and on each linked repository. Optional body `{ "move_repositories": [repository_id, …], "keep_repositories": [repository_id, …] }`.
+
+Requires every mandatory field and mandatory tag category. Existing repositories without an application are linked to it (`repositories.application_id`). A repository that **belongs to another application is never moved silently**: it must be listed in `move_repositories` (it moves; audited as `repository.application_move` with actor, repository, `old_application_id`/`old_application_name` and `new_application_id`/`new_application_name`) or in `keep_repositories` (it stays; the source becomes `kept`). Otherwise the request fails with `409 repository_in_other_application` (PTH-ONB-1012) and `error.details.conflicts: [{ "repository_id", "repository", "application_id", "application_name" }]` (application omitted when the caller cannot see it), and nothing changes. Then sources become `saved` and the application `complete`; audited as `application.onboarding_complete` (counts of linked, moved and kept repositories). Response `200`: the onboarding.
+
+Errors: `400` (a repository both moved and kept), `409 repository_in_other_application` (PTH-ONB-1012), `422 mandatory_fields_missing` with `error.fields` (PTH-ONB-1009), `422 mandatory_tags_missing` (PTH-ONB-1010), `403`, `404`.
 
 Repositories still to import are registered by the client with the existing [import endpoint](imports.md#the-import-request) (`metadata.application_id` set to the application), which keeps the repository validation, mandatory repository tags and job history.
 

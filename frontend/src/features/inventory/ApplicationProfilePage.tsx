@@ -252,7 +252,8 @@ function RepositoriesTab({ a }: { a: ApplicationProfile }) {
     queryFn: () => api<Page<Repository>>(`/api/v1/repositories?application_id=${a.id}&limit=100`).then((r) => r.items),
   });
   const onboarding = useOnboarding(a.id);
-  const pending = (onboarding.data?.sources ?? []).filter((s) => !s.repository_id || s.status === "draft");
+  const pending = (onboarding.data?.sources ?? []).filter((s) => (!s.repository_id || s.status === "draft") && s.status !== "kept");
+  const kept = (onboarding.data?.sources ?? []).filter((s) => s.status === "kept");
   return (
     <div className="space-y-4">
       {pending.length > 0 && (
@@ -269,6 +270,19 @@ function RepositoriesTab({ a }: { a: ApplicationProfile }) {
                     Import {s.import_status ?? ""}
                   </Link>
                 )}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+      {kept.length > 0 && (
+        <Card className="p-4">
+          <h2 className="mb-2 text-[14px] font-semibold">Kept in other applications</h2>
+          <ul className="space-y-1 text-[13px]">
+            {kept.map((s) => (
+              <li key={s.id}>
+                <span className="font-mono">{s.full_name}</span>{" "}
+                <Badge>{`kept in ${s.current_application?.name ?? "another application"}`}</Badge>
               </li>
             ))}
           </ul>

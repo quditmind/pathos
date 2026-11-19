@@ -407,3 +407,116 @@ func TestOnboardingNoDuplicatesAndDrafts(t *testing.T) {
 		t.Errorf("unknown field must be rejected: %d", code)
 	}
 }
+
+// Draft completion never moves a repository out of another application
+// silently: refused by default (PTH-ONB-1012), kept or moved only when the
+// request lists it, and every move is audited.
+func TestOnboardingDoesNotMoveRepositoriesSilently(t *testing.T) {
+	ctx := t.Context()
+	h := newHarness(t)
+	(&inventory.Service{DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}}, Log: log, Principal: auth.PrincipalFrom}).Register(h.mux)
+	admin := principalWithRole(t, authz.RoleSuperAdmin)
+	sfx := uuid.NewString()[:6]
+	if err := repos.EnsureAssetDefaults(ctx, appPool, orgID); err != nil {
+		t.Fatal(err)
+	}
+	setFlag(t, "onboarding", true)
+	t.Cleanup(func() { setFlag(t, "onboarding", false) })
+	// Only criticality is mandatory here, so completion reaches the repository check.
+	if code, m := h.do(admin, "PATCH", "/api/v1/application-settings", map[string]any{"required_fields": []string{"criticality"}}); code != 200 {
+		t.Fatalf("settings: %d %v", code, m)
+	}
+	t.Cleanup(func() {
+		_, _ = h.do(admin, "PATCH", "/api/v1/application-settings", map[string]any{"required_fields": []string{"owner", "business_unit",
+			"criticality", "languages", "frameworks", "data_classification", "internet_exposure", "hosting_region", "environment"}})
+	})
+
+	_, conn := h.do(admin, "POST", "/api/v1/scm-connections", map[string]any{
+		"name": "Move GH " + sfx, "provider": "github", "auth_type": "pat", "token": "ghp_x", "owner": "acme"})
+	connID := id(conn, "id")
+	code, appX := h.do(admin, "POST", "/api/v1/applications", map[string]any{"name": "App X " + sfx})
+	if code != 201 {
+		t.Fatal(code, appX)
+	}
+	xID := id(appX, "id")
+	repo := func(name string) uuid.UUID {
+		rid := uuid.Must(uuid.NewV7())
+		if _, err := appPool.Exec(ctx, `INSERT INTO repositories (id, organization_id, scm_connection_id, external_id, full_name, name, url, clone_url,
+			default_branch, application_id) VALUES ($1, $2, $3, $4, $5, $4, 'https://github.com/'||$5, 'https://github.com/'||$5||'.git', 'main', $6)`,
+			rid, orgID, connID, name+"-"+sfx, "acme/"+name+"-"+sfx, xID); err != nil {
+			t.Fatal(err)
+		}
+		return rid
+	}
+	appOf := func(rid uuid.UUID) string {
+		var a uuid.UUID
+		_ = appPool.QueryRow(ctx, `SELECT application_id FROM repositories WHERE id = $1`, rid).Scan(&a)
+		return a.String()
+	}
+	onboard := func(name string, rid uuid.UUID, move bool) string {
+		body := map[string]any{"mode": "new", "application": map[string]any{"name": name}, "repositories": []any{map[string]any{"repository_id": rid}}}
+		if move {
+			body["move_repositories"] = []string{rid.String()}
+		}
+		code, m := h.do(admin, "POST", "/api/v1/onboarding", body)
+		if code != 201 {
+			t.Fatalf("register %s: %d %v", name, code, m)
+		}
+		src := m["sources"].([]any)[0].(map[string]any)
+		if src["current_application"] == nil || id(src, "current_application", "id") != xID || src["move_requested"] != move {
+			t.Errorf("source should report the current application and the move request: %v", src)
+		}
+		return id(m, "application", "id")
+	}
+
+	// 1. Refused by default: nothing moves, the draft stays a draft.
+	r1 := repo("kept")
+	yID := onboard("App Y "+sfx, r1, false)
+	code, m := h.do(admin, "POST", "/api/v1/applications/"+yID+"/onboarding/complete", nil)
+	if code != 409 || errCode(m) != "PTH-ONB-1012" {
+		t.Fatalf("silent move must be refused: %d %v", code, m)
+	}
+	conflicts := m["error"].(map[string]any)["details"].(map[string]any)["conflicts"].([]any)
+	if len(conflicts) != 1 || id(conflicts[0].(map[string]any), "application_id") != xID || id(conflicts[0].(map[string]any), "repository_id") != r1.String() {
+		t.Errorf("conflict details: %v", conflicts)
+	}
+	if appOf(r1) != xID {
+		t.Fatal("repository moved without an explicit request")
+	}
+	if _, m := h.do(admin, "GET", "/api/v1/applications/"+yID, nil); m["onboarding_status"] != "draft" {
+		t.Errorf("refused completion must leave a draft: %v", m["onboarding_status"])
+	}
+	if code, _ := h.do(admin, "POST", "/api/v1/applications/"+yID+"/onboarding/complete",
+		map[string]any{"move_repositories": []string{r1.String()}, "keep_repositories": []string{r1.String()}}); code != 400 {
+		t.Errorf("moved and kept at once must be rejected: %d", code)
+	}
+
+	// 2. Kept explicitly: completes, the repository stays in App X.
+	code, m = h.do(admin, "POST", "/api/v1/applications/"+yID+"/onboarding/complete", map[string]any{"keep_repositories": []string{r1.String()}})
+	if code != 200 || appOf(r1) != xID || m["sources"].([]any)[0].(map[string]any)["status"] != "kept" {
+		t.Fatalf("keep: %d app=%s %v", code, appOf(r1), m)
+	}
+
+	// 3. Moved explicitly: completes, moves and audits who, which repository, old and new application.
+	r2 := repo("moved")
+	zID := onboard("App Z "+sfx, r2, true)
+	code, m = h.do(admin, "POST", "/api/v1/applications/"+zID+"/onboarding/complete", map[string]any{"move_repositories": []string{r2.String()}})
+	if code != 200 || appOf(r2) != zID {
+		t.Fatalf("move: %d app=%s %v", code, appOf(r2), m)
+	}
+	var actor, oldApp, newApp string
+	if err := appPool.QueryRow(ctx, `SELECT actor_email, metadata->>'old_application_id', metadata->>'new_application_id' FROM audit_logs
+		WHERE organization_id = $1 AND action = 'repository.application_move' AND target_type = 'repository' AND target_id = $2`,
+		orgID, r2.String()).Scan(&actor, &oldApp, &newApp); err != nil {
+		t.Fatalf("move not audited: %v", err)
+	}
+	if actor != admin.Email || oldApp != xID || newApp != zID {
+		t.Errorf("audit entry: actor=%s old=%s new=%s", actor, oldApp, newApp)
+	}
+	var n int
+	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE organization_id = $1 AND action = 'repository.application_move' AND target_id = $2`,
+		orgID, r1.String()).Scan(&n)
+	if n != 0 {
+		t.Error("a kept repository must not have a move entry")
+	}
+}

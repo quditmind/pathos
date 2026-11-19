@@ -304,7 +304,7 @@ There is no `GET /api/v1/applications/{id}` today (applications are read through
 | `PUT /api/v1/applications/{id}/tags` | `tag_ids` in `PATCH /api/v1/applications/{id}/classification`; `POST /api/v1/tag-assignments/bulk` | One save for the classification form |
 | `GET /api/v1/tags/history` | `GET /api/v1/tag-history` | `/tags/{id}` is an existing route family |
 | `tag_categories.applies_to` | `tag_categories.mandatory_asset_types` (application types) and `color` | The prompt asks for mandatory categories per asset type |
-| Duplicate codes `PTH-ONB-1001`/`1002` | `PTH-ONB-1008`–`1011` | 1001–1007 were already taken by import errors in M1 |
+| Duplicate codes `PTH-ONB-1001`/`1002` | `PTH-ONB-1008`–`1012` (1012: no silent move of a repository from another application) | 1001–1007 were already taken by import errors in M1 |
 
 ### M4: CodeGraph
 

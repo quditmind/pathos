@@ -138,13 +138,18 @@ export interface OnboardingSource {
   organization: string;
   project: string;
   decision: "linked_existing" | "registered_new";
-  status: "draft" | "saved" | "discovery_started";
+  /** kept: it belongs to another application and stayed there at Save to inventory. */
+  status: "draft" | "saved" | "discovery_started" | "kept";
   repository_id: string | null;
   repository_name: string | null;
   import_job_id: string | null;
   import_status: string | null;
   language: string;
   created_at: string;
+  /** The other application the repository belongs to (null when none). */
+  current_application: Ref | null;
+  /** The person asked at registration to move it into this application. */
+  move_requested: boolean;
 }
 
 export interface Onboarding {
@@ -372,12 +377,28 @@ export const registerOnboarding = (body: {
   application_id?: string;
   application?: { name: string; description?: string; business_unit_id?: string | null };
   repositories: SourceRef[];
+  /** Existing repositories of other applications to move into this one (recorded; confirmed at Save to inventory). */
+  move_repositories?: string[];
 }) => api<Onboarding>("/api/v1/onboarding", { method: "POST", body });
 
 export const saveClassification = (id: string, body: ClassificationPatch) =>
   api<ApplicationProfile>(`/api/v1/applications/${id}/classification`, { method: "PATCH", body });
 
-export const completeOnboarding = (id: string) => api<Onboarding>(`/api/v1/applications/${id}/onboarding/complete`, { method: "POST" });
+/**
+ * Save to inventory. Repositories that belong to another application must be
+ * listed as moved or kept; the server refuses silent moves (PTH-ONB-1012).
+ */
+export const completeOnboarding = (id: string, body: { move_repositories: string[]; keep_repositories: string[] } = { move_repositories: [], keep_repositories: [] }) =>
+  api<Onboarding>(`/api/v1/applications/${id}/onboarding/complete`, { method: "POST", body });
+
+/** Splits the onboarding's repositories of other applications into moved and kept, from the ticked boxes. */
+export function moveDecision(sources: OnboardingSource[], move: Set<string>) {
+  const others = sources.filter((s) => s.repository_id && s.current_application && s.status !== "kept");
+  return {
+    move_repositories: others.filter((s) => move.has(s.repository_id!)).map((s) => s.repository_id!),
+    keep_repositories: others.filter((s) => !move.has(s.repository_id!)).map((s) => s.repository_id!),
+  };
+}
 
 export const startDiscovery = (id: string, importJobId?: string) =>
   api<Onboarding>(`/api/v1/applications/${id}/onboarding/discovery`, { method: "POST", body: importJobId ? { import_job_id: importJobId } : {} });

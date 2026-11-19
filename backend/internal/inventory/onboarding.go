@@ -428,6 +428,11 @@ type registerRequest struct {
 		ExternalRef    string     `json:"external_ref"`
 	} `json:"application"`
 	Repositories []SourceRef `json:"repositories"`
+	// MoveRepositories lists existing repositories that belong to another
+	// application and should move into this one at "Save to inventory"
+	// (recorded as a request; the move needs the explicit list again at
+	// completion).
+	MoveRepositories []uuid.UUID `json:"move_repositories"`
 }
 
 // OnboardingSource is one repository of an onboarding.
@@ -447,6 +452,11 @@ type OnboardingSource struct {
 	ImportStatus    *string    `json:"import_status"`
 	Language        string     `json:"language"`
 	CreatedAt       time.Time  `json:"created_at"`
+	// CurrentApplication is the other application the repository belongs
+	// to (null when it has none or already belongs to this one).
+	CurrentApplication *Ref `json:"current_application"`
+	// MoveRequested: the person asked to move it into this application.
+	MoveRequested bool `json:"move_requested"`
 }
 
 // errAlreadyOnboarding is PTH-ONB-1008.
@@ -562,11 +572,12 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 				decision, repoID = "linked_existing", &rs.Existing.ID
 			}
 			hints, _ := json.Marshal(map[string]string{"language": rs.Language})
+			move := repoID != nil && slices.Contains(req.MoveRepositories, *repoID)
 			tag, err := tx.Exec(ctx, `INSERT INTO asset_onboardings (id, organization_id, application_id, source_key, scm_connection_id,
-				external_id, full_name, url, organization, project, repository_id, decision, hints, created_by)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT DO NOTHING`,
+				external_id, full_name, url, organization, project, repository_id, decision, hints, created_by, move_requested)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) ON CONFLICT DO NOTHING`,
 				uuid.Must(uuid.NewV7()), p.OrganizationID, appID, rs.Key, rs.ScmConnectionID, rs.ExternalID, rs.FullName,
-				truncate(rs.URL, 1000), rs.Organization, rs.Project, repoID, decision, hints, p.UserID)
+				truncate(rs.URL, 1000), rs.Organization, rs.Project, repoID, decision, hints, p.UserID, move)
 			if err != nil {
 				return err
 			}
@@ -732,14 +743,23 @@ func resolveSources(ctx context.Context, q db.Querier, appID uuid.UUID) error {
 func loadSources(ctx context.Context, q db.Querier, appID uuid.UUID) ([]OnboardingSource, error) {
 	rows, err := q.Query(ctx, `SELECT o.id, o.full_name, o.url, o.scm_connection_id, o.external_id, o.organization, o.project,
 		o.decision, o.status, o.repository_id, COALESCE(NULLIF(r.display_name, ''), r.full_name), o.import_job_id, j.status,
-		COALESCE(o.hints->>'language', ''), o.created_at
+		COALESCE(o.hints->>'language', ''), o.created_at, ca.id, ca.name, o.move_requested
 		FROM asset_onboardings o LEFT JOIN repositories r ON r.id = o.repository_id
+		LEFT JOIN applications ca ON ca.id = r.application_id AND ca.id <> o.application_id
 		LEFT JOIN repository_import_jobs j ON j.id = o.import_job_id
 		WHERE o.application_id = $1 ORDER BY lower(o.full_name)`, appID)
 	if err != nil {
 		return nil, err
 	}
-	out, err := pgx.CollectRows(rows, pgx.RowToStructByPos[OnboardingSource])
+	out, err := pgx.CollectRows(rows, func(row pgx.CollectableRow) (OnboardingSource, error) {
+		var o OnboardingSource
+		var caID *uuid.UUID
+		var caName *string
+		err := row.Scan(&o.ID, &o.FullName, &o.URL, &o.ScmConnectionID, &o.ExternalID, &o.Organization, &o.Project, &o.Decision,
+			&o.Status, &o.RepositoryID, &o.RepositoryName, &o.ImportJobID, &o.ImportStatus, &o.Language, &o.CreatedAt, &caID, &caName, &o.MoveRequested)
+		o.CurrentApplication = ref(caID, caName)
+		return o, err
+	})
 	if out == nil {
 		out = []OnboardingSource{}
 	}
@@ -835,11 +855,30 @@ func (s *Service) listDrafts(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
 
+// Conflict is a repository of the onboarding that belongs to another
+// application.
+type Conflict struct {
+	RepositoryID    uuid.UUID  `json:"repository_id"`
+	Repository      string     `json:"repository"`
+	ApplicationID   *uuid.UUID `json:"application_id"`
+	ApplicationName string     `json:"application_name"`
+}
+
+type completeRequest struct {
+	// MoveRepositories: repositories of other applications to move into
+	// this one. KeepRepositories: leave them where they are.
+	MoveRepositories []uuid.UUID `json:"move_repositories"`
+	KeepRepositories []uuid.UUID `json:"keep_repositories"`
+}
+
 // completeOnboarding: POST /api/v1/applications/{id}/onboarding/complete
 // ("Save to inventory"). Mandatory fields and tag categories must be set
-// (PTH-ONB-1009, PTH-ONB-1010). Existing repositories are linked to the
-// application; repositories still to import are returned with the
-// registration metadata for the existing import pipeline.
+// (PTH-ONB-1009, PTH-ONB-1010). Existing repositories without an
+// application are linked to it. A repository that belongs to another
+// application is never moved silently: the request must list it in
+// move_repositories (moved, audited) or keep_repositories (left there,
+// source "kept"); otherwise 409 PTH-ONB-1012. Repositories still to import
+// are registered by the client through the import pipeline.
 func (s *Service) completeOnboarding(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
@@ -847,6 +886,19 @@ func (s *Service) completeOnboarding(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.fail(w, r, err)
 		return
+	}
+	var req completeRequest
+	if r.ContentLength != 0 {
+		if err := httpx.DecodeJSON(w, r, &req); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+	}
+	for _, m := range req.MoveRepositories {
+		if slices.Contains(req.KeepRepositories, m) {
+			s.fail(w, r, httpx.BadRequest("a repository cannot be both moved and kept: "+m.String()))
+			return
+		}
 	}
 	row, err := s.loadManagedApp(ctx, s.DB, p, id)
 	if err != nil {
@@ -883,18 +935,78 @@ func (s *Service) completeOnboarding(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
-		var linked []uuid.UUID
+		var linked, kept []uuid.UUID
+		var conflicts []Conflict
+		type move struct{ repo Conflict }
+		var moves []move
 		for _, src := range srcs {
-			if src.RepositoryID != nil {
-				if err := s.Authz.Require(ctx, p, authz.PermReposManage, authz.Scope{Type: authz.ScopeRepository, ID: *src.RepositoryID}); err != nil {
-					return err
-				}
-				linked = append(linked, *src.RepositoryID)
+			if src.RepositoryID == nil {
+				continue
 			}
+			rid := *src.RepositoryID
+			if err := s.Authz.Require(ctx, p, authz.PermReposManage, authz.Scope{Type: authz.ScopeRepository, ID: rid}); err != nil {
+				return err
+			}
+			// The repository's application now (locked for the move).
+			var cur *uuid.UUID
+			var curName *string
+			var repoName string
+			if err := tx.QueryRow(ctx, `SELECT r.application_id, a.name, COALESCE(NULLIF(r.display_name, ''), r.full_name)
+				FROM repositories r LEFT JOIN applications a ON a.id = r.application_id
+				WHERE r.organization_id = $1 AND r.id = $2 FOR UPDATE OF r`, p.OrganizationID, rid).Scan(&cur, &curName, &repoName); err != nil {
+				return err
+			}
+			switch {
+			case cur == nil:
+				linked = append(linked, rid)
+			case *cur == id:
+				// Already in this application.
+			case slices.Contains(req.MoveRepositories, rid):
+				c := Conflict{RepositoryID: rid, Repository: repoName, ApplicationID: cur, ApplicationName: deref(curName)}
+				moves = append(moves, move{repo: c})
+				linked = append(linked, rid)
+			case slices.Contains(req.KeepRepositories, rid):
+				kept = append(kept, rid)
+			default:
+				c := Conflict{RepositoryID: rid, Repository: repoName, ApplicationID: cur, ApplicationName: deref(curName)}
+				if _, verr := s.loadVisibleApp(ctx, tx, p, *cur); verr != nil {
+					c.ApplicationID, c.ApplicationName = nil, ""
+				}
+				conflicts = append(conflicts, c)
+			}
+		}
+		if len(conflicts) > 0 {
+			names := make([]string, 0, len(conflicts))
+			for _, c := range conflicts {
+				owner := c.ApplicationName
+				if owner == "" {
+					owner = "another application"
+				}
+				names = append(names, c.Repository+" (in "+owner+")")
+			}
+			e := httpx.E(http.StatusConflict, "repository_in_other_application",
+				"these repositories belong to another application; list each in move_repositories to move it here or in keep_repositories to leave it: "+
+					strings.Join(names, ", ")).WithDiag("PTH-ONB-1012")
+			e.Details = map[string]any{"conflicts": conflicts}
+			return e
 		}
 		if len(linked) > 0 {
 			if _, err := tx.Exec(ctx, `UPDATE repositories SET application_id = $2, updated_at = now(), updated_by = $3
 				WHERE organization_id = $1 AND id = ANY($4) AND application_id IS DISTINCT FROM $2`, p.OrganizationID, id, p.UserID, linked); err != nil {
+				return err
+			}
+		}
+		for _, m := range moves {
+			if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+				Action: "repository.application_move", TargetType: "repository", TargetID: m.repo.RepositoryID.String(),
+				Metadata: map[string]any{"name": m.repo.Repository, "repository_id": m.repo.RepositoryID,
+					"old_application_id": m.repo.ApplicationID, "old_application_name": m.repo.ApplicationName,
+					"new_application_id": id, "new_application_name": row.Name, "via": "onboarding"}}); err != nil {
+				return err
+			}
+		}
+		if len(kept) > 0 {
+			if _, err := tx.Exec(ctx, `UPDATE asset_onboardings SET status = 'kept', updated_at = now() WHERE application_id = $1 AND repository_id = ANY($2)`, id, kept); err != nil {
 				return err
 			}
 		}
@@ -906,7 +1018,7 @@ func (s *Service) completeOnboarding(w http.ResponseWriter, r *http.Request) {
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "application.onboarding_complete", TargetType: "application", TargetID: id.String(),
-			Metadata: map[string]any{"name": row.Name, "repositories_linked": len(linked)}})
+			Metadata: map[string]any{"name": row.Name, "repositories_linked": len(linked), "repositories_moved": len(moves), "repositories_kept": len(kept)}})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -957,7 +1069,7 @@ func (s *Service) startDiscovery(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE asset_onboardings SET status = 'discovery_started', updated_at = now() WHERE application_id = $1`, id); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE asset_onboardings SET status = 'discovery_started', updated_at = now() WHERE application_id = $1 AND status <> 'kept'`, id); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,

@@ -425,7 +425,7 @@ PATHOS 3.0 M3 (flag `onboarding`). Additive.
 | `applications.detected_fields` | JSON map field → `{source, detail}` of values filled from repository metadata, the SBOM or the provider |
 | `asset_classifications.kind` | Adds `authentication_model` (seeded by `repos.EnsureAssetDefaults`) |
 | `asset_settings.application_required_fields` | Mandatory application fields (default nine) |
-| `asset_onboardings` | One row per repository being onboarded: `application_id`, `source_key` (normalised host/path), connection and external ID, `repository_id` once it exists, `decision` (`linked_existing`, `registered_new`), `status` (`draft`, `saved`, `discovery_started`), `import_job_id`, `hints`. **Unique** on `(organization_id, source_key)`, on `(scm_connection_id, external_id)` and on `repository_id`: the database refuses a second onboarding of a repository, also under concurrency. Composite foreign keys with `ON DELETE SET NULL (column)` keep `organization_id` |
+| `asset_onboardings` | One row per repository being onboarded: `application_id`, `source_key` (normalised host/path), connection and external ID, `repository_id` once it exists, `decision` (`linked_existing`, `registered_new`), `status` (`draft`, `saved`, `discovery_started`, `kept`: left in another application), `move_requested` (the person asked to move it from another application; the move itself needs the explicit list at completion), `import_job_id`, `hints`. **Unique** on `(organization_id, source_key)`, on `(scm_connection_id, external_id)` and on `repository_id`: the database refuses a second onboarding of a repository, also under concurrency. Composite foreign keys with `ON DELETE SET NULL (column)` keep `organization_id` |
 
 ## Tag framework (migration 00047)
 

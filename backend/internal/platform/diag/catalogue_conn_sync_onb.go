@@ -403,4 +403,20 @@ var onbEntries = []Entry{
 		Legacy:         []string{"application_exists"},
 		Source:         "internal/inventory/onboarding.go (register)",
 	},
+	{
+		Code: "PTH-ONB-1012", Area: "ONB", Category: "conflict", Severity: SevInfo, HTTPStatus: 409,
+		Title:          "Repository belongs to another application",
+		Description:    "Save to inventory found repositories of the onboarding that already belong to another application. PATHOS never moves a repository between applications silently: each one must be listed explicitly as moved or kept.",
+		ConfirmedCause: "A repository being onboarded is linked to another application (listed in the message and in error.details.conflicts).",
+		Proven:         true,
+		ProbableCauses: []string{"The repository was linked to another application before onboarding started", "Someone linked it to another application while the draft was open"},
+		Impact:         "Nothing was saved; the application stays a draft and no repository moved.",
+		Actions: []string{
+			"In Save to inventory, tick \"Move it to this application\" for repositories that belong here, or leave it unticked to keep them where they are.",
+			"API: list each repository in move_repositories or keep_repositories.",
+		},
+		Verify: []string{"Save to inventory succeeds; moved repositories appear in the audit log as repository.application_move."},
+		Legacy: []string{"repository_in_other_application"},
+		Source: "internal/inventory/onboarding.go (completeOnboarding)",
+	},
 }
