@@ -179,6 +179,25 @@ print(json.dumps({"config": {"protocol_version": "v1.0.0"}}))
         self.assertEqual(code, 0, err)
         self.assertTrue(any("no Go packages to check" in e for e in err), err)
 
+    def test_dependency_check_uses_the_egress_proxy(self):
+        # Java ignores HTTPS_PROXY; without --proxyserver the NVD download
+        # failed with UnknownHostException on every repository.
+        dc = os.path.join(self.mod.SCA, "dependency-check", "bin")
+        os.makedirs(dc)
+        script(os.path.join(dc, "dependency-check.sh"), r'''
+import json, sys
+args = sys.argv[1:]
+json.dump({"args": args}, open(args[args.index("--out") + 1], "w"))
+''')
+        os.environ["HTTPS_PROXY"] = "http://egress:3128"
+        try:
+            code, rep, err = self.call(self.mod.dependency_check)
+        finally:
+            del os.environ["HTTPS_PROXY"]
+        self.assertEqual(code, 0, err)
+        a = " ".join(rep["args"])
+        self.assertIn("--proxyserver egress --proxyport 3128", a)
+
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")
         self.put("services/web/package-lock.json", "{}")

@@ -472,6 +472,10 @@ def dependency_check(src, out, cache):
             "--disablePnpmAudit", "--disableBundleAudit", "--disableGolangMod", "--disableMixAudit", "--disableAssembly",
             "--disableHostedSuppressions", "--disableKnownExploited", "--disableVersionCheck",
             "--exclude", "**/.git/**", "--exclude", "**/node_modules/**"]
+    # Java ignores HTTPS_PROXY, and the worker networks have no DNS for the
+    # internet: without the proxy flags every NVD download failed
+    # (UnknownHostException nvd.nist.gov, exit 13) on every repository.
+    args += proxy_args()
     key = os.environ.get("NVD_API_KEY")
     env = {"JAVA_HOME": SCA + "/jre"}
     if key:
@@ -482,6 +486,18 @@ def dependency_check(src, out, cache):
         args += ["--nvdDatafeed", os.environ.get("NVD_DATAFEED_URL") or NVD_FEEDS]
     os.makedirs(os.path.join(cache, "data"), exist_ok=True)
     return 0 if run(args, env=env) is not None else 3
+
+
+def proxy_args():
+    """Dependency-Check's --proxyserver/--proxyport from HTTPS_PROXY."""
+    from urllib.parse import urlsplit
+    p = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy") or ""
+    if not p:
+        return []
+    u = urlsplit(p if "://" in p else "http://" + p)
+    if not u.hostname:
+        return []
+    return ["--proxyserver", u.hostname, "--proxyport", str(u.port or 3128)]
 
 
 def guarddog(src, out, cache):
