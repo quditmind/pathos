@@ -207,8 +207,11 @@ func ValidateImageRef(ref string) (string, error) {
 		return "", errors.New("not a valid image reference (registry/repository:tag or @sha256:digest)")
 	}
 	host := m[1]
-	if host == "" || host == "docker.io" || host == "index.docker.io" {
-		host = "registry-1.docker.io"
+	// Docker Hub: Trivy, cosign and the other go-containerregistry clients
+	// call index.docker.io (not registry-1.docker.io), so that is the host
+	// the egress proxy must allow.
+	if host == "" || host == "docker.io" || host == "registry-1.docker.io" {
+		host = "index.docker.io"
 	}
 	h, _, err := net.SplitHostPort(host)
 	if err == nil {
