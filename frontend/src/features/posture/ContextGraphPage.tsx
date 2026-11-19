@@ -4,9 +4,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Network } from "lucide-react";
 import { api } from "@/api/client";
 import { severityColor } from "@/components/data/Severity";
-import { Alert, Card, EmptyState, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useApplications } from "@/features/repos/api";
 import type { ContextGraph, GraphNode } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type GraphSearch = { node?: string };
 export const validateGraphSearch = (s: Record<string, unknown>): GraphSearch =>
@@ -70,7 +71,7 @@ export function ContextGraphPage() {
         {!search.node ? (
           <EmptyState icon={<Network />} title="Choose an application">Or open the graph from Application posture or Blast radius.</EmptyState>
         ) : q.isError ? (
-          <Alert>{q.error.message}</Alert>
+          <ErrorPanel error={q.error} />
         ) : q.isPending || !layout ? (
           <Skeleton className="h-64" />
         ) : (

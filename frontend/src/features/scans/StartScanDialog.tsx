@@ -6,10 +6,11 @@ import { api } from "@/api/client";
 import type { Page, Repository, StartScanItem } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Input, Label, Select, Spinner } from "@/components/ui/primitives";
+import { Badge, Input, Label, Select, Spinner } from "@/components/ui/primitives";
 import { useDebounced } from "@/lib/useDebounced";
 import { cn } from "@/lib/utils";
 import { startScans, useProfiles, useScanMutation } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Picked = { id: string; name: string; key: string };
 
@@ -148,7 +149,7 @@ export function StartScanDialog({ open, onOpenChange, initial }: { open: boolean
         </div>
       ) : (
         <div className="space-y-4">
-          {start.isError && <Alert>{start.error.message}</Alert>}
+          {start.isError && <ErrorPanel error={start.error} />}
           <div>
             <Label htmlFor="start-repo-q" hint="asset type: repository">Assets</Label>
             <RepositoryMultiSelect value={assets} onChange={setAssets} />

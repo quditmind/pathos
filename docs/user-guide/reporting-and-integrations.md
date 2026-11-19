@@ -1,6 +1,7 @@
 ---
 title: Integrations and API tokens
 section: user-guide
+group: connect
 order: 22
 version: "1.0"
 updated: 2026-11-19

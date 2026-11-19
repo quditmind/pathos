@@ -1,6 +1,7 @@
 ---
 title: "Security scanning: scanners and profiles"
 section: user-guide
+group: configurations
 order: 10
 version: "1.0"
 updated: 2026-11-19

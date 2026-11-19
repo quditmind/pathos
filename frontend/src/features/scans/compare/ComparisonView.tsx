@@ -1,12 +1,13 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
 import { Info } from "lucide-react";
 import type { Severity } from "@/api/types";
-import { Alert, Badge, Card, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, Select, Skeleton } from "@/components/ui/primitives";
 import { JobStatusPill, SeverityBadge } from "@/components/data/Severity";
 import { cn, formatDateTime } from "@/lib/utils";
 import { useScanComparison } from "../api";
 import { formatDuration, ScanIdLink, severities } from "../shared";
 import { filterFindings, MATRIX_LIMIT, signedDuration, stateMeta, stateOf, states, type ComparedScan, type FindingState } from "./model";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const CompareCharts = lazy(() => import("./Charts"));
 
@@ -81,7 +82,7 @@ export function ComparisonView({ ids }: { ids: string[] }) {
   const [state, setState] = useState("");
   const [severity, setSeverity] = useState("");
 
-  if (cmp.isError) return <Alert>Could not compare these executions: {cmp.error.message}</Alert>;
+  if (cmp.isError) return <ErrorPanel error={cmp.error} title="Could not compare these executions" />;
   if (cmp.isPending) return <div className="space-y-3"><Skeleton className="h-64" /><Skeleton className="h-48" /></div>;
   const { scans, findings } = cmp.data;
   const shown = filterFindings(findings, { state, severity });

@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Skeleton } from "@/components/ui/primitives";
+import { Badge, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useAssignments, useGrantRole, useRequireMFA, useRequireRecoveryCodes, useRevokeRole, useSetUserStatus, useUser, useUserMFA, type RoleGrant } from "./api";
 import { RoleScopePicker, grantIsComplete, scopeLabels } from "./RoleScopePicker";
 import { statusTone } from "./UsersPage";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function UserDrawer({ userId, onClose }: { userId: string | null; onClose: () => void }) {
   const { me, canOrgWide, can } = useSession();
@@ -51,7 +52,7 @@ export function UserDrawer({ userId, onClose }: { userId: string | null; onClose
         </div>
       ) : (
         <div className="space-y-6">
-          {error && <Alert>{error.message}</Alert>}
+          {error && <ErrorPanel error={error} />}
 
           <section>
             <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">

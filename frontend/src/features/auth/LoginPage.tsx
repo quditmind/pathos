@@ -1,7 +1,29 @@
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/primitives";
-import { LogoMark } from "@/components/layout/Logo";
-import { loginUrl } from "@/api/client";
+import { useEffect, useState } from "react";
+import { Wordmark } from "@/components/layout/Logo";
+import { api, loginUrl } from "@/api/client";
+import { displayVersion, isPreRelease, type Meta } from "@/features/shell/meta";
+import { PreReleaseTag } from "@/features/shell/Brand";
+
+/**
+ * Backend version for the sign-in page (unauthenticated /api/v1/meta). The
+ * page renders outside the query client, so this is a plain fetch; any
+ * failure just hides the version.
+ */
+function useLoginVersion(): string {
+  const [v, setV] = useState("");
+  useEffect(() => {
+    let live = true;
+    api<Meta>("/api/v1/meta")
+      .then((m) => live && typeof m?.version === "string" && setV(m.version))
+      .catch(() => undefined);
+    return () => {
+      live = false;
+    };
+  }, []);
+  return v;
+}
 
 const errors: Record<string, string> = {
   deactivated: "Your account is deactivated. Contact your PATHOS administrator.",
@@ -16,14 +38,22 @@ export function LoginPage() {
   const error = params.get("error");
   const loggedOut = params.has("logged_out");
   const returnTo = params.get("return_to") ?? "/";
+  const version = useLoginVersion();
 
   return (
     <div className="flex min-h-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <LogoMark className="size-12" />
-          <h1 className="mt-4 text-xl font-semibold tracking-[0.14em]">PATHOS</h1>
+          <h1 className="flex flex-col items-center gap-3">
+            <Wordmark size="lg" />
+          </h1>
           <p className="mt-1 text-[13px] text-muted-foreground">Application Security Posture Management</p>
+          {version && (
+            <p className="mt-2 flex items-center gap-1.5 text-[12px] text-muted-foreground" data-testid="login-version">
+              {displayVersion(version)}
+              {isPreRelease(version) && <PreReleaseTag />}
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-surface p-6 shadow-sm">
           {error && (

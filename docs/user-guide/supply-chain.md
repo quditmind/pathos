@@ -1,6 +1,7 @@
 ---
 title: Supply chain and pull requests
 section: user-guide
+group: discover, remediate
 order: 18
 version: "1.0"
 updated: 2026-11-19

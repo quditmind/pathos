@@ -1,6 +1,7 @@
 ---
 title: Working with findings
 section: user-guide
+group: assess
 order: 12
 version: "1.0"
 updated: 2026-11-19

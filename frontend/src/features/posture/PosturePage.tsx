@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Boxes } from "lucide-react";
-import { Alert, Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { RiskBadge } from "@/features/vuln/intel";
 import { dimensionLabel, type Dimension, type PostureGroup, useAggregate, useAppPosture } from "./api";
 import { GraphLink, Percent, SeverityBar, When, daysOptions, riskExplanation } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function Metrics({ g }: { g: PostureGroup }) {
   return (
@@ -44,7 +45,7 @@ const metricHeads = (
 
 function Applications({ days }: { days: number }) {
   const q = useAppPosture(days);
-  if (q.isError) return <div className="p-4"><Alert>{q.error.message}</Alert></div>;
+  if (q.isError) return <div className="p-4"><ErrorPanel error={q.error} /></div>;
   if (q.isPending) return <Skeleton className="m-4 h-40" />;
   if (!q.data.length) return <EmptyState icon={<Boxes />} title="No repositories in your scope" />;
   return (
@@ -92,7 +93,7 @@ function Applications({ days }: { days: number }) {
 
 function Grouped({ by, days }: { by: Dimension; days: number }) {
   const q = useAggregate(by, days);
-  if (q.isError) return <div className="p-4"><Alert>{q.error.message}</Alert></div>;
+  if (q.isError) return <div className="p-4"><ErrorPanel error={q.error} /></div>;
   if (q.isPending) return <Skeleton className="m-4 h-40" />;
   if (!q.data.length) return <EmptyState icon={<Boxes />} title="No repositories in your scope" />;
   return (

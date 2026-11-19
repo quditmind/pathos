@@ -1,6 +1,7 @@
 ---
 title: DAST tools (worker-dast)
 section: user-guide
+group: assess
 order: 15
 version: "2.0"
 updated: 2026-11-19

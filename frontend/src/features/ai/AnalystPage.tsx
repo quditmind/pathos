@@ -6,8 +6,9 @@ import { api } from "@/api/client";
 import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { cn, formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface Message {
   id: string;
@@ -77,7 +78,7 @@ function Thread({ id }: { id: string }) {
     const t = text.trim();
     if (t.length >= 3 && !ask.isPending) ask.mutate(t);
   };
-  if (conv.isError) return <Alert>{conv.error.message}</Alert>;
+  if (conv.isError) return <ErrorPanel error={conv.error} />;
   if (conv.isPending) return <Skeleton className="h-64" />;
   const msgs = conv.data.messages ?? [];
   return (
@@ -126,7 +127,7 @@ function Thread({ id }: { id: string }) {
         {ask.isPending && <p className="text-[12px] text-muted-foreground">The analyst is reading your data…</p>}
         <div ref={end} />
       </div>
-      {ask.error && <div className="px-4"><Alert>{ask.error.message}</Alert></div>}
+      {ask.error && <div className="px-4"><ErrorPanel error={ask.error} /></div>}
       <form className="flex gap-2 border-t border-border p-3" onSubmit={(e) => { e.preventDefault(); send(q); }}>
         <textarea aria-label="Your question" value={q} maxLength={2000} rows={2} onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(q); } }}
@@ -165,11 +166,11 @@ export function AnalystPage() {
         description="Ask questions about your security posture. Answers come only from data you can access, cite the findings they use, never include source code or secret values, and never change anything. Each question is recorded with the model and tokens used."
         actions={<Button onClick={() => create.mutate()} disabled={create.isPending}><MessageSquarePlus /> New conversation</Button>}
       />
-      {create.error && <div className="mb-3"><Alert>{create.error.message}</Alert></div>}
+      {create.error && <div className="mb-3"><ErrorPanel error={create.error} /></div>}
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
         <Card>
           {list.isError ? (
-            <div className="p-3"><Alert>{list.error.message}</Alert></div>
+            <div className="p-3"><ErrorPanel error={list.error} /></div>
           ) : list.isPending ? (
             <Skeleton className="m-3 h-24" />
           ) : !list.data.length ? (

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity } from "lucide-react";
 import { api } from "@/api/client";
-import { Alert, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface Row {
   key: string;
@@ -69,7 +70,7 @@ export function AIUsagePage() {
         </Select>
         {total && <span className="text-[12.5px] text-muted-foreground">{n(total.req)} requests · {n(total.tok)} tokens</span>}
       </div>
-      {q.isError ? <Alert>{q.error.message}</Alert> : q.isPending ? <Skeleton className="h-48" /> : !q.data.by_feature.length ? (
+      {q.isError ? <ErrorPanel error={q.error} /> : q.isPending ? <Skeleton className="h-48" /> : !q.data.by_feature.length ? (
         <Card><EmptyState icon={<Activity />} title="No AI usage in this period" /></Card>
       ) : (
         <div className="grid gap-4 xl:grid-cols-2">

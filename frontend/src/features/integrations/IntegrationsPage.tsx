@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface TicketConnection {
   id: string;
@@ -71,7 +72,7 @@ function ConnectionDialog({ open, onClose, conn }: { open: boolean; onClose: () 
       description="People who triage findings can open a ticket for a finding; PATHOS keeps the link and follows the ticket's status. Only the finding's facts and a link are sent, never code."
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!f.name.trim() || !f.base_url.trim() || (!conn && !f.secret) || (jira && !f.project_key.trim()) || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save"}</Button></>}>
       <div className="space-y-3 text-[13px]">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 md:grid-cols-3">
           <div><Label htmlFor="tc-kind">System</Label>
             <Select id="tc-kind" value={f.kind} disabled={!!conn} onChange={(e) => set({ kind: e.target.value as TicketConnection["kind"], auth_type: e.target.value === "jira" ? "basic" : "basic" })}>
@@ -130,7 +131,7 @@ export function IntegrationsPage() {
         actions={manage && <Button onClick={() => setDialog({ conn: null })}><Plus /> New connection</Button>} />
       <Card>
         {(test.error ?? remove.error) && <div className="p-3"><Alert>{(test.error ?? remove.error)!.message}</Alert></div>}
-        {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.length ? (
+        {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.length ? (
           <EmptyState icon={<Ticket />} title="No ticketing connections">Connect Jira or ServiceNow to open tickets for findings.</EmptyState>
         ) : (
           <Table>
@@ -199,7 +200,7 @@ export function FindingTickets({ findingId }: { findingId: string }) {
           <Button size="sm" variant="secondary" disabled={!conn || create.isPending} onClick={() => create.mutate()}><Ticket /> {create.isPending ? "Creating…" : "Create ticket"}</Button>
         </div>
       )}
-      {create.error && <div className="mt-2"><Alert>{create.error.message}</Alert></div>}
+      {create.error && <div className="mt-2"><ErrorPanel error={create.error} /></div>}
     </div>
   );
 }

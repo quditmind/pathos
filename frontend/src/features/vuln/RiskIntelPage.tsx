@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, Badge, Card, Input, Label, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type ModelResponse = { model: RiskModel; defaults: RiskWeights; pending_recompute: number };
 
@@ -53,7 +54,7 @@ function FeedCard({ f, editable, offline }: { f: IntelFeed; editable: boolean; o
           deprecations and OpenSSF Scorecards. Private package names are sent too; leave it off if they are confidential.
         </p>
       )}
-      {err && <div className="mt-2"><Alert>{err.message}</Alert></div>}
+      {err && <div className="mt-2"><ErrorPanel error={err} /></div>}
       {last && (
         <p className="mt-2 text-[12px]">
           Last update: {formatDateTime(last.started_at)} · {last.mode === "file" ? "file import" : "download"} ·{" "}
@@ -159,7 +160,7 @@ function ModelEditor({ data, editable }: { data: ModelResponse; editable: boolea
           </p>
         </div>
       </div>
-      {save.error && <div className="mb-2"><Alert>{save.error.message}</Alert></div>}
+      {save.error && <div className="mb-2"><ErrorPanel error={save.error} /></div>}
       <fieldset disabled={!editable} className="space-y-4">
         <div className="flex items-center gap-2 text-[13px]">
           <input id="use-cvss" type="checkbox" className="size-3.5 accent-[var(--primary)]" checked={w.use_cvss} onChange={(e) => setW({ ...w, use_cvss: e.target.checked })} />
@@ -258,12 +259,12 @@ export function RiskIntelPage() {
         description="Vulnerability intelligence feeds (EPSS, CISA KEV, OSV records) and the contextual risk model that ranks findings beyond CVSS. OSV records are looked up for the CVEs and advisories of open findings; offline, import OSV JSON or an OSV zip export."
       />
       <div className="space-y-4">
-        {feeds.isError && <Alert>{feeds.error.message}</Alert>}
+        {feeds.isError && <ErrorPanel error={feeds.error} />}
         {offline && <Alert tone="warning">PATHOS runs offline (air-gapped): nothing is downloaded. Import each feed from a file, for example from an offline bundle.</Alert>}
         <div className="grid gap-4 lg:grid-cols-2">
           {feeds.isPending ? [0, 1].map((i) => <Skeleton key={i} className="h-40" />) : (feeds.data ?? []).map((f) => <FeedCard key={f.feed} f={f} editable={editable} offline={offline} />)}
         </div>
-        {model.isError && <Alert>{model.error.message}</Alert>}
+        {model.isError && <ErrorPanel error={model.error} />}
         {model.data ? <ModelEditor data={model.data} editable={editable} /> : <Skeleton className="h-64" />}
         <History />
       </div>

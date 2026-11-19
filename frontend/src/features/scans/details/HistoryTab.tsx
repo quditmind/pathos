@@ -3,12 +3,13 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { GitCompareArrows, History } from "lucide-react";
 import type { ScanJob } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { JobStatusPill } from "@/components/data/Severity";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useScanHistory } from "../api";
 import { jobDuration, ScanIdLink, SeverityBar } from "../shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const MIN_COMPARE = 2;
 export const MAX_COMPARE = 10;
@@ -22,7 +23,7 @@ export function HistoryTab({ job }: { job: ScanJob }) {
   const canCompare = can("scans.compare");
   const compare = (ids: string[]) => void navigate({ to: "/scans/compare", search: { ids: ids.join(",") } as never });
 
-  if (history.isError) return <Alert>Could not load history: {history.error.message}</Alert>;
+  if (history.isError) return <ErrorPanel error={history.error} title="Could not load history" />;
   if (history.isPending) return <Skeleton className="h-48" />;
   const rows = history.data;
   if (!rows.length) return <Card><EmptyState icon={<History />} title="No other executions">This asset has no executions in the last 360 days.</EmptyState></Card>;

@@ -11,6 +11,7 @@ import { SeverityBadge } from "@/components/data/Severity";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { readVexFile, useReleasesMutation, useVersion, useVersions, type AppVersion, type ImportResult } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Route wrapper: /applications/$id/versions. */
 export function ApplicationVersionsRoute() {
@@ -31,7 +32,7 @@ export function ApplicationVersionsPage({ appId }: { appId: string }) {
         actions={data?.can_manage && <Button onClick={() => setCreating(true)}><Plus /> New version</Button>}
       />
       <div className="mb-3 text-[12.5px]"><Link to="/applications" className="text-primary hover:underline">← Applications</Link></div>
-      {versions.isError && <Alert>{versions.error.message}</Alert>}
+      {versions.isError && <ErrorPanel error={versions.error} />}
       <Card>
         {versions.isPending ? <Skeleton className="h-32" /> : !data?.items.length ? (
           <EmptyState icon={<Milestone />} title="No versions yet">
@@ -89,7 +90,7 @@ function CreateVersionDialog({ appId, open, onClose, onCreated }: { appId: strin
         <div><Label htmlFor="ver">Version</Label><Input id="ver" required maxLength={100} placeholder="2.3.1" value={version} onChange={(e) => setVersion(e.target.value)} /></div>
         <div><Label htmlFor="ver-desc">Description</Label><Input id="ver-desc" maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)} /></div>
         <div><Label htmlFor="ver-date" hint="Optional">Release date</Label><Input id="ver-date" type="date" value={released} onChange={(e) => setReleased(e.target.value)} /></div>
-        {create.isError && <Alert>{create.error.message}</Alert>}
+        {create.isError && <ErrorPanel error={create.error} />}
         {warnings.length > 0 && <Alert tone="warning">Created with warnings:<ul className="ml-4 list-disc">{warnings.map((w) => <li key={w}>{w}</li>)}</ul></Alert>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Close</Button>
@@ -124,7 +125,7 @@ function VersionDrawer({ appId, versionId, onClose }: { appId: string; versionId
   return (
     <Dialog side size="xl" open={!!versionId} onOpenChange={(o) => { if (!o) { setImported(null); onClose(); } }}
       title={v ? `Version ${v.version}` : "Version"} description={d.data?.application.name}>
-      {d.isError ? <Alert>{d.error.message}</Alert> : !d.data || !v ? <Skeleton className="h-40" /> : (
+      {d.isError ? <ErrorPanel error={d.error} /> : !d.data || !v ? <Skeleton className="h-40" /> : (
         <div className="space-y-5 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             {can("findings.export") && (

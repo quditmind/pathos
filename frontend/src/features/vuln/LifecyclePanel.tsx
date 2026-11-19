@@ -3,11 +3,12 @@ import { Clock, History, RotateCcw, ShieldOff, UserRound } from "lucide-react";
 import { api } from "@/api/client";
 import type { Finding } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Input, Label, Select } from "@/components/ui/primitives";
+import { Badge, Input, Label, Select } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { useUsers } from "@/features/users/api";
 import { cn, formatDateTime } from "@/lib/utils";
 import { needsReason, statusLabel, transitions, useAcceptances, useHistory, useVulnMutation } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function slaState(f: Pick<Finding, "sla_due_at" | "status">): { label: string; tone: "danger" | "warning" | "neutral" } | null {
   if (!f.sla_due_at || !["open", "in_progress", "needs_review"].includes(f.status)) return null;
@@ -39,7 +40,7 @@ export function LifecyclePanel({ f }: { f: Finding }) {
 
   return (
     <div className="space-y-4">
-      {error && <Alert>{error.message}</Alert>}
+      {error && <ErrorPanel error={error} />}
       <div className="flex flex-wrap items-center gap-2 text-[12px]">
         {sla && <Badge tone={sla.tone}><Clock className="size-3" /> {sla.label}</Badge>}
         {f.recurrence_count > 0 && <Badge tone="warning"><RotateCcw className="size-3" /> reappeared {f.recurrence_count}×</Badge>}

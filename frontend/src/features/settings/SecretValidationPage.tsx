@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, Card, Input, Label, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const path = "/api/v1/settings/secret-validation";
 
@@ -42,7 +43,7 @@ export function SecretValidationPage() {
       {!allowed ? (
         <Alert tone="warning">You need the settings.manage permission at organization scope.</Alert>
       ) : q.isError ? (
-        <Alert>Could not load the settings: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load the settings" />
       ) : !s ? (
         <Skeleton className="h-40" />
       ) : (
@@ -110,7 +111,7 @@ export function SecretValidationPage() {
                 {enabled.includes("github") && <span className="text-muted-foreground">api.github.com is already covered by the default .github.com entry.</span>}
               </div>
             )}
-            {save.isError && <Alert>{save.error.message}</Alert>}
+            {save.isError && <ErrorPanel error={save.error} />}
             {save.isSuccess && <Alert tone="success">Saved. The next scans use these settings.</Alert>}
             {s.can_manage ? (
               <Button disabled={save.isPending} onClick={() => save.mutate()}>Save</Button>

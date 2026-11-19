@@ -33,7 +33,6 @@ import {
   BellRing,
   Scale,
   ShieldOff,
-  HelpCircle,
   UserCheck,
   ListChecks,
   ClipboardCheck,
@@ -60,8 +59,22 @@ import {
   FileCheck2,
   UserRoundSearch,
   Fingerprint,
+  Workflow,
+  Cable,
+  FolderPlus,
+  Waypoints,
+  Webhook,
+  ShieldHalf,
+  Binary,
+  Wrench,
+  RadioTower,
+  Microscope,
 } from "lucide-react";
-import { Wordmark, LogoMark } from "./Logo";
+import type { FeatureFlag } from "@/features/shell/meta";
+import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
+import { HelpMenu } from "@/features/shell/HelpMenu";
+import { ShellProvider } from "@/features/shell/ShellProvider";
+import { Toaster } from "@/components/ui/toast";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
 import { NotificationCentre } from "./NotificationCentre";
 import { useSession } from "@/features/auth/session";
@@ -69,51 +82,123 @@ import { OrganizationSwitcher } from "@/features/tenancy/OrganizationSwitcher";
 import { useMyOrganizations } from "@/features/tenancy/api";
 import { cn, initials } from "@/lib/utils";
 
-export type NavItem = { label: string; to?: string; icon: ReactNode; perm?: string; phase?: number };
+export type NavItem = {
+  label: string;
+  to?: string;
+  icon: ReactNode;
+  perm?: string;
+  /** Roadmap milestone of a not-yet-built item: shown disabled with "arrives in roadmap phase N". */
+  phase?: number;
+  /** Feature flag that will gate the module once it exists (server-side, default off). */
+  flag?: FeatureFlag;
+  /** Sub-heading shown above the item when it changes within a group. */
+  section?: string;
+};
 export type NavGroup = { label: string; items: NavItem[] };
 
+/**
+ * Sidebar (prompt §5): Home, the nine lifecycle phases, Configurations and
+ * Administration. Existing URLs are unchanged; new modules carry `phase` until
+ * they are built.
+ */
 export const groups: NavGroup[] = [
   {
-    label: "Overview",
+    label: "Home",
     items: [
       { label: "Dashboard", to: "/", icon: <LayoutDashboard /> },
+      { label: "Lifecycle overview", icon: <Workflow />, phase: 3, flag: "lifecycle_overview" },
+    ],
+  },
+  {
+    label: "1 · Connect",
+    items: [
+      { label: "Connectors", icon: <Cable />, phase: 2, flag: "connectors" },
+      { label: "Add repositories", to: "/repositories/import", icon: <FolderPlus />, perm: "repos.manage" },
+      { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
+      { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
+      { label: "Integrations", to: "/admin/integrations", icon: <Plug />, perm: "settings.manage" },
+    ],
+  },
+  {
+    label: "2 · Inventory",
+    items: [
+      { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
+      { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
+      { label: "Scan targets", to: "/scans/targets", icon: <Container />, perm: "scans.read" },
+      { label: "Unmanaged assets", to: "/posture/unmanaged", icon: <ShieldQuestion />, perm: "repos.read" },
+      { label: "Coverage", to: "/posture/coverage", icon: <Grid3x3 />, perm: "repos.read" },
+      { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
+    ],
+  },
+  {
+    label: "3 · Discover",
+    items: [
+      { label: "CodeGraph", icon: <Waypoints />, phase: 4, flag: "codegraph" },
+      { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
+      { label: "Runtime", to: "/runtime", icon: <Ship />, perm: "findings.read" },
+      { label: "API & endpoints", icon: <Webhook />, phase: 4, flag: "codegraph" },
+      { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
+      { label: "Component portfolio", to: "/portfolio", icon: <PackageSearch />, perm: "sbom.read" },
+    ],
+  },
+  {
+    label: "4 · Threat model",
+    items: [
+      { label: "Threat models", icon: <ShieldHalf />, phase: 5, flag: "threat_models" },
+      { label: "Attack paths", to: "/posture/attack-paths", icon: <Route />, perm: "findings.read" },
+      { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
+    ],
+  },
+  {
+    label: "5 · Reverse engineering",
+    items: [{ label: "Binary analysis", icon: <Binary />, phase: 10, flag: "reverse_engineering" }],
+  },
+  {
+    label: "6 · Assess",
+    items: [
+      { label: "Scan overview", to: "/scans/overview", icon: <Gauge />, perm: "scans.read" },
+      { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
+      { label: "Scan schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
+      { label: "Scan comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
+      { label: "Import results", to: "/scans/imports", icon: <FileUp />, perm: "scans.read" },
+      { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
+    ],
+  },
+  {
+    label: "7 · Validate & intelligence",
+    items: [
+      { label: "AI Security Analyst", to: "/ai/analyst", icon: <MessagesSquare />, perm: "ai.review" },
+      { label: "AI reviews", to: "/ai", icon: <Bot />, perm: "findings.read" },
+      { label: "AI reports", to: "/ai/reports", icon: <FileText />, perm: "findings.read" },
+      { label: "Human Eye overview", to: "/human-review", icon: <UserCheck />, perm: "reviews.read", section: "Human Eye" },
+      { label: "Review queue", to: "/human-review/queue", icon: <ListChecks />, perm: "reviews.read", section: "Human Eye" },
+      { label: "Assessments", to: "/human-review/assessments", icon: <ClipboardCheck />, perm: "reviews.read", section: "Human Eye" },
+      { label: "Assignments", to: "/human-review/assignments", icon: <UsersRound />, perm: "reviews.read", section: "Human Eye" },
+      { label: "Review reports", to: "/human-review/reports", icon: <FileBarChart />, perm: "reviews.read", section: "Human Eye" },
+    ],
+  },
+  {
+    label: "8 · Remediate & gate",
+    items: [
+      { label: "Remediation workspace", icon: <Wrench />, phase: 8, flag: "remediation_workspace" },
+      { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
+      { label: "Component policies", to: "/sbom/policies", icon: <Scale />, perm: "sbom.read" },
+      { label: "Pull request checks", to: "/pull-requests", icon: <GitPullRequest />, perm: "scans.read" },
+      { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
+      { label: "Suppression rules", to: "/suppression-rules", icon: <FilterX />, perm: "findings.read" },
+      { label: "VEX statements", to: "/vex", icon: <FileCheck2 />, perm: "findings.read" },
+    ],
+  },
+  {
+    label: "9 · Report & monitor",
+    items: [
       { label: "Executive overview", to: "/executive", icon: <Presentation />, perm: "findings.read" },
       { label: "Reports", to: "/reports", icon: <FileSpreadsheet />, perm: "findings.read" },
-      { label: "Developer insights", to: "/insights/developers", icon: <UserRoundSearch />, perm: "insights.people" },
-    ],
-  },
-  {
-    label: "Assets",
-    items: [
-      { label: "Repositories", to: "/repositories", icon: <GitBranch />, perm: "repos.read" },
-      { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
-      { label: "Applications", to: "/applications", icon: <Boxes />, perm: "repos.read" },
-      { label: "Runtime", to: "/runtime", icon: <Ship />, perm: "findings.read" },
-    ],
-  },
-  {
-    label: "Posture",
-    items: [
       { label: "Application posture", to: "/posture", icon: <Gauge />, perm: "findings.read" },
-      { label: "Coverage", to: "/posture/coverage", icon: <Grid3x3 />, perm: "repos.read" },
-      { label: "Unmanaged assets", to: "/posture/unmanaged", icon: <ShieldQuestion />, perm: "repos.read" },
       { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
-      { label: "Attack paths", to: "/posture/attack-paths", icon: <Route />, perm: "findings.read" },
       { label: "Compliance", to: "/compliance", icon: <ClipboardCheck />, perm: "findings.read" },
-      { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
-      { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
-    ],
-  },
-  {
-    label: "Scanning",
-    items: [
-      { label: "Scan Overview", to: "/scans/overview", icon: <Gauge />, perm: "scans.read" },
-      { label: "Scans", to: "/scans", icon: <Radar />, perm: "scans.read" },
-      { label: "Scan Schedules", to: "/scans/schedules", icon: <CalendarClock />, perm: "scans.read" },
-      { label: "Scan Comparison", to: "/scans/compare", icon: <GitCompareArrows />, perm: "scans.compare" },
-      { label: "Scan targets", to: "/scans/targets", icon: <Container />, perm: "scans.read" },
-      { label: "Pull request checks", to: "/pull-requests", icon: <GitPullRequest />, perm: "scans.read" },
-      { label: "Import Results", to: "/scans/imports", icon: <FileUp />, perm: "scans.read" },
+      { label: "Developer insights", to: "/insights/developers", icon: <UserRoundSearch />, perm: "insights.people" },
+      { label: "Continuous monitoring", icon: <RadioTower />, phase: 9, flag: "continuous_monitoring" },
     ],
   },
   {
@@ -123,40 +208,12 @@ export const groups: NavGroup[] = [
       { label: "Scanners & workers", to: "/configurations/scanners", icon: <Server />, perm: "scanners.read" },
       { label: "Scan coverage", to: "/configurations/scan-coverage", icon: <Grid3x3 />, perm: "scanners.read" },
       { label: "Custom rules", to: "/configurations/custom-rules", icon: <FileCode2 />, perm: "scanners.read" },
-    ],
-  },
-  {
-    label: "Vulnerabilities",
-    items: [
-      { label: "Findings", to: "/findings", icon: <ShieldAlert />, perm: "findings.read" },
-      { label: "Risk acceptances", to: "/risk", icon: <ShieldOff />, perm: "findings.read" },
-      { label: "Suppression rules", to: "/suppression-rules", icon: <FilterX />, perm: "findings.read" },
-      { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
-      { label: "Component portfolio", to: "/portfolio", icon: <PackageSearch />, perm: "sbom.read" },
-      { label: "Component policies", to: "/sbom/policies", icon: <Scale />, perm: "sbom.read" },
-      { label: "VEX statements", to: "/vex", icon: <FileCheck2 />, perm: "findings.read" },
-    ],
-  },
-  {
-    label: "Human Eye",
-    items: [
-      { label: "Overview", to: "/human-review", icon: <UserCheck />, perm: "reviews.read" },
-      { label: "Review Queue", to: "/human-review/queue", icon: <ListChecks />, perm: "reviews.read" },
-      { label: "Assessments", to: "/human-review/assessments", icon: <ClipboardCheck />, perm: "reviews.read" },
-      { label: "Assignments", to: "/human-review/assignments", icon: <UsersRound />, perm: "reviews.read" },
-      { label: "Review Reports", to: "/human-review/reports", icon: <FileBarChart />, perm: "reviews.read" },
-      { label: "Review Configurations", to: "/human-review/configurations", icon: <Settings2 />, perm: "reviews.read" },
-    ],
-  },
-  {
-    label: "AI & MCP",
-    items: [
-      { label: "AI Security Analyst", to: "/ai/analyst", icon: <MessagesSquare />, perm: "ai.review" },
-      { label: "AI reviews", to: "/ai", icon: <Bot />, perm: "findings.read" },
-      { label: "AI reports", to: "/ai/reports", icon: <FileText />, perm: "findings.read" },
+      { label: "Asset settings", to: "/admin/assets", icon: <Settings2 />, perm: "assets.configure" },
+      { label: "Risk & intelligence", to: "/admin/risk-intelligence", icon: <Gauge />, perm: "settings.manage" },
+      { label: "Secret validation", to: "/admin/secret-validation", icon: <KeyRound />, perm: "settings.manage" },
+      { label: "Review configurations", to: "/human-review/configurations", icon: <Settings2 />, perm: "reviews.read" },
       { label: "AI settings", to: "/admin/ai", icon: <Cpu />, perm: "ai.configure" },
-      { label: "AI usage", to: "/admin/ai-usage", icon: <Activity />, perm: "ai.configure" },
-      { label: "MCP registry", to: "/admin/mcp", icon: <Network />, perm: "ai.review" },
+      { label: "Reverse engineering tools", icon: <Microscope />, phase: 10, flag: "reverse_engineering" },
     ],
   },
   {
@@ -164,19 +221,22 @@ export const groups: NavGroup[] = [
     items: [
       { label: "Users", to: "/admin/users", icon: <Users />, perm: "users.read" },
       { label: "Organization", to: "/admin/organization", icon: <Building2 />, perm: "org.read" },
-      { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
-      { label: "Tags", to: "/admin/tags", icon: <Tags />, perm: "repos.read" },
-      { label: "Asset settings", to: "/admin/assets", icon: <Settings2 />, perm: "assets.configure" },
-      { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
-      { label: "Integrations", to: "/admin/integrations", icon: <Plug />, perm: "settings.manage" },
-      { label: "Risk & intelligence", to: "/admin/risk-intelligence", icon: <Gauge />, perm: "settings.manage" },
       { label: "Developer attribution", to: "/admin/developer-attribution", icon: <Fingerprint />, perm: "settings.manage" },
-      { label: "Secret validation", to: "/admin/secret-validation", icon: <KeyRound />, perm: "settings.manage" },
       { label: "Notifications", to: "/admin/notifications", icon: <BellRing />, perm: "notifications.manage" },
+      { label: "AI usage", to: "/admin/ai-usage", icon: <Activity />, perm: "ai.configure" },
+      { label: "MCP registry", to: "/admin/mcp", icon: <Network />, perm: "ai.review" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
     ],
   },
 ];
+
+/** Multi-tenant installs: Installation › Organizations, first in Administration, for installation administrators. */
+export const installationItem: NavItem = { label: "Organizations", to: "/installation/organizations", icon: <Building2 /> };
+
+export function navGroupsFor(installationAdmin: boolean): NavGroup[] {
+  if (!installationAdmin) return groups;
+  return groups.map((g) => (g.label === "Administration" ? { ...g, items: [installationItem, ...g.items] } : g));
+}
 
 function useTheme() {
   const [dark, setDark] = useState(() => {
@@ -209,35 +269,35 @@ export function AppShell({ children }: { children: ReactNode }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
-  const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
+  const scopedPerms = new Set(["org.read", "repos.read", "repos.manage", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
   // Installation administration (multi-tenant installs): a person attribute,
   // not an organization permission.
   const tenancy = useMyOrganizations();
-  const navGroups: NavGroup[] =
-    tenancy.data?.multi_tenant && tenancy.data.installation_admin
-      ? [...groups, { label: "Installation", items: [{ label: "Organizations", to: "/installation/organizations", icon: <Building2 /> }] }]
-      : groups;
+  const navGroups = navGroupsFor(!!(tenancy.data?.multi_tenant && tenancy.data.installation_admin));
 
   return (
+    <ShellProvider>
     <div className="flex h-full">
       <aside
         className={cn(
-          "flex shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-150",
-          collapsed ? "w-14" : "w-56",
+          "flex shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-150 motion-reduce:transition-none",
+          collapsed ? "w-14" : "w-64",
         )}
       >
-        <div className="flex h-14 items-center border-b border-border px-3">{collapsed ? <LogoMark /> : <Wordmark />}</div>
+        <div className={cn("flex h-14 items-center border-b border-border", collapsed ? "justify-center px-1" : "px-3")}>
+          <BrandBlock collapsed={collapsed} />
+        </div>
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
           {navGroups.map((g) => {
             const items = g.items.filter(visible);
             if (!items.length) return null;
             return (
-              <div key={g.label} className="mb-4">
+              <div key={g.label} className="mb-4" role="group" aria-label={g.label}>
                 {!collapsed && (
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
-                {items.map((it) => {
+                {items.map((it, idx) => {
                   const active =
                     it.to &&
                     (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));
@@ -246,22 +306,34 @@ export function AppShell({ children }: { children: ReactNode }) {
                     active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",
                     it.to ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
                   );
+                  const sectionHead =
+                    !collapsed && it.section && it.section !== items[idx - 1]?.section ? (
+                      <div className="px-2 pt-1.5 pb-0.5 text-[11px] font-medium text-muted-foreground">{it.section}</div>
+                    ) : null;
                   const content = (
                     <>
                       {it.icon}
                       {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
                       {!collapsed && it.phase && (
-                        <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground">Soon</span>
+                        <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground" aria-hidden>
+                          Phase {it.phase}
+                        </span>
                       )}
                     </>
                   );
-                  return it.to ? (
-                    <Link key={it.label} to={it.to} className={cls} title={collapsed ? it.label : undefined}>
-                      {content}
-                    </Link>
-                  ) : (
-                    <div key={it.label} className={cls} title={`${it.label}: arrives in roadmap phase ${it.phase}`} aria-disabled>
-                      {content}
+                  return (
+                    <div key={it.label}>
+                      {sectionHead}
+                      {it.to ? (
+                        <Link to={it.to} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
+                          {content}
+                        </Link>
+                      ) : (
+                        <div className={cls} title={`${it.label}: arrives in roadmap phase ${it.phase}`} aria-disabled="true" role="link">
+                          {content}
+                          <span className="sr-only">{`${collapsed ? it.label + ", " : ""}arrives in roadmap phase ${it.phase}`}</span>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -280,7 +352,9 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
+        <VersionBanner />
         <header className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-surface px-5">
+          <PreReleaseIndicator />
           <button
             onClick={() => setPaletteOpen(true)}
             className="flex h-8 w-full max-w-sm items-center gap-2 rounded-md border border-border bg-surface-muted/50 px-2.5 text-[13px] text-muted-foreground hover:bg-surface-muted"
@@ -293,14 +367,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex-1" />
           <OrganizationSwitcher />
           <NotificationCentre />
-          <Link
-            to="/help"
-            className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[13px] text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-            aria-label="Help"
-          >
-            <HelpCircle className="size-4" />
-            <span className="hidden sm:inline">Help</span>
-          </Link>
+          <HelpMenu />
           <button
             onClick={() => setDark(!dark)}
             className="rounded-md p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
@@ -343,6 +410,8 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="mx-auto max-w-7xl px-6 py-6">{children}</div>
         </main>
       </div>
+      <Toaster />
     </div>
+    </ShellProvider>
   );
 }

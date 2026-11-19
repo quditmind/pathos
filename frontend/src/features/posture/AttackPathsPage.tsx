@@ -3,9 +3,10 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronRight, Globe, Route } from "lucide-react";
 import { api } from "@/api/client";
-import { Alert, Card, EmptyState, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { KevBadge, RiskBadge } from "@/features/vuln/intel";
 import { cn } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface Step {
   type: "internet" | "target" | "repository" | "application" | "component" | "image" | "workload" | "finding";
@@ -55,7 +56,7 @@ export function AttackPathsPage() {
         )}
       </div>
       {q.isError ? (
-        <Alert>{q.error.message}</Alert>
+        <ErrorPanel error={q.error} />
       ) : q.isPending ? (
         <Skeleton className="h-48" />
       ) : !q.data.items.length ? (

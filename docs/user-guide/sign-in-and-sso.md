@@ -1,6 +1,7 @@
 ---
 title: Sign-in, MFA and single sign-on
 section: user-guide
+group: administration
 order: 2
 version: "1.0"
 updated: 2026-11-19

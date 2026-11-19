@@ -1,6 +1,7 @@
 ---
 title: Dashboards and reporting
 section: user-guide
+group: home, report
 order: 16
 version: "1.0"
 updated: 2026-11-19

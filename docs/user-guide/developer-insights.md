@@ -1,6 +1,7 @@
 ---
 title: Material changes and developer insights
 section: user-guide
+group: report
 order: 17
 version: "1.0"
 updated: 2026-11-19

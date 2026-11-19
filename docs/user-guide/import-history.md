@@ -1,6 +1,7 @@
 ---
 title: Import history
 section: user-guide
+group: connect
 order: 7
 version: "1.0"
 updated: 2026-11-19

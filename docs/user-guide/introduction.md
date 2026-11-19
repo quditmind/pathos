@@ -1,6 +1,7 @@
 ---
 title: Introduction to PATHOS
 section: user-guide
+group: home
 order: 1
 version: "1.0"
 updated: 2026-11-19

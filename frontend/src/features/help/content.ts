@@ -5,7 +5,29 @@ import { Marked, type Tokens } from "marked";
  * docs/api-reference, bundled at build time. Each file starts with front
  * matter (title, section, order, version, updated, summary).
  */
-export type HelpSection = "user-guide" | "api-reference";
+export type HelpSection = "user-guide" | "api-reference" | "troubleshooting";
+
+/**
+ * Help Center groups, in sidebar order: Home, the nine lifecycle phases,
+ * Configurations and Administration. User-guide pages name theirs in the
+ * `group` front-matter key.
+ */
+export const helpGroups = [
+  { id: "home", label: "Home" },
+  { id: "connect", label: "1 · Connect" },
+  { id: "inventory", label: "2 · Inventory" },
+  { id: "discover", label: "3 · Discover" },
+  { id: "threat-model", label: "4 · Threat model" },
+  { id: "reverse-engineering", label: "5 · Reverse engineering" },
+  { id: "assess", label: "6 · Assess" },
+  { id: "validate", label: "7 · Validate & intelligence" },
+  { id: "remediate", label: "8 · Remediate & gate" },
+  { id: "report", label: "9 · Report & monitor" },
+  { id: "configurations", label: "Configurations" },
+  { id: "administration", label: "Administration" },
+] as const;
+export type HelpGroup = (typeof helpGroups)[number]["id"];
+export const isHelpGroup = (g: string): g is HelpGroup => helpGroups.some((x) => x.id === g);
 
 export interface HelpHeading {
   depth: number;
@@ -21,6 +43,8 @@ export interface HelpDoc {
   version: string;
   updated: string;
   summary: string;
+  /** Help Center groups (user guide; front matter `group`, comma-separated, first is primary). */
+  groups: HelpGroup[];
   body: string;
   headings: HelpHeading[];
   /** Plain text for search. */
@@ -30,11 +54,14 @@ export interface HelpDoc {
 export const sectionLabels: Record<HelpSection, string> = {
   "user-guide": "User guide",
   "api-reference": "API reference",
+  troubleshooting: "Troubleshooting",
 };
 
-const sectionRank: Record<HelpSection, number> = { "user-guide": 0, "api-reference": 1 };
+const sectionRank: Record<HelpSection, number> = { "user-guide": 0, "api-reference": 1, troubleshooting: 2 };
 
-const rawDocs = import.meta.glob<string>(["../../../../docs/user-guide/*.md", "../../../../docs/api-reference/*.md"], {
+// docs/troubleshooting/<area>.md is generated from the error catalogue
+// (make docs-errors); it is bundled like the guide so help works offline.
+const rawDocs = import.meta.glob<string>(["../../../../docs/user-guide/*.md", "../../../../docs/api-reference/*.md", "../../../../docs/troubleshooting/*.md"], {
   query: "?raw",
   import: "default",
   eager: true,
@@ -78,7 +105,7 @@ function plain(md: string): string {
 }
 
 export function buildDoc(path: string, raw: string): HelpDoc | null {
-  const m = /docs\/(user-guide|api-reference)\/([\w-]+)\.md$/.exec(path);
+  const m = /docs\/(user-guide|api-reference|troubleshooting)\/([\w-]+)\.md$/.exec(path);
   if (!m) return null;
   const { meta, body } = parseFrontMatter(raw);
   const headings: HelpHeading[] = [];
@@ -100,6 +127,7 @@ export function buildDoc(path: string, raw: string): HelpDoc | null {
     version: meta.version ?? "",
     updated: meta.updated ?? "",
     summary: meta.summary ?? "",
+    groups: (meta.group ?? "").split(",").map((g) => g.trim()).filter(isHelpGroup),
     body,
     headings,
     text: plain(body),
@@ -147,7 +175,7 @@ export function renderDoc(doc: Pick<HelpDoc, "section" | "body" | "headings">): 
         const text = this.parser.parseInline(t.tokens);
         let href = t.href ?? "";
         const title = t.title ? ` title="${escapeHtml(t.title)}"` : "";
-        const rel = /^(\.\.\/)?(user-guide|api-reference)?\/?([\w-]+)\.md(#[\w-]+)?$/.exec(href);
+        const rel = /^(\.\.\/)?(user-guide|api-reference|troubleshooting)?\/?([\w-]+)\.md(#[\w-]+)?$/.exec(href);
         if (rel) {
           const section = rel[2] ?? doc.section;
           href = `/help/${section}/${rel[3]}${rel[4] ?? ""}`;
@@ -205,4 +233,17 @@ export function searchDocs(query: string, docs: HelpDoc[] = helpDocs, limit = 30
     hits.push({ doc, heading, snippet, score });
   }
   return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+/**
+ * Finds the heading id for a URL fragment: exact id, slugified id, or the
+ * first heading whose id starts with it (docs_url anchors carry the error
+ * code, e.g. #PTH-CONN-1004, and headings read "PTH-CONN-1004 Title").
+ */
+export function resolveAnchor(headings: HelpHeading[], hash: string): string | undefined {
+  if (!hash) return undefined;
+  const exact = headings.find((h) => h.id === hash);
+  if (exact) return exact.id;
+  const slug = slugify(hash);
+  return headings.find((h) => h.id === slug)?.id ?? headings.find((h) => h.id.startsWith(slug + "-") || h.id.startsWith(slug))?.id;
 }

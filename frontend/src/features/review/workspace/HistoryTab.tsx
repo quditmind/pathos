@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { History, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, EmptyState, Skeleton } from "@/components/ui/primitives";
+import { Badge, EmptyState, Skeleton } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { reviewApi, useComments, useHistory, useReviewMutation } from "../api";
 import { dispositionLabel, humanize } from "../shared";
 import type { Disposition, HistoryEntry, ReviewDetail } from "../types";
 import { textareaCls } from "./actions";
 import { Panel } from "./section";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const actionLabel: Record<string, string> = {
   "review.created": "Review created",
@@ -93,7 +94,7 @@ export function HistoryTab({ d }: { d: ReviewDetail }) {
       >
         <p className="mb-2 text-[11.5px] text-muted-foreground">Append-only: entries cannot be edited or deleted. Each entry records the user, action, previous and new value, and time.</p>
         {h.isError ? (
-          <Alert>{h.error.message}</Alert>
+          <ErrorPanel error={h.error} />
         ) : h.isPending ? (
           <Skeleton className="h-40" />
         ) : items.length === 0 ? (
@@ -129,7 +130,7 @@ export function HistoryTab({ d }: { d: ReviewDetail }) {
               add.mutate(undefined, { onSuccess: () => setBody("") });
             }}
           >
-            {add.error && <Alert>{add.error.message}</Alert>}
+            {add.error && <ErrorPanel error={add.error} />}
             <textarea aria-label="New comment" rows={3} className={textareaCls} value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add a comment for the team…" />
             <Button type="submit" size="sm" disabled={!body.trim() || add.isPending}>Comment</Button>
           </form>

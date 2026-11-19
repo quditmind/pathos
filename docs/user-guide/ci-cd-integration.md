@@ -1,6 +1,7 @@
 ---
 title: CI/CD integration
 section: user-guide
+group: connect
 order: 23
 version: "1.1"
 updated: 2026-11-19

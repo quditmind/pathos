@@ -4,7 +4,7 @@ import { Archive, ChevronDown, ChevronRight, ExternalLink, GitBranch, Lock, Plug
 import type { DiscoveredRepo, ProviderInfo, ScmConnection } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
-import { Alert, Badge, Card, EmptyState, Input, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { providerCategory, providerLabel } from "@/features/settings/scmApi";
 import { formatBytes } from "@/lib/uploader";
@@ -12,6 +12,7 @@ import { useDebounced } from "@/lib/useDebounced";
 import { cn, formatDateTime } from "@/lib/utils";
 import { slugify } from "../metadata/model";
 import { useRemoteRepoDetails, useRemoteRepositories, useScmOrganizations, useScmProjects } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface ScmItem {
   repo: DiscoveredRepo;
@@ -194,8 +195,8 @@ function Browser({ conn, state, setState }: { conn: ScmConnection; state: ScmSta
             </div>
           )}
         </div>
-        {orgs.isError && <Alert>Could not list organizations: {orgs.error.message}</Alert>}
-        {projects.isError && <Alert>Could not list projects: {projects.error.message}</Alert>}
+        {orgs.isError && <ErrorPanel error={orgs.error} title="Could not list organizations" />}
+        {projects.isError && <ErrorPanel error={projects.error} title="Could not list projects" />}
 
         <Card>
           <div className="flex items-center gap-2 border-b border-border p-2.5">
@@ -236,7 +237,7 @@ function Browser({ conn, state, setState }: { conn: ScmConnection; state: ScmSta
             </div>
           ) : repos.isError ? (
             <div className="space-y-2 p-3">
-              <Alert>{repos.error.message}</Alert>
+              <ErrorPanel error={repos.error} />
               <Button size="sm" variant="secondary" onClick={() => void repos.refetch()}>
                 Try again
               </Button>

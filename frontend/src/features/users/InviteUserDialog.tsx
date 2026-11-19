@@ -4,6 +4,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Input, Label } from "@/components/ui/primitives";
 import { useInviteUser, type RoleGrant } from "./api";
 import { RoleScopePicker, grantIsComplete } from "./RoleScopePicker";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const emptyGrant: RoleGrant = { role_key: "viewer", scope_type: "organization" };
 
@@ -74,7 +75,7 @@ export function InviteUserDialog({
         <Alert tone="warning">{notice}</Alert>
       ) : (
         <form id="invite-form" onSubmit={(e) => void submit(e).catch(() => {})} className="space-y-4">
-          {invite.isError && <Alert>{invite.error.message}</Alert>}
+          {invite.isError && <ErrorPanel error={invite.error} />}
           <div>
             <Label htmlFor="invite-email">Email</Label>
             <Input id="invite-email" type="email" required autoFocus value={email} onChange={(e) => setEmail(e.target.value)} />

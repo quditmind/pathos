@@ -4,9 +4,10 @@ import { ExternalLink, GitPullRequestArrow, RefreshCw } from "lucide-react";
 import { api } from "@/api/client";
 import type { Repository } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Input, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Input, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export type FixPRStatus = "queued" | "running" | "creating" | "open" | "merged" | "closed" | "failed" | "not_supported";
 
@@ -145,8 +146,8 @@ export function FindingFixPR({ findingId, category }: { findingId: string; categ
           </div>
         </div>
       )}
-      {request.error && <div className="mt-2"><Alert>{request.error.message}</Alert></div>}
-      {refresh.error && <div className="mt-2"><Alert>{refresh.error.message}</Alert></div>}
+      {request.error && <div className="mt-2"><ErrorPanel error={request.error} /></div>}
+      {refresh.error && <div className="mt-2"><ErrorPanel error={refresh.error} /></div>}
     </div>
   );
 }
@@ -192,7 +193,7 @@ export function FixPRSettingsPanel({ r }: { r: Repository }) {
       {q.isPending ? (
         <Skeleton className="h-6 w-56" />
       ) : q.isError ? (
-        <Alert>{q.error.message}</Alert>
+        <ErrorPanel error={q.error} />
       ) : upload ? (
         <p className="text-[12px] text-muted-foreground">Not available for uploaded repositories (no SCM connection).</p>
       ) : (
@@ -211,7 +212,7 @@ export function FixPRSettingsPanel({ r }: { r: Repository }) {
           )}
         </div>
       )}
-      {save.error && <div className="mt-2"><Alert>{save.error.message}</Alert></div>}
+      {save.error && <div className="mt-2"><ErrorPanel error={save.error} /></div>}
     </section>
   );
 }

@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useAIConfigs, useAIMutation, useAIProviders } from "./api";
 import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const kindLabel = { anthropic: "Anthropic (Claude)", openai: "OpenAI", xai: "xAI (Grok)", self_hosted: "Self-hosted (Ollama, vLLM, LM Studio…)" };
 
@@ -63,7 +64,7 @@ function ProviderDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
       description="The key is tested immediately with a tiny request."
       footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button type="submit" form="prov-form" disabled={create.isPending}>{create.isPending ? "Testing…" : "Add"}</Button></>}>
       <form id="prov-form" onSubmit={submit} className="space-y-3">
-        {create.isError && <Alert>{create.error.message}</Alert>}
+        {create.isError && <ErrorPanel error={create.error} />}
         <div className="grid grid-cols-2 gap-3">
           <div><Label htmlFor="pv-name">Name</Label><Input id="pv-name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div><Label htmlFor="pv-kind">Provider</Label>
@@ -115,7 +116,7 @@ function ConfigEditor({ config, providers }: { config?: AIConfiguration; provide
   return (
     <Card className="p-4">
       <form onSubmit={submit} className="space-y-4 text-[13px]">
-        {save.isError && <Alert>{save.error.message}</Alert>}
+        {save.isError && <ErrorPanel error={save.error} />}
         {save.isSuccess && <Alert tone="success">Saved as a new version.</Alert>}
         <div className="grid gap-3 sm:grid-cols-4">
           <div><Label htmlFor="c-prov">Provider</Label>

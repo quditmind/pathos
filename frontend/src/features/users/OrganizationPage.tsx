@@ -4,9 +4,10 @@ import { Building2, Plus } from "lucide-react";
 import { api } from "@/api/client";
 import type { BusinessUnit } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
+import { Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { useBusinessUnits, useOrganization, useRegions } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function OrganizationPage() {
   const { canOrgWide } = useSession();
@@ -58,7 +59,7 @@ export function OrganizationPage() {
             <form onSubmit={submit} className="border-b border-border p-4">
               {create.isError && (
                 <div className="mb-3">
-                  <Alert>{create.error.message}</Alert>
+                  <ErrorPanel error={create.error} />
                 </div>
               )}
               <div className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">

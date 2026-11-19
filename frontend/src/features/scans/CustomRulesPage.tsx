@@ -7,6 +7,7 @@ import { ConfirmDialog } from "@/components/ui/confirm";
 import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { cn, formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface CustomRule {
   id: string;
@@ -99,13 +100,13 @@ function Editor({ rule, editable, onSaved }: { rule: CustomRule | null; editable
           <Label htmlFor="rule-content" hint="(Opengrep / Semgrep rule syntax; ids must be unique and must not start with pathos.)">Rules (YAML)</Label>
           <textarea id="rule-content" spellCheck={false} className={editorCls} value={content} onChange={(e) => { setContent(e.target.value); validate.reset(); }} />
         </div>
-        {validate.error && <Alert>{validate.error.message}</Alert>}
+        {validate.error && <ErrorPanel error={validate.error} />}
         {validate.data && (
           <Alert tone="success">
             <span className="inline-flex items-center gap-1"><CheckCircle2 className="size-4" /> Valid: {validate.data.rule_ids.join(", ")}</span>
           </Alert>
         )}
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex items-center gap-1.5 text-[13px]">
             <input type="checkbox" className="accent-[var(--primary)]" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} /> Enabled in new scans
@@ -166,7 +167,7 @@ export function CustomRulesPage() {
       <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
         <Card>
           {list.isError ? (
-            <div className="p-3"><Alert>{list.error.message}</Alert></div>
+            <div className="p-3"><ErrorPanel error={list.error} /></div>
           ) : list.isPending ? (
             <Skeleton className="m-3 h-24" />
           ) : !list.data?.length ? (

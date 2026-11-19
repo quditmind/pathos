@@ -4,12 +4,13 @@ import { ShieldOff } from "lucide-react";
 import { api } from "@/api/client";
 import type { RiskAcceptance } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Card, EmptyState, Input, PageHeader, Select } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, PageHeader, Select } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
 import { SeverityBadge } from "@/components/data/Severity";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useAcceptances, useVulnMutation } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function RiskPage() {
   const { can } = useSession();
@@ -48,7 +49,7 @@ export function RiskPage() {
   return (
     <>
       <PageHeader title="Risk acceptances" description="Time-boxed exceptions. A different person with findings.accept_risk must approve; findings reopen automatically at expiry." />
-      {decide.isError && <div className="mb-3"><Alert>{decide.error.message}</Alert></div>}
+      {decide.isError && <div className="mb-3"><ErrorPanel error={decide.error} /></div>}
       <Card>
         <DataTable tableId="risk" exportName="pathos-risk-acceptances" columns={columns} rows={list.data ?? []} rowKey={(a) => a.id}
           isPending={list.isPending} error={list.error}

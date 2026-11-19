@@ -4,8 +4,9 @@ import { ClipboardCheck } from "lucide-react";
 import { api } from "@/api/client";
 import type { Severity } from "@/api/types";
 import { SeverityBadge } from "@/components/data/Severity";
-import { Alert, Badge, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface ControlStatus {
   id: string;
@@ -37,7 +38,7 @@ const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
 
 function Framework({ fkey }: { fkey: string }) {
   const q = useQuery({ queryKey: ["compliance", fkey], queryFn: () => api<Summary>(`/api/v1/compliance/frameworks/${fkey}`) });
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   if (q.isPending) return <Skeleton className="h-64" />;
   const f = q.data;
   return (
@@ -94,7 +95,7 @@ export function CompliancePage() {
         title="Compliance"
         description="Open findings mapped to the controls of security frameworks, for the repositories in each framework's compliance scope. The mapping is indicative evidence for an assessment, not a compliance verdict."
       />
-      {list.isError ? <Alert>{list.error.message}</Alert> : list.isPending ? <Skeleton className="h-24" /> : (
+      {list.isError ? <ErrorPanel error={list.error} /> : list.isPending ? <Skeleton className="h-24" /> : (
         <>
           <div className="mb-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             {list.data.items.map((f) => (

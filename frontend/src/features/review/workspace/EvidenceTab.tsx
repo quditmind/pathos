@@ -10,6 +10,7 @@ import { evidenceTypeLabel, humanize } from "../shared";
 import type { Evidence, ReviewDetail } from "../types";
 import { textareaCls } from "./actions";
 import { Panel, SaveBar, useSections } from "./section";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const fmtSize = (n: number) => (n < 1024 ? `${n} B` : n < 1 << 20 ? `${(n / 1024).toFixed(1)} KB` : `${(n / (1 << 20)).toFixed(1)} MB`);
 
@@ -174,7 +175,7 @@ export function EvidenceTab({ d }: { d: ReviewDetail }) {
       <div className="min-w-0 space-y-4">
         <Panel title={`Evidence (${items.filter((x) => !x.deleted_at).length})`}>
           {ev.isError ? (
-            <Alert>{ev.error.message}</Alert>
+            <ErrorPanel error={ev.error} />
           ) : ev.isPending ? (
             <Skeleton className="h-24" />
           ) : items.length === 0 ? (

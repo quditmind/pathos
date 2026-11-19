@@ -1,9 +1,10 @@
 import { ListChecks } from "lucide-react";
 import type { ScanJob, ScanStage } from "@/api/types";
-import { Alert, Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { isActive, useScanStages } from "../api";
 import { formatDuration } from "../shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const tone: Record<ScanStage["status"], "neutral" | "primary" | "success" | "danger" | "warning"> = {
   pending: "neutral",
@@ -17,7 +18,7 @@ const tone: Record<ScanStage["status"], "neutral" | "primary" | "success" | "dan
 
 export function StagesTab({ job }: { job: ScanJob }) {
   const q = useScanStages(job.id, isActive(job));
-  if (q.isError) return <Alert>Could not load stages: {q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} title="Could not load stages" />;
   if (q.isPending) return <Skeleton className="h-48" />;
   const { stages, events } = q.data;
   return (

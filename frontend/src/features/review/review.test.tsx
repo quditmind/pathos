@@ -56,28 +56,30 @@ const sourceView = {
 };
 
 describe("navigation", () => {
-  it("Human Eye is a standalone module with six sections", async () => {
-    const hr = groups.find((g) => g.label === "Human Eye")!;
-    expect(hr.items.map((i) => [i.label, i.to])).toEqual([
-      ["Overview", "/human-review"],
-      ["Review Queue", "/human-review/queue"],
+  // 3.0 sidebar (prompt §5): Human Eye is a section of "7 · Validate & intelligence"; its configuration moved to Configurations.
+  it("Human Eye is a section of Validate & intelligence", async () => {
+    const hr = groups.find((g) => g.label === "7 · Validate & intelligence")!.items.filter((i) => i.section === "Human Eye");
+    expect(hr.map((i) => [i.label, i.to])).toEqual([
+      ["Human Eye overview", "/human-review"],
+      ["Review queue", "/human-review/queue"],
       ["Assessments", "/human-review/assessments"],
       ["Assignments", "/human-review/assignments"],
-      ["Review Reports", "/human-review/reports"],
-      ["Review Configurations", "/human-review/configurations"],
+      ["Review reports", "/human-review/reports"],
     ]);
-    expect(groups.find((g) => g.label === "Scanning")!.items.some((i) => i.to?.startsWith("/human-review"))).toBe(false);
+    expect(groups.find((g) => g.label === "Configurations")!.items.some((i) => i.to === "/human-review/configurations")).toBe(true);
+    expect(groups.find((g) => g.label === "6 · Assess")!.items.some((i) => i.to?.startsWith("/human-review"))).toBe(false);
     mockApi({});
     renderApp(<AppShell><div /></AppShell>, { permissions: ["reviews.read"] });
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    expect(within(nav).getByRole("link", { name: "Review Queue" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Review queue" })).toBeInTheDocument();
+    expect(within(nav).getByText("Human Eye")).toBeInTheDocument();
   });
 
   it("is hidden without reviews.read", async () => {
     mockApi({});
     renderApp(<AppShell><div /></AppShell>, { permissions: ["findings.read"] });
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    expect(within(nav).queryByRole("link", { name: "Review Queue" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Review queue" })).toBeNull();
   });
 });
 

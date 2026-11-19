@@ -13,6 +13,7 @@ import { StagesTab } from "./StagesTab";
 import { ConfigurationTab } from "./ConfigurationTab";
 import { HistoryTab } from "./HistoryTab";
 import { ScanMaterialChanges } from "@/features/insights/MaterialChanges";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const detailTabs = [
   ["overview", "Overview"],
@@ -53,7 +54,7 @@ export function ScanDetails({ id }: { id: string }) {
         <ArrowLeft className="size-3.5" /> Scans
       </Link>
       {scan.isError ? (
-        <Alert>Could not load the execution: {scan.error.message}</Alert>
+        <ErrorPanel error={scan.error} title="Could not load the execution" />
       ) : !j ? (
         <Skeleton className="h-40" />
       ) : (

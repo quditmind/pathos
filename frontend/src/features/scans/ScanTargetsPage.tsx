@@ -12,6 +12,7 @@ import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
 import type { CatalogScanner } from "@/api/types";
 import { useCatalog } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint";
 /** Kinds added on this page (declared endpoints are managed from the repository). */
@@ -515,7 +516,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         <Skeleton className="h-64" />
       ) : (
       <div className="space-y-3">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         {!target && (
           <div className="grid gap-3 md:grid-cols-2">
             <div>
@@ -712,7 +713,7 @@ export function ScanTargetsPage() {
         </Select>
         <RepoFilter value={repo} onChange={setRepo} />
       </div>
-      {scan.error && <div className="mb-3"><Alert>{scan.error.message}</Alert></div>}
+      {scan.error && <div className="mb-3"><ErrorPanel error={scan.error} /></div>}
       {scan.data && (
         <div className="mb-3">
           <Alert tone="success">
@@ -723,7 +724,7 @@ export function ScanTargetsPage() {
       )}
       <Card>
         {list.isError ? (
-          <div className="p-4"><Alert>{list.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={list.error} /></div>
         ) : list.isPending ? (
           <Skeleton className="m-4 h-32" />
         ) : !list.data.length ? (

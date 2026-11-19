@@ -1,17 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { BookOpen, ChevronRight, Code2, FileQuestion, LifeBuoy, Search } from "lucide-react";
 import { Card, EmptyState, Input, PageHeader } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
-import { findDoc, helpDocs, renderDoc, searchDocs, sectionLabels, type HelpDoc, type HelpSection } from "./content";
+import { findDoc, helpDocs, helpGroups, renderDoc, resolveAnchor, searchDocs, sectionLabels, type HelpDoc } from "./content";
 
 export type HelpSearch = { q?: string };
 
 export function validateHelpSearch(s: Record<string, unknown>): HelpSearch {
   return typeof s.q === "string" && s.q.length <= 200 ? { q: s.q } : {};
 }
-
-const sections: HelpSection[] = ["user-guide", "api-reference"];
 
 function latestUpdate(docs: HelpDoc[]): string {
   return docs.reduce((m, d) => (d.updated > m ? d.updated : m), "");
@@ -25,30 +23,81 @@ function DocLink({ doc, className, hash }: { doc: HelpDoc; className?: string; h
   );
 }
 
-/** Left navigation: every section and document. */
+const navLink = (current: HelpDoc | undefined, d: HelpDoc) =>
+  cn(
+    "block rounded px-2 py-1 hover:bg-surface-muted",
+    current?.section === d.section && current.slug === d.slug ? "bg-primary/10 font-medium text-primary" : "text-foreground",
+  );
+
+function NavHeading({ children }: { children: ReactNode }) {
+  return <div className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{children}</div>;
+}
+
+/**
+ * Left navigation: the user guide by lifecycle phase (Home, 1–9,
+ * Configurations, Administration), then the troubleshooting articles and the
+ * API reference.
+ */
 function HelpNav({ current }: { current?: HelpDoc }) {
+  const guide = helpDocs.filter((d) => d.section === "user-guide");
+  const ungrouped = guide.filter((d) => !d.groups.length);
+  const ts = helpDocs.filter((d) => d.section === "troubleshooting");
+  const api = helpDocs.filter((d) => d.section === "api-reference");
   return (
     <nav aria-label="Help topics" className="space-y-4 text-[13px]">
-      {sections.map((s) => (
-        <div key={s}>
-          <div className="mb-1.5 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{sectionLabels[s]}</div>
-          <ul className="space-y-0.5">
-            {helpDocs
-              .filter((d) => d.section === s)
-              .map((d) => (
+      {helpGroups.map((g) => {
+        const docs = guide.filter((d) => d.groups.includes(g.id));
+        if (!docs.length) return null;
+        return (
+          <div key={g.id}>
+            <NavHeading>{g.label}</NavHeading>
+            <ul className="space-y-0.5">
+              {docs.map((d) => (
                 <li key={d.slug}>
-                  <DocLink
-                    doc={d}
-                    className={cn(
-                      "block rounded px-2 py-1 hover:bg-surface-muted",
-                      current?.section === d.section && current.slug === d.slug ? "bg-primary/10 font-medium text-primary" : "text-foreground",
-                    )}
-                  />
+                  <DocLink doc={d} className={navLink(current, d)} />
                 </li>
               ))}
+            </ul>
+          </div>
+        );
+      })}
+      {ungrouped.length > 0 && (
+        <div>
+          <NavHeading>More guides</NavHeading>
+          <ul className="space-y-0.5">
+            {ungrouped.map((d) => (
+              <li key={d.slug}>
+                <DocLink doc={d} className={navLink(current, d)} />
+              </li>
+            ))}
           </ul>
         </div>
-      ))}
+      )}
+      <div>
+        <NavHeading>{sectionLabels.troubleshooting}</NavHeading>
+        <ul className="space-y-0.5">
+          <li>
+            <Link to="/help/troubleshooting" className="block rounded px-2 py-1 text-foreground hover:bg-surface-muted">
+              Troubleshooting centre
+            </Link>
+          </li>
+          {ts.map((d) => (
+            <li key={d.slug}>
+              <DocLink doc={d} className={navLink(current, d)} />
+            </li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <NavHeading>{sectionLabels["api-reference"]}</NavHeading>
+        <ul className="space-y-0.5">
+          {api.map((d) => (
+            <li key={d.slug}>
+              <DocLink doc={d} className={navLink(current, d)} />
+            </li>
+          ))}
+        </ul>
+      </div>
     </nav>
   );
 }
@@ -115,28 +164,56 @@ export function HelpHomePage() {
             </Card>
           ) : (
             <>
-              <div className="grid gap-4 md:grid-cols-2">
-                {sections.map((s) => {
-                  const docs = helpDocs.filter((d) => d.section === s);
-                  const Icon = s === "user-guide" ? BookOpen : Code2;
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {helpGroups.map((g) => {
+                  const docs = helpDocs.filter((d) => d.section === "user-guide" && d.groups.includes(g.id));
                   return (
-                    <Card key={s} className="p-4">
+                    <Card key={g.id} className="p-4">
                       <div className="mb-2 flex items-center gap-2">
-                        <Icon className="size-5 text-primary" />
-                        <h2 className="text-[15px] font-semibold">{sectionLabels[s]}</h2>
+                        <BookOpen className="size-5 text-primary" aria-hidden />
+                        <h2 className="text-[15px] font-semibold">{g.label}</h2>
                       </div>
-                      <ul className="space-y-2">
-                        {docs.map((d) => (
-                          <li key={d.slug}>
-                            <DocLink doc={d} className="text-[13px] font-medium text-primary hover:underline" />
-                            {d.summary && <p className="text-[12px] text-muted-foreground">{d.summary}</p>}
-                          </li>
-                        ))}
-                      </ul>
+                      {docs.length ? (
+                        <ul className="space-y-2">
+                          {docs.map((d) => (
+                            <li key={d.slug}>
+                              <DocLink doc={d} className="text-[13px] font-medium text-primary hover:underline" />
+                              {d.summary && <p className="line-clamp-2 text-[12px] text-muted-foreground">{d.summary}</p>}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-[12px] text-muted-foreground">No guide yet: this phase arrives in a later roadmap milestone.</p>
+                      )}
                     </Card>
                   );
                 })}
+                <Card className="p-4">
+                  <div className="mb-2 flex items-center gap-2">
+                    <Code2 className="size-5 text-primary" aria-hidden />
+                    <h2 className="text-[15px] font-semibold">{sectionLabels["api-reference"]}</h2>
+                  </div>
+                  <ul className="space-y-1">
+                    {helpDocs
+                      .filter((d) => d.section === "api-reference")
+                      .map((d) => (
+                        <li key={d.slug}>
+                          <DocLink doc={d} className="text-[13px] font-medium text-primary hover:underline" />
+                        </li>
+                      ))}
+                  </ul>
+                </Card>
               </div>
+              <Card className="flex items-center gap-3 p-4">
+                <LifeBuoy className="size-5 text-primary" aria-hidden />
+                <div className="flex-1 text-[13px]">
+                  <div className="font-medium">Seeing an error code?</div>
+                  <div className="text-muted-foreground">Look it up in the Troubleshooting centre: causes, fixes and how to verify them, for every PTH code.</div>
+                </div>
+                <Link to="/help/troubleshooting" className="text-[13px] font-medium text-primary hover:underline">
+                  Troubleshooting centre
+                </Link>
+              </Card>
               {findDoc("user-guide", "troubleshooting") && (
                 <Card className="flex items-center gap-3 p-4">
                   <LifeBuoy className="size-5 text-primary" />
@@ -170,7 +247,8 @@ export function HelpDocPage() {
   // Scroll to the hash target after rendering (and on hash changes).
   useEffect(() => {
     const scroll = () => {
-      const id = decodeURIComponent(window.location.hash.slice(1));
+      const raw = decodeURIComponent(window.location.hash.slice(1));
+      const id = doc ? (resolveAnchor(doc.headings, raw) ?? raw) : raw;
       const el = id ? document.getElementById(id) : null;
       if (el) el.scrollIntoView({ block: "start" });
       else ref.current?.scrollIntoView({ block: "start" });
@@ -178,7 +256,7 @@ export function HelpDocPage() {
     scroll();
     window.addEventListener("hashchange", scroll);
     return () => window.removeEventListener("hashchange", scroll);
-  }, [html]);
+  }, [html, doc]);
 
   if (!doc) {
     return (

@@ -10,6 +10,7 @@ import { Alert, Badge, Card, EmptyState, Label, PageHeader, Select, Skeleton, Ta
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface PRCheck {
   id: string;
@@ -127,7 +128,7 @@ function CheckDetail({ id }: { id: string }) {
       void qc.invalidateQueries({ queryKey: ["pr-checks"] });
     },
   });
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   if (q.isPending) return <Skeleton className="h-48" />;
   const { check: c, findings } = q.data;
   const fresh = findings.filter((f) => f.is_new);
@@ -150,7 +151,7 @@ function CheckDetail({ id }: { id: string }) {
           <Button size="sm" variant="secondary" onClick={() => repost.mutate()} disabled={repost.isPending}><RefreshCw /> Post status again</Button>
         )}
       </div>
-      {repost.error && <Alert>{repost.error.message}</Alert>}
+      {repost.error && <ErrorPanel error={repost.error} />}
       <h3 className="font-semibold">Introduced by this pull request ({fresh.length})</h3>
       {fresh.length ? <FindingTable rows={fresh} /> : <p className="text-[12px] text-muted-foreground">{c.status === "pending" ? "The scan has not finished." : "No new findings."}</p>}
       {known.length > 0 && (
@@ -219,7 +220,7 @@ export function PullRequestChecksPage() {
       </div>
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
         <Card>
-          {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.length ? (
+          {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.length ? (
             <EmptyState icon={<GitPullRequest />} title="No pull request checks">Enable checks for a repository above; results appear when its webhook reports a pull request.</EmptyState>
           ) : (
             <Table>

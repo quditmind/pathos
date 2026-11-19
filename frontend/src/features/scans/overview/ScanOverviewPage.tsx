@@ -2,12 +2,13 @@ import { lazy, Suspense } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { CalendarClock, Radar } from "lucide-react";
 import type { Kpi, ScanJob } from "@/api/types";
-import { Alert, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { KpiCard } from "@/components/data/KpiCard";
 import { JobStatusPill } from "@/components/data/Severity";
 import { formatDateTime } from "@/lib/utils";
 import { useScanOverview } from "../api";
 import { ScanIdLink, ScanProgress } from "../shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const TrendChart = lazy(() => import("./TrendChart"));
 
@@ -80,7 +81,7 @@ export function ScanOverviewPage() {
           </Select>
         }
       />
-      {ov.isError && <Alert>Could not load the overview: {ov.error.message}</Alert>}
+      {ov.isError && <ErrorPanel error={ov.error} title="Could not load the overview" />}
       {ov.isPending ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
           {Array.from({ length: 8 }, (_, i) => <Skeleton key={i} className="h-24" />)}

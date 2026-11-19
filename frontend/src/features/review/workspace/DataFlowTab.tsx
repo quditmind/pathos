@@ -6,6 +6,7 @@ import { useDataFlow } from "../api";
 import type { FlowNode, ReviewDetail } from "../types";
 import { textareaCls } from "./actions";
 import { Panel, SaveBar, useSections } from "./section";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const statusInfo = {
   confirmed: { tone: "success" as const, label: "Confirmed data flow", text: "Source-to-sink paths reported by the scanner." },
@@ -34,7 +35,7 @@ export function DataFlowTab({ d, openSource }: { d: ReviewDetail; openSource: (p
   const s = useSections(d, ["dataflow_notes"]);
   const [sel, setSel] = useState<string | null>(null);
   const df = q.data;
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   if (!df) return <Skeleton className="h-64" />;
   const info = statusInfo[df.status];
   const nodes: [string, FlowNode][] = [

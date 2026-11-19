@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Archive, Radar } from "lucide-react";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Alert } from "@/components/ui/primitives";
 import { TagChip } from "@/components/data/TagChip";
 import { Dialog } from "@/components/ui/dialog";
 import { useSession } from "@/features/auth/session";
 import { useRepoMutation, useTagCategories } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function BulkScan({ ids }: { ids: string[] }) {
   const { can } = useSession();
@@ -83,7 +83,7 @@ export function BulkTagDialog({ open, onOpenChange, ids }: { open: boolean; onOp
     >
       {m.isError && (
         <div className="mb-3">
-          <Alert>{m.error.message}</Alert>
+          <ErrorPanel error={m.error} />
         </div>
       )}
       <div className="space-y-4">

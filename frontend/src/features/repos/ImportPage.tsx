@@ -8,6 +8,7 @@ import { TagChip } from "@/components/data/TagChip";
 import { useBusinessUnits, useRegions } from "@/features/users/api";
 import { cn } from "@/lib/utils";
 import { importCsv, importRepos, useApplications, useConnections, useDiscover, useInvalidateRepos, useTagCategories } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const csvTemplate = `repository,application,business_unit,country,environment,criticality,tags,scan_branch
 acme/payments-api,Checkout,Finance,DE,production,high,Team:Payments,main
@@ -128,7 +129,7 @@ function SelectImport({ connId, onResult }: { connId: string; onResult: (r: Impo
         {disc.isPending ? (
           <div className="space-y-2 p-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-8" />)}</div>
         ) : disc.isError ? (
-          <div className="p-4"><Alert>Discovery failed: {disc.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={disc.error} title="Discovery failed" /></div>
         ) : (
           <div className="max-h-[60vh] overflow-y-auto">
             <Table>

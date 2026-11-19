@@ -3,13 +3,14 @@ import { ExternalLink } from "lucide-react";
 import type { Severity } from "@/api/types";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
-import { Alert, Input, Label, Select } from "@/components/ui/primitives";
+import { Input, Label, Select } from "@/components/ui/primitives";
 import { reviewApi, useCatalog, useReviewMutation } from "../api";
 import { buildVector, metricsFor, parseVector, score31, severityForScore, type CvssVersion } from "../lib/cvss";
 import { humanize, severities } from "../shared";
 import type { ReviewDetail } from "../types";
 import { textareaCls } from "./actions";
 import { KV, Panel, SaveBar, useSections } from "./section";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function RiskTab({ d }: { d: ReviewDetail }) {
   const cat = useCatalog();
@@ -113,7 +114,7 @@ export function RiskTab({ d }: { d: ReviewDetail }) {
               <textarea id="sev-just" rows={3} className={textareaCls} value={justification} onChange={(e) => setJustification(e.target.value)} aria-required />
             </div>
           </div>
-          {m.error && <Alert>{m.error.message}</Alert>}
+          {m.error && <ErrorPanel error={m.error} />}
           {editable && (
             <Button disabled={!finalSeverity || justification.trim().length < 10 || !changed || m.isPending} onClick={() => m.mutate(undefined)}>
               {m.isPending ? "Saving…" : "Save severity assessment"}
