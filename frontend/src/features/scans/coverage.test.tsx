@@ -52,6 +52,9 @@ const catalog: Partial<CatalogScanner>[] = [
   { key: "nuclei", name: "Nuclei", worker_family: "core", adapter_available: true, targets: ["url", "api"], network: "target" },
   { key: "plugin-dast-fuzz", name: "Fuzz", worker_family: "plugin", adapter_available: true, runnable: true, targets: ["url"], network: "target", intrusive: true },
   { key: "bandit", name: "Bandit", worker_family: "sast", adapter_available: true, targets: ["repository"] },
+  { key: "mobsfscan", name: "mobsfscan", worker_family: "mobile", adapter_available: true, targets: ["mobile-app"] },
+  { key: "garak", name: "garak", worker_family: "ai", adapter_available: true, targets: ["llm-endpoint"], network: "target", intrusive: true },
+  { key: "capa", name: "capa", worker_family: "binary", adapter_available: true, targets: ["binary"] },
 ];
 
 const web: ScanTarget = {
@@ -66,6 +69,9 @@ describe("target tools", () => {
     const list = catalog as CatalogScanner[];
     expect(targetTools(list, "url").map((t) => t.key)).toEqual(["plugin-dast-fuzz"]);
     expect(targetTools(list, "image")).toEqual([]);
+    expect(targetTools(list, "mobile-app").map((t) => t.key)).toEqual(["mobsfscan"]);
+    expect(targetTools(list, "llm-endpoint").map((t) => t.key)).toEqual(["garak"]);
+    expect(targetTools(list, "artifact").map((t) => t.key)).toEqual(["mobsfscan", "capa"]);
   });
 
   it("selects an intrusive tool and authorizes intrusive testing separately", async () => {

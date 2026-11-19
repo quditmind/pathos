@@ -1,0 +1,189 @@
+#!/opt/pathos/ai/bin/python
+"""Runs a worker-ai tool (workers/ai/tools.d).
+
+    pathos-ai modelscan <source> <artifact> <output> <tmp>
+    pathos-ai garak     <llm-target.json> <output> <tmp>
+    pathos-ai promptfoo <llm-target.json> <output> <tmp>
+    pathos-ai version <tool>
+
+modelscan scans the model artifact when the job has one, else the
+repository checkout (working directory: the scanned directory, so paths are
+relative to it).
+
+garak and promptfoo red-team an LLM endpoint target. <llm-target.json> is
+written by the worker (mode 0600): {"url", "model", "api": "openai-chat",
+"headers": {...}, "rate_limit"}. The credential is passed to the tool in
+its environment (garak: REST_API_KEY, promptfoo: PATHOS_LLM_CREDENTIAL),
+never on a command line, and the generated configurations reference it
+by name only, so it is not written to the reports.
+
+  garak      garak's REST generator with the probes below (string-matching
+             detectors only; one attempt at a time). The output is garak's
+             report (JSON Lines)
+  promptfoo  promptfoo eval of the PATHOS red-team suite
+             (/opt/pathos/ai/promptfoo/redteam-tests.yaml) with promptfoo's
+             HTTP provider; telemetry, update checks, sharing and remote
+             generation are off. The output is promptfoo's results JSON
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+BIN = os.path.dirname(os.path.realpath(__file__))
+PROMPTFOO_DIR = "/opt/pathos/ai/promptfoo"
+NODE = "/opt/pathos/ai/node/bin/node"
+# garak probes whose detectors match strings (no model or dataset
+# download): prompt injection, DAN jailbreak, encoded instructions,
+# latent injection, markdown exfiltration and XSS-style output.
+GARAK_DEFAULT_SPEC = ",".join([
+    "probes.promptinject", "probes.dan.DAN_Jailbreak", "probes.encoding.InjectBase64",
+    "probes.latentinjection.LatentJailbreak", "probes.web_injection.MarkdownImageExfil", "probes.web_injection.TaskXSS",
+])
+# GARAK_SPEC (manifest env) narrows or changes the selection.
+GARAK_SPEC = os.environ.get("GARAK_SPEC") or GARAK_DEFAULT_SPEC
+EMPTY_MODELSCAN = {"summary": {"total_issues_by_severity": {}, "total_issues": 0, "modelscan_version": "", "scanned": {"total_scanned": 0}},
+                   "issues": [], "errors": []}
+
+
+def base_env(tmp):
+    home = os.path.join(tmp, "home")
+    os.makedirs(home, exist_ok=True)
+    e = {k: v for k, v in os.environ.items() if not k.startswith("PATHOS_")}
+    e.update({"HOME": home, "TMPDIR": tmp, "XDG_DATA_HOME": os.path.join(tmp, "data"), "XDG_CONFIG_HOME": os.path.join(tmp, "config"),
+              "XDG_CACHE_HOME": os.path.join(tmp, "cache"), "NO_COLOR": "1", "PYTHONDONTWRITEBYTECODE": "1"})
+    return e
+
+
+def load_target(path):
+    with open(path) as f:
+        t = json.load(f)
+    if not t.get("url") or not t.get("model"):
+        raise SystemExit("the LLM endpoint target has no URL or model")
+    if t.get("api", "openai-chat") != "openai-chat":
+        raise SystemExit("unsupported LLM API %r (supported: openai-chat)" % t.get("api"))
+    headers = t.get("headers") or {}
+    if len(headers) > 1:
+        raise SystemExit("at most one credential header is supported")
+    return t, headers
+
+
+def modelscan(source, artifact, output, tmp):
+    target = None
+    for d in (artifact, source):
+        if d and "{" not in d and os.path.exists(d):
+            target = os.path.realpath(d)
+            break
+    if target is None:
+        raise SystemExit("nothing to scan")
+    cwd = target if os.path.isdir(target) else os.path.dirname(target)
+    # Exit codes: 0 no issues, 1 issues found, 3 no supported files.
+    p = subprocess.run([os.path.join(BIN, "modelscan"), "-p", ".", "-r", "json", "-o", output], cwd=cwd, env=base_env(tmp),
+                       stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+    if p.returncode not in (0, 1, 3):
+        raise SystemExit("modelscan exited with status %d" % p.returncode)
+    if not os.path.isfile(output) or os.path.getsize(output) == 0:
+        with open(output, "w") as f:
+            json.dump(EMPTY_MODELSCAN, f)
+    return 0
+
+
+def garak(target, output, tmp):
+    t, headers = load_target(target)
+    env = base_env(tmp)
+    hdrs = {"Content-Type": "application/json"}
+    for name, value in headers.items():
+        hdrs[name] = "$KEY"  # garak substitutes REST_API_KEY
+        env["REST_API_KEY"] = value
+    opts = {"rest": {"RestGenerator": {
+        "name": t["model"], "uri": t["url"], "method": "post", "headers": hdrs,
+        "req_template_json_object": {"model": t["model"], "messages": [{"role": "user", "content": "$INPUT"}]},
+        "response_json": True, "response_json_field": "$.choices[0].message.content", "request_timeout": 60,
+    }}}
+    opt_file = os.path.join(tmp, "garak-generator.json")
+    with open(opt_file, "w") as f:
+        json.dump(opts, f)
+    # GARAK_PROMPT_CAP (manifest env, default 256 as in garak) bounds the
+    # prompts per probe, and with it the requests sent to the target.
+    cfg_file = os.path.join(tmp, "garak-config.json")
+    with open(cfg_file, "w") as f:
+        json.dump({"run": {"soft_probe_prompt_cap": max(1, int(os.environ.get("GARAK_PROMPT_CAP") or 256))}}, f)
+    args = [os.path.join(BIN, "python"), "-m", "garak", "--config", cfg_file, "--target_type", "rest.RestGenerator", "--generator_option_file", opt_file,
+            "--spec", GARAK_SPEC, "--generations", "1", "--parallel_attempts", "1", "--report_prefix", "pathos", "--narrow_output"]
+    p = subprocess.run(args, cwd=tmp, env=env, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+    report = os.path.join(env["XDG_DATA_HOME"], "garak", "garak_runs", "pathos.report.jsonl")
+    if p.returncode != 0 or not os.path.isfile(report):
+        raise SystemExit("garak exited with status %d without a report" % p.returncode)
+    shutil.copyfile(report, output)
+    return 0
+
+
+def promptfoo(target, output, tmp):
+    t, headers = load_target(target)
+    env = base_env(tmp)
+    env.update({"PROMPTFOO_DISABLE_TELEMETRY": "1", "PROMPTFOO_DISABLE_UPDATE": "1", "PROMPTFOO_DISABLE_REMOTE_GENERATION": "true",
+                "PROMPTFOO_DISABLE_SHARING": "1", "PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION": "true", "PROMPTFOO_SELF_HOSTED": "1",
+                # Self-hosted mode turns env templates off; the credential header needs one.
+                "PROMPTFOO_DISABLE_TEMPLATE_ENV_VARS": "false",
+                "PROMPTFOO_CONFIG_DIR": os.path.join(tmp, "promptfoo"), "PROMPTFOO_CACHE_ENABLED": "false",
+                "PROMPTFOO_DISABLE_ERROR_LOG": "1"})
+    hdrs = {"Content-Type": "application/json"}
+    for name, value in headers.items():
+        hdrs[name] = "{{env.PATHOS_LLM_CREDENTIAL}}"
+        env["PATHOS_LLM_CREDENTIAL"] = value
+    delay = 0
+    if t.get("rate_limit"):
+        delay = max(1, int(1000 / max(1, int(t["rate_limit"]))))
+    cfg = {
+        "description": "PATHOS red-team suite",
+        "prompts": ["{{prompt}}"],
+        "providers": [{"id": "http", "label": "llm-endpoint", "config": {
+            "url": t["url"], "method": "POST", "headers": hdrs,
+            "body": {"model": t["model"], "messages": [{"role": "user", "content": "{{prompt}}"}]},
+            "transformResponse": "json.choices[0].message.content",
+        }}],
+        "tests": "file://" + os.path.join(PROMPTFOO_DIR, "redteam-tests.yaml"),
+        "sharing": False,
+    }
+    cfg_file = os.path.join(tmp, "promptfooconfig.json")
+    with open(cfg_file, "w") as f:
+        json.dump(cfg, f)
+    results = os.path.join(tmp, "promptfoo-results.json")  # promptfoo picks the format by extension
+    args = [NODE, os.path.join(PROMPTFOO_DIR, "node_modules", "promptfoo", "dist", "src", "entrypoint.js"), "eval", "-c", cfg_file,
+            "-o", results, "--no-cache", "--no-progress-bar", "--no-table", "--no-write", "-j", "1"]
+    if delay:
+        args += ["--delay", str(delay)]
+    # Exit code 100: test cases failed (the findings).
+    p = subprocess.run(args, cwd=tmp, env=env, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+    if p.returncode not in (0, 100) or not os.path.isfile(results):
+        raise SystemExit("promptfoo exited with status %d" % p.returncode)
+    shutil.copyfile(results, output)
+    return 0
+
+
+def version(tool):
+    if tool == "promptfoo":
+        with open(os.path.join(PROMPTFOO_DIR, "node_modules", "promptfoo", "package.json")) as f:
+            print("promptfoo %s" % json.load(f)["version"])
+        return 0
+    from importlib.metadata import version as v
+
+    print("%s %s" % (tool, v(tool)))
+    return 0
+
+
+def main(argv):
+    if len(argv) == 3 and argv[1] == "version" and argv[2] in ("modelscan", "garak", "promptfoo"):
+        return version(argv[2])
+    cmd = argv[1] if len(argv) > 1 else ""
+    if cmd == "modelscan" and len(argv) == 6:
+        return modelscan(*argv[2:])
+    if cmd in ("garak", "promptfoo") and len(argv) == 5:
+        return {"garak": garak, "promptfoo": promptfoo}[cmd](*argv[2:])
+    print(__doc__, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

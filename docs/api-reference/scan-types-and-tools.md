@@ -64,7 +64,7 @@ A manifest is a YAML or JSON file read by the worker (never sent to the API). Th
 - **Registration** ([worker protocol](worker-protocol.md#register)): the worker advertises each manifest tool in `tools` with `name`, `category`, `scan_types`, `license_spdx`, `homepage`, `family`, `targets`, `network`, `intrusive`, `requires_build`, `parser` and `first_party`. Operator plugins get a catalog row (`worker_family: "plugin"`) through a database function that accepts only `plugin-<category>-<name>` keys; it never lowers a tool's `network: target` or `intrusive` declaration. First-party manifests use the catalog entry of their key.
 - **Routing**: a scan job that uses manifest tools is leased only by a worker that advertises all of them, unless no online worker does.
 - **Results** ([worker protocol](worker-protocol.md#results)): the worker uploads the tool's own output with the manifest's `parser`. The parser is stored with the raw report (`scan_artifacts.parser`) and is used again to locate a finding in it (for example when a Human Eye review captures the original output).
-- **Authorization**: tools with `network: target` run only for [web application and API targets](scan-targets.md) with an authorization statement; `intrusive` tools also need the target's intrusive testing flag (`intrusive_authorized`). Repository scan profiles refuse both.
+- **Authorization**: tools with `network: target` run only for [web application, API and LLM endpoint targets](scan-targets.md) with an authorization statement; `intrusive` tools also need the target's intrusive testing flag (`intrusive_authorized`). Repository scan profiles refuse both.
 
 ### Parsers
 

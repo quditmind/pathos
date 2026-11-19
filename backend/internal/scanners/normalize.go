@@ -614,6 +614,8 @@ func Parse(key string, raw []byte) ([]Finding, error) {
 		return parseSignature(raw)
 	case EndOfLife:
 		return nil, errors.New("end-of-life findings come from the intelligence feed, not from scanner output")
+	case AIBOM:
+		return nil, nil // an inventory (SBOM), not findings
 	}
 	return ParseSARIF(key, raw)
 }

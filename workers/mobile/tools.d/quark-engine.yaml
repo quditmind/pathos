@@ -1,0 +1,34 @@
+# Quark-Engine: Android malware behaviour (sequences of API calls with data
+# passed between them) scored with Quark's five-stage confidence. The image
+# ships PATHOS' own rules (workers/mobile/quark-rules); an operator can
+# mount more at /opt/pathos/mobile/quark-rules-extra. The report keeps
+# Quark's own JSON under "quark"; "crimes" lists the behaviours found with
+# a confidence of 60 % or more (100 % high, 80 % medium, 60 % low).
+name: quark-engine
+display_name: Quark-Engine
+category: malware
+scan_types: [mobile, malware]
+license_spdx: GPL-3.0-only
+homepage: https://github.com/quark-engine/quark-engine
+family: mobile
+targets: [mobile-app]
+command: /opt/pathos/mobile/bin/pathos-mobile
+version_args: ["version", "quark"]
+args: ["quark", "{artifact}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: crimes
+  rule_id: rule
+  title: crime
+  message: "{crime} (Quark confidence {confidence}, rule score {score}) in {method}"
+  severity: confidence
+  severity_map: {"100%": high, "80%": medium, "60%": low}
+  default_severity: low
+  file: apk
+  identity: "{rule} {method}"

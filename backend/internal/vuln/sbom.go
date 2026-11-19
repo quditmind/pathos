@@ -133,9 +133,12 @@ func StoreSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, r
 	return len(comps), storeGraph(ctx, tx, orgID, repoID, ParseGraph(raw), aliases)
 }
 
-// replaceComponents replaces a repository's component inventory.
+// replaceComponents replaces a repository's component inventory of one
+// kind: the SBOM (Syft scans and imports, which replace each other) or the
+// AI-BOM (source "aibom", replaced by the next AI-BOM only).
 func replaceComponents(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, jobID *uuid.UUID, source string, comps []Component) error {
-	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1`, repoID); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM sbom_components WHERE repository_id = $1 AND (source = 'aibom') = ($2 = 'aibom')`,
+		repoID, source); err != nil {
 		return err
 	}
 	rows := make([][]any, len(comps))
@@ -145,6 +148,49 @@ func replaceComponents(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, 
 	_, err := tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
 		[]string{"organization_id", "repository_id", "scan_job_id", "name", "version", "purl", "type", "licenses", "source", "bom_ref"}, pgx.CopyFromRows(rows))
 	return err
+}
+
+// StoreAIBOM replaces a repository's AI-BOM components (scanner ai-bom):
+// CycloneDX components keep their type (framework, library,
+// machine-learning-model); services (LLM APIs the code calls) are stored
+// as components of type "service".
+func StoreAIBOM(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid.UUID, raw []byte) (int, error) {
+	comps, err := ParseAIBOM(raw)
+	if err != nil {
+		return 0, err
+	}
+	return len(comps), replaceComponents(ctx, tx, orgID, repoID, &jobID, "aibom", comps)
+}
+
+// ParseAIBOM reads the components and services of an AI-BOM.
+func ParseAIBOM(raw []byte) ([]Component, error) {
+	comps, _, err := parseCycloneDX(raw)
+	if err != nil {
+		return nil, err
+	}
+	var doc struct {
+		Services []struct {
+			Ref      string `json:"bom-ref"`
+			Name     string `json:"name"`
+			Provider struct {
+				Name string `json:"name"`
+			} `json:"provider"`
+		} `json:"services"`
+	}
+	if err := json.Unmarshal(raw, &doc); err != nil {
+		return nil, err
+	}
+	for _, sv := range doc.Services {
+		if sv.Name == "" || len(comps) >= 50000 {
+			continue
+		}
+		name := sv.Name
+		if sv.Provider.Name != "" && !strings.HasPrefix(name, sv.Provider.Name) {
+			name = sv.Provider.Name + "/" + name
+		}
+		comps = append(comps, Component{Name: clip(name, 300), Type: "service", Licenses: []string{}, Ref: clip(sv.Ref, 1000)})
+	}
+	return comps, nil
 }
 
 // ComponentGroup aggregates a component across repositories.

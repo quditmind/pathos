@@ -1,0 +1,23 @@
+{
+    "crime": "Write a file to external storage",
+    "permission": [
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+    ],
+    "api": [
+        {
+            "class": "Landroid/os/Environment;",
+            "method": "getExternalStorageDirectory",
+            "descriptor": "()Ljava/io/File;"
+        },
+        {
+            "class": "Ljava/io/FileOutputStream;",
+            "method": "<init>",
+            "descriptor": "(Ljava/io/File;)V"
+        }
+    ],
+    "score": 1,
+    "label": [
+        "file",
+        "storage"
+    ]
+}

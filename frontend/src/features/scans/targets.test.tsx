@@ -57,6 +57,36 @@ describe("scan targets", () => {
     expect(body).not.toHaveProperty("auth_secret");
   });
 
+  it("edits an LLM endpoint target: the model name is required and sent in its configuration", async () => {
+    const llm: ScanTarget = {
+      ...base, id: "t3", kind: "llm-endpoint", name: "Support assistant", reference: "https://llm.example/v1/chat/completions", egress_host: "llm.example",
+      auth_type: "header", auth_header_name: "Authorization", has_secret: true, authorized_by: "Ada", authorized_at: "2026-11-17T10:00:00Z",
+      config: { model: "assistant-v1", tools: ["garak"] }, scanners: ["garak"],
+    };
+    const mobile: ScanTarget = { ...base, id: "t4", kind: "mobile-app", name: "Payments app", reference: "app.apk (0123456789ab)", scanners: ["binary-hardening"] };
+    const api = mockApi({
+      "GET /api/v1/scan-targets": () => ({ items: [llm, mobile] }),
+      "GET /api/v1/scan-targets/t3": () => llm,
+      "PUT /api/v1/scan-targets/t3": (_u, init) => ({ ...llm, ...(init.json as object) }),
+    });
+    renderApp(<ScanTargetsPage />, { permissions: ["scans.read", "repos.manage"] });
+    expect(await screen.findByText("Payments app")).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Edit Support assistant" }));
+    expect(await screen.findByLabelText("Chat completions URL")).toHaveValue("https://llm.example/v1/chat/completions");
+    const model = screen.getByLabelText(/^Model/);
+    expect(model).toHaveValue("assistant-v1");
+    const save = screen.getByRole("button", { name: "Save" });
+    fireEvent.change(model, { target: { value: "" } });
+    expect(save).toBeDisabled();
+    fireEvent.change(model, { target: { value: "assistant-v2" } });
+    expect(save).toBeEnabled();
+    fireEvent.click(save);
+    await waitFor(() => expect(api.calls.some((c) => c.method === "PUT")).toBe(true));
+    const body = api.calls.find((c) => c.method === "PUT")!.body as { config: Record<string, unknown> };
+    expect(body.config).toMatchObject({ model: "assistant-v2", tools: ["garak"] });
+    expect(body).not.toHaveProperty("auth_secret");
+  });
+
   it("is read-only without management permissions", async () => {
     mockApi({ "GET /api/v1/scan-targets": () => ({ items: [web] }) });
     renderApp(<ScanTargetsPage />, { permissions: ["scans.read"] });

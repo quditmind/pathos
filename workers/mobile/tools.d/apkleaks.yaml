@@ -1,0 +1,21 @@
+# APKLeaks: secrets, URLs and endpoints in an APK (decompiled with the
+# image's jadx). Its JSON report is parsed with the PATHOS APKLeaks import
+# parser: matched secret values are redacted before the report is stored.
+name: apkleaks
+display_name: APKLeaks
+category: mobile
+scan_types: [mobile, secrets]
+license_spdx: Apache-2.0
+homepage: https://github.com/dwisiswant0/apkleaks
+family: mobile
+targets: [mobile-app]
+command: /opt/pathos/mobile/bin/pathos-mobile
+version_args: ["version", "apkleaks"]
+args: ["apkleaks", "{artifact}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:apkleaks

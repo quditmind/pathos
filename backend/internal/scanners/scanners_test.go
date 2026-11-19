@@ -24,8 +24,9 @@ func load(t *testing.T, key string) []Finding {
 }
 
 func TestCatalog(t *testing.T) {
-	if len(Catalog) != 55 {
-		t.Errorf("SCANNER_CATALOG lists 55 scanner integrations, got %d", len(Catalog))
+	// 55 in catalog.go, 12 in catalog_{mobile,binary,ai,fuzz}.go.
+	if len(Catalog) != 67 {
+		t.Errorf("SCANNER_CATALOG lists 67 scanner integrations, got %d", len(Catalog))
 	}
 	seen := map[string]bool{}
 	mandatory := 0

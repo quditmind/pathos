@@ -35,7 +35,7 @@ Bodies are JSON unless stated otherwise. Errors use the [common error format](in
 | `POST` | `/internal/worker/v1/lease` | [Lease the next job](#lease-a-job) |
 | `POST` | `/internal/worker/v1/jobs/{id}/heartbeat` | [Extend the lease, learn about cancellation](#heartbeat) |
 | `GET` | `/internal/worker/v1/jobs/{id}/source` | [Download the source snapshot](#download-the-source-or-target-file) of an uploaded repository |
-| `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM or artifact](#download-the-source-or-target-file) of a scan target job |
+| `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM, artifact or mobile app](#download-the-source-or-target-file) of a scan target job |
 | `POST` | `/internal/worker/v1/jobs/{id}/events` | [Report stage events and log lines](#events-and-logs) |
 | `POST` | `/internal/worker/v1/jobs/{id}/imports` | [Upload the code inventory](#code-inventory) used for reachability |
 | `POST` | `/internal/worker/v1/jobs/{id}/changes` | [Upload the material change report](#material-changes) |
@@ -79,7 +79,7 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
 | `credential` | Clone credential of the repository's SCM connection, if any. |
 | `public` | The repository is public; the worker may clone anonymously if the credential fails. |
 | `source` | For uploaded repositories: `{ type: "snapshot", sha256, size }`; download it from `/internal/worker/v1/jobs/{id}/source`. |
-| `target` | For scan-target jobs (image, web application, API, artifact, SBOM, declared endpoints): kind, reference and any decrypted target credential. Endpoints jobs carry `endpoints[]` (`kind`, `value`, `authorized`: only authorized endpoints may be contacted) and `rate_limit`; image and artifact jobs with a verification policy carry `signature` (the [policy](scan-targets.md#signature-verification)) and, for artifacts, `signature_material`. `intrusive_authorized: true` when intrusive testing of the target is authorized; the agent skips intrusive tools otherwise. |
+| `target` | For scan-target jobs (image, web application, API, artifact, mobile app, LLM endpoint, SBOM, declared endpoints): kind, reference and any decrypted target credential; LLM endpoint jobs also carry `model`. Endpoints jobs carry `endpoints[]` (`kind`, `value`, `authorized`: only authorized endpoints may be contacted) and `rate_limit`; image and artifact jobs with a verification policy carry `signature` (the [policy](scan-targets.md#signature-verification)) and, for artifacts, `signature_material`. `intrusive_authorized: true` when intrusive testing of the target is authorized; the agent skips intrusive tools otherwise. |
 | `timeout_seconds`, `exclusions`, `scanners[]` | From the pinned scan profile version: `{ key, config }` per scanner. Opengrep's config includes the organization's custom rules. |
 | `previous_commit_sha` | Commit of the repository's previous successful scan of the same ref (Git branch scans only; omitted for the first scan, pull requests, uploads and targets). The worker compares it with the scanned commit. |
 | `collect_authors` | `true` only while the organization has developer attribution on: the worker then lists the commit author names between the two commits. |
@@ -94,7 +94,7 @@ If no clone credential can be obtained, the job fails and `204` is returned.
 
 `GET /internal/worker/v1/jobs/{id}/source` streams the decrypted snapshot (`application/gzip`, with `Content-Length`); the worker verifies its SHA-256 and size before scanning. `404 no_snapshot` if the job has none.
 
-`GET /internal/worker/v1/jobs/{id}/target-file` returns the uploaded SBOM or build artifact of a scan-target job, decompressed (`application/json`). `404 no_target_file` if the job has none.
+`GET /internal/worker/v1/jobs/{id}/target-file` returns the uploaded SBOM, build artifact or mobile app of a scan-target job, decompressed (`application/json`). `404 no_target_file` if the job has none.
 
 ### Events and logs
 

@@ -849,7 +849,7 @@ export interface ScanJob {
   scan_key: string;
   name: string;
   /** repository, or the kind of scan target the execution scanned. */
-  asset_type: "repository" | "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
+  asset_type: "repository" | "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint";
   target_id?: string | null;
   target_name?: string | null;
   target_reference?: string | null;
@@ -1076,7 +1076,7 @@ export interface Finding {
   application_name?: string | null;
   /** Scan target (container image, web application, API, SBOM); null for the repository's code. */
   scan_target_id?: string | null;
-  scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | null;
+  scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint" | null;
   scan_target_name?: string | null;
   snippet?: string;
   snippet_start_line?: number | null;

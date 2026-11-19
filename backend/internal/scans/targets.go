@@ -41,13 +41,28 @@ import (
 //	url    running web application (DAST)     → Nuclei, non-intrusive templates
 //	api    API described by an OpenAPI file   → Nuclei DAST templates
 //	sbom   imported SBOM                      → Grype vulnerability matching
+//	artifact      uploaded build artifact     → Trivy, binary hardening
+//	mobile-app    uploaded APK, AAB or IPA    → binary hardening, worker-mobile tools
+//	llm-endpoint  LLM chat completions API    → worker-ai red-teaming tools
 //
-// Testing a running application (url, api) requires a recorded statement
-// that the person adding it is authorized to test it.
+// Testing a running application (url, api, llm-endpoint) requires a
+// recorded statement that the person adding it is authorized to test it.
 
 const secretKindTarget = "scan_target"
 
-var targetKinds = []string{"image", "url", "api", "sbom", "artifact", "endpoints"}
+var targetKinds = []string{"image", "url", "api", "sbom", "artifact", "endpoints", "mobile-app", "llm-endpoint"}
+
+// liveKind reports targets that are running systems PATHOS sends requests
+// to (they need an authorization statement).
+func liveKind(kind string) bool { return kind == "url" || kind == "api" || kind == "llm-endpoint" }
+
+// uploadedKind reports targets whose content is an uploaded file.
+func uploadedKind(kind string) bool {
+	return kind == "sbom" || kind == "artifact" || kind == "mobile-app"
+}
+
+// artifactKind reports uploaded build artifacts (generic or mobile apps).
+func artifactKind(kind string) bool { return kind == "artifact" || kind == "mobile-app" }
 
 func (s *Service) registerTargets(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/scan-targets", s.listTargets)
@@ -55,6 +70,7 @@ func (s *Service) registerTargets(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/scan-targets", s.createTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets/sbom", s.createSBOMTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets/artifact", s.createArtifactTarget)
+	mux.HandleFunc("POST /api/v1/scan-targets/mobile-app", s.createMobileAppTarget)
 	mux.HandleFunc("PUT /api/v1/scan-targets/{id}", s.updateTarget)
 	mux.HandleFunc("DELETE /api/v1/scan-targets/{id}", s.deleteTarget)
 	mux.HandleFunc("POST /api/v1/scan-targets/{id}/scan", s.scanTarget)
@@ -76,6 +92,9 @@ type TargetConfig struct {
 	// Tools that contact the target need its authorization statement;
 	// intrusive tools also need "intrusive testing authorized".
 	Tools []string `json:"tools,omitempty"`
+	// Model is the model name sent to an llm-endpoint target (the "model"
+	// field of an OpenAI-compatible chat completions request).
+	Model string `json:"model,omitempty"`
 }
 
 // ScanTarget is the API representation (secrets are never returned).
@@ -290,6 +309,9 @@ func validConfig(c TargetConfig) error {
 			return fmt.Errorf("tools: %q is not a tool manifest key (or is listed twice)", k)
 		}
 	}
+	if len(c.Model) > 200 || !modelNameRe.MatchString(c.Model) {
+		return errors.New("model: at most 200 letters, digits and . _ : / @ + - characters")
+	}
 	return validSignatureConfig(c.Signature)
 }
 
@@ -323,7 +345,7 @@ func (s *Service) listTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := q.Get("kind"); v != "" {
 		if !slices.Contains(targetKinds, v) {
-			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom, artifact or endpoints"))
+			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom, artifact, endpoints, mobile-app or llm-endpoint"))
 			return
 		}
 		args = append(args, v)
@@ -406,7 +428,10 @@ type targetRequest struct {
 	SignatureMaterial *string `json:"signature_material"`
 }
 
-var headerNameRe = regexp.MustCompile(`^[A-Za-z0-9-]{1,100}$`)
+var (
+	headerNameRe = regexp.MustCompile(`^[A-Za-z0-9-]{1,100}$`)
+	modelNameRe  = regexp.MustCompile(`^[A-Za-z0-9._:/@+-]*$`)
+)
 
 // targetFields is the validated, normalized state of a target.
 type targetFields struct {
@@ -461,23 +486,29 @@ func (f *targetFields) apply(req targetRequest) error {
 		if f.authType == "header" {
 			return httpx.BadRequest("container registries use basic authentication (username and password or token)")
 		}
-	case "url", "api":
+	case "url", "api", "llm-endpoint":
 		f.egress, err = ValidateTargetURL(f.reference)
+		if err == nil && f.kind == "llm-endpoint" && f.config.Model == "" {
+			return httpx.BadRequest("an LLM endpoint target needs the model name (config.model)")
+		}
 		if err == nil && f.kind == "api" {
 			if f.spec == nil {
 				return httpx.BadRequest("an OpenAPI document is required")
 			}
 			err = ValidateAPISpec(*f.spec, f.egress)
 		}
-	case "sbom", "artifact":
+	case "sbom", "artifact", "mobile-app":
 		f.egress = ""
 	case "endpoints":
 		return httpx.BadRequest("declared endpoints are verified from the repository's endpoint verification settings")
 	default:
-		return httpx.BadRequest("kind must be image, url, api, sbom or artifact")
+		return httpx.BadRequest("kind must be image, url, api, sbom, artifact, mobile-app or llm-endpoint")
 	}
-	if f.config.Signature != nil && f.config.Signature.Mode != "" && f.kind != "image" && f.kind != "artifact" {
-		return httpx.BadRequest("signature verification applies to container image and artifact targets")
+	if f.config.Model != "" && f.kind != "llm-endpoint" {
+		return httpx.BadRequest("a model name applies to LLM endpoint targets only")
+	}
+	if f.config.Signature != nil && f.config.Signature.Mode != "" && f.kind != "image" && !artifactKind(f.kind) {
+		return httpx.BadRequest("signature verification applies to container image, artifact and mobile app targets")
 	}
 	if f.config.Signature != nil && f.config.Signature.Attestation != "" && f.kind != "image" {
 		return httpx.BadRequest("attestations are verified for container image targets")
@@ -507,7 +538,7 @@ func (f *targetFields) apply(req targetRequest) error {
 	default:
 		return httpx.BadRequest("auth_type must be none, basic or header")
 	}
-	if (f.kind == "sbom" || f.kind == "artifact") && f.authType != "none" {
+	if uploadedKind(f.kind) && f.authType != "none" {
 		return httpx.BadRequest("uploaded targets have no authentication")
 	}
 	return nil
@@ -521,8 +552,8 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	if req.Kind == "sbom" || req.Kind == "artifact" {
-		s.fail(w, r, httpx.BadRequest("upload SBOM and artifact targets with POST /api/v1/scan-targets/"+req.Kind))
+	if uploadedKind(req.Kind) {
+		s.fail(w, r, httpx.BadRequest("upload SBOM, artifact and mobile app targets with POST /api/v1/scan-targets/"+req.Kind))
 		return
 	}
 	if err := s.requireRepo(ctx, p, authz.PermReposManage, req.RepositoryID); err != nil {
@@ -534,7 +565,7 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	if (f.kind == "url" || f.kind == "api") && !req.Authorized {
+	if liveKind(f.kind) && !req.Authorized {
 		s.fail(w, r, httpx.BadRequest("confirm that you are authorized to test this application"))
 		return
 	}
@@ -543,8 +574,8 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	intrusive := req.IntrusiveAuthorized != nil && *req.IntrusiveAuthorized
-	if intrusive && f.kind != "url" && f.kind != "api" {
-		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application and API targets"))
+	if intrusive && !liveKind(f.kind) {
+		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application, API and LLM endpoint targets"))
 		return
 	}
 	intrusiveNote := ""
@@ -564,7 +595,7 @@ func (s *Service) createTarget(w http.ResponseWriter, r *http.Request) {
 		cfg, _ := json.Marshal(f.config)
 		var authBy *uuid.UUID
 		var authAt *time.Time
-		if f.kind == "url" || f.kind == "api" {
+		if liveKind(f.kind) {
 			now := time.Now()
 			authBy, authAt = &p.UserID, &now
 		}
@@ -665,7 +696,7 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		}
 		f.spec = &spec
 	}
-	if (cur.Kind == "sbom" || cur.Kind == "artifact") && req.Reference != nil {
+	if uploadedKind(cur.Kind) && req.Reference != nil {
 		s.fail(w, r, httpx.BadRequest("upload a new target to change the file"))
 		return
 	}
@@ -673,8 +704,8 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("manage declared endpoint verification from the repository (PUT /api/v1/repositories/{id}/endpoint-verification)"))
 		return
 	}
-	if req.SignatureMaterial != nil && cur.Kind != "artifact" {
-		s.fail(w, r, httpx.BadRequest("a signature or Sigstore bundle can be attached to artifact targets only"))
+	if req.SignatureMaterial != nil && !artifactKind(cur.Kind) {
+		s.fail(w, r, httpx.BadRequest("a signature or Sigstore bundle can be attached to artifact and mobile app targets only"))
 		return
 	}
 	if req.SignatureMaterial != nil {
@@ -689,7 +720,7 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 	}
 	// A different address is a different system: it needs its own
 	// authorization statement.
-	live := cur.Kind == "url" || cur.Kind == "api"
+	live := liveKind(cur.Kind)
 	if live && f.reference != cur.Reference && !req.Authorized {
 		s.fail(w, r, httpx.BadRequest("the address changed: confirm that you are authorized to test it"))
 		return
@@ -710,7 +741,7 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		setIntrusive = &v
 	}
 	if setIntrusive != nil && *setIntrusive && !live {
-		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application and API targets"))
+		s.fail(w, r, httpx.BadRequest("intrusive testing applies to web application, API and LLM endpoint targets"))
 		return
 	}
 	intrusiveNote := cur.IntrusiveAuthorizationNote
@@ -964,7 +995,7 @@ func EnqueueTarget(ctx context.Context, q db.Querier, orgID, targetID uuid.UUID,
 	if archived != nil || !enabled {
 		return res, fmt.Errorf("%w: the target is disabled or its repository is archived", ErrNotScannable)
 	}
-	if (kind == "url" || kind == "api" || kind == "endpoints") && authorizedAt == nil {
+	if (liveKind(kind) || kind == "endpoints") && authorizedAt == nil {
 		return res, fmt.Errorf("%w: testing this application has not been authorized", ErrScanPrerequisite)
 	}
 	if err := checkTargetTools(ctx, q, orgID, targetID, kind); err != nil {
@@ -1044,6 +1075,8 @@ type LeasedTarget struct {
 	MinSeverity string `json:"min_severity,omitempty"`
 	// FileName of an artifact target.
 	FileName string `json:"file_name,omitempty"`
+	// Model of an llm-endpoint target.
+	Model string `json:"model,omitempty"`
 	// Endpoints of an endpoints target.
 	Endpoints []LeasedEndpoint `json:"endpoints,omitempty"`
 	// Signature verification policy and an artifact's signature material.
@@ -1076,7 +1109,10 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	var cfg TargetConfig
 	_ = json.Unmarshal(cfgRaw, &cfg)
 	t.RateLimit, t.MinSeverity = cfg.RateLimit, cfg.MinSeverity
-	if cfg.Signature != nil && cfg.Signature.Mode != "" && (t.Kind == "image" || t.Kind == "artifact") {
+	if t.Kind == "llm-endpoint" {
+		t.Model = cfg.Model
+	}
+	if cfg.Signature != nil && cfg.Signature.Mode != "" && (t.Kind == "image" || artifactKind(t.Kind)) {
 		t.Signature = cfg.Signature
 		if material != nil {
 			t.SignatureMaterial = *material
@@ -1136,6 +1172,36 @@ const maxArtifactBytes = 200 << 20
 // archive, binary) as a target; its scan extracts archives on a worker and
 // looks for vulnerable components.
 func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
+	s.createUploadedArtifact(w, r, "artifact")
+}
+
+// createMobileAppTarget stores an uploaded Android (APK, AAB) or iOS (IPA)
+// package as a mobile app target: the same upload, malware scan and storage
+// as build artifacts; mobile tools (worker-mobile) can be selected for it.
+func (s *Service) createMobileAppTarget(w http.ResponseWriter, r *http.Request) {
+	s.createUploadedArtifact(w, r, "mobile-app")
+}
+
+// MobilePackage reports whether a file name is an Android or iOS package.
+func MobilePackage(name string) bool {
+	switch strings.ToLower(path.Ext(name)) {
+	case ".apk", ".aab", ".ipa":
+		return true
+	}
+	return false
+}
+
+// headWriter keeps the first bytes written to it.
+type headWriter struct{ b []byte }
+
+func (h *headWriter) Write(p []byte) (int, error) {
+	if n := 4 - len(h.b); n > 0 {
+		h.b = append(h.b, p[:min(n, len(p))]...)
+	}
+	return len(p), nil
+}
+
+func (s *Service) createUploadedArtifact(w http.ResponseWriter, r *http.Request, kind string) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
 	if mt, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type")); mt != "multipart/form-data" {
@@ -1153,6 +1219,7 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	var size int64
 	var fileName string
 	h := sha256.New()
+	head := &headWriter{}
 	tooLarge := httpx.E(http.StatusRequestEntityTooLarge, "too_large", "artifacts are limited to 200 MiB")
 	for {
 		part, err := mr.NextPart()
@@ -1179,7 +1246,7 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 		}
 		fileName = path.Base(strings.ReplaceAll(part.FileName(), "\\", "/"))
 		zw := gzip.NewWriter(&gz)
-		n, err := io.Copy(io.MultiWriter(zw, h), io.LimitReader(part, maxArtifactBytes+1))
+		n, err := io.Copy(io.MultiWriter(zw, h, head), io.LimitReader(part, maxArtifactBytes+1))
 		_ = zw.Close()
 		if err != nil {
 			var mbe *http.MaxBytesError
@@ -1211,6 +1278,10 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	}
 	if fileName == "" || fileName == "." || fileName == "/" {
 		fileName = "artifact.bin"
+	}
+	if kind == "mobile-app" && (!MobilePackage(fileName) || !bytes.Equal(head.b, []byte("PK\x03\x04"))) {
+		s.fail(w, r, httpx.BadRequest("a mobile app target is an Android (.apk, .aab) or iOS (.ipa) package"))
+		return
 	}
 	var material *string
 	if v := form["signature"]; v != "" {
@@ -1257,13 +1328,13 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	digest := hex.EncodeToString(h.Sum(nil))
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO scan_targets (id, organization_id, repository_id, kind, name, reference, artifact_name, artifact_key,
-			artifact_gzip, sbom_sha256, sbom_size, created_by, signature_material) VALUES ($1, $2, $3, 'artifact', $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID, material); err != nil {
+			artifact_gzip, sbom_sha256, sbom_size, created_by, signature_material) VALUES ($1, $2, $3, $13, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID, material, kind); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
-			Metadata: map[string]any{"kind": "artifact", "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID,
+			Metadata: map[string]any{"kind": kind, "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID,
 				"malware_scan": malware, "signature_attached": material != nil}})
 	})
 	if err != nil {

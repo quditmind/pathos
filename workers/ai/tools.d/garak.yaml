@@ -1,0 +1,25 @@
+# garak: LLM red-teaming probes (prompt injection, DAN jailbreak, encoded
+# instructions, latent injection, markdown exfiltration, XSS-style output)
+# sent to an LLM endpoint target through garak's REST generator, one
+# attempt at a time. Only probes whose detectors match strings are run (no
+# model or dataset downloads). Requires the target's authorization and
+# intrusive testing flag. garak's report (JSON Lines) is parsed with the
+# garak import parser: one finding per probe and detector that succeeded.
+name: garak
+display_name: garak
+category: ai
+scan_types: [ai]
+license_spdx: Apache-2.0
+homepage: https://github.com/NVIDIA/garak
+family: ai
+targets: [llm-endpoint]
+command: /opt/pathos/ai/bin/pathos-ai
+version_args: ["version", "garak"]
+args: ["garak", "{llm_target}", "{output}", "{tmp}"]
+timeout: 2h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:garak

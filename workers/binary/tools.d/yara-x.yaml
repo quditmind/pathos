@@ -1,0 +1,35 @@
+# YARA-X: YARA rules on build artifacts, mobile packages and (when a scan
+# profile selects it) repositories. Bundled rules: the ReversingLabs YARA
+# rules (MIT, malware families, exploits, hacking tools) and PATHOS' own
+# (workers/binary/yara); an operator can mount more at
+# /opt/pathos/binary/yara-extra. The report is YARA-X's JSON output; the
+# helper adds to each match a severity (the rule's own; ReversingLabs
+# malware rules high), a description and the path relative to the scanned
+# directory.
+name: yara-x
+display_name: YARA-X
+category: malware
+scan_types: [malware, binary]
+license_spdx: BSD-3-Clause
+homepage: https://github.com/VirusTotal/yara-x
+family: binary
+targets: [repository, binary, mobile-app]
+command: /opt/pathos/binary/bin/pathos-binary
+version_args: ["version", "yara"]
+args: ["yara", "{source}", "{artifact}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: matches
+  rule_id: rule
+  title: "{rule}: {description}"
+  message: description
+  severity: severity
+  default_severity: medium
+  file: path
+  identity: "{rule} {path}"

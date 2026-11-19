@@ -1,0 +1,25 @@
+{
+    "crime": "Send the last known location over the network",
+    "permission": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.INTERNET"
+    ],
+    "api": [
+        {
+            "class": "Landroid/location/LocationManager;",
+            "method": "getLastKnownLocation",
+            "descriptor": "(Ljava/lang/String;)Landroid/location/Location;"
+        },
+        {
+            "class": "Ljava/net/URL;",
+            "method": "openConnection",
+            "descriptor": "()Ljava/net/URLConnection;"
+        }
+    ],
+    "score": 2,
+    "label": [
+        "location",
+        "collection",
+        "network"
+    ]
+}

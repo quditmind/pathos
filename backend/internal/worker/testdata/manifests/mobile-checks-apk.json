@@ -1,0 +1,108 @@
+{
+ "tool": "mobile-app-checks",
+ "version": 1,
+ "packages": [
+  {
+   "file": "pathos-test.apk",
+   "id": "org.pathos.testapp"
+  }
+ ],
+ "findings": [
+  {
+   "id": "ANDROID-DEBUGGABLE",
+   "title": "The app is debuggable",
+   "severity": "high",
+   "description": "android:debuggable=\"true\" lets anyone with a USB or ADB connection attach a debugger, read the app's private data and run code in its process. Release builds must not be debuggable.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": "",
+   "cwe": "CWE-489",
+   "masvs": "MASVS-RESILIENCE-2",
+   "evidence": "android:debuggable=\"true\"",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-ALLOW-BACKUP",
+   "title": "App data can be backed up",
+   "severity": "medium",
+   "description": "android:allowBackup is true: the app's private files and databases can be copied with adb backup or cloud backup. Set android:allowBackup=\"false\" or restrict backups with android:fullBackupContent / dataExtractionRules.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": "",
+   "cwe": "CWE-530",
+   "masvs": "MASVS-STORAGE-2",
+   "evidence": "android:allowBackup=true",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-CLEARTEXT-TRAFFIC",
+   "title": "Cleartext HTTP traffic is allowed",
+   "severity": "medium",
+   "description": "android:usesCleartextTraffic=\"true\": the app may send data over unencrypted HTTP, readable and modifiable on the network.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": "",
+   "cwe": "CWE-319",
+   "masvs": "MASVS-NETWORK-1",
+   "evidence": "android:usesCleartextTraffic=\"true\"",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-MIN-SDK",
+   "title": "The app supports outdated Android versions (minSdkVersion 19)",
+   "severity": "low",
+   "description": "minSdkVersion 19 allows installation on Android versions before 6.0 (API 23), which no longer receive security updates and lack runtime permissions and current TLS defaults.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": "",
+   "cwe": "CWE-1104",
+   "masvs": "MASVS-CODE-3",
+   "evidence": "minSdkVersion=19",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-EXPORTED-ACTIVITY",
+   "title": "Exported activity without a permission: .AdminActivity",
+   "severity": "medium",
+   "description": "The activity .AdminActivity is exported (android:exported=\"true\") and not protected by a permission: any app on the device can start or call it. Set android:exported=\"false\" or require a signature-level permission.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": ".AdminActivity",
+   "cwe": "CWE-926",
+   "masvs": "MASVS-PLATFORM-1",
+   "evidence": "android:exported=\"true\"",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-EXPORTED-SERVICE",
+   "title": "Exported service without a permission: .SyncService",
+   "severity": "medium",
+   "description": "The service .SyncService is exported (android:exported=\"true\") and not protected by a permission: any app on the device can start or call it. Set android:exported=\"false\" or require a signature-level permission.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": ".SyncService",
+   "cwe": "CWE-926",
+   "masvs": "MASVS-PLATFORM-1",
+   "evidence": "android:exported=\"true\"",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-EXPORTED-PROVIDER",
+   "title": "Exported provider without a permission: .NotesProvider",
+   "severity": "high",
+   "description": "The provider .NotesProvider is exported (android:exported=\"true\") and not protected by a permission: any app on the device can start or call it. Set android:exported=\"false\" or require a signature-level permission.",
+   "file": "pathos-test.apk!/AndroidManifest.xml",
+   "component": ".NotesProvider",
+   "cwe": "CWE-926",
+   "masvs": "MASVS-PLATFORM-1",
+   "evidence": "android:exported=\"true\"",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "ANDROID-SIGNING-V1-ONLY",
+   "title": "Signed with the v1 (JAR) scheme only",
+   "severity": "high",
+   "description": "The APK has only a v1 (JAR) signature. v1 does not protect the whole file: on Android 5.0-8.0 the Janus vulnerability (CVE-2017-13156) lets an attacker prepend DEX code without breaking the signature. Sign with the v2 or v3 scheme (apksigner).",
+   "file": "pathos-test.apk!/META-INF",
+   "component": "",
+   "cwe": "CWE-347",
+   "masvs": "MASVS-RESILIENCE-2",
+   "evidence": "v1=True v2=False v3=False minSdk=19",
+   "package": "org.pathos.testapp"
+  }
+ ]
+}

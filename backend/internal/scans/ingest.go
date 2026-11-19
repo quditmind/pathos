@@ -51,7 +51,8 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 
 	var findings []scanners.Finding
 	parseErr := ""
-	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
+	// Syft and the AI-BOM produce an inventory (SBOM), not findings.
+	if up.Status == "succeeded" && up.Scanner != scanners.Syft && up.Scanner != scanners.AIBOM && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -104,7 +105,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		if len(raw) > 0 {
 			kind, ct := "raw", "application/sarif+json"
 			switch up.Scanner {
-			case scanners.Syft:
+			case scanners.Syft, scanners.AIBOM:
 				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
 				ct = "application/json"
@@ -148,6 +149,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			} else {
 				licenses = true
+			}
+		}
+		// The AI-BOM adds the repository's AI frameworks, models and LLM
+		// APIs to its component inventory (beside Syft's components).
+		if up.Scanner == scanners.AIBOM && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			if _, err := vuln.StoreAIBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+				s.Log.Warn("AI-BOM inventory not updated", "job_id", jobID, "err", err)
 			}
 		}
 		// Evidence kept besides findings: per-endpoint verification status

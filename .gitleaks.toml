@@ -14,4 +14,6 @@ paths = [
   '''^backend/internal/platform/logging/logging_test\.go$''',
   '''^backend/test/integration/(analyst|tickets)_test\.go$''',
   '''^backend/internal/scanners/import_[gr][1-5]_test\.go$''',
+  # Real output of the family-image tools (hashes in capa's report).
+  '''^backend/internal/worker/testdata/manifests/(mobile|binary|ai|fuzz)-''',
 ]

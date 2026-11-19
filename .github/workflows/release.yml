@@ -120,7 +120,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        family: [sast]
+        family: [sast, mobile, binary, ai, fuzz]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -269,7 +269,7 @@ jobs:
           ## Verify the images
 
           \`\`\`bash
-          for i in pathos pathos-proxy pathos-worker-core pathos-worker-sast; do
+          for i in pathos pathos-proxy pathos-worker-core pathos-worker-sast pathos-worker-mobile pathos-worker-binary pathos-worker-ai pathos-worker-fuzz; do
             cosign verify ghcr.io/${owner}/\$i:${version} \\
               --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}" \\
               --certificate-oidc-issuer https://token.actions.githubusercontent.com
