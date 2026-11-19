@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"pathos/internal/ingest"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -155,6 +156,24 @@ func checkReachable(ctx context.Context, target string) error {
 		return fmt.Errorf("the egress proxy could not reach %s (%s)", host, e)
 	}
 	return nil
+}
+
+// deniedGetRe matches a Go HTTP client error for a request the egress proxy
+// refused (Squid answers CONNECT with 403 Forbidden).
+var deniedGetRe = regexp.MustCompile(`Get "https?://([A-Za-z0-9.-]+)(?::\d+)?[^"]*": Forbidden`)
+
+// registryDenied explains a registry request the egress proxy refused
+// (Trivy only reports "Forbidden"), naming the host to allow. Registries
+// use several hosts (Docker Hub: index.docker.io, auth.docker.io and a
+// CDN), so each refused one is reported in turn.
+func registryDenied(err error) error {
+	if err == nil {
+		return nil
+	}
+	if m := deniedGetRe.FindStringSubmatch(err.Error()); m != nil {
+		return fmt.Errorf("%w (%s)", egressDenied(m[1]), lastLine(err.Error()))
+	}
+	return err
 }
 
 func egressDenied(host string) error {
@@ -316,7 +335,7 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 				_, err := command(ctx, env, []int{0}, bin, append(append(args, extra...), in.Target.Reference)...)
 				return err
 			})
-			return "", err
+			return "", registryDenied(err)
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api" && in.Target.Kind != "endpoints") {

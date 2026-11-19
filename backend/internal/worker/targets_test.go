@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -133,5 +134,19 @@ func TestWorkflowFiles(t *testing.T) {
 	}
 	if workflowFiles("") != nil {
 		t.Error("no source, no files")
+	}
+}
+
+func TestRegistryDenied(t *testing.T) {
+	trivy := errors.New(`trivy exited with 1: 2026-11-19T19:28:24Z	FATAL	Fatal error	run error: image scan error: unable to get the image ID: ` +
+		`Get "https://production.cloudfront.docker.com/registry-v2/docker/registry/v2/blobs/sha256/ab/data?x=1": Forbidden`)
+	err := registryDenied(trivy)
+	if err == nil || !strings.Contains(err.Error(), "the egress proxy denied access to production.cloudfront.docker.com") ||
+		!strings.Contains(err.Error(), "allowlist.txt") {
+		t.Fatalf("got %v", err)
+	}
+	other := errors.New("trivy exited with 1: MANIFEST_UNKNOWN")
+	if registryDenied(other) != other || registryDenied(nil) != nil {
+		t.Error("other errors are returned unchanged")
 	}
 }
