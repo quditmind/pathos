@@ -202,8 +202,22 @@ func TestM8RemediationWorkspace(t *testing.T) {
 		return s
 	}
 
-	// 1. Still present after the fix.
-	v1 := verify(webItem)
+	// 1. Still present after the fix. The item's owner (a developer, no
+	// scans.run) may verify their own item; another developer may not.
+	other := realPrincipal(t, "developer")
+	if code, _ := h.user(other, "POST", "/api/v1/remediation/items/"+webItem["id"].(string)+"/verify", nil); code != 403 {
+		t.Errorf("non-owner developer verifies: %d", code)
+	}
+	if code, d := h.user(other, "GET", "/api/v1/remediation/items/"+webItem["id"].(string), nil); code != 200 || d["can_request_verification"] != false {
+		t.Errorf("non-owner can_request_verification: %d %v", code, d["can_request_verification"])
+	}
+	if code, d := h.user(owner, "GET", "/api/v1/remediation/items/"+webItem["id"].(string), nil); code != 200 || d["can_request_verification"] != true {
+		t.Errorf("owner can_request_verification: %d %v", code, d["can_request_verification"])
+	}
+	code, v1 := h.user(owner, "POST", "/api/v1/remediation/items/"+webItem["id"].(string)+"/verify", nil)
+	if code != 202 || v1["status"] != "queued" || v1["requested_by_email"] != owner.Email {
+		t.Fatalf("owner verifies own item: %d %v", code, v1)
+	}
 	if itemStatus(webItem) != "verifying" {
 		t.Errorf("status while verifying: %s", itemStatus(webItem))
 	}

@@ -48,12 +48,15 @@ type Guidance struct {
 // verifications.
 type Detail struct {
 	Item
-	Findings                []FindingRef   `json:"findings"`
-	Guidance                []Guidance     `json:"guidance"`
-	FixPRs                  []FixPRRef     `json:"fix_prs"`
-	Verifications           []Verification `json:"verifications"`
-	CanVerify               bool           `json:"can_verify"`
-	VerifyUnavailableReason string         `json:"verify_unavailable_reason"`
+	Findings      []FindingRef   `json:"findings"`
+	Guidance      []Guidance     `json:"guidance"`
+	FixPRs        []FixPRRef     `json:"fix_prs"`
+	Verifications []Verification `json:"verifications"`
+	CanVerify     bool           `json:"can_verify"`
+	// CanRequestVerification: the caller may press Verify fix (the item's
+	// owner, or remediation.manage and scans.run on the repository).
+	CanRequestVerification  bool   `json:"can_request_verification"`
+	VerifyUnavailableReason string `json:"verify_unavailable_reason"`
 }
 
 func (s *Service) get(w http.ResponseWriter, r *http.Request) {
@@ -106,6 +109,7 @@ func (s *Service) get(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	d.CanRequestVerification = s.canRequestVerification(ctx, p, it) == nil
 	if _, err := s.plan(ctx, p.OrganizationID, it, nil); err != nil {
 		d.VerifyUnavailableReason = reasonOf(err)
 	} else {

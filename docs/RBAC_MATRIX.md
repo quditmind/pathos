@@ -93,6 +93,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 
 `insights.people` shows who introduced and who fixed findings, per git author name, per linked user and per team. It is **organization-only** because data about people is not divided by repository scope, and it is granted only to `super_admin` and `security_manager` by default; grant it through a custom role otherwise. Attribution itself is **off by default**: an administrator with `settings.manage` must enable it (Administration → Developer attribution), and linking git author names to users needs `users.manage`. See [the user guide](user-guide/developer-insights.md).
 
+### Verifying a fix (`remediation.manage`, `scans.run`, item owner)
+
+"Verify fix" on a remediation item queues a targeted rescan (the findings' own scanners on the item's affected files only). It needs `remediation.manage` and `scans.run` on the item's repository, **except for the item's assigned owner**, who may verify their own item with `remediation.read` alone. A developer can therefore prove the fix of an item assigned to them; other developers cannot queue rescans. The item page shows the button from the server's `can_request_verification`.
+
 ## Organizations and installation administrators (multi-tenancy)
 
 Every role assignment above belongs to **one organization**. With multi-tenancy enabled ([MULTI_TENANCY.md](MULTI_TENANCY.md)), a person who belongs to several organizations has a separate user record, separate role assignments and separate API tokens in each; the session acts in one organization at a time (the organization switcher starts a new session). No role, scope or token of one organization reaches another: authorization resolves every repository, business unit and region inside the request's organization, and the database enforces row-level security on every tenant table.

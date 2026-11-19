@@ -105,6 +105,24 @@ describe("remediation item", () => {
     await waitFor(() => expect(api.calls.some((c) => c.method === "POST" && c.path === "/api/v1/remediation/items/i1/verify")).toBe(true));
   });
 
+  it("lets the item's owner verify without remediation.manage, and refuses other readers", async () => {
+    mockApi({
+      "GET /api/v1/meta": meta(true),
+      "GET /api/v1/remediation/items/i1": () => ({ ...detail(), can_request_verification: true }),
+    });
+    const { unmount } = renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read"], path: "/remediation/items/i1" });
+    expect(await screen.findByRole("button", { name: /Verify fix/ })).toBeEnabled();
+    unmount();
+    mockApi({
+      "GET /api/v1/meta": meta(true),
+      "GET /api/v1/remediation/items/i1": () => ({ ...detail(), can_request_verification: false }),
+    });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read"], path: "/remediation/items/i1" });
+    const btn = await screen.findByRole("button", { name: /Verify fix/ });
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute("title", expect.stringContaining("item's owner"));
+  });
+
   it("disables Verify fix with the reason, and shows before/after evidence and regressions", async () => {
     mockApi({
       "GET /api/v1/meta": meta(true),

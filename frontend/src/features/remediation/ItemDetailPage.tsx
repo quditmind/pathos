@@ -259,7 +259,12 @@ function Verifications({ item, manage }: { item: ItemDetail; manage: boolean }) 
   const verify = useVerify(item.id);
   const [confirm, setConfirm] = useState(false);
   const running = item.verifications.some((v) => v.status === "queued" || v.status === "running");
-  const reason = !manage ? "You need the remediation.manage permission." : !item.can_verify ? item.verify_unavailable_reason : running ? "A verification is already running." : "";
+  // The item's owner may verify their own item; others need
+  // remediation.manage and scans.run (the server decides: can_request_verification).
+  const allowed = item.can_request_verification ?? manage;
+  const reason = !allowed
+    ? "Only the item's owner, or someone with remediation.manage and scans.run on the repository, can verify the fix."
+    : !item.can_verify ? item.verify_unavailable_reason : running ? "A verification is already running." : "";
   return (
     <Card className="p-4">
       <div className="mb-2 flex flex-wrap items-center gap-2">

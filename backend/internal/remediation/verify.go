@@ -336,17 +336,14 @@ func (s *Service) verify(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	it, err := s.loadItem(ctx, p, id, authz.PermRemediationManage)
+	it, err := s.loadItem(ctx, p, id, authz.PermRemediationRead)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	if it.RepositoryID != nil {
-		// Queuing a rescan runs a scanner on the repository's code.
-		if err := s.requireRepo(ctx, p, authz.PermScansRun, *it.RepositoryID); err != nil {
-			s.fail(w, r, err)
-			return
-		}
+	if err := s.canRequestVerification(ctx, p, it); err != nil {
+		s.fail(w, r, err)
+		return
 	}
 	var in verifyInput
 	if r.ContentLength != 0 {
@@ -371,6 +368,24 @@ func (s *Service) verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	httpx.WriteJSON(w, http.StatusAccepted, v)
+}
+
+// canRequestVerification: the item's assigned owner may verify their own
+// item (remediation.read, checked by loadItem, is enough: the rescan runs
+// the findings' own scanners on the item's affected files only); anyone
+// else needs remediation.manage and scans.run on the repository.
+func (s *Service) canRequestVerification(ctx context.Context, p *authz.Principal, it Item) error {
+	if it.OwnerID != nil && *it.OwnerID == p.UserID {
+		return nil
+	}
+	if it.RepositoryID == nil {
+		return s.Authz.Require(ctx, p, authz.PermRemediationManage, authz.Scope{Type: authz.ScopeOrganization, ID: p.OrganizationID})
+	}
+	if err := s.requireRepo(ctx, p, authz.PermRemediationManage, *it.RepositoryID); err != nil {
+		return err
+	}
+	// Queuing a rescan runs a scanner on the repository's code.
+	return s.requireRepo(ctx, p, authz.PermScansRun, *it.RepositoryID)
 }
 
 // Queue plans and records a verification of an item in tx: a queued

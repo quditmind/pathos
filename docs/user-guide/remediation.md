@@ -19,7 +19,7 @@ Quditmind PATHOS · applies to v3.0 (unreleased) · status: Prototype (behind th
 
 The module is behind the feature flag `remediation_workspace` (off by default). An administrator with `settings.manage` turns it on under **Administration → Feature flags**. While it is off, the pages show a "not enabled" notice and the API answers `404` with `PTH-PLAT-1007`.
 
-Permissions: `remediation.read` to see items, gates and decisions; `remediation.manage` to create and update items and request exceptions; `remediation.manage` and `scans.run` to request a verification (it runs a scanner); `gates.manage` (organization-wide) to add and change gates; `gates.approve_exception` to approve or reject exceptions and approvals.
+Permissions: `remediation.read` to see items, gates and decisions; `remediation.manage` to create and update items and request exceptions; `remediation.manage` and `scans.run` to request a verification (it runs a scanner) — except that an item's assigned owner may always verify their own item, with `remediation.read` alone; `gates.manage` (organization-wide) to add and change gates; `gates.approve_exception` to approve or reject exceptions and approvals.
 
 ## Remediation workspace
 

@@ -125,6 +125,8 @@ export interface ItemDetail extends RemediationItem {
   fix_prs: FixPRRef[];
   verifications: Verification[];
   can_verify: boolean;
+  /** The caller may press Verify fix (the item's owner, or remediation.manage + scans.run). */
+  can_request_verification?: boolean;
   verify_unavailable_reason: string;
 }
 
