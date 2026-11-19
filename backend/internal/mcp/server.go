@@ -16,6 +16,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/org"
+	"pathos/internal/platform/tenant"
 	"pathos/internal/scanners"
 )
 
@@ -61,6 +62,8 @@ func (s *Service) Handler() http.Handler {
 			http.Error(w, err.Error(), http.StatusUnauthorized)
 			return
 		}
+		// Every query of the request is scoped to the token's organization.
+		ctx = tenant.WithOrg(ctx, p.OrganizationID)
 		if !s.serverEnabled(ctx, p.OrganizationID) {
 			http.Error(w, "the PATHOS MCP server is disabled in the MCP registry", http.StatusForbidden)
 			return

@@ -1,0 +1,1042 @@
+{
+  "suite": "sca-pinned-versions",
+  "source": "PATHOS benchmarks/suites/sca (self-made projects); answer key from api.osv.dev on 2026-11-19",
+  "license": "Apache-2.0 (PATHOS; self-made)",
+  "match": "sca",
+  "cases": [
+    {
+      "id": "npm-vulnerable/lodash@4.17.15/CVE-2020-28500",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.15",
+      "vulns": [
+        "CVE-2020-28500",
+        "GHSA-29mw-wpgm-hmr9"
+      ]
+    },
+    {
+      "id": "npm-fixed/lodash@4.17.21/CVE-2020-28500",
+      "category": "npm",
+      "vulnerable": false,
+      "file": "npm-fixed",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.21",
+      "vulns": [
+        "CVE-2020-28500",
+        "GHSA-29mw-wpgm-hmr9"
+      ]
+    },
+    {
+      "id": "npm-vulnerable/lodash@4.17.15/CVE-2020-8203",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.15",
+      "vulns": [
+        "CVE-2020-8203",
+        "GHSA-p6mc-m468-83gw"
+      ]
+    },
+    {
+      "id": "npm-fixed/lodash@4.17.21/CVE-2020-8203",
+      "category": "npm",
+      "vulnerable": false,
+      "file": "npm-fixed",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.21",
+      "vulns": [
+        "CVE-2020-8203",
+        "GHSA-p6mc-m468-83gw"
+      ]
+    },
+    {
+      "id": "npm-vulnerable/lodash@4.17.15/CVE-2021-23337",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.15",
+      "vulns": [
+        "CVE-2021-23337",
+        "GHSA-35jh-r3h4-6jhm"
+      ]
+    },
+    {
+      "id": "npm-fixed/lodash@4.17.21/CVE-2021-23337",
+      "category": "npm",
+      "vulnerable": false,
+      "file": "npm-fixed",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.21",
+      "vulns": [
+        "CVE-2021-23337",
+        "GHSA-35jh-r3h4-6jhm"
+      ]
+    },
+    {
+      "id": "npm-vulnerable/lodash@4.17.15/CVE-2025-13465",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.15",
+      "vulns": [
+        "CVE-2025-13465",
+        "GHSA-xxjr-mmjv-4gpg"
+      ]
+    },
+    {
+      "id": "npm-fixed/lodash@4.17.21/CVE-2025-13465",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-fixed",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.21",
+      "vulns": [
+        "CVE-2025-13465",
+        "GHSA-xxjr-mmjv-4gpg"
+      ]
+    },
+    {
+      "id": "npm-vulnerable/lodash@4.17.15/CVE-2026-4800",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.15",
+      "vulns": [
+        "CVE-2026-4800",
+        "GHSA-r5fr-rjxr-66jc"
+      ]
+    },
+    {
+      "id": "npm-fixed/lodash@4.17.21/CVE-2026-4800",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-fixed",
+      "packages": [
+        "lodash"
+      ],
+      "version": "4.17.21",
+      "vulns": [
+        "CVE-2026-4800",
+        "GHSA-r5fr-rjxr-66jc"
+      ]
+    },
+    {
+      "id": "npm-vulnerable/minimist@1.2.5/CVE-2021-44906",
+      "category": "npm",
+      "vulnerable": true,
+      "file": "npm-vulnerable",
+      "packages": [
+        "minimist"
+      ],
+      "version": "1.2.5",
+      "vulns": [
+        "CVE-2021-44906",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "id": "npm-fixed/minimist@1.2.6/CVE-2021-44906",
+      "category": "npm",
+      "vulnerable": false,
+      "file": "npm-fixed",
+      "packages": [
+        "minimist"
+      ],
+      "version": "1.2.6",
+      "vulns": [
+        "CVE-2021-44906",
+        "GHSA-xvch-5gv4-984h"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/pyyaml@5.3.1/CVE-2020-14343",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "pyyaml"
+      ],
+      "version": "5.3.1",
+      "vulns": [
+        "CVE-2020-14343",
+        "GHSA-8q59-q68h-6hv4",
+        "PYSEC-2021-142"
+      ]
+    },
+    {
+      "id": "pypi-fixed/pyyaml@5.4/CVE-2020-14343",
+      "category": "pypi",
+      "vulnerable": false,
+      "file": "pypi-fixed",
+      "packages": [
+        "pyyaml"
+      ],
+      "version": "5.4",
+      "vulns": [
+        "CVE-2020-14343",
+        "GHSA-8q59-q68h-6hv4",
+        "PYSEC-2021-142"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/jinja2@2.11.2/CVE-2020-28493",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.2",
+      "vulns": [
+        "CVE-2020-28493",
+        "GHSA-g3rq-g295-4j3m",
+        "PYSEC-2021-66"
+      ]
+    },
+    {
+      "id": "pypi-fixed/jinja2@2.11.3/CVE-2020-28493",
+      "category": "pypi",
+      "vulnerable": false,
+      "file": "pypi-fixed",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.3",
+      "vulns": [
+        "CVE-2020-28493",
+        "GHSA-g3rq-g295-4j3m",
+        "PYSEC-2021-66"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/jinja2@2.11.2/CVE-2024-22195",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.2",
+      "vulns": [
+        "CVE-2024-22195",
+        "GHSA-h5c8-rqwp-cp95",
+        "PYSEC-2026-1473"
+      ]
+    },
+    {
+      "id": "pypi-fixed/jinja2@2.11.3/CVE-2024-22195",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.3",
+      "vulns": [
+        "CVE-2024-22195",
+        "GHSA-h5c8-rqwp-cp95",
+        "PYSEC-2026-1473"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/jinja2@2.11.2/CVE-2024-34064",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.2",
+      "vulns": [
+        "CVE-2024-34064",
+        "GHSA-h75v-3vvj-5mfj",
+        "PYSEC-2026-1474"
+      ]
+    },
+    {
+      "id": "pypi-fixed/jinja2@2.11.3/CVE-2024-34064",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.3",
+      "vulns": [
+        "CVE-2024-34064",
+        "GHSA-h75v-3vvj-5mfj",
+        "PYSEC-2026-1474"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/jinja2@2.11.2/CVE-2024-56326",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.2",
+      "vulns": [
+        "CVE-2024-56326",
+        "GHSA-q2x7-8rv6-6q7h",
+        "PYSEC-2026-1475"
+      ]
+    },
+    {
+      "id": "pypi-fixed/jinja2@2.11.3/CVE-2024-56326",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.3",
+      "vulns": [
+        "CVE-2024-56326",
+        "GHSA-q2x7-8rv6-6q7h",
+        "PYSEC-2026-1475"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/jinja2@2.11.2/CVE-2025-27516",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.2",
+      "vulns": [
+        "CVE-2025-27516",
+        "GHSA-cpwx-vrp4-4pq7",
+        "PYSEC-2026-1471"
+      ]
+    },
+    {
+      "id": "pypi-fixed/jinja2@2.11.3/CVE-2025-27516",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "jinja2"
+      ],
+      "version": "2.11.3",
+      "vulns": [
+        "CVE-2025-27516",
+        "GHSA-cpwx-vrp4-4pq7",
+        "PYSEC-2026-1471"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2021-33503",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2021-33503",
+        "GHSA-q2q7-5pp4-w6pg",
+        "PYSEC-2021-108"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2021-33503",
+      "category": "pypi",
+      "vulnerable": false,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2021-33503",
+        "GHSA-q2q7-5pp4-w6pg",
+        "PYSEC-2021-108"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2023-43804",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2023-43804",
+        "GHSA-v845-jxx5-vc9f",
+        "PYSEC-2023-192"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2023-43804",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2023-43804",
+        "GHSA-v845-jxx5-vc9f",
+        "PYSEC-2023-192"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2023-45803",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2023-45803",
+        "GHSA-g4mx-q9vg-27p4",
+        "PYSEC-2023-212"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2023-45803",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2023-45803",
+        "GHSA-g4mx-q9vg-27p4",
+        "PYSEC-2023-212"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2024-37891",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2024-37891",
+        "GHSA-34jh-p97f-mpxf",
+        "PYSEC-2026-1995"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2024-37891",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2024-37891",
+        "GHSA-34jh-p97f-mpxf",
+        "PYSEC-2026-1995"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2025-50181",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2025-50181",
+        "GHSA-pq67-6m6q-mj2v",
+        "PYSEC-2026-1999"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2025-50181",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2025-50181",
+        "GHSA-pq67-6m6q-mj2v",
+        "PYSEC-2026-1999"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2025-66418",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2025-66418",
+        "GHSA-gm62-xv2j-4w53",
+        "PYSEC-2026-1998"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2025-66418",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2025-66418",
+        "GHSA-gm62-xv2j-4w53",
+        "PYSEC-2026-1998"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2025-66471",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2025-66471",
+        "GHSA-2xpw-w6gg-jr37",
+        "PYSEC-2026-1994"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2025-66471",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2025-66471",
+        "GHSA-2xpw-w6gg-jr37",
+        "PYSEC-2026-1994"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2026-21441",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2026-21441",
+        "GHSA-38jv-5279-wg99",
+        "PYSEC-2026-1996"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2026-21441",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2026-21441",
+        "GHSA-38jv-5279-wg99",
+        "PYSEC-2026-1996"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2026-44431",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2026-44431",
+        "GHSA-qccp-gfcp-xxvc",
+        "PYSEC-2026-141"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2026-44431",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2026-44431",
+        "GHSA-qccp-gfcp-xxvc",
+        "PYSEC-2026-141"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2026-97687",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2026-97687",
+        "GHSA-8988-9cw3-xx77",
+        "PYSEC-2026-4175"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2026-97687",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2026-97687",
+        "GHSA-8988-9cw3-xx77",
+        "PYSEC-2026-4175"
+      ]
+    },
+    {
+      "id": "pypi-vulnerable/urllib3@1.26.4/CVE-2026-97689",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-vulnerable",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.4",
+      "vulns": [
+        "CVE-2026-97689",
+        "GHSA-vxq7-64xx-v4gw",
+        "PYSEC-2026-4177"
+      ]
+    },
+    {
+      "id": "pypi-fixed/urllib3@1.26.5/CVE-2026-97689",
+      "category": "pypi",
+      "vulnerable": true,
+      "file": "pypi-fixed",
+      "packages": [
+        "urllib3"
+      ],
+      "version": "1.26.5",
+      "vulns": [
+        "CVE-2026-97689",
+        "GHSA-vxq7-64xx-v4gw",
+        "PYSEC-2026-4177"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2021-44228",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2021-44228",
+        "GHSA-jfh8-c2jp-5v3q"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2021-44228",
+      "category": "maven",
+      "vulnerable": false,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2021-44228",
+        "GHSA-jfh8-c2jp-5v3q"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2021-44832",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2021-44832",
+        "GHSA-8489-44mv-ggj8"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2021-44832",
+      "category": "maven",
+      "vulnerable": false,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2021-44832",
+        "GHSA-8489-44mv-ggj8"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2021-45046",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2021-45046",
+        "GHSA-7rjr-3q55-vv33"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2021-45046",
+      "category": "maven",
+      "vulnerable": false,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2021-45046",
+        "GHSA-7rjr-3q55-vv33"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2021-45105",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2021-45105",
+        "GHSA-p6xc-xr62-6r2g"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2021-45105",
+      "category": "maven",
+      "vulnerable": false,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2021-45105",
+        "GHSA-p6xc-xr62-6r2g"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2025-68161",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2025-68161",
+        "GHSA-vc5p-v9hr-52mj"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2025-68161",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2025-68161",
+        "GHSA-vc5p-v9hr-52mj"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2026-34477",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2026-34477",
+        "GHSA-6hg6-v5c8-fphq"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2026-34477",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2026-34477",
+        "GHSA-6hg6-v5c8-fphq"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2026-34479",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2026-34479",
+        "GHSA-h383-gmxw-35v2"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2026-34479",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2026-34479",
+        "GHSA-h383-gmxw-35v2"
+      ]
+    },
+    {
+      "id": "maven-vulnerable/log4j-core@2.14.1/CVE-2026-34480",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-vulnerable",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.14.1",
+      "vulns": [
+        "CVE-2026-34480",
+        "GHSA-3pxv-7cmr-fjr4"
+      ]
+    },
+    {
+      "id": "maven-fixed/log4j-core@2.17.1/CVE-2026-34480",
+      "category": "maven",
+      "vulnerable": true,
+      "file": "maven-fixed",
+      "packages": [
+        "org.apache.logging.log4j:log4j-core",
+        "log4j-core"
+      ],
+      "version": "2.17.1",
+      "vulns": [
+        "CVE-2026-34480",
+        "GHSA-3pxv-7cmr-fjr4"
+      ]
+    },
+    {
+      "id": "go-vulnerable/golang.org/x/text@0.3.5/CVE-2021-38561",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-vulnerable",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.5",
+      "vulns": [
+        "CVE-2021-38561",
+        "GHSA-ppp9-7jff-5vj2",
+        "GO-2021-0113"
+      ]
+    },
+    {
+      "id": "go-fixed/golang.org/x/text@0.3.8/CVE-2021-38561",
+      "category": "go",
+      "vulnerable": false,
+      "file": "go-fixed",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.8",
+      "vulns": [
+        "CVE-2021-38561",
+        "GHSA-ppp9-7jff-5vj2",
+        "GO-2021-0113"
+      ]
+    },
+    {
+      "id": "go-vulnerable/golang.org/x/text@0.3.5/CVE-2022-32149",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-vulnerable",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.5",
+      "vulns": [
+        "CVE-2022-32149",
+        "GHSA-69ch-w2m2-3vjp",
+        "GO-2022-1059"
+      ]
+    },
+    {
+      "id": "go-fixed/golang.org/x/text@0.3.8/CVE-2022-32149",
+      "category": "go",
+      "vulnerable": false,
+      "file": "go-fixed",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.8",
+      "vulns": [
+        "CVE-2022-32149",
+        "GHSA-69ch-w2m2-3vjp",
+        "GO-2022-1059"
+      ]
+    },
+    {
+      "id": "go-vulnerable/golang.org/x/text@0.3.5/CVE-2026-56851",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-vulnerable",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.5",
+      "vulns": [
+        "CVE-2026-56851",
+        "GO-2026-6629"
+      ]
+    },
+    {
+      "id": "go-fixed/golang.org/x/text@0.3.8/CVE-2026-56851",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-fixed",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.8",
+      "vulns": [
+        "CVE-2026-56851",
+        "GO-2026-6629"
+      ]
+    },
+    {
+      "id": "go-vulnerable/golang.org/x/text@0.3.5/CVE-2026-56852",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-vulnerable",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.5",
+      "vulns": [
+        "CVE-2026-56852",
+        "GO-2026-5970"
+      ]
+    },
+    {
+      "id": "go-fixed/golang.org/x/text@0.3.8/CVE-2026-56852",
+      "category": "go",
+      "vulnerable": true,
+      "file": "go-fixed",
+      "packages": [
+        "golang.org/x/text"
+      ],
+      "version": "0.3.8",
+      "vulns": [
+        "CVE-2026-56852",
+        "GO-2026-5970"
+      ]
+    }
+  ]
+}

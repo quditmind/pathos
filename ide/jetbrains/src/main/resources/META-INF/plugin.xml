@@ -1,0 +1,93 @@
+<!-- PATHOS for JetBrains IDEs. Depends only on the IntelliJ Platform, so it
+     works in IntelliJ IDEA, GoLand, PyCharm, WebStorm and the other IDEs
+     based on it. Version, since-build and until-build come from Gradle. -->
+<idea-plugin>
+  <id>io.github.quditmind.pathos</id>
+  <name>PATHOS Security</name>
+  <vendor url="https://github.com/quditmind/pathos">quditmind</vendor>
+  <description><![CDATA[
+    <p>Shows the open findings that <a href="https://github.com/quditmind/pathos">PATHOS</a> (open-source ASPM)
+    holds for your repository, in the editor:</p>
+    <ul>
+      <li><b>Editor annotations</b> at the reported file and line (critical and high as errors, medium as warnings,
+      low as weak warnings, info as information), with quick fixes to show details or open the finding in PATHOS.</li>
+      <li><b>PATHOS tool window</b>: findings grouped by severity and file, or by file only.</li>
+      <li><b>Details</b>: title, severity, status, CWE, risk score, scanner, description, remediation, location and code snippet.</li>
+      <li><b>Triage</b>: change the status (with a reason) and request a Human Eye review, with the permissions of your PATHOS account.</li>
+    </ul>
+    <p>The API token is stored in the IDE password safe. No telemetry: the plugin only talks to the PATHOS server you configure.</p>
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <applicationService serviceImplementation="io.github.quditmind.pathos.settings.PathosSettings"/>
+    <applicationConfigurable parentId="tools" id="io.github.quditmind.pathos.settings" displayName="PATHOS"
+                             instance="io.github.quditmind.pathos.settings.PathosConfigurable"/>
+    <postStartupActivity implementation="io.github.quditmind.pathos.service.PathosStartupActivity"/>
+    <externalAnnotator language="" implementationClass="io.github.quditmind.pathos.editor.PathosExternalAnnotator"/>
+    <toolWindow id="PATHOS" anchor="bottom" secondary="false" icon="/icons/pathos.svg"
+                factoryClass="io.github.quditmind.pathos.ui.PathosToolWindowFactory"/>
+    <notificationGroup id="PATHOS" displayType="BALLOON"/>
+  </extensions>
+
+  <actions>
+    <action id="Pathos.Refresh" class="io.github.quditmind.pathos.actions.RefreshAction"
+            text="Refresh Findings" description="Reload the open PATHOS findings of this repository"
+            icon="AllIcons.Actions.Refresh"/>
+    <action id="Pathos.ToggleGrouping" class="io.github.quditmind.pathos.actions.ToggleGroupingAction"
+            text="Toggle Grouping (Severity / File)" description="Group findings by severity and file, or by file only"
+            icon="AllIcons.Actions.GroupBy"/>
+    <action id="Pathos.SelectRepository" class="io.github.quditmind.pathos.actions.SelectRepositoryAction"
+            text="Select Repository…" description="Choose the PATHOS repository whose findings are shown for this project"
+            icon="AllIcons.Vcs.Branch"/>
+    <action id="Pathos.SetToken" class="io.github.quditmind.pathos.actions.SetTokenAction"
+            text="Set API Token…" description="Store a PATHOS API token in the IDE password safe"/>
+    <action id="Pathos.ClearToken" class="io.github.quditmind.pathos.actions.ClearTokenAction"
+            text="Clear API Token" description="Remove the PATHOS API token from the IDE password safe"/>
+    <action id="Pathos.OpenSettings" class="io.github.quditmind.pathos.actions.OpenSettingsAction"
+            text="PATHOS Settings…" description="Server URL, API token and refresh settings"
+            icon="AllIcons.General.Settings"/>
+    <action id="Pathos.OpenFinding" class="io.github.quditmind.pathos.actions.OpenFindingAction"
+            text="Open Finding Location" description="Open the finding's file at the reported line"/>
+    <action id="Pathos.ShowDetails" class="io.github.quditmind.pathos.actions.ShowDetailsAction"
+            text="Show Finding Details" description="Show the details of a PATHOS finding" icon="AllIcons.General.Information"/>
+    <action id="Pathos.OpenInPathos" class="io.github.quditmind.pathos.actions.OpenInPathosAction"
+            text="Open Finding in PATHOS" description="Open the finding in the PATHOS web UI" icon="AllIcons.Ide.External_link_arrow"/>
+    <action id="Pathos.ChangeStatus" class="io.github.quditmind.pathos.actions.ChangeStatusAction"
+            text="Change Finding Status…" description="Change the status of a PATHOS finding"/>
+    <action id="Pathos.RequestReview" class="io.github.quditmind.pathos.actions.RequestReviewAction"
+            text="Request Human Eye Review…" description="Add the finding to the PATHOS Human Eye queue"/>
+
+    <group id="Pathos.ToolWindow.Toolbar">
+      <reference ref="Pathos.Refresh"/>
+      <reference ref="Pathos.ToggleGrouping"/>
+      <reference ref="Pathos.SelectRepository"/>
+      <separator/>
+      <reference ref="Pathos.OpenSettings"/>
+    </group>
+
+    <group id="Pathos.FindingPopup">
+      <reference ref="Pathos.OpenFinding"/>
+      <reference ref="Pathos.ShowDetails"/>
+      <reference ref="Pathos.OpenInPathos"/>
+      <separator/>
+      <reference ref="Pathos.ChangeStatus"/>
+      <reference ref="Pathos.RequestReview"/>
+    </group>
+
+    <group id="Pathos.ToolsMenu" text="PATHOS" popup="true" icon="/icons/pathos.svg">
+      <add-to-group group-id="ToolsMenu" anchor="last"/>
+      <reference ref="Pathos.Refresh"/>
+      <reference ref="Pathos.SelectRepository"/>
+      <reference ref="Pathos.ShowDetails"/>
+      <reference ref="Pathos.OpenInPathos"/>
+      <reference ref="Pathos.ChangeStatus"/>
+      <reference ref="Pathos.RequestReview"/>
+      <separator/>
+      <reference ref="Pathos.SetToken"/>
+      <reference ref="Pathos.ClearToken"/>
+      <reference ref="Pathos.OpenSettings"/>
+    </group>
+  </actions>
+</idea-plugin>

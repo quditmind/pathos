@@ -8,11 +8,11 @@
 #      Each image carries BuildKit SBOM and max-mode provenance attestations.
 #   3. Signs every image digest with cosign keyless (GitHub OIDC; the
 #      signature identity is this workflow at the release tag).
-#   4. Builds the PATHOS CLI for linux, darwin and windows (amd64, arm64),
-#      writes checksums.txt (sha256) and signs it with cosign sign-blob
-#      keyless (bundle checksums.txt.sigstore.json).
+#   4. Builds the PATHOS CLI for linux, darwin and windows (amd64, arm64)
+#      and the JetBrains IDE plugin ZIP, writes checksums.txt (sha256) and
+#      signs it with cosign sign-blob keyless (bundle checksums.txt.sigstore.json).
 #   5. Creates the GitHub release with installation and verification notes
-#      and the CLI binaries, checksums and signature bundle as assets.
+#      and the CLI binaries, plugin ZIP, checksums and signature bundle as assets.
 #
 # Third-party actions are pinned to commit SHAs (Dependabot updates them).
 name: Release
@@ -193,7 +193,7 @@ jobs:
   cli:
     needs: ci
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 40
     permissions:
       contents: read
       id-token: write # cosign keyless signing
@@ -205,6 +205,13 @@ jobs:
         with:
           go-version: "1.27.4"
           cache-dependency-path: backend/go.sum
+      # Tested and verified by the CI run above; built here with the release version.
+      - name: Build the JetBrains plugin
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          scripts/gradle-jetbrains.sh buildPlugin -PpluginVersion="${version}"
+          mkdir -p dist
+          cp "ide/jetbrains/build/distributions/pathos-jetbrains-${version}.zip" dist/
       - name: Build the CLI
         working-directory: backend
         run: |
@@ -217,7 +224,7 @@ jobs:
                 -o "../dist/pathos_${version}_${os}_${arch}${ext}" ./cmd/pathos-cli
             done
           done
-          cd ../dist && sha256sum pathos_* > checksums.txt && cat checksums.txt
+          cd ../dist && sha256sum pathos_* pathos-jetbrains-*.zip > checksums.txt && cat checksums.txt
       - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
         with:
           cosign-release: v3.1.4
@@ -286,6 +293,10 @@ jobs:
             --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}" \\
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
           \`\`\`
+
+          ## IDE plugins
+
+          \`pathos-jetbrains-${version}.zip\` is the plugin for IntelliJ IDEA, GoLand, PyCharm, WebStorm and the other JetBrains IDEs (2025.3 to 2026.3); its checksum is in the signed \`checksums.txt\`. Install it with Settings → Plugins → Install Plugin from Disk ([guide](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/user-guide/ide-integration-jetbrains.md)).
 
           CI templates (GitHub Action, GitLab CI, Azure Pipelines, Jenkins): [CI/CD integration](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_REF_NAME}/docs/user-guide/ci-cd-integration.md).
 

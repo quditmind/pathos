@@ -44,6 +44,7 @@ var (
 	ownerPool *pgxpool.Pool // migration owner
 	appPool   *pgxpool.Pool // least-privilege runtime role
 	orgID     uuid.UUID
+	appURL    string // runtime role connection URL
 	log       = slog.New(slog.NewTextHandler(testLogOutput(), nil))
 )
 
@@ -89,8 +90,18 @@ func TestMain(m *testing.M) {
 	must(notify.EnsureDefaults(ctx, ownerPool, nil, orgID))
 	_, err = ownerPool.Exec(ctx, `SELECT pathos_apply_app_grants()`)
 	must(err)
+	// The whole suite runs with multi-tenancy enabled (row-level security
+	// on every tenant table). appPool behaves like a single-organization
+	// install: queries without an organization in their context are scoped
+	// to the test organization. The isolation tests use their own pool
+	// without that default (see tenant_isolation_test.go).
+	_, err = ownerPool.Exec(ctx, `SELECT pathos_set_multi_tenant(true)`)
+	must(err)
 	appPool, err = db.Connect(ctx, withDB(base, dbName, "pathos_app", "app"), log)
 	must(err)
+	db.SetDefaultOrganization(appPool, orgID)
+	db.SetRowLevelSecurity(true)
+	appURL = withDB(base, dbName, "pathos_app", "app")
 
 	code := m.Run()
 

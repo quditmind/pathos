@@ -25,6 +25,8 @@ The listener is started only when `PATHOS_WORKER_BOOTSTRAP_TOKEN` is set (at lea
 
 A worker [revoked by an administrator](administration.md#scan-workers) gets `403 worker_revoked` on registration and stops; it can register again only after its record is deleted.
 
+**Organizations (multi-tenancy).** A worker belongs to exactly one organization: the one named by `organization` at registration (`PATHOS_WORKER_ORGANIZATION`), or the default organization (`PATHOS_ORG_SLUG`) when it is empty. Every call with its token is scoped to that organization: it leases only that organization's jobs, and another organization's job ids answer `404`. A worker of a suspended organization gets `403 organization_suspended`. Workers are never shared between organizations.
+
 ## Endpoints
 
 Bodies are JSON unless stated otherwise. Errors use the [common error format](index.md#errors).
@@ -67,7 +69,7 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
 }
 ```
 
-`name` is 1–100 characters of letters, digits, `.`, `_` and `-` (defaults to the host name in the agent, `PATHOS_WORKER_NAME`); `family` 1–40 characters (`PATHOS_WORKER_FAMILY`, default `core`); at most 700 scanners. `tools` describes the [tool manifests](scan-types-and-tools.md#tool-manifests) among `scanners` (metadata only, never commands): first-party manifests of family images (catalog keys that are not built into the core image) and operator plugins (`plugin-<category>-<name>`). Invalid entries (a first-party claim for a core tool or a plugin key, a category that does not match the key, an unknown scan type or target) are dropped. `plugins` is the PATHOS 1.x form (name and homepage of SARIF plugins) and is still accepted. Unknown scanner keys are dropped. Plugins become selectable in scan profiles or on scan targets, with the declared scan types, targets, network and intrusive flags. Response `200`: `{ "worker_id": "<uuid>", "token": "<worker token>" }`. Jobs still leased by a previous run of the same worker are returned to the queue. Audited as `worker.register`.
+`organization` (optional) is the slug of the organization the worker serves; an unknown or suspended organization returns `400`. The agent sends it only when `PATHOS_WORKER_ORGANIZATION` is set. `name` is 1–100 characters of letters, digits, `.`, `_` and `-` (defaults to the host name in the agent, `PATHOS_WORKER_NAME`), unique within the organization; `family` 1–40 characters (`PATHOS_WORKER_FAMILY`, default `core`); at most 700 scanners. `tools` describes the [tool manifests](scan-types-and-tools.md#tool-manifests) among `scanners` (metadata only, never commands): first-party manifests of family images (catalog keys that are not built into the core image) and operator plugins (`plugin-<category>-<name>`). Invalid entries (a first-party claim for a core tool or a plugin key, a category that does not match the key, an unknown scan type or target) are dropped. `plugins` is the PATHOS 1.x form (name and homepage of SARIF plugins) and is still accepted. Unknown scanner keys are dropped. Plugins become selectable in scan profiles or on scan targets, with the declared scan types, targets, network and intrusive flags. Response `200`: `{ "worker_id": "<uuid>", "token": "<worker token>" }`. Jobs still leased by a previous run of the same worker are returned to the queue. Audited as `worker.register`.
 
 ### Lease a job
 

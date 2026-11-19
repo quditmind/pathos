@@ -83,6 +83,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				// A target's findings are its own: the same CVE in an image
 				// and in the repository's manifests are separate findings.
 				f.Fingerprint = targetFingerprint(*targetID, f.Fingerprint)
+				if f.LegacyFingerprint != "" {
+					f.LegacyFingerprint = targetFingerprint(*targetID, f.LegacyFingerprint)
+				}
 			}
 			findings = append(findings, f)
 		}
@@ -105,6 +108,12 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var written []string // objects to remove if the transaction fails
 	licenseFindings := 0 // licence policy violations in files (licensecheck)
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if pr == nil {
+			// Stored findings under a legacy fingerprint keep their rows.
+			if err := rekeyFindings(ctx, tx, repoID, findings); err != nil {
+				return err
+			}
+		}
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "detected again by "+up.Scanner); err != nil {
 			return err
 		}
@@ -334,6 +343,32 @@ func upsertFindings(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID, result
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, uuid.Must(uuid.NewV7()), orgID, ids[i], resultID, commit, truncate(f.FilePath, 1000), f.StartLine, f.EndLine)
 	}
 	return tx.SendBatch(ctx, occ).Close()
+}
+
+// rekeyFindings moves stored findings from their legacy fingerprint to the
+// current one (fingerprint version 2 normalizes dependency package
+// identity), so a finding keeps its row: status, triage, comments,
+// occurrences and history. When two legacy findings map to the same
+// fingerprint (tools that named the package differently), the first is
+// re-keyed; the other is no longer reported under its fingerprint and is
+// resolved by the scan like any finding no longer detected (unless it was
+// triaged), so nothing is deleted.
+func rekeyFindings(ctx context.Context, tx pgx.Tx, repoID uuid.UUID, fs []scanners.Finding) error {
+	seen := map[string]bool{}
+	b := &pgx.Batch{}
+	for _, f := range fs {
+		if f.LegacyFingerprint == "" || f.LegacyFingerprint == f.Fingerprint || seen[f.LegacyFingerprint] {
+			continue
+		}
+		seen[f.LegacyFingerprint] = true
+		b.Queue(`UPDATE findings SET fingerprint = $3, updated_at = now()
+			WHERE repository_id = $1 AND fingerprint = $2
+			  AND NOT EXISTS (SELECT 1 FROM findings WHERE repository_id = $1 AND fingerprint = $3)`, repoID, f.LegacyFingerprint, f.Fingerprint)
+	}
+	if b.Len() == 0 {
+		return nil
+	}
+	return tx.SendBatch(ctx, b).Close()
 }
 
 // Finalize completes a job: final status, auto-resolution of findings no

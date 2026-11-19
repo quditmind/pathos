@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"path"
 	"slices"
 	"strings"
 )
@@ -22,6 +23,13 @@ import (
 // vulnerabilities whose symbols are called have high confidence, those only
 // imported or required low confidence. The Go vulnerability database has
 // no severity: findings are medium and the description says so.
+//
+// The PATHOS worker runs govulncheck once per Go module and adds the
+// module's directory, relative to the repository, to each run's config
+// message ("pathos_module_dir"); findings are then located in that
+// module's go.mod (for example services/api/go.mod) and the same
+// vulnerability in two modules is two findings. Without it (a report
+// imported from elsewhere), the file is go.mod.
 
 type govulnFrame struct {
 	Module   string `json:"module"`
@@ -57,6 +65,16 @@ func init() {
 }
 
 // govulnLevel is how deep a trace reaches: 1 module, 2 package, 3 symbol.
+// govulnModuleDir cleans the module directory the worker recorded: a
+// relative path inside the repository, "" for the root.
+func govulnModuleDir(d string) string {
+	d = path.Clean("/" + strings.ReplaceAll(d, `\`, "/"))
+	if d == "/" || len(d) > 1000 {
+		return ""
+	}
+	return strings.TrimPrefix(d, "/")
+}
+
 func govulnLevel(f govulnFinding) int {
 	switch {
 	case len(f.Trace) == 0:
@@ -95,15 +113,20 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 	}
 	osvs := map[string]osvEntry{}
 	type group struct {
+		dir    string // module directory ("" = repository root or unknown)
 		best   govulnFinding
 		traces []govulnFinding
 		raws   []json.RawMessage
 	}
 	groups := map[string]*group{}
 	var order []string
+	modDir := ""
 	d := json.NewDecoder(bytes.NewReader(bytes.TrimPrefix(raw, utf8BOM)))
 	for n := 1; ; n++ {
 		var msg struct {
+			Config *struct {
+				ModuleDir string `json:"pathos_module_dir"`
+			} `json:"config"`
 			OSV     json.RawMessage `json:"osv"`
 			Finding json.RawMessage `json:"finding"`
 		}
@@ -112,6 +135,9 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 				break
 			}
 			return nil, fmt.Errorf("govulncheck: message %d: invalid JSON: %w", n, err)
+		}
+		if msg.Config != nil {
+			modDir = govulnModuleDir(msg.Config.ModuleDir)
 		}
 		if msg.OSV != nil {
 			var o osvEntry
@@ -125,10 +151,10 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 			if err := json.Unmarshal(msg.Finding, &f); err != nil || f.OSV == "" || len(f.Trace) == 0 || f.Trace[0].Module == "" {
 				return nil, fmt.Errorf("govulncheck: message %d: finding without osv or trace", n)
 			}
-			key := f.OSV + "|" + f.Trace[0].Module + "@" + f.Trace[0].Version
+			key := modDir + "|" + f.OSV + "|" + f.Trace[0].Module + "@" + f.Trace[0].Version
 			g := groups[key]
 			if g == nil {
-				g = &group{best: f}
+				g = &group{best: f, dir: modDir}
 				groups[key] = g
 				order = append(order, key)
 			}
@@ -146,7 +172,7 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 		top := b.Trace[0]
 		o := osvs[b.OSV]
 		f := Finding{Category: "sca", RuleID: b.OSV, Severity: "medium", PackageName: top.Module, PackageVersion: top.Version,
-			FixedVersion: b.FixedVersion, FilePath: "go.mod", CVE: firstMatch(cveRe, o.Aliases...)}
+			FixedVersion: b.FixedVersion, FilePath: path.Join(g.dir, "go.mod"), CVE: firstMatch(cveRe, o.Aliases...)}
 		if top.Module == "stdlib" || top.Module == "toolchain" {
 			f.FilePath = ""
 		}
@@ -186,7 +212,12 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 		}
 		f.Description = joinText(o.Summary, reach, o.Details, aliases, o.DatabaseSpecific.URL,
 			"The Go vulnerability database has no severity; imported as medium.")
-		out = append(out, importRecord{F: f, Raw: rawJSON(map[string]any{"osv": b.OSV, "findings": g.raws})})
+		rec := importRecord{F: f, Raw: rawJSON(map[string]any{"osv": b.OSV, "findings": g.raws})}
+		if g.dir != "" && f.FilePath != "" {
+			legacy := "go.mod" // PATHOS 2.0 located every module's findings there
+			rec.LegacyPath = &legacy
+		}
+		out = append(out, rec)
 	}
 	return out, nil
 }

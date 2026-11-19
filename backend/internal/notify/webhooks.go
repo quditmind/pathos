@@ -340,6 +340,11 @@ func (s *Service) webhookDeliveries(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, errNotFound)
 		return
 	}
+	var exists bool
+	if err := s.DB.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM outbound_webhooks WHERE organization_id = $1 AND id = $2)`, p.OrganizationID, id).Scan(&exists); err != nil || !exists {
+		s.fail(w, r, errNotFound)
+		return
+	}
 	rows, err := s.DB.Query(r.Context(), `SELECT d.id, d.event_key, d.status, d.attempts, d.response_status, d.error, d.created_at, d.delivered_at, d.next_attempt_at
 		FROM outbound_webhook_deliveries d WHERE d.organization_id = $1 AND d.endpoint_id = $2 ORDER BY d.created_at DESC LIMIT 100`, p.OrganizationID, id)
 	if err != nil {

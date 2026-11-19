@@ -53,4 +53,19 @@ if [ "$ra" != "CONFIGURE_RECOVERY_AUTHN_CODES,CONFIGURE_RECOVERY_AUTHN_CODES,tru
   echo "keycloak-setup: WARNING: the recovery codes required action is not registered and enabled ($ra);" \
     "enable 'Recovery Authentication Codes' in the realm's Required actions" >&2
 fi
+# Multi-tenancy: the ID token carries the user's group paths in "groups";
+# PATHOS maps /pathos/<slug> to organization memberships
+# (docs/MULTI_TENANCY.md). Ignored by single-organization installs.
+cid=$("$KCADM" get clients -r "$REALM" -q clientId=pathos-web --fields id --format csv --noquotes 2>/dev/null || true)
+if [ -n "$cid" ]; then
+  if "$KCADM" get "clients/$cid/protocol-mappers/models" -r "$REALM" --fields name --format csv --noquotes 2>/dev/null | grep -qx groups; then
+    echo "keycloak-setup: groups claim mapper present"
+  elif "$KCADM" create "clients/$cid/protocol-mappers/models" -r "$REALM" -s name=groups -s protocol=openid-connect \
+      -s protocolMapper=oidc-group-membership-mapper -s 'config."claim.name"=groups' -s 'config."full.path"=true' \
+      -s 'config."id.token.claim"=true' -s 'config."access.token.claim"=false' -s 'config."userinfo.token.claim"=false' >/dev/null; then
+    echo "keycloak-setup: groups claim mapper added to pathos-web"
+  else
+    echo "keycloak-setup: WARNING: could not add the groups claim mapper; add it to the pathos-web client (docs/MULTI_TENANCY.md)" >&2
+  fi
+fi
 echo "keycloak-setup: done"

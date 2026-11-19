@@ -60,13 +60,13 @@ Within a phase, every feature follows the same sequence:
 
 ## 3. Decisions needed from the product owner
 
-The decisions were taken in phase 1 (see section 6): D1 renamed the module to Human Eye (labels only), D2 derives the lifecycle statuses, D3 keeps one organization per deployment, and D4 enabled EPSS and KEV online by default, with offline import. D5 was delivered in phase 9.
+The decisions were taken in phase 1 (see section 6): D1 renamed the module to Human Eye (labels only), D2 derives the lifecycle statuses, D3 kept one organization per deployment (revised for 2.2: multi-tenancy is an option an operator enables), and D4 enabled EPSS and KEV online by default, with offline import. D5 was delivered in phase 9.
 
 | # | Decision | Recommendation |
 |---|---|---|
 | D1 | Rename "Human Review" to **"Human Eye"** and regroup the navigation into the 10 proposed sections | Keep the routes, change the labels only; regroup when phases 3, 6 and 9 add their pages, so no empty sections are created |
 | D2 | Finding statuses New, Open, In Progress, Under Review, Confirmed, False Positive, Accepted Risk, Resolved, Reopened | **Present** them without migrating the stored values: New = open and not yet triaged (first seen in the last scan); Under Review = `needs_review` or a review in progress; Confirmed = human disposition confirmed; Resolved = `fixed`; Reopened = recurrence > 0 and open. Keeps the API, history, SLA and AI contracts intact |
-| D3 | Real multi-tenancy (several organizations in one deployment) | Only if you host PATHOS for several customers. The schema is ready; runtime work is moderate (tenant resolution, administration, isolation tests). Otherwise defer |
+| D3 | Real multi-tenancy (several organizations in one deployment) | Only if you host PATHOS for several customers. The schema is ready; runtime work is moderate (tenant resolution, administration, isolation tests). Otherwise defer. **Revised for 2.2:** supported as an option (`pathosctl multi-tenancy enable`); single-organization stays the default ([MULTI_TENANCY.md](../MULTI_TENANCY.md)) |
 | D4 | External feeds (EPSS, KEV, NVD) need outbound access | Off by default; enable per feed with an egress allow-list entry, or import files offline |
 | D5 | Jira and ServiceNow | Optional connectors in phase 9. Generic outbound webhooks come first |
 
@@ -104,7 +104,7 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 
 ## 6. Phase 1 completion report (2026-11-17)
 
-**Decisions taken:** D1 rename to Human Eye (labels only); D2 lifecycle statuses derived, stored values unchanged; D3 single organization; D4 EPSS and KEV online daily by default, with offline import.
+**Decisions taken:** D1 rename to Human Eye (labels only); D2 lifecycle statuses derived, stored values unchanged; D3 single organization (revised for 2.2: multi-tenancy is an option an operator enables, with row-level security, installation administrators and an isolation test suite; single organization stays the default); D4 EPSS and KEV online daily by default, with offline import.
 
 **Implemented:**
 

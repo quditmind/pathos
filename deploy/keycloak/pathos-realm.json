@@ -59,7 +59,22 @@
         "oauth2.device.authorization.grant.enabled": "false"
       },
       "defaultClientScopes": ["web-origins", "acr", "profile", "roles", "email", "basic"],
-      "optionalClientScopes": ["offline_access"]
+      "optionalClientScopes": ["offline_access"],
+      "protocolMappers": [
+        {
+          "name": "groups",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-group-membership-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "groups",
+            "full.path": "true",
+            "id.token.claim": "true",
+            "access.token.claim": "false",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
     },
     {
       "clientId": "pathos-provisioner",

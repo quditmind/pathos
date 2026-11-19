@@ -1,0 +1,6 @@
+# Pinned benchmark sources: name, archive URL (a fixed commit), SHA-256 of
+# the archive, SPDX licence of the suite. benchmarks/run.sh downloads each
+# archive once and refuses it if the checksum differs. The suites are not
+# stored in this repository (GPL-licensed test code).
+owasp-benchmark-java	https://github.com/OWASP-Benchmark/BenchmarkJava/archive/c6717ea295433deba1b20bb3127614833d005462.tar.gz	83d973e4c3ac17837a8be0ba9004c6261391bfab4f0316417872ce07809d670d	GPL-2.0
+owasp-benchmark-python	https://github.com/OWASP-Benchmark/BenchmarkPython/archive/f1291485808b66e20ddb6b01b10dc71b3df8c8ba.tar.gz	0defda4cce2ea7675fbeae5b059b4d7cca7d49232529367133feb1adfb529096	GPL-3.0

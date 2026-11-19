@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
 	"os"
@@ -41,11 +42,13 @@ import (
 	"pathos/internal/platform/objstore"
 	"pathos/internal/platform/ratelimit"
 	"pathos/internal/platform/telemetry"
+	"pathos/internal/platform/tenant"
 	"pathos/internal/scans"
 	"pathos/internal/schedule"
 	"pathos/internal/scm"
 	"pathos/internal/secrets"
 	"pathos/internal/server"
+	"pathos/internal/tenancy"
 	"pathos/internal/vuln"
 )
 
@@ -115,13 +118,13 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	rdb := redis.NewClient(ropt)
 	defer rdb.Close()
 
-	var orgID [16]byte
-	if err := pool.QueryRow(ctx, `SELECT id FROM organizations WHERE slug = $1`, cfg.OrgSlug).Scan(&orgID); err != nil {
-		return fmt.Errorf("organization %q not found; run `pathosctl migrate` first: %w", cfg.OrgSlug, err)
+	orgID, multi, err := tenancyStartup(ctx, pool, cfg, log)
+	if err != nil {
+		return err
 	}
 
 	authSvc := &auth.Service{
-		Cfg: cfg, DB: pool, Log: log, OrgID: orgID,
+		Cfg: cfg, DB: pool, Log: log, OrgID: orgID, MultiTenant: multi,
 		Sessions:   &auth.SessionStore{R: rdb, IdleTTL: cfg.SessionIdleTTL, AbsoluteTTL: cfg.SessionAbsoluteTTL},
 		HTTPClient: &http.Client{Timeout: 15 * time.Second},
 	}
@@ -143,7 +146,7 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			t := time.NewTicker(time.Hour)
 			defer t.Stop()
 			for {
-				if n, err := identity.EnforceMFA(ctx, pool, kp, log); err != nil {
+				if n, err := identity.EnforceMFA(tenant.WithSystem(ctx), pool, kp, log); err != nil {
 					log.Error("MFA enforcement failed", "err", err)
 				} else if n > 0 {
 					log.Info("MFA now required for existing users", "count", n)
@@ -166,17 +169,26 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	if err := mcp.EnsureBuiltIn(ctx, pool, orgID, cfg.PublicURL.String()); err != nil {
-		return fmt.Errorf("seed MCP registry: %w", err)
+	orgs, err := tenancy.ListOrganizations(ctx, pool)
+	if err != nil {
+		return err
 	}
-	if err := repos.EnsureAssetDefaults(ctx, pool, orgID); err != nil {
-		return fmt.Errorf("seed asset classifications: %w", err)
+	for _, o := range orgs {
+		// Per-organization registry entries and classifications (idempotent;
+		// covers organizations created since the last start).
+		octx := tenant.WithOrg(ctx, o.ID)
+		if err := mcp.EnsureBuiltIn(octx, pool, o.ID, cfg.PublicURL.String()); err != nil {
+			return fmt.Errorf("seed MCP registry (%s): %w", o.Slug, err)
+		}
+		if err := repos.EnsureAssetDefaults(octx, pool, o.ID); err != nil {
+			return fmt.Errorf("seed asset classifications (%s): %w", o.Slug, err)
+		}
 	}
 	sources, err := sourceStore(cfg, keys, log)
 	if err != nil {
 		return err
 	}
-	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, Log: log, Offline: cfg.Offline,
+	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, MultiTenant: multi, Log: log, Offline: cfg.Offline,
 		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
 		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken,
 		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts,
@@ -232,6 +244,14 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	defer pool.Close()
+	if _, _, err := tenancyStartup(ctx, pool, cfg, log); err != nil {
+		return err
+	}
+	// Background jobs work across organizations: every job carries the
+	// organization of each row it processes (system scope; see
+	// docs/MULTI_TENANCY.md). Work done for one organization narrows the
+	// scope with tenant.WithOrg (repository imports).
+	ctx = tenant.WithSystem(ctx)
 	artifacts, err := artifactStore(ctx, cfg, log)
 	if err != nil {
 		return err
@@ -292,7 +312,7 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	reposSvc := server.NewReposService(server.Deps{DB: pool, Log: log, Secrets: store,
 		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP}, PublicURL: cfg.PublicURL.String(),
 		Sources: sources, Limits: importLimits(cfg)}, repoAz)
-	if err := repos.EnsureAssetDefaults(ctx, pool, orgID); err != nil {
+	if err := repos.EnsureAssetDefaults(tenant.WithOrg(ctx, orgID), pool, orgID); err != nil {
 		return fmt.Errorf("seed asset classifications: %w", err)
 	}
 	host, _ := os.Hostname()
@@ -500,6 +520,12 @@ func runScheduler(ctx context.Context, cfg *config.Config, log *slog.Logger) err
 		return err
 	}
 	defer pool.Close()
+	if _, _, err := tenancyStartup(ctx, pool, cfg, log); err != nil {
+		return err
+	}
+	// The scheduler plans scans for every organization (system scope);
+	// each schedule carries its organization.
+	ctx = tenant.WithSystem(ctx)
 	host, _ := os.Hostname()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -524,6 +550,29 @@ func runScheduler(ctx context.Context, cfg *config.Config, log *slog.Logger) err
 		return err
 	}
 	return sch.Run(ctx)
+}
+
+// tenancyStartup resolves the default organization (PATHOS_ORG_SLUG) and
+// the tenancy mode. Single-organization installs scope unscoped queries to
+// the default organization (no behaviour change); with multi-tenancy every
+// tenant table must enforce row-level security and unscoped queries see
+// nothing.
+func tenancyStartup(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *slog.Logger) (uuid.UUID, bool, error) {
+	var orgID uuid.UUID
+	if err := pool.QueryRow(tenant.WithSystem(ctx), `SELECT id FROM organizations WHERE slug = $1`, cfg.OrgSlug).Scan(&orgID); err != nil {
+		return orgID, false, fmt.Errorf("organization %q not found; run `pathosctl migrate` first: %w", cfg.OrgSlug, err)
+	}
+	multi, err := tenancy.CheckStartup(ctx, pool)
+	if err != nil {
+		return orgID, multi, err
+	}
+	db.SetRowLevelSecurity(multi)
+	if multi {
+		log.Info("multi-tenancy enabled: row-level security enforced on every tenant table")
+	} else {
+		db.SetDefaultOrganization(pool, orgID)
+	}
+	return orgID, multi, nil
 }
 
 func healthcheck(args []string) int {

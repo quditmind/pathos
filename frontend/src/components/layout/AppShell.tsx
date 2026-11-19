@@ -65,6 +65,8 @@ import { Wordmark, LogoMark } from "./Logo";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
 import { NotificationCentre } from "./NotificationCentre";
 import { useSession } from "@/features/auth/session";
+import { OrganizationSwitcher } from "@/features/tenancy/OrganizationSwitcher";
+import { useMyOrganizations } from "@/features/tenancy/api";
 import { cn, initials } from "@/lib/utils";
 
 export type NavItem = { label: string; to?: string; icon: ReactNode; perm?: string; phase?: number };
@@ -209,6 +211,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
   const scopedPerms = new Set(["org.read", "repos.read", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
   const visible = (it: NavItem) => !it.perm || (scopedPerms.has(it.perm) ? can(it.perm) : canOrgWide(it.perm));
+  // Installation administration (multi-tenant installs): a person attribute,
+  // not an organization permission.
+  const tenancy = useMyOrganizations();
+  const navGroups: NavGroup[] =
+    tenancy.data?.multi_tenant && tenancy.data.installation_admin
+      ? [...groups, { label: "Installation", items: [{ label: "Organizations", to: "/installation/organizations", icon: <Building2 /> }] }]
+      : groups;
 
   return (
     <div className="flex h-full">
@@ -220,7 +229,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <div className="flex h-14 items-center border-b border-border px-3">{collapsed ? <LogoMark /> : <Wordmark />}</div>
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Main">
-          {groups.map((g) => {
+          {navGroups.map((g) => {
             const items = g.items.filter(visible);
             if (!items.length) return null;
             return (
@@ -282,6 +291,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <kbd className="rounded border border-border bg-surface px-1.5 text-[11px] font-medium">{isMac ? "⌘" : "Ctrl"} K</kbd>
           </button>
           <div className="flex-1" />
+          <OrganizationSwitcher />
           <NotificationCentre />
           <Link
             to="/help"

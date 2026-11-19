@@ -10,6 +10,7 @@ import (
 	"io"
 	"mime"
 	"reflect"
+	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -61,6 +62,11 @@ type importRecord struct {
 	SnippetKey string
 	// Raw is the tool's own record, kept as the finding's original output.
 	Raw json.RawMessage
+	// LegacyPath is the file PATHOS 2.0 located the finding in, when it is
+	// located elsewhere now (per-lockfile and per-module runs of the
+	// worker-sca tools): the legacy fingerprint uses it, so stored
+	// findings are re-keyed rather than replaced.
+	LegacyPath *string
 }
 
 var importFormats = map[string]*ImportFormat{}
@@ -132,6 +138,34 @@ func SameImportParser(a, b string) bool { return parserOf(a) == parserOf(b) }
 // (Gitleaks and TruffleHog report the secrets they find in plain text).
 // Finding identity never depends on the removed values.
 func SanitizeImport(format string, raw []byte) []byte {
+	if env, err := envelopeOf(raw); err == nil && env != nil {
+		changed := false
+		for i := range env.Reports {
+			orig := env.report(i)
+			clean := sanitizeOne(format, orig)
+			if bytes.Equal(clean, orig) {
+				continue
+			}
+			changed = true
+			if env.Reports[i].ReportText != nil {
+				t := string(clean)
+				env.Reports[i].ReportText = &t
+			} else if json.Valid(clean) {
+				env.Reports[i].Report = clean
+			}
+		}
+		if !changed {
+			return raw
+		}
+		if out, err := json.Marshal(env); err == nil {
+			return out
+		}
+		return raw
+	}
+	return sanitizeOne(format, raw)
+}
+
+func sanitizeOne(format string, raw []byte) []byte {
 	// An alias may have its own sanitizer (sarif-gitleaks).
 	if f, ok := importFormats[format]; ok && f.sanitize != nil {
 		return f.sanitize(raw)
@@ -407,7 +441,66 @@ func ParseImport(key, format string, raw []byte) ([]Finding, error) {
 	return keyRecords(key, recs), err
 }
 
+// pathosEnvelope is how the worker-sca wrapper stores the reports of a
+// tool it ran once per lockfile or requirements file: each report with
+// the file it audited (repository-relative). Findings of a report are
+// located in that file.
+type pathosEnvelope struct {
+	Reports []struct {
+		File       string          `json:"file"`
+		Report     json.RawMessage `json:"report"`
+		ReportText *string         `json:"report_text"`
+	} `json:"pathos_reports"`
+}
+
+var envelopePrefix = regexp.MustCompile(`^\s*\{\s*"pathos_reports"\s*:`)
+
+// envelopeOf returns the envelope when raw is one.
+func envelopeOf(raw []byte) (*pathosEnvelope, error) {
+	if !envelopePrefix.Match(bytes.TrimPrefix(raw, utf8BOM)) {
+		return nil, nil
+	}
+	var e pathosEnvelope
+	if err := json.Unmarshal(bytes.TrimPrefix(raw, utf8BOM), &e); err != nil {
+		return nil, fmt.Errorf("PATHOS report envelope: %w", err)
+	}
+	return &e, nil
+}
+
+func (e *pathosEnvelope) report(i int) []byte {
+	if r := e.Reports[i]; r.ReportText != nil {
+		return []byte(*r.ReportText)
+	}
+	return e.Reports[i].Report
+}
+
 func parseRecords(format string, raw []byte) ([]importRecord, error) {
+	env, err := envelopeOf(raw)
+	if err != nil {
+		return nil, err
+	}
+	if env != nil {
+		var all []importRecord
+		var errs []error
+		for i, r := range env.Reports {
+			recs, err := parseRecords(format, env.report(i))
+			if err != nil {
+				errs = append(errs, fmt.Errorf("%s: %w", NormalizePath(r.File), err))
+			}
+			for j := range recs {
+				if recs[j].LegacyPath == nil {
+					lp := recs[j].F.FilePath
+					recs[j].LegacyPath = &lp
+				}
+				recs[j].F.FilePath = NormalizePath(r.File)
+			}
+			all = append(all, recs...)
+			if len(all) > MaxFindingsPerReport {
+				return all[:MaxFindingsPerReport], errors.New("report truncated: too many findings")
+			}
+		}
+		return all, errors.Join(errs...)
+	}
 	f, ok := importFormats[parserOf(format)]
 	if !ok || f.parse == nil {
 		if format == "" {
@@ -473,7 +566,12 @@ func keyRecords(key string, recs []importRecord) []Finding {
 		if f.Category == "sca" {
 			snippetKey = ""
 		}
-		f.Fingerprint = Fingerprint(f, snippetKey)
+		setFingerprint(&f, snippetKey)
+		if r.LegacyPath != nil && *r.LegacyPath != f.FilePath {
+			lf := f
+			lf.FilePath = *r.LegacyPath
+			f.LegacyFingerprint = LegacyFingerprint(lf, snippetKey)
+		}
 		out = append(out, f)
 	}
 	return out
@@ -498,7 +596,7 @@ func LocateImport(key, format string, raw []byte, fingerprint string) (*Located,
 		return nil, err
 	}
 	for i, f := range keyRecords(key, recs) {
-		if f.Fingerprint == fingerprint {
+		if f.Matches(fingerprint) {
 			return &Located{Raw: redactJSON(recs[i].Raw)}, nil
 		}
 	}

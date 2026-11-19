@@ -51,6 +51,9 @@ x-pathos-worker: &worker
 x-pathos-worker-env: &worker-env
   PATHOS_API_URL: http://api:8081
   PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+  # Multi-tenancy: the organization (slug) these workers serve; empty: the
+  # default organization. One set of workers per organization.
+  PATHOS_WORKER_ORGANIZATION: ${PATHOS_WORKER_ORGANIZATION:-}
   # Air-gapped: only the vulnerability databases imported with
   # scripts/offline-bundle.sh are used.
   PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
@@ -160,6 +163,10 @@ services:
       PATHOS_KEYCLOAK_PROVISIONER_CLIENT_ID: pathos-provisioner
       PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET: ${PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET:?run deploy/scripts/install.sh}
       PATHOS_BOOTSTRAP_ADMIN_EMAIL: ${PATHOS_BOOTSTRAP_ADMIN_EMAIL:?run deploy/scripts/install.sh}
+      # Multi-tenancy (docs/MULTI_TENANCY.md; off until pathosctl multi-tenancy enable).
+      PATHOS_INSTALLATION_ADMIN_EMAIL: ${PATHOS_INSTALLATION_ADMIN_EMAIL:-}
+      PATHOS_OIDC_ORGANIZATION_CLAIM: ${PATHOS_OIDC_ORGANIZATION_CLAIM:-groups}
+      PATHOS_OIDC_ORGANIZATION_PREFIX: ${PATHOS_OIDC_ORGANIZATION_PREFIX:-/pathos/}
       # Self-hosted GitHub Enterprise / Azure DevOps Server on a private network.
       PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
       PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}

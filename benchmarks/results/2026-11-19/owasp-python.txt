@@ -1,0 +1,6 @@
+opengrep         succeeded  findings=184    TP=101   FP=30    FN=351   TN=748   TPR=0.223 FPR=0.039 score=+0.185
+semgrep-ce       succeeded  findings=184    TP=101   FP=30    FN=351   TN=748   TPR=0.223 FPR=0.039 score=+0.185
+bearer           succeeded  findings=314    TP=84    FP=7     FN=368   TN=771   TPR=0.186 FPR=0.009 score=+0.177
+bandit           succeeded  findings=536    TP=108   FP=25    FN=344   TN=753   TPR=0.239 FPR=0.032 score=+0.207
+ruff             succeeded  findings=348    TP=85    FP=14    FN=367   TN=764   TPR=0.188 FPR=0.018 score=+0.170
+combined         succeeded  findings=1566   TP=184   FP=30    FN=268   TN=748   TPR=0.407 FPR=0.039 score=+0.369

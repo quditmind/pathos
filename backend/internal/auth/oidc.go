@@ -27,6 +27,8 @@ import (
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/tenant"
+	"pathos/internal/tenancy"
 )
 
 // Service wires OIDC login, sessions and request authentication.
@@ -35,7 +37,12 @@ type Service struct {
 	DB       *pgxpool.Pool
 	Sessions *SessionStore
 	Log      *slog.Logger
-	OrgID    uuid.UUID
+	// OrgID is the default organization (PATHOS_ORG_SLUG): the only one
+	// in a single-organization install.
+	OrgID uuid.UUID
+	// MultiTenant maps logins to organizations from memberships,
+	// invitations and the organization claim (docs/MULTI_TENANCY.md).
+	MultiTenant bool
 	// HTTPClient is used for discovery, JWKS and token calls.
 	HTTPClient *http.Client
 
@@ -212,34 +219,39 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = cl.PreferredUsername
 	}
+	li := identity.LoginIdentity{Subject: idt.Subject, Email: cl.Email, EmailVerified: cl.EmailVerified, Name: name}
 
 	var res identity.ProvisionResult
-	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
-		var err error
-		res, err = identity.ProvisionOnLogin(ctx, tx, s.OrgID, identity.LoginIdentity{
-			Subject: idt.Subject, Email: cl.Email, EmailVerified: cl.EmailVerified, Name: name,
-		}, s.Cfg.BootstrapAdminEmail)
-		if err != nil {
-			return err
-		}
-		uid := res.User.ID
-		md := map[string]any{"jit_created": res.Created, "linked_invite": res.Linked}
-		if res.GrantedSuperAdmin {
-			md["bootstrap_super_admin"] = true
-		}
-		return audit.Write(ctx, tx, audit.Entry{OrganizationID: s.OrgID, ActorID: &uid, ActorEmail: res.User.Email,
-			Action: "auth.login", TargetType: "user", TargetID: uid.String(), Metadata: md})
-	})
+	var activeOrg uuid.UUID
+	if s.MultiTenant {
+		var raw map[string]any
+		_ = idt.Claims(&raw)
+		res, activeOrg, err = s.ProvisionMemberships(ctx, li, raw[s.Cfg.OrgClaim])
+	} else {
+		activeOrg = s.OrgID
+		res, err = s.provisionIn(tenant.WithOrg(ctx, s.OrgID), s.OrgID, li, s.Cfg.BootstrapAdminEmail)
+	}
 	if err != nil {
 		reason := "provisioning_failed"
-		if errors.Is(err, identity.ErrDeactivated) {
+		switch {
+		case errors.Is(err, identity.ErrDeactivated):
 			reason = "deactivated"
+		case errors.Is(err, errNoOrganization):
+			reason = "no_organization"
 		}
 		s.Log.Warn("login rejected", "reason", reason, "err", err)
-		_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: s.OrgID, ActorEmail: strings.ToLower(cl.Email),
+		_ = audit.Write(tenant.WithOrg(ctx, s.OrgID), s.DB, audit.Entry{OrganizationID: s.OrgID, ActorEmail: strings.ToLower(cl.Email),
 			Action: "auth.login", Outcome: audit.Denied, Metadata: map[string]any{"reason": reason}})
 		s.loginFailed(w, r, reason)
 		return
+	}
+	if s.MultiTenant && s.Cfg.InstallationAdminEmail != "" && cl.EmailVerified && strings.EqualFold(cl.Email, s.Cfg.InstallationAdminEmail) {
+		if granted, err := tenancy.GrantInstallationAdmin(ctx, s.DB, idt.Subject, cl.Email, "PATHOS_INSTALLATION_ADMIN_EMAIL"); err != nil {
+			s.Log.Error("installation administrator bootstrap failed", "err", err)
+		} else if granted {
+			_ = tenancy.WriteInstallationAudit(ctx, s.DB, tenancy.InstallationAuditEntry{ActorSubject: idt.Subject, ActorEmail: strings.ToLower(cl.Email),
+				Action: "installation_admin.bootstrap", Metadata: map[string]any{"email": strings.ToLower(cl.Email)}})
+		}
 	}
 
 	// Rotate: drop any session presented with this request.
@@ -248,13 +260,127 @@ func (s *Service) HandleCallback(w http.ResponseWriter, r *http.Request) {
 			_ = s.Sessions.Delete(ctx, old.Value, sess.UserID)
 		}
 	}
-	token, _, err := s.Sessions.Create(ctx, res.User.ID, s.OrgID, rawID)
+	token, _, err := s.Sessions.Create(ctx, res.User.ID, activeOrg, rawID)
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
 	s.setSessionCookie(w, token)
 	http.Redirect(w, r, s.Cfg.PublicURL.String()+flow.ReturnTo, http.StatusFound)
+}
+
+var errNoOrganization = errors.New("identity: no active membership in any organization")
+
+// provisionIn provisions (finds, links or JIT-creates) the login in one
+// organization and records the login in that organization's audit log.
+func (s *Service) provisionIn(ctx context.Context, orgID uuid.UUID, li identity.LoginIdentity, bootstrapEmail string) (identity.ProvisionResult, error) {
+	var res identity.ProvisionResult
+	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		var err error
+		res, err = identity.ProvisionOnLogin(ctx, tx, orgID, li, bootstrapEmail)
+		if err != nil {
+			return err
+		}
+		uid := res.User.ID
+		md := map[string]any{"jit_created": res.Created, "linked_invite": res.Linked}
+		if res.GrantedSuperAdmin {
+			md["bootstrap_super_admin"] = true
+		}
+		return audit.Write(ctx, tx, audit.Entry{OrganizationID: orgID, ActorID: &uid, ActorEmail: res.User.Email,
+			Action: "auth.login", TargetType: "user", TargetID: uid.String(), Metadata: md})
+	})
+	return res, err
+}
+
+// ProvisionMemberships maps a login to organizations (multi-tenancy):
+//   - organizations where the subject already has a users row;
+//   - organizations with a pending invitation for the email, when the IdP
+//     verified the email;
+//   - active organizations named in the organization claim (JIT
+//     membership without roles, like a first login in a single-organization
+//     install);
+//   - the default organization for the bootstrap and installation
+//     administrator emails (verified).
+//
+// Suspended organizations and deactivated memberships are skipped. The
+// session starts in the default organization when the person belongs to
+// it, else in the first organization by name. The bootstrap administrator
+// email applies to the default organization only.
+func (s *Service) ProvisionMemberships(ctx context.Context, li identity.LoginIdentity, claim any) (identity.ProvisionResult, uuid.UUID, error) {
+	var none identity.ProvisionResult
+	if li.Subject == "" {
+		return none, uuid.Nil, errors.New("identity: subject claim is required")
+	}
+	candidates := map[uuid.UUID]bool{}
+	ms, err := tenancy.Memberships(ctx, s.DB, li.Subject)
+	if err != nil {
+		return none, uuid.Nil, err
+	}
+	for _, m := range ms {
+		if m.Status == tenancy.StatusActive && m.UserStatus != identity.StatusDeactivated {
+			candidates[m.OrganizationID] = true
+		}
+	}
+	if li.EmailVerified && li.Email != "" {
+		invites, err := tenancy.PendingInvites(ctx, s.DB, li.Email)
+		if err != nil {
+			return none, uuid.Nil, err
+		}
+		for _, id := range invites {
+			candidates[id] = true
+		}
+	}
+	// The bootstrap administrator and the installation administrator join
+	// the default organization at their first verified sign-in, so a fresh
+	// multi-tenant install can be administered.
+	for _, boot := range []string{s.Cfg.BootstrapAdminEmail, s.Cfg.InstallationAdminEmail} {
+		if boot != "" && li.EmailVerified && strings.EqualFold(strings.TrimSpace(li.Email), boot) {
+			if o, err := tenancy.GetOrganization(ctx, s.DB, s.OrgID); err == nil && o.Status == tenancy.StatusActive {
+				candidates[s.OrgID] = true
+			}
+		}
+	}
+	claimed, err := tenancy.OrganizationsBySlug(ctx, s.DB, tenancy.SlugsFromClaim(claim, s.Cfg.OrgGroupPrefix))
+	if err != nil {
+		return none, uuid.Nil, err
+	}
+	for _, id := range claimed {
+		candidates[id] = true
+	}
+	// Deterministic order: default organization first, then by id.
+	ids := make([]uuid.UUID, 0, len(candidates))
+	for id := range candidates {
+		ids = append(ids, id)
+	}
+	slices.SortFunc(ids, func(a, b uuid.UUID) int {
+		switch {
+		case a == s.OrgID:
+			return -1
+		case b == s.OrgID:
+			return 1
+		}
+		return strings.Compare(a.String(), b.String())
+	})
+	var first identity.ProvisionResult
+	active := uuid.Nil
+	for _, orgID := range ids {
+		boot := ""
+		if orgID == s.OrgID {
+			boot = s.Cfg.BootstrapAdminEmail
+		}
+		res, err := s.provisionIn(tenant.WithOrg(ctx, orgID), orgID, li, boot)
+		if err != nil {
+			s.Log.Warn("login: membership skipped", "organization_id", orgID, "err", err)
+			continue
+		}
+		if active == uuid.Nil {
+			first, active = res, orgID
+		}
+	}
+	if active == uuid.Nil {
+		return none, uuid.Nil, errNoOrganization
+	}
+	return first, active, nil
 }
 
 func (s *Service) setSessionCookie(w http.ResponseWriter, token string) {
@@ -299,7 +425,11 @@ type ctxKey int
 const (
 	principalKey ctxKey = iota
 	sessionKey
+	suspendedKey
 )
+
+var errOrgSuspended = httpx.E(http.StatusForbidden, "organization_suspended",
+	"this organization is suspended; switch to another organization or contact your installation administrator")
 
 // PrincipalFrom returns the authenticated principal, or nil.
 func PrincipalFrom(ctx context.Context) *authz.Principal {
@@ -313,8 +443,12 @@ func SessionFrom(ctx context.Context) *Session {
 	return s
 }
 
-// WithPrincipal stores p in ctx (used by tests and internal callers).
+// WithPrincipal stores p in ctx (used by tests and internal callers) and,
+// like the authentication middleware, scopes ctx to p's organization.
 func WithPrincipal(ctx context.Context, p *authz.Principal) context.Context {
+	if p != nil && p.OrganizationID != uuid.Nil {
+		ctx = tenant.WithOrg(ctx, p.OrganizationID)
+	}
 	return context.WithValue(ctx, principalKey, p)
 }
 
@@ -339,6 +473,9 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 				m := audit.MetaFrom(ctx)
 				m.APIToken = tokenID.String()
 				ctx = context.WithValue(audit.WithMeta(ctx, m), principalKey, p)
+				// Every query of the request is scoped to the token's
+				// organization (row-level security).
+				ctx = tenant.WithOrg(ctx, p.OrganizationID)
 				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
@@ -351,6 +488,14 @@ func (s *Service) Authenticate(next http.Handler) http.Handler {
 				if perr == nil {
 					ctx = context.WithValue(ctx, principalKey, p)
 					ctx = context.WithValue(ctx, sessionKey, sess)
+					// Every query of the request is scoped to the
+					// session's active organization (row-level security).
+					ctx = tenant.WithOrg(ctx, p.OrganizationID)
+				} else if errors.Is(perr, tenancy.ErrSuspended) {
+					// The session stays usable for switching to another
+					// organization and signing out only.
+					ctx = context.WithValue(ctx, sessionKey, sess)
+					ctx = context.WithValue(ctx, suspendedKey, true)
 				} else if errors.Is(perr, identity.ErrDeactivated) || errors.Is(perr, identity.ErrNotFound) {
 					_ = s.Sessions.Delete(ctx, c.Value, sess.UserID)
 				} else {
@@ -395,7 +540,20 @@ func (s *Service) checkCSRF(r *http.Request, sess *Session) error {
 	return nil
 }
 
+// loadPrincipal loads the user and grants of a session or token, scoped to
+// its organization. A suspended organization yields tenancy.ErrSuspended.
 func (s *Service) loadPrincipal(ctx context.Context, sess *Session) (*authz.Principal, error) {
+	ctx = tenant.WithOrg(ctx, sess.OrgID)
+	var status string
+	if err := s.DB.QueryRow(ctx, `SELECT status FROM organizations WHERE id = $1`, sess.OrgID).Scan(&status); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, identity.ErrNotFound
+		}
+		return nil, err
+	}
+	if status != tenancy.StatusActive {
+		return nil, tenancy.ErrSuspended
+	}
 	u, err := identity.GetUser(ctx, s.DB, sess.OrgID, sess.UserID)
 	if err != nil {
 		return nil, err
@@ -407,13 +565,21 @@ func (s *Service) loadPrincipal(ctx context.Context, sess *Session) (*authz.Prin
 	if err != nil {
 		return nil, err
 	}
-	return &authz.Principal{UserID: u.ID, OrganizationID: u.OrganizationID, Email: u.Email, DisplayName: u.DisplayName, Grants: grants}, nil
+	p := &authz.Principal{UserID: u.ID, OrganizationID: u.OrganizationID, Email: u.Email, DisplayName: u.DisplayName, Grants: grants}
+	if u.KeycloakSubject != nil {
+		p.Subject = *u.KeycloakSubject
+	}
+	return p, nil
 }
 
 // RequireAuth rejects unauthenticated requests.
 func (s *Service) RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if PrincipalFrom(r.Context()) == nil {
+			if suspended, _ := r.Context().Value(suspendedKey).(bool); suspended {
+				httpx.WriteError(w, r, s.Log, errOrgSuspended)
+				return
+			}
 			httpx.WriteError(w, r, s.Log, httpx.ErrUnauthenticated)
 			return
 		}
@@ -449,7 +615,10 @@ func (s *Service) tokenPrincipal(ctx context.Context, tok string, r *http.Reques
 	sum := sha256.Sum256([]byte(tok))
 	var tokenID, userID, orgID uuid.UUID
 	var scopes []string
-	err := s.DB.QueryRow(ctx, `UPDATE api_tokens SET last_used_at = now()
+	// The token's organization is not known yet: look the hash up across
+	// organizations (system scope), then load the principal scoped to the
+	// token's organization.
+	err := s.DB.QueryRow(tenant.WithSystem(ctx), `UPDATE api_tokens SET last_used_at = now()
 		WHERE token_sha256 = $1 AND revoked_at IS NULL AND expires_at > now() AND scopes && ARRAY[$2, $3]::text[]
 		RETURNING id, user_id, organization_id, scopes`, hex.EncodeToString(sum[:]), TokenScopeRead, TokenScopeWrite).
 		Scan(&tokenID, &userID, &orgID, &scopes)
@@ -460,6 +629,9 @@ func (s *Service) tokenPrincipal(ctx context.Context, tok string, r *http.Reques
 		return nil, uuid.Nil, httpx.E(http.StatusForbidden, "token_read_only", "this API token is read-only")
 	}
 	p, err := s.loadPrincipal(ctx, &Session{UserID: userID, OrgID: orgID})
+	if errors.Is(err, tenancy.ErrSuspended) {
+		return nil, uuid.Nil, errOrgSuspended
+	}
 	if err != nil {
 		return nil, uuid.Nil, bad
 	}

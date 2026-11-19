@@ -322,7 +322,7 @@ func applyOSV(ctx context.Context, tx pgx.Tx, ids []string) error {
 	}
 	rows, err := tx.Query(ctx, `
 		SELECT f.id, v.cvss_vectors FROM findings f
-		JOIN intel_vulns v ON (v.id = f.cve OR f.cve = ANY(v.aliases) OR v.id = f.rule_id) AND v.found
+		JOIN intel_vulns v ON (v.id = f.cve OR v.aliases @> ARRAY[f.cve] OR v.id = f.rule_id) AND v.found
 		WHERE f.cve <> '' AND (f.cve = ANY($1) OR f.rule_id = ANY($1)) AND f.cvss_vector = '' AND cardinality(v.cvss_vectors) > 0`, ids)
 	if err != nil {
 		return err
@@ -402,7 +402,7 @@ func osvCandidates(ctx context.Context, q pgx.Tx) ([]string, error) {
 		SELECT x.id FROM (
 		  SELECT DISTINCT cve AS id FROM findings WHERE cve <> '' AND status IN ('open', 'in_progress', 'needs_review')
 		  UNION SELECT DISTINCT rule_id FROM findings WHERE rule_id LIKE 'GHSA-%' AND status IN ('open', 'in_progress', 'needs_review')) x
-		WHERE NOT EXISTS (SELECT 1 FROM intel_vulns v WHERE (v.id = x.id OR x.id = ANY(v.aliases)) AND v.fetched_at > now() - $1::interval)
+		WHERE NOT EXISTS (SELECT 1 FROM intel_vulns v WHERE (v.id = x.id OR v.aliases @> ARRAY[x.id]) AND v.fetched_at > now() - $1::interval)
 		ORDER BY x.id LIMIT $2`, osvRefresh.String(), osvBatch)
 	if err != nil {
 		return nil, err
@@ -533,7 +533,7 @@ func LookupVuln(ctx context.Context, q interface {
 	var v Vuln
 	var refs, aff []byte
 	err := q.QueryRow(ctx, `SELECT id, aliases, summary, details, published, modified, withdrawn, cvss_vectors, cwes, refs, exploit_refs,
-		affected, source, fetched_at FROM intel_vulns WHERE found AND (id = $1 OR $1 = ANY(aliases))
+		affected, source, fetched_at FROM intel_vulns WHERE found AND (id = $1 OR aliases @> ARRAY[$1::text])
 		ORDER BY (id = $1) DESC, id LIMIT 1`, id).
 		Scan(&v.ID, &v.Aliases, &v.Summary, &v.Details, &v.Published, &v.Modified, &v.Withdrawn, &v.CVSS, &v.CWEs, &refs, &v.ExploitRefs,
 			&aff, &v.Source, &v.FetchedAt)

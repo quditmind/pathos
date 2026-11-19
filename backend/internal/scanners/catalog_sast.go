@@ -56,7 +56,9 @@ var sastPack = []Scanner{
 	s("kingfisher", "Kingfisher", "secrets", "Apache-2.0", "use", "sast", available, format("json"), home("https://github.com/mongodb/kingfisher"),
 		sastPackNote("validation off (--no-validate), no update check, current files only; JSON parsed with the Kingfisher import parser")),
 	s("talisman", "Talisman", "secrets", "MIT", "use", "sast", available, format("json"), home("https://github.com/thoughtworks/talisman"),
-		sastPackNote("current files, committed to a throwaway Git repository; no line numbers; JSON parsed with the Talisman import parser")),
+		sastPackNote("current files, committed to a throwaway Git repository; no line numbers; JSON parsed with the Talisman import parser. "+
+			"High noise: it flagged 33 of 39 look-alike files (84.6% false positive rate) in the PATHOS secrets benchmark (docs/BENCHMARKS.md); "+
+			"not in the default profile, enable it only where its file-level checks are wanted")),
 	s("noseyparker", "Nosey Parker", "secrets", "Apache-2.0", "use", "import", format("json"), home("https://github.com/praetorian-inc/noseyparker"),
 		note("Not bundled: the repository is archived (last release v0.24.0, May 2025). Import its JSON report (noseyparker format)")),
 	s("whispers", "Whispers", "secrets", "Apache-2.0", "use", "import", format("json"), home("https://github.com/Skyscanner/whispers"),

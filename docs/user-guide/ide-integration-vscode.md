@@ -16,7 +16,7 @@ The PATHOS extension for Visual Studio Code shows the open findings of your repo
 
 From the editor you can also open a finding in PATHOS, change its status and request a [Human Eye](human-review.md) review, with exactly the permissions of your PATHOS account.
 
-The extension is in `ide/vscode` of the PATHOS repository. It needs VS Code 1.90 or later.
+The extension is in `ide/vscode` of the PATHOS repository. It needs VS Code 1.90 or later. For IntelliJ IDEA, GoLand, PyCharm, WebStorm and the other JetBrains IDEs, see [IDE integration (JetBrains)](ide-integration-jetbrains.md).
 
 ## Install
 

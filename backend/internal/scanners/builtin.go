@@ -113,7 +113,7 @@ func parseEndpoints(raw []byte) ([]Finding, error) {
 					f.CWE = append(f.CWE, "CWE-"+m)
 				}
 			}
-			f.Fingerprint = Fingerprint(f, "")
+			setFingerprint(&f, "")
 			out = append(out, f)
 		}
 	}
@@ -224,7 +224,7 @@ func parseSignature(raw []byte) ([]Finding, error) {
 			Description: truncate(logging.RedactString("The target requires a valid Sigstore signature ("+rep.Mode+" verification). Result: "+
 				rep.Status+". "+rep.Detail), 4000),
 			FilePath: subject, Confidence: "high", CWE: []string{"CWE-345"}}
-		f.Fingerprint = Fingerprint(f, "")
+		setFingerprint(&f, "")
 		out = append(out, f)
 	}
 	if a := rep.Attestation; a != nil && a.Status != "verified" && a.Status != "skipped" {
@@ -232,7 +232,7 @@ func parseSignature(raw []byte) ([]Finding, error) {
 			Title: "Required " + firstNonEmpty(a.Type, "provenance") + " attestation not verified", Severity: "medium",
 			Description: truncate(logging.RedactString("Attestation verification result: "+a.Status+". "+a.Detail), 4000),
 			FilePath:    subject, Confidence: "high", CWE: []string{"CWE-345"}}
-		f.Fingerprint = Fingerprint(f, "")
+		setFingerprint(&f, "")
 		out = append(out, f)
 	}
 	return out, nil

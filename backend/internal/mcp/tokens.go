@@ -26,6 +26,7 @@ import (
 	"pathos/internal/identity"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/tenant"
 )
 
 // Service holds the MCP dependencies.
@@ -198,12 +199,18 @@ func (s *Service) authenticate(ctx context.Context, header string) (*authz.Princ
 		return nil, uuid.Nil, errBadToken
 	}
 	var tokenID, userID, orgID uuid.UUID
-	err := s.DB.QueryRow(ctx, `UPDATE api_tokens SET last_used_at = now()
+	var orgStatus string
+	// The token's organization is not known before the token is: system
+	// scope for the hash lookup only; everything after is scoped to the
+	// token's organization.
+	err := s.DB.QueryRow(tenant.WithSystem(ctx), `UPDATE api_tokens t SET last_used_at = now()
 		WHERE token_sha256 = $1 AND revoked_at IS NULL AND expires_at > now() AND $2 = ANY(scopes)
-		RETURNING id, user_id, organization_id`, hashToken(tok), ScopeMCP).Scan(&tokenID, &userID, &orgID)
-	if err != nil {
+		RETURNING id, user_id, organization_id, (SELECT o.status FROM organizations o WHERE o.id = t.organization_id)`,
+		hashToken(tok), ScopeMCP).Scan(&tokenID, &userID, &orgID, &orgStatus)
+	if err != nil || orgStatus != "active" {
 		return nil, uuid.Nil, errBadToken
 	}
+	ctx = tenant.WithOrg(ctx, orgID)
 	u, err := identity.GetUser(ctx, s.DB, orgID, userID)
 	if err != nil || u.Status != identity.StatusActive {
 		return nil, uuid.Nil, errBadToken
@@ -212,5 +219,9 @@ func (s *Service) authenticate(ctx context.Context, header string) (*authz.Princ
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
-	return &authz.Principal{UserID: u.ID, OrganizationID: orgID, Email: u.Email, DisplayName: u.DisplayName, Grants: grants}, tokenID, nil
+	p := &authz.Principal{UserID: u.ID, OrganizationID: orgID, Email: u.Email, DisplayName: u.DisplayName, Grants: grants}
+	if u.KeycloakSubject != nil {
+		p.Subject = *u.KeycloakSubject
+	}
+	return p, tokenID, nil
 }

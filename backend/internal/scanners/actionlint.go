@@ -65,7 +65,7 @@ func ParseActionlint(raw []byte) ([]Finding, error) {
 		default:
 			f.Severity, f.Confidence = "low", "high"
 		}
-		f.Fingerprint = Fingerprint(f, hashOf(msg))
+		setFingerprint(&f, hashOf(msg))
 		out = append(out, f)
 	}
 	return out, nil

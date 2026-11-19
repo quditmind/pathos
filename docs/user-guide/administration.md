@@ -152,4 +152,28 @@ Offline (air-gapped) operation is described in [Security scanning](security-scan
 
 **Administration → Audit log** is the append-only record of sign-ins, administrative changes and denied actions: time, actor, action, target, outcome (*Success*, *Denied*, *Failure*), IP address, request ID and details. Filter by action (for example `user` or `role_assignment.create`) and outcome. Changes made with an API token record the token's id; denied requests are recorded as `authz.denied`.
 
+## Organizations (multi-tenant installations)
+
+An installation can host several organizations that are completely separate: each has its own users, roles, repositories, findings, settings, integrations, secrets, AI configuration, risk model, workers and audit log, and nobody in one organization can see or change anything of another. Multi-tenancy is off unless your operator enabled it (`docs/MULTI_TENANCY.md` and `docs/OPERATIONS.md` in the PATHOS repository); on a single-organization installation nothing in this section appears.
+
+**Belonging to several organizations.** You can be a member of more than one organization, with different roles in each. The organization switcher in the header shows the active organization; choose another one to switch. Switching starts a new session in that organization and reloads the page. API tokens and MCP tokens belong to the organization they were created in.
+
+**How people join an organization:**
+
+- an administrator of the organization invites them (**Administration → Users → Invite user**); the invitation is linked when they sign in with that email address, if the identity provider confirms the address;
+- or the identity provider puts them in the organization's group (Keycloak: group `/pathos/<slug>`); they become a member without roles at their next sign-in, and an administrator grants roles as usual.
+
+Removing someone from the identity-provider group does **not** remove their membership: deactivate the user in **Administration → Users** of that organization.
+
+**Installation administrators** (the people the operator named) see **Installation → Organizations**:
+
+- **New organization**: name, slug (lowercase letters, digits and hyphens; also used for the identity-provider group and for workers) and, optionally, the email of its first administrator, who is invited with the *Super Administrator* role. The organization starts with the default regions, scan profile, policies and notification rules.
+- **Suspend**: its members can no longer sign in to it, its API tokens, MCP tokens and workers stop working and its scheduled scans pause. Nothing is deleted. **Resume** undoes it.
+- **Delete** (suspended organizations only): type the slug to confirm. Every record of the organization, including its audit log, stored scan artifacts and source snapshots, is removed permanently.
+- The **installation audit log** below the list records who created, suspended, resumed or deleted which organization.
+
+The default organization (the first one) can be neither suspended nor deleted. Being an installation administrator gives no access to any organization's data: to work in an organization you need a membership and roles there like everyone else. Do not confuse it with the organization role **Platform Administrator**, which manages the settings of one organization.
+
+**Workers.** Each organization needs its own scan workers; the operator starts them for the organization's slug. **Configurations → Scanners & workers** lists only your organization's workers.
+
 **Related APIs.** [Administration](../api-reference/administration.md), [Notifications](../api-reference/notifications.md), [Scan configuration](../api-reference/scan-configuration.md), [Worker protocol](../api-reference/worker-protocol.md).

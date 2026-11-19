@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -172,6 +173,16 @@ func (s *Service) ingestAuto(ctx context.Context, orgID uuid.UUID, st Settings) 
 			sevs = append(sevs, sv)
 		}
 	}
+	// Without the "new_findings" trigger a finding qualifies only when it
+	// needs review or has an AI review (ai_verdict below), so only those
+	// are candidates: a few index lookups instead of a pass over every open
+	// finding of the organization after each scan (docs/PERFORMANCE.md).
+	only := ""
+	if !slices.Contains(st.AutoTriggers, "new_findings") {
+		only = ` AND f.id IN (SELECT x.id FROM findings x WHERE x.organization_id = $1 AND x.status = 'needs_review'
+		    UNION SELECT ar.finding_id FROM ai_reviews ar WHERE ar.organization_id = $1 AND ar.status IN ('applied', 'pending_approval'))`
+	}
+	// #nosec G202 -- only is a constant condition
 	rows, err := s.DB.Query(ctx, `
 		WITH cand AS (
 		  SELECT f.id, f.status,
@@ -183,7 +194,7 @@ func (s *Service) ingestAuto(ctx context.Context, orgID uuid.UUID, st Settings) 
 		    AND f.status IN ('open', 'in_progress', 'needs_review', 'false_positive')
 		    AND f.category = ANY($2) AND f.severity = ANY($3)
 		    AND (cardinality($4::text[]) = 0 OR f.scanner_keys && $4::text[])
-		    AND NOT EXISTS (SELECT 1 FROM human_reviews h WHERE h.finding_id = f.id))
+		    AND NOT EXISTS (SELECT 1 FROM human_reviews h WHERE h.finding_id = f.id)`+only+`)
 		SELECT id, CASE
 		    WHEN 'needs_review' = ANY($5) AND status = 'needs_review' THEN $6
 		    WHEN 'ai_needs_review' = ANY($5) AND ai_verdict = 'needs_review' AND status <> 'false_positive' THEN $7

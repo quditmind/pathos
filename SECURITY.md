@@ -26,7 +26,7 @@ You can expect:
 In scope:
 - the PATHOS API, UI, worker agent and scanner isolation;
 - the Compose deployment and the shipped images;
-- the authentication and authorization model;
+- the authentication and authorization model, including isolation between organizations (multi-tenancy);
 - secret handling;
 - the AI review and MCP integration.
 

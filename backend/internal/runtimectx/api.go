@@ -422,6 +422,15 @@ func (s *Service) deleteConn(w http.ResponseWriter, r *http.Request, table, kind
 
 // requestSync records a synchronisation request; the jobs service runs it
 // within a minute.
+// exists reports whether the connection id exists in the organization
+// (table is one of the two connection tables), so that another
+// organization's id is answered like a missing one (404).
+func (s *Service) exists(ctx context.Context, table string, orgID, id uuid.UUID) bool {
+	var ok bool
+	_ = s.DB.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM `+table+` WHERE organization_id = $1 AND id = $2)`, orgID, id).Scan(&ok)
+	return ok
+}
+
 func (s *Service) requestSync(table, kind string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		p, err := s.manage(r)
@@ -439,7 +448,10 @@ func (s *Service) requestSync(table, kind string) http.HandlerFunc {
 		if err := s.DB.QueryRow(r.Context(), `UPDATE `+table+` SET sync_requested_at = now() WHERE organization_id = $1 AND id = $2 AND enabled
 			RETURNING sync_requested_at`, p.OrganizationID, id).Scan(&at); err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				err = httpx.Conflict("the connection does not exist or is disabled")
+				err = httpx.ErrNotFound
+				if s.exists(r.Context(), table, p.OrganizationID, id) {
+					err = httpx.Conflict("the connection is disabled")
+				}
 			}
 			s.fail(w, r, err)
 			return
@@ -471,6 +483,11 @@ func (s *Service) runs(column string) http.HandlerFunc {
 		id, err := pathUUID(r)
 		if err != nil {
 			s.fail(w, r, err)
+			return
+		}
+		parent := map[string]string{"cluster_id": "runtime_clusters", "registry_id": "registry_connections"}[column]
+		if !s.exists(r.Context(), parent, p.OrganizationID, id) {
+			s.fail(w, r, httpx.ErrNotFound)
 			return
 		}
 		// column is one of two constants.
@@ -774,6 +791,10 @@ func (s *Service) registryImages(w http.ResponseWriter, r *http.Request) {
 	id, err := pathUUID(r)
 	if err != nil {
 		s.fail(w, r, err)
+		return
+	}
+	if !s.exists(r.Context(), "registry_connections", p.OrganizationID, id) {
+		s.fail(w, r, httpx.ErrNotFound)
 		return
 	}
 	rows, err := s.DB.Query(r.Context(), `SELECT i.registry, i.repository, i.tag, i.digest, i.media_type, i.source_url, i.revision, i.created, i.last_seen_at,

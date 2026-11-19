@@ -5,9 +5,11 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -120,5 +122,63 @@ func TestExecutiveAndCustomReports(t *testing.T) {
 	}
 	if code, _ := call(owner, "DELETE", "/api/v1/reports/"+rep["id"].(string), nil); code != 204 {
 		t.Errorf("delete: %d", code)
+	}
+}
+
+// The executive trend is a single pass over the findings (running sum per
+// week); it must equal the per-week definition for every week, with findings
+// first seen before the window, resolved inside, before and after it, false
+// positives, accepted risks and a resolution date before the first sighting.
+func TestExecutiveTrendMatchesDefinition(t *testing.T) {
+	ctx := t.Context()
+	repo := createRepo(t, "exec-trend-"+uuid.NewString()[:6])
+	statuses := []string{"open", "fixed", "fixed", "false_positive", "accepted_risk", "in_progress"}
+	for i := range 90 {
+		f := insertFinding(t, repo, "high", "")
+		first := time.Now().Add(-time.Duration(i*2) * 24 * time.Hour).Add(-time.Duration(i) * time.Hour)
+		st := statuses[i%len(statuses)]
+		var resolved *time.Time
+		if st != "open" && st != "in_progress" {
+			r := first.Add(time.Duration((i%25)-3) * 24 * time.Hour) // a few before first_seen_at
+			resolved = &r
+		}
+		if _, err := ownerPool.Exec(ctx, `UPDATE findings SET first_seen_at = $2, status = $3 WHERE id = $1`, f, first, st); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := ownerPool.Exec(ctx, `UPDATE findings SET resolved_at = $2 WHERE id = $1`, f, resolved); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Risk scores have two decimals; the top-groups maximum used to fail
+	// to scan into an integer (HTTP 500 once any score was fractional).
+	if _, err := ownerPool.Exec(ctx, `UPDATE findings SET risk_score = 72.35 WHERE repository_id = $1`, repo); err != nil {
+		t.Fatal(err)
+	}
+	rs := &reporting.Service{DB: appPool, Log: log, Principal: auth.PrincipalFrom}
+	for _, days := range []int{30, 180} {
+		req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/executive?days=%d", days), nil).
+			WithContext(auth.WithPrincipal(ctx, principalWithRole(t, authz.RoleSuperAdmin)))
+		rec := httptest.NewRecorder()
+		newMux(rs.Register).ServeHTTP(rec, req)
+		var ex reporting.Executive
+		if err := json.Unmarshal(rec.Body.Bytes(), &ex); err != nil || rec.Code != 200 || len(ex.Trend) < 4 {
+			t.Fatalf("executive: %d %s", rec.Code, rec.Body.String())
+		}
+		for _, p := range ex.Trend {
+			var want reporting.TrendPoint
+			const from = ` FROM findings f JOIN repositories r ON r.id = f.repository_id WHERE f.organization_id = $1 AND r.archived_at IS NULL`
+			if err := appPool.QueryRow(ctx, `WITH x AS (SELECT $2::date::timestamptz AS w) SELECT
+				  (SELECT count(*)`+from+` AND f.first_seen_at >= w AND f.first_seen_at < w + interval '1 week'),
+				  (SELECT count(*)`+from+` AND f.status = 'fixed' AND f.resolved_at >= w AND f.resolved_at < w + interval '1 week'),
+				  (SELECT count(*)`+from+` AND f.first_seen_at < w + interval '1 week' AND f.status NOT IN ('false_positive')
+				     AND (f.resolved_at IS NULL OR f.resolved_at >= w + interval '1 week') AND (f.status <> 'accepted_risk'))
+				FROM x`, orgID, p.Week).Scan(&want.New, &want.Fixed, &want.Open); err != nil {
+				t.Fatal(err)
+			}
+			want.Week = p.Week
+			if p != want {
+				t.Errorf("days=%d week %s: got %+v, want %+v", days, p.Week, p, want)
+			}
+		}
 	}
 }

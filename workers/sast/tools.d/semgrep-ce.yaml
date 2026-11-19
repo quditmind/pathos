@@ -11,7 +11,10 @@ homepage: https://github.com/semgrep/semgrep
 family: sast
 targets: [repository]
 command: /opt/pathos/sast/bin/semgrep
-version_args: ["--version"]
+# The version command runs with the env below (no version check: without
+# it, `semgrep --version` waits about 99 s for the check offline) and
+# without metrics.
+version_args: ["--version", "--metrics", "off"]
 args: ["scan", "--config", "/opt/pathos/rules", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--quiet", "--sarif", "--output", "{output}", "{source}"]
 ok_exit_codes: [0, 1]
 timeout: 30m

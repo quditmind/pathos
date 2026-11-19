@@ -158,12 +158,11 @@ func ProvisionOnLogin(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, li LoginI
 		return res, errors.New("identity: subject and email claims are required")
 	}
 
-	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userCols+` FROM users WHERE keycloak_subject = $1 FOR UPDATE`, li.Subject))
+	// One person (subject) has at most one users row per organization
+	// (multi-tenancy: one row in each organization they belong to).
+	u, err := scanUser(tx.QueryRow(ctx, `SELECT `+userCols+` FROM users WHERE organization_id = $1 AND keycloak_subject = $2 FOR UPDATE`, orgID, li.Subject))
 	switch {
 	case err == nil:
-		if u.OrganizationID != orgID {
-			return res, errors.New("identity: user belongs to another organization")
-		}
 	case errors.Is(err, ErrNotFound):
 		if li.EmailVerified {
 			u, err = scanUser(tx.QueryRow(ctx, `SELECT `+userCols+` FROM users

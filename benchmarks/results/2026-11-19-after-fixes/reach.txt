@@ -1,0 +1,24 @@
+=== RUN   TestReachabilityBenchmark
+bench_test.go:170: 
+    | Language | Sample | Advisory | Expected | Function level | Method | Package level | Paths |
+    |---|---|---|---|---|---|---|---|
+    | JavaScript | js/app | GHSA-35jh-r3h4-6jhm | reachable | reachable | symbol_calls | reachable | 1 |
+    | JavaScript | js/app | GHSA-p6mc-m468-83gw | not_reachable | not_reachable | symbol_calls | reachable | 0 |
+    | JavaScript | js/dynamic | GHSA-cf4h-3jhx-xvhq | unknown | unknown | symbol_calls | reachable | 0 |
+    | Python | python/app | GHSA-8q59-q68h-6hv4 | reachable | reachable | symbol_calls | reachable | 1 |
+    | Python | python/app | GHSA-g3rq-g295-4j3m | not_reachable | not_reachable | symbol_calls | reachable | 0 |
+    | Python | python/dynamic | GHSA-j8r2-6x86-q33q | unknown | unknown | symbol_calls | reachable | 0 |
+    | Java | java/app | GHSA-599f-7c49-w659 | reachable | reachable | symbol_calls | unknown | 1 |
+    | Java | java/app | GHSA-fjq5-5j5f-mvxh | not_reachable | not_reachable | symbol_calls | unknown | 0 |
+    | Java | java/dynamic | GHSA-599f-7c49-w659 | unknown | unknown | symbol_calls | unknown | 0 |
+    | Go | go/app | GO-2022-1059 | reachable | reachable | call_graph | reachable | 1 |
+    | Go | go/app | GO-2026-5970 | not_reachable | not_reachable | call_graph | reachable | 0 |
+    | Go | go/dynamic | GO-2026-5970 | unknown | unknown | call_graph | reachable | 0 |
+    
+    reachable 4/4, not reachable 4/4, unknown (dynamic) 4/4; false "not reachable": 0
+    
+--- PASS: TestReachabilityBenchmark (0.00s)
+=== RUN   TestReachabilityBenchmarkPaths
+--- PASS: TestReachabilityBenchmarkPaths (0.00s)
+PASS
+ok  	pathos/internal/reach	0.012s

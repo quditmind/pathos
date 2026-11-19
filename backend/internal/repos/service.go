@@ -18,6 +18,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/tenant"
 	"pathos/internal/scm"
 	"pathos/internal/secrets"
 )
@@ -72,10 +73,28 @@ func (s *Service) Register(mux *http.ServeMux) {
 
 // RegisterPublic mounts the unauthenticated webhook receivers.
 func (s *Service) RegisterPublic(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/webhooks/github/{id}", s.githubWebhook)
-	mux.HandleFunc("POST /api/webhooks/azure-devops/{id}", s.azureWebhook)
-	mux.HandleFunc("POST /api/webhooks/gitlab/{id}", s.gitlabWebhook)
-	mux.HandleFunc("POST /api/webhooks/bitbucket/{id}", s.bitbucketWebhook)
+	mux.HandleFunc("POST /api/webhooks/github/{id}", s.webhookScope(s.githubWebhook))
+	mux.HandleFunc("POST /api/webhooks/azure-devops/{id}", s.webhookScope(s.azureWebhook))
+	mux.HandleFunc("POST /api/webhooks/gitlab/{id}", s.webhookScope(s.gitlabWebhook))
+	mux.HandleFunc("POST /api/webhooks/bitbucket/{id}", s.webhookScope(s.bitbucketWebhook))
+}
+
+// webhookScope scopes an inbound SCM webhook to the organization of the
+// connection in its URL. The lookup of that organization is the only query
+// in system scope; the handler then verifies the delivery's signature with
+// the connection's own secret, so a delivery for one organization's
+// connection can never act in another organization.
+func (s *Service) webhookScope(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		if id, err := uuid.Parse(r.PathValue("id")); err == nil {
+			var orgID uuid.UUID
+			if err := s.DB.QueryRow(tenant.WithSystem(ctx), `SELECT organization_id FROM scm_connections WHERE id = $1`, id).Scan(&orgID); err == nil {
+				ctx = tenant.WithOrg(ctx, orgID)
+			}
+		}
+		next(w, r.WithContext(ctx))
+	}
 }
 
 var errNotFound = errors.New("not found")

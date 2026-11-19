@@ -90,3 +90,19 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 ### Developer attribution (`insights.people`)
 
 `insights.people` shows who introduced and who fixed findings, per git author name, per linked user and per team. It is **organization-only** because data about people is not divided by repository scope, and it is granted only to `super_admin` and `security_manager` by default; grant it through a custom role otherwise. Attribution itself is **off by default**: an administrator with `settings.manage` must enable it (Administration → Developer attribution), and linking git author names to users needs `users.manage`. See [the user guide](user-guide/developer-insights.md).
+
+## Organizations and installation administrators (multi-tenancy)
+
+Every role assignment above belongs to **one organization**. With multi-tenancy enabled ([MULTI_TENANCY.md](MULTI_TENANCY.md)), a person who belongs to several organizations has a separate user record, separate role assignments and separate API tokens in each; the session acts in one organization at a time (the organization switcher starts a new session). No role, scope or token of one organization reaches another: authorization resolves every repository, business unit and region inside the request's organization, and the database enforces row-level security on every tenant table.
+
+**Installation administrator** is not a role in this matrix. It is an attribute of a person (their identity-provider subject), granted with `PATHOS_INSTALLATION_ADMIN_EMAIL` or `pathosctl installation-admin grant`, and it allows exactly this:
+
+| Action | Installation administrator | Any organization role (including `super_admin` and `platform_admin`) |
+|---|:-:|:-:|
+| List organizations (name, slug, status, user and repository counts) | ✓ | |
+| Create an organization and invite its first super administrator | ✓ | |
+| Suspend, resume and delete an organization (not the default one) | ✓ | |
+| Read the installation audit log | ✓ | |
+| Read or change any organization's data | | only its own organization, per the matrix |
+
+An installation administrator who should also work inside an organization needs an ordinary membership and roles there. The organization role `platform_admin` (Platform Administrator) operates one organization's settings and has no installation-level rights.

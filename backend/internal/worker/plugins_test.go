@@ -84,3 +84,39 @@ env: {FAKE_MODE: strict}
 		t.Error("plugins do not run for scan targets")
 	}
 }
+
+// The version command runs with the manifest's env and version_timeout.
+// Regression (benchmark 2026-11-19): Semgrep CE's version command waited
+// for a version check its manifest disables in env, the worker gave up
+// after 20s and stored an empty version on every scan.
+func TestPluginVersionEnvAndTimeout(t *testing.T) {
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "slow-version")
+	script := `#!/bin/sh
+if [ "$NO_VERSION_CHECK" = "1" ]; then echo "slow 4.5.6"; exit 0; fi
+sleep 5; echo "slow 4.5.6"
+`
+	if err := os.WriteFile(bin, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	spec := "name: slow\ncategory: sast\ncommand: " + bin + "\nargs: [\"{source}\", \"{output}\"]\nversion_timeout: 1s\n"
+	d, err := decodeManifest([]byte(spec), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, err := (pluginTool{def: d}).Version(context.Background()); err == nil || v != "" {
+		t.Errorf("without the env the version command must hit version_timeout: %q %v", v, err)
+	}
+	d, err = decodeManifest([]byte(spec+"env: {NO_VERSION_CHECK: \"1\"}\n"), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if v, err := (pluginTool{def: d}).Version(context.Background()); err != nil || v != "4.5.6" {
+		t.Errorf("version with the manifest env: %q %v", v, err)
+	}
+	for _, bad := range []string{"500ms", "10m", "x"} {
+		if _, err := decodeManifest([]byte(strings.Replace(spec, "1s", bad, 1)), false); err == nil {
+			t.Errorf("version_timeout %s accepted", bad)
+		}
+	}
+}

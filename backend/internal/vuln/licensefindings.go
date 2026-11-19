@@ -43,7 +43,7 @@ func StoreFileLicenses(ctx context.Context, tx pgx.Tx, orgID, repoID, jobID uuid
 		}
 		rows = append(rows, []any{orgID, repoID, jobID, l.Path, l.SPDX, l.Method, line, alts})
 	}
-	_, err := tx.CopyFrom(ctx, pgx.Identifier{"repository_file_licenses"},
+	_, err := db.CopyFrom(ctx, tx, pgx.Identifier{"repository_file_licenses"},
 		[]string{"organization_id", "repository_id", "scan_job_id", "file_path", "spdx_id", "method", "line", "alternatives"}, pgx.CopyFromRows(rows))
 	return err
 }

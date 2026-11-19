@@ -197,6 +197,19 @@ The extension has no runtime dependencies (it uses the `fetch` built into VS Cod
 | `vitest` | 5.1.0 | Unit tests | MIT |
 | `@vscode/vsce` | 4.1.0 | Packaging the `.vsix` | MIT (its optional `@vscode/vsce-sign` helper, used only for Marketplace signing, is under Microsoft's own licence) |
 
+## JetBrains plugin (ide/jetbrains)
+
+The plugin has no third-party runtime dependencies: it uses the IntelliJ Platform and the Kotlin standard library bundled with the IDE, and the JDK's `java.net.http` client; its JSON parser is part of the plugin. The tools below build and test it and are not shipped in the ZIP. Every downloaded artifact is checked against `ide/jetbrains/gradle/verification-metadata.xml`.
+
+| Tool | Version | Purpose | License |
+|---|---|---|---|
+| Gradle (wrapper, `distributionSha256Sum`) | 9.9.1 | Build | Apache-2.0 |
+| Kotlin Gradle plugin | 2.4.21 (API version 2.2) | Language | Apache-2.0 |
+| IntelliJ Platform Gradle Plugin | 2.20.1 | Build, test sandbox, Plugin Verifier | Apache-2.0 |
+| IntelliJ IDEA | 2025.3 (build platform), 2026.3 (verifier) | Compile and test against; not redistributed | JetBrains user agreement (IntelliJ IDEA) |
+| JUnit, opentest4j | 4.13.2, 1.3.0 | Unit tests | EPL-1.0, Apache-2.0 |
+| `eclipse-temurin` JDK image | 21.0.13_9 (digest-pinned) | Build container (`scripts/gradle-jetbrains.sh`) | GPL-2.0 with Classpath Exception |
+
 ## Test and security tooling (not shipped)
 
 | Tool | Version | License | Used by |

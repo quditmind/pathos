@@ -305,7 +305,7 @@ func SyncRepository(ctx context.Context, tx pgx.Tx, cat *Catalog, orgID, repoID 
 		}
 	}
 	if len(rows) > 0 {
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"component_eol"}, []string{"id", "organization_id", "repository_id", "scan_target_id", "source",
+		if _, err := db.CopyFrom(ctx, tx, pgx.Identifier{"component_eol"}, []string{"id", "organization_id", "repository_id", "scan_target_id", "source",
 			"component", "version", "purl", "source_path", "product", "product_label", "cycle", "eol_date", "status", "latest_version"},
 			pgx.CopyFromRows(rows)); err != nil {
 			return st, err

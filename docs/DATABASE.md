@@ -386,8 +386,24 @@ Vulnerable functions named by OSV records are kept in `intel_vulns.affected[].sy
 
 `fingerprint = sha256(family | rule | normalized_path | snippet_key | secondary_key)` (`scanners.Fingerprint`). Line numbers are deliberately excluded, so it stays stable when code shifts. For SCA findings the family is `sca`, the rule is `sca` and `secondary_key` is `package@version|CVE` (or the advisory ID), so the same vulnerability reported by Trivy, Grype and OSV-Scanner is one finding. For every other category the family is the scanner key. Scan-target findings use target-namespaced fingerprints (00015).
 
+**Fingerprint version 2 (PATHOS 2.1).** In the SCA `secondary_key` the package name is normalized (lower case; runs of `-`, `_` and `.` become `-`, which is PEP 503 for PyPI and also folds npm scope case) and a leading `v` of the version is dropped (Go modules report `v0.3.5`, OSV-Scanner `0.3.5`). Grype's Maven findings carry `group:artifact`, taken from the package URL, like Trivy's and OSV-Scanner's. Before this change the benchmark found 18 duplicate findings among 84 ([BENCHMARKS.md](BENCHMARKS.md)). Other categories are unchanged. Stored findings keep their rows, so no migration is needed: the parsers also compute the version 1 fingerprint (`scanners.LegacyFingerprint`). When a scan reports a finding whose stored row still has the version 1 fingerprint, `scans.Ingest` re-keys that row to the new fingerprint before upserting, and its id, status, triage, comments, occurrences and history stay. When two old rows map to one new fingerprint (Grype's `log4j-core` and Trivy's `org.apache.logging.log4j:log4j-core`), the first is re-keyed; the other is no longer reported under its fingerprint and is resolved like any finding no longer detected (or keeps a triage status such as `accepted_risk`). Evidence is located in stored reports by either fingerprint. Findings of repositories that are not scanned again keep their version 1 fingerprint. Pull request checks compare with the repository's findings by fingerprint, so until the base branch has been scanned once with 2.1, a dependency finding whose fingerprint changed can show as new in a pull request check.
+
 ## Retention
 
 - Raw reports and SBOM files (`scan_artifacts`, and their objects in S3-compatible storage) are pruned after the `retention_days` of the profile version that produced them (7–3650 days). The row is deleted first, then the object.
 - Execution logs and stage events (`scan_job_logs`, `scan_job_events`) are pruned after `PATHOS_SCAN_LOG_RETENTION_DAYS`.
 - Executions, results, `findings`, `finding_occurrences`, `finding_status_history`, `ai_reviews` and `audit_logs` are not pruned.
+
+## Findings list indexes (migration 00038)
+
+Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside a transaction), so upgrading a large installation does not block scans. Measurements: [PERFORMANCE.md](PERFORMANCE.md).
+
+| Index | Serves |
+|---|---|
+| `findings_open_severity_rank_idx` | Findings list, default order and open filter: `(organization_id, severity rank, last_seen_at, id)` for open, in-progress and needs-review findings; the keyset cursor is a range on the same columns |
+| `findings_severity_rank_idx` | The same order for every status (`status=all`, lifecycle filters) |
+| `findings_open_risk_rank_idx` | `sort=risk`: `(organization_id, risk rank, last_seen_at, id)` for open findings |
+| `findings_status_severity_repo_idx` | Severity counts above the list (`GET /api/v1/findings/summary`) as an index-only scan |
+| `findings_open_sca_package_idx` | Open vulnerabilities per component in the SBOM inventory: `(package_name, package_version, repository_id)` for open SCA findings |
+
+The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.

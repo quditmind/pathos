@@ -74,6 +74,7 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 | [REPOSITORY_ONBOARDING](docs/REPOSITORY_ONBOARDING.md) | Repository onboarding: design notes |
 | [HUMAN_REVIEW](docs/HUMAN_REVIEW.md) | Human Eye: design notes |
 | [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Implemented scanners, licensing review, scan types, adding tools with manifests |
+| [BENCHMARKS](docs/BENCHMARKS.md) | Detection quality on suites with known answers: method, results, limitations, how to reproduce |
 | [DEPENDENCIES](docs/DEPENDENCIES.md) | Dependencies, versions and licenses |
 | [OpenAPI](backend/api/openapi.yaml) | OpenAPI 3.1 description |
 

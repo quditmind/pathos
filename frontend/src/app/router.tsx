@@ -74,6 +74,8 @@ import { WorkspacePage, validateWorkspaceSearch } from "@/features/review/worksp
 import { DeveloperInsightsPage } from "@/features/insights/DeveloperInsightsPage";
 import { AttributionSettingsPage } from "@/features/insights/AttributionSettingsPage";
 import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
+import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPage";
+import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
 
 function Authenticated() {
   const me = useMe();
@@ -88,6 +90,9 @@ function Authenticated() {
     if (me.error instanceof ApiError && me.error.status === 401) {
       window.location.replace(`/login?return_to=${encodeURIComponent(window.location.pathname + window.location.search)}`);
       return null;
+    }
+    if (me.error instanceof ApiError && me.error.code === "organization_suspended") {
+      return <SuspendedOrganization />;
     }
     return (
       <div className="mx-auto mt-20 max-w-md px-4">
@@ -217,6 +222,7 @@ const integrationsRoute = createRoute({ getParentRoute: () => appRoute, path: "/
 const complianceRoute = createRoute({ getParentRoute: () => appRoute, path: "/compliance", component: CompliancePage });
 const securitySettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/security", component: SecuritySettingsPage });
 const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
+const installationOrgsRoute = createRoute({ getParentRoute: () => appRoute, path: "/installation/organizations", component: OrganizationsAdminPage });
 
 // Human Eye (standalone module).
 const hrOverviewRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review", component: ReviewOverviewPage, validateSearch: validateReviewSearch });
@@ -233,7 +239,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

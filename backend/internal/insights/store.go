@@ -163,7 +163,7 @@ func StoreChanges(ctx context.Context, pool *pgxpool.Pool, orgID, jobID uuid.UUI
 				clip(authorOf[c.FilePath], 200)})
 		}
 		if len(rows) > 0 {
-			if _, err := tx.CopyFrom(ctx, pgx.Identifier{"material_changes"}, []string{"organization_id", "repository_id", "scan_job_id", "category",
+			if _, err := db.CopyFrom(ctx, tx, pgx.Identifier{"material_changes"}, []string{"organization_id", "repository_id", "scan_job_id", "category",
 				"rule_id", "level", "file_path", "change_type", "side", "start_line", "end_line", "match_count", "snippet", "explanation", "detail",
 				"author_name"}, pgx.CopyFromRows(rows)); err != nil {
 				return err
@@ -187,7 +187,7 @@ func StoreChanges(ctx context.Context, pool *pgxpool.Pool, orgID, jobID uuid.UUI
 				}
 				crow = append(crow, []any{jobID, orgID, repoID, i, c.SHA, clip(cleanName(c.AuthorName), 200), at, nonNil(files)})
 			}
-			if _, err := tx.CopyFrom(ctx, pgx.Identifier{"scan_commits"}, []string{"scan_job_id", "organization_id", "repository_id", "position",
+			if _, err := db.CopyFrom(ctx, tx, pgx.Identifier{"scan_commits"}, []string{"scan_job_id", "organization_id", "repository_id", "position",
 				"sha", "author_name", "authored_at", "files"}, pgx.CopyFromRows(crow)); err != nil {
 				return err
 			}

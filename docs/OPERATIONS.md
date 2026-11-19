@@ -129,6 +129,33 @@ The upgrade script:
 
 If the upgrade does not become healthy, it prints the rollback command: check out the previous release, then run `restore.sh <backup> --yes`.
 
+## Multi-tenancy
+
+One installation can host several isolated organizations ([MULTI_TENANCY.md](MULTI_TENANCY.md)). It is **off** by default; an install with multi-tenancy off behaves exactly as before.
+
+**Upgrade.** Migrations 00040–00042 run with every upgrade. On a single-organization install they add row-level security policies (not enforced), installation tables, and composite same-organization foreign keys; the existing organization (`PATHOS_ORG_SLUG`) stays the only one. Validating the new foreign keys reads every referencing table once, so the migration takes longer on large databases. Nothing else changes.
+
+**Enable:**
+
+1. Set `PATHOS_INSTALLATION_ADMIN_EMAIL` in `.env` (the person who will manage organizations; at the first sign-in with a verified email they also join the default organization, without roles) and run `deploy/scripts/upgrade.sh` (or `docker compose up -d`).
+2. Turn multi-tenancy on and restart the services that read the mode at startup:
+   ```bash
+   docker compose run --rm --entrypoint pathosctl migrate multi-tenancy enable
+   docker compose restart api jobs scheduler
+   ```
+   `pathosctl multi-tenancy status` prints the mode and any table that would not be isolated (there must be none; the API refuses to start in multi-tenant mode otherwise).
+3. Existing realms: `keycloak-setup` adds the `groups` claim mapper to the `pathos-web` client on its next run (`docker compose up -d keycloak-setup`); new realms have it.
+4. Sign in as the installation administrator: **Installation → Organizations** creates organizations (optionally inviting each one's first super administrator by email). People join an organization by invitation, or through a Keycloak group `/pathos/<slug>`.
+5. Start one set of workers per organization with `PATHOS_WORKER_ORGANIZATION=<slug>` (for example a second Compose project with its own `.env` that sets it; workers without it serve the default organization). Workers are never shared between organizations.
+
+`pathosctl installation-admin grant|revoke <email>` and `pathosctl installation-admin list` manage installation administrators; `pathosctl organizations` lists organizations with their status.
+
+**Disable:** `pathosctl multi-tenancy disable` works only while one organization exists (delete the others first). With more than one organization and multi-tenancy off, the API, jobs and scheduler refuse to start.
+
+**Rolling back** below migration 00041 drops the multi-tenancy setting; re-applying the migrations leaves multi-tenancy off, and the services then refuse to start while several organizations exist until `pathosctl multi-tenancy enable` is run again.
+
+**Performance.** With row-level security enforced, PostgreSQL cannot use an index for conditions on functions that are not leakproof (such as `lower(name)`) before the policy; lookups by name can scan the organization's rows. Not measured at production volumes; watch the slow query log after enabling it.
+
 ## Scaling
 
 | Component | How | Notes |
@@ -136,7 +163,7 @@ If the upgrade does not become healthy, it prints the rollback command: check ou
 | Scan throughput | `docker compose up -d --scale worker-core=N` (and `--scale worker-sast=N` for family workers) | 1–4 GB RAM per concurrent scan (`PATHOS_WORKER_MEMORY`). Jobs are leased with `SKIP LOCKED`, so any number of workers is safe; scans that use family tools go to family workers |
 | Scheduler | `--scale scheduler=2` (production default) | Postgres advisory-lock leader election; standbys take over within 15 s |
 | Background jobs | `--scale jobs=N` | Notification, e-mail, webhook, AI review and import queues all use `SKIP LOCKED` claims |
-| API | Vertical first: one replica served 80 req/s at p95 < 500 ms with 100k findings (platform phase P8 load test) | Sessions are in Valkey, and rate limits are shared through Valkey |
+| API | Vertical first: one replica served 80 req/s at p95 < 500 ms with 100k findings (platform phase P8 load test) | Sessions are in Valkey, and rate limits are shared through Valkey. With 1 million findings the database is the limit, not the API: see [PERFORMANCE.md](PERFORMANCE.md) for measurements and sizing |
 
 ## Monitoring
 
@@ -292,7 +319,10 @@ The runtime connectors ([user guide](user-guide/runtime.md)) are optional; nothi
 | `PATHOS_HTTPS_PORT`, `PATHOS_HTTP_PORT`, `CADDY_TLS` | proxy | `443`, `80`, `internal` | Published ports, certificate (`internal` CA or an ACME e-mail) |
 | `KEYCLOAK_ADMIN_ALLOW` | proxy | `private_ranges` | Who may reach the Keycloak admin console; required in production mode |
 | `PATHOS_ENV`, `PATHOS_LOG_LEVEL` | all PATHOS services | `production`, `info` | |
-| `PATHOS_ORG_NAME`, `PATHOS_ORG_SLUG` | all PATHOS services | `Default Organization`, `default` | The organization created by `migrate` |
+| `PATHOS_ORG_NAME`, `PATHOS_ORG_SLUG` | all PATHOS services | `Default Organization`, `default` | The organization created by `migrate`; with multi-tenancy, the default organization (cannot be suspended or deleted) |
+| `PATHOS_INSTALLATION_ADMIN_EMAIL` | api | empty | Becomes an installation administrator at the first sign-in with a verified email (multi-tenancy) |
+| `PATHOS_OIDC_ORGANIZATION_CLAIM`, `PATHOS_OIDC_ORGANIZATION_PREFIX` | api | `groups`, `/pathos/` | ID-token claim that lists a person's organizations, and the prefix of its entries (`-`: entries are slugs) ([MULTI_TENANCY.md](MULTI_TENANCY.md#4-identity-users-memberships-and-the-switcher)) |
+| `PATHOS_WORKER_ORGANIZATION` | workers | empty (default organization) | Slug of the organization a worker serves (multi-tenancy) |
 | `PATHOS_MASTER_KEY`, `PATHOS_MASTER_KEYS_PREVIOUS` | all PATHOS services | generated | Envelope encryption; see [rotation](SECURITY.md#secrets-at-rest) |
 | `PATHOS_DB_OWNER_PASSWORD`, `PATHOS_DB_APP_PASSWORD`, `POSTGRES_SUPERUSER_PASSWORD`, `KEYCLOAK_DB_PASSWORD`, `VALKEY_PASSWORD` | postgres, migrate, api, jobs, scheduler, valkey, keycloak | generated | Database and Valkey credentials |
 | `PATHOS_OIDC_CLIENT_SECRET`, `PATHOS_KEYCLOAK_PROVISIONER_CLIENT_SECRET`, `KEYCLOAK_ADMIN_USER`, `KEYCLOAK_ADMIN_PASSWORD` | api, keycloak, keycloak-setup | generated | Keycloak clients and the Keycloak bootstrap administrator |
@@ -424,6 +454,8 @@ The script:
 4. Removes the synthetic data.
 
 Thresholds: error rate below 1 %, list p95 below 800 ms, detail p95 below 300 ms, dashboard p95 below 1.5 s. Above 25 req/s from one user, raise `PATHOS_RATE_LIMIT_SCALE` on the API for the test.
+
+For tests at scale (10,000 repositories, 1 million findings and more) use a separate, disposable stack (`COMPOSE_PROJECT_NAME`, other host ports): `scripts/load/loadgen.sh seed` fills it, `scripts/load/loadgen.sh ingest` drives the worker API, and `scripts/load/scale.sh sweep|mixed|users` runs k6 against it. [PERFORMANCE.md](PERFORMANCE.md) has the commands, the results and the sizing derived from them.
 
 ## Key and credential rotation
 

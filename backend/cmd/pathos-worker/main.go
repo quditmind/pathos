@@ -13,15 +13,22 @@
 // process of the network-less sibling container that executes repository
 // code for the worker (PATHOS_SANDBOX_DIR, default /sandbox). It needs no
 // token. See internal/worker/sandbox.go.
+//
+// `pathos-worker run-local -src DIR -out DIR -scanners k1,k2[,...]` runs
+// scanners of this image on a local directory without an API (no token, no
+// upload): each report is written to DIR/<key>.out and the outcomes to
+// DIR/results.json. The benchmark harness (benchmarks/) uses it.
 package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"pathos/internal/platform/logging"
 	"pathos/internal/worker"
@@ -47,6 +54,9 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "run-local" {
+		os.Exit(runLocal(os.Args[2:]))
+	}
 	log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-worker")
 	token := os.Getenv("PATHOS_WORKER_BOOTSTRAP_TOKEN")
 	if token == "" {
@@ -61,6 +71,7 @@ func main() {
 		BootstrapToken: token,
 		Name:           env("PATHOS_WORKER_NAME", host),
 		Family:         env("PATHOS_WORKER_FAMILY", "core"),
+		Organization:   strings.TrimSpace(os.Getenv("PATHOS_WORKER_ORGANIZATION")),
 		WorkDir:        env("PATHOS_WORK_DIR", "/work"),
 		CacheDir:       env("PATHOS_CACHE_DIR", "/cache"),
 		Offline:        env("PATHOS_OFFLINE", "false") == "true",
@@ -77,4 +88,46 @@ func main() {
 		log.Error("worker stopped", "err", err)
 		os.Exit(1)
 	}
+}
+
+// runLocal is `pathos-worker run-local`.
+func runLocal(args []string) int {
+	fs := flag.NewFlagSet("run-local", flag.ContinueOnError)
+	src := fs.String("src", "", "directory to scan")
+	out := fs.String("out", "", "directory for the reports and results.json")
+	keys := fs.String("scanners", "", "comma-separated scanner keys")
+	timeout := fs.Duration("timeout", 6*time.Hour, "timeout of the whole run")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *src == "" || *out == "" || *keys == "" {
+		fmt.Fprintln(os.Stderr, "usage: pathos-worker run-local -src DIR -out DIR -scanners k1,k2")
+		return 2
+	}
+	log := logging.New(os.Stderr, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-worker-local")
+	host, _ := os.Hostname()
+	cfg := worker.Config{
+		Name:          env("PATHOS_WORKER_NAME", host),
+		Family:        env("PATHOS_WORKER_FAMILY", "core"),
+		WorkDir:       env("PATHOS_WORK_DIR", "/work"),
+		CacheDir:      env("PATHOS_CACHE_DIR", "/cache"),
+		Offline:       env("PATHOS_OFFLINE", "false") == "true",
+		PluginsDir:    env("PATHOS_SCANNER_PLUGINS_DIR", "/etc/pathos/scanners.d"),
+		ToolsDir:      env("PATHOS_TOOLS_DIR", "/opt/pathos/tools.d"),
+		ClamAVAddress: strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
+		SandboxDir:    strings.TrimSpace(os.Getenv(worker.SandboxDirEnv)),
+		RulesDirs:     strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
+		Version:       version,
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	results, err := worker.New(cfg, log).RunLocal(ctx, *src, *out, strings.Split(*keys, ","), *timeout)
+	if err != nil {
+		log.Error("local run failed", "err", err)
+		return 1
+	}
+	for _, r := range results {
+		fmt.Printf("%s\t%s\t%s\t%dms\t%s\n", r.Scanner, r.Version, r.Status, r.DurationMS, r.Error)
+	}
+	return 0
 }

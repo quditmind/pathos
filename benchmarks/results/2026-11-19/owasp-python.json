@@ -1,0 +1,1160 @@
+{
+  "suite": "owasp-python",
+  "source": "https://github.com/OWASP-Benchmark/BenchmarkPython/archive/f1291485808b66e20ddb6b01b10dc71b3df8c8ba.tar.gz (expectedresults-0.1.csv)",
+  "license": "GPL-3.0",
+  "match": "owasp",
+  "cases": 1230,
+  "positive": 452,
+  "tools": [
+    {
+      "scanner": "opengrep",
+      "version": "2.0.0",
+      "status": "succeeded",
+      "duration_ms": 1757,
+      "findings": 184,
+      "unrelated": 0,
+      "overall": {
+        "tp": 101,
+        "fp": 30,
+        "tn": 748,
+        "fn": 351,
+        "precision": 0.7709923664122137,
+        "recall": 0.2234513274336283,
+        "fpr": 0.038560411311053984,
+        "f1": 0.346483704974271,
+        "score": 0.18489091612257433
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 7,
+          "fp": 7,
+          "tn": 0,
+          "fn": 6,
+          "precision": 0.5,
+          "recall": 0.5384615384615384,
+          "fpr": 1,
+          "f1": 0.5185185185185186,
+          "score": -0.46153846153846156
+        },
+        "codeinj": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 33,
+          "fn": 20,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "deserialization": {
+          "tp": 18,
+          "fp": 12,
+          "tn": 24,
+          "fn": 0,
+          "precision": 0.6,
+          "recall": 1,
+          "fpr": 0.3333333333333333,
+          "f1": 0.7499999999999999,
+          "score": 0.6666666666666667
+        },
+        "hash": {
+          "tp": 71,
+          "fp": 0,
+          "tn": 80,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 13,
+          "fn": 16,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 103,
+          "fn": 65,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "redirect": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 21,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 15,
+          "fn": 24,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 5,
+          "fp": 11,
+          "tn": 0,
+          "fn": 0,
+          "precision": 0.3125,
+          "recall": 1,
+          "fpr": 1,
+          "f1": 0.47619047619047616,
+          "score": 0
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 19,
+          "fn": 18,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 227,
+          "fn": 99,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 51,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 58,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xxe": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 14,
+        "tpr": 0.25274725274725274,
+        "fpr": 0.16666666666666669,
+        "score": 0.0860805860805861
+      },
+      "file_only": {
+        "tp": 121,
+        "fp": 63,
+        "tn": 715,
+        "fn": 331,
+        "precision": 0.657608695652174,
+        "recall": 0.2676991150442478,
+        "fpr": 0.08097686375321336,
+        "f1": 0.3805031446540881,
+        "score": 0.18672225129103445
+      }
+    },
+    {
+      "scanner": "semgrep-ce",
+      "status": "succeeded",
+      "duration_ms": 25535,
+      "findings": 184,
+      "unrelated": 0,
+      "overall": {
+        "tp": 101,
+        "fp": 30,
+        "tn": 748,
+        "fn": 351,
+        "precision": 0.7709923664122137,
+        "recall": 0.2234513274336283,
+        "fpr": 0.038560411311053984,
+        "f1": 0.346483704974271,
+        "score": 0.18489091612257433
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 7,
+          "fp": 7,
+          "tn": 0,
+          "fn": 6,
+          "precision": 0.5,
+          "recall": 0.5384615384615384,
+          "fpr": 1,
+          "f1": 0.5185185185185186,
+          "score": -0.46153846153846156
+        },
+        "codeinj": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 33,
+          "fn": 20,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "deserialization": {
+          "tp": 18,
+          "fp": 12,
+          "tn": 24,
+          "fn": 0,
+          "precision": 0.6,
+          "recall": 1,
+          "fpr": 0.3333333333333333,
+          "f1": 0.7499999999999999,
+          "score": 0.6666666666666667
+        },
+        "hash": {
+          "tp": 71,
+          "fp": 0,
+          "tn": 80,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 13,
+          "fn": 16,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 103,
+          "fn": 65,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "redirect": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 21,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 15,
+          "fn": 24,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 5,
+          "fp": 11,
+          "tn": 0,
+          "fn": 0,
+          "precision": 0.3125,
+          "recall": 1,
+          "fpr": 1,
+          "f1": 0.47619047619047616,
+          "score": 0
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 19,
+          "fn": 18,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 227,
+          "fn": 99,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 51,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 58,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xxe": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 14,
+        "tpr": 0.25274725274725274,
+        "fpr": 0.16666666666666666,
+        "score": 0.0860805860805861
+      },
+      "file_only": {
+        "tp": 121,
+        "fp": 63,
+        "tn": 715,
+        "fn": 331,
+        "precision": 0.657608695652174,
+        "recall": 0.2676991150442478,
+        "fpr": 0.08097686375321336,
+        "f1": 0.3805031446540881,
+        "score": 0.18672225129103445
+      }
+    },
+    {
+      "scanner": "bearer",
+      "version": "2.1.3",
+      "status": "succeeded",
+      "duration_ms": 29303,
+      "findings": 314,
+      "unrelated": 3,
+      "overall": {
+        "tp": 84,
+        "fp": 7,
+        "tn": 771,
+        "fn": 368,
+        "precision": 0.9230769230769231,
+        "recall": 0.18584070796460178,
+        "fpr": 0.008997429305912597,
+        "f1": 0.30939226519337015,
+        "score": 0.17684327865868918
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 7,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "codeinj": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 33,
+          "fn": 20,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "deserialization": {
+          "tp": 13,
+          "fp": 7,
+          "tn": 29,
+          "fn": 5,
+          "precision": 0.65,
+          "recall": 0.7222222222222222,
+          "fpr": 0.19444444444444445,
+          "f1": 0.6842105263157895,
+          "score": 0.5277777777777778
+        },
+        "hash": {
+          "tp": 71,
+          "fp": 0,
+          "tn": 80,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 13,
+          "fn": 16,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 103,
+          "fn": 65,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "redirect": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 21,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 15,
+          "fn": 24,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 11,
+          "fn": 5,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 19,
+          "fn": 18,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 227,
+          "fn": 99,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 51,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 58,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xxe": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 14,
+        "tpr": 0.12301587301587302,
+        "fpr": 0.01388888888888889,
+        "score": 0.10912698412698411
+      },
+      "file_only": {
+        "tp": 198,
+        "fp": 98,
+        "tn": 680,
+        "fn": 254,
+        "precision": 0.668918918918919,
+        "recall": 0.43805309734513276,
+        "fpr": 0.12596401028277635,
+        "f1": 0.5294117647058824,
+        "score": 0.3120890870623564
+      }
+    },
+    {
+      "scanner": "bandit",
+      "version": "1.9.4",
+      "status": "succeeded",
+      "duration_ms": 4145,
+      "findings": 536,
+      "unrelated": 3,
+      "overall": {
+        "tp": 108,
+        "fp": 25,
+        "tn": 753,
+        "fn": 344,
+        "precision": 0.8120300751879699,
+        "recall": 0.23893805309734514,
+        "fpr": 0.032133676092544985,
+        "f1": 0.36923076923076925,
+        "score": 0.20680437700480014
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 13,
+          "fp": 7,
+          "tn": 0,
+          "fn": 0,
+          "precision": 0.65,
+          "recall": 1,
+          "fpr": 1,
+          "f1": 0.787878787878788,
+          "score": 0
+        },
+        "codeinj": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 33,
+          "fn": 20,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "deserialization": {
+          "tp": 13,
+          "fp": 7,
+          "tn": 29,
+          "fn": 5,
+          "precision": 0.65,
+          "recall": 0.7222222222222222,
+          "fpr": 0.19444444444444445,
+          "f1": 0.6842105263157895,
+          "score": 0.5277777777777778
+        },
+        "hash": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 80,
+          "fn": 71,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 13,
+          "fn": 16,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 103,
+          "fn": 65,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "redirect": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 21,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 15,
+          "fn": 24,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 5,
+          "fp": 11,
+          "tn": 0,
+          "fn": 0,
+          "precision": 0.3125,
+          "recall": 1,
+          "fpr": 1,
+          "f1": 0.47619047619047616,
+          "score": 0
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 19,
+          "fn": 18,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 77,
+          "fp": 0,
+          "tn": 227,
+          "fn": 22,
+          "precision": 1,
+          "recall": 0.7777777777777778,
+          "fpr": 0,
+          "f1": 0.8750000000000001,
+          "score": 0.7777777777777778
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 51,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 58,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xxe": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 14,
+        "tpr": 0.25,
+        "fpr": 0.15674603174603177,
+        "score": 0.09325396825396826
+      },
+      "file_only": {
+        "tp": 224,
+        "fp": 128,
+        "tn": 650,
+        "fn": 228,
+        "precision": 0.6363636363636364,
+        "recall": 0.49557522123893805,
+        "fpr": 0.16452442159383032,
+        "f1": 0.5572139303482587,
+        "score": 0.33105079964510775
+      }
+    },
+    {
+      "scanner": "ruff",
+      "version": "0.17.5",
+      "status": "succeeded",
+      "duration_ms": 47,
+      "findings": 348,
+      "unrelated": 2,
+      "overall": {
+        "tp": 85,
+        "fp": 14,
+        "tn": 764,
+        "fn": 367,
+        "precision": 0.8585858585858586,
+        "recall": 0.18805309734513273,
+        "fpr": 0.017994858611825194,
+        "f1": 0.308529945553539,
+        "score": 0.17005823873330753
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 13,
+          "fp": 7,
+          "tn": 0,
+          "fn": 0,
+          "precision": 0.65,
+          "recall": 1,
+          "fpr": 1,
+          "f1": 0.787878787878788,
+          "score": 0
+        },
+        "codeinj": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 33,
+          "fn": 20,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "deserialization": {
+          "tp": 13,
+          "fp": 7,
+          "tn": 29,
+          "fn": 5,
+          "precision": 0.65,
+          "recall": 0.7222222222222222,
+          "fpr": 0.19444444444444445,
+          "f1": 0.6842105263157895,
+          "score": 0.5277777777777778
+        },
+        "hash": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 80,
+          "fn": 71,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 13,
+          "fn": 16,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 103,
+          "fn": 65,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "redirect": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 21,
+          "fn": 13,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 15,
+          "fn": 24,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 5,
+          "fp": 0,
+          "tn": 11,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 19,
+          "fn": 18,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 54,
+          "fp": 0,
+          "tn": 227,
+          "fn": 45,
+          "precision": 1,
+          "recall": 0.5454545454545454,
+          "fpr": 0,
+          "f1": 0.7058823529411764,
+          "score": 0.5454545454545454
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 51,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 58,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xxe": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 14,
+        "tpr": 0.23340548340548342,
+        "fpr": 0.08531746031746032,
+        "score": 0.14808802308802307
+      },
+      "file_only": {
+        "tp": 201,
+        "fp": 117,
+        "tn": 661,
+        "fn": 251,
+        "precision": 0.6320754716981132,
+        "recall": 0.4446902654867257,
+        "fpr": 0.15038560411311053,
+        "f1": 0.522077922077922,
+        "score": 0.29430466137361516
+      }
+    }
+  ],
+  "combined": {
+    "scanner": "combined",
+    "status": "succeeded",
+    "duration_ms": 60787,
+    "findings": 1566,
+    "unrelated": 8,
+    "overall": {
+      "tp": 184,
+      "fp": 30,
+      "tn": 748,
+      "fn": 268,
+      "precision": 0.8598130841121495,
+      "recall": 0.40707964601769914,
+      "fpr": 0.038560411311053984,
+      "f1": 0.5525525525525525,
+      "score": 0.36851923470664516
+    },
+    "by_category": {
+      "cmdi": {
+        "tp": 13,
+        "fp": 7,
+        "tn": 0,
+        "fn": 0,
+        "precision": 0.65,
+        "recall": 1,
+        "fpr": 1,
+        "f1": 0.787878787878788,
+        "score": 0
+      },
+      "codeinj": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 33,
+        "fn": 20,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "deserialization": {
+        "tp": 18,
+        "fp": 12,
+        "tn": 24,
+        "fn": 0,
+        "precision": 0.6,
+        "recall": 1,
+        "fpr": 0.3333333333333333,
+        "f1": 0.7499999999999999,
+        "score": 0.6666666666666667
+      },
+      "hash": {
+        "tp": 71,
+        "fp": 0,
+        "tn": 80,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "ldapi": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 13,
+        "fn": 16,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "pathtraver": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 103,
+        "fn": 65,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "redirect": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 21,
+        "fn": 13,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "securecookie": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 15,
+        "fn": 24,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "sqli": {
+        "tp": 5,
+        "fp": 11,
+        "tn": 0,
+        "fn": 0,
+        "precision": 0.3125,
+        "recall": 1,
+        "fpr": 1,
+        "f1": 0.47619047619047616,
+        "score": 0
+      },
+      "trustbound": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 19,
+        "fn": 18,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "weakrand": {
+        "tp": 77,
+        "fp": 0,
+        "tn": 227,
+        "fn": 22,
+        "precision": 1,
+        "recall": 0.7777777777777778,
+        "fpr": 0,
+        "f1": 0.8750000000000001,
+        "score": 0.7777777777777778
+      },
+      "xpathi": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 135,
+        "fn": 51,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "xss": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 58,
+        "fn": 31,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "xxe": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 20,
+        "fn": 8,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      }
+    },
+    "category_average": {
+      "categories": 14,
+      "tpr": 0.3412698412698413,
+      "fpr": 0.16666666666666669,
+      "score": 0.17460317460317462
+    },
+    "file_only": {
+      "tp": 260,
+      "fp": 192,
+      "tn": 586,
+      "fn": 192,
+      "precision": 0.5752212389380531,
+      "recall": 0.5752212389380531,
+      "fpr": 0.2467866323907455,
+      "f1": 0.5752212389380531,
+      "score": 0.3284346065473076
+    }
+  }
+}

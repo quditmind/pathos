@@ -98,3 +98,18 @@ func TestRulePackCategories(t *testing.T) {
 		t.Error("administrator rules opt in with a metadata category")
 	}
 }
+
+// Talisman is high-noise (docs/BENCHMARKS.md): never on by default, and
+// its catalog note says so.
+func TestTalismanNotDefault(t *testing.T) {
+	sc, ok := Lookup("talisman")
+	if !ok {
+		t.Fatal("talisman not catalogued")
+	}
+	if sc.DefaultEnabled {
+		t.Error("talisman must not be in the default profile")
+	}
+	if !strings.Contains(sc.Notes, "High noise") {
+		t.Errorf("note: %q", sc.Notes)
+	}
+}
