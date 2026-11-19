@@ -218,6 +218,37 @@ def govulncheck_with_dir(stream, moddir):
     return ("\n".join(out) + "\n").encode() if out else b""
 
 
+# A pinned requirement: name[extras] == or === an exact version (no
+# wildcard), optionally with an environment marker. Hash options are cut
+# off before matching.
+PINNED_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*(\[[^\]]*\])?\s*===?\s*[A-Za-z0-9][A-Za-z0-9._+!-]*\s*(;.*)?$")
+
+
+def pinned_requirements(path):
+    """The exactly pinned lines of a requirements file, and how many other
+    requirement lines it has. pip-audit --no-deps refuses the whole file
+    when one requirement is not pinned ("requirement flask is not pinned")
+    or uses a wildcard ("Invalid version: '1.37.*'"), which real
+    repositories often have; those lines are left out (no version to
+    check) instead of failing the run. Options (-r, -e, --index-url) and
+    URLs are left out too."""
+    with open(path, encoding="utf-8", errors="replace") as f:
+        text = f.read().replace("\\\n", " ")
+    keep, skipped = [], 0
+    for line in text.splitlines():
+        line = line.split(" #", 1)[0].strip()
+        if not line or line.startswith("#"):
+            continue
+        req = re.split(r"\s--hash[ =]", line, maxsplit=1)[0].strip()
+        if req.startswith("-") or "://" in req:
+            continue
+        if PINNED_RE.match(req) and "*" not in req:
+            keep.append(req)
+        else:
+            skipped += 1
+    return keep, skipped
+
+
 def pip_audit(src, out, cache):
     """pip-audit on every requirements*.txt (pinned requirements; no pip, no
     dependency resolution). Vulnerability data: PyPI (https://pypi.org)."""
@@ -232,11 +263,20 @@ def pip_audit(src, out, cache):
     # One run per file: pip-audit refuses a package pinned in two files of
     # one run, and its exit status 1 means both "vulnerabilities found" and
     # "error"; only a JSON report counts as success.
+    pinned = out + ".requirements.txt"
+
     def audit(req):
         if os.path.exists(tmp):
             os.remove(tmp)
+        keep, skipped = pinned_requirements(req)
+        if skipped:
+            log("%s: %d requirement(s) without an exact version left out" % (rel(src, req), skipped))
+        if not keep:
+            return {"dependencies": [], "fixes": []}, None, None
+        with open(pinned, "w") as f:
+            f.write("\n".join(keep) + "\n")
         r = capture([SCA + "/bin/pip-audit", "--disable-pip", "--no-deps", "--progress-spinner", "off", "-f", "json", "-o", tmp,
-                     "--cache-dir", os.path.join(cache, "pip-audit"), "-r", req], env=env)
+                     "--cache-dir", os.path.join(cache, "pip-audit"), "-r", pinned], env=env)
         rep = None
         if r.returncode in (0, 1) and os.path.exists(tmp):
             with open(tmp, "rb") as f:
@@ -248,8 +288,9 @@ def pip_audit(src, out, cache):
     try:
         return per_file(src, out, reqs, audit)
     finally:
-        if os.path.exists(tmp):
-            os.remove(tmp)
+        for p in (tmp, pinned):
+            if os.path.exists(p):
+                os.remove(p)
 
 
 def cargo_audit(src, out, cache):

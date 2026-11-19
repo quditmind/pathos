@@ -40,8 +40,9 @@ def script(path, body):
 
 
 # pip-audit stand-in: like pip-audit 2.10, it refuses a package listed in
-# two -r files of one run (exit 1, no report) and fails on a file named
-# in FAIL_ON; otherwise it writes a JSON report and exits 1 (vulnerable).
+# two -r files of one run (exit 1, no report), refuses unpinned or wildcard
+# requirements and fails on the package "brokenpkg"; otherwise it writes a
+# JSON report and exits 1 (vulnerable).
 PIP_AUDIT = r'''
 import json, sys
 args = sys.argv[1:]
@@ -49,11 +50,14 @@ reqs = [args[i + 1] for i, a in enumerate(args) if a == "-r"]
 out = args[args.index("-o") + 1]
 seen, deps = set(), []
 for r in reqs:
-    if "broken" in r:
-        print("ERROR:pip_audit._cli:Connection refused", file=sys.stderr)
-        sys.exit(1)
     for line in open(r):
         name, _, version = line.strip().partition("==")
+        if name == "brokenpkg":
+            print("ERROR:pip_audit._cli:Connection refused", file=sys.stderr)
+            sys.exit(1)
+        if not version or "*" in version:
+            print("ERROR:pip_audit._cli:requirement %s is not pinned" % name, file=sys.stderr)
+            sys.exit(1)
         if name.lower() in seen:
             print("ERROR:pip_audit._cli:package %s has duplicate requirements" % name, file=sys.stderr)
             sys.exit(1)
@@ -118,13 +122,26 @@ class WrapperTest(unittest.TestCase):
 
     def test_pip_audit_error_fails(self):
         self.put("ok/requirements.txt", "jinja2==2.11.2\n")
-        self.put("broken/requirements.txt", "urllib3==1.26.4\n")
+        self.put("broken/requirements.txt", "brokenpkg==1.0\n")
         code, rep, err = self.call(self.mod.pip_audit)
         self.assertEqual(code, 3, "an error is a failed run, never success without findings")
         self.assertIn("broken/requirements.txt", err[-1])
         self.assertIn("Connection refused", err[-1])
         # The report of the run that worked is kept.
         self.assertEqual([r["file"] for r in rep["pathos_reports"]], ["ok/requirements.txt"])
+
+    def test_pip_audit_unpinned_requirements(self):
+        # Seen on InsecureBankv2 ("flask") and a Bitbucket pipe ("boto3==1.37.*"):
+        # pip-audit refused the whole file and the scanner failed.
+        self.put("requirements.txt", "# app\nflask\nboto3==1.37.*\nPyYAML==5.3.1 --hash=sha256:abc \\\n    --hash=sha256:def\n"
+                 "requests[socks] == 2.25.0 ; python_version >= '3.8'  # pinned\n-r other.txt\n-e git+https://x/y.git#egg=y\n")
+        self.put("only-unpinned/requirements.txt", "django>=3\n")
+        code, rep, err = self.call(self.mod.pip_audit)
+        self.assertEqual(code, 0, err)
+        by_file = {r["file"]: r["report"]["dependencies"] for r in rep["pathos_reports"]}
+        self.assertEqual([d["name"] for d in by_file["requirements.txt"]], ["PyYAML", "requests[socks] "])
+        self.assertEqual(by_file["only-unpinned/requirements.txt"], [])
+        self.assertTrue(any("2 requirement(s) without an exact version" in e for e in err), err)
 
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")
