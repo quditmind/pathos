@@ -192,7 +192,7 @@ func OpenSandbox(dir string) (*Sandbox, error) {
 		if err := os.Mkdir(p, 0o750); err != nil && !errors.Is(err, fs.ErrExist) {
 			return nil, err
 		}
-		if err := os.Chmod(p, 0o750); err != nil {
+		if err := os.Chmod(p, 0o750); err != nil { // #nosec G302 -- directory, readable by the sandbox runner's group
 			return nil, fmt.Errorf("sandbox directory: %w", err)
 		}
 	}
@@ -283,10 +283,10 @@ func (s *Sandbox) run(ctx context.Context, job UntrustedJob) (UntrustedResult, e
 	}()
 	for _, d := range []string{"", "src", "out", "tmp", "home"} {
 		p := filepath.Join(jobDir, d)
-		if err := os.Mkdir(p, 0o770); err != nil {
+		if err := os.Mkdir(p, 0o770); err != nil { // #nosec G301 -- shared with the sandbox runner's UID through the group
 			return UntrustedResult{}, err
 		}
-		if err := os.Chmod(p, 0o770); err != nil {
+		if err := os.Chmod(p, 0o770); err != nil { // #nosec G302 -- shared with the sandbox runner's UID through the group
 			return UntrustedResult{}, err
 		}
 	}
@@ -503,34 +503,49 @@ func copyRegularFile(root, name, dst string, limit int64) (bool, error) {
 // the command can modify its copy). Symbolic links are copied as links and
 // never followed; other special files and .git are skipped.
 func copySandboxSource(src, dst string, limit int64) error {
+	// Both trees are opened as os.Root, so no path below them can resolve
+	// outside them, even if a component is replaced by a symbolic link
+	// while the copy runs.
+	srcRoot, err := os.OpenRoot(src)
+	if err != nil {
+		return err
+	}
+	defer srcRoot.Close()
+	dstRoot, err := os.OpenRoot(dst)
+	if err != nil {
+		return err
+	}
+	defer dstRoot.Close()
 	var total int64
-	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+	return fs.WalkDir(srcRoot.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		rel, err := filepath.Rel(src, p)
-		if err != nil || rel == "." {
-			return err
+		if rel == "." {
+			return nil
 		}
-		target := filepath.Join(dst, rel)
 		switch {
 		case d.IsDir():
 			if d.Name() == ".git" {
-				return filepath.SkipDir
+				return fs.SkipDir
 			}
-			if err := os.Mkdir(target, 0o770); err != nil {
+			// Group-writable: the runner (another UID in the agent's
+			// group) works in the copy.
+			if err := dstRoot.Mkdir(rel, 0o770); err != nil { // #nosec G301 -- shared with the sandbox runner's UID through the group
 				return err
 			}
-			return os.Chmod(target, 0o770)
+			return dstRoot.Chmod(rel, 0o770) // #nosec G302 -- shared with the sandbox runner's UID through the group
 		case d.Type()&fs.ModeSymlink != 0:
 			if d.Name() == ".git" {
 				return nil
 			}
-			link, err := os.Readlink(p)
+			link, err := srcRoot.Readlink(rel)
 			if err != nil {
 				return err
 			}
-			return os.Symlink(link, target)
+			// Copied as a link, never followed; the runner resolves it
+			// inside its own read-only view.
+			return dstRoot.Symlink(link, rel)
 		case d.Type().IsRegular():
 			info, err := d.Info()
 			if err != nil {
@@ -544,21 +559,19 @@ func copySandboxSource(src, dst string, limit int64) error {
 			if info.Mode().Perm()&0o100 != 0 {
 				mode = 0o770
 			}
-			return copyFileMode(p, target, mode)
+			return copyFileMode(srcRoot, dstRoot, rel, mode)
 		}
 		return nil
 	})
 }
 
-func copyFileMode(src, dst string, mode os.FileMode) error {
-	// #nosec G304 -- src is a regular file of the worker's own checkout
-	in, err := os.OpenFile(src, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
+func copyFileMode(srcRoot, dstRoot *os.Root, rel string, mode os.FileMode) error {
+	in, err := srcRoot.OpenFile(rel, os.O_RDONLY|syscall.O_NOFOLLOW, 0)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	// #nosec G304 -- dst is below the job directory the agent created
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, mode)
+	out, err := dstRoot.OpenFile(rel, os.O_CREATE|os.O_EXCL|os.O_WRONLY|syscall.O_NOFOLLOW, mode)
 	if err != nil {
 		return err
 	}
@@ -567,7 +580,7 @@ func copyFileMode(src, dst string, mode os.FileMode) error {
 		err = cerr
 	}
 	if err == nil {
-		err = os.Chmod(dst, mode)
+		err = dstRoot.Chmod(rel, mode) // #nosec G302 -- shared with the sandbox runner's UID through the group
 	}
 	return err
 }

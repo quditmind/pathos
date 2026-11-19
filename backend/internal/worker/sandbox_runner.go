@@ -351,7 +351,14 @@ func killAllOwn() bool {
 // fn for a directory before reading it, so the chmod comes first. Symbolic
 // links are not followed.
 func (r *sandboxRunner) fixPermissions(jobDir string) {
-	_ = filepath.WalkDir(jobDir, func(p string, d fs.DirEntry, err error) error {
+	// Every process of the run is gone when this runs; os.Root still keeps
+	// each change inside the job directory whatever the run left there.
+	root, err := os.OpenRoot(jobDir)
+	if err != nil {
+		return
+	}
+	defer root.Close()
+	_ = fs.WalkDir(root.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if err != nil || d == nil || d.Type()&fs.ModeSymlink != 0 {
 			return nil
 		}
@@ -365,9 +372,9 @@ func (r *sandboxRunner) fixPermissions(jobDir string) {
 		}
 		switch {
 		case d.IsDir():
-			_ = os.Chmod(p, info.Mode().Perm()|0o770)
+			_ = root.Chmod(rel, info.Mode().Perm()|0o770) // #nosec G302 -- the agent (same group) must read and remove the run's files
 		case info.Mode().IsRegular():
-			_ = os.Chmod(p, info.Mode().Perm()|0o660)
+			_ = root.Chmod(rel, info.Mode().Perm()|0o660) // #nosec G302 -- the agent (same group) must read and remove the run's files
 		}
 		return nil
 	})
