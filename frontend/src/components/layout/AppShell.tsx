@@ -91,8 +91,9 @@ export type NavItem = {
   /** Roadmap milestone of a not-yet-built item: shown disabled with "arrives in roadmap phase N". */
   phase?: number;
   /**
-   * Feature flag of the module (server-side, default off). A built item (with
-   * `to`) is a link only while its flag is on; otherwise it shows as a roadmap item.
+   * Feature flag of the module (server-side, default off). An item with a
+   * route and a flag is a link only while the flag is on; otherwise it shows
+   * disabled with its phase.
    */
   flag?: FeatureFlag;
   /** Sub-heading shown above the item when it changes within a group. */
@@ -238,6 +239,17 @@ export const groups: NavGroup[] = [
 /** Multi-tenant installs: Installation › Organizations, first in Administration, for installation administrators. */
 export const installationItem: NavItem = { label: "Organizations", to: "/installation/organizations", icon: <Building2 /> };
 
+/**
+ * The item as rendered: a flagged item keeps its route only while its flag
+ * is on (otherwise it is a roadmap item, disabled with its phase); an
+ * enabled flagged item drops its phase badge.
+ */
+export function navTarget(it: NavItem, flags: Record<string, boolean>): NavItem {
+  if (!it.flag) return it;
+  if (it.to && flags[it.flag] === true) return { ...it, phase: undefined };
+  return { ...it, to: undefined };
+}
+
 export function navGroupsFor(installationAdmin: boolean): NavGroup[] {
   if (!installationAdmin) return groups;
   return groups.map((g) => (g.label === "Administration" ? { ...g, items: [installationItem, ...g.items] } : g));
@@ -279,10 +291,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   // Installation administration (multi-tenant installs): a person attribute,
   // not an organization permission.
   const tenancy = useMyOrganizations();
-  const { flags } = useFeatureFlags();
-  // Built modules behind an off flag render like roadmap items.
-  const linkOf = (it: NavItem) => (it.to && (!it.flag || flags[it.flag] === true) ? it.to : undefined);
   const navGroups = navGroupsFor(!!(tenancy.data?.multi_tenant && tenancy.data.installation_admin));
+  const { flags } = useFeatureFlags();
 
   return (
     <ShellProvider>
@@ -305,15 +315,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {!collapsed && (
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
-                {items.map((it, idx) => {
-                  const to = linkOf(it);
+                {items.map((item, idx) => {
+                  const it = navTarget(item, flags);
                   const active =
-                    to &&
-                    (to === "/" ? path === "/" : path === to || (path.startsWith(to + "/") && !items.some((o) => o.to && o.to !== to && path.startsWith(o.to))));
+                    it.to &&
+                    (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));
                   const cls = cn(
                     "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] [&_svg]:size-4 [&_svg]:shrink-0",
                     active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",
-                    to ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
+                    it.to ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
                   );
                   const sectionHead =
                     !collapsed && it.section && it.section !== items[idx - 1]?.section ? (
@@ -323,7 +333,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <>
                       {it.icon}
                       {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
-                      {!collapsed && it.phase && !to && (
+                      {!collapsed && it.phase && (
                         <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground" aria-hidden>
                           Phase {it.phase}
                         </span>
@@ -333,8 +343,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   return (
                     <div key={it.label}>
                       {sectionHead}
-                      {to ? (
-                        <Link to={to} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
+                      {it.to ? (
+                        <Link to={it.to} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
                           {content}
                         </Link>
                       ) : (

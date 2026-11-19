@@ -227,6 +227,32 @@ These are derived from the runs above on the test machine and are marked as esti
 
 Scan workers are not the limit for the PATHOS side of ingest: 32 simulated workers completed 59–70 jobs/s with 1 million findings. Size workers by the tools they run (1–4 GB each, see [OPERATIONS.md](OPERATIONS.md#scaling)).
 
+## Graph rendering
+
+The budget of prompt §4 is a first render under 2 s for 2,000 nodes. ADR-005 sets the plan: synthetic graphs labelled as test data, Chromium, 10 runs per case, median and p95, from data received to all nodes laid out and placed.
+
+```bash
+scripts/graph-bench.sh        # BENCH_RUNS=10; results in e2e/perf/results/graph-render.json
+```
+
+The harness (`frontend/bench`, never part of the product bundle) renders the shared graph component (`frontend/src/components/graph`) with `generateGraph()` (seed 42: example nodes of 11 types, 30 % in three trust boundaries, mostly forward edges spanning up to 60 nodes, 10 % back edges). "Total" runs from handing the data to the component to two animation frames after `fitView`, with every node placed. Playwright 1.65.1, Chromium, 1440×900, on the test machine above (shared, other stacks running).
+
+**ELK layered does not scale to the budget.** Timed alone in Node 26 (`node frontend/bench/elk-node.mts <n>`), cold, ELK 0.12.1 layered with `INCLUDE_CHILDREN` (trust boundaries as containers) took 0.5 s for 150 nodes, 1.2 s for 250, 4.5 s for 500 and 28.6 s for 1,000; without containers 2.9 s for 1,000. Cheaper settings (longest-path layering, no greedy switch, simple node placement) were slower (19.9 s for 500), because they produce more layers and more dummy nodes. The browser run of 2,000 nodes with ELK did not finish within 120 s.
+
+**What the component does instead** (decided here, recorded in ADR-005): the layout still runs in the web worker; graphs up to 250 nodes and 500 edges use ELK layered (best quality, and the server's default view stays at 500 nodes or fewer by aggregation); larger graphs use a linear-time layered layout (`fastLayout.ts`: longest-path layers, barycentre ordering in four sweeps, one band per trust boundary so a boundary box holds only its children). React Flow renders only the visible elements and draws plain boxes below 45 % zoom.
+
+| Nodes | Edges | Layout | Layout median / p95 | Total median / p95 | Within 2 s |
+|---:|---:|---|---:|---:|---|
+| 200 | 299 | ELK | 742 / 792 ms | 807 / 850 ms | yes |
+| 500 | 750 | fast layered | 115 / 124 ms | 245 / 272 ms | yes |
+| 1,000 | 1,500 | fast layered | 120 / 131 ms | 385 / 427 ms | yes |
+| **2,000** | **2,998** | fast layered | 127 / 142 ms | **666 / 774 ms** | **yes (budget)** |
+| 2,000 | 5,998 | fast layered | 132 / 141 ms | 899 / 930 ms | yes |
+| 5,000 | 7,499 | fast layered | 152 / 187 ms | 1,209 / 1,317 ms | yes (1,234 nodes in view after fit, the rest culled) |
+| 2,000, CPU ×4 throttled | 2,998 | fast layered | 150 / 173 ms | 2,261 / 3,275 ms | no (pessimistic case of ADR-005) |
+
+Layout time includes starting the worker, which loads the ELK bundle (1.5 MB) even when the fast layout runs. Not measured yet: the real CodeGraph of the PATHOS repository (needs the M4 engine stack), interaction frame rate while panning, and a reference client defined by the owner.
+
 ## Not measured
 
 - Scans with real tools (the ingest test uploads synthetic SARIF; tool run time, cloning and worker memory are not included). Only Opengrep-style SARIF uploads were tested, not SBOM uploads or imports.
