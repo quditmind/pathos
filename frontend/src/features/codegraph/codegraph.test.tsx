@@ -120,37 +120,63 @@ describe("CodeGraphPanel", () => {
     await waitFor(() => expect(calls.some((c) => c.method === "POST")).toBe(true));
   });
 
-  it("loads the inspector from the API", async () => {
+  it("loads the inspector from the API (engine shape)", async () => {
     mockApi({
       "GET /api/v1/meta": meta(true),
-      [`GET ${base}/snapshots`]: () => ({ items: [snap(S1, "2026-11-19T10:00:00Z")] }),
+      [`GET ${base}/snapshots`]: () => ({ snapshots: [snap(S1, "2026-11-19T10:00:00Z")] }),
       [`GET ${base}/snapshots/${S1}/graph`]: () => exampleGraph,
       [`GET ${base}/snapshots/${S1}/nodes/route`]: () => ({
         node: exampleGraph.nodes[2],
-        findings: [{ id: "f1", title: "Example SQL injection", severity: "critical", href: "/findings?finding=f1" }],
-        source_links: [{ label: "example/handler.go:88", href: "/scans/0190a000-0000-7000-8000-0000000000ff", kind: "scan" }],
+        findings: [{ id: "f1", title: "Example SQL injection", severity: "critical", status: "open", rule_id: "example-rule" }],
+        source_links: [{ file: "example/handler.go", line: 88, url: "https://example.invalid/blob/a41c9e2/example/handler.go#L88" }],
+        edges_out: [{ id: "e9", source: "route", target: "far", type: "calls", evidence: "verified", count: 1, evidence_refs: [{ kind: "file_line", ref: "example/handler.go:95" }], other: { id: "far", type: "function", label: "farAway()" } }],
+        edges_in: [],
       }),
     });
     renderApp(<CodeGraphPanel applicationId={APP} />);
     fireEvent.click(await screen.findByRole("button", { name: /^POST \/example\/payments, Route/ }));
     const insp = screen.getByLabelText("Node inspector");
-    expect(await within(insp).findByText("Example SQL injection")).toBeInTheDocument();
-    expect(within(insp).getByRole("link", { name: "example/handler.go:88" })).toHaveAttribute("href", "/scans/0190a000-0000-7000-8000-0000000000ff");
+    expect(await within(insp).findByRole("link", { name: "Example SQL injection" })).toHaveAttribute("href", "/findings?finding=f1");
+    expect(within(insp).getByRole("link", { name: "example/handler.go:88" })).toHaveAttribute("href", "https://example.invalid/blob/a41c9e2/example/handler.go#L88");
+    expect(within(insp).getByText("farAway()")).toBeInTheDocument();
   });
 
-  it("compares two snapshots in the change impact view", async () => {
+  it("colours the change impact view from the server's change marks", async () => {
     const { calls } = mockApi({
       "GET /api/v1/meta": meta(true),
-      [`GET ${base}/snapshots`]: () => ({ items: [snap(S0, "2026-11-18T10:00:00Z"), snap(S1, "2026-11-19T10:00:00Z")] }),
-      [`GET ${base}/snapshots/${S1}/graph`]: () => exampleGraph,
-      [`GET ${base}/diff`]: () => ({
-        added: { nodes: [exampleGraph.nodes[6]], edges: [] },
-        removed: { nodes: [{ id: "gone", type: "function", label: "removedFn()", layer: "code" }], edges: [] },
-        changed: { nodes: [], edges: [] },
+      [`GET ${base}/snapshots`]: () => ({ snapshots: [snap(S0, "2026-11-18T10:00:00Z"), snap(S1, "2026-11-19T10:00:00Z")] }),
+      [`GET ${base}/snapshots/${S1}/graph`]: () => ({
+        nodes: [
+          { ...exampleGraph.nodes[3], attrs: { change: "changed" } },
+          { ...exampleGraph.nodes[6], attrs: { change: "added" } },
+          { id: "gone", type: "function", label: "removedFn()", layer: "code", attrs: { change: "removed" } },
+        ],
+        edges: [],
+        aggregated: [],
       }),
     });
     renderApp(<CodeGraphPanel applicationId={APP} state={{ view: "change_impact" }} onStateChange={() => {}} />);
-    expect(await screen.findByRole("group", { name: "Compare legend" })).toHaveTextContent("Removed (1)");
+    const legend = await screen.findByRole("group", { name: "Compare legend" });
+    expect(legend).toHaveTextContent("Added (1)");
+    expect(legend).toHaveTextContent("Removed (1)");
+    expect(legend).toHaveTextContent("Changed (1)");
+    expect(calls.find((c) => c.path.endsWith("/graph"))!.url.searchParams.get("view")).toBe("change_impact");
+    expect(calls.some((c) => c.path === `${base}/diff`)).toBe(false);
+  });
+
+  it("compares another view with a chosen snapshot through the diff endpoint", async () => {
+    const { calls } = mockApi({
+      "GET /api/v1/meta": meta(true),
+      [`GET ${base}/snapshots`]: () => ({ snapshots: [snap(S0, "2026-11-18T10:00:00Z"), snap(S1, "2026-11-19T10:00:00Z")] }),
+      [`GET ${base}/snapshots/${S1}/graph`]: () => exampleGraph,
+      [`GET ${base}/diff`]: () => ({
+        added: { nodes: [exampleGraph.nodes[6]], edges: [] },
+        removed: { nodes: [], edges: [{ id: "x", key: "k", source_key: "a", target_key: "b", type: "calls", evidence: "verified" }] },
+        changed: { nodes: [exampleGraph.nodes[4]], edges: [] },
+      }),
+    });
+    renderApp(<CodeGraphPanel applicationId={APP} state={{ view: "architecture", compare: S0 }} onStateChange={() => {}} />);
+    expect(await screen.findByRole("group", { name: "Compare legend" })).toHaveTextContent("Changed (1)");
     const d = calls.find((c) => c.path === `${base}/diff`)!;
     expect([d.url.searchParams.get("from"), d.url.searchParams.get("to")]).toEqual([S0, S1]);
   });

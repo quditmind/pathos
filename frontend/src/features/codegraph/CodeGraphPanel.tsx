@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { GitCommitHorizontal, RefreshCw, Waypoints } from "lucide-react";
 import { api, ApiError } from "@/api/client";
-import { GraphExplorer, SnapshotPicker, diffAsGraph, type GraphData } from "@/components/graph";
+import { GraphExplorer, SnapshotPicker, type GraphData, type GraphDiff } from "@/components/graph";
 import { Button } from "@/components/ui/button";
 import { ErrorPanel } from "@/components/ui/error-panel";
 import { Alert, Card } from "@/components/ui/primitives";
@@ -10,7 +10,7 @@ import { toast } from "@/components/ui/toast";
 import { useFeatureFlags, useMeta } from "@/features/shell/meta";
 import { formatDateTime } from "@/lib/utils";
 import { downloadJson, exportFileName } from "@/components/graph/export";
-import { exportUrl, fetchNodeDetail, fetchPaths, useDiff, useGraph, useRebuild, useSnapshots, type CodeGraphSnapshot } from "./api";
+import { exportUrl, fetchNodeDetail, fetchPaths, useDiff, useGraph, useRebuild, useSnapshots, type BuildAnswer, type CodeGraphSnapshot } from "./api";
 import { codegraphViews, viewInfo, type CodeGraphView } from "./views";
 
 /** URL or local state of the CodeGraph screen. */
@@ -30,6 +30,16 @@ export function relativeTime(iso: string | null | undefined, now = Date.now()): 
   if (s < 3600) return `${Math.floor(s / 60)} min ago`;
   if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
   return `${Math.floor(s / 86400)} d ago`;
+}
+
+/** change_impact marks nodes with attrs.change (added, changed, removed); turn that into a diff for the colours. */
+export function diffFromChangeAttrs(g: GraphData): GraphDiff {
+  const d: GraphDiff = { added: { nodes: [], edges: [] }, removed: { nodes: [], edges: [] }, changed: { nodes: [], edges: [] } };
+  for (const n of g.nodes) {
+    const c = n.attrs?.change;
+    if (c === "added" || c === "removed" || c === "changed") d[c].nodes.push(n);
+  }
+  return d;
 }
 
 const usable = (s: CodeGraphSnapshot) => s.status === "ready" || s.status === "partial";
@@ -107,6 +117,7 @@ export function CodeGraphPanel({
   const meta = useMeta();
   const snaps = useSnapshots(applicationId, enabled);
   const rebuild = useRebuild(applicationId);
+  const [buildErrors, setBuildErrors] = useState<NonNullable<BuildAnswer["errors"]>>([]);
 
   const list = useMemo(() => [...(snaps.data ?? [])].sort((a, b) => b.created_at.localeCompare(a.created_at)), [snaps.data]);
   const latest = list[0];
@@ -114,11 +125,14 @@ export function CodeGraphPanel({
   const current = (state.snapshot && list.find((s) => s.id === state.snapshot)) || ready[0];
   const compare = state.compare && state.compare !== current?.id ? state.compare : undefined;
   const isChangeImpact = state.view === "change_impact";
-  // Change impact compares with the previous snapshot unless one is chosen.
-  const base = compare ?? (isChangeImpact ? ready.find((s) => s.id !== current?.id)?.id : undefined);
-
-  const graph = useGraph(applicationId, current && usable(current) ? current.id : undefined, { view: state.view, focus: state.focus });
-  const diff = useDiff(applicationId, base, current?.id);
+  // Change impact: the server compares with `compare` or the previous
+  // snapshot of the same repository and marks nodes (attrs.change). Other
+  // views with a compare snapshot use the diff endpoint.
+  const graph = useGraph(applicationId, current && usable(current) ? current.id : undefined, { view: state.view, focus: state.focus, compare: isChangeImpact ? compare : undefined });
+  const base = isChangeImpact ? undefined : compare;
+  const diffQ = useDiff(applicationId, base, current?.id);
+  const changeDiff = useMemo(() => (isChangeImpact && graph.data ? diffFromChangeAttrs(graph.data) : undefined), [isChangeImpact, graph.data]);
+  const diff = isChangeImpact ? { data: changeDiff, isError: false, isPending: false, error: null, refetch: () => undefined } : diffQ;
 
   const loadDetail = useCallback((nid: string) => fetchNodeDetail(applicationId, current!.id, nid), [applicationId, current]);
   const loadPaths = useCallback((from: string, dir: "in" | "out") => fetchPaths(applicationId, current!.id, from, dir), [applicationId, current]);
@@ -138,7 +152,10 @@ export function CodeGraphPanel({
 
   const doRebuild = () =>
     rebuild.mutate(undefined, {
-      onSuccess: () => toast.success("CodeGraph build queued. The graph appears when the build finishes."),
+      onSuccess: (r) => {
+        setBuildErrors(r?.errors ?? []);
+        if (!r?.errors?.length || r.snapshots?.length) toast.success("CodeGraph build queued. The graph appears when the build finishes.");
+      },
     });
   const rebuildBtn = (
     <Button size="sm" onClick={doRebuild} disabled={rebuild.isPending || latest?.status === "queued" || latest?.status === "building"}>
@@ -158,7 +175,7 @@ export function CodeGraphPanel({
     );
   }
 
-  const graphData: GraphData | undefined = graph.data ?? (isChangeImpact && diff.data ? diffAsGraph(diff.data) : undefined);
+  const graphData: GraphData | undefined = graph.data;
   const info = viewInfo[state.view];
 
   return (
@@ -185,6 +202,12 @@ export function CodeGraphPanel({
         <span className="ml-auto">{rebuildBtn}</span>
       </div>
       {rebuild.isError && <ErrorPanel error={rebuild.error} title="Could not start the CodeGraph build" />}
+      {buildErrors.length > 0 && (
+        <Alert tone="warning">
+          Some repositories were not queued:{" "}
+          {buildErrors.map((e) => `${e.message}${e.code ? ` (${e.code})` : ""}`).join("; ")}
+        </Alert>
+      )}
       {latest && <BuildStatus snap={latest} />}
       <ViewSwitcher value={state.view} onChange={(view) => setState({ view, focus: undefined, node: undefined })} />
       <p className="text-[12px] text-muted-foreground">{info.description}</p>
@@ -196,11 +219,11 @@ export function CodeGraphPanel({
           </Button>
         </div>
       )}
-      {!current ? null : graph.isError && !(isChangeImpact && diff.data) ? (
+      {!current ? null : graph.isError ? (
         <ErrorPanel error={graph.error} title={`Could not load the ${info.label} view`} onVerify={() => graph.refetch()} />
       ) : diff.isError ? (
         <ErrorPanel error={diff.error} title="Could not compare the snapshots" onVerify={() => diff.refetch()} />
-      ) : isChangeImpact && !base ? (
+      ) : isChangeImpact && ready.length < 2 ? (
         <EmptyStateCard icon={<Waypoints />} title="Nothing to compare yet">
           Change impact needs two finished snapshots. Rebuild after the next commit, or choose a snapshot to compare with.
         </EmptyStateCard>
@@ -216,7 +239,7 @@ export function CodeGraphPanel({
         <GraphExplorer
           key={`${current.id}:${state.view}:${state.focus ?? ""}`}
           data={graphData}
-          diff={base ? diff.data : undefined}
+          diff={base || isChangeImpact ? diff.data : undefined}
           title={`CodeGraph${applicationName ? ` of ${applicationName}` : ""}, ${info.label} view`}
           initialSelected={state.node}
           onSelect={(node) => setState({ node })}

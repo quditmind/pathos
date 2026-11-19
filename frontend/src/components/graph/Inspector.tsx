@@ -6,6 +6,7 @@ import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
 import { ErrorPanel } from "@/components/ui/error-panel";
 import { Skeleton } from "@/components/ui/primitives";
+import { splitHref } from "@/lib/utils";
 import { EvidenceChip } from "./Legend";
 import { aggregateSummary, edgeTypeLabel, isInternetExposed, layerLabel, nodeTypeLabel, safeDetail } from "./model";
 import type { AggregateNode, EvidenceRef, GraphEdge, GraphNode, NodeDetail } from "./types";
@@ -40,7 +41,7 @@ function RefLine({ r, refHref }: { r: EvidenceRef; refHref: (r: EvidenceRef) => 
       <span className="text-muted-foreground">{refKindLabel[r.kind] ?? r.kind}: </span>
       {href ? (
         href.startsWith("/") ? (
-          <Link to={href} className="text-primary underline">
+          <Link {...splitHref(href)} className="text-primary underline">
             {text}
           </Link>
         ) : (
@@ -136,8 +137,11 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
     );
   }
   const n = node!;
-  const outgoing = edges.filter((e) => e.source === n.id);
-  const incoming = edges.filter((e) => e.target === n.id);
+  // The server's edge list is complete (it reaches nodes outside this view).
+  const all = detail.data?.edges?.length ? detail.data.edges : edges;
+  const outgoing = all.filter((e) => e.source === n.id);
+  const incoming = all.filter((e) => e.target === n.id);
+  const nameOf = (id: string) => detail.data?.labels?.[id] ?? labelOf(id);
   const attrs = Object.entries(n.attrs ?? {}).filter(([, v]) => v !== undefined && v !== null && v !== "");
   const findings = detail.data?.findings ?? [];
   return (
@@ -209,7 +213,7 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
               <li key={f.id} className="flex items-center gap-2 rounded border border-border px-2 py-1 text-[12px]">
                 <SeverityBadge value={f.severity} />
                 {f.href ? (
-                  <Link to={f.href} className="truncate text-primary underline">
+                  <Link {...splitHref(f.href)} className="truncate text-primary underline">
                     {f.title}
                   </Link>
                 ) : (
@@ -226,8 +230,10 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
           <ul className="space-y-0.5">
             {detail.data!.source_links!.map((l, i) => (
               <li key={i} className="text-[12px]">
-                {l.href.startsWith("/") ? (
-                  <Link to={l.href} className="text-primary underline">
+                {!l.href ? (
+                  <code className="break-all">{l.label}</code>
+                ) : l.href.startsWith("/") ? (
+                  <Link {...splitHref(l.href)} className="text-primary underline">
                     {l.label}
                   </Link>
                 ) : /^https?:\/\//.test(l.href) ? (
@@ -242,8 +248,8 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
           </ul>
         </section>
       )}
-      <EdgeList title="Outgoing" edges={outgoing} labelOf={labelOf} refHref={refHref} end="target" />
-      <EdgeList title="Incoming" edges={incoming} labelOf={labelOf} refHref={refHref} end="source" />
+      <EdgeList title="Outgoing" edges={outgoing} labelOf={nameOf} refHref={refHref} end="target" />
+      <EdgeList title="Incoming" edges={incoming} labelOf={nameOf} refHref={refHref} end="source" />
       {extra}
     </div>
   );

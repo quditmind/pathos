@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/api/client";
-import type { AggregateNode, EvidenceRef, GraphData, GraphDiff, GraphEdge, GraphNode, Layer, NodeDetail, TraceDirection } from "@/components/graph";
+import type { AggregateNode, EvidenceRef, GraphData, GraphSeverity, GraphDiff, GraphEdge, GraphNode, Layer, NodeDetail, TraceDirection } from "@/components/graph";
 import type { CodeGraphView } from "./views";
 
 /**
@@ -33,10 +33,10 @@ export interface CodeGraphSnapshot {
 
 export const base = (appId: string) => `/api/v1/codegraph/applications/${encodeURIComponent(appId)}`;
 
-/** Lists come as an array or as {items}. */
-function items<T>(r: T[] | { items?: T[] } | null | undefined): T[] {
+/** Lists come as an array, {snapshots} (the engine) or {items}. */
+function items<T>(r: T[] | { items?: T[]; snapshots?: T[] } | null | undefined): T[] {
   if (Array.isArray(r)) return r;
-  return r?.items ?? [];
+  return r?.snapshots ?? r?.items ?? [];
 }
 
 type RawNode = Partial<GraphNode> & {
@@ -97,6 +97,8 @@ function normaliseDiff(r: Partial<Record<"added" | "removed" | "changed", { node
 
 export interface GraphQuery {
   view: CodeGraphView;
+  /** change_impact: the base snapshot (default: the previous one of the same repository). */
+  compare?: string;
   focus?: string;
   depth?: number;
   limit?: number;
@@ -105,6 +107,7 @@ export interface GraphQuery {
 export function graphUrl(appId: string, sid: string, q: GraphQuery): string {
   const p = new URLSearchParams({ view: q.view });
   if (q.focus) p.set("focus", q.focus);
+  if (q.compare) p.set("compare", q.compare);
   if (q.depth) p.set("depth", String(q.depth));
   if (q.limit) p.set("limit", String(q.limit));
   return `${base(appId)}/snapshots/${encodeURIComponent(sid)}/graph?${p}`;
@@ -112,7 +115,7 @@ export function graphUrl(appId: string, sid: string, q: GraphQuery): string {
 
 export const codegraphKeys = {
   snapshots: (appId: string) => ["codegraph", appId, "snapshots"] as const,
-  graph: (appId: string, sid: string, q: GraphQuery) => ["codegraph", appId, "graph", sid, q.view, q.focus ?? "", q.depth ?? 0] as const,
+  graph: (appId: string, sid: string, q: GraphQuery) => ["codegraph", appId, "graph", sid, q.view, q.focus ?? "", q.compare ?? "", q.depth ?? 0] as const,
   diff: (appId: string, from: string, to: string) => ["codegraph", appId, "diff", from, to] as const,
 };
 
@@ -144,13 +147,33 @@ export function useDiff(appId: string, from: string | undefined, to: string | un
   });
 }
 
-export function fetchNodeDetail(appId: string, sid: string, nid: string): Promise<NodeDetail> {
-  return api<NodeDetail & { node?: RawNode; edges?: RawEdge[] } & RawNode>(`${base(appId)}/snapshots/${encodeURIComponent(sid)}/nodes/${encodeURIComponent(nid)}`).then((r) => ({
+type RawDetail = {
+  node?: RawNode;
+  findings?: { id: string; title: string; severity: GraphSeverity; rule_id?: string; href?: string; file_path?: string; start_line?: number | null }[];
+  source_links?: ({ label: string; href: string } | { file: string; line?: number; url?: string })[];
+  edges?: RawEdge[];
+  edges_out?: (RawEdge & { other?: { id: string; label: string } })[];
+  edges_in?: (RawEdge & { other?: { id: string; label: string } })[];
+} & RawNode;
+
+/** The inspector payload; accepts the engine's shape (edges_in/out with `other`, source links with file/line/url). */
+export function normaliseDetail(r: RawDetail): NodeDetail {
+  const rels = [...(r.edges_out ?? []), ...(r.edges_in ?? [])];
+  const labels: Record<string, string> = {};
+  for (const e of rels) if (e.other) labels[e.other.id] = e.other.label;
+  return {
     node: normaliseNode(r.node ?? r),
-    findings: r.findings ?? [],
-    edges: (r.edges ?? []).map(normaliseEdge),
-    source_links: r.source_links ?? [],
-  }));
+    findings: (r.findings ?? []).map((f) => ({ id: f.id, title: f.title, severity: f.severity, rule: f.rule_id, href: f.href ?? `/findings?finding=${encodeURIComponent(f.id)}` })),
+    edges: [...(r.edges ?? []), ...rels].map(normaliseEdge),
+    labels,
+    source_links: (r.source_links ?? []).map((l) =>
+      "file" in l ? { label: `${l.file}${l.line ? `:${l.line}` : ""}`, href: l.url ?? "", kind: "file_line" as const } : l,
+    ),
+  };
+}
+
+export function fetchNodeDetail(appId: string, sid: string, nid: string): Promise<NodeDetail> {
+  return api<RawDetail>(`${base(appId)}/snapshots/${encodeURIComponent(sid)}/nodes/${encodeURIComponent(nid)}`).then(normaliseDetail);
 }
 
 export function fetchPaths(appId: string, sid: string, from: string, direction: TraceDirection, max = 8): Promise<string[][]> {
@@ -164,10 +187,16 @@ export function exportUrl(appId: string, sid: string): string {
   return `${base(appId)}/snapshots/${encodeURIComponent(sid)}/export?format=json`;
 }
 
+/** POST …/build: one snapshot per repository of the application; per-repository errors. */
+export interface BuildAnswer {
+  snapshots?: CodeGraphSnapshot[];
+  errors?: { repository_id: string; code: string; message: string }[];
+}
+
 export function useRebuild(appId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api<{ snapshot_id?: string; id?: string; status?: string }>(`${base(appId)}/build`, { method: "POST", body: {} }),
+    mutationFn: () => api<BuildAnswer>(`${base(appId)}/build`, { method: "POST", body: {} }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: codegraphKeys.snapshots(appId) }),
   });
 }

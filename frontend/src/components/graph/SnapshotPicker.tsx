@@ -9,11 +9,13 @@ export interface SnapshotOption {
   commit_sha?: string;
   status?: string;
   label?: string;
+  /** Applications with several repositories have one snapshot per repository. */
+  repository_name?: string;
 }
 
 export function snapshotLabel(s: SnapshotOption): string {
   const commit = s.commit_sha ? s.commit_sha.slice(0, 7) : "no commit";
-  return s.label ?? `${commit} · ${formatDateTime(s.created_at)}${s.status && s.status !== "ready" ? ` (${s.status})` : ""}`;
+  return s.label ?? `${s.repository_name ? `${s.repository_name} · ` : ""}${commit} · ${formatDateTime(s.created_at)}${s.status && s.status !== "ready" ? ` (${s.status})` : ""}`;
 }
 
 /**

@@ -119,7 +119,11 @@ export type DiffStatus = "added" | "removed" | "changed" | "unchanged";
 export interface NodeDetail {
   node: GraphNode;
   findings?: { id: string; title: string; severity: GraphSeverity; rule?: string; href?: string }[];
+  /** Every incoming and outgoing edge of the node (may reach nodes not loaded). */
   edges?: GraphEdge[];
+  /** Labels of the nodes at the other end of `edges`. */
+  labels?: Record<string, string>;
+  /** Links to the source (href empty: no web view, the label is shown as text). */
   source_links?: { label: string; href: string; kind?: EvidenceRefKind }[];
 }
 
