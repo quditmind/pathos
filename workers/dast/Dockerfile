@@ -61,7 +61,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG ZAP=2.17.0 ZAP_SHA=0cb73b7f72d12c263fb61de304edb82a455d7aa4e1813c216c061765c306f5b7
 COPY workers/dast/build/ /build/
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch /tmp/zap.zip "https://github.com/zaproxy/zaproxy/releases/download/v${ZAP}/ZAP_${ZAP}_Core.zip" "$ZAP_SHA"; \
     unzip -q /tmp/zap.zip -d /tmp/zap; mv "/tmp/zap/ZAP_${ZAP}" /out; \
     # Only the reviewed add-ons (the archive's own are older or not needed).
@@ -105,7 +105,7 @@ ARG TESTSSL=3.2.5 TESTSSL_SHA=23bb53d50ae093b89631e9fff547c087f632bf35f7a3d7dc78
 ARG NIKTO=2.6.1 NIKTO_SHA=d1ca1acb05d81a5a6f374c0afdd76b33afa0089278631a20673c0210a71d992f
 ARG WITH_NIKTO=false
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     mkdir -p /out/bin /out/testssl /out/nikto; \
     fetch dalfox.tgz "https://github.com/hahwul/dalfox/releases/download/v${DALFOX}/dalfox-v${DALFOX}-linux-x86_64-musl.tar.gz" "$DALFOX_SHA"; \
     tar -xzf dalfox.tgz -C /out/bin --strip-components=1 "dalfox-v${DALFOX}-linux-x86_64-musl/dalfox"; \

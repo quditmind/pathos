@@ -74,12 +74,12 @@ ARG REGOLIBRARY=2.0.39 REGOLIBRARY_SUMS=3298400566bfd42670ba16c40556169d6bd59a1e
 RUN set -eux; \
     mkdir -p /dl /data/kubescape; cd /dl; \
     base="https://github.com/kubescape/regolibrary/releases/download/v${REGOLIBRARY}"; \
-    curl -fsSL --retry 3 -o checksums.txt "$base/checksums.txt"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o checksums.txt "$base/checksums.txt"; \
     echo "${REGOLIBRARY_SUMS}  checksums.txt" | sha256sum -c -; \
     frameworks="agentruntimehardening allcontrols armobest cis-aks-t1.2.0 cis-aks-t1.8.0 cis-eks-t1.7.0 cis-eks-t1.8.0 cis-gke-v1.9.0 \
       cis-v1.10.0 cis-v1.12.0 clusterscan devopsbest ism mitre nsa soc2 workloadscan"; \
     for a in $frameworks exceptions attack_tracks default_config_inputs; do \
-      curl -fsSL --retry 3 -o "$a" "$base/$a"; \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$a" "$base/$a"; \
       grep -E "^[0-9a-f]{64}  $a\$" checksums.txt | sha256sum -c -; \
     done; \
     for a in $frameworks exceptions; do cp "$a" "/data/kubescape/$a.json"; done; \
@@ -93,7 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG HADOLINT=2.15.1 HADOLINT_SHA=c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
 RUN set -eux; \
     mkdir -p /out; \
-    curl -fsSL --retry 3 -o /out/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT}/hadolint-linux-x86_64"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o /out/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT}/hadolint-linux-x86_64"; \
     echo "${HADOLINT_SHA}  /out/hadolint" | sha256sum -c -; \
     chmod 0755 /out/hadolint; /out/hadolint --version | grep -q "${HADOLINT}"
 

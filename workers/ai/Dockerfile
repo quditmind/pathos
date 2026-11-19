@@ -37,7 +37,7 @@ FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f0
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl xz-utils libatomic1 && rm -rf /var/lib/apt/lists/*
 ARG NODE=26.13.1 NODE_SHA=5c063e46bab0fbc1c17cc445d7ff129cbdcd0471be6ed83b6ab864f8143bc864
 RUN set -eux; \
-    curl -fsSL --retry 3 -o node.tar.xz "https://nodejs.org/dist/v${NODE}/node-v${NODE}-linux-x64.tar.xz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o node.tar.xz "https://nodejs.org/dist/v${NODE}/node-v${NODE}-linux-x64.tar.xz"; \
     echo "${NODE_SHA}  node.tar.xz" | sha256sum -c -; \
     mkdir -p /opt/node /out/node/bin; \
     tar -xJf node.tar.xz -C /opt/node --strip-components=1; \
