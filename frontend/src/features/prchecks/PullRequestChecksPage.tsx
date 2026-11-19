@@ -6,7 +6,7 @@ import { api } from "@/api/client";
 import type { Severity } from "@/api/types";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Card, EmptyState, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
@@ -31,6 +31,20 @@ export interface PRCheck {
   status_error: string;
   created_at: string;
   finished_at: string | null;
+  /** Explicit choice made in the repository's settings (PATHOS 3.0 M8, decision C6). */
+  gate_mode?: "block" | "warn" | null;
+  gate_decision_id?: string | null;
+}
+
+/** GET/PUT /repositories/{id}/pr-settings. */
+export interface PRSettings {
+  enabled: boolean;
+  gate_severity: string;
+  /** null until someone chooses: enabling PR checks requires block or warn (PTH-GATE-1106). */
+  gate_mode?: "block" | "warn" | null;
+  /** The explicit security policy generated from these settings. */
+  policy_id?: string | null;
+  source_type: string;
 }
 interface PRFinding {
   id: string;
@@ -63,19 +77,24 @@ function Settings() {
   const [repo, setRepo] = useState<string | undefined>();
   const q = useQuery({
     queryKey: ["pr-settings", repo],
-    queryFn: () => api<{ enabled: boolean; gate_severity: string; source_type: string }>(`/api/v1/repositories/${repo}/pr-settings`),
+    queryFn: () => api<PRSettings>(`/api/v1/repositories/${repo}/pr-settings`),
     enabled: !!repo,
   });
   const [enabled, setEnabled] = useState(false);
   const [gate, setGate] = useState("high");
+  const [mode, setMode] = useState<"block" | "warn" | "">("");
   useEffect(() => {
     if (q.data) {
       setEnabled(q.data.enabled);
       setGate(q.data.gate_severity);
+      setMode(q.data.gate_mode ?? "");
     }
   }, [q.data]);
+  // Rule 7 (decision C6): checks never block by default; enabling them needs an explicit choice.
+  const needsMode = enabled && !mode;
   const save = useMutation({
-    mutationFn: () => api(`/api/v1/repositories/${repo}/pr-settings`, { method: "PUT", body: { enabled, gate_severity: gate } }),
+    mutationFn: () =>
+      api(`/api/v1/repositories/${repo}/pr-settings`, { method: "PUT", body: { enabled, gate_severity: gate, ...(mode ? { gate_mode: mode } : {}) } }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["pr-settings", repo] }),
   });
   const manage = can("repos.manage");
@@ -97,7 +116,7 @@ function Settings() {
               Check pull requests
             </label>
             <div>
-              <Label htmlFor="pr-gate">Block when a new finding is</Label>
+              <Label htmlFor="pr-gate">Threshold: a new finding that is</Label>
               <Select id="pr-gate" value={gate} disabled={!manage} onChange={(e) => setGate(e.target.value)}>
                 <option value="critical">Critical</option>
                 <option value="high">High or above</option>
@@ -106,12 +125,40 @@ function Settings() {
                 <option value="none">Never (report only)</option>
               </Select>
             </div>
-            {manage && <Button onClick={() => save.mutate()} disabled={save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>}
+            <fieldset className="text-[13px]" aria-describedby="pr-mode-help">
+              <legend className="mb-1 text-[12px] font-medium">When a new finding reaches the threshold</legend>
+              <label className="mr-3 inline-flex items-center gap-1.5">
+                <input type="radio" name="pr-mode" value="block" className="accent-[var(--primary)]" checked={mode === "block"} disabled={!manage} onChange={() => setMode("block")} />
+                Block the pull request
+              </label>
+              <label className="inline-flex items-center gap-1.5">
+                <input type="radio" name="pr-mode" value="warn" className="accent-[var(--primary)]" checked={mode === "warn"} disabled={!manage} onChange={() => setMode("warn")} />
+                Warn only
+              </label>
+            </fieldset>
+            {manage && <Button onClick={() => save.mutate()} disabled={save.isPending || needsMode}>{save.isPending ? "Saving…" : "Save"}</Button>}
             {q.data.source_type === "upload" && <span className="text-[12px] text-muted-foreground">Uploaded repositories have no pull requests.</span>}
           </>
         )}
       </div>
-      {(q.error || save.error) && <div className="mt-3"><Alert>{(q.error ?? save.error)!.message}</Alert></div>}
+      {repo && q.data && (
+        <p id="pr-mode-help" className="mt-2 text-[12px] text-muted-foreground">
+          {needsMode
+            ? "Choose Block or Warn to enable pull request checks: PATHOS never blocks a pull request without an explicit policy."
+            : mode === "block"
+              ? "Saved as an explicit security policy that blocks pull requests at the threshold."
+              : mode === "warn"
+                ? "Findings at the threshold are reported on the pull request without blocking it."
+                : null}
+          {q.data.policy_id && (
+            <>
+              {" "}
+              <Link to="/admin/policies" className="text-primary hover:underline">View the policy</Link>
+            </>
+          )}
+        </p>
+      )}
+      {(q.error || save.error) && <div className="mt-3"><ErrorPanel error={q.error ?? save.error} /></div>}
       {save.isSuccess && <p className="mt-2 text-[12px] text-success">Saved.</p>}
     </Card>
   );
@@ -138,6 +185,7 @@ function CheckDetail({ id }: { id: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-[15px] font-semibold">{c.repository_name} #{c.pull_request}</h2>
         <Badge tone={statusTone[c.status]}>{statusLabel[c.status]}</Badge>
+        {c.gate_mode && <Badge>{c.gate_mode === "block" ? "Gate: block" : "Gate: warn only"}</Badge>}
         <Link to="/scans/$id" params={{ id: c.scan_job_id }} className="ml-auto text-[12px] text-primary hover:underline">Scan execution →</Link>
       </div>
       <p className="text-[12px] text-muted-foreground">

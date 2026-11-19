@@ -185,7 +185,7 @@ export const groups: NavGroup[] = [
   {
     label: "8 · Remediate & gate",
     items: [
-      { label: "Remediation workspace", icon: <Wrench />, phase: 8, flag: "remediation_workspace" },
+      { label: "Remediation workspace", to: "/remediation", icon: <Wrench />, phase: 8, flag: "remediation_workspace" },
       { label: "Policies", to: "/admin/policies", icon: <Scale />, perm: "settings.manage" },
       { label: "Component policies", to: "/sbom/policies", icon: <Scale />, perm: "sbom.read" },
       { label: "Pull request checks", to: "/pull-requests", icon: <GitPullRequest />, perm: "scans.read" },

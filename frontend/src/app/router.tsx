@@ -79,6 +79,10 @@ import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPag
 import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
 import { FeatureFlagsPage } from "@/features/flags/FeatureFlagsPage";
 import { ConnectorsPage } from "@/features/connectors/ConnectorsPage";
+import { RemediationPage, validateRemediationSearch } from "@/features/remediation/RemediationPage";
+import { RemediationItemPage } from "@/features/remediation/ItemDetailPage";
+import { GatesPage, validateGatesSearch } from "@/features/remediation/GatesPage";
+import { ExceptionsPage, validateExceptionsSearch } from "@/features/remediation/ExceptionsPage";
 import { validateConnectorsSearch } from "@/features/connectors/model";
 import { IntegrationsRoute, ScmConnectionsRoute } from "@/features/connectors/redirects";
 
@@ -199,6 +203,11 @@ const prChecksRoute = createRoute({
   component: PullRequestChecksPage,
   validateSearch: (s: Record<string, unknown>): { check?: string } => ({ check: typeof s.check === "string" ? s.check : undefined }),
 });
+// Remediate & gate (PATHOS 3.0 M8, flag remediation_workspace).
+const remediationRoute = createRoute({ getParentRoute: () => appRoute, path: "/remediation", component: RemediationPage, validateSearch: validateRemediationSearch });
+const remediationItemRoute = createRoute({ getParentRoute: () => appRoute, path: "/remediation/items/$id", component: RemediationItemPage });
+const gatesRoute = createRoute({ getParentRoute: () => appRoute, path: "/remediation/gates", component: GatesPage, validateSearch: validateGatesSearch });
+const gateExceptionsRoute = createRoute({ getParentRoute: () => appRoute, path: "/remediation/exceptions", component: ExceptionsPage, validateSearch: validateExceptionsSearch });
 const scanTargetsRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans/targets", component: ScanTargetsPage });
 const postureRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture", component: PosturePage });
 const coverageRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/coverage", component: CoveragePage });
@@ -258,7 +267,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, remediationRoute, remediationItemRoute, gatesRoute, gateExceptionsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

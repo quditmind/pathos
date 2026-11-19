@@ -41,4 +41,25 @@ describe("pull request checks", () => {
     expect(await screen.findByText("No pull request checks")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /Post status again/ })).not.toBeInTheDocument();
   });
+
+  it("requires choosing block or warn before enabling checks (no blocking without an explicit policy)", async () => {
+    const api = mockApi({
+      "GET /api/v1/pr-checks": () => ({ items: [] }),
+      "GET /api/v1/repositories": () => ({ items: [{ id: "r1", full_name: "acme/payments", repository_key: "R-1" }], next_cursor: null }),
+      "GET /api/v1/repositories/r1/pr-settings": () => ({ enabled: false, gate_severity: "high", gate_mode: null, policy_id: null, source_type: "scm" }),
+      "PUT /api/v1/repositories/r1/pr-settings": (_u, init) => ({ ...(init.json as object), policy_id: "p1", source_type: "scm" }),
+    });
+    renderApp(<PullRequestChecksPage />, { permissions: ["scans.read", "repos.manage"] });
+    fireEvent.focus((await screen.findAllByLabelText("Filter by repository"))[0]!);
+    fireEvent.click(await screen.findByRole("option", { name: /acme\/payments/ }));
+    fireEvent.click(await screen.findByLabelText("Check pull requests"));
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByText(/Choose Block or Warn to enable pull request checks/)).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Warn only"));
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => {
+      const put = api.calls.find((c) => c.method === "PUT" && c.path === "/api/v1/repositories/r1/pr-settings");
+      expect(put?.body).toEqual({ enabled: true, gate_severity: "high", gate_mode: "warn" });
+    });
+  });
 });
