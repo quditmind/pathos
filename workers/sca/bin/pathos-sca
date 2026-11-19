@@ -545,7 +545,12 @@ def cdxgen(src, out, cache):
     # CDXGEN_SECURE_MODE: cdxgen checks the permission model itself and
     # skips every command instead of failing on the first one.
     env = {"CDXGEN_SECURE_MODE": "true", "FETCH_LICENSE": "false", "CDXGEN_TEMP_DIR": tmp, "TMPDIR": tmp, "CDXGEN_NO_BANNER": "true",
-           "NODE_NO_WARNINGS": "1", "CDX_MAVEN_SKIP": "true", "npm_config_update_notifier": "false"}
+           "NODE_NO_WARNINGS": "1", "CDX_MAVEN_SKIP": "true", "npm_config_update_notifier": "false",
+           # cdxgen reads build tool caches in the home directory (~/.gradle,
+           # ~/.m2/repository) for Gradle and Maven projects; outside the
+           # permitted paths those reads crashed it (ERR_ACCESS_DENIED on an
+           # Android repository). An empty home inside tmp.
+           "HOME": os.path.join(tmp, "home"), "GRADLE_USER_HOME": os.path.join(tmp, "home", ".gradle")}
     args = [NODE, "--permission", "--allow-fs-read=" + SCA + "/npm/", "--allow-fs-read=" + src, "--allow-fs-read=" + tmp,
             "--allow-fs-write=" + tmp,
             SCA + "/npm/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js", "-r", "--no-install-deps", "--include-crypto",

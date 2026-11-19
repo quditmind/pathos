@@ -143,6 +143,24 @@ class WrapperTest(unittest.TestCase):
         self.assertEqual(by_file["only-unpinned/requirements.txt"], [])
         self.assertTrue(any("2 requirement(s) without an exact version" in e for e in err), err)
 
+    def test_cdxgen_home_inside_its_temporary_directory(self):
+        # cdxgen reads ~/.gradle and ~/.m2 for Gradle and Maven projects; the
+        # Node.js permission model allows reads only of the repository, the
+        # tool and its temporary directory, so HOME must point inside it.
+        script(self.mod.NODE, r'''
+import json, os, sys
+args = sys.argv[1:]
+out = args[args.index("-o") + 1]
+allowed = [a.split("=", 1)[1] for a in args if a.startswith("--allow-fs-read=")]
+home = os.environ["HOME"]
+json.dump({"bomFormat": "CycloneDX", "home": home, "gradle": os.environ.get("GRADLE_USER_HOME", ""),
+           "home_readable": any(home.startswith(a.rstrip("/")) for a in allowed)}, open(out, "w"))
+''')
+        code, rep, err = self.call(self.mod.cdxgen)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(rep["home_readable"], rep)
+        self.assertTrue(rep["gradle"].startswith(rep["home"]), rep)
+
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")
         self.put("services/web/package-lock.json", "{}")
