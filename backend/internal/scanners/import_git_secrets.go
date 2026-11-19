@@ -17,7 +17,7 @@ import (
 // secret: it is removed before the report is stored and never kept in a
 // finding. Matches are high.
 
-const gitSecretsMarker = "[ERROR] Matched one or more prohibited patterns"
+const gitSecretsMarker = "[ERROR] Matched one or more prohibited patterns" // #nosec G101 -- git-secrets output banner, not a credential
 
 var (
 	gitSecretsLine = regexp.MustCompile(`^(?:([0-9a-f]{40}):)?(.+?):([0-9]+):`)
