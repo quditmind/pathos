@@ -13,7 +13,7 @@ Quditmind PATHOS · applies to v3.0 (unreleased) · status: Prototype (feature f
 
 Every endpoint on this page answers `404 feature_disabled` (`PTH-PLAT-1007`) while the flag is off for the organization, like an unknown path. Every change is written to the audit log. Errors use the [standard envelope](index.md#errors) with the catalogue code in `error.error_code` ([troubleshooting: REM](../troubleshooting/rem.md), [GATE](../troubleshooting/gate.md)).
 
-Permissions (new in 3.0, [RBAC matrix](../RBAC_MATRIX.md)): `remediation.read` (every role), `remediation.manage` (security manager, security analyst, AppSec engineer, application owner, developer), `gates.manage` (organization-only: super and platform administrators, security manager), `gates.approve_exception` (security manager, independent reviewer). Repository-scoped permissions apply to the item's, gate's or decision's repository.
+Permissions (new in 3.0; which roles carry them is in `docs/RBAC_MATRIX.md`): `remediation.read` (every role), `remediation.manage` (security manager, security analyst, AppSec engineer, application owner, developer), `gates.manage` (organization-only: super and platform administrators, security manager), `gates.approve_exception` (security manager, independent reviewer). Repository-scoped permissions apply to the item's, gate's or decision's repository.
 
 **Rule 7: no gate blocks without a policy.** A gate always references a security policy; the database refuses a gate without one and refuses a `block` or `approval_required` decision without at least one policy id (`gate_decisions_block_needs_policy`). With no gate configured the decision is `pass`, with the reason `no_policy`.
 
