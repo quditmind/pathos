@@ -259,6 +259,8 @@ docker run --rm -v pathos_scanner_cache:/cache --entrypoint /opt/pathos/binary/b
 
 Air-gapped installation: run the same command on a connected machine with a scratch volume, export the database (`cve-db-export /cache/plugins/cve-bin-tool /cache/cve.db`), copy the file into the air-gapped installation's cache volume and import it there (`cve-db-import /cache/plugins/cve-bin-tool /cache/cve.db`, `--network none`). The volume name depends on the Compose project (`docker volume ls | grep scanner_cache`).
 
+The update needs about 5 GB of memory while it builds the database: with a `--memory 2g` or `4g` limit it was killed (exit status 247) after downloading the NVD data. Run it without a memory limit or with `--memory 5g`, at a time when scans leave that much free.
+
 ### Fuzzing worker
 
 `worker-fuzz` builds and runs code from the repositories it scans (Go fuzz targets, Atheris harnesses). The worker never runs that code itself. The `fuzz` profile also starts `worker-fuzz-sandbox`, the sandbox runner: the same image with `network_mode: none`, UID 10002, no worker token, and its own memory, CPU and process limits (`PATHOS_FUZZ_MEMORY`, default 4g; `PATHOS_FUZZ_CPUS`, default 2; `PATHOS_FUZZ_PIDS`, default 256). The worker hands it each run through the `fuzz_sandbox` volume, a tmpfs of `PATHOS_FUZZ_SANDBOX_TMPFS` (default 4g). Repository code therefore has no network at all and cannot reach the egress proxy, the API or the worker's credentials ([SECURITY.md](SECURITY.md#scanning)). The fuzzers also run with `GOPROXY=off`, on a copy of the checkout, under per-target CPU-time, file-size and memory limits and a time budget (`FUZZ_SECONDS`, `FUZZ_TOTAL_SECONDS`, `FUZZ_MAX_TARGETS` in `workers/fuzz/tools.d`).
