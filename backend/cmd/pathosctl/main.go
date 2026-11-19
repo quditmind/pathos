@@ -222,7 +222,7 @@ func multiTenancy(ctx context.Context, pool *pgxpool.Pool, args []string, log *s
 		if _, err := pool.Exec(ctx, `SELECT pathos_set_multi_tenant($1)`, args[0] == "enable"); err != nil {
 			return err
 		}
-		log.Info("multi-tenancy "+args[0]+"d; restart the api, jobs and scheduler services", "enabled", args[0] == "enable")
+		log.Info("multi-tenancy changed; restart the api, jobs and scheduler services", "enabled", args[0] == "enable")
 		fallthrough
 	case "status":
 		on, err := tenancy.MultiTenant(ctx, pool)
@@ -282,7 +282,7 @@ func installationAdmin(ctx context.Context, pool *pgxpool.Pool, args []string, l
 	}
 	_ = tenancy.WriteInstallationAudit(ctx, pool, tenancy.InstallationAuditEntry{ActorSubject: "pathosctl", Action: "installation_admin." + args[0],
 		Metadata: map[string]any{"email": email, "changed": changed}})
-	log.Info("installation administrator "+args[0], "email", email, "changed", changed)
+	log.Info("installation administrator updated", "action", args[0], "email", email, "changed", changed)
 	return nil
 }
 
