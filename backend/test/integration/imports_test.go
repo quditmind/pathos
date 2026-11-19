@@ -70,10 +70,16 @@ func TestImportsAndCustomRules(t *testing.T) {
 		t.Fatalf("sarif import: %d %v", code, out)
 	}
 	jobID := out["scan_job_id"].(string)
-	var trigger, status string
-	_ = appPool.QueryRow(ctx, `SELECT trigger, status FROM scan_jobs WHERE id = $1`, jobID).Scan(&trigger, &status)
+	var trigger, status, stage string
+	var progress int
+	_ = appPool.QueryRow(ctx, `SELECT trigger, status, stage, progress FROM scan_jobs WHERE id = $1`, jobID).Scan(&trigger, &status, &stage, &progress)
 	if trigger != "import" || status != "succeeded" {
 		t.Errorf("import execution: %s %s", trigger, status)
+	}
+	// A finished import is not left "scanning, 50 %" (the CLI printed
+	// "succeeded (scanning, 50%)").
+	if stage != "finished" || progress != 100 {
+		t.Errorf("import execution stage/progress: %s %d", stage, progress)
 	}
 	var imported int
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM findings WHERE repository_id = $1 AND 'import-sast-semgrep-pro' = ANY(scanner_keys) AND status = 'open'`, repo).Scan(&imported)
