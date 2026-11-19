@@ -108,6 +108,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var written []string // objects to remove if the transaction fails
 	licenseFindings := 0 // licence policy violations in files (licensecheck)
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := lockRepositoryFindings(ctx, tx, repoID); err != nil {
+			return err
+		}
 		if pr == nil {
 			// Stored findings under a legacy fingerprint keep their rows.
 			if err := rekeyFindings(ctx, tx, repoID, findings); err != nil {
@@ -392,6 +395,14 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			return err
 		}
 		var repoID, orgID uuid.UUID
+		// The repository lock comes before the job's row lock, in the same
+		// order as Ingest (which locks the job row through its results).
+		if err := tx.QueryRow(ctx, `SELECT repository_id FROM scan_jobs WHERE id = $1`, jobID).Scan(&repoID); err != nil {
+			return err
+		}
+		if err := lockRepositoryFindings(ctx, tx, repoID); err != nil {
+			return err
+		}
 		var targetID *uuid.UUID
 		var failOnCritical bool
 		var pr *int
@@ -537,6 +548,17 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		return nil
 	})
 	return job, err
+}
+
+// lockRepositoryFindings serializes the writes of results and the
+// finalization of executions of one repository for the rest of tx. A
+// repository scan, target scans and result imports of the same repository
+// may run at the same time (migration 00043); their findings upserts,
+// auto-resolution, reachability and policy evaluation then never
+// interleave or deadlock.
+func lockRepositoryFindings(ctx context.Context, tx pgx.Tx, repoID uuid.UUID) error {
+	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('pathos-repo-findings'), hashtext($1::text))`, repoID)
+	return err
 }
 
 func joinSorted(v []string) string {

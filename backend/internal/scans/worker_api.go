@@ -447,7 +447,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			WHERE j.id = (
 			  SELECT q.id FROM scan_jobs q
 			  WHERE q.organization_id = $1 AND q.status = 'queued'
-			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running')
+			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.status = 'running' AND `+runningConflict+`)
 			    AND `+routingCondition+`
 			  ORDER BY q.priority DESC, q.queued_at FOR UPDATE SKIP LOCKED LIMIT 1)
 			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id`,
@@ -508,7 +508,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	// A unique violation means another worker started a conflicting
+	// execution at the same moment (scan_jobs_running_uq): no job now.
+	if errors.Is(err, pgx.ErrNoRows) || db.IsUniqueViolation(err) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -537,6 +539,16 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 	s.Log.Info("scan leased", "job_id", job.JobID, "repository", job.FullName, "worker", wk.Name)
 	httpx.WriteJSON(w, http.StatusOK, job)
 }
+
+// runningConflict matches a running execution x that keeps the queued
+// execution q waiting (migration 00043, scan_jobs_running_uq and
+// scan_jobs_running_target_uq): a target scan waits only for a running
+// scan of the same target; a repository scan waits for a running
+// repository scan of the same repository and pull request. Result imports
+// and target scans never hold back a repository scan.
+const runningConflict = `CASE WHEN q.target_id IS NOT NULL THEN x.target_id = q.target_id
+	ELSE x.repository_id = q.repository_id AND x.target_id IS NULL AND x.trigger <> 'import'
+	     AND COALESCE(x.pull_request, 0) = COALESCE(q.pull_request, 0) END`
 
 func safeErr(err error) string {
 	msg := err.Error()
