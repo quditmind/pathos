@@ -1,0 +1,32 @@
+# Polaris configuration of the worker-iac image: the security checks of
+# Polaris' default configuration (pkg/config/default.yaml of the pinned
+# release) at their default severities. Reliability and efficiency checks
+# are not security findings and are not run. No exemptions.
+checks:
+  automountServiceAccountToken: warning
+  hostIPCSet: danger
+  hostPathSet: warning
+  hostProcess: warning
+  hostPIDSet: danger
+  linuxHardening: warning
+  missingNetworkPolicy: warning
+  notReadOnlyRootFilesystem: warning
+  privilegeEscalationAllowed: danger
+  procMount: warning
+  runAsRootAllowed: danger
+  runAsPrivileged: danger
+  dangerousCapabilities: danger
+  insecureCapabilities: warning
+  hostNetworkSet: danger
+  hostPortSet: warning
+  tlsSettingsMissing: warning
+  sensitiveContainerEnvVar: danger
+  sensitiveConfigmapContent: danger
+  clusterrolePodExecAttach: danger
+  rolePodExecAttach: danger
+  clusterrolebindingPodExecAttach: danger
+  rolebindingClusterRolePodExecAttach: danger
+  rolebindingRolePodExecAttach: danger
+  clusterrolebindingClusterAdmin: danger
+  rolebindingClusterAdminClusterRole: danger
+  rolebindingClusterAdminRole: danger

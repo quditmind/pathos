@@ -1,0 +1,45 @@
+#!/usr/local/bin/python3 -I
+"""Runs kube-score on the Kubernetes manifests of a directory tree (YAML
+files with apiVersion and kind; Helm templates are skipped) and prints the
+JSON array of scored objects. Only the checks with security impact run (the
+kubeScoreSecurity list of the PATHOS kube-score parser, plus the optional
+seccomp check); the reliability checks are not run. Exit status 0 when
+kube-score ran (findings do not fail the run), other values on errors.
+"""
+import json
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import iacfiles  # noqa: E402
+
+KUBE_SCORE = "/opt/pathos/iac/bin/kube-score"
+
+if sys.argv[1:] == ["--version"]:
+    os.execv(KUBE_SCORE, [KUBE_SCORE, "version"])
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    iacfiles.usage("kube-score-tree")
+# kube-score's reliability and correctness checks (kube-score list).
+NOT_SECURITY = [
+    "deployment-strategy", "deployment-replicas", "ingress-targets-service", "cronjob-has-deadline", "cronjob-restartpolicy",
+    "statefulset-has-poddisruptionbudget", "deployment-has-poddisruptionbudget", "poddisruptionbudget-has-policy",
+    "pod-probes", "pod-probes-identical", "service-targets-pod", "stable-version", "deployment-has-host-podantiaffinity",
+    "statefulset-has-host-podantiaffinity", "deployment-targeted-by-hpa-does-not-have-replicas-configured",
+    "statefulset-has-servicename", "deployment-pod-selector-labels-match-template-metadata-labels",
+    "statefulset-pod-selector-labels-match-template-metadata-labels", "label-values", "horizontalpodautoscaler-has-target",
+    "horizontalpodautoscaler-replicas", "pod-topology-spread-constraints",
+]
+flags = ["--enable-optional-test", "container-seccomp-profile"]
+for t in NOT_SECURITY:
+    flags += ["--ignore-test", t]
+results = []
+found = iacfiles.k8s_manifests(sys.argv[1])
+for i in range(0, len(found), 200):
+    run = subprocess.run([KUBE_SCORE, "score", "--output-format", "json", "--exit-one-on-warning=false", *flags, "--", *found[i:i + 200]],
+                         stdout=subprocess.PIPE, check=False)
+    # 0: ok; 1: a critical check failed.
+    if run.returncode not in (0, 1):
+        sys.exit(run.returncode)
+    results.extend(json.loads(run.stdout or b"[]"))
+json.dump(results, sys.stdout)

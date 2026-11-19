@@ -1,0 +1,22 @@
+# Polaris: offline audit of the Kubernetes manifests of the repository with
+# the security checks of Polaris' default configuration
+# (/opt/pathos/iac/polaris.yaml); no cluster is contacted.
+name: polaris
+display_name: Polaris
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/FairwindsOps/polaris
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/polaris
+version_args: ["version"]
+args: ["audit", "--audit-path", "{source}", "--config", "/opt/pathos/iac/polaris.yaml", "--format", "json", "--output-file", "{output}", "--only-show-failed-tests"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:polaris

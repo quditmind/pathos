@@ -122,6 +122,9 @@ func NormalizePath(p string) string {
 	// the leading slash.
 	p = workspacePrefix.ReplaceAllString(p, "")
 	p = path.Clean("/" + p)
+	// Tools that print paths relative to their working directory report
+	// ../../work/<job>/src/...; cleaned, that is the workspace prefix too.
+	p = workspacePrefix.ReplaceAllString(p, "/")
 	return strings.TrimPrefix(p, "/")
 }
 

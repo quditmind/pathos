@@ -1,0 +1,2747 @@
+{
+	"kics_version": "v2.2.1",
+	"files_scanned": 6,
+	"lines_scanned": 164,
+	"files_parsed": 6,
+	"lines_parsed": 164,
+	"lines_ignored": 0,
+	"files_failed_to_scan": 0,
+	"queries_total": 1869,
+	"queries_failed_to_execute": 0,
+	"queries_failed_to_compute_similarity_id": 0,
+	"scan_id": "console",
+	"severity_counters": {
+		"CRITICAL": 3,
+		"HIGH": 15,
+		"INFO": 17,
+		"LOW": 30,
+		"MEDIUM": 43,
+		"TRACE": 0
+	},
+	"total_counter": 108,
+	"total_bom_resources": 0,
+	"start": "2026-11-19T07:57:59.862278925Z",
+	"end": "2026-11-19T07:58:06.107407782Z",
+	"paths": [
+		"/opt/pathos/iac/kics/assets/queries",
+		"/opt/pathos/iac/kics/assets/libraries",
+		"/work/fixture/src"
+	],
+	"queries": [
+		{
+			"query_name": "RDS DB Instance Publicly Accessible",
+			"query_id": "35113e6f-2c6b-414d-beec-7a9482d3b2d1",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance#publicly_accessible",
+			"severity": "CRITICAL",
+			"platform": "Terraform",
+			"cwe": "668",
+			"risk_score": "8.7",
+			"cloud_provider": "AWS",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "RDS must not be defined with public interface, which means the field 'publicly_accessible' should not be set to 'true' (default is 'false').",
+			"description_id": "c145a47f",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "009b91b6c12a02bf9377d0d8cce88860a057f35b98a5deabe410a3885f373bd2",
+					"line": 39,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_db_instance[db].publicly_accessible",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'publicly_accessible' should be set to false or undefined",
+					"actual_value": "'publicly_accessible' is set to true",
+					"remediation": "{\"after\":\"false\",\"before\":\"true\"}",
+					"remediation_type": "replacement"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket ACL Allows Read Or Write to All Users",
+			"query_id": "38c5ee0d-7f22-4260-ab72-5073048df100",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket",
+			"severity": "CRITICAL",
+			"platform": "Terraform",
+			"cwe": "732",
+			"risk_score": "9.1",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "S3 Buckets should not be readable and writable to all users",
+			"description_id": "d535387f",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "2aebd60d957be0beaed643bcf0e675891153d81b6aea349a631e83fdac4da243",
+					"line": 29,
+					"resource_type": "aws_s3_bucket_acl",
+					"resource_name": "data",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_s3_bucket_acl[data].acl",
+					"search_line": 29,
+					"search_value": "",
+					"expected_value": "aws_s3_bucket_acl[data].acl should be private",
+					"actual_value": "aws_s3_bucket_acl[public-read].acl is %!s(MISSING)"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket ACL Allows Read Or Write to All Users",
+			"query_id": "07dda8de-d90d-469e-9b37-1aca53526ced",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html",
+			"severity": "CRITICAL",
+			"platform": "CloudFormation",
+			"cwe": "732",
+			"risk_score": "9.1",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "S3 Buckets should not be readable and writable to all users",
+			"description_id": "68456465",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "8962ed6bf6b59c8bcb8da15225036da56c58839360b0025ec4fe81e36ba5f822",
+					"line": 7,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.DataBucket.AccessControl",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "S3 bucket should not have a public readable and writeble ACL",
+					"actual_value": "S3 bucket named 'undefined' has ACL set to 'PublicReadWrite'"
+				}
+			]
+		},
+		{
+			"query_name": "Container Is Privileged",
+			"query_id": "dd29336b-fe57-445b-a26e-e6aa867ae609",
+			"query_url": "https://kubernetes.io/docs/concepts/workloads/pods/#privileged-mode-for-containers",
+			"severity": "HIGH",
+			"platform": "Kubernetes",
+			"cwe": "269",
+			"risk_score": "7.7",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Privileged containers lack essential security restrictions and should be avoided by removing the 'privileged' flag or by changing its value to false",
+			"description_id": "55f59030",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "8dc249d6ca0d1434a843053977a6c7e3c24f7e284d46a7c13429aea4e2f6f83b",
+					"line": 23,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged is unset or false",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged is true"
+				}
+			]
+		},
+		{
+			"query_name": "DB Instance Storage Not Encrypted",
+			"query_id": "08bd0760-8752-44e1-9779-7bb369b2b4e4",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance#storage_encrypted",
+			"severity": "HIGH",
+			"platform": "Terraform",
+			"cwe": "311",
+			"risk_score": "7.1",
+			"cloud_provider": "AWS",
+			"category": "Encryption",
+			"experimental": false,
+			"description": "AWS DB Instance should have its storage encrypted by setting the parameter to 'true'. The storage_encrypted default value is 'false'.",
+			"description_id": "88ca11bc",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "e245a3d1744ee7afeb2fa2c93499ff1380067bd2fa86ae981fd9dd6ba384e3fe",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[db]",
+					"search_line": 32,
+					"search_value": "",
+					"expected_value": "'storage_encrypted' should be set to true",
+					"actual_value": "'storage_encrypted' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "DB Security Group Open To Large Scope",
+			"query_id": "0104165b-02d5-426f-abc9-91fb48189899",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html",
+			"severity": "HIGH",
+			"platform": "CloudFormation",
+			"cwe": "668",
+			"risk_score": "7.8",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "The IP address in a DB Security Group must not have more than 256 hosts.",
+			"description_id": "feeb965a",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "e5beb2b0d238b3b638aaadf2796b75e282ff20f87842e3790a9fbbb385856b0f",
+					"line": 16,
+					"resource_type": "AWS::EC2::SecurityGroup",
+					"resource_name": "OpenSecurityGroup",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp",
+					"search_line": 16,
+					"search_value": "",
+					"expected_value": "'Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp' should not have more than 256 hosts.",
+					"actual_value": "'Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp' has more than 256 hosts."
+				}
+			]
+		},
+		{
+			"query_name": "Last User Is 'root'",
+			"query_id": "67fd0c4a-68cf-46d7-8c41-bc9fba7e40ae",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#user",
+			"severity": "HIGH",
+			"platform": "Dockerfile",
+			"cwe": "250",
+			"risk_score": "7.7",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "Leaving the last user as root can cause security risks. Change to another user after running the commands that need privileges",
+			"description_id": "f445bd25",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "13d5605e418bad6eeae166d0beef97050cf9dd0af3c92c1a16131720641cad1e",
+					"line": 6,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{ubuntu}}.{{USER root}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Last User shouldn't be root",
+					"actual_value": "Last User is root"
+				}
+			]
+		},
+		{
+			"query_name": "Non Kube System Pod With Host Mount",
+			"query_id": "aa8f7a35-9923-4cad-bd61-a19b7f6aac91",
+			"query_url": "https://kubernetes.io/docs/concepts/storage/volumes/",
+			"severity": "HIGH",
+			"platform": "Kubernetes",
+			"cwe": "668",
+			"risk_score": "7.7",
+			"cloud_provider": "COMMON",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "A non kube-system workload should not have hostPath mounted",
+			"description_id": "e8553157",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "34b30e2235f85736b88ef0a5018e13ec04652d094cf7529403a1fdce98d51eb9",
+					"line": 28,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.volumes.name={{docker}}.hostPath.path",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Resource name 'web' of kind 'Deployment' in non kube-system namespace 'default' should not have hostPath '/var/run/docker.sock' mounted",
+					"actual_value": "Resource name 'web' of kind 'Deployment' in non kube-system namespace 'default' has a hostPath '/var/run/docker.sock' mounted"
+				}
+			]
+		},
+		{
+			"query_name": "Privilege Escalation Allowed",
+			"query_id": "5572cc5e-1e4c-4113-92a6-7a8a3bd25e6d",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "HIGH",
+			"platform": "Kubernetes",
+			"cwe": "269",
+			"risk_score": "7.7",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Containers should not run with allowPrivilegeEscalation in order to prevent them from gaining more privileges than their parent process",
+			"description_id": "525fccf4",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "a168b95dcb682499c523a1557e25fba688805b9583f6b814415765f4ac36fb72",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.allowPrivilegeEscalation should be set and should be set to false",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.allowPrivilegeEscalation is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "21f89d18f01b14ac4724fc71832fe6f00f564c1607fdba9cdbfbe56b2e37cf8e",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.allowPrivilegeEscalation should be set and should be set to false",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.allowPrivilegeEscalation is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Run Block Injection",
+			"query_id": "20f14e1a-a899-4e79-9f09-b6a84cd4649b",
+			"query_url": "https://securitylab.github.com/research/github-actions-untrusted-input/",
+			"severity": "HIGH",
+			"platform": "CICD",
+			"cwe": "94",
+			"risk_score": "8.3",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "GitHub Actions workflows can be triggered by a variety of events. Every workflow trigger is provided with a GitHub context that contains information about the triggering event, such as which user triggered it, the branch name, and other event context details. Some of this event data, like the base repository name, hash value of a changeset, or pull request number, is unlikely to be controlled or used for injection by the user that triggered the event.",
+			"description_id": "02044a75",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/.github/workflows/ci.yml",
+					"similarity_id": "c5cbaabc60261e1cf2a67816d91b9760b99ae9fd263f27ff0149d3490566a502",
+					"line": 14,
+					"issue_type": "IncorrectValue",
+					"search_key": "run={{echo \"Title ${{ github.event.pull_request.title }}\"}}",
+					"search_line": 14,
+					"search_value": "github.event.pull_request.title",
+					"expected_value": "Run block does not contain dangerous input controlled by user.",
+					"actual_value": "Run block contains dangerous input controlled by user."
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Allows Public Policy",
+			"query_id": "860ba89b-b8de-4e72-af54-d6aee4138a69",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-publicaccessblockconfiguration.html",
+			"severity": "HIGH",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "7.2",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "S3 bucket allows public policy",
+			"description_id": "bfe99abf",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "46e04c24bd10951078421cdaf1a44303c8fccf8e4f5b6a97b2cee4805eaf9a92",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": 6,
+					"search_value": "",
+					"expected_value": "'PublicAccessBlockConfiguration' should be defined%!(EXTRA string=DataBucket)",
+					"actual_value": "'PublicAccessBlockConfiguration' is not defined%!(EXTRA string=DataBucket)"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without Server-side-encryption",
+			"query_id": "b2e8752c-3497-4255-98d2-e4ae5b46bbf5",
+			"query_url": "https://docs.aws.amazon.com/AmazonS3/latest/user-guide/default-bucket-encryption.html",
+			"severity": "HIGH",
+			"platform": "CloudFormation",
+			"cwe": "311",
+			"risk_score": "7.1",
+			"cloud_provider": "AWS",
+			"category": "Encryption",
+			"experimental": false,
+			"description": "S3 Buckets should have server-side encryption at rest enabled to protect sensitive data",
+			"description_id": "314a460b",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "4909a314607fc3b592fa034bf08077ca1f4c5f3f4fb7cd460c7392ff7ccf622f",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Resources.DataBucket.Properties.BucketEncryption.ServerSideEncryptionConfiguration should be defined and not empty",
+					"actual_value": "Resources.DataBucket.Properties.BucketEncryption.ServerSideEncryptionConfiguration is undefined or empty"
+				}
+			]
+		},
+		{
+			"query_name": "Security Groups With Exposed Admin Ports",
+			"query_id": "cdbb0467-2957-4a77-9992-7b55b29df7b7",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html",
+			"severity": "HIGH",
+			"platform": "CloudFormation",
+			"cwe": "668",
+			"risk_score": "7.7",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "Security Groups should not have ports 20, 21, 22, 23, 115, 137, 138, 139, 2049 or 3389 open",
+			"description_id": "e14121d4",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "fb46330b5e3b39aa96e49636bcea675aac456acc71821335c75abc413873d4c9",
+					"line": 13,
+					"resource_type": "AWS::EC2::SecurityGroup",
+					"resource_name": "OpenSecurityGroup",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0]",
+					"search_line": 13,
+					"search_value": "",
+					"expected_value": "No exposed ingress rule should contain admin ports: 20, 21, 22, 23, 115, 137, 138, 139, 2049 or 3389",
+					"actual_value": "'Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0]' is exposed and contains port(s): 22"
+				}
+			]
+		},
+		{
+			"query_name": "Sensitive Port Is Exposed To Entire Network",
+			"query_id": "381c3f2a-ef6f-4eff-99f7-b169cda3422c",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group",
+			"severity": "HIGH",
+			"platform": "Terraform",
+			"cwe": "200",
+			"risk_score": "7.7",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "A sensitive port, such as port 23 or port 110, is open for the whole network in either TCP or UDP protocol",
+			"description_id": "5be78364",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "d6f7bd649a16a8ab6ddfa8631902899e11f6f21aef1f76f52f6583e6dd42673c",
+					"line": 15,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_security_group[ssh].ingress",
+					"search_line": 15,
+					"search_value": "TCP,22",
+					"expected_value": "SSH (TCP:22) should not be allowed",
+					"actual_value": "SSH (TCP:22) is allowed"
+				}
+			]
+		},
+		{
+			"query_name": "Unrestricted Security Group Ingress",
+			"query_id": "4a1e6b34-1008-4e61-a5f2-1f7c276f8d14",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group-ingress.html",
+			"severity": "HIGH",
+			"platform": "CloudFormation",
+			"cwe": "668",
+			"risk_score": "7.2",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "AWS Security Group Ingress CIDR should not be open to the world",
+			"description_id": "08256d31",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "be0ea356189e38fd160a041cdcf5e5ffd2db494a38a2ec86f803426bddaf9691",
+					"line": 16,
+					"resource_type": "AWS::EC2::SecurityGroup",
+					"resource_name": "OpenSecurityGroup",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress",
+					"search_line": 16,
+					"search_value": "",
+					"expected_value": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp should not be open to the world (0.0.0.0/0)",
+					"actual_value": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].CidrIp is open to the world (0.0.0.0/0)"
+				}
+			]
+		},
+		{
+			"query_name": "Unrestricted Security Group Ingress",
+			"query_id": "4728cd65-a20c-49da-8b31-9c08b423e4db",
+			"query_url": "https://www.terraform.io/docs/providers/aws/r/security_group.html",
+			"severity": "HIGH",
+			"platform": "Terraform",
+			"cwe": "668",
+			"risk_score": "7.2",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "Security groups allow ingress from 0.0.0.0:0 and/or ::/0",
+			"description_id": "ce3ee5e0",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "f57e815f0c9682b5f2263993cc52a36c5b050e4a2db92f18b0e6e7ec6fc571e0",
+					"line": 19,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_security_group[ssh].ingress.cidr_blocks",
+					"search_line": 19,
+					"search_value": "",
+					"expected_value": "aws_security_group[ssh].ingress.cidr_blocks should not contain '0.0.0.0/0'",
+					"actual_value": "aws_security_group[ssh].ingress.cidr_blocks contains '0.0.0.0/0'"
+				}
+			]
+		},
+		{
+			"query_name": "Workload Mounting With Sensitive OS Directory",
+			"query_id": "5308a7a8-06f8-45ac-bf10-791fe21de46e",
+			"query_url": "https://kubernetes.io/docs/concepts/policy/pod-security-policy/",
+			"severity": "HIGH",
+			"platform": "Kubernetes",
+			"cwe": "200",
+			"risk_score": "8.0",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Workload is mounting a volume with sensitive OS Directory",
+			"description_id": "73339cde",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "f90d64a6449a9acf1d8acc1bc8406a228afb3bd85e9c9c2925b2ec870bd752dc",
+					"line": 28,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.volumes.name={{docker}}.hostPath.path",
+					"search_line": 28,
+					"search_value": "",
+					"expected_value": "Workload name 'web' of kind 'Deployment' should not mount a host sensitive OS directory '/var/run/docker.sock' with hostPath",
+					"actual_value": "Workload name 'web' of kind 'Deployment' is mounting a host sensitive OS directory '/var/run/docker.sock' with hostPath"
+				}
+			]
+		},
+		{
+			"query_name": "Apt Get Install Pin Version Not Defined",
+			"query_id": "965a08d7-ef86-4f14-8792-4a3b2098937e",
+			"query_url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+			"severity": "MEDIUM",
+			"platform": "Dockerfile",
+			"cwe": "1357",
+			"risk_score": "5.7",
+			"category": "Supply-Chain",
+			"experimental": false,
+			"description": "When installing a package, its pin version should be defined",
+			"description_id": "e0e1edad",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "45eb9db156c9e329ea2da4fc9955b02c52ea9c7769384ccbf4de2a195c5941f1",
+					"line": 2,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{ubuntu}}.RUN={{apt-get update \u0026\u0026 apt-get install -y curl wget}}",
+					"search_line": -1,
+					"search_value": "curl",
+					"expected_value": "Package 'curl' has version defined",
+					"actual_value": "Package 'curl' does not have version defined"
+				},
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "96b1d4930b4c730f937f8fb2db72893174fe189bccfe433d10dd1a32896d3687",
+					"line": 2,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{ubuntu}}.RUN={{apt-get update \u0026\u0026 apt-get install -y curl wget}}",
+					"search_line": -1,
+					"search_value": "wget",
+					"expected_value": "Package 'wget' has version defined",
+					"actual_value": "Package 'wget' does not have version defined"
+				}
+			]
+		},
+		{
+			"query_name": "Container Running As Root",
+			"query_id": "cf34805e-3872-4c08-bf92-6ff7bb0cfadb",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "1188",
+			"risk_score": "5.8",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "Containers should only run as non-root user. This limits the exploitability of security misconfigurations and restricts an attacker's possibilities in case of compromise",
+			"description_id": "9d5b1d16",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "9e9e084b9ef255c44b374d88a1290630f43191a32e5c66199b1066eb6bc53c01",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.runAsUser",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext runAsUser is higher than 0 and/or 'runAsNonRoot' is true",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext runAsUser is 0 and 'runAsNonRoot' is false"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "4714a63e3e38aa115bc9686333e8d126a8f011017de798890893149a1c07613c",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.runAsUser is higher than 0 and/or 'runAsNonRoot' is true",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.runAsUser is 0 and 'runAsNonRoot' is false"
+				}
+			]
+		},
+		{
+			"query_name": "Container Running With Low UID",
+			"query_id": "02323c00-cdc3-4fdc-a310-4f2b3e7a1660",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "1188",
+			"risk_score": "4.9",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "Check if containers are running with low UID, which might cause conflicts with the host's user table.",
+			"description_id": "fc2c11f9",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "ae5b79959aae23a8697937c400a70f9fd3da2614aca2f0e813a88468da7bbf1c",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "3 metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.runAsUser should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.runAsUser is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "c67d6036c14b468c686184ea7d1075b65cc9883b74e9f57194b744dec56e9334",
+					"line": 24,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.runAsUser=0",
+					"search_line": 24,
+					"search_value": "Deployment",
+					"expected_value": "1 metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.runAsUser should be set to a UID \u003e= 10000",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.runAsUser is set to a low UID"
+				}
+			]
+		},
+		{
+			"query_name": "Docker Daemon Socket is Exposed to Containers",
+			"query_id": "a6f34658-fdfb-4154-9536-56d516f65828",
+			"query_url": "https://kubernetes.io/docs/concepts/storage/volumes/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "668",
+			"risk_score": "6.8",
+			"cloud_provider": "COMMON",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "Sees if Docker Daemon Socket is not exposed to Containers",
+			"description_id": "0865e6f6",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "a4b7cf8f15539daee35f44661d3af9ad95089743f37d949ebf4e0ad135160983",
+					"line": 28,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.volumes.name={{docker}}.hostPath.path",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.volumes.name={{docker}}.hostPath.path should not be '/var/run/docker.sock'",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.volumes.name={{docker}}.hostPath.path is '/var/run/docker.sock'"
+				}
+			]
+		},
+		{
+			"query_name": "EC2 Instance Has Public IP",
+			"query_id": "5a2486aa-facf-477d-a5c1-b010789459ce",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance#associate_public_ip_address",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "200",
+			"risk_score": "5.1",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "EC2 Instance should not have a public IP address.",
+			"description_id": "c6f1d1f4",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "a590a9d6ec71b3d979ae8393465dab423c1ad89a6f5ff3783c8574f89a109f89",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance.web",
+					"search_line": 48,
+					"search_value": "",
+					"expected_value": "'associate_public_ip_address' should be defined and not null",
+					"actual_value": "'associate_public_ip_address' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "EC2 Instance Monitoring Disabled",
+			"query_id": "23b70e32-032e-4fa6-ba5c-82f56b9980e6",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance#monitoring",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "778",
+			"risk_score": "5.1",
+			"cloud_provider": "AWS",
+			"category": "Observability",
+			"experimental": false,
+			"description": "EC2 Instance should have detailed monitoring enabled. With detailed monitoring enabled data is available in 1-minute periods",
+			"description_id": "0d5413e6",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "0b17be082f1864e90c444746c1761066d7ba184f458a80306661394452c58942",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance.{{web}}",
+					"search_line": 48,
+					"search_value": "",
+					"expected_value": "'monitoring' should be defined and not null",
+					"actual_value": "'monitoring' is undefined or null",
+					"remediation": "monitoring = true",
+					"remediation_type": "addition"
+				}
+			]
+		},
+		{
+			"query_name": "IAM Database Auth Not Enabled",
+			"query_id": "88fd05e0-ac0e-43d2-ba6d-fc0ba60ae1a6",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance#iam_database_authentication_enabled",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "285",
+			"risk_score": "5.9",
+			"cloud_provider": "AWS",
+			"category": "Encryption",
+			"experimental": false,
+			"description": "IAM Database Auth Enabled should be configured to true when using compatible engine and version",
+			"description_id": "12b1c8aa",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "3f2ee818c9b13ed0a57e8ba3e4cb4afb4dc9840d4439bd9c1b28ef38bafc598e",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[db]",
+					"search_line": 32,
+					"search_value": "",
+					"expected_value": "'iam_database_authentication_enabled' should be set to true",
+					"actual_value": "'iam_database_authentication_enabled' is undefined or null",
+					"remediation": "iam_database_authentication_enabled = true",
+					"remediation_type": "addition"
+				}
+			]
+		},
+		{
+			"query_name": "IAM Policies Attached To User",
+			"query_id": "edc95c10-7366-4f30-9b4b-f995c84eceb5",
+			"query_url": "https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_managed-vs-inline.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "4.9",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "IAM policies should be attached only to groups or roles",
+			"description_id": "c1857bae",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "0c6cfabdc94e512bc2dd54c294eb2b991831fecf1331f88ed149682d2e8fdf55",
+					"line": 20,
+					"resource_type": "AWS::IAM::User",
+					"resource_name": "AdminUser",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.AdminUser.Properties.Policies",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'Resources.AdminUser.Properties.Policies' should be undefined or empty",
+					"actual_value": "'Resources.AdminUser.Properties.Policies' is not empty"
+				}
+			]
+		},
+		{
+			"query_name": "IAM User Without Password Reset",
+			"query_id": "a964d6e3-8e1e-4d93-8120-61fa640dd55a",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-iam-user-loginprofile.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "710",
+			"risk_score": "5.9",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "IAM User Login Profile should exist and have PasswordResetRequired property set to true",
+			"description_id": "a44edc48",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "d4466158375a170de0c52eaa96cd9c08aba0776a2def7faeb638523215da453f",
+					"line": 19,
+					"resource_type": "AWS::IAM::User",
+					"resource_name": "AdminUser",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.AdminUser.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'Resources.AdminUser.Properties' should be configured with LoginProfile with PasswordResetRequired property set to true",
+					"actual_value": "'Resources.AdminUser.Properties' does not include LoginProfile"
+				}
+			]
+		},
+		{
+			"query_name": "IAM policy allows for data exfiltration",
+			"query_id": "022f8938-4b17-420c-aca3-f917f290f322",
+			"query_url": "https://cloudsplaining.readthedocs.io/en/latest/glossary/data-exfiltration/",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "200",
+			"risk_score": "3.0",
+			"cloud_provider": "AWS",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "This policy contains actions that can retrieve information unrestricted and could lead to data exfiltration",
+			"description_id": "022f8938",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "2803b235a2a47c58a9075915b70371d09dd374a4dfdc3b02389453ed92a4f3a2",
+					"line": 26,
+					"resource_type": "AWS::IAM::User",
+					"resource_name": "AdminUser",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.AdminUser.Properties.Policies.0.PolicyDocument.Statement.0.Action",
+					"search_line": 26,
+					"search_value": "",
+					"expected_value": "'Resources.AdminUser.Properties.Policies[0].PolicyDocument.Statement[0].Action' shouldn't contain ilegal actions",
+					"actual_value": "'Resources.AdminUser.Properties.Policies[0].PolicyDocument.Statement[0].Action' contains [*]"
+				}
+			]
+		},
+		{
+			"query_name": "Image Version Not Explicit",
+			"query_id": "9efb0b2d-89c9-41a3-91ca-dcc0aec911fd",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#from",
+			"severity": "MEDIUM",
+			"platform": "Dockerfile",
+			"cwe": "1357",
+			"risk_score": "6.4",
+			"category": "Supply-Chain",
+			"experimental": false,
+			"description": "Always tag the version of an image explicitly",
+			"description_id": "4f469f06",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "dd9c9827e422f214679cd3aa7edffa7f48ceef3ec100471854c9d761745e8be8",
+					"line": 1,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{ubuntu}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "FROM ubuntu:'version'",
+					"actual_value": "FROM ubuntu'"
+				}
+			]
+		},
+		{
+			"query_name": "Memory Limits Not Defined",
+			"query_id": "b14d1bc4-a208-45db-92f0-e21f8e2588e9",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "5.5",
+			"cloud_provider": "COMMON",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "Memory limits should be defined for each container. This prevents potential resource exhaustion by ensuring that containers consume not more than the designated amount of memory",
+			"description_id": "e0ba95cc",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "4c27acbce08d338b5d3e25ceb975a7d12d0f335a97c356174ba3b559e7b665c6",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.resources.limits.memory should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.resources.limits.memory is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "bf6bfb6ac8117843ff1471f935ad2cebb4ce98500f20d01477763c86c246a402",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.resources.limits.memory should be defined",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.resources.limits.memory is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Memory Requests Not Defined",
+			"query_id": "229588ef-8fde-40c8-8756-f4f2b5825ded",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "5.5",
+			"cloud_provider": "COMMON",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "Memory requests should be defined for each container. This allows the kubelet to reserve the requested amount of system resources and prevents over-provisioning on individual nodes",
+			"description_id": "3dcbd683",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "a288e4b11c7ffe115f2776a71ba99a8907a1ecf9f7806d7560f2a02b981699c2",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.resources.requests.memory should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.resources.requests.memory is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "7dc66f321ad56148cb356b45dc264c66a2ea9bcc6ec19a2c0f2e967f87ec07d0",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 18,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.resources.requests.memory should be defined",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.resources.requests.memory is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "NET_RAW Capabilities Not Being Dropped",
+			"query_id": "dbbc6705-d541-43b0-b166-dd4be8208b54",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "269",
+			"risk_score": "6.2",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Containers should drop 'ALL' or at least 'NET_RAW' capabilities",
+			"description_id": "e9790956",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "62f65daf01e35bfac94b1ffbfaa25e33462852926765c25e519dc66f7abfd798",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.capabilities.drop should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.capabilities.drop is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "47dcac505e2cfb33bfe5024978a9075cb320a3867002e4e97eefe9717ce775cb",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.capabilities.drop should be defined",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.capabilities.drop is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Not Using Proper Exec Form In CMD And ENTRYPOINT Arguments",
+			"query_id": "34945ae8-730d-424c-8279-b064d9f108de",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#entrypoint",
+			"severity": "MEDIUM",
+			"platform": "Dockerfile",
+			"cwe": "573",
+			"risk_score": "5.2",
+			"category": "Build Process",
+			"experimental": false,
+			"description": "Ensure that we are using proper exec form in the CMD and ENTRYPOINT Arguments",
+			"description_id": "34945ae8",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "9f43f3d27a0bb24c7d1b6bda0960b14bb45616543f3fa85cf63a8894b835eef7",
+					"line": 7,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{ubuntu}}.{{CMD /opt/tool/run}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "{{CMD /opt/tool/run}} should be in proper exec form",
+					"actual_value": "{{CMD /opt/tool/run}} isn't in proper exec form"
+				}
+			]
+		},
+		{
+			"query_name": "RDS With Backup Disabled",
+			"query_id": "1dc73fb4-5b51-430c-8c5f-25dcf9090b02",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "754",
+			"risk_score": "5.4",
+			"cloud_provider": "AWS",
+			"category": "Backup",
+			"experimental": false,
+			"description": "Make sure the AWS RDS configuration has automatic backup configured. If the retention period is equal to 0 there is no backup",
+			"description_id": "73fdfe55",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "b6d7d7c3796e1b3d1d21fd3997529c27ceee59254fbd9a48fef116f945eb2d69",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[db]",
+					"search_line": 32,
+					"search_value": "",
+					"expected_value": "'backup_retention_period' should be defined, and bigger than '0'",
+					"actual_value": "'backup_retention_period' is not defined",
+					"remediation": "backup_retention_period = 12",
+					"remediation_type": "addition"
+				}
+			]
+		},
+		{
+			"query_name": "RDS Without Logging",
+			"query_id": "8d7f7b8c-6c7c-40f8-baa6-62006c6c7b56",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/db_instance#enabled_cloudwatch_logs_exports",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "778",
+			"risk_score": "5.1",
+			"cloud_provider": "AWS",
+			"category": "Observability",
+			"experimental": false,
+			"description": "RDS does not have any kind of logger",
+			"description_id": "c499a58c",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "c8be4eecd7d1501149fcf0d636c71b78483e2ac4f5e0562759f8f5215ee9a1d9",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[db]",
+					"search_line": 32,
+					"search_value": "",
+					"expected_value": "'enabled_cloudwatch_logs_exports' should be defined",
+					"actual_value": "'enabled_cloudwatch_logs_exports' is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Readiness Probe Is Not Configured",
+			"query_id": "a659f3b5-9bf0-438a-bd9a-7d3a6427f1e3",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/#define-readiness-probes",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "754",
+			"risk_score": "5.1",
+			"cloud_provider": "COMMON",
+			"category": "Availability",
+			"experimental": false,
+			"description": "Check if Readiness Probe is not configured.",
+			"description_id": "28c0498a",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "f005bb3425d018e99b410e190fbdff9c64ae3205c1dc6cb2ef1f27768f807405",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.readinessProbe should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.readinessProbe is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "e680e854933cdd94ddb7c7b2446d2cdcaca9080b5054623c1afffdf9a2f2cc3b",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 18,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.readinessProbe should be defined",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.readinessProbe is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Allows Public ACL",
+			"query_id": "48f100d9-f499-4c6d-b2b8-deafe47ffb26",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-publicaccessblockconfiguration.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "6.2",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "S3 bucket allows public ACL",
+			"description_id": "f962a2d5",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "031a3f78db9e9ae63d875af8797c5eb3319bb43aab2a3aa9b191b2eab40f33f4",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": 6,
+					"search_value": "",
+					"expected_value": "'PublicAccessBlockConfiguration' should be defined%!(EXTRA string=DataBucket)",
+					"actual_value": "'PublicAccessBlockConfiguration' is not defined%!(EXTRA string=DataBucket)"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Logging Disabled",
+			"query_id": "f861041c-8c9f-4156-acfc-5e6e524f5884",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "778",
+			"risk_score": "5.1",
+			"cloud_provider": "AWS",
+			"category": "Observability",
+			"experimental": false,
+			"description": "Server Access Logging should be enabled on S3 Buckets so that all changes are logged and trackable",
+			"description_id": "fa5c7c72",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "9a5880f4f1ee514c063cca56035bc010df9c7386bd2b77b0f169a183a2fde505",
+					"line": 23,
+					"resource_type": "aws_s3_bucket",
+					"resource_name": "pathos-fixture-data",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_s3_bucket[data]",
+					"search_line": 23,
+					"search_value": "",
+					"expected_value": "'logging' should be defined and not null",
+					"actual_value": "'logging' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Logging Disabled",
+			"query_id": "4552b71f-0a2a-4bc4-92dd-ed7ec1b4674c",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html#cfn-s3-bucket-loggingconfig",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "778",
+			"risk_score": "5.1",
+			"cloud_provider": "AWS",
+			"category": "Observability",
+			"experimental": false,
+			"description": "Server Access Logging should be enabled on S3 Buckets so that all changes are logged and trackable",
+			"description_id": "ce3728e6",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "3f57699e08e1a98e0c28b84b04e9a26c9fde9bdf7bba2b82fd85dbbfe9b266b1",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'Resources.DataBucket.Properties' should have property 'LoggingConfiguration'",
+					"actual_value": "'Resources.DataBucket.Properties' doesn't have property 'LoggingConfiguration'"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without Ignore Public ACL",
+			"query_id": "6c8d51af-218d-4bfb-94a9-94eabaa0703a",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-publicaccessblockconfiguration.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "668",
+			"risk_score": "6.2",
+			"cloud_provider": "AWS",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "S3 bucket without ignore public ACL",
+			"description_id": "74146c20",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "1652d345cef494f546b77f74df06a8ec331c6bbdf4cd6a6709afdae1ac937f1b",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": 6,
+					"search_value": "",
+					"expected_value": "'PublicAccessBlockConfiguration' should be defined%!(EXTRA string=DataBucket)",
+					"actual_value": "'PublicAccessBlockConfiguration' is not defined%!(EXTRA string=DataBucket)"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without Restriction Of Public Bucket",
+			"query_id": "350cd468-0e2c-44ef-9d22-cfb73a62523c",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket-publicaccessblockconfiguration.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "6.2",
+			"cloud_provider": "AWS",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "S3 bucket without restriction of public bucket",
+			"description_id": "f9a4d93a",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "1f5f0bb34bcbba1807f921cf7f1d8bc3d16c69bbe05fa23699362c16ba13d502",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": 6,
+					"search_value": "",
+					"expected_value": "'PublicAccessBlockConfiguration' should be defined%!(EXTRA string=DataBucket)",
+					"actual_value": "'PublicAccessBlockConfiguration' is not defined%!(EXTRA string=DataBucket)"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without SSL In Write Actions",
+			"query_id": "38c64e76-c71e-4d92-a337-60174d1de1c9",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "319",
+			"risk_score": "6.8",
+			"cloud_provider": "AWS",
+			"category": "Encryption",
+			"experimental": false,
+			"description": "S3 Buckets should enforce encryption of data transfers using Secure Sockets Layer (SSL)",
+			"description_id": "907676d7",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "bb09aa4578efa20c6e8405a1d74c6ca62a8d3ca96a249d9aa225d4b92a46eccb",
+					"line": 4,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket",
+					"search_line": 4,
+					"search_value": "",
+					"expected_value": "Resources.DataBucket bucket has a policy that enforces SSL",
+					"actual_value": "Resources.DataBucket bucket doesn't have a policy"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without Versioning",
+			"query_id": "a227ec01-f97a-4084-91a4-47b350c1db54",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "326",
+			"risk_score": "5.7",
+			"cloud_provider": "AWS",
+			"category": "Backup",
+			"experimental": false,
+			"description": "S3 bucket should have versioning enabled",
+			"description_id": "fe2c56b9",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "5ca2c525234ec5d4c778c1fa83b9c74213f8a7c981110f034976039fbcc29ed9",
+					"line": 6,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.DataBucket.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Resources.DataBucket.Properties.VersioningConfiguration should be defined",
+					"actual_value": "Resources.DataBucket.Properties.VersioningConfiguration is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Without Versioning",
+			"query_id": "568a4d22-3517-44a6-a7ad-6a7eed88722c",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket#versioning",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "5.7",
+			"cloud_provider": "AWS",
+			"category": "Backup",
+			"experimental": false,
+			"description": "S3 bucket should have versioning enabled",
+			"description_id": "7614ce3b",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "6e3e45b9f0ec278ac457284332eef85b7347cb704845aa453be59a9857c0d400",
+					"line": 23,
+					"resource_type": "aws_s3_bucket",
+					"resource_name": "pathos-fixture-data",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_s3_bucket[data]",
+					"search_line": 23,
+					"search_value": "",
+					"expected_value": "'versioning' should be true",
+					"actual_value": "'versioning' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "SQS With SSE Disabled",
+			"query_id": "12726829-93ed-4d51-9cbe-13423f4299e1",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-sqs-queues.html#aws-sqs-queue-kmsmasterkeyid",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "319",
+			"risk_score": "5.5",
+			"cloud_provider": "AWS",
+			"category": "Encryption",
+			"experimental": false,
+			"description": "Amazon Simple Queue Service (SQS) queue should protect the contents of their messages using Server-Side Encryption (SSE)",
+			"description_id": "7c3c1b44",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "5202619ffbc76f79620d0399a26b8ae8138aa72121d9d7cb166a9dfa59f27715",
+					"line": 30,
+					"resource_type": "AWS::SQS::Queue",
+					"resource_name": "Queue",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.Queue.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Resources.Queue.Properties.KmsMasterKeyId should be set or SqsManagedSseEnabled set to true",
+					"actual_value": "Resources.Queue.Properties.KmsMasterKeyId is undefined and SqsManagedSseEnabled not enabled"
+				}
+			]
+		},
+		{
+			"query_name": "Seccomp Profile Is Not Configured",
+			"query_id": "f377b83e-bd07-4f48-a591-60c82b14a78b",
+			"query_url": "https://kubernetes.io/docs/tutorials/security/seccomp/#create-pod-that-uses-the-container-runtime-default-seccomp-profile",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "6.8",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Containers should be configured with a secure Seccomp profile to restrict potentially dangerous syscalls",
+			"description_id": "d943c7e7",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "85ba47c6ad41991b284767dd58d5603baf36ed9cc611996d5da48cf09003ee18",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.seccompProfile.type should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.seccompProfile.type is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "b283e684eca98f6290ac971a57cdd130fc475d1f477643fb9db3a826bdc1bc2c",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.seccompProfile.type should be defined",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.seccompProfile.type is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group With Unrestricted Access To SSH",
+			"query_id": "65905cec-d691-4320-b320-2000436cb696",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group",
+			"severity": "MEDIUM",
+			"platform": "Terraform",
+			"cwe": "732",
+			"risk_score": "5.2",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "'SSH' (TCP:22) should not be public in AWS Security Group",
+			"description_id": "51e59188",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "24b9afdde75bd9029e7a822bfae6e6e703d245310f599be6f100e0bb929db862",
+					"line": 15,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_security_group[ssh].ingress",
+					"search_line": 15,
+					"search_value": "",
+					"expected_value": "aws_security_group[ssh].ingress 'SSH' (Port:22) should not be open",
+					"actual_value": "aws_security_group[ssh].ingress 'SSH' (Port:22) is open"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group With Unrestricted Access To SSH",
+			"query_id": "6e856af2-62d7-4ba2-adc1-73b62cef9cc1",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html",
+			"severity": "MEDIUM",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "5.2",
+			"cloud_provider": "AWS",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "'SSH' (TCP:22) should not be public in AWS Security Group",
+			"description_id": "d515d6dc",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "55624c71a6d8f3fa3ceeb26342802f4500751bb89f654679a49136b64dc75ce4",
+					"line": 13,
+					"resource_type": "AWS::EC2::SecurityGroup",
+					"resource_name": "OpenSecurityGroup",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0]",
+					"search_line": 13,
+					"search_value": "",
+					"expected_value": "'Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0]' should not open the SSH port (22)",
+					"actual_value": "'Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0]' opens the SSH port (22)"
+				}
+			]
+		},
+		{
+			"query_name": "Service Account Name Undefined Or Empty",
+			"query_id": "591ade62-d6b0-4580-b1ae-209f80ba1cd9",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "6.8",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Defaults",
+			"experimental": false,
+			"description": "A Kubernetes Pod should have a Service Account defined so to restrict Kubernetes API access, which means the attribute 'serviceAccountName' should be defined and not empty.",
+			"description_id": "2940f843",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "3348ba8cf30c4e5a60aee308d68ee356afa65a6fb57e1fa864210856cdf57ad7",
+					"line": 5,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name=debug.spec.serviceAccountName should be defined",
+					"actual_value": "metadata.name=debug.spec.serviceAccountName is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Service Account Token Automount Not Disabled",
+			"query_id": "48471392-d4d0-47c0-b135-cdec95eb3eef",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#use-the-default-service-account-to-access-the-api-server",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "6.8",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Defaults",
+			"experimental": false,
+			"description": "Service Account Tokens are automatically mounted even if not necessary",
+			"description_id": "51cade0f",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "359ade6d3e04a5b5ba94069b1e214983908372c7adf34e48c8fb58c1f2629ea2",
+					"line": 15,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec",
+					"search_line": 15,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.automountServiceAccountToken should be defined and set to false",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.automountServiceAccountToken is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "ca0396ae4a2b77744b9a24905d4549cef45ce3e3762a28d2c5031865376fa472",
+					"line": 5,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec",
+					"search_line": -1,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.automountServiceAccountToken should be defined and set to false",
+					"actual_value": "metadata.name={{debug}}.spec.automountServiceAccountToken is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Shared Host Network Namespace",
+			"query_id": "6b6bdfb3-c3ae-44cb-88e4-7405c1ba2c8a",
+			"query_url": "https://kubernetes.io/docs/concepts/policy/pod-security-policy/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "200",
+			"risk_score": "6.8",
+			"cloud_provider": "COMMON",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "Container should not share the host network namespace",
+			"description_id": "50e5de80",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "3653d43918fbdc4e355ade23ca64a41dac0dde26f92fbd66af55e53042badcc4",
+					"line": 16,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.hostNetwork",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'spec.template.spec.hostNetwork' should be set to false or undefined",
+					"actual_value": "'spec.template.spec.hostNetwork' is true"
+				}
+			]
+		},
+		{
+			"query_name": "Using Unrecommended Namespace",
+			"query_id": "611ab018-c4aa-4ba2-b0f6-a448337509a6",
+			"query_url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/kubernetes-objects/",
+			"severity": "MEDIUM",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "5.5",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Namespaces like 'default', 'kube-system' or 'kube-public' should not be used",
+			"description_id": "29549ea9",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "581043073d00ca69eee21055bcfccd1fd6225d05dfff3a17322222b0e42d2283",
+					"line": 4,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "kind={{Pod}}.metadata.name={{debug}}",
+					"search_line": 4,
+					"search_value": "Pod",
+					"expected_value": "metadata.namespace should be defined and not null",
+					"actual_value": "metadata.namespace is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "CPU Limits Not Set",
+			"query_id": "4ac0e2b7-d2d2-4af7-8799-e8de6721ccda",
+			"query_url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "2.9",
+			"cloud_provider": "COMMON",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "CPU limits should be set because if the system has CPU time free, a container is guaranteed to be allocated as much CPU as it requests",
+			"description_id": "9a2ef763",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "841e43ef94ae8ea7cda4fa343deb92f68feb2b3d217714c1e164285526e48835",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name=shell",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "spec.containers.name=shell has resources defined",
+					"actual_value": "spec.containers.name=shell doesn't have resources defined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "1fa9ca6855c60e91a03626b131f597e1c5c2e1912f8102b682ea16bc0f2fe1f8",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name=web",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "spec.template.spec.containers.name=web has resources defined",
+					"actual_value": "spec.template.spec.containers.name=web doesn't have resources defined"
+				}
+			]
+		},
+		{
+			"query_name": "CPU Requests Not Set",
+			"query_id": "ca469dd4-c736-448f-8ac1-30a642705e0a",
+			"query_url": "https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/#",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "2.9",
+			"cloud_provider": "COMMON",
+			"category": "Resource Management",
+			"experimental": false,
+			"description": "CPU requests should be set to ensure the sum of the resource requests of the scheduled Containers is less than the capacity of the node",
+			"description_id": "ac7ad5df",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "1a300438253fc8697321a6bd7e5c95a04611946ca1eda1641c79f975b531d515",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name=web",
+					"search_line": 18,
+					"search_value": "Deployment",
+					"expected_value": "spec.template.spec.containers.name=web should have resources defined",
+					"actual_value": "spec.template.spec.containers.name=web doesn't have resources defined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "50cf8ef22d9b00de61103326c4b7a4f2ef70218352ae4e22849f1c6abe102025",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name=shell",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "spec.containers.name=shell should have resources defined",
+					"actual_value": "spec.containers.name=shell doesn't have resources defined"
+				}
+			]
+		},
+		{
+			"query_name": "Curl or Wget Instead of Add",
+			"query_id": "4b410d24-1cbe-4430-a632-62c9a931cf1c",
+			"query_url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+			"severity": "LOW",
+			"platform": "Dockerfile",
+			"cwe": "610",
+			"risk_score": "2.8",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "Use of Curl or Wget should be done instead of Add to fetch packages from remote URLs due to the use of Add being strongly discouraged",
+			"description_id": "29e8216b",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "2f7830218eb17a3b86b2d3ca6a8d4815f0f8e7516aae06a5088371f43dbd383a",
+					"line": 3,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{ubuntu}}.{{ADD https://example.com/tool.tar.gz /opt/}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Should use 'curl' or 'wget' to download https://example.com/tool.tar.gz",
+					"actual_value": "'ADD' https://example.com/tool.tar.gz"
+				}
+			]
+		},
+		{
+			"query_name": "Healthcheck Instruction Missing",
+			"query_id": "b03a748a-542d-44f4-bb86-9199ab4fd2d5",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#healthcheck",
+			"severity": "LOW",
+			"platform": "Dockerfile",
+			"cwe": "710",
+			"risk_score": "3.6",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Ensure that HEALTHCHECK is being used. The HEALTHCHECK instruction tells Docker how to test a container to check that it is still working",
+			"description_id": "426121ee",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "92e1c9a672b6b8c67e348862fe126fa8c143911f058bf68f18bbaca6bd4b948e",
+					"line": 1,
+					"issue_type": "MissingAttribute",
+					"search_key": "FROM={{ubuntu}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "Dockerfile should contain instruction 'HEALTHCHECK'",
+					"actual_value": "Dockerfile doesn't contain instruction 'HEALTHCHECK'"
+				}
+			]
+		},
+		{
+			"query_name": "IAM Access Analyzer Not Enabled",
+			"query_id": "8d29754a-2a18-460d-a1ba-9509f8d359da",
+			"query_url": "https://docs.aws.amazon.com/en_us/AWSCloudFormation/latest/UserGuide/aws-resource-accessanalyzer-analyzer.html",
+			"severity": "LOW",
+			"platform": "CloudFormation",
+			"cwe": "778",
+			"risk_score": "3.5",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "IAM Access Analyzer should be enabled and configured to continuously monitor resource permissions",
+			"description_id": "24a6978e",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "67fea5eeeb5e11c1f57f622df16b480195da1901f519edf69932748b9b1eedba",
+					"line": 3,
+					"resource_type": "n/a",
+					"resource_name": "n/a",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'AWS::AccessAnalyzer::Analyzer' should be set",
+					"actual_value": "'AWS::AccessAnalyzer::Analyzer' is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "IAM Access Analyzer Not Enabled",
+			"query_id": "e592a0c5-5bdb-414c-9066-5dba7cdea370",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/accessanalyzer_analyzer",
+			"severity": "LOW",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "3.5",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "IAM Access Analyzer should be enabled and configured to continuously monitor resource permissions",
+			"description_id": "d03e85ae",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "a9551ea1f12298784bc45516e9d8403c5593ac662b9429d5ee64351f8c8f42cc",
+					"line": 13,
+					"resource_type": "n/a",
+					"resource_name": "n/a",
+					"issue_type": "MissingAttribute",
+					"search_key": "resource",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'aws_accessanalyzer_analyzer' should be set",
+					"actual_value": "'aws_accessanalyzer_analyzer' is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "IAM User With No Group",
+			"query_id": "06933df4-0ea7-461c-b9b5-104d27390e0e",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/quickref-iam.html#scenario-iam-policy",
+			"severity": "LOW",
+			"platform": "CloudFormation",
+			"cwe": "284",
+			"risk_score": "4.3",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "A IAM user should belong to a group",
+			"description_id": "d7e9b179",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "0389783414edd88a490dd2ec73559324f478d9c1a7ce60d945a681efaaead213",
+					"line": 19,
+					"resource_type": "AWS::IAM::User",
+					"resource_name": "AdminUser",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.AdminUser.Properties",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'Resources.Properties should contain Groups",
+					"actual_value": "'Resources.Properties' does not contain Groups"
+				}
+			]
+		},
+		{
+			"query_name": "Image Without Digest",
+			"query_id": "7c81d34c-8e5a-402b-9798-9f442630e678",
+			"query_url": "https://kubernetes.io/docs/concepts/containers/images/#updating-images",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "4.1",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Images should be specified together with their digests to ensure integrity",
+			"description_id": "3f9f8d78",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "47d4adcfd0beb7bc00dbb60b3c06b64b41e593637de737b7cada8d9578c6ee3a",
+					"line": 19,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image",
+					"search_line": 19,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image should specify the image with a digest",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image does not include an image digest"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "eb7fae88d2a4654fae9934ea64c7ac39d4cac5ccc2658809b3cc4e29ed75205c",
+					"line": 8,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}.image",
+					"search_line": 8,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.image should specify the image with a digest",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.image does not include an image digest"
+				}
+			]
+		},
+		{
+			"query_name": "Instance Uses Metadata Service IMDSv1",
+			"query_id": "c306ac53-ee5b-41d3-86a9-0fd2722b4e67",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance.html?lang=typescript#metadata-options",
+			"severity": "LOW",
+			"platform": "Terraform",
+			"cwe": "200",
+			"risk_score": "1.0",
+			"cloud_provider": "AWS",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Instance metadata can be accessed with both IMDSv1 or IMDSv2. Although, IMDSv2 service is a session-oriented service, granting additional protection against exposure of metadata information. That version should be used instead of IMDSv1 in order to mitigate those situations.",
+			"description_id": "c306ac53",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "d90538f671045712511f5792b7b0388176cc26035f7b85c41ddc924f53819e29",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance[web]",
+					"search_line": 48,
+					"search_value": "",
+					"expected_value": "'aws_instance[web].metadata_options' should be defined with 'http_tokens' field set to 'required'",
+					"actual_value": "'aws_instance[web].metadata_options' is not defined"
+				}
+			]
+		},
+		{
+			"query_name": "Instance With No VPC",
+			"query_id": "a31a5a29-718a-4ff4-8001-a69e5e4d029e",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance",
+			"severity": "LOW",
+			"platform": "Terraform",
+			"cwe": "284",
+			"risk_score": "2.9",
+			"cloud_provider": "AWS",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "EC2 Instances should be configured under a VPC network. AWS VPCs provide the controls to facilitate a formal process for approving and testing all network connections and changes to the firewall and router configurations.",
+			"description_id": "225a9f30",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "cef66f37a4b7ae43dfcd90209752744aa8fa83c64acc9e55801ea8f14774362a",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance[web]",
+					"search_line": 48,
+					"search_value": "",
+					"expected_value": "Attribute 'vpc_security_group_ids' should be defined and not null",
+					"actual_value": "Attribute 'vpc_security_group_ids' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "Invalid Image Tag",
+			"query_id": "583053b7-e632-46f0-b989-f81ff8045385",
+			"query_url": "https://kubernetes.io/docs/concepts/containers/images/#updating-images",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "3.6",
+			"cloud_provider": "COMMON",
+			"category": "Supply-Chain",
+			"experimental": false,
+			"description": "Image tag must be defined and not be empty or equal to latest.",
+			"description_id": "30154626",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "1af5cebdd44642884c94693de39887e51edac7d77b57e167c68600cfe0c586c0",
+					"line": 8,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}.image",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.image tag is provided and not latest",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.image tag is not provided or latest"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "c6957fcbc1afae669a5314481ea36bd6134a372b3b06a7e3283e474574488448",
+					"line": 19,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image tag is provided and not latest",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.image tag is not provided or latest"
+				}
+			]
+		},
+		{
+			"query_name": "Missing AppArmor Profile",
+			"query_id": "8b36775e-183d-4d46-b0f7-96a6f34a723f",
+			"query_url": "https://kubernetes.io/docs/tutorials/clusters/apparmor/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "284",
+			"risk_score": "3.3",
+			"cloud_provider": "COMMON",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "Containers should be configured with an AppArmor profile to enforce fine-grained access control over low-level system resources",
+			"description_id": "59c17c0a",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "c6723cfff605d864107afdb8816c84763ef88abeaebb14759ac411bfeda7b24d",
+					"line": 12,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.metadata.annotations",
+					"search_line": -1,
+					"search_value": "Deploymentcontainers0",
+					"expected_value": "metadata.name={{web}}.spec.template.metadata.annotations should specify an AppArmor profile for container {{web}}",
+					"actual_value": "metadata.name={{web}}.spec.template.metadata.annotations does not specify an AppArmor profile for container {{web}}"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "f2fc9d8432cfba4db73c37ec118b8dbbfaf4b6954d71da7b141036809527d158",
+					"line": 4,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.annotations",
+					"search_line": -1,
+					"search_value": "Podcontainers0",
+					"expected_value": "metadata.name={{debug}}.annotations should specify an AppArmor profile for container {{shell}}",
+					"actual_value": "metadata.name={{debug}}.annotations does not specify an AppArmor profile for container {{shell}}"
+				}
+			]
+		},
+		{
+			"query_name": "No Drop Capabilities for Containers",
+			"query_id": "268ca686-7fb7-4ae9-b129-955a2a89064e",
+			"query_url": "https://kubernetes.io/docs/concepts/workloads/pods/init-containers/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "754",
+			"risk_score": "3.6",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "Sees if Kubernetes Drop Capabilities exists to ensure containers security context",
+			"description_id": "9d3ca6db",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "6ee6623f4f834c0dfdcf75363c50f08129b94b4303df9d9ce9315f06b310f5e8",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.containers.name={{web}}.securityContext",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.containers.name={{web}}.securityContext.capabilities should be set",
+					"actual_value": "metadata.name={{web}}.spec.containers.name={{web}}.securityContext.capabilities is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "a9fbb5d68e7dd04f7d90238bb29824e08af13101547aa6f486b4ac6d28fadefb",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name=shell",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name=shell.securityContext should be set",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name=shell.securityContext is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Pod or Container Without LimitRange",
+			"query_id": "4a20ebac-1060-4c81-95d1-1f7f620e983b",
+			"query_url": "https://kubernetes.io/docs/concepts/policy/limit-range/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "2.8",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Each namespace should have a LimitRange policy associated to ensure that resource allocations of Pods, Containers and PersistentVolumeClaims do not exceed the defined boundaries",
+			"description_id": "142ed21f",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "feee1794c7e4298657b6a2e996ecd4c765fdb5bb720a430536cff5b9ef367118",
+					"line": 5,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}",
+					"search_line": 5,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}} has a 'LimitRange' policy associated",
+					"actual_value": "metadata.name={{web}} does not have a 'LimitRange' policy associated"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "78cc4ee2d3ba2e833a44506e1f36ff73b836dbe175017b28c2f66450ac3803eb",
+					"line": 4,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}",
+					"search_line": -1,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}} has a 'LimitRange' policy associated",
+					"actual_value": "metadata.name={{debug}} does not have a 'LimitRange' policy associated"
+				}
+			]
+		},
+		{
+			"query_name": "Pod or Container Without ResourceQuota",
+			"query_id": "48a5beba-e4c0-4584-a2aa-e6894e4cf424",
+			"query_url": "https://kubernetes.io/docs/concepts/policy/resource-quotas/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "400",
+			"risk_score": "2.8",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "Each namespace should have a ResourceQuota policy associated to limit the total amount of resources Pods, Containers and PersistentVolumeClaims can consume",
+			"description_id": "86499ed5",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "21ddf3c2185155de7b4119168b0b947114471b0b1ea0d11e3b536b6b0a222b04",
+					"line": 5,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}",
+					"search_line": 5,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}} has a 'ResourceQuota' policy associated",
+					"actual_value": "metadata.name={{web}} does not have a 'ResourceQuota' policy associated"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "1b1eee9d0445ba0abafe41f7bc97e873a83101ec132eacee300ea83e40ef3594",
+					"line": 4,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}",
+					"search_line": -1,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}} has a 'ResourceQuota' policy associated",
+					"actual_value": "metadata.name={{debug}} does not have a 'ResourceQuota' policy associated"
+				}
+			]
+		},
+		{
+			"query_name": "Pod or Container Without Security Context",
+			"query_id": "a97a340a-0063-418e-b3a1-3028941d0995",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "285",
+			"risk_score": "3.6",
+			"cloud_provider": "COMMON",
+			"category": "Insecure Configurations",
+			"experimental": false,
+			"description": "A security context defines privilege and access control settings for a Pod or Container",
+			"description_id": "68a1650b",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "683f449e8acf32fc0f8f2b54a4ba1985d071613f9ba6afb52cb3e5ffacf6694b",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name=shell",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "spec.containers.name=shell has a security context",
+					"actual_value": "spec.containers.name=shell does not have a security context"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "e60fedad59a77738e1b08052dc7ad8b82e33e4734a7f53bbefda0210d3a63917",
+					"line": 5,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "metadata.name={{debug}}.spec has a security context",
+					"actual_value": "metadata.name={{debug}}.spec does not have a security context"
+				}
+			]
+		},
+		{
+			"query_name": "Root Container Not Mounted Read-only",
+			"query_id": "a9c2f49d-0671-4fc9-9ece-f4e261e128d0",
+			"query_url": "https://kubernetes.io/docs/tasks/configure-pod-container/security-context/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "668",
+			"risk_score": "3.6",
+			"cloud_provider": "COMMON",
+			"category": "Build Process",
+			"experimental": false,
+			"description": "Check if the root container filesystem is not being mounted as read-only.",
+			"description_id": "0d2df1e5",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "a968ca63596b260cbc739a6562f5062ae756977d3fbb2843c3a3062fa2044c78",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.readOnlyRootFilesystem should be set to true",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.securityContext.readOnlyRootFilesystem is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "35e448d9df4f914b2e087d7524e469099ef65edc1056b34bafb34b5c3c129f03",
+					"line": 22,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 22,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.readOnlyRootFilesystem should be set to true",
+					"actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.readOnlyRootFilesystem is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "S3 Bucket Should Have Bucket Policy",
+			"query_id": "37fa8188-738b-42c8-bf82-6334ea567738",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-s3-bucket.html",
+			"severity": "LOW",
+			"platform": "CloudFormation",
+			"cwe": "665",
+			"risk_score": "4.3",
+			"cloud_provider": "AWS",
+			"category": "Insecure Defaults",
+			"experimental": false,
+			"description": "Checks if S3 Bucket has the same name as a Bucket Policy, if it has, S3 Bucket has a Bucket Policy associated",
+			"description_id": "2b429546",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "7613dbb026b4979d12903f66c940981422fb33be1b1a9285931fefe9f7b545af",
+					"line": 4,
+					"resource_type": "AWS::S3::Bucket",
+					"resource_name": "DataBucket",
+					"issue_type": "IncorrectValue",
+					"search_key": "Resources.DataBucket",
+					"search_line": 4,
+					"search_value": "",
+					"expected_value": "'Resources.DataBucket.Properties.BucketName' or 'Resources.[DataBucket]' should be associated with an 'AWS::S3::BucketPolicy'",
+					"actual_value": "'Resources.DataBucket.Properties.BucketName' or 'Resources.[DataBucket]' is not associated with an 'AWS::S3::BucketPolicy'"
+				}
+			]
+		},
+		{
+			"query_name": "Service Type is NodePort",
+			"query_id": "845acfbe-3e10-4b8e-b656-3b404d36dfb2",
+			"query_url": "https://kubernetes.io/docs/concepts/services-networking/service/",
+			"severity": "LOW",
+			"platform": "Kubernetes",
+			"cwe": "665",
+			"risk_score": "2.9",
+			"cloud_provider": "COMMON",
+			"category": "Networking and Firewall",
+			"experimental": false,
+			"description": "Service type should not be NodePort",
+			"description_id": "4744714e",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "a0760967bfe1c346099923a96506468d6f6223cb2c62c9fdc9b9ef8426ef542b",
+					"line": 36,
+					"resource_type": "Service",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.name={{web}}.spec.type",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "spec.type should not be 'NodePort'",
+					"actual_value": "spec.type is 'NodePort'"
+				}
+			]
+		},
+		{
+			"query_name": "Tags Not Copied to RDS Cluster Snapshot",
+			"query_id": "6d3dead4-c6b2-4db7-81bd-3a83eae8f255",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/rds_cluster#copy_tags_to_snapshot",
+			"severity": "LOW",
+			"platform": "Terraform",
+			"cwe": "284",
+			"risk_score": "1.0",
+			"cloud_provider": "AWS",
+			"category": "Backup",
+			"experimental": false,
+			"description": "Tags of the RDS Cluster should be copied to the respective snapshots to ensure that snapshots retain important metadata for identification, cost allocation, and resource management",
+			"description_id": "6d3dead4",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "3e9bca2fe87560970f6043bad27807621f2f179b606b1c6758aa4f93f6ae87d6",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[db]",
+					"search_line": 32,
+					"search_value": "",
+					"expected_value": "'aws_db_instance[db].copy_tags_to_snapshot' should be defined to true",
+					"actual_value": "'aws_db_instance[db].copy_tags_to_snapshot' is not defined"
+				}
+			]
+		},
+		{
+			"query_name": "APT-GET Not Avoiding Additional Packages",
+			"query_id": "7384dfb2-fcd1-4fbf-91cd-6c44c318c33c",
+			"query_url": "https://docs.docker.com/engine/reference/builder/#run",
+			"severity": "INFO",
+			"platform": "Dockerfile",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"category": "Supply-Chain",
+			"experimental": false,
+			"description": "Check if any apt-get installs don't use '--no-install-recommends' flag to avoid installing additional packages.",
+			"description_id": "2e92d18c",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "fc4e791837c580961e3a0b3e0046d367034717d3df73f785f5cdb75f6b043638",
+					"line": 2,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{ubuntu}}.{{RUN apt-get update \u0026\u0026 apt-get install -y curl wget}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'RUN apt-get update \u0026\u0026 apt-get install -y curl wget' uses '--no-install-recommends' flag to avoid installing additional packages",
+					"actual_value": "'RUN apt-get update \u0026\u0026 apt-get install -y curl wget' does not use '--no-install-recommends' flag to avoid installing additional packages"
+				}
+			]
+		},
+		{
+			"query_name": "Apt Get Install Lists Were Not Deleted",
+			"query_id": "df746b39-6564-4fed-bf85-e9c44382303c",
+			"query_url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+			"severity": "INFO",
+			"platform": "Dockerfile",
+			"cwe": "459",
+			"risk_score": "0.0",
+			"category": "Supply-Chain",
+			"experimental": false,
+			"description": "After using apt-get install, it is needed to delete apt-get lists",
+			"description_id": "4236a50c",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/docker/Dockerfile",
+					"similarity_id": "1503518ca7fd8ab7faf59339292dade6bb16b7e1c596511f45d799bfab40e1f7",
+					"line": 2,
+					"issue_type": "IncorrectValue",
+					"search_key": "FROM={{ubuntu}}.RUN={{apt-get update \u0026\u0026 apt-get install -y curl wget}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "After using apt-get install, the apt-get lists should be deleted",
+					"actual_value": "After using apt-get install, the apt-get lists were not deleted"
+				}
+			]
+		},
+		{
+			"query_name": "EC2 Not EBS Optimized",
+			"query_id": "60224630-175a-472a-9e23-133827040766",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/instance#ebs_optimized",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "It's considered a best practice for an EC2 instance to use an EBS optimized instance. This provides the best performance for your EBS volumes by minimizing contention between Amazon EBS I/O and other traffic from your instance",
+			"description_id": "ddce4bd9",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "0d8eb372af7af251cdb381c945543e604695b88f4b14034b115a0fdca65b3184",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance[{{web}}]",
+					"search_line": 48,
+					"search_value": "",
+					"expected_value": "'ebs_optimized' should be set to true",
+					"actual_value": "'ebs_optimized' is undefined or null",
+					"remediation": "ebs_optimized = true",
+					"remediation_type": "addition"
+				}
+			]
+		},
+		{
+			"query_name": "Ensure Administrative Boundaries Between Resources",
+			"query_id": "e84eaf4d-2f45-47b2-abe8-e581b06deb66",
+			"query_url": "https://kubernetes.io/docs/concepts/overview/working-with-objects/namespaces/",
+			"severity": "INFO",
+			"platform": "Kubernetes",
+			"cwe": "284",
+			"risk_score": "0.0",
+			"cloud_provider": "COMMON",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "As a best practice, ensure that is made the correct use of namespaces to adequately administer your resources. Kubernetes Authorization plugins can also be used to create policies that segregate user access to namespaces.",
+			"description_id": "8182d7cf",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "1c97bb61e9fd1c4e20baaa007e9e0b22c0bcacd505e40e7042d8df23c93002b9",
+					"line": 5,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "IncorrectValue",
+					"search_key": "metadata.namespace={{shop}}",
+					"search_line": 5,
+					"search_value": "",
+					"expected_value": "ensure that these namespaces are the ones you need and are adequately administered as per your requirements.",
+					"actual_value": "namespaces in use: shop"
+				}
+			]
+		},
+		{
+			"query_name": "Liveness Probe Is Not Defined",
+			"query_id": "ade74944-a674-4e00-859e-c6eab5bde441",
+			"query_url": "https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#when-should-you-use-a-liveness-probe",
+			"severity": "INFO",
+			"platform": "Kubernetes",
+			"cwe": "754",
+			"risk_score": "0.0",
+			"cloud_provider": "COMMON",
+			"category": "Availability",
+			"experimental": false,
+			"description": "In case of an unresponsive container, a Liveness Probe can help your application become more available since it restarts the container. However, it can lead to cascading failures. Define one if you really need it",
+			"description_id": "f724fa60",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/k8s/deployment.yaml",
+					"similarity_id": "9883b53b339e353dae6ac31ddb7aa3f6e99153971f46db573b870121f1963afc",
+					"line": 18,
+					"resource_type": "Deployment",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}",
+					"search_line": 18,
+					"search_value": "Deployment",
+					"expected_value": "metadata.name={{web}}.spec.containers.name={{web}}.livenessProbe should be defined",
+					"actual_value": "metadata.name={{web}}.spec.containers.name={{web}}.livenessProbe is undefined"
+				},
+				{
+					"file_name": "../../work/fixture/src/k8s/pod.yaml",
+					"similarity_id": "d79e6a7ba3a7533a78e3086731460f11af6db18376d51838ebb5ae8603391d26",
+					"line": 7,
+					"resource_type": "Pod",
+					"resource_name": "debug",
+					"issue_type": "MissingAttribute",
+					"search_key": "metadata.name={{debug}}.spec.containers.name={{shell}}",
+					"search_line": 7,
+					"search_value": "Pod",
+					"expected_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.livenessProbe should be defined",
+					"actual_value": "metadata.name={{debug}}.spec.containers.name={{shell}}.livenessProbe is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Resource Not Using Tags",
+			"query_id": "e38a8e0a-b88b-4902-b3fe-b0fcb17d5c10",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/guides/resource-tagging",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "665",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "AWS services resource tags are an essential part of managing components. As a best practice, the field 'tags' should have additional tags defined other than 'Name'",
+			"description_id": "09db2d52",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "9181480515e6aa575bce341e8608396b36dae0b42b24274a974e2fd7f7e54d78",
+					"line": 13,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_security_group[{{ssh}}]",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "aws_security_group[{{ssh}}].tags should be defined and not null",
+					"actual_value": "aws_security_group[{{ssh}}].tags is undefined or null"
+				},
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "22f3ef56423958cb5daf04a925cd4c9d80e5c86efabd2596b3651c3a67eb5a5f",
+					"line": 48,
+					"resource_type": "aws_instance",
+					"resource_name": "web",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_instance[{{web}}]",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "aws_instance[{{web}}].tags should be defined and not null",
+					"actual_value": "aws_instance[{{web}}].tags is undefined or null"
+				},
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "fe4857221885397320d69b488f745197e536c71dfde92ee3d158a4d55d0d580d",
+					"line": 32,
+					"resource_type": "aws_db_instance",
+					"resource_name": "db",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_db_instance[{{db}}]",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "aws_db_instance[{{db}}].tags should be defined and not null",
+					"actual_value": "aws_db_instance[{{db}}].tags is undefined or null"
+				},
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "c8bc2d1725360e8ac523e5112f37aa1f78dab0eb5adeb76f982b7d6c3f08edee",
+					"line": 23,
+					"resource_type": "aws_s3_bucket",
+					"resource_name": "data",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_s3_bucket[{{data}}]",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "aws_s3_bucket[{{data}}].tags should be defined and not null",
+					"actual_value": "aws_s3_bucket[{{data}}].tags is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group Not Used",
+			"query_id": "4849211b-ac39-479e-ae78-5694d506cb24",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "284",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Access Control",
+			"experimental": false,
+			"description": "Security group must be used or not declared",
+			"description_id": "eff2383a",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "05c38be782fe81d1305dd150b9e24f202ba08dbb9077cf2200891764afb586dd",
+					"line": 13,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "IncorrectValue",
+					"search_key": "aws_security_group[ssh]",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'aws_security_group[ssh]' should be used",
+					"actual_value": "'aws_security_group[ssh]' is not used"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group Rule Without Description",
+			"query_id": "68eb4bf3-f9bf-463d-b5cf-e029bb446d2e",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group#description",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "It's considered a best practice for all rules in AWS Security Group to have a description",
+			"description_id": "cee242dd",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "ff4bc21082674cebbf994fbe8bda92de4b2f8c025c9d13f2b9f5b04146e696d9",
+					"line": 15,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_security_group[ssh].ingress",
+					"search_line": 15,
+					"search_value": "",
+					"expected_value": "aws_security_group[ssh].ingress.description should be defined and not null",
+					"actual_value": "aws_security_group[ssh].ingress.description is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group Rule Without Description",
+			"query_id": "5e6c9c68-8a82-408e-8749-ddad78cbb9c5",
+			"query_url": "https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-security-group.html",
+			"severity": "INFO",
+			"platform": "CloudFormation",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "It's considered a best practice for AWS Security Group to have a description",
+			"description_id": "f7c62b11",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/cloudformation/template.yaml",
+					"similarity_id": "868ddda99ed82a4144e1ef27a15a288a902b6531fc54a83c830fa47e26ec33d8",
+					"line": 13,
+					"resource_type": "AWS::EC2::SecurityGroup",
+					"resource_name": "OpenSecurityGroup",
+					"issue_type": "MissingAttribute",
+					"search_key": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress",
+					"search_line": 13,
+					"search_value": "",
+					"expected_value": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].Description should be set",
+					"actual_value": "Resources.OpenSecurityGroup.Properties.SecurityGroupIngress[0].Description is undefined"
+				}
+			]
+		},
+		{
+			"query_name": "Security Group Without Description",
+			"query_id": "cb3f5ed6-0d18-40de-a93d-b3538db31e8c",
+			"query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group#description",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "AWS",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "It's considered a best practice for AWS Security Group to have a description",
+			"description_id": "bc535d27",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "0ac76ae9520c988014fa788d324723d2d0f1a27761d4d810ccf5f99f14c9bbfe",
+					"line": 13,
+					"resource_type": "aws_security_group",
+					"resource_name": "ssh",
+					"issue_type": "MissingAttribute",
+					"search_key": "aws_security_group[ssh]",
+					"search_line": 13,
+					"search_value": "",
+					"expected_value": "aws_security_group[ssh] description should be defined and not null",
+					"actual_value": "aws_security_group[ssh] description is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "Variable Without Description",
+			"query_id": "2a153952-2544-4687-bcc9-cc8fea814a9b",
+			"query_url": "https://www.terraform.io/docs/language/values/variables.html#input-variable-documentation",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "All variables should contain a valid description.",
+			"description_id": "b44986be",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "b65e4f1172b2253366908c71001c16c3799b6d8c0e4f8078f48eaa3d6d9408e5",
+					"line": 43,
+					"resource_type": "n/a",
+					"resource_name": "n/a",
+					"issue_type": "MissingAttribute",
+					"search_key": "variable.{{db_password}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'description' should be defined and not null",
+					"actual_value": "'description' is undefined or null"
+				},
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "668b504d884156825e31369a44ae8d0ab7cb2d7ad41dc94cdc54b94c87695bc8",
+					"line": 9,
+					"resource_type": "n/a",
+					"resource_name": "n/a",
+					"issue_type": "MissingAttribute",
+					"search_key": "variable.{{unused}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'description' should be defined and not null",
+					"actual_value": "'description' is undefined or null"
+				}
+			]
+		},
+		{
+			"query_name": "Variable Without Type",
+			"query_id": "fc5109bf-01fd-49fb-8bde-4492b543c34a",
+			"query_url": "https://www.terraform.io/docs/language/values/variables.html#input-variable-documentation",
+			"severity": "INFO",
+			"platform": "Terraform",
+			"cwe": "710",
+			"risk_score": "0.0",
+			"cloud_provider": "COMMON",
+			"category": "Best Practices",
+			"experimental": false,
+			"description": "All variables should contain a valid type.",
+			"description_id": "bba696eb",
+			"files": [
+				{
+					"file_name": "../../work/fixture/src/terraform/main.tf",
+					"similarity_id": "31dd71402e79a5bd074bda8061aa848d8913a4826f4c08f122e40a8d0fc35030",
+					"line": 9,
+					"resource_type": "n/a",
+					"resource_name": "n/a",
+					"issue_type": "MissingAttribute",
+					"search_key": "variable.{{unused}}",
+					"search_line": -1,
+					"search_value": "",
+					"expected_value": "'type' should be defined and not null",
+					"actual_value": "'type' is undefined or null"
+				}
+			]
+		}
+	]
+}

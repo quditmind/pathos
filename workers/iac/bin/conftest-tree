@@ -1,0 +1,36 @@
+#!/usr/local/bin/python3 -I
+"""Runs Conftest with the PATHOS policy bundle on the Kubernetes manifests,
+Dockerfiles and Terraform files of a directory tree and prints one JSON
+array of results (conftest test --output json). Each file is tested on its
+own, so a file Conftest cannot parse is reported on stderr and skipped
+instead of failing the whole run. Exit status 0 when Conftest ran, other
+values on errors.
+"""
+import json
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import iacfiles  # noqa: E402
+
+CONFTEST = "/opt/pathos/iac/bin/conftest"
+POLICY = "/opt/pathos/iac/policy"
+
+if sys.argv[1:] == ["--version"]:
+    os.execv(CONFTEST, [CONFTEST, "--version"])
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    iacfiles.usage("conftest-tree")
+root = sys.argv[1]
+inputs = [(p, "dockerfile") for p in iacfiles.dockerfiles(root)]
+inputs += [(p, "yaml") for p in iacfiles.k8s_manifests(root)]
+inputs += [(p, "hcl2") for p, n in iacfiles.files(root) if n.endswith(".tf")]
+results = []
+for path, parser in sorted(inputs):
+    run = subprocess.run([CONFTEST, "test", "--all-namespaces", "--no-fail", "--no-color", "--policy", POLICY, "--parser", parser,
+                          "--output", "json", "--", path], stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
+    if run.returncode != 0:
+        sys.stderr.write("conftest: %s skipped: %s\n" % (path, run.stderr.decode(errors="replace").strip()[-300:]))
+        continue
+    results.extend(json.loads(run.stdout or b"[]"))
+json.dump(results, sys.stdout)

@@ -1,0 +1,33 @@
+#!/usr/local/bin/python3 -I
+"""Runs cfn_nag on the CloudFormation templates of a directory tree (files
+that declare AWSTemplateFormatVersion or AWS:: resource types) and prints
+the JSON array of per-template results that cfn_nag_scan writes.
+Exit status 0 when cfn_nag ran, other values on errors.
+"""
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import iacfiles  # noqa: E402
+
+CFN_NAG = "/opt/pathos/iac/ruby/bin/cfn_nag_scan"
+
+if sys.argv[1:] == ["--version"]:
+    run = subprocess.run([CFN_NAG, "--version"], stdout=subprocess.PIPE, check=True)
+    sys.stdout.write("cfn_nag " + run.stdout.decode().strip() + "\n")
+    sys.exit(0)
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    iacfiles.usage("cfn-nag-tree")
+results = []
+for path in iacfiles.cfn_templates(sys.argv[1]):
+    # cfn_nag_scan scans one template (or a directory of only templates).
+    run = subprocess.run([CFN_NAG, "--input-path", path, "--output-format", "json"], stdout=subprocess.PIPE, check=False)
+    # 0: no failures; otherwise the number of failures (capped by the shell).
+    out = run.stdout.strip()
+    if not out:
+        sys.exit(run.returncode or 1)
+    results.extend(json.loads(out))
+json.dump(results, sys.stdout)
