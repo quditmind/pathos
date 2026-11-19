@@ -1,0 +1,23 @@
+# Dalfox: XSS scanner. Tests the parameters of the target URL and the
+# parameters it finds on that page (it does not crawl). Intrusive.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: dalfox
+display_name: Dalfox
+category: dast
+scan_types: [dast]
+license_spdx: MIT
+homepage: https://github.com/hahwul/dalfox
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["dalfox", "--version"]
+args: ["dalfox", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 40m
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:dalfox

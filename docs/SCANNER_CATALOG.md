@@ -70,6 +70,28 @@ The opt-in `worker-sca` family image (Compose profile `sca`) adds language-speci
 
 Not shipped: `dotnet list package --vulnerable` (it needs the .NET SDK, about 700 MB, and an MSBuild restore, which evaluates the repository's project files, that is repository code; OSV-Scanner and Trivy in `worker-core` cover NuGet lockfiles) and OWASP dep-scan (its smallest vulnerability database is 395 MB compressed, too large to bundle; dep-scan reports can be imported with the `dep-scan` format). npm, yarn, pnpm and Composer audit read the lockfile in the repository root only. The advisory snapshots of cargo-audit, bundler-audit and Retire.js are as recent as the image. The registry hosts are not in the default egress allowlist: `deploy/egress/conf.d/sca-registries.conf.disabled` lists them for the operator to enable ([OPERATIONS.md](OPERATIONS.md#family-worker-images)).
 
+The opt-in `worker-dast` family image (Compose profile `dast`) adds tools for authorized **web application (`url`) and API (`api`) scan targets**, also defined only by manifests (`workers/dast/tools.d`). Every one contacts the target (`network: target`: the target needs an authorization statement); the intrusive ones also need the target's intrusive testing flag. They run through the image's `dast-run` helper, which confines them to the target host, the egress proxy and the target's rate limit ([DAST tools](user-guide/dast.md)). They are never part of a repository scan profile.
+
+| Tool (catalog key) | Runs on | Intrusive | Findings | Output (parser) |
+|---|---|---|---|---|
+| OWASP ZAP 2.17.0 baseline scan (`zap-baseline`) | URL and API targets | no | dast | ZAP traditional JSON (`import:zap`) |
+| OWASP ZAP 2.17.0 full scan (`zap`) | URL and API targets | **yes** | dast | `import:zap` |
+| OWASP ZAP 2.17.0 API scan (`zap-api-scan`) | API targets (OpenAPI document) | **yes** | api | `import:zap` |
+| Wapiti 3.3.2 (`wapiti`) | URL and API targets | **yes** | dast | Wapiti JSON (`import:wapiti`) |
+| Dalfox 3.3.0 (`dalfox`) | URL and API targets | **yes** | dast | Dalfox JSON (`import:dalfox`) |
+| ffuf 2.3.0 (`ffuf`) | URL and API targets | **yes** | dast | ffuf JSON (`import:ffuf`) |
+| testssl.sh 3.2.5 (`testssl`) | https URL and API targets | no | misconfiguration | testssl.sh JSON (`import:testssl`) |
+| SSLyze 6.3.1 (`sslyze`) | https URL and API targets | no | misconfiguration | SSLyze JSON (`import:sslyze`) |
+| Schemathesis 4.33.4 (`schemathesis`) | API targets (OpenAPI document) | **yes** | api | Schemathesis JSON report (`import:schemathesis`) |
+| Arjun 2.2.7 (`arjun`) | URL and API targets | **yes** | dast | Arjun JSON, turned into one record per parameter by `dast-run` (`jsonmap`) |
+| sqlmap 1.10.11 (`sqlmap`), opt-in build | URL and API targets | **yes** | database | sqlmap results CSV (`import:sqlmap`) |
+| Nikto 2.6.1 (`nikto`), opt-in build | URL and API targets | **yes** | dast | Nikto JSON (`import:nikto`) |
+
+- **ZAP** is the official 2.17.0 core release with a reviewed set of add-ons at their current versions for 2.17 (`workers/dast/build/zap-addons.txt`; no browser-based, telemetry-only or desktop add-ons). Those add-ons bundle netty, Jackson and Guava versions with fixed HIGH/CRITICAL CVEs; the image replaces them at build time with netty 4.1.141.Final, Jackson 2.22.4 and Guava 33.7.2-jre (`workers/dast/build/patch-zap-addons.py`, jars SHA-256 pinned). ZAP runs on Debian's OpenJDK 21 (headless). It uses the automation framework; the plan is written by `dast-run` (context limited to the target host, ZAP's own rate limit rule, no out-of-band callback service).
+- **sqlmap** and **Nikto** are in the image only when it is built with `WITH_SQLMAP=true` or `WITH_NIKTO=true` (Compose: `PATHOS_DAST_WITH_SQLMAP`, `PATHOS_DAST_WITH_NIKTO`). sqlmap's licence (GPL-2.0-or-later with the authors' interpretation) treats software that runs sqlmap and parses its results as a derived work; Nikto's test databases may be distributed only with the full Nikto package and used only with Nikto. Their catalog decision is *restricted*. sqlmap runs in batch mode with `--risk=1 --level=1` (detection only: never `--dump`, file, OS or SQL shell options).
+- **Nuclei** DAST templates for APIs are already run by `worker-core` for API targets (all 251 templates of the `dast` directory), so the pack does not add them again.
+- Target credentials are **not** passed to these tools (their reports can contain request headers, and raw reports are stored as they are): they scan as an anonymous visitor.
+
 Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#adding-a-tool-tool-manifests). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
 Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. The rule packs for cryptography, database security, AI/LLM applications and non-GitHub CI/CD pipelines (`workers/rules/pathos-{crypto,database,ai,cicd}.yml`, [below](#opengrep-rule-packs)) use the `crypto`, `database`, `ai` and `cicd` categories. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
@@ -133,12 +155,12 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 48a | File licences (licensecheck) | License compliance (file level) | BSD-3-Clause (library) | active | Use | **Implemented** (built into the worker); violations of the licence policy become findings |
 | 48b | ClamAV (repository content) | Malware | GPL-2.0 (separate service) | active | Use | **Implemented** (opt-in; needs the clamd service) |
 | 48c | Binary hardening (checksec-style) | Binary analysis | Apache-2.0 (PATHOS) | n/a | Use | **Implemented** (built into the worker; ELF, PE, Mach-O) |
-| 49 | OWASP ZAP | DAST | Apache-2.0 | active | Use (target URL, not repo) | Runs against deployed app. Separate worker family and network policy |
+| 49 | OWASP ZAP | DAST | Apache-2.0 | active | Use (target URL, not repo) | **Implemented** (`worker-dast` manifests: baseline `zap-baseline`, full scan `zap`, API scan `zap-api-scan`) |
 | 50 | Nuclei | DAST / templated checks | MIT | active | Use (target URL) | **Implemented** (URL and API targets) |
-| 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | |
+| 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | **Implemented** (`worker-dast` manifest, API targets, intrusive) |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
-Count: **55 scanner integrations**: 48 "Use" plus 7 optional or license-restricted. The 8 supporting utilities below bring the total to 63 integrations. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
+Count: **55 scanner integrations**: 48 "Use" plus 7 optional or license-restricted. The `worker-dast` pack adds 10 catalog entries in `backend/internal/scanners/catalog_dast.go` (ZAP baseline and API scan, Wapiti, Dalfox, ffuf, testssl.sh, SSLyze, Arjun, and the restricted sqlmap and Nikto) and updates ZAP (full scan) and Schemathesis in place. The 8 supporting utilities below bring the total to 63 integrations. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
 
 ## Supporting utilities (not counted as scanners)
 
@@ -387,29 +409,29 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 | Scan type (id) | Finding categories | Tools in the catalog |
 |---|---|---|
 | SAST (`sast`) | sast | Opengrep, Bandit, njsscan, gosec, Psalm, Bearer, Semgrep CE, CodeQL, … |
-| DAST (`dast`) | dast | Nuclei, OWASP ZAP, PATHOS endpoint verification |
+| DAST (`dast`) | dast | Nuclei, OWASP ZAP (full, baseline, API), PATHOS endpoint verification, Wapiti, Dalfox, ffuf, Arjun, sqlmap, Nikto |
 | SCA (`sca`) | sca, eol | Trivy, Grype, OSV-Scanner, Dependency-Check, govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, …, endoflife.date |
 | Secrets (`secrets`) | secrets | Gitleaks, TruffleHog, detect-secrets, Kingfisher, Talisman |
 | IaC (`iac`) | iac | Checkov, KICS, KubeLinter, Kubescape, TFLint, Conftest, Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config) |
 | Container (`container`) | container | Trivy (image), Dockle |
-| API security (`api`) | api, dast | Nuclei (API targets), Schemathesis |
+| API security (`api`) | api, dast | Nuclei (API targets), Schemathesis, OWASP ZAP API scan |
 | IAST (`iast`) | iast | (imports only) |
 | Mobile (`mobile`) | mobile | mobsfscan |
-| Fuzzing (`fuzzing`) | fuzz | (imports and plugins) |
+| Fuzzing (`fuzzing`) | fuzz | ffuf, Schemathesis (their findings are recorded as dast and api) |
 | Licence (`license`) | license | licensecheck, ScanCode, Trivy (license) |
 | SBOM (`sbom`) | (inventory, no findings) | Syft, cdxgen |
 | Malware (`malware`) | malware | ClamAV, GuardDog |
 | Code-quality security (`code-quality`) | code-quality | ShellCheck, Pylint, golangci-lint, PHPStan, PMD, Ruff |
 | Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard, GuardDog, pathos-depcheck |
-| Cryptography (`crypto`) | crypto | Opengrep (PATHOS cryptography rules) |
-| Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules) |
+| Cryptography (`crypto`) | crypto | Opengrep (PATHOS cryptography rules), testssl.sh, SSLyze (their findings are recorded as misconfiguration) |
+| Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules), testssl.sh, SSLyze, Nikto |
 | CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac), Opengrep (PATHOS GitLab CI, Azure Pipelines, Bitbucket and Jenkins rules) |
 | Binary (`binary`) | binary | Binary hardening |
 | AI / LLM (`ai`) | ai | Opengrep (PATHOS AI/LLM rules) |
 | Runtime (`runtime`) | runtime | (imports and plugins) |
 | Compliance (`compliance`) | compliance | kube-bench |
 | Licence policy (`license-policy`) | license | Licence policy (evaluated by the server) |
-| Database security (`database`) | database | Opengrep (PATHOS database rules) |
+| Database security (`database`) | database | Opengrep (PATHOS database rules), sqlmap (opt-in build) |
 | Manual review (`manual`) | any | PATHOS findings JSON, CSV and SARIF imports, HackerOne, Bugcrowd and Intigriti exports, Human Eye reviews |
 
 

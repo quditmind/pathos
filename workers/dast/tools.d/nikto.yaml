@@ -1,0 +1,24 @@
+# Nikto: web server checks (dangerous files, outdated software, server
+# misconfiguration), every test category except denial of service. Intrusive.
+# Opt-in build only (WITH_NIKTO, see workers/dast/Dockerfile).
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: nikto
+display_name: Nikto
+category: dast
+scan_types: [dast, configuration]
+license_spdx: LicenseRef-Nikto
+homepage: https://github.com/sullo/nikto
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["nikto", "--version"]
+args: ["nikto", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 40m
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:nikto

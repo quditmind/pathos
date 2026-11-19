@@ -105,6 +105,17 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-sca | Retire.js (repository snapshot), yarn 1.22.22, pnpm 11.28.12, npm 12.2.3, cdxgen 12.9.2 | 6.1.1 | Apache-2.0 (yarn BSD-2-Clause, pnpm MIT, npm Artistic-2.0, cdxgen Apache-2.0) | `npm ci` from `workers/sca/npm/package-lock.json` (integrity hashes), install scripts off; Node.js 24.22.3 release archive, SHA-256 pinned |
 | worker-sca | Composer (PHP from Debian) | 2.11.2 | MIT | Release phar, SHA-256 pinned |
 | worker-sca | OWASP Dependency-Check (Temurin JRE 21.0.13.1+2) | 13.0.0 | Apache-2.0 (JRE: GPL-2.0-with-classpath-exception) | Release archives, SHA-256 pinned; jackson 2.22.3, Guava 33.7.2 and jsoup 1.23.2 jars from Maven Central (SHA-256 pinned) replace the bundled versions (fixable CVEs) |
+| worker-dast | OWASP ZAP (core) with 17 add-ons | 2.17.0 | Apache-2.0 | Core release archive and add-ons (`workers/dast/build/zap-addons.txt`), SHA-256 pinned; bundled netty, Jackson and Guava replaced with 4.1.141.Final, 2.22.4 and 33.7.2-jre from Maven Central (SHA-256 pinned, `workers/dast/build/zap-maven-jars.txt`) |
+| worker-dast | OpenJDK runtime (headless) | 21 (Debian trixie package) | GPL-2.0 with Classpath exception | `apt-get install openjdk-21-jre-headless` |
+| worker-dast | Wapiti | 3.3.2 | GPL-2.0-only | `pip install --require-hashes` into `/opt/pathos/dast` (`workers/dast/requirements.txt`) |
+| worker-dast | SSLyze (with nassl 5.4.0) | 6.3.1 | AGPL-3.0-only | Same; cryptography 50.0.2 and pyOpenSSL 26.4.0 replace the versions SSLyze allows (fixable CVEs) |
+| worker-dast | Schemathesis | 4.33.4 | MIT | Same |
+| worker-dast | Arjun | 2.2.7 | AGPL-3.0-only (LICENSE file; the package metadata says GPLv3) | Same |
+| worker-dast | Dalfox | 3.3.0 | MIT | Release binary (statically linked), SHA-256 pinned |
+| worker-dast | ffuf | 2.3.0 | MIT | Built from its Go module with Go 1.27.4; golang.org/x/net raised to v0.62.0 (fixable CVEs) |
+| worker-dast | testssl.sh | 3.2.5 | GPL-2.0-only | Source archive of the release tag, SHA-256 pinned; uses the system OpenSSL (the bundled legacy OpenSSL binaries are not installed) |
+| worker-dast (opt-in build) | sqlmap | 1.10.11 | GPL-2.0-or-later (with the authors' interpretation of derived works) | `pip install --require-hashes` (`workers/dast/requirements-sqlmap.txt`), only with `WITH_SQLMAP=true` |
+| worker-dast (opt-in build) | Nikto | 2.6.1 | GPL-3.0 (code); databases: Nikto-only terms (`LicenseRef-Nikto`) | Source archive of the release tag, SHA-256 pinned, only with `WITH_NIKTO=true` |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 

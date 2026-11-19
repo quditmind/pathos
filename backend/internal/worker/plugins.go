@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -448,6 +449,11 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 	var env []string
 	if t.def.Network == "none" {
 		env = append(env, noProxyEnv...)
+	}
+	if t.def.Network == "target" && in.Target != nil {
+		// The target's rate limit (requests per second), for the tool or
+		// its wrapper (manifest env cannot set PATHOS_ variables).
+		env = append(env, "PATHOS_TARGET_RATE_LIMIT="+strconv.Itoa(targetRate(in.Target)))
 	}
 	keys := make([]string, 0, len(t.def.Env))
 	for k := range t.def.Env {

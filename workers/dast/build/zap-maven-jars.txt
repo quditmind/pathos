@@ -1,0 +1,21 @@
+# Patched libraries for the ZAP add-ons (workers/dast/build/patch-zap-addons.py),
+# from Maven Central (https://repo1.maven.org/maven2/<path>). SHA-256 computed
+# when the versions were pinned (the files' SHA-1 matched Maven Central's).
+# <path> <sha256>
+com/google/guava/guava/33.7.2-jre/guava-33.7.2-jre.jar b530942257fb935f8b2cfaa5f8eb5bd59c555fd8e8d01b8ce98912e077ea606c
+com/fasterxml/jackson/core/jackson-annotations/2.22/jackson-annotations-2.22.jar 21ddb598807d3a51a876704eb979d9296e1c6a6f47ab1826ff88c6d6a127a2d0
+com/fasterxml/jackson/core/jackson-core/2.22.4/jackson-core-2.22.4.jar 2d30c375cddea9657a1e1ef97547a2694b663b355facb4de53a097782b312d1a
+com/fasterxml/jackson/core/jackson-databind/2.22.4/jackson-databind-2.22.4.jar d4cbf8947087f305869826801913abdc50735a1fab2074a1993e7bc67ca974a3
+com/fasterxml/jackson/dataformat/jackson-dataformat-xml/2.22.4/jackson-dataformat-xml-2.22.4.jar f335b5148fcb4e53f9dcb5c491362ceb60fabfe59bcda5272289d0fbc4bbb6d6
+com/fasterxml/jackson/dataformat/jackson-dataformat-yaml/2.22.4/jackson-dataformat-yaml-2.22.4.jar 2f55e2b864f6354b24d4bcccd488f7c4a3fce4977f8c8dbad07242a68e11dde9
+com/fasterxml/jackson/datatype/jackson-datatype-jdk8/2.22.4/jackson-datatype-jdk8-2.22.4.jar 2dea0c4f0a5dafaf1bd8b5e694090fe0043c29ba04367dbd38ec0869aca2bce9
+com/fasterxml/jackson/datatype/jackson-datatype-jsr310/2.22.4/jackson-datatype-jsr310-2.22.4.jar ec961697cbd631935b6fb6f673406861c75243521fb67fec10b59f1412ac50f7
+io/netty/netty-buffer/4.1.141.Final/netty-buffer-4.1.141.Final.jar 1d9fbe43dd93c5a447ec13a9f877cfdaac17dc1da947b87439cb7d8ffbd731e3
+io/netty/netty-codec/4.1.141.Final/netty-codec-4.1.141.Final.jar a4e8bcd07e74ce3300ec18af52d1c4aa46b5a33ae25a6fe9ae281f812cb131b0
+io/netty/netty-codec-http2/4.1.141.Final/netty-codec-http2-4.1.141.Final.jar 7159b84c9002402c23a04d6ba6a4592759a5e3ad0be9527e1c1185bc2fdf7b9b
+io/netty/netty-codec-http/4.1.141.Final/netty-codec-http-4.1.141.Final.jar 2be71653e7a0214978282d95c3b41781a4386f3119ace935c9eeb52a7260812b
+io/netty/netty-common/4.1.141.Final/netty-common-4.1.141.Final.jar 27ea9204a986e08cec79ba7bedb7e9c486efdd524323d519f6ed32f7a556e3aa
+io/netty/netty-handler/4.1.141.Final/netty-handler-4.1.141.Final.jar 7074ebb3e72dad0ed9fecb6ebb3f85537d263429d7812dabf5bc9bfecfe38b1b
+io/netty/netty-resolver/4.1.141.Final/netty-resolver-4.1.141.Final.jar 22b830f044f9c3431d18eae317036cab097ccc75f8f498673d9dc32e84226b86
+io/netty/netty-transport/4.1.141.Final/netty-transport-4.1.141.Final.jar f25fec715e9d3a423df9086f5813b4b86aba53798031cb7ebac80d09188ea5cd
+io/netty/netty-transport-native-unix-common/4.1.141.Final/netty-transport-native-unix-common-4.1.141.Final.jar eb0c6fd8134ab04d4abfe9aced91ded318473322ffcefe415b76680c4e8bee02

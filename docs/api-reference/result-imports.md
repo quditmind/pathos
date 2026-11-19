@@ -182,7 +182,7 @@ These formats work like the ones above. Detection tries every tool-specific form
 
 | `format` | Tool output | Detected by | Default category | Test report |
 |---|---|---|---|---|
-| `nikto` | Nikto JSON or XML (`-Format json` / `xml`) | `host`, `port`, `vulnerabilities` with `ip` or `banner`; or `<niktoscans>` / `<niktoscan>` | `dast` | real run (Nikto 2.5.0) |
+| `nikto` | Nikto JSON or XML (`-Format json` / `xml`) | `host`, `port`, `vulnerabilities` with `ip` or `banner`; or `<niktoscans>` / `<niktoscan>` | `dast` | real run (Nikto 2.5.0; JSON also of Nikto 2.6.1, which writes the port as a number) |
 | `wapiti` | Wapiti JSON (`-f json`) | `classifications`, `vulnerabilities`, `infos` | `dast` | real run (Wapiti 3.3.2) |
 | `arachni` | Arachni JSON (`arachni_reporter --reporter=json`) | `issues`, `sitemap`, `options` | `dast` | real run (Arachni 1.5.1) |
 | `sqlmap` | sqlmap results CSV (`--results-file`, multiple-target mode) | header `Target URL`, `Place`, `Parameter`, `Technique(s)` | `dast` | real run (sqlmap 1.10.11) |

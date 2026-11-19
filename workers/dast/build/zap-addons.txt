@@ -1,0 +1,28 @@
+# ZAP add-ons installed in the worker-dast image (ZAP 2.17.0 core): the
+# add-ons a headless scan uses, at the versions listed for ZAP 2.17 in
+# https://github.com/zaproxy/zap-admin/blob/master/ZapVersions-2.17.xml,
+# with that file's SHA-256. Downloaded from
+# https://github.com/zaproxy/zap-extensions/releases/download/<id>-v<version>/<file>.
+# callhome is mandatory for ZAP to start; dast-run runs ZAP with -silent and
+# callhome.tel.enabled=false (no update check, no telemetry), and the scope
+# proxy refuses any host but the target.
+# Not installed: add-ons that need a browser (selenium, spiderAjax, client,
+# authhelper), contact third parties (retire repository updates, onlineMenu)
+# or serve the desktop UI (help, tips, quickstart, hud).
+# <file> <sha256>
+ascanrules-release-84.zap f3c0f8a9c1bcac5a8b43b63d219a698fc5656f96cf4ad4197f8b088d089d2d84
+ascanrulesBeta-beta-67.zap 81e84d592b1f7ad803470bcc8d8b659d4f7e21370546a482b606207e57a7db69
+callhome-release-0.23.0.zap eadebd4ae60c1865f6811a276a643ebe954328e2e903447bf460d8b3ef691d7f
+automation-beta-0.62.0.zap ea47570f309db7a816c9d68c0c60060f7159bb3e89770df3d4dbb9f4574d45a6
+commonlib-release-1.44.0.zap 6450205e07248c20e9c8de185268cf1cd571f3cec7f7c0e5d10178b2126834f9
+database-alpha-0.9.0.zap 4c58ca142288d9ddc6ae3fd8fe6815e3894462bae67eb0776e540a2d9ddaf87d
+graphql-alpha-0.35.0.zap 7bbf1607228556063825964ac842863a97f01b21fbe11013e94f8fe80aa935e6
+network-beta-0.33.0.zap 383f816fd5663d359f7bbde662f9a4aaf3fc9de8c59053a4abf7551e3a87d56f
+oast-beta-0.26.0.zap d1471b0bbcd75315d7d142bbd4675d950aefbd31ad39e999b6df8f09a97bda0e
+openapi-beta-58.zap 42356d818f994d3e19a2b892cebf9c058bd59ef372137411a1bacd8b4d19424b
+pscan-alpha-0.6.0.zap 269ff66f0d8a8012f156e90e13238606a8d503b99521170649b62c9aa7295927
+pscanrules-release-79.zap 824545a0c66bb0525f614153e6aee80ed10ae6a133d1624deddf85c219f6ba2d
+pscanrulesBeta-beta-50.zap a979f7cd5d8be10e0338b417e006ec1e2f6ec79101010d570ddb5199892e921b
+reports-release-0.46.0.zap 2e8d42a48e23aefa8a6174b52aa0a8a6b90aca2da0a8bf94ac61f4aaa070bc2c
+soap-beta-32.zap e7767272723a9ffee7e4cddb65d1b4941da756a380cc4c8db5ccb6012badf9fd
+spider-release-0.20.0.zap 82acf7e307fdd4f46ac4d387656370ecad9c2ab940e1c81d9776768bacdedcd5
