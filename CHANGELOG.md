@@ -4,6 +4,8 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [2.2.2] — 2026-11-20
+
 2.2.2 hardening: the open issues of the end-to-end validation ([docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md) §9). Migrations **00043** (scan concurrency indexes) and **00044** (anonymous repositories, private CA bundles, secret exclusions) are additive. Rebuild the family worker images (sast, iac, sca, fuzz, ai) and the API and worker-core images.
 
 ### Added

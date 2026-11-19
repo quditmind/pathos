@@ -4,7 +4,7 @@
 
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
-> **Status: 2.2.1 (stable).** The eight platform phases (P1–P8), the ten ASPM phases, the 1.1 gap closure and the 2.0–2.2 work are implemented and tested, all 100 register capabilities included: 25 scan types, 98 catalogued scanner integrations (81 run in PATHOS worker images), 232 import formats from 207 tools, optional multi-tenancy, published benchmarks and performance measurements. Highlights:
+> **Status: 2.2.2 (stable).** The eight platform phases (P1–P8), the ten ASPM phases, the 1.1 gap closure and the 2.0–2.2 work are implemented and tested, all 100 register capabilities included: 25 scan types, 98 catalogued scanner integrations (81 run in PATHOS worker images), 232 import formats from 207 tools, optional multi-tenancy, published benchmarks and performance measurements. Highlights:
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
