@@ -28,7 +28,7 @@ All three use the **`pathos` command-line tool**. Ready-made templates wrap it f
 Download the binary for your platform (Linux, macOS or Windows; amd64 or arm64) from the PATHOS release on GitHub. Each release has a `checksums.txt` with the SHA-256 of every binary, signed with Sigstore cosign (keyless, by the release workflow):
 
 ```bash
-v=1.1.0
+v=1.1.1
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/pathos_${v}_linux_amd64
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/checksums.txt
 sha256sum -c --ignore-missing checksums.txt
@@ -95,7 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: semgrep scan --json --output semgrep.json   # any supported scanner
-      - uses: quditmind/pathos/integrations/github-action@v1.1.0
+      - uses: quditmind/pathos/integrations/github-action@v1.1.1
         with:
           url: https://pathos.example.com
           token: ${{ secrets.PATHOS_TOKEN }}
@@ -123,12 +123,12 @@ Include the template and extend its hidden jobs:
 
 ```yaml
 include:
-  - remote: https://raw.githubusercontent.com/quditmind/pathos/v1.1.0/integrations/gitlab/pathos.gitlab-ci.yml
+  - remote: https://raw.githubusercontent.com/quditmind/pathos/v1.1.1/integrations/gitlab/pathos.gitlab-ci.yml
 
 variables:
   PATHOS_URL: https://pathos.example.com
   PATHOS_REPOSITORY: acme/payments-api
-  PATHOS_CLI_VERSION: "1.1.0"
+  PATHOS_CLI_VERSION: "1.1.1"
   # PATHOS_TOKEN: masked, protected CI/CD variable
 
 pathos-import:
@@ -157,7 +157,7 @@ steps:
     parameters:
       url: https://pathos.example.com
       repository: acme/payments-api
-      cliVersion: "1.1.0"
+      cliVersion: "1.1.1"
       importFile: semgrep.json
       failOn: high
 ```
