@@ -1,0 +1,4 @@
+# Sample for the pathos-depcheck fixture (names chosen to trigger the checks).
+--extra-index-url https://pypi.acme.example/simple
+reqeusts==2.32.3
+flask==3.0.3

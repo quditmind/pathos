@@ -1,0 +1,21 @@
+# bundler-audit: known vulnerabilities and insecure gem sources in every
+# Gemfile.lock, with the Ruby advisory database snapshot bundled in the
+# image (offline).
+name: bundler-audit
+display_name: bundler-audit
+category: sca
+scan_types: [sca]
+license_spdx: GPL-3.0-or-later
+homepage: https://github.com/rubysec/bundler-audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["bundler-audit", "--version"]
+args: ["bundler-audit", "{source}", "{output}", "{tmp}"]
+timeout: 20m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:bundler-audit

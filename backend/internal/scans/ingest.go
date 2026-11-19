@@ -51,7 +51,10 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 
 	var findings []scanners.Finding
 	parseErr := ""
-	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
+	// SBOM generators (Syft, cdxgen) produce the component inventory, not
+	// findings.
+	sbomTool := scanners.IsSBOMTool(up.Scanner)
+	if up.Status == "succeeded" && !sbomTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -104,12 +107,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		if len(raw) > 0 {
 			kind, ct := "raw", "application/sarif+json"
 			switch up.Scanner {
-			case scanners.Syft:
-				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
 				ct = "application/json"
 			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint:
 				ct = "application/json"
+			}
+			if sbomTool {
+				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			}
 			if scanners.IsImportKey(up.Scanner) {
 				// The content type records the format for evidence capture.
@@ -143,7 +147,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			return insertPRFindings(ctx, tx, jobID, findings)
 		}
 		licenses := false
-		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+		if sbomTool && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			} else {

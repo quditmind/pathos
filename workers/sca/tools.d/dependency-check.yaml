@@ -1,0 +1,26 @@
+# OWASP Dependency-Check: CPE-based matching of the repository's
+# dependencies (archives, lockfiles, manifests) against the NVD. The NVD data
+# is downloaded into the worker's cache volume: the NVD's yearly data feeds
+# (https://nvd.nist.gov) without an API key, the NVD API
+# (https://services.nvd.nist.gov) with one. The key is optional and off by
+# default: NVD_API_KEY in /etc/pathos/sca.env (mounted read-only by the
+# operator; the worker does not pass its own environment to tools).
+# Analyzers that run package managers or contact other services are off.
+name: dependency-check
+display_name: OWASP Dependency-Check
+category: sca
+scan_types: [sca]
+license_spdx: Apache-2.0
+homepage: https://github.com/dependency-check/DependencyCheck
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["dependency-check", "--version"]
+args: ["dependency-check", "{source}", "{output}", "{cache}"]
+timeout: 4h
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:dependency-check

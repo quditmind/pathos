@@ -1,0 +1,67 @@
+{
+  "tool": "pathos-depcheck",
+  "version": "1.0.0",
+  "findings": [
+    {
+      "rule_id": "DEPCHECK-PIP-EXTRA-INDEX",
+      "severity": "medium",
+      "title": "pip --extra-index-url allows dependency confusion",
+      "message": "This requirements file adds a package index with --extra-index-url. pip installs the highest version found in any index, so a package published on PyPI under the name of a private package can replace it. Use a single index that proxies PyPI, or pin every requirement with --hash.",
+      "file": "requirements.txt",
+      "line": 2,
+      "ecosystem": "pypi",
+      "cwe": "CWE-427"
+    },
+    {
+      "rule_id": "DEPCHECK-TYPOSQUAT-PYPI",
+      "severity": "high",
+      "title": "Possible typosquatting: reqeusts resembles the popular PyPI package requests",
+      "message": "The dependency reqeusts differs from the popular PyPI package requests by one character or separator. Typosquatting packages imitate popular names to be installed by mistake. Check that reqeusts is the intended package.",
+      "file": "requirements.txt",
+      "line": 3,
+      "ecosystem": "pypi",
+      "package": "reqeusts",
+      "version": "2.32.3",
+      "similar_to": "requests",
+      "cwe": "CWE-1357"
+    },
+    {
+      "rule_id": "DEPCHECK-TYPOSQUAT-PYPI",
+      "severity": "high",
+      "title": "Possible typosquatting: djnago resembles the popular PyPI package django",
+      "message": "The dependency djnago differs from the popular PyPI package django by one character or separator. Typosquatting packages imitate popular names to be installed by mistake. Check that djnago is the intended package.",
+      "file": "svc/pyproject.toml",
+      "line": 5,
+      "ecosystem": "pypi",
+      "package": "djnago",
+      "version": "5.0",
+      "similar_to": "django",
+      "cwe": "CWE-1357"
+    },
+    {
+      "rule_id": "DEPCHECK-TYPOSQUAT-NPM",
+      "severity": "high",
+      "title": "Possible typosquatting: expresss resembles the popular npm package express",
+      "message": "The dependency expresss differs from the popular npm package express by one character or separator. Typosquatting packages imitate popular names to be installed by mistake. Check that expresss is the intended package.",
+      "file": "web/package.json",
+      "line": 5,
+      "ecosystem": "npm",
+      "package": "expresss",
+      "version": "^4.19.0",
+      "similar_to": "express",
+      "cwe": "CWE-1357"
+    },
+    {
+      "rule_id": "DEPCHECK-NPM-UNMAPPED-SCOPE",
+      "severity": "medium",
+      "title": "Scope @acme-internal is not mapped to the private registry",
+      "message": ".npmrc maps other scopes to a private registry, but not @acme-internal: npm fetches @acme-internal/auth from the default registry. If @acme-internal is an internal scope, anyone who registers it on the public registry can supply this package.",
+      "file": "web/package.json",
+      "line": 8,
+      "ecosystem": "npm",
+      "package": "@acme-internal/auth",
+      "version": "2.0.0",
+      "cwe": "CWE-427"
+    }
+  ]
+}

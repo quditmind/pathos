@@ -1,0 +1,21 @@
+# pip-audit: known vulnerabilities of the pinned requirements in every
+# requirements*.txt (no pip run, no dependency resolution). Vulnerability
+# data from the PyPI JSON API (https://pypi.org) through the egress proxy.
+name: pip-audit
+display_name: pip-audit
+category: sca
+scan_types: [sca]
+license_spdx: Apache-2.0
+homepage: https://github.com/pypa/pip-audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["pip-audit", "--version"]
+args: ["pip-audit", "{source}", "{output}", "{cache}"]
+timeout: 30m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:pip-audit

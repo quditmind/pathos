@@ -1,0 +1,23 @@
+# yarn audit (Yarn 1) of the repository root's yarn.lock, without installing
+# anything. The dependency tree is sent to the npm audit endpoint
+# (https://registry.npmjs.org, or NPM_CONFIG_REGISTRY of the worker) through
+# the egress proxy. Yarn 2+ lockfiles are skipped: Yarn 2+ runs the release
+# committed in the repository.
+name: yarn-audit
+display_name: yarn audit
+category: sca
+scan_types: [sca]
+license_spdx: BSD-2-Clause
+homepage: https://classic.yarnpkg.com/en/docs/cli/audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["yarn-audit", "--version"]
+args: ["yarn-audit", "{source}", "{output}", "{cache}"]
+timeout: 20m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:yarn-audit
