@@ -14,6 +14,8 @@ import { useRepoMutation, useTagCategories } from "@/features/repos/api";
 import { FormField } from "@/features/repos/metadata/fields";
 import { tagSwatches } from "@/features/repos/metadata/TagPicker";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { TagFrameworkPanel } from "@/features/inventory/TagFrameworkPanel";
+import { useFeatureFlag } from "@/features/shell/meta";
 
 export function TagsPage() {
   const { canOrgWide } = useSession();
@@ -30,6 +32,7 @@ export function TagsPage() {
   const delCat = useRepoMutation((id: string) => api(`/api/v1/tag-categories/${id}`, { method: "DELETE" }));
   const delTag = useDeleteTag();
   const error = update.error ?? delCat.error;
+  const framework = useFeatureFlag("onboarding");
 
   return (
     <>
@@ -111,6 +114,7 @@ export function TagsPage() {
           ))}
         </div>
       )}
+      {framework && <TagFrameworkPanel />}
       <CreateCategory open={creating} onOpenChange={setCreating} />
       {tagDialog && <TagDialog category={tagDialog.category} tag={tagDialog.tag} onClose={() => setTagDialog(null)} />}
       <ConfirmDialog

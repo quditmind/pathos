@@ -14,6 +14,8 @@ import { fieldLabels, sections, slugify } from "@/features/repos/metadata/model"
 import { cn } from "@/lib/utils";
 import { catalog, useAssetSettings, useCreateClassification, useUpdateAssetSettings, useUpdateClassification, type ClassificationInput } from "./api";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { ApplicationFieldsSettings } from "@/features/inventory/ApplicationFieldsSettings";
+import { useFeatureFlag } from "@/features/shell/meta";
 
 export const kindLabels: Record<ClassificationKind, { title: string; help: string }> = {
   criticality: { title: "Criticality", help: "Fixed four levels. Labels, descriptions and colours are editable; colours also feed the suggested asset colours." },
@@ -24,6 +26,7 @@ export const kindLabels: Record<ClassificationKind, { title: string; help: strin
   compliance: { title: "Compliance scope", help: "Regimes that apply to the asset. Applicability, not certification." },
   hosting_region: { title: "Hosting region", help: "Where workloads run (cloud regions, data centres). Independent of business regions." },
   lifecycle_status: { title: "Lifecycle status", help: "Life-cycle states; colours feed the suggested asset colours." },
+  authentication_model: { title: "Authentication model", help: "How an application authenticates its users and clients (application classification)." },
 };
 
 const kinds = Object.keys(kindLabels) as ClassificationKind[];
@@ -50,6 +53,7 @@ export function AssetSettingsPage() {
   const [prefix, setPrefix] = useState("");
   const [saved, setSaved] = useState(false);
   const [kind, setKind] = useState<ClassificationKind>("criticality");
+  const onboarding = useFeatureFlag("onboarding");
 
   useEffect(() => {
     if (settings.data) {
@@ -232,6 +236,7 @@ export function AssetSettingsPage() {
           )}
         </Card>
       </div>
+      {onboarding && <ApplicationFieldsSettings manage={manage} />}
     </>
   );
 }

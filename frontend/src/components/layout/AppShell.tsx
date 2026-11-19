@@ -70,8 +70,9 @@ import {
   RadioTower,
   Microscope,
   ToggleRight,
+  Rocket,
 } from "lucide-react";
-import type { FeatureFlag } from "@/features/shell/meta";
+import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
 import { HelpMenu } from "@/features/shell/HelpMenu";
 import { ShellProvider } from "@/features/shell/ShellProvider";
@@ -90,7 +91,11 @@ export type NavItem = {
   perm?: string;
   /** Roadmap milestone of a not-yet-built item: shown disabled with "arrives in roadmap phase N". */
   phase?: number;
-  /** Feature flag that will gate the module once it exists (server-side, default off). */
+  /**
+   * Feature flag of the module (server-side, default off). An item with a
+   * route and a flag is a link only while the flag is on; otherwise it shows
+   * disabled with its phase.
+   */
   flag?: FeatureFlag;
   /** Sub-heading shown above the item when it changes within a group. */
   section?: string;
@@ -107,13 +112,14 @@ export const groups: NavGroup[] = [
     label: "Home",
     items: [
       { label: "Dashboard", to: "/", icon: <LayoutDashboard /> },
-      { label: "Lifecycle overview", icon: <Workflow />, phase: 3, flag: "lifecycle_overview" },
+      { label: "Lifecycle overview", to: "/lifecycle", icon: <Workflow />, perm: "repos.read", phase: 3, flag: "lifecycle_overview" },
     ],
   },
   {
     label: "1 · Connect",
     items: [
       { label: "Connectors", icon: <Cable />, phase: 2, flag: "connectors" },
+      { label: "Onboard an application", to: "/onboarding", icon: <Rocket />, perm: "repos.manage", phase: 3, flag: "onboarding" },
       { label: "Add repositories", to: "/repositories/import", icon: <FolderPlus />, perm: "repos.manage" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
@@ -235,6 +241,17 @@ export const groups: NavGroup[] = [
 /** Multi-tenant installs: Installation › Organizations, first in Administration, for installation administrators. */
 export const installationItem: NavItem = { label: "Organizations", to: "/installation/organizations", icon: <Building2 /> };
 
+/**
+ * The item as rendered: a flagged item keeps its route only while its flag
+ * is on (otherwise it is a roadmap item, disabled with its phase); an
+ * enabled flagged item drops its phase badge.
+ */
+export function navTarget(it: NavItem, flags: Record<string, boolean>): NavItem {
+  if (!it.flag) return it;
+  if (it.to && flags[it.flag] === true) return { ...it, phase: undefined };
+  return { ...it, to: undefined };
+}
+
 export function navGroupsFor(installationAdmin: boolean): NavGroup[] {
   if (!installationAdmin) return groups;
   return groups.map((g) => (g.label === "Administration" ? { ...g, items: [installationItem, ...g.items] } : g));
@@ -277,6 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // not an organization permission.
   const tenancy = useMyOrganizations();
   const navGroups = navGroupsFor(!!(tenancy.data?.multi_tenant && tenancy.data.installation_admin));
+  const { flags } = useFeatureFlags();
 
   return (
     <ShellProvider>
@@ -299,7 +317,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {!collapsed && (
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
-                {items.map((it, idx) => {
+                {items.map((item, idx) => {
+                  const it = navTarget(item, flags);
                   const active =
                     it.to &&
                     (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));

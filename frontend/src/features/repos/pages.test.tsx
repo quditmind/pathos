@@ -24,6 +24,7 @@ const settings: AssetSettings = {
     compliance: [cls("compliance", "pci", "PCI DSS")],
     hosting_region: [cls("hosting_region", "eu-west-1", "AWS eu-west-1")],
     lifecycle_status: [cls("lifecycle_status", "active", "Active", "#1e7b45")],
+    authentication_model: [],
   },
   upload: { max_bytes: 2 ** 31, chunk_size: 8 * 2 ** 20, formats: ["zip", "tar", "tar.gz"] },
   suggested_colors: [{ key: "critical", label: "Mission critical", color: "#b42318" }],

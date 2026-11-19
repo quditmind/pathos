@@ -4,6 +4,27 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### PATHOS 3.0 M3 — Onboarding and inventory
+
+Migrations 00046 and 00047 are additive. Everything new is behind the feature flags `onboarding` and `lifecycle_overview` (off by default), except `GET /api/v1/applications/{id}`.
+
+#### Added
+- **Onboarding flow** (`/onboarding`, **1 · Connect › Onboard an application**): connect → discover repositories → find existing asset → register → tag and classify → save to inventory → start discovery. Steps 1–2 reuse the import wizard's SCM source picker; new repositories are registered through the existing import jobs with the application's classification; linked repositories get their first scan. A draft can be resumed (`/onboarding?app=`) ([guide](docs/user-guide/application-onboarding.md)).
+  - **Find existing asset** (`POST /api/v1/onboarding/match`): matches repositories by connection and external ID or normalised URL (`github.com/acme/payments-api` for every URL spelling), onboardings in progress, and applications by contained repository, shared owner namespace and name similarity, with reasons and a score. *Link to existing* or *Register as new*.
+  - **No duplicates**: `asset_onboardings` is unique per organization and repository location (and per connection and external ID, and per repository); a second onboarding fails with PTH-ONB-1008 and creates nothing, also under concurrent requests (integration test with eight parallel registrations). A repository already in PATHOS is linked, never imported again.
+  - **Drafts**: incomplete applications are saved with the status *Onboarding: N of M fields* and listed with it on **Applications**. Languages, frameworks, runtime, hosting region and data residency are filled from repository metadata, the SBOM and the provider and marked *detected*; editing a field removes the mark.
+- **Application classification**: business (owner, business unit, criticality, security and technical owner), technical (application type, languages, frameworks, runtime), security (data classification, internet exposure, compliance scope, authentication model), geography (hosting region, data residency) and environment (environment, lifecycle). New catalogue *Authentication model* in Asset settings. Mandatory application fields are configurable under **Configurations › Asset settings › Application fields** (`GET/PATCH /api/v1/application-settings`).
+- **Tag framework** on **Inventory › Tags**: category colours, categories mandatory per application type (blocks Save to inventory, PTH-ONB-1010), automatic tagging rules from classification, repository topics (technology labels) or path patterns (run on classification and on demand; they only add tags), bulk tagging of applications and repositories with confirmation, and tag history (who, when, old and new tags, source).
+- **Application profile** `/applications/{id}`: Overview (posture of the last 90 days and a lifecycle progress strip), Repositories, Classification & tags, Versions, Findings and SBOM & components filtered to the application, Activity & audit; CodeGraph, Threat model and Remediation are shown disabled ("arrives in M4/M5/M8"). The application name on **Applications** links to it; a row click and `?app=` still open the edit dialog.
+- **Lifecycle overview** `/lifecycle` (**Home**): every application and which of the nine phases hold real data, with links; phases without data say so.
+- API: `GET /api/v1/applications/{id}`, `PATCH /api/v1/applications/{id}/classification`, `GET /api/v1/applications/{id}/lifecycle`, `/activity`, `/onboarding`, `POST /api/v1/applications/{id}/onboarding/complete`, `/onboarding/discovery`, `/detect`, `POST /api/v1/onboarding/match`, `POST`/`GET /api/v1/onboarding`, `GET`/`PATCH /api/v1/application-settings`, `GET /api/v1/tag-framework`, `PATCH /api/v1/tag-categories/{id}/framework`, `POST`/`PATCH`/`DELETE /api/v1/tag-rules[/{id}]`, `POST /api/v1/tag-rules/{id}/apply`, `POST /api/v1/tag-assignments/bulk`, `GET /api/v1/tag-history`, `GET /api/v1/lifecycle/overview`; `application_id` filter on `GET /api/v1/sbom/components` ([API](docs/api-reference/applications.md#onboarding)).
+- Error codes PTH-ONB-1008 (repository already being onboarded), PTH-ONB-1009 (mandatory application fields missing), PTH-ONB-1010 (mandatory application tags missing), PTH-ONB-1011 (application name already exists); `already_registered` maps to PTH-ONB-1004.
+- The sidebar enables a flagged item (Lifecycle overview, Onboard an application) only while its flag is on; otherwise it stays a disabled roadmap item.
+
+#### Changed
+- The Findings page accepts `?application_id=` (the API already did).
+- The cross-tenant isolation suite enables the M3 flags in both organizations, maps `tag-rules`, seeds organization B with rules, onboardings, application tags and history, adds valid-body fixtures for the new writes and raises its coverage floors (138 write routes reaching the organization check, 12 parent-in-body controls).
+
 ### PATHOS 3.0 M1 — Enterprise shell (backend)
 
 Migration 00043 is additive (one new table, `feature_flags`). API error responses keep every existing field; the new ones are added inside `error`.

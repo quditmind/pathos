@@ -79,6 +79,9 @@ import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
 import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPage";
 import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
 import { FeatureFlagsPage } from "@/features/flags/FeatureFlagsPage";
+import { ApplicationProfilePage, validateProfileSearch } from "@/features/inventory/ApplicationProfilePage";
+import { OnboardingFlowPage, validateOnboardingFlowSearch } from "@/features/inventory/OnboardingFlowPage";
+import { LifecyclePage } from "@/features/inventory/LifecyclePage";
 
 function Authenticated() {
   const me = useMe();
@@ -216,6 +219,11 @@ const schedulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/sca
 const notifyRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/notifications", component: NotificationsPage });
 const riskRoute = createRoute({ getParentRoute: () => appRoute, path: "/risk", component: RiskPage });
 const sbomRoute = createRoute({ getParentRoute: () => appRoute, path: "/sbom", component: SbomPage });
+// PATHOS 3.0 M3 (flags "onboarding" and "lifecycle_overview"; the pages show
+// "not enabled" while their flag is off).
+const appProfileRoute = createRoute({ getParentRoute: () => appRoute, path: "/applications/$id", component: ApplicationProfilePage, validateSearch: validateProfileSearch });
+const onboardingFlowRoute = createRoute({ getParentRoute: () => appRoute, path: "/onboarding", component: OnboardingFlowPage, validateSearch: validateOnboardingFlowSearch });
+const lifecycleRoute = createRoute({ getParentRoute: () => appRoute, path: "/lifecycle", component: LifecyclePage });
 const appVersionsRoute = createRoute({ getParentRoute: () => appRoute, path: "/applications/$id/versions", component: ApplicationVersionsRoute });
 const vexRoute = createRoute({ getParentRoute: () => appRoute, path: "/vex", component: VexPage });
 const portfolioRoute = createRoute({ getParentRoute: () => appRoute, path: "/portfolio", component: PortfolioPage });
@@ -254,7 +262,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 
