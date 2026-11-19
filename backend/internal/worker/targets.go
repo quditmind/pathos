@@ -213,7 +213,11 @@ func proxyURL() string {
 var nucleiTemplates = "/opt/pathos/nuclei-templates"
 
 // nucleiArgs builds a Nuclei command line. DAST never runs denial-of-service,
-// brute-force or intrusive templates; URL scans also skip fuzzing.
+// brute-force or intrusive templates. URL scans skip fuzzing; API scans fuzz
+// the documented endpoints with the DAST templates (which send injection
+// payloads) only when intrusive testing of the target is authorized, and
+// otherwise run the same non-fuzzing checks as URL scans on the API's
+// endpoints.
 func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	args := []string{"-jsonl", "-o", out, "-or", "-ot", "-silent", "-nc", "-duc", "-ni", "-timeout", "10", "-retries", "1"}
 	args = append(args, "-rl", strconv.Itoa(targetRate(t)))
@@ -222,8 +226,13 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	}
 	switch t.Kind {
 	case "api":
-		args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
-			"-etags", "dos,intrusive,bruteforce")
+		if t.IntrusiveAuthorized {
+			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
+				"-etags", "dos,intrusive,bruteforce")
+		} else {
+			args = append(args, "-l", specFile, "-im", "openapi", "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
+				"-etags", "dos,intrusive,bruteforce,fuzz")
+		}
 	case "endpoints":
 		// Declared public endpoints: the exposure subset only (exposed
 		// files and panels, subdomain takeovers), never fuzzing.

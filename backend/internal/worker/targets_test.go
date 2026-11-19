@@ -24,7 +24,13 @@ func TestNucleiArgs(t *testing.T) {
 	if slices.Contains(url, "-dast") {
 		t.Error("URL scans must not fuzz")
 	}
-	api := nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example", RateLimit: 500, AuthType: "basic", Username: "u", Password: "p"}, "/o", "/w/openapi.yaml")
+	// Without intrusive testing authorization, API scans never fuzz.
+	safe := strings.Join(nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example"}, "/o", "/w/openapi.yaml"), " ")
+	if strings.Contains(safe, "-dast") || !strings.Contains(safe, "-etags dos,intrusive,bruteforce,fuzz") || !strings.Contains(safe, "-im openapi") {
+		t.Errorf("API scans without the intrusive flag must not fuzz: %s", safe)
+	}
+	api := nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example", RateLimit: 500, AuthType: "basic", Username: "u", Password: "p",
+		IntrusiveAuthorized: true}, "/o", "/w/openapi.yaml")
 	joined = strings.Join(api, " ")
 	for _, want := range []string{"-l /w/openapi.yaml", "-im openapi", "-dast", "-rl 20", "-H Authorization: Basic dTpw"} {
 		if !strings.Contains(joined, want) {

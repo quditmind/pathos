@@ -172,7 +172,7 @@ The comparison also shows severity counts, duration and its change, whether the 
 |---|---|---|
 | **Container image** | Trivy | Vulnerable OS and language packages in an image in a registry |
 | **Web application (DAST)** | Nuclei | Misconfigurations, exposed files and panels, known vulnerabilities of a running application |
-| **API (OpenAPI)** | Nuclei DAST templates | Injection and similar flaws in each operation of your OpenAPI document |
+| **API (OpenAPI)** | Nuclei (injection testing only when intrusive testing is authorized on the target) | Injection and similar flaws in each operation of your OpenAPI document |
 | **SBOM** | Grype | Vulnerabilities in software you receive but cannot scan as source (vendor products, appliances). CycloneDX JSON or SPDX 2.x JSON |
 | **Build artifact** | Trivy, binary hardening | Vulnerable components inside a release file (up to 200 MiB): a zip, tar or tar.gz archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary, and missing hardening of the executables and libraries in it ([Binary hardening](security-scanning.md#binary-hardening)). Archives are checked and unpacked safely on a worker; nothing in them is run |
 | **Declared public endpoints** | PATHOS endpoint checks (and optionally Nuclei exposure templates) | The repository's declared public URLs, domains and IPs: DNS, reachability, TLS and security headers. Enabled and authorized from the repository, see [Verify declared public endpoints](repository-management.md#verify-declared-public-endpoints) |
