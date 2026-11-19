@@ -101,7 +101,7 @@ ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f163
 # attempts), fuzzing, iot, honeypot and technologies (fingerprinting).
 ARG NUCLEI_TEMPLATES=10.5.1 NUCLEI_TEMPLATES_SHA=30fe1cfaced4635f886e4a2673641bba86998dceec28e468274524e789aa56eb
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch opengrep "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP}/opengrep_linux_x86" "$OPENGREP_SHA"; \
     fetch zizmor.tgz "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR}/zizmor-x86_64-unknown-linux-gnu.tar.gz" "$ZIZMOR_SHA"; \
     fetch templates.tgz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES}.tar.gz" "$NUCLEI_TEMPLATES_SHA"; \

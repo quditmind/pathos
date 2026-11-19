@@ -40,16 +40,16 @@ ARG JADX=1.5.7 JADX_SHA=1755e4242ade71a077438723689f404079592ec7764a3a0572f98fef
 # fixtures are produced with the patched jar).
 ARG GUAVA=33.8.0-android GUAVA_SHA=c88b3bd93382316b00a387b629d2cc2620119e16c46554b07fa14e9aa07f990e
 RUN set -eux; \
-    curl -fsSL --retry 3 -o jre.tar.gz "https://github.com/adoptium/temurin21-binaries/releases/download/${JRE_TAG}/OpenJDK21U-jre_x64_linux_hotspot_${JRE}.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o jre.tar.gz "https://github.com/adoptium/temurin21-binaries/releases/download/${JRE_TAG}/OpenJDK21U-jre_x64_linux_hotspot_${JRE}.tar.gz"; \
     echo "${JRE_SHA}  jre.tar.gz" | sha256sum -c -; \
     mkdir -p /out/jre /out/jadx; \
     tar -xzf jre.tar.gz -C /out/jre --strip-components=1; \
-    curl -fsSL --retry 3 -o jadx.zip "https://github.com/skylot/jadx/releases/download/v${JADX}/jadx-${JADX}.zip"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o jadx.zip "https://github.com/skylot/jadx/releases/download/v${JADX}/jadx-${JADX}.zip"; \
     echo "${JADX_SHA}  jadx.zip" | sha256sum -c -; \
     unzip -q jadx.zip -d /out/jadx; \
     rm -f /out/jadx/bin/*.bat; \
     chmod 0755 /out/jadx/bin/jadx; \
-    curl -fsSL --retry 3 -o guava.jar "https://repo1.maven.org/maven2/com/google/guava/guava/${GUAVA}/guava-${GUAVA}.jar"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o guava.jar "https://repo1.maven.org/maven2/com/google/guava/guava/${GUAVA}/guava-${GUAVA}.jar"; \
     echo "${GUAVA_SHA}  guava.jar" | sha256sum -c -; \
     mkdir /tmp/guava; \
     unzip -q guava.jar 'com/google/common/*' 'com/google/thirdparty/*' 'META-INF/maven/com.google.guava/guava/*' -d /tmp/guava; \

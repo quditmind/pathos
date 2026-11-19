@@ -24,6 +24,7 @@ Fixes found by an end-to-end validation on 15 public open-source projects (Go, J
 - Editing a Kubernetes cluster connection deleted its CA certificate.
 - The error for a refused image registry now names the registry host.
 - Docs: the import API example and the CVE Binary Tool database memory requirement.
+- Image builds retry every download on any error (5 attempts): Maven Central and GitHub release downloads intermittently answer 404 or 500, which `curl --retry` alone did not retry. Every download is still checked against its pinned SHA-256.
 
 ### Known issues
 Listed with reproduction steps in [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md) §9, among them: repository import needs a token even for public repositories; one execution per repository at a time (CI imports get 409 while a DAST scan runs); no private-CA setting for registries, webhooks and ticketing; OWASP Dependency-Check can stall during scans (make an NVD API key a prerequisite or leave it out of profiles); secret scanners are noisy (keep Talisman out of default profiles); Nuclei can exceed the 30-minute default timeout on API targets.

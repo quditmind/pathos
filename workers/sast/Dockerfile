@@ -61,7 +61,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     go build -trimpath -ldflags "-s -w -X main.version=${GOLANGCI_LINT} -X main.commit=v${GOLANGCI_LINT} -X main.date=module" -o /out/golangci-lint ./cmd/golangci-lint; \
     src "$(moddir "github.com/trufflesecurity/trufflehog/v3@v${TRUFFLEHOG}")"; \
     go build -trimpath -ldflags "-s -w -X github.com/trufflesecurity/trufflehog/v3/pkg/version.BuildVersion=${TRUFFLEHOG}" -o /out/trufflehog .; \
-    cd /; curl -fsSL --retry 3 -o talisman.tgz "https://github.com/thoughtworks/talisman/archive/refs/tags/v${TALISMAN}.tar.gz"; \
+    cd /; curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o talisman.tgz "https://github.com/thoughtworks/talisman/archive/refs/tags/v${TALISMAN}.tar.gz"; \
     echo "${TALISMAN_SHA}  talisman.tgz" | sha256sum -c -; \
     rm -rf /src; mkdir /src; tar -xzf talisman.tgz -C /src --strip-components=1; cd /src; \
     go get golang.org/x/text@v0.43.0; \
@@ -90,7 +90,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 FROM golang:1.27.4-trixie@sha256:f18c3d73a184fb0582828510722e723b63a93f7188d11dd223d9be6f6880e65d AS bearer
 ARG BEARER=2.1.3 BEARER_SHA=c6cf4b0c46253fb63320cab158761b7bb343df757e73020f89b960eab81e63fd BEARER_RULES=0.48.4
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch bearer.tgz "https://github.com/Bearer/bearer/archive/refs/tags/v${BEARER}.tar.gz" "$BEARER_SHA"; \
     mkdir /src; tar -xzf bearer.tgz -C /src --strip-components=1; cd /src; \
     go get golang.org/x/net@v0.62.0; \
@@ -114,7 +114,7 @@ FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f0
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl g++ cmake make && rm -rf /var/lib/apt/lists/*
 ARG CPPCHECK=2.19.0 CPPCHECK_SHA=c6cff9d3bbcb3da941bf7f525ae974b6c7af3d610c4c5519fcd1be3f21f5ae09
 RUN set -eux; \
-    curl -fsSL --retry 3 -o cppcheck.tgz "https://github.com/danmar/cppcheck/archive/refs/tags/${CPPCHECK}.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o cppcheck.tgz "https://github.com/danmar/cppcheck/archive/refs/tags/${CPPCHECK}.tar.gz"; \
     echo "${CPPCHECK_SHA}  cppcheck.tgz" | sha256sum -c -; \
     mkdir /src; tar -xzf cppcheck.tgz -C /src --strip-components=1; \
     cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Release -DUSE_MATCHCOMPILER=ON -DHAVE_RULES=OFF -DBUILD_GUI=OFF -DBUILD_TESTS=OFF \
@@ -132,7 +132,7 @@ ARG SHELLCHECK=0.11.0 SHELLCHECK_SHA=8c3be12b05d5c177a04c29e3c78ce89ac86f1595681
     PSALM=7.11.0 PSALM_SHA=7c87fe6fa6d886737dfcd6f37d40edb96a8d74b970cb6430e52d9c4b0b97051f \
     NODE=24.22.3 NODE_SHA=4f2b175a6d53a5c617a80dba2676238a0688cef28c6da4eba35c7d844e66fcfb
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch shellcheck.tar.xz "https://github.com/koalaman/shellcheck/releases/download/v${SHELLCHECK}/shellcheck-v${SHELLCHECK}.linux.x86_64.tar.xz" "$SHELLCHECK_SHA"; \
     fetch kingfisher.tgz "https://github.com/mongodb/kingfisher/releases/download/v${KINGFISHER}/kingfisher-linux-x64.tgz" "$KINGFISHER_SHA"; \
     fetch phpstan.phar "https://github.com/phpstan/phpstan/releases/download/${PHPSTAN}/phpstan.phar" "$PHPSTAN_SHA"; \
