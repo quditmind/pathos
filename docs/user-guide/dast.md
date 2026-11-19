@@ -42,7 +42,7 @@ Read this before you select a tool.
 
 ## Using them
 
-1. An administrator starts the worker ([operations guide](../OPERATIONS.md#family-worker-images): `COMPOSE_PROFILES=dast`, then `docker compose up -d worker-dast`) and adds the application's host to the egress allowlist.
+1. An administrator starts the worker ([operations guide](https://github.com/quditmind/pathos/blob/main/docs/OPERATIONS.md#family-worker-images): `COMPOSE_PROFILES=dast`, then `docker compose up -d worker-dast`) and adds the application's host to the egress allowlist.
 2. Create or edit a web application or API target (**Scanning → Scan targets**), confirm the authorization statement and choose the tools under **Additional tools**. Intrusive tools are marked *intrusive*.
 3. For intrusive tools, tick **Intrusive testing authorized** and record the reference (test window, ticket).
 4. Scan the target. The tools run after the built-in scanners on the `worker-dast` worker; each tool's raw report is kept with the scan, and findings show the tool under *Detected by*.
