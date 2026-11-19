@@ -24,6 +24,17 @@ import (
 // unless that database is missing or older than trivyDBMaxAge; then it waits
 // for the exclusive lock (and so do the scans that start after it).
 
+// trivyCacheArgs are Trivy's cache flags. The vulnerability database is
+// read from the shared cache directory; the scan cache (analysed layers and
+// files, fanal.db) is kept in memory: Trivy locks the file cache for the
+// whole run, so with a file cache on the shared volume every Trivy process
+// that started while another worker's Trivy was running failed after 5 s
+// with "unable to initialize fs cache: cache may be in use by another
+// process". Nothing in PATHOS reuses that cache between scans.
+func trivyCacheArgs(dir string) []string {
+	return []string{"--cache-dir", dir, "--cache-backend", "memory"}
+}
+
 // trivyDBLockPoll is how often a waiting worker retries the lock.
 var trivyDBLockPoll = 250 * time.Millisecond
 
@@ -45,7 +56,7 @@ func trivyDBStale(cacheDir string) bool {
 
 // trivyDBUpdate downloads the database when it is due (Trivy decides).
 var trivyDBUpdate = func(ctx context.Context, bin, cacheDir string) error {
-	_, err := command(ctx, nil, []int{0}, bin, "image", "--download-db-only", "--cache-dir", cacheDir,
+	_, err := command(ctx, nil, []int{0}, bin, "image", "--download-db-only", "--cache-dir", cacheDir, "--cache-backend", "memory",
 		"--quiet", "--skip-version-check", "--no-progress", "--timeout", "20m")
 	return err
 }

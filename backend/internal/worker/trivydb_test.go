@@ -168,3 +168,12 @@ func TestTrivyDBOfflineAndCancel(t *testing.T) {
 		t.Fatalf("want deadline exceeded, got %v", err)
 	}
 }
+
+// Concurrent Trivy runs of several workers must not share the file-based
+// scan cache (its lock made all but one fail).
+func TestTrivyCacheArgs(t *testing.T) {
+	args := trivyCacheArgs("/cache/trivy")
+	if !slices.Equal(args, []string{"--cache-dir", "/cache/trivy", "--cache-backend", "memory"}) {
+		t.Errorf("trivy cache flags: %v", args)
+	}
+}
