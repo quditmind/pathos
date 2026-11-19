@@ -4,6 +4,13 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [1.1.1] — 2026-11-19
+
+First published 1.1 release; contains everything listed under 1.1.0. The v1.1.0 tag exists but no release was published from it, because its release gate found a new vulnerability.
+
+### Security
+- Trivy, Syft, Grype and OSV-Scanner in the worker image are now built from source with Go 1.27.4. The upstream release binaries were built with Go 1.27.3, which is affected by CVE-2026-97054 (high, standard library).
+
 ## [1.1.0] — 2026-11-19
 
 Closes the remaining register capabilities (99 of 100 completed; multi-tenant stays out by decision) and adds the features other application security tools are known for.

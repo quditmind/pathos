@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-// version is set at build time: -ldflags "-X main.version=1.1.0".
+// version is set at build time: -ldflags "-X main.version=1.1.1".
 var version = "dev"
 
 // Exit codes.
