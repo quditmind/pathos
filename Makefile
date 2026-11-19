@@ -1,5 +1,5 @@
 # Developer shortcuts. Every target runs its toolchain in a container.
-.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix
+.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix e2e
 
 help:
 	@grep -E '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-18s %s\n", $$1, $$2}'

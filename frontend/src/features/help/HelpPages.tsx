@@ -44,61 +44,64 @@ function HelpNav({ current }: { current?: HelpDoc }) {
   const ts = helpDocs.filter((d) => d.section === "troubleshooting");
   const api = helpDocs.filter((d) => d.section === "api-reference");
   return (
-    <nav aria-label="Help topics" className="space-y-4 text-[13px]">
-      {helpGroups.map((g) => {
-        const docs = guide.filter((d) => d.groups.includes(g.id));
-        if (!docs.length) return null;
-        return (
-          <div key={g.id}>
-            <NavHeading>{g.label}</NavHeading>
+    <div className="space-y-4">
+      {/* The centre is a page, not an article, so it sits outside the topic list. */}
+      <Link to="/help/troubleshooting" className="flex items-center gap-2 rounded-md border border-border px-2 py-1.5 text-[13px] font-medium text-primary hover:bg-surface-muted">
+        <LifeBuoy className="size-4" aria-hidden /> Troubleshooting centre
+      </Link>
+      <nav aria-label="Help topics" className="space-y-4 text-[13px]">
+        {helpGroups.map((g) => {
+          const docs = guide.filter((d) => d.groups.includes(g.id));
+          if (!docs.length) return null;
+          return (
+            <div key={g.id}>
+              <NavHeading>{g.label}</NavHeading>
+              <ul className="space-y-0.5">
+                {docs.map((d) => (
+                  <li key={d.slug}>
+                    <DocLink doc={d} className={navLink(current, d)} />
+                  </li>
+                ))}
+              </ul>
+            </div>
+          );
+        })}
+        {ungrouped.length > 0 && (
+          <div>
+            <NavHeading>More guides</NavHeading>
             <ul className="space-y-0.5">
-              {docs.map((d) => (
+              {ungrouped.map((d) => (
                 <li key={d.slug}>
                   <DocLink doc={d} className={navLink(current, d)} />
                 </li>
               ))}
             </ul>
           </div>
-        );
-      })}
-      {ungrouped.length > 0 && (
+        )}
+        {ts.length > 0 && (
+          <div>
+            <NavHeading>{sectionLabels.troubleshooting}</NavHeading>
+            <ul className="space-y-0.5">
+              {ts.map((d) => (
+                <li key={d.slug}>
+                  <DocLink doc={d} className={navLink(current, d)} />
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <div>
-          <NavHeading>More guides</NavHeading>
+          <NavHeading>{sectionLabels["api-reference"]}</NavHeading>
           <ul className="space-y-0.5">
-            {ungrouped.map((d) => (
+            {api.map((d) => (
               <li key={d.slug}>
                 <DocLink doc={d} className={navLink(current, d)} />
               </li>
             ))}
           </ul>
         </div>
-      )}
-      <div>
-        <NavHeading>{sectionLabels.troubleshooting}</NavHeading>
-        <ul className="space-y-0.5">
-          <li>
-            <Link to="/help/troubleshooting" className="block rounded px-2 py-1 text-foreground hover:bg-surface-muted">
-              Troubleshooting centre
-            </Link>
-          </li>
-          {ts.map((d) => (
-            <li key={d.slug}>
-              <DocLink doc={d} className={navLink(current, d)} />
-            </li>
-          ))}
-        </ul>
-      </div>
-      <div>
-        <NavHeading>{sectionLabels["api-reference"]}</NavHeading>
-        <ul className="space-y-0.5">
-          {api.map((d) => (
-            <li key={d.slug}>
-              <DocLink doc={d} className={navLink(current, d)} />
-            </li>
-          ))}
-        </ul>
-      </div>
-    </nav>
+      </nav>
+    </div>
   );
 }
 
