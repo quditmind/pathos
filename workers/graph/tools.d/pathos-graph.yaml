@@ -1,0 +1,36 @@
+# pathos-graph: CodeGraph discovery (PATHOS worker-graph family). Reads the
+# repository's source files only: it never builds or runs repository code
+# and needs no network (network: none: the proxy settings are removed; the
+# helper engines Opengrep and Syft run as separate processes with a minimal
+# environment). Its output is a code graph (pathos.codegraph/v1 JSON:
+# modules, files, functions, classes, calls, imports, routes, API
+# operations, datastores, queues, external services, containers, IaC,
+# SBOM components, secret references and trust boundaries, each edge with
+# its evidence), which the API stores in the CodeGraph store; it produces
+# no findings. The jsonmap parser below only satisfies the manifest format:
+# the API routes this tool's output to the graph store, and the graph
+# document has no "findings" array.
+name: pathos-graph
+display_name: PATHOS CodeGraph discovery
+category: other
+license_spdx: Apache-2.0
+homepage: https://github.com/quditmind/pathos
+family: graph
+targets: [repository]
+command: /opt/pathos/graph/bin/pathos-graph
+version_args: ["version"]
+args: ["discover", "--rules", "/opt/pathos/graph/rules", "{source}", "{output}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+sandbox: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: findings
+  rule_id: rule_id
+  title: title
+  file: file
+  line: line

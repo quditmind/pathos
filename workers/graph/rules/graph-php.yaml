@@ -1,0 +1,72 @@
+# PATHOS CodeGraph rules: PHP (Laravel routes, Eloquent, DB facade, PDO,
+# Laravel queues, outbound HTTP). Graph facts, not findings (see
+# graph-go.yaml).
+rules:
+  - id: pathos-graph-php-route-laravel
+    languages: [php]
+    severity: INFO
+    message: "route|$M|$PATH|$H"
+    metadata: {pathos_graph: {kind: route, framework: laravel}}
+    patterns:
+      - pattern-either:
+          - pattern: Route::$M("$PATH", $H)
+          - pattern: Route::$M("$PATH", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(get|post|put|patch|delete|options|any)$}
+  - id: pathos-graph-php-db-facade-read
+    languages: [php]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: read}}
+    patterns:
+      - pattern-either:
+          - pattern: DB::$M("$SQL", ...)
+          - pattern: $PDO->$M("$SQL", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(select|insert|update|delete|statement|unprepared|query|prepare|exec|selectOne)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(select|with|show|explain)\b}
+  - id: pathos-graph-php-db-facade-write
+    languages: [php]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: write}}
+    patterns:
+      - pattern-either:
+          - pattern: DB::$M("$SQL", ...)
+          - pattern: $PDO->$M("$SQL", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(select|insert|update|delete|statement|unprepared|query|prepare|exec|selectOne)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(insert|update|delete|replace|merge|call|create|alter|drop)\b}
+  - id: pathos-graph-php-db-query-builder
+    languages: [php]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql}}
+    pattern: DB::table(...)->$M(...)
+  - id: pathos-graph-php-db-eloquent
+    languages: [php]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, requires_import: "Models\\|Illuminate\\Database"}}
+    patterns:
+      - pattern: $MODEL::$M(...)
+      - metavariable-regex: {metavariable: $MODEL, regex: '^[A-Z]'}
+      - metavariable-regex: {metavariable: $M, regex: ^(where|find|findOrFail|all|create|first|firstOrCreate|firstOrNew|updateOrCreate|destroy|insert|upsert|query|paginate|with|count)$}
+  - id: pathos-graph-php-queue-dispatch
+    languages: [php]
+    severity: INFO
+    message: "queue|$J"
+    metadata: {pathos_graph: {kind: queue_publish, technology: laravel-queue}}
+    pattern-either:
+      - pattern: dispatch(new $J(...))
+      - pattern: $J::dispatch(...)
+  - id: pathos-graph-php-http-call
+    languages: [php]
+    severity: INFO
+    message: "http|$URL"
+    metadata: {pathos_graph: {kind: external_call}}
+    patterns:
+      - pattern-either:
+          - pattern: Http::$M("$URL", ...)
+          - pattern: $C->request($METHOD, "$URL", ...)
+          - pattern: $C->$M("$URL", ...)
+          - pattern: file_get_contents("$URL", ...)
+          - pattern: curl_init("$URL")
+      - metavariable-regex: {metavariable: $URL, regex: ^https?://}

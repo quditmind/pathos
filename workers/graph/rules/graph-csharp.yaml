@@ -1,0 +1,126 @@
+# PATHOS CodeGraph rules: C# (ASP.NET Core minimal APIs and attribute
+# routing, Entity Framework, ADO.NET, Dapper, Service Bus, RabbitMQ,
+# Kafka, outbound HTTP). Graph facts, not findings (see graph-go.yaml).
+rules:
+  - id: pathos-graph-csharp-route-minimal
+    languages: [csharp]
+    severity: INFO
+    message: "route|$M|$PATH|$H"
+    metadata: {pathos_graph: {kind: route, framework: aspnetcore}}
+    patterns:
+      - pattern: $APP.$M("$PATH", $H)
+      - metavariable-regex: {metavariable: $M, regex: ^Map(Get|Post|Put|Delete|Patch)$}
+  - id: pathos-graph-csharp-route-attribute
+    languages: [csharp]
+    severity: INFO
+    message: "route|$A|$PATH|$M"
+    metadata: {pathos_graph: {kind: route, framework: aspnetcore}}
+    patterns:
+      - pattern-either:
+          - pattern: |
+              [$A("$PATH")]
+              $RET $M(...) { ... }
+          - pattern: |
+              [$A]
+              $RET $M(...) { ... }
+      - metavariable-regex: {metavariable: $A, regex: ^Http(Get|Post|Put|Delete|Patch|Head|Options)$}
+  - id: pathos-graph-csharp-route-prefix
+    languages: [csharp]
+    severity: INFO
+    message: "prefix|$PATH"
+    metadata: {pathos_graph: {kind: route_prefix, framework: aspnetcore}}
+    pattern: |
+      [Route("$PATH")]
+      class $C { ... }
+  - id: pathos-graph-csharp-db-ef
+    languages: [csharp]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, requires_import: "EntityFrameworkCore|System.Data.Entity"}}
+    patterns:
+      - pattern: $CTX.$M(...)
+      - metavariable-regex: {metavariable: $M, regex: ^(SaveChanges|SaveChangesAsync|Add|AddAsync|AddRange|Update|UpdateRange|Remove|RemoveRange|Find|FindAsync|FromSqlRaw|FromSqlInterpolated|ExecuteSqlRaw|ExecuteSqlRawAsync|ExecuteSqlInterpolated|ToListAsync|FirstOrDefaultAsync|SingleOrDefaultAsync|AnyAsync|CountAsync)$}
+  - id: pathos-graph-csharp-db-sql-read
+    languages: [csharp]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: read}}
+    patterns:
+      - pattern-either:
+          - pattern: new SqlCommand("$SQL", ...)
+          - pattern: new NpgsqlCommand("$SQL", ...)
+          - pattern: new MySqlCommand("$SQL", ...)
+          - pattern: $C.$M("$SQL", ...)
+          - pattern: $C.$M<$T>("$SQL", ...)
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(select|with|show|explain)\b}
+  - id: pathos-graph-csharp-db-sql-write
+    languages: [csharp]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: write}}
+    patterns:
+      - pattern-either:
+          - pattern: new SqlCommand("$SQL", ...)
+          - pattern: new NpgsqlCommand("$SQL", ...)
+          - pattern: new MySqlCommand("$SQL", ...)
+          - pattern: $C.$M("$SQL", ...)
+          - pattern: $C.$M<$T>("$SQL", ...)
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(insert|update|delete|merge|exec|call)\b}
+  - id: pathos-graph-csharp-queue-publish
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_publish, technology: servicebus, requires_import: "Azure.Messaging.ServiceBus"}}
+    pattern-either:
+      - pattern: $C.CreateSender("$Q")
+      - pattern: $S.SendMessageAsync(...)
+  - id: pathos-graph-csharp-queue-consume
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_consume, technology: servicebus, requires_import: "Azure.Messaging.ServiceBus"}}
+    pattern-either:
+      - pattern: $C.CreateProcessor("$Q", ...)
+      - pattern: $C.CreateReceiver("$Q", ...)
+  - id: pathos-graph-csharp-queue-rabbit
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_publish, technology: rabbitmq, requires_import: "RabbitMQ.Client"}}
+    pattern-either:
+      - pattern: '$CH.BasicPublish($EX, "$Q", ...)'
+      - pattern: '$CH.BasicPublish(exchange: $EX, routingKey: "$Q", ...)'
+      - pattern: '$CH.BasicPublishAsync($EX, "$Q", ...)'
+  - id: pathos-graph-csharp-queue-rabbit-consume
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_consume, technology: rabbitmq, requires_import: "RabbitMQ.Client"}}
+    pattern-either:
+      - pattern: '$CH.BasicConsume("$Q", ...)'
+      - pattern: '$CH.BasicConsume(queue: "$Q", ...)'
+      - pattern: '$CH.BasicConsumeAsync("$Q", ...)'
+  - id: pathos-graph-csharp-queue-kafka
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$T"
+    metadata: {pathos_graph: {kind: queue_publish, technology: kafka, requires_import: "Confluent.Kafka"}}
+    pattern-either:
+      - pattern: $P.ProduceAsync("$T", ...)
+      - pattern: $P.Produce("$T", ...)
+  - id: pathos-graph-csharp-queue-kafka-consume
+    languages: [csharp]
+    severity: INFO
+    message: "queue|$T"
+    metadata: {pathos_graph: {kind: queue_consume, technology: kafka, requires_import: "Confluent.Kafka"}}
+    pattern: $C.Subscribe("$T")
+  - id: pathos-graph-csharp-http-call
+    languages: [csharp]
+    severity: INFO
+    message: "http|$URL"
+    metadata: {pathos_graph: {kind: external_call}}
+    patterns:
+      - pattern-either:
+          - pattern: $C.$M("$URL", ...)
+          - pattern: new Uri("$URL", ...)
+      - metavariable-regex: {metavariable: $URL, regex: ^https?://}

@@ -245,6 +245,7 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 | Binary | `binary` | `worker-binary` | CVE Binary Tool, capa, YARA-X (build artifacts; YARA-X also mobile apps and repositories) |
 | AI | `ai` | `worker-ai` | ModelScan (repositories, model artifacts), garak and promptfoo (LLM endpoint targets) |
 | Fuzzing | `fuzz` | `worker-fuzz` | Go native fuzzing, Atheris (repositories; builds and runs repository code) |
+| CodeGraph discovery | `graph` | `worker-graph` | pathos-graph (CodeGraph builds only; never in scan profiles). Feature flag `codegraph`; see [CodeGraph](user-guide/codegraph.md) |
 
 To enable one:
 
@@ -280,6 +281,8 @@ docker run --rm -v pathos_scanner_cache:/cache --entrypoint /opt/pathos/binary/b
 Air-gapped installation: run the same command on a connected machine with a scratch volume, export the database (`cve-db-export /cache/plugins/cve-bin-tool /cache/cve.db`), copy the file into the air-gapped installation's cache volume and import it there (`cve-db-import /cache/plugins/cve-bin-tool /cache/cve.db`, `--network none`). The volume name depends on the Compose project (`docker volume ls | grep scanner_cache`).
 
 ### Fuzzing worker
+
+`worker-graph` runs only CodeGraph discovery executions (trigger `codegraph`) and the core tools. `pathos-graph` declares `network: none`, reads the checkout only (it never builds or runs repository code), runs Opengrep and Syft as separate processes, and records each engine's version in the snapshot. Measured on the PATHOS repository: about 9 s and 1 GiB peak memory in a 4 GB worker. Discovery limits: 50,000 files, 1 MiB per file, 300,000 nodes and 300,000 edges; `node_modules`, `vendor`, `third_party`, `dist`, `build`, `target` and `.venv` are skipped. Rediscovery after scans and snapshot retention are organization settings (`PUT /api/v1/codegraph/settings`); the jobs service archives snapshots beyond `keep_snapshots` every 6 hours.
 
 `worker-fuzz` builds and runs code from the repositories it scans (Go fuzz targets, Atheris harnesses). The worker never runs that code itself. The `fuzz` profile also starts `worker-fuzz-sandbox`, the sandbox runner: the same image with `network_mode: none`, UID 10002, no worker token, and its own memory, CPU and process limits (`PATHOS_FUZZ_MEMORY`, default 4g; `PATHOS_FUZZ_CPUS`, default 2; `PATHOS_FUZZ_PIDS`, default 256). The worker hands it each run through the `fuzz_sandbox` volume, a tmpfs of `PATHOS_FUZZ_SANDBOX_TMPFS` (default 4g). Repository code therefore has no network at all and cannot reach the egress proxy, the API or the worker's credentials ([SECURITY.md](SECURITY.md#scanning)). The fuzzers also run with `GOPROXY=off`, on a copy of the checkout, under per-target CPU-time, file-size and memory limits and a time budget (`FUZZ_SECONDS`, `FUZZ_TOTAL_SECONDS`, `FUZZ_MAX_TARGETS` in `workers/fuzz/tools.d`).
 

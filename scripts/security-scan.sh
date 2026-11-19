@@ -57,6 +57,13 @@ else
   gate gosec "issues found, see $out/gosec.txt" fail
 fi
 
+echo "== gosec $GOSEC (workers/graph/discover)"
+if GO_WORKDIR=workers/graph/discover "$ROOT/scripts/go.sh" run "github.com/securego/gosec/v2/cmd/gosec@$GOSEC" -fmt=text -exclude-dir=testdata ./... > "$out/gosec-graph.txt" 2>&1; then
+  gate gosec-graph "$(grep -E '^ +(Issues|Nosec)' "$out/gosec-graph.txt" | tr -s ' ' | tr '\n' ' ')" ok
+else
+  gate gosec-graph "issues found, see $out/gosec-graph.txt" fail
+fi
+
 echo "== govulncheck $GOVULNCHECK"
 if "$ROOT/scripts/go.sh" run "golang.org/x/vuln/cmd/govulncheck@$GOVULNCHECK" ./... > "$out/govulncheck.txt" 2>&1; then
   gate govulncheck "no vulnerabilities" ok

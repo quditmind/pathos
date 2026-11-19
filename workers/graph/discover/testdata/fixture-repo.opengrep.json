@@ -1,0 +1,342 @@
+{
+ "version": "2.0.0",
+ "errors": [],
+ "results": [
+  {
+   "check_id": "rules.pathos-graph-go-route-chi",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 23
+   },
+   "end": {
+    "line": 23
+   },
+   "extra": {
+    "message": "route|Get|/api/products/{id}|h.getProduct",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "chi",
+      "requires_import": "go-chi/chi"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-route-gin-echo",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 23
+   },
+   "end": {
+    "line": 23
+   },
+   "extra": {
+    "message": "route|Get|/api/products/{id}|h.getProduct",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "echo|fiber|gin",
+      "requires_import": "gin-gonic/gin|labstack/echo|gofiber/fiber"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-route-chi",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 24
+   },
+   "end": {
+    "line": 24
+   },
+   "extra": {
+    "message": "route|Post|/api/products|h.addProduct",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "chi",
+      "requires_import": "go-chi/chi"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-route-gin-echo",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 24
+   },
+   "end": {
+    "line": 24
+   },
+   "extra": {
+    "message": "route|Post|/api/products|h.addProduct",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "echo|fiber|gin",
+      "requires_import": "gin-gonic/gin|labstack/echo|gofiber/fiber"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-route-chi",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 25
+   },
+   "end": {
+    "line": 25
+   },
+   "extra": {
+    "message": "route|Get|/healthz|health",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "chi",
+      "requires_import": "go-chi/chi"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-route-gin-echo",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 25
+   },
+   "end": {
+    "line": 25
+   },
+   "extra": {
+    "message": "route|Get|/healthz|health",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "echo|fiber|gin",
+      "requires_import": "gin-gonic/gin|labstack/echo|gofiber/fiber"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-http-call",
+   "path": "internal/httpapi/httpapi.go",
+   "start": {
+    "line": 51
+   },
+   "end": {
+    "line": 51
+   },
+   "extra": {
+    "message": "http|https://search.partner-api.net/v1/reindex",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "external_call"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-db-sql-read",
+   "path": "internal/store/store.go",
+   "start": {
+    "line": 32
+   },
+   "end": {
+    "line": 32
+   },
+   "extra": {
+    "message": "db|QueryRowContext",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "sql",
+      "operation": "read"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-db-gorm",
+   "path": "internal/store/store.go",
+   "start": {
+    "line": 32
+   },
+   "end": {
+    "line": 32
+   },
+   "extra": {
+    "message": "db|Scan",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "sql",
+      "requires_import": "gorm.io/gorm"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-db-redis",
+   "path": "internal/store/store.go",
+   "start": {
+    "line": 32
+   },
+   "end": {
+    "line": 32
+   },
+   "extra": {
+    "message": "db|Scan",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "redis",
+      "requires_import": "redis/go-redis|go-redis/redis|valkey-io/valkey-go"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-db-sql-write",
+   "path": "internal/store/store.go",
+   "start": {
+    "line": 38
+   },
+   "end": {
+    "line": 38
+   },
+   "extra": {
+    "message": "db|ExecContext",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "sql",
+      "operation": "write"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-go-db-sql-write",
+   "path": "internal/store/store.go",
+   "start": {
+    "line": 46
+   },
+   "end": {
+    "line": 46
+   },
+   "extra": {
+    "message": "db|ExecContext",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "sql",
+      "operation": "write"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-js-http-call",
+   "path": "web/src/catalog.js",
+   "start": {
+    "line": 3
+   },
+   "end": {
+    "line": 3
+   },
+   "extra": {
+    "message": "http|https://cdn.partner-api.net/catalog.json",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "external_call"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-js-route-express",
+   "path": "web/src/server.js",
+   "start": {
+    "line": 7
+   },
+   "end": {
+    "line": 9
+   },
+   "extra": {
+    "message": "route|get|/store/products|async (req, res) => {\n  res.json(await listProducts());\n}",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "koa|fastify|express",
+      "requires_import": "express|fastify|koa|@koa/router|restify|hono"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-python-route-decorator",
+   "path": "worker/tasks.py",
+   "start": {
+    "line": 13
+   },
+   "end": {
+    "line": 21
+   },
+   "extra": {
+    "message": "route|get|/api/prices/{product_id}|get_price",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "route",
+      "framework": "flask|fastapi",
+      "requires_import": "flask|fastapi|quart|sanic|starlette"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-python-db-redis",
+   "path": "worker/tasks.py",
+   "start": {
+    "line": 15
+   },
+   "end": {
+    "line": 15
+   },
+   "extra": {
+    "message": "db|get",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "redis",
+      "requires_import": "redis|aioredis|valkey"
+     }
+    }
+   }
+  },
+  {
+   "check_id": "rules.pathos-graph-python-db-redis",
+   "path": "worker/tasks.py",
+   "start": {
+    "line": 20
+   },
+   "end": {
+    "line": 20
+   },
+   "extra": {
+    "message": "db|set",
+    "metadata": {
+     "pathos_graph": {
+      "kind": "db",
+      "technology": "redis",
+      "requires_import": "redis|aioredis|valkey"
+     }
+    }
+   }
+  }
+ ]
+}

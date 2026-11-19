@@ -269,6 +269,7 @@ func TestFamilyManifestsLoad(t *testing.T) {
 		"binary": {"capa", "cve-bin-tool", "yara-x"},
 		"ai":     {"garak", "modelscan", "promptfoo"},
 		"fuzz":   {"atheris", "go-fuzz"},
+		"graph":  {"pathos-graph"},
 	}
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	for family, keys := range want {

@@ -1,0 +1,168 @@
+# PATHOS CodeGraph rules: Python (Flask, FastAPI, Django, SQLAlchemy,
+# psycopg, Django ORM, pymongo, redis, Celery, Kafka, pika, boto3,
+# outbound HTTP). Graph facts, not findings (see graph-go.yaml).
+rules:
+  - id: pathos-graph-python-route-decorator
+    languages: [python]
+    severity: INFO
+    message: "route|$M|$PATH|$F"
+    metadata: {pathos_graph: {kind: route, framework: "flask|fastapi", requires_import: "flask|fastapi|quart|sanic|starlette"}}
+    patterns:
+      - pattern-either:
+          - pattern: |
+              @$APP.$M("$PATH", ...)
+              def $F(...): ...
+          - pattern: |
+              @$APP.$M("$PATH", ...)
+              async def $F(...): ...
+      - metavariable-regex: {metavariable: $M, regex: ^(route|get|post|put|delete|patch|head|options|api_route|websocket)$}
+  - id: pathos-graph-python-route-django
+    languages: [python]
+    severity: INFO
+    message: "route|ANY|$PATH|$VIEW"
+    metadata: {pathos_graph: {kind: route, framework: django, requires_import: "django"}}
+    patterns:
+      - pattern-either:
+          - pattern: path("$PATH", $VIEW, ...)
+          - pattern: re_path("$PATH", $VIEW, ...)
+          - pattern: url("$PATH", $VIEW, ...)
+  - id: pathos-graph-python-db-sql-read
+    languages: [python]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: read}}
+    patterns:
+      - pattern-either:
+          - pattern: $C.$M("$SQL", ...)
+          - pattern: $C.$M(text("$SQL"), ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(execute|executemany|executescript|fetch|fetchrow|fetchval|mogrify|raw|exec_driver_sql)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(select|with|show|explain)\b}
+  - id: pathos-graph-python-db-sql-write
+    languages: [python]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: write}}
+    patterns:
+      - pattern-either:
+          - pattern: $C.$M("$SQL", ...)
+          - pattern: $C.$M(text("$SQL"), ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(execute|executemany|executescript|fetch|fetchrow|fetchval|mogrify|raw|exec_driver_sql)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(insert|update|delete|merge|upsert|create|alter|drop|truncate|call|copy)\b}
+  - id: pathos-graph-python-db-sqlalchemy
+    languages: [python]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, requires_import: "sqlalchemy|sqlmodel|flask_sqlalchemy"}}
+    patterns:
+      - pattern: $S.$M(...)
+      - metavariable-regex: {metavariable: $S, regex: ^(db\.session|session|self\.session|self\.db|db)$}
+      - metavariable-regex: {metavariable: $M, regex: ^(query|add|add_all|delete|merge|get|scalars|scalar|execute|bulk_save_objects|commit)$}
+  - id: pathos-graph-python-db-django-orm
+    languages: [python]
+    severity: INFO
+    message: "db|$OP"
+    metadata: {pathos_graph: {kind: db, technology: sql, requires_import: "django"}}
+    patterns:
+      - pattern: $MODEL.objects.$OP(...)
+      - metavariable-regex: {metavariable: $OP, regex: ^(all|filter|exclude|get|create|get_or_create|update_or_create|bulk_create|bulk_update|update|delete|count|exists|values|values_list|first|last|aggregate|annotate|raw)$}
+  - id: pathos-graph-python-db-mongo
+    languages: [python]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: mongodb, requires_import: "pymongo|motor|mongoengine"}}
+    patterns:
+      - pattern: $C.$M(...)
+      - metavariable-regex: {metavariable: $M, regex: ^(find|find_one|insert_one|insert_many|update_one|update_many|replace_one|delete_one|delete_many|aggregate|count_documents|find_one_and_update|bulk_write)$}
+  - id: pathos-graph-python-db-redis
+    languages: [python]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: redis, requires_import: "redis|aioredis|valkey"}}
+    patterns:
+      - pattern: $R.$M(...)
+      - metavariable-regex: {metavariable: $R, regex: (?i)(redis|cache|valkey|^r$|^rds$)}
+      - metavariable-regex: {metavariable: $M, regex: ^(get|set|setex|setnx|delete|exists|expire|incr|decr|hget|hset|hgetall|lpush|rpush|lpop|rpop|lrange|sadd|smembers|zadd|zrange|mget|mset|publish|pipeline)$}
+  - id: pathos-graph-python-queue-celery-task
+    languages: [python]
+    severity: INFO
+    message: "queue|$F"
+    metadata: {pathos_graph: {kind: queue_consume, technology: celery, requires_import: "celery"}}
+    pattern-either:
+      - pattern: |
+          @$APP.task(...)
+          def $F(...): ...
+      - pattern: |
+          @$APP.task
+          def $F(...): ...
+      - pattern: |
+          @shared_task(...)
+          def $F(...): ...
+      - pattern: |
+          @shared_task
+          def $F(...): ...
+  - id: pathos-graph-python-queue-celery-send
+    languages: [python]
+    severity: INFO
+    message: "queue|$T"
+    metadata: {pathos_graph: {kind: queue_publish, technology: celery, requires_import: "celery|tasks"}}
+    pattern-either:
+      - pattern: $T.delay(...)
+      - pattern: $T.apply_async(...)
+  - id: pathos-graph-python-queue-kafka
+    languages: [python]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_publish, technology: kafka, requires_import: "kafka|confluent_kafka|aiokafka"}}
+    pattern-either:
+      - pattern: $P.send("$TOPIC", ...)
+      - pattern: $P.produce("$TOPIC", ...)
+      - pattern: $P.send_and_wait("$TOPIC", ...)
+  - id: pathos-graph-python-queue-kafka-consume
+    languages: [python]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_consume, technology: kafka, requires_import: "kafka|confluent_kafka|aiokafka"}}
+    pattern-either:
+      - pattern: KafkaConsumer("$TOPIC", ...)
+      - pattern: AIOKafkaConsumer("$TOPIC", ...)
+      - pattern: $C.subscribe(["$TOPIC", ...])
+  - id: pathos-graph-python-queue-pika
+    languages: [python]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_publish, technology: rabbitmq, requires_import: "pika|aio_pika|kombu"}}
+    pattern: $CH.basic_publish(..., routing_key="$Q", ...)
+  - id: pathos-graph-python-queue-pika-consume
+    languages: [python]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_consume, technology: rabbitmq, requires_import: "pika|aio_pika|kombu"}}
+    pattern: $CH.basic_consume(queue="$Q", ...)
+  - id: pathos-graph-python-queue-sqs
+    languages: [python]
+    severity: INFO
+    message: "queue|$M"
+    metadata: {pathos_graph: {kind: queue_publish, technology: sqs, requires_import: "boto3|aiobotocore"}}
+    pattern-either:
+      - pattern: $C.send_message(..., QueueUrl=$Q, ...)
+      - pattern: $C.send_message_batch(..., QueueUrl=$Q, ...)
+  - id: pathos-graph-python-queue-sqs-consume
+    languages: [python]
+    severity: INFO
+    message: "queue|$M"
+    metadata: {pathos_graph: {kind: queue_consume, technology: sqs, requires_import: "boto3|aiobotocore"}}
+    pattern: $C.receive_message(..., QueueUrl=$Q, ...)
+  - id: pathos-graph-python-http-call
+    languages: [python]
+    severity: INFO
+    message: "http|$URL"
+    metadata: {pathos_graph: {kind: external_call}}
+    patterns:
+      - pattern-either:
+          - pattern: requests.$M("$URL", ...)
+          - pattern: httpx.$M("$URL", ...)
+          - pattern: $CLIENT.$M("$URL", ...)
+          - pattern: urllib.request.urlopen("$URL", ...)
+          - pattern: urlopen("$URL", ...)
+      - metavariable-regex: {metavariable: $URL, regex: ^https?://}
+      - metavariable-regex: {metavariable: $M, regex: ^(get|post|put|patch|delete|head|options|request|stream|urlopen)$}

@@ -515,6 +515,24 @@ services:
       <<: *worker-env
       PATHOS_WORKER_FAMILY: ai
 
+  #   COMPOSE_PROFILES=graph  ->  CodeGraph discovery (pathos-graph: code
+  #   structure, calls, imports, routes, data access, deployment and SBOM
+  #   graph of a repository; docs/aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md).
+  #   Reads source files only; the graph build needs no network.
+  worker-graph:
+    <<: *worker
+    profiles: [graph]
+    build:
+      context: .
+      dockerfile: workers/graph/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core, VERSION: "${PATHOS_VERSION:-dev}" }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-graph:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: graph
+
   #   COMPOSE_PROFILES=fuzz  ->  Go native fuzzing, Atheris. These build and
   #   run repository code, which never runs in worker-fuzz itself (it is on
   #   the scan and worker-api networks and holds the worker token): the
