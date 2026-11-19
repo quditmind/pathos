@@ -43,12 +43,14 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/posture/graph": g("posture", "context-graph"),
   "/codegraph": g("codegraph"),
   "/codegraph/$appId": g("codegraph", "views"),
-  "/api-endpoints": g("codegraph", "api-and-endpoints"),
+  "/api-endpoints": g("codegraph", "views"),
   "/runtime": g("runtime"),
   "/sbom": g("supply-chain"),
   "/portfolio": g("releases-and-vex"),
 
   // Threat model
+  "/threat-models": g("threat-models"),
+  "/threat-models/$modelId": g("threat-models", "reviewing-and-approving"),
   "/posture/attack-paths": g("posture", "attack-paths"),
   "/posture/blast-radius": g("posture", "blast-radius"),
 

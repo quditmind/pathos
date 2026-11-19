@@ -142,10 +142,11 @@ describe("sidebar regroup (prompt §5)", () => {
       expect(i.phase, i.label).toBeGreaterThan(0);
       expect(i.flag, i.label).toBeTruthy();
     }
-    // Built so far (M4): CodeGraph and API & endpoints.
+    // Built so far (M4, M5): CodeGraph, API & endpoints and Threat models.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to])).toEqual([
       ["CodeGraph", "/codegraph"],
       ["API & endpoints", "/api-endpoints"],
+      ["Threat models", "/threat-models"],
     ]);
   });
 
@@ -174,6 +175,18 @@ describe("sidebar regroup (prompt §5)", () => {
     const item = within(nav).getByText("CodeGraph").closest("[aria-disabled]");
     expect(item).toHaveAttribute("title", "CodeGraph: arrives in roadmap phase 4");
     expect(within(nav).queryByRole("link", { name: "CodeGraph" })).toBeNull();
+  });
+
+  it("Threat models is a link only while the threat_models flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { threat_models: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["threats.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "Threat models" })).toHaveAttribute("href", "/threat-models");
   });
 
   it("renders roadmap items disabled with their phase", async () => {
