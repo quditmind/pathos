@@ -359,7 +359,7 @@ type gateResult struct {
 func (a *app) cmdGate(args []string) error {
 	fs := a.commandFlags("gate", "pathos gate (--scan UUID | --repo <repository>) [--fail-on critical|high|medium|low|none] [--scope new|all] [--allow-partial]")
 	scanID := fs.String("scan", "", "scan execution UUID")
-	repoRef := fs.String("repo", "", "repository: evaluate its latest finished execution")
+	repoRef := fs.String("repo", "", "repository: evaluate its latest finished source scan or result import")
 	failOn := fs.String("fail-on", "none", "fail when findings at or above this severity exist: critical, high, medium, low or none")
 	scope := fs.String("scope", "new", "new: findings first detected by the execution; all: the repository's open findings")
 	allowPartial := fs.Bool("allow-partial", false, "a partial execution (some scanners failed) may pass")
@@ -394,7 +394,9 @@ func (a *app) cmdGate(args []string) error {
 		var page struct {
 			Items []scanJob `json:"items"`
 		}
-		if err := c.getJSON(ctx, "/api/v1/scans", url.Values{"repository_id": {repoID}}, &page); err != nil {
+		// Only the repository's own executions (source scans and result
+		// imports): a scan target's (image, URL, …) is a separate asset.
+		if err := c.getJSON(ctx, "/api/v1/scans", url.Values{"repository_id": {repoID}, "asset_type": {"repository"}}, &page); err != nil {
 			return err
 		}
 		for _, j := range page.Items {
