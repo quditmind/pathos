@@ -1,0 +1,111 @@
+[
+  {
+    "meta": {
+      "isPrivate": true,
+      "isLicensesEnabled": false,
+      "ignoreSettings": null,
+      "org": "example-org",
+      "policy": ""
+    },
+    "filesystemPolicy": false,
+    "vulnerabilities": [],
+    "dependencyCount": 0,
+    "licensesPolicy": null,
+    "ignoreSettings": null,
+    "targetFile": "k8s/deployment.yaml",
+    "projectName": "src",
+    "org": "example-org",
+    "policy": "",
+    "isPrivate": true,
+    "targetFilePath": "/src/k8s/deployment.yaml",
+    "packageManager": "k8sconfig",
+    "path": "k8s",
+    "projectType": "k8sconfig",
+    "ok": false,
+    "infrastructureAsCodeIssues": [
+      {
+        "severity": "medium",
+        "resolve": "Set `spec.{containers, initContainers}.securityContext.privileged` to `false`",
+        "impact": "Compromised container could potentially modify the underlying host's kernel by loading unauthorized modules",
+        "msg": "spec.template.spec.containers[web].securityContext.privileged",
+        "remediation": {
+          "kubernetes": "Set `privileged` attribute to `false`"
+        },
+        "subType": "Deployment",
+        "issue": "Container is running in privileged mode",
+        "publicId": "SNYK-CC-K8S-1",
+        "title": "Container is running in privileged mode",
+        "references": [
+          "https://kubernetes.io/docs/concepts/security/pod-security-standards/"
+        ],
+        "id": "SNYK-CC-K8S-1",
+        "isIgnored": false,
+        "iacDescription": {
+          "issue": "Container is running in privileged mode",
+          "impact": "Compromised container could potentially modify the underlying host's kernel",
+          "resolve": "Set `privileged` to `false`"
+        },
+        "lineNumber": 21,
+        "documentation": "https://security.snyk.io/rules/cloud/SNYK-CC-K8S-1",
+        "isGeneratedByCustomRule": false,
+        "path": [
+          "[DocId: 0]",
+          "spec",
+          "template",
+          "spec",
+          "containers[web]",
+          "securityContext",
+          "privileged"
+        ]
+      },
+      {
+        "severity": "low",
+        "msg": "spec.template.spec.containers[web].resources.limits.memory",
+        "subType": "Deployment",
+        "issue": "Memory limits not set",
+        "publicId": "SNYK-CC-K8S-4",
+        "title": "Container has no memory limit",
+        "id": "SNYK-CC-K8S-4",
+        "isIgnored": true,
+        "iacDescription": {
+          "issue": "Memory limits not set",
+          "impact": "Containers without memory limits are more likely to be terminated",
+          "resolve": "Set `resources.limits.memory`"
+        },
+        "lineNumber": 17,
+        "documentation": "https://security.snyk.io/rules/cloud/SNYK-CC-K8S-4"
+      }
+    ]
+  },
+  {
+    "meta": {
+      "isPrivate": true,
+      "org": "example-org"
+    },
+    "vulnerabilities": [],
+    "dependencyCount": 0,
+    "targetFile": "tf/main.tf",
+    "projectType": "terraformconfig",
+    "packageManager": "terraformconfig",
+    "ok": false,
+    "infrastructureAsCodeIssues": [
+      {
+        "severity": "high",
+        "msg": "resource.aws_s3_bucket[logs].acl",
+        "subType": "S3",
+        "issue": "Anyone can read the bucket",
+        "publicId": "SNYK-CC-TF-4",
+        "title": "S3 bucket is publicly readable",
+        "id": "SNYK-CC-TF-4",
+        "isIgnored": false,
+        "iacDescription": {
+          "issue": "Anyone can read the bucket",
+          "impact": "Public buckets may expose sensitive data",
+          "resolve": "Set `acl` to `private`"
+        },
+        "lineNumber": 3,
+        "documentation": "https://security.snyk.io/rules/cloud/SNYK-CC-TF-4"
+      }
+    ]
+  }
+]

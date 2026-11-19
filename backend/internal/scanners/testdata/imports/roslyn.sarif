@@ -1,0 +1,216 @@
+{
+  "$schema": "http://json.schemastore.org/sarif-2.1.0",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "CA1052",
+          "ruleIndex": 0,
+          "level": "warning",
+          "message": {
+            "text": "Type 'App' is a static holder type but is neither static nor NotInheritable"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///tmp/cs/App.cs"
+                },
+                "region": {
+                  "startLine": 7,
+                  "startColumn": 18,
+                  "endLine": 7,
+                  "endColumn": 21
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA5351",
+          "ruleIndex": 2,
+          "level": "warning",
+          "message": {
+            "text": "Hash uses a broken cryptographic algorithm MD5"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///tmp/cs/App.cs"
+                },
+                "region": {
+                  "startLine": 18,
+                  "startColumn": 29,
+                  "endLine": 18,
+                  "endColumn": 41
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA5394",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Random is an insecure random number generator. Use cryptographically secure random number generators when randomness is required for security."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///tmp/cs/App.cs"
+                },
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 47,
+                  "endLine": 25,
+                  "endColumn": 57
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        },
+        {
+          "ruleId": "CA1062",
+          "ruleIndex": 1,
+          "level": "warning",
+          "message": {
+            "text": "In externally visible method 'void App.Main(string[] args)', validate parameter 'args' is non-null before using it. If appropriate, throw an 'ArgumentNullException' when the argument is 'null'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///tmp/cs/App.cs"
+                },
+                "region": {
+                  "startLine": 25,
+                  "startColumn": 36,
+                  "endLine": 25,
+                  "endColumn": 40
+                }
+              }
+            }
+          ],
+          "properties": {
+            "warningLevel": 1
+          }
+        }
+      ],
+      "properties": {
+        "analyzerExecutionTime": "1.789"
+      },
+      "tool": {
+        "driver": {
+          "name": "Microsoft (R) Visual C# Compiler",
+          "version": "4.11.0-3.25569.22 (3fb752d4)",
+          "dottedQuadFileVersion": "4.11.0.0",
+          "semanticVersion": "4.11.0",
+          "rules": [
+            {
+              "id": "CA1052",
+              "shortDescription": {
+                "text": "Static holder types should be Static or NotInheritable"
+              },
+              "defaultConfiguration": {
+                "enabled": false
+              },
+              "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1052",
+              "properties": {
+                "category": "Design",
+                "executionTimeInSeconds": "0.007",
+                "executionTimeInPercentage": "<1",
+                "tags": [
+                  "PortedFromFxCop",
+                  "Telemetry",
+                  "EnabledRuleInAggressiveMode"
+                ]
+              }
+            },
+            {
+              "id": "CA1062",
+              "shortDescription": {
+                "text": "Validate arguments of public methods"
+              },
+              "fullDescription": {
+                "text": "An externally visible method dereferences one of its reference arguments without verifying whether that argument is 'null' ('Nothing' in Visual Basic). All reference arguments that are passed to externally visible methods should be checked against 'null'. If appropriate, throw an 'ArgumentNullException' when the argument is 'null'. If the method is designed to be called only by known assemblies, you should make the method internal."
+              },
+              "defaultConfiguration": {
+                "enabled": false
+              },
+              "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca1062",
+              "properties": {
+                "category": "Design",
+                "executionTimeInSeconds": "0.644",
+                "executionTimeInPercentage": "36",
+                "tags": [
+                  "PortedFromFxCop",
+                  "Dataflow",
+                  "Telemetry",
+                  "EnabledRuleInAggressiveMode"
+                ]
+              }
+            },
+            {
+              "id": "CA5351",
+              "shortDescription": {
+                "text": "Do Not Use Broken Cryptographic Algorithms"
+              },
+              "fullDescription": {
+                "text": "An attack making it computationally feasible to break this algorithm exists. This allows attackers to break the cryptographic guarantees it is designed to provide. Depending on the type and application of this cryptographic algorithm, this may allow attackers to read enciphered messages, tamper with enciphered\u202f messages, forge digital signatures, tamper with hashed content, or otherwise compromise any cryptosystem based on this algorithm. Replace encryption uses with the AES algorithm (AES-256, AES-192 and AES-128 are acceptable) with a key length greater than or equal to 128 bits. Replace hashing uses with a hashing function in the SHA-2 family, such as SHA512, SHA384, or SHA256. Replace digital signature uses with RSA with a key length greater than or equal to 2048-bits, or ECDSA with a key length greater than or equal to 256 bits."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca5351",
+              "properties": {
+                "category": "Security",
+                "executionTimeInSeconds": "0.002",
+                "executionTimeInPercentage": "<1",
+                "tags": [
+                  "Telemetry",
+                  "EnabledRuleInAggressiveMode"
+                ]
+              }
+            },
+            {
+              "id": "CA5394",
+              "shortDescription": {
+                "text": "Do not use insecure randomness"
+              },
+              "fullDescription": {
+                "text": "Using a cryptographically weak pseudo-random number generator may allow an attacker to predict what security-sensitive value will be generated. Use a cryptographically strong random number generator if an unpredictable value is required, or ensure that weak pseudo-random numbers aren't used in a security-sensitive manner."
+              },
+              "defaultConfiguration": {
+                "enabled": false
+              },
+              "helpUri": "https://learn.microsoft.com/dotnet/fundamentals/code-analysis/quality-rules/ca5394",
+              "properties": {
+                "category": "Security",
+                "executionTimeInSeconds": "0.001",
+                "executionTimeInPercentage": "<1",
+                "tags": [
+                  "Telemetry",
+                  "EnabledRuleInAggressiveMode"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

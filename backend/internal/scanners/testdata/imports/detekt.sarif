@@ -1,0 +1,166 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "originalUriBaseIds": {
+        "%SRCROOT%": {
+          "uri": "file:///src/"
+        }
+      },
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "kt/Main.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 48,
+                  "endLine": 13,
+                  "startColumn": 45,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Empty catch block detected. If the exception can be safely ignored, name the exception according to one of the exemptions as per the configuration of this rule."
+          },
+          "ruleId": "detekt.empty-blocks.EmptyCatchBlock"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "kt/Main.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 43,
+                  "endLine": 13,
+                  "startColumn": 31,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The caught exception is too generic. Prefer catching specific exceptions to the case that is currently handled."
+          },
+          "ruleId": "detekt.exceptions.TooGenericExceptionCaught"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "kt/Main.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 43,
+                  "endLine": 13,
+                  "startColumn": 31,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The caught exception is swallowed. The original exception could be lost."
+          },
+          "ruleId": "detekt.exceptions.SwallowedException"
+        },
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "kt/Main.kt",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "endColumn": 15,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "The package declaration does not match the actual file location."
+          },
+          "ruleId": "detekt.naming.InvalidPackageDeclaration"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "downloadUri": "https://github.com/detekt/detekt/releases/download/v1.23.8/detekt",
+          "fullName": "detekt",
+          "guid": "022ca8c2-f6a2-4c95-b107-bb72c43263f3",
+          "informationUri": "https://detekt.dev",
+          "language": "en",
+          "name": "detekt",
+          "organization": "detekt",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://detekt.dev/empty-blocks.html#emptycatchblock",
+              "id": "detekt.empty-blocks.EmptyCatchBlock",
+              "name": "EmptyCatchBlock",
+              "shortDescription": {
+                "text": "Empty catch block detected. Empty catch blocks indicate that an exception is ignored and not handled."
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://detekt.dev/exceptions.html#toogenericexceptioncaught",
+              "id": "detekt.exceptions.TooGenericExceptionCaught",
+              "name": "TooGenericExceptionCaught",
+              "shortDescription": {
+                "text": "The caught exception is too generic. Prefer catching specific exceptions to the case that is currently handled."
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://detekt.dev/exceptions.html#swallowedexception",
+              "id": "detekt.exceptions.SwallowedException",
+              "name": "SwallowedException",
+              "shortDescription": {
+                "text": "The caught exception is swallowed. The original exception could be lost."
+              }
+            },
+            {
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://detekt.dev/naming.html#invalidpackagedeclaration",
+              "id": "detekt.naming.InvalidPackageDeclaration",
+              "name": "InvalidPackageDeclaration",
+              "shortDescription": {
+                "text": "Kotlin source files should be stored in the directory corresponding to its package statement."
+              }
+            }
+          ],
+          "semanticVersion": "1.23.8",
+          "version": "1.23.8"
+        }
+      }
+    }
+  ]
+}

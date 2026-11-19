@@ -1,0 +1,177 @@
+{
+ "matches": [
+  {
+   "Cycle": {
+    "ProductName": "MongoDB Server",
+    "ProductPermalink": "",
+    "ReleaseCycle": "2.8",
+    "Eol": "true",
+    "LatestRelease": "",
+    "LatestReleaseDate": "2016-07-31",
+    "ReleaseDate": "2016-07-31"
+   },
+   "Package": {
+    "ID": "",
+    "Name": "",
+    "Version": "",
+    "Locations": {},
+    "Language": "",
+    "Licenses": null,
+    "Type": "",
+    "CPEs": null,
+    "PURL": "",
+    "Upstreams": null,
+    "MetadataType": "",
+    "Metadata": null
+   },
+   "artifact": {
+    "name": "package-2",
+    "version": "2.2.2",
+    "type": "deb",
+    "locations": [
+     {
+      "path": "/foo/bar/somefile-2.txt"
+     }
+    ],
+    "language": "",
+    "licenses": [
+     "MIT",
+     "Apache-2.0"
+    ],
+    "cpes": [],
+    "purl": "",
+    "upstreams": []
+   }
+  },
+  {
+   "Cycle": {
+    "ProductName": "MongoDB Server",
+    "ProductPermalink": "",
+    "ReleaseCycle": "3.2",
+    "Eol": "2018-07-31",
+    "LatestRelease": "",
+    "LatestReleaseDate": "2018-07-31",
+    "ReleaseDate": "2018-07-31"
+   },
+   "Package": {
+    "ID": "",
+    "Name": "",
+    "Version": "",
+    "Locations": {},
+    "Language": "",
+    "Licenses": null,
+    "Type": "",
+    "CPEs": null,
+    "PURL": "",
+    "Upstreams": null,
+    "MetadataType": "",
+    "Metadata": null
+   },
+   "artifact": {
+    "name": "package-1",
+    "version": "1.1.1",
+    "type": "rpm",
+    "locations": [
+     {
+      "path": "/foo/bar/somefile-1.txt"
+     }
+    ],
+    "language": "",
+    "licenses": [],
+    "cpes": [],
+    "purl": "",
+    "upstreams": [
+     {
+      "name": "nothing",
+      "version": "3.2"
+     }
+    ],
+    "metadataType": "RpmMetadata",
+    "metadata": {
+     "epoch": 2,
+     "modularityLabel": ""
+    }
+   }
+  },
+  {
+   "Cycle": {
+    "ProductName": "Ubuntu",
+    "ProductPermalink": "",
+    "ReleaseCycle": "16.04",
+    "Eol": "2021-04-02",
+    "LatestRelease": "",
+    "LatestReleaseDate": "2016-07-31",
+    "ReleaseDate": "2016-07-31"
+   },
+   "Package": {
+    "ID": "",
+    "Name": "",
+    "Version": "",
+    "Locations": {},
+    "Language": "",
+    "Licenses": null,
+    "Type": "",
+    "CPEs": null,
+    "PURL": "",
+    "Upstreams": null,
+    "MetadataType": "",
+    "Metadata": null
+   },
+   "artifact": {
+    "name": "ubuntu",
+    "version": "16.04",
+    "type": "os",
+    "locations": [],
+    "language": "",
+    "licenses": [],
+    "cpes": [],
+    "purl": "",
+    "upstreams": []
+   }
+  }
+ ],
+ "source": {
+  "type": "image",
+  "target": {
+   "userInput": "user-input",
+   "imageID": "sha256:ab5608d634db2716a297adbfa6a5dd5d8f8f5a7d0cab73649ea7fbb8c8da544f",
+   "manifestDigest": "sha256:ca738abb87a8d58f112d3400ebb079b61ceae7dc290beb34bda735be4b1941d5",
+   "mediaType": "application/vnd.docker.distribution.manifest.v2+json",
+   "tags": [],
+   "imageSize": 65,
+   "layers": [
+    {
+     "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+     "digest": "sha256:ca738abb87a8d58f112d3400ebb079b61ceae7dc290beb34bda735be4b1941d5",
+     "size": 22
+    },
+    {
+     "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+     "digest": "sha256:a05cd9ebf88af96450f1e25367281ab232ac0645f314124fe01af759b93f3006",
+     "size": 16
+    },
+    {
+     "mediaType": "application/vnd.docker.image.rootfs.diff.tar.gzip",
+     "digest": "sha256:ab5608d634db2716a297adbfa6a5dd5d8f8f5a7d0cab73649ea7fbb8c8da544f",
+     "size": 27
+    }
+   ],
+   "manifest": null,
+   "config": null,
+   "repoDigests": [],
+   "architecture": "",
+   "os": ""
+  }
+ },
+ "distro": {
+  "name": "centos",
+  "version": "8.0",
+  "idLike": [
+   "centos"
+  ]
+ },
+ "descriptor": {
+  "name": "xeol",
+  "version": "[not provided]"
+ }
+}

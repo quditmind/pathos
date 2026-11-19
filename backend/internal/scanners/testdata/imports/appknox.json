@@ -1,0 +1,76 @@
+{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 101,
+      "risk": 3,
+      "overridden_risk": null,
+      "computed_risk": 3,
+      "status": 3,
+      "cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N",
+      "cvss_base": 6.2,
+      "cvss_version": 3,
+      "owasp": [
+        "M9_2016"
+      ],
+      "cwe": [
+        "CWE-312"
+      ],
+      "masvs": [
+        "MSTG-STORAGE-1"
+      ],
+      "pcidss": [],
+      "hipaa": [],
+      "gdpr": [],
+      "vulnerability": 12,
+      "file": 52001,
+      "findings": [
+        {
+          "title": "Sensitive data stored in shared preferences",
+          "description": "The app stores an access token in /shared_prefs/auth.xml in plain text."
+        }
+      ],
+      "updated_on": "2026-11-01T10:00:00Z"
+    },
+    {
+      "id": 102,
+      "risk": 2,
+      "overridden_risk": 1,
+      "computed_risk": 1,
+      "status": 3,
+      "cvss_vector": "",
+      "cvss_base": 0,
+      "owasp": [
+        "M3_2016"
+      ],
+      "cwe": [
+        "CWE-295"
+      ],
+      "masvs": [],
+      "vulnerability": 34,
+      "file": 52001,
+      "findings": [
+        {
+          "title": "Certificate pinning not implemented",
+          "description": "The app accepts any trusted CA certificate for api.example.test."
+        }
+      ],
+      "updated_on": "2026-11-01T10:00:00Z"
+    },
+    {
+      "id": 103,
+      "risk": 0,
+      "overridden_risk": null,
+      "computed_risk": 0,
+      "status": 3,
+      "cvss_base": 0,
+      "cwe": [],
+      "vulnerability": 56,
+      "file": 52001,
+      "findings": [],
+      "updated_on": "2026-11-01T10:00:00Z"
+    }
+  ]
+}

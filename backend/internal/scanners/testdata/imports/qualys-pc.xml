@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE POSTURE_INFO_LIST_OUTPUT SYSTEM "https://qualysapi.qualys.com/api/2.0/fo/compliance/posture/info/posture_info_list_output.dtd">
+<POSTURE_INFO_LIST_OUTPUT>
+  <RESPONSE>
+    <DATETIME>2026-11-01T10:00:00Z</DATETIME>
+    <INFO_LIST>
+      <INFO>
+        <ID>81234001</ID>
+        <HOST_ID>4412001</HOST_ID>
+        <CONTROL_ID>1071</CONTROL_ID>
+        <TECHNOLOGY_ID>45</TECHNOLOGY_ID>
+        <INSTANCE>os</INSTANCE>
+        <STATUS>Failed</STATUS>
+        <POSTURE_MODIFIED_DATE>2026-10-28T09:00:00Z</POSTURE_MODIFIED_DATE>
+        <EVALUATION_DATE>2026-11-01T09:55:00Z</EVALUATION_DATE>
+        <FIRST_FAIL_DATE>2026-10-28T09:00:00Z</FIRST_FAIL_DATE>
+        <LAST_FAIL_DATE>2026-11-01T09:55:00Z</LAST_FAIL_DATE>
+      </INFO>
+      <INFO>
+        <ID>81234002</ID>
+        <HOST_ID>4412001</HOST_ID>
+        <CONTROL_ID>2234</CONTROL_ID>
+        <TECHNOLOGY_ID>45</TECHNOLOGY_ID>
+        <INSTANCE>os</INSTANCE>
+        <STATUS>Passed</STATUS>
+        <EVALUATION_DATE>2026-11-01T09:55:00Z</EVALUATION_DATE>
+      </INFO>
+      <INFO>
+        <ID>81234003</ID>
+        <HOST_ID>4412002</HOST_ID>
+        <CONTROL_ID>3891</CONTROL_ID>
+        <TECHNOLOGY_ID>45</TECHNOLOGY_ID>
+        <INSTANCE>os</INSTANCE>
+        <STATUS>Error</STATUS>
+        <EVALUATION_DATE>2026-11-01T09:56:00Z</EVALUATION_DATE>
+      </INFO>
+    </INFO_LIST>
+    <GLOSSARY>
+      <CONTROL_LIST>
+        <CONTROL>
+          <ID>1071</ID>
+          <STATEMENT><![CDATA[Status of the 'PermitRootLogin' setting in the sshd_config file]]></STATEMENT>
+          <CRITICALITY>
+            <LABEL>SERIOUS</LABEL>
+            <VALUE>3</VALUE>
+          </CRITICALITY>
+          <RATIONALE_LIST>
+            <RATIONALE>
+              <TECHNOLOGY_ID>45</TECHNOLOGY_ID>
+              <TEXT><![CDATA[Disallowing root logins over SSH requires administrators to authenticate with their own account.]]></TEXT>
+            </RATIONALE>
+          </RATIONALE_LIST>
+        </CONTROL>
+        <CONTROL>
+          <ID>2234</ID>
+          <STATEMENT><![CDATA[Status of the 'Maximum password age' setting]]></STATEMENT>
+          <CRITICALITY>
+            <LABEL>MEDIUM</LABEL>
+            <VALUE>2</VALUE>
+          </CRITICALITY>
+        </CONTROL>
+        <CONTROL>
+          <ID>3891</ID>
+          <STATEMENT><![CDATA[Status of the 'auditd' service]]></STATEMENT>
+          <CRITICALITY>
+            <LABEL>URGENT</LABEL>
+            <VALUE>5</VALUE>
+          </CRITICALITY>
+        </CONTROL>
+      </CONTROL_LIST>
+      <HOST_LIST>
+        <HOST>
+          <ID>4412001</ID>
+          <IP>10.0.1.20</IP>
+          <TRACKING_METHOD>AGENT</TRACKING_METHOD>
+          <DNS><![CDATA[app-01.example.test]]></DNS>
+          <OPERATING_SYSTEM><![CDATA[Ubuntu 22.04]]></OPERATING_SYSTEM>
+        </HOST>
+        <HOST>
+          <ID>4412002</ID>
+          <IP>10.0.1.21</IP>
+          <TRACKING_METHOD>IP</TRACKING_METHOD>
+          <OPERATING_SYSTEM><![CDATA[Ubuntu 22.04]]></OPERATING_SYSTEM>
+        </HOST>
+      </HOST_LIST>
+      <TECHNOLOGY_LIST>
+        <TECHNOLOGY>
+          <ID>45</ID>
+          <NAME>Ubuntu 22.x</NAME>
+        </TECHNOLOGY>
+      </TECHNOLOGY_LIST>
+    </GLOSSARY>
+  </RESPONSE>
+</POSTURE_INFO_LIST_OUTPUT>

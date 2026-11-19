@@ -1,0 +1,84 @@
+{
+  "details": [
+    {
+      "qid": 178573,
+      "title": "Debian Security Update for openssl (DSA 5678-1)",
+      "result": null,
+      "severity": 4,
+      "typeDetected": "CONFIRMED",
+      "status": null,
+      "cveids": [
+        "CVE-2024-2511",
+        "CVE-2024-4603"
+      ],
+      "cvssInfo": {
+        "baseScore": "5.0",
+        "temporalScore": "3.7",
+        "accessVector": "Network"
+      },
+      "cvss3Info": {
+        "baseScore": "5.9",
+        "temporalScore": "5.2"
+      },
+      "patchAvailable": true,
+      "firstFound": "1767225600000",
+      "lastFound": "1767830400000",
+      "software": [
+        {
+          "name": "openssl",
+          "version": "3.0.11-1~deb12u2",
+          "fixVersion": "3.0.13-1~deb12u1",
+          "packagePath": null,
+          "scanType": [
+            "STATIC"
+          ]
+        }
+      ],
+      "layerSha": [
+        "9a8b7c6d5e4f3021"
+      ],
+      "product": [
+        "openssl"
+      ],
+      "vendor": [
+        "debian"
+      ],
+      "isExempted": false,
+      "qdsScore": 61
+    },
+    {
+      "qid": 376210,
+      "title": "OpenSSH Remote Unauthenticated Code Execution Vulnerability (regreSSHion)",
+      "severity": 5,
+      "typeDetected": "POTENTIAL",
+      "cveids": [
+        "CVE-2024-6387"
+      ],
+      "cvss3Info": {
+        "baseScore": "8.1"
+      },
+      "patchAvailable": true,
+      "software": [
+        {
+          "name": "openssh-server",
+          "version": "1:9.2p1-2+deb12u2",
+          "fixVersion": "1:9.2p1-2+deb12u3",
+          "packagePath": null
+        }
+      ],
+      "isExempted": true
+    }
+  ],
+  "vulnSummary": {
+    "confirmed": {
+      "sev4Count": 1
+    },
+    "potential": {
+      "sev5Count": 1
+    },
+    "patchAvailability": {
+      "sev4Count": 1,
+      "sev5Count": 1
+    }
+  }
+}

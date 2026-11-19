@@ -1,0 +1,48 @@
+{
+  "EvaluationResults": [
+    {
+      "EvaluationResultIdentifier": {
+        "EvaluationResultQualifier": {
+          "ConfigRuleName": "s3-bucket-public-read-prohibited",
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceId": "example-logs",
+          "EvaluationMode": "DETECTIVE"
+        },
+        "OrderingTimestamp": 1767225600.123,
+        "ResourceEvaluationId": ""
+      },
+      "ComplianceType": "NON_COMPLIANT",
+      "ResultRecordedTime": 1767225612.5,
+      "ConfigRuleInvokedTime": 1767225605.1,
+      "Annotation": "The bucket ACL grants READ to AllUsers."
+    },
+    {
+      "EvaluationResultIdentifier": {
+        "EvaluationResultQualifier": {
+          "ConfigRuleName": "s3-bucket-public-read-prohibited",
+          "ResourceType": "AWS::S3::Bucket",
+          "ResourceId": "example-assets",
+          "EvaluationMode": "DETECTIVE"
+        },
+        "OrderingTimestamp": 1767225600.123
+      },
+      "ComplianceType": "COMPLIANT",
+      "ResultRecordedTime": 1767225612.5,
+      "ConfigRuleInvokedTime": 1767225605.1
+    },
+    {
+      "EvaluationResultIdentifier": {
+        "EvaluationResultQualifier": {
+          "ConfigRuleName": "restricted-ssh",
+          "ResourceType": "AWS::EC2::SecurityGroup",
+          "ResourceId": "sg-0a1b2c3d4e5f60718",
+          "EvaluationMode": "DETECTIVE"
+        },
+        "OrderingTimestamp": 1767225700.0
+      },
+      "ComplianceType": "NON_COMPLIANT",
+      "ResultRecordedTime": 1767225710.0,
+      "ConfigRuleInvokedTime": 1767225702.0
+    }
+  ]
+}

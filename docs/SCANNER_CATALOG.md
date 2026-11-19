@@ -196,6 +196,92 @@ These tools are integrated through their own report format: the report is produc
 
 DeepSource has no documented report export and is not importable. Whispers and Terrascan stay excluded as scanners (archived) but their existing reports can be imported.
 
+## Import-only integrations: SARIF producers, compliance, cloud and commercial services (2.0 wave B)
+
+These tools are integrated through their report format ([Result imports](api-reference/result-imports.md#formats-added-in-20-wave-b)); PATHOS does not ship or run them, so their licences place no condition on PATHOS, and commercial tools are never required. SARIF logs of these tools are detected by the SARIF driver name and imported under the tool's own scanner key. Licences are listed as published by each project (not re-checked against the repositories for this change). "Real run" means the test report was produced by running the pinned tool version against a small local sample; "published format" means the format was built from the published format and is not yet verified against a real export. Where a tool already had an import format (Semgrep, ESLint, Brakeman, Fortify, Veracode, Mend, KICS, tfsec, Checkov, zizmor, Grype, Trivy, OSV-Scanner, Gitleaks, Nuclei, TruffleHog), the new format shares its tool name and scanner key.
+
+| Tool | Format ID | Kind | Licence (SPDX) | Test report |
+|---|---|---|---|---|
+| CodeQL | `codeql` | SAST | LicenseRef-CodeQL-Terms (GitHub CodeQL Terms and Conditions; free for open-source code) | published format |
+| Semgrep (SARIF) | `sarif-semgrep` | SAST | LGPL-2.1 (Semgrep CE) | real run |
+| Microsoft DevSkim | `devskim` | SAST | MIT | real run |
+| PSScriptAnalyzer | `psscriptanalyzer` | Code quality (PowerShell) | MIT | real run |
+| MSVC code analysis (/analyze) | `msvc-analyze` | SAST (C/C++) | Proprietary (Visual Studio) | published format |
+| Roslyn analyzers (NetAnalyzers) | `roslyn` | Code quality, security rules (.NET) | MIT | real run |
+| SonarLint / SonarQube for IDE | `sonarlint` | Code quality | LGPL-3.0 | published format |
+| Infer | `infer` | SAST (C, C++, Java, Objective-C) | MIT | real run |
+| Pysa (via SAPP) | `pysa` | SAST taint (Python) | MIT | published format |
+| Mariana Trench (via SAPP) | `mariana-trench` | Mobile taint (Android) | MIT | published format |
+| Clang Static Analyzer | `clang-analyzer` | SAST (C/C++) | Apache-2.0 WITH LLVM-exception | real run |
+| ESLint (SARIF) | `sarif-eslint` | SAST (JavaScript) | MIT | real run |
+| Brakeman (SARIF) | `sarif-brakeman` | SAST (Ruby) | NOASSERTION (Brakeman Public Use Licence) | real run |
+| Fortify (SARIF) | `sarif-fortify` | SAST | Commercial | published format |
+| Veracode Pipeline Scan (SARIF) | `sarif-veracode` | SAST | Commercial (service) | published format |
+| Mend SAST (SARIF) | `sarif-mend-sast` | SAST | Commercial | published format |
+| Datadog Static Analyzer | `datadog-sast` | SAST | Apache-2.0 | real run |
+| detekt | `detekt` | Code quality (Kotlin) | Apache-2.0 | real run |
+| PVS-Studio | `pvs-studio` | SAST (C, C++, C#, Java) | Commercial | published format |
+| BinSkim | `binskim` | Binary hardening | MIT | published format |
+| Snyk IaC | `snyk-iac`, `sarif-snyk-iac` | IaC | Commercial (service; CLI Apache-2.0) | published format |
+| KICS (SARIF) | `sarif-kics` | IaC | Apache-2.0 | real run |
+| tfsec (SARIF) | `sarif-tfsec` | IaC (Terraform) | MIT | real run |
+| Checkov (SARIF) | `sarif-checkov` | IaC | Apache-2.0 | real run |
+| ansible-lint | `ansible-lint` | IaC (Ansible) | GPL-3.0-or-later | real run |
+| zizmor (SARIF) | `sarif-zizmor` | CI/CD (GitHub Actions) | MIT | real run |
+| Spectral | `spectral` | API definitions (OpenAPI, AsyncAPI) | Apache-2.0 | real run |
+| Grype (SARIF) | `sarif-grype` | SCA, container | Apache-2.0 | real run |
+| Trivy (SARIF) | `sarif-trivy` | SCA, IaC, container | Apache-2.0 | real run |
+| OSV-Scanner (SARIF) | `sarif-osv-scanner` | SCA | Apache-2.0 | real run |
+| Gitleaks (SARIF) | `sarif-gitleaks` | Secrets | MIT | real run |
+| OpenSCAP | `openscap` | Compliance (SCAP / XCCDF) | LGPL-2.1-or-later | real run |
+| CIS-CAT Pro Assessor | `cis-cat` | Compliance (CIS benchmarks) | Commercial (CIS SecureSuite) | published format |
+| Chef InSpec | `inspec` | Compliance | Apache-2.0 (InSpec 5; later versions are under the Chef EULA) | real run |
+| Lynis | `lynis` | Compliance, host hardening | GPL-3.0 | real run |
+| AWS Config | `aws-config` | Compliance (cloud) | Cloud service | published format |
+| Azure Policy | `azure-policy` | Compliance (cloud) | Cloud service | published format |
+| Qualys Policy Compliance | `qualys-pc` | Compliance | Commercial | published format |
+| Steampipe / Powerpipe | `steampipe` | Compliance (cloud benchmarks) | AGPL-3.0 (Steampipe CLI), Apache-2.0 (mods) | published format (needs a cloud account) |
+| Wiz | `wiz` | CNAPP (issues, vulnerabilities) | Commercial | published format |
+| Orca Security | `orca` | CNAPP (alerts) | Commercial | published format |
+| Lacework | `lacework` | CNAPP (container and host vulnerabilities) | Commercial | published format |
+| Aqua Security | `aqua` | Container image | Commercial | published format |
+| Snyk Container | `snyk-container` | Container image | Commercial (service; CLI Apache-2.0) | published format |
+| CrowdStrike Falcon Spotlight | `crowdstrike-spotlight` | EDR vulnerability management | Commercial | published format |
+| Microsoft Defender Vulnerability Management | `defender-vm` | EDR vulnerability management | Commercial | published format |
+| Qualys Container Security | `qualys-cs` | Container image | Commercial | published format |
+| Tenable Web App Scanning | `tenable-was` | DAST | Commercial | published format |
+| Rapid7 InsightVM (API v4) | `insightvm` | Network / host vulnerabilities | Commercial | published format |
+| Kiuwan | `kiuwan`, `kiuwan-sca` | SAST, code quality, SCA | Commercial | published format |
+| Checkmarx One | `checkmarx-one` | SAST, SCA, IaC | Commercial | published format |
+| Checkmarx SCA | `checkmarx-sca` | SCA | Commercial | published format |
+| Veracode SCA (agent) | `srcclr` | SCA | Commercial | published format |
+| Fortify on Demand | `fod` | SAST, DAST, SCA, mobile | Commercial (service) | published format |
+| HCL AppScan on Cloud | `appscan-cloud` | SAST, DAST, IAST, SCA | Commercial (service) | published format |
+| Detectify | `detectify` | DAST | Commercial (service) | published format |
+| Intruder | `intruder` | Network / web vulnerabilities | Commercial (service) | published format |
+| Probely | `probely` | DAST | Commercial (service) | published format |
+| Edgescan | `edgescan` | DAST, network | Commercial (service) | published format |
+| Pentest-Tools.com | `pentest-tools` | DAST, network | Commercial (service) | published format |
+| Appknox | `appknox` | Mobile | Commercial (service) | published format |
+| ImmuniWeb | `immuniweb` | DAST | Commercial (service) | published format |
+| Trivy Operator | `trivy-operator` | Kubernetes (images, configuration) | Apache-2.0 | published format (needs a cluster) |
+| Xeol | `xeol` | End-of-life software | Apache-2.0 | Xeol's own presenter test snapshot (its database server no longer resolves) |
+| kube-score | `kube-score` | IaC (Kubernetes) | MIT | real run |
+| kubesec | `kubesec` | IaC (Kubernetes) | Apache-2.0 | real run |
+| kubeaudit | `kubeaudit` | IaC (Kubernetes) | MIT | real run |
+| Datree | `datree` | IaC (Kubernetes) | Apache-2.0 (archived) | real run |
+| Cloud Custodian (c7n-left) | `cloud-custodian` | IaC policy | Apache-2.0 | real run |
+| Nuclei (JSON export) | `nuclei-json` | DAST | MIT | real run |
+| TruffleHog 2 (legacy) | `trufflehog-v2` | Secrets | GPL (version not stated in the package metadata); unmaintained | real run |
+| git-secrets | `git-secrets` | Secrets | Apache-2.0 | real run |
+| Arjun | `arjun` | DAST (parameter discovery) | AGPL-3.0 (PyPI metadata also says GPL-3.0) | real run |
+| Gixy / gixy-ng | `gixy` | Configuration (nginx) | MPL-2.0 | real run |
+| Regula | `regula` | IaC | Apache-2.0 (archived) | real run |
+| ssh-audit | `ssh-audit` | Cryptography (SSH configuration) | MIT | real run |
+| GuardDog | `guarddog` | Malicious packages | Apache-2.0 | real run |
+
+Not added: Kube-hunter (deprecated); Syft (an SBOM generator: its CycloneDX and SPDX output is imported as an SBOM); the Trivy SBOM scan (`trivy sbom --format json`), OSV-Scanner JSON, Semgrep JSON and Grype JSON, which were already supported.
+
 ## Excluded
 
 | Tool | Reason |

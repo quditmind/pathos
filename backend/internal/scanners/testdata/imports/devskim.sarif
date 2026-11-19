@@ -1,0 +1,397 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.6.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "devskim",
+          "fullName": "Microsoft DevSkim Command Line Interface",
+          "version": "1.0.67+1c44622c1f",
+          "informationUri": "https://github.com/microsoft/DevSkim/",
+          "rules": [
+            {
+              "id": "DS161085",
+              "name": "ProblematicCFunctionDetectedMalloc",
+              "fullDescription": {
+                "text": "Problematic C function detected (malloc): If the value provided to malloc is the result of unsafe integer math, it can result in an exploitable condition. "
+              },
+              "help": {
+                "text": "calloc handles the most common integer math in memory allocation (# of elements * their size) with error handling to prevent overflows in most implementations, and zeros out memory",
+                "markdown": "calloc handles the most common integer math in memory allocation (# of elements * their size) with error handling to prevent overflows in most implementations, and zeros out memory Visit [https://github.com/Microsoft/DevSkim/blob/main/guidance/DS161085.md](https://github.com/Microsoft/DevSkim/blob/main/guidance/DS161085.md) for additional guidance on this issue."
+              },
+              "shortDescription": {
+                "text": "If the value provided to malloc is the result of unsafe integer math, it can result in an exploitable condition. "
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://github.com/Microsoft/DevSkim/blob/main/guidance/DS161085.md",
+              "properties": {
+                "precision": "high",
+                "problem.severity": "recommendation",
+                "DevSkimSeverity": "BestPractice",
+                "DevSkimConfidence": "High"
+              }
+            },
+            {
+              "id": "DS185832",
+              "name": "BannedCFunctionDetectedStrcpy",
+              "fullDescription": {
+                "text": "Banned C function detected (strcpy): strcpy is frequently dangerous, as it will cause a buffer overflow if the source is larger than the destination."
+              },
+              "help": {
+                "text": "Use strcpy_s or strlcpy if possible. If no safe function is viable, strcpy/strncpy should be proceeded by conditional checks to verify that the source string will fit in the destination with a null termnator.",
+                "markdown": "Use strcpy_s or strlcpy if possible. If no safe function is viable, strcpy/strncpy should be proceeded by conditional checks to verify that the source string will fit in the destination with a null termnator. Visit [https://github.com/Microsoft/DevSkim/blob/main/guidance/DS185832.md](https://github.com/Microsoft/DevSkim/blob/main/guidance/DS185832.md) for additional guidance on this issue."
+              },
+              "shortDescription": {
+                "text": "strcpy is frequently dangerous, as it will cause a buffer overflow if the source is larger than the destination."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/Microsoft/DevSkim/blob/main/guidance/DS185832.md",
+              "properties": {
+                "precision": "high",
+                "problem.severity": "warning",
+                "DevSkimSeverity": "Important",
+                "DevSkimConfidence": "High"
+              }
+            },
+            {
+              "id": "DS189424",
+              "name": "ReviewEvalForUntrustedData",
+              "fullDescription": {
+                "text": "Review eval for untrusted data: If untrusted data (data from HTTP requests, user submitted files, etc.) is included in an eval statement it can allow an attacker to inject their own code."
+              },
+              "help": {
+                "text": "Edit the eval so that no untrusted data is included. If untrusted data is absolutely necessary a great deal of care should be taken to ensure it is properly escaped so that it cannot be executed. This is not as simple as just escaping quotes.",
+                "markdown": "Edit the eval so that no untrusted data is included. If untrusted data is absolutely necessary a great deal of care should be taken to ensure it is properly escaped so that it cannot be executed. This is not as simple as just escaping quotes. Visit [https://github.com/Microsoft/DevSkim/blob/main/guidance/DS189424.md](https://github.com/Microsoft/DevSkim/blob/main/guidance/DS189424.md) for additional guidance on this issue."
+              },
+              "shortDescription": {
+                "text": "If untrusted data (data from HTTP requests, user submitted files, etc.) is included in an eval statement it can allow an attacker to inject their own code."
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://github.com/Microsoft/DevSkim/blob/main/guidance/DS189424.md",
+              "properties": {
+                "precision": "high",
+                "problem.severity": "recommendation",
+                "DevSkimSeverity": "ManualReview",
+                "DevSkimConfidence": "High"
+              }
+            },
+            {
+              "id": "DS126858",
+              "name": "WeakbrokenHashAlgorithm",
+              "fullDescription": {
+                "text": "Weak/Broken Hash Algorithm: A weak or broken hash algorithm was detected."
+              },
+              "help": {
+                "text": "Consider switching to use SHA-256 or SHA-512 instead.",
+                "markdown": "Consider switching to use SHA-256 or SHA-512 instead. Visit [https://github.com/Microsoft/DevSkim/blob/main/guidance/DS126858.md](https://github.com/Microsoft/DevSkim/blob/main/guidance/DS126858.md) for additional guidance on this issue."
+              },
+              "shortDescription": {
+                "text": "A weak or broken hash algorithm was detected."
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "helpUri": "https://github.com/Microsoft/DevSkim/blob/main/guidance/DS126858.md",
+              "properties": {
+                "precision": "high",
+                "problem.severity": "error",
+                "DevSkimSeverity": "Critical",
+                "DevSkimConfidence": "High"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "DS185832",
+          "level": "error",
+          "message": {
+            "text": "Banned C function detected (strcpy)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "c/main.c"
+                },
+                "region": {
+                  "startLine": 6,
+                  "startColumn": 2,
+                  "endLine": 6,
+                  "endColumn": 20,
+                  "charOffset": 111,
+                  "charLength": 18,
+                  "snippet": {
+                    "text": "strcpy(p, argv[1])",
+                    "rendered": {
+                      "text": "strcpy(p, argv[1])",
+                      "markdown": "`strcpy(p, argv[1])`"
+                    }
+                  },
+                  "sourceLanguage": "c"
+                }
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "strcpy is frequently dangerous, as it will cause a buffer overflow if the source is larger than the destination."
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "c/main.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "charOffset": 111,
+                        "charLength": 18
+                      },
+                      "insertedContent": {
+                        "text": "strcpy_s(p, <size of p>,  argv[1])"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "description": {
+                "text": "strcpy is frequently dangerous, as it will cause a buffer overflow if the source is larger than the destination."
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "c/main.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "charOffset": 111,
+                        "charLength": 18
+                      },
+                      "insertedContent": {
+                        "text": "strlcpy(p,  argv[1], <size of p>)"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "tags": [
+              "API.DangerousAPI.BannedFunction"
+            ],
+            "DevSkimSeverity": "Important",
+            "DevSkimConfidence": "High"
+          }
+        },
+        {
+          "ruleId": "DS161085",
+          "level": "note",
+          "message": {
+            "text": "Problematic C function detected (malloc)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "c/main.c"
+                },
+                "region": {
+                  "startLine": 4,
+                  "startColumn": 12,
+                  "endLine": 4,
+                  "endColumn": 22,
+                  "charOffset": 86,
+                  "charLength": 10,
+                  "snippet": {
+                    "text": "malloc(16)",
+                    "rendered": {
+                      "text": "malloc(16)",
+                      "markdown": "`malloc(16)`"
+                    }
+                  },
+                  "sourceLanguage": "c"
+                }
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "If the value provided to malloc is the result of unsafe integer math, it can result in an exploitable condition. "
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "c/main.c"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "charOffset": 86,
+                        "charLength": 10
+                      },
+                      "insertedContent": {
+                        "text": "calloc(<number of elements>, <size of each element>)"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "tags": [
+              "API.DangerousAPI.ProblematicFunction"
+            ],
+            "DevSkimSeverity": "BestPractice",
+            "DevSkimConfidence": "High"
+          }
+        },
+        {
+          "ruleId": "DS189424",
+          "level": "note",
+          "message": {
+            "text": "Review eval for untrusted data"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "py/app.py"
+                },
+                "region": {
+                  "startLine": 17,
+                  "startColumn": 11,
+                  "endLine": 17,
+                  "endColumn": 18,
+                  "charOffset": 349,
+                  "charLength": 7,
+                  "snippet": {
+                    "text": "eval(q)",
+                    "rendered": {
+                      "text": "eval(q)",
+                      "markdown": "`eval(q)`"
+                    }
+                  },
+                  "sourceLanguage": "python"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "tags": [
+              "Python.DangerousFunctionCall",
+              "JavaScript.DangerousFunctionCall",
+              "TypeScript.DangerousFunctionCall",
+              "PHP.DangerousFunctionCall"
+            ],
+            "DevSkimSeverity": "ManualReview",
+            "DevSkimConfidence": "High"
+          }
+        },
+        {
+          "ruleId": "DS126858",
+          "level": "error",
+          "message": {
+            "text": "Weak/Broken Hash Algorithm"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "cs/App.cs"
+                },
+                "region": {
+                  "startLine": 19,
+                  "startColumn": 19,
+                  "endLine": 19,
+                  "endColumn": 22,
+                  "charOffset": 518,
+                  "charLength": 3,
+                  "snippet": {
+                    "text": "md5",
+                    "rendered": {
+                      "text": "md5",
+                      "markdown": "`md5`"
+                    }
+                  },
+                  "sourceLanguage": "csharp"
+                }
+              }
+            }
+          ],
+          "fixes": [
+            {
+              "description": {
+                "text": "A weak or broken hash algorithm was detected."
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "cs/App.cs"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "charOffset": 518,
+                        "charLength": 3
+                      },
+                      "insertedContent": {
+                        "text": "sha512"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "description": {
+                "text": "A weak or broken hash algorithm was detected."
+              },
+              "artifactChanges": [
+                {
+                  "artifactLocation": {
+                    "uri": "cs/App.cs"
+                  },
+                  "replacements": [
+                    {
+                      "deletedRegion": {
+                        "charOffset": 518,
+                        "charLength": 3
+                      },
+                      "insertedContent": {
+                        "text": "sha256"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "properties": {
+            "tags": [
+              "Cryptography.BannedHashAlgorithm"
+            ],
+            "DevSkimSeverity": "Critical",
+            "DevSkimConfidence": "High"
+          }
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

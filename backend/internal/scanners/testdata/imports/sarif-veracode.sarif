@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Veracode Static Analysis Pipeline Scan",
+          "rules": [
+            {
+              "id": "89",
+              "name": "Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')",
+              "shortDescription": {
+                "text": "CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/89.html",
+              "properties": {
+                "category": "SQL Injection",
+                "tags": [
+                  "Security"
+                ]
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              }
+            },
+            {
+              "id": "327",
+              "name": "Use of a Broken or Risky Cryptographic Algorithm",
+              "shortDescription": {
+                "text": "CWE-327: Use of a Broken or Risky Cryptographic Algorithm"
+              },
+              "helpUri": "https://cwe.mitre.org/data/definitions/327.html",
+              "properties": {
+                "category": "Cryptographic Issues",
+                "tags": [
+                  "Security"
+                ]
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "89",
+          "level": "error",
+          "message": {
+            "text": "This database query contains a SQL injection flaw. The call to java.sql.Statement.executeQuery() constructs a dynamic SQL query using a variable derived from untrusted input."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "com/example/App.java"
+                },
+                "region": {
+                  "startLine": 33
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "327",
+          "level": "warning",
+          "message": {
+            "text": "This function uses the MD5() function, which uses a hash algorithm that is considered weak."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "com/example/Crypto.java"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

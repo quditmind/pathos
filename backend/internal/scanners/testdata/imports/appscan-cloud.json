@@ -1,0 +1,72 @@
+{
+  "Items": [
+    {
+      "Id": "0e1f2a3b-0001-4c5d-8e9f-000000000001",
+      "Language": "Java",
+      "Severity": "High",
+      "Status": "Open",
+      "IssueType": "SQL Injection",
+      "IssueTypeId": "attSqlInjectionChecks",
+      "Location": "src/main/java/com/example/UserDao.java:42",
+      "DateCreated": "2026-11-01T10:00:00Z",
+      "LastUpdated": "2026-11-01T10:00:00Z",
+      "LastFound": "2026-11-01T10:00:00Z",
+      "CallingMethod": "find",
+      "Api": "java.sql.Statement.executeQuery(String):ResultSet",
+      "Source": "javax.servlet.ServletRequest.getParameter",
+      "Context": "rs = st.executeQuery(query);",
+      "Cwe": 89,
+      "Cve": null,
+      "Cvss": null,
+      "DiscoveryMethod": "SAST",
+      "Scanner": "AppScan Static Analyzer",
+      "SourceFile": "src/main/java/com/example/UserDao.java",
+      "Line": 42,
+      "ScanName": "nightly-sast",
+      "ApplicationId": "0e1f2a3b-0000-4c5d-8e9f-000000000000"
+    },
+    {
+      "Id": "0e1f2a3b-0002-4c5d-8e9f-000000000002",
+      "Severity": "Medium",
+      "Status": "New",
+      "IssueType": "Cross-Site Scripting",
+      "Location": "https://app.example.test/search",
+      "Cwe": 79,
+      "DiscoveryMethod": "DAST",
+      "Scheme": "https",
+      "Host": "app.example.test",
+      "Port": 443,
+      "Path": "/search",
+      "Element": "q",
+      "ElementType": "Parameter",
+      "ScanName": "weekly-dast"
+    },
+    {
+      "Id": "0e1f2a3b-0003-4c5d-8e9f-000000000003",
+      "Severity": "High",
+      "Status": "Noise",
+      "IssueType": "Vulnerable Component",
+      "Cve": "CVE-2021-23337",
+      "Cvss": 7.2,
+      "CvssVector": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H",
+      "CvssVersion": "3.1",
+      "Cwe": 94,
+      "DiscoveryMethod": "SCA",
+      "LibraryName": "lodash",
+      "LibraryVersion": "4.17.20",
+      "LatestReleaseVersion": "4.17.21",
+      "Location": "package-lock.json"
+    },
+    {
+      "Id": "0e1f2a3b-0004-4c5d-8e9f-000000000004",
+      "Severity": "Low",
+      "Status": "Fixed",
+      "IssueType": "Missing HttpOnly Attribute in Session Cookie",
+      "Cwe": 1004,
+      "DiscoveryMethod": "DAST",
+      "Host": "app.example.test",
+      "Path": "/"
+    }
+  ],
+  "Count": 4
+}

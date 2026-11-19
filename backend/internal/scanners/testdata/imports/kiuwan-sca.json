@@ -1,0 +1,43 @@
+[
+  {
+    "id": 158713,
+    "cve": "CVE-2021-30468",
+    "cwe": "CWE-835",
+    "muted": false,
+    "epss_score": 0.0042,
+    "epss_percentile": 0.71,
+    "exploitabilitySubscore": "3.9",
+    "impactSubscore": "3.6",
+    "cVSSv2BaseScore": "5.0",
+    "cVSSv3BaseScore": "7.5",
+    "securityRisk": "HIGH",
+    "privateVulnerability": false,
+    "lastModified": 1626187200000,
+    "description": "A vulnerability in the JsonMapObjectReaderWriter of Apache CXF allows an attacker to submit malformed JSON causing an infinite loop.",
+    "components": [
+      {
+        "id": 1270458,
+        "artifact": "org.apache.cxf:cxf-rt-rs-json-basic",
+        "version": "3.3.5",
+        "description": "",
+        "custom": false
+      }
+    ]
+  },
+  {
+    "id": 158714,
+    "cve": "CVE-2022-42889",
+    "cwe": "CWE-94",
+    "muted": true,
+    "cVSSv3BaseScore": "9.8",
+    "securityRisk": "CRITICAL",
+    "description": "Apache Commons Text performs variable interpolation that can lead to remote code execution.",
+    "components": [
+      {
+        "id": 1270460,
+        "artifact": "org.apache.commons:commons-text",
+        "version": "1.9"
+      }
+    ]
+  }
+]

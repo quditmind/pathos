@@ -1,0 +1,144 @@
+[
+  {
+    "object_name": "Deployment/apps/v1//web",
+    "type_meta": {
+      "kind": "Deployment",
+      "apiVersion": "apps/v1"
+    },
+    "object_meta": {
+      "name": "web",
+      "creationTimestamp": null
+    },
+    "checks": [
+      {
+        "check": {
+          "name": "Container Security Context User Group ID",
+          "id": "container-security-context-user-group-id",
+          "target_type": "Pod",
+          "comment": "Makes sure that all pods have a security context with valid UID and GID set ",
+          "optional": false
+        },
+        "grade": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "web",
+            "summary": "The container is running with a low user ID",
+            "description": "A userid above 10 000 is recommended to avoid conflicts with the host. Set securityContext.runAsUser to a value > 10000"
+          },
+          {
+            "path": "web",
+            "summary": "The container running with a low group ID",
+            "description": "A groupid above 10 000 is recommended to avoid conflicts with the host. Set securityContext.runAsGroup to a value > 10000"
+          }
+        ]
+      },
+      {
+        "check": {
+          "name": "Container Ephemeral Storage Request and Limit",
+          "id": "container-ephemeral-storage-request-and-limit",
+          "target_type": "Pod",
+          "comment": "Makes sure all pods have ephemeral-storage requests and limits set",
+          "optional": false
+        },
+        "grade": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "web",
+            "summary": "Ephemeral Storage limit is not set",
+            "description": "Resource limits are recommended to avoid resource DDOS. Set resources.limits.ephemeral-storage"
+          },
+          {
+            "path": "web",
+            "summary": "Ephemeral Storage request is not set",
+            "description": "Resource requests are recommended to make sure the application can start and run without crashing. Set resource.requests.ephemeral-storage"
+          }
+        ]
+      },
+      {
+        "check": {
+          "name": "Pod NetworkPolicy",
+          "id": "pod-networkpolicy",
+          "target_type": "Pod",
+          "comment": "Makes sure that all Pods are targeted by a NetworkPolicy",
+          "optional": false
+        },
+        "grade": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "",
+            "summary": "The pod does not have a matching NetworkPolicy",
+            "description": "Create a NetworkPolicy that targets this pod to control who/what can communicate with this pod. Note, this feature needs to be supported by the CNI implementation used in the Kubernetes cluster to have an effect."
+          }
+        ]
+      },
+      {
+        "check": {
+          "name": "Container Resources",
+          "id": "container-resources",
+          "target_type": "Pod",
+          "comment": "Makes sure that all pods have resource limits and requests set. The --ignore-container-cpu-limit flag can be used to disable the requirement of having a CPU limit",
+          "optional": false
+        },
+        "grade": 1,
+        "skipped": false,
+        "comments": [
+          {
+            "path": "web",
+            "summary": "CPU limit is not set",
+            "description": "Resource limits are recommended to avoid resource DDOS. Set resources.limits.cpu"
+          },
+          {
+            "path": "web",
+            "summary": "Memory limit is not set",
+            "description": "Resource limits are recommended to avoid resource DDOS. Set resources.limits.memory"
+          },
+          {
+            "path": "web",
+            "summary": "CPU request is not set",
+            "description": "Resource requests are recommended to make sure that the application can start and run without crashing. Set resources.requests.cpu"
+          },
+          {
+            "path": "web",
+            "summary": "Memory request is not set",
+            "description": "Resource requests are recommended to make sure that the application can start and run without crashing. Set resources.requests.memory"
+          }
+        ]
+      },
+      {
+        "check": {
+          "name": "Container Resource Requests Equal Limits",
+          "id": "container-resource-requests-equal-limits",
+          "target_type": "Pod",
+          "comment": "Makes sure that all pods have the same requests as limits on resources set.",
+          "optional": true
+        },
+        "grade": 10,
+        "skipped": true,
+        "comments": [
+          {
+            "path": "",
+            "summary": "Skipped because container-resource-requests-equal-limits is ignored",
+            "description": ""
+          }
+        ]
+      },
+      {
+        "check": {
+          "name": "Stable version",
+          "id": "stable-version",
+          "target_type": "all",
+          "comment": "Checks if the object is using a deprecated apiVersion",
+          "optional": false
+        },
+        "grade": 10,
+        "skipped": false,
+        "comments": null
+      }
+    ],
+    "file_name": "/src/k8s/deployment.yaml",
+    "file_row": 1
+  }
+]
