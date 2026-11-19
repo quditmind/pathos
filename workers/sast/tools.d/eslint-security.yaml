@@ -1,0 +1,24 @@
+# ESLint with eslint-plugin-security: JavaScript and TypeScript security
+# rules (eval, child_process, non-literal file names and regular
+# expressions, timing attacks, unsafe object access). The image's
+# eslint-tree helper runs ESLint with the image's configuration only. JSON
+# report parsed with the PATHOS ESLint import parser.
+name: eslint-security
+display_name: ESLint + eslint-plugin-security
+category: sast
+scan_types: [sast]
+license_spdx: MIT
+homepage: https://github.com/eslint-community/eslint-plugin-security
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/eslint-tree
+version_args: ["--version"]
+args: ["{source}", "{output}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:eslint

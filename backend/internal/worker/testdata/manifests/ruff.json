@@ -1,0 +1,116 @@
+[
+  {
+    "cell": null,
+    "code": "S602",
+    "end_location": {
+      "column": 19,
+      "row": 10
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 5,
+      "row": 10
+    },
+    "message": "`subprocess` call with `shell=True` identified, security issue",
+    "name": "subprocess-popen-with-shell-equals-true",
+    "noqa_row": 10,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/subprocess-popen-with-shell-equals-true"
+  },
+  {
+    "cell": null,
+    "code": "S307",
+    "end_location": {
+      "column": 21,
+      "row": 11
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 11
+    },
+    "message": "Use of possibly insecure function; consider using `ast.literal_eval`",
+    "name": "suspicious-eval-usage",
+    "noqa_row": 11,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/suspicious-eval-usage"
+  },
+  {
+    "cell": null,
+    "code": "S113",
+    "end_location": {
+      "column": 28,
+      "row": 16
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 16,
+      "row": 16
+    },
+    "message": "Probable use of `requests` call without timeout",
+    "name": "request-without-timeout",
+    "noqa_row": 16,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/request-without-timeout"
+  },
+  {
+    "cell": null,
+    "code": "S501",
+    "end_location": {
+      "column": 46,
+      "row": 16
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 34,
+      "row": 16
+    },
+    "message": "Probable use of `requests` call with `verify=False` disabling SSL certificate checks",
+    "name": "request-with-no-cert-validation",
+    "noqa_row": 16,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/request-with-no-cert-validation"
+  },
+  {
+    "cell": null,
+    "code": "S301",
+    "end_location": {
+      "column": 31,
+      "row": 23
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 23
+    },
+    "message": "`pickle` and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue",
+    "name": "suspicious-pickle-usage",
+    "noqa_row": 23,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/suspicious-pickle-usage"
+  },
+  {
+    "cell": null,
+    "code": "S324",
+    "end_location": {
+      "column": 23,
+      "row": 27
+    },
+    "filename": "/work/fixture/src/py/service.py",
+    "fix": null,
+    "location": {
+      "column": 12,
+      "row": 27
+    },
+    "message": "Probable use of insecure hash functions in `hashlib`: `md5`",
+    "name": "hashlib-insecure-hash-function",
+    "noqa_row": 27,
+    "severity": "error",
+    "url": "https://docs.astral.sh/ruff/rules/hashlib-insecure-hash-function"
+  }
+]

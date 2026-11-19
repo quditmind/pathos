@@ -1,0 +1,502 @@
+# PATHOS database security rules: SQL built by string concatenation or
+# formatting, raw query APIs (Django raw/extra/RawSQL, SQLAlchemy text,
+# Sequelize literal and raw queries, knex raw, JDBC Statement, JPA, GORM
+# Raw/Where), NoSQL injection (MongoDB operators and request objects in
+# queries), and database connection strings with plaintext credentials or
+# TLS disabled.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from these rules (ids
+# pathos.database.*, metadata category "database") are reported in the
+# "database" finding category. Test fixtures: workers/rules-tests/database/.
+# fmt.Sprintf in Go database/sql calls is already reported by the baseline
+# rule pathos.go.sql-string-formatting and is not repeated here.
+rules:
+  # ---------------------------------------------------------------- Python
+  - id: pathos.database.python.sql-string-building
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An SQL statement is built with string concatenation, %-formatting, str.format or an f-string and passed to
+      a DB-API cursor. Values that reach it can change the statement (SQL injection). Pass them as query
+      parameters: cursor.execute("SELECT ... WHERE id = %s", (value,)).
+    metadata:
+      category: database
+      language: python
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://peps.python.org/pep-0249/#id15
+        - https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $CUR.$EXEC(<... "..." + $X ...>, ...)
+          - pattern: $CUR.$EXEC("..." % $X, ...)
+          - pattern: $CUR.$EXEC("...".format(...), ...)
+          - pattern: $CUR.$EXEC(f"...", ...)
+          - patterns:
+              - pattern-inside: |
+                  $Q = <... "..." + $X ...>
+                  ...
+              - pattern: $CUR.$EXEC($Q, ...)
+          - patterns:
+              - pattern-inside: |
+                  $Q = f"..."
+                  ...
+              - pattern: $CUR.$EXEC($Q, ...)
+      - metavariable-regex:
+          metavariable: $EXEC
+          regex: ^(?:execute|executemany|executescript|mogrify)$
+      - pattern-not: $CUR.$EXEC("..." % (), ...)
+      # sqlalchemy.text() arguments are reported by pathos.database.python.sqlalchemy-text-formatting.
+      - pattern-not: $CUR.$EXEC(text(...), ...)
+      - pattern-not: $CUR.$EXEC(sqlalchemy.text(...), ...)
+
+  - id: pathos.database.python.django-raw-sql
+    languages: [python]
+    severity: ERROR
+    message: >-
+      Django raw SQL (Manager.raw, QuerySet.extra or RawSQL) receives a statement built with string formatting or
+      concatenation, which bypasses the ORM's escaping (SQL injection). Pass values in params=[...] and keep the
+      statement a constant.
+    metadata:
+      category: database
+      language: python
+      framework: django
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://docs.djangoproject.com/en/stable/topics/db/sql/
+        - https://docs.djangoproject.com/en/stable/ref/models/querysets/#extra
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $M.objects.raw(<... "..." + $X ...>, ...)
+      - pattern: $M.objects.raw("..." % $X, ...)
+      - pattern: $M.objects.raw("...".format(...), ...)
+      - pattern: $M.objects.raw(f"...", ...)
+      - pattern: $QS.extra(..., where=[..., <... "..." + $X ...>, ...], ...)
+      - pattern: $QS.extra(..., where=[..., "..." % $X, ...], ...)
+      - pattern: $QS.extra(..., where=[..., f"...", ...], ...)
+      - pattern: '$QS.extra(..., select={..., $K: f"...", ...}, ...)'
+      - pattern: RawSQL(<... "..." + $X ...>, ...)
+      - pattern: RawSQL("..." % $X, ...)
+      - pattern: RawSQL(f"...", ...)
+
+  - id: pathos.database.python.sqlalchemy-text-formatting
+    languages: [python]
+    severity: ERROR
+    message: >-
+      sqlalchemy.text() receives a statement built with string formatting or concatenation, so values become SQL
+      (SQL injection). Use bound parameters: text("... WHERE id = :id") with execute(stmt, {"id": value}).
+    metadata:
+      category: database
+      language: python
+      framework: sqlalchemy
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://docs.sqlalchemy.org/en/20/core/sqlelement.html#sqlalchemy.sql.expression.text
+      license: Apache-2.0
+    pattern-either:
+      - pattern: text(<... "..." + $X ...>, ...)
+      - pattern: text("..." % $X, ...)
+      - pattern: text("...".format(...), ...)
+      - pattern: text(f"...", ...)
+      - pattern: sqlalchemy.text(f"...", ...)
+      - pattern: sqlalchemy.text(<... "..." + $X ...>, ...)
+
+  - id: pathos.database.python.nosql-injection
+    languages: [python]
+    mode: taint
+    severity: ERROR
+    message: >-
+      Request data reaches a MongoDB query without validation. A JSON body can carry query operators ($ne, $gt,
+      $regex, $where) instead of plain values and change what the query matches, for example to bypass a log-in
+      check (NoSQL injection). Convert values to the expected type (str(), int()) or validate them with a schema.
+    metadata:
+      category: database
+      language: python
+      cwe: ["CWE-943: Improper Neutralization of Special Elements in Data Query Logic"]
+      confidence: MEDIUM
+      references:
+        - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection
+      license: Apache-2.0
+    pattern-sources:
+      - pattern: request.json
+      - pattern: request.get_json(...)
+      - pattern: request.args
+      - pattern: request.form
+      - pattern: request.values
+      - pattern: request.data
+      - pattern: request.GET
+      - pattern: request.POST
+      - pattern: json.loads(request.body)
+    pattern-sanitizers:
+      - pattern: str(...)
+      - pattern: int(...)
+      - pattern: float(...)
+      - pattern: bool(...)
+      - pattern: ObjectId(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: $COLL.$FIND($Q, ...)
+          - metavariable-regex:
+              metavariable: $FIND
+              regex: ^(?:find|find_one|find_one_and_update|find_one_and_delete|find_one_and_replace|count_documents|update_one|update_many|delete_one|delete_many|replace_one|aggregate|distinct)$
+          - focus-metavariable: $Q
+
+  # ------------------------------------------------------ JavaScript / TS
+  - id: pathos.database.javascript.sql-string-building
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      An SQL statement is built with string concatenation or a template literal and passed to a database client
+      (mysql, pg, mssql, sqlite, Sequelize, TypeORM, knex). Values that reach it can change the statement (SQL
+      injection). Use placeholders and pass the values separately.
+    metadata:
+      category: database
+      language: javascript
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html
+        - https://node-postgres.com/features/queries#parameterized-query
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$Q(<... "$SQL" + $X ...>, ...)
+          - pattern: $DB.$Q(`$SQL${$X}...`, ...)
+          - patterns:
+              - pattern-either:
+                  - pattern-inside: |
+                      const $V = <... "$SQL" + $X ...>;
+                      ...
+                  - pattern-inside: |
+                      let $V = <... "$SQL" + $X ...>;
+                      ...
+                  - pattern-inside: |
+                      const $V = `$SQL${$X}...`;
+                      ...
+                  - pattern-inside: |
+                      let $V = `$SQL${$X}...`;
+                      ...
+              - pattern: $DB.$Q($V, ...)
+      # Concatenating two constants (for example a constant column list and a
+      # literal WHERE clause) cannot inject anything.
+      - metavariable-pattern:
+          metavariable: $X
+          patterns:
+            - pattern: $Y
+            - pattern-not: '"..."'
+      - metavariable-regex:
+          metavariable: $Q
+          regex: ^(?:query|execute|exec|run|all|get|each|prepare|raw|whereRaw|havingRaw|orderByRaw|joinRaw|unsafe|\$queryRawUnsafe|\$executeRawUnsafe)$
+      - metavariable-regex:
+          metavariable: $SQL
+          regex: (?is)^\s*(?:select|insert|update|delete|merge|replace|with|create|alter|drop|truncate|call|exec)\b.*
+
+  - id: pathos.database.javascript.sequelize-literal
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      Sequelize.literal() inserts its argument into the SQL statement unescaped; here the argument is not a
+      constant (SQL injection). Use replacements or bind parameters, or Sequelize.escape() for single values.
+    metadata:
+      category: database
+      language: javascript
+      framework: sequelize
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://sequelize.org/api/v6/class/src/sequelize.js~sequelize#static-method-literal
+        - https://sequelize.org/docs/v6/core-concepts/raw-queries/#replacements
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $S.literal(<... "..." + $Y ...>)
+          - pattern: $S.literal(<... $Y + "..." ...>)
+          - pattern: $S.literal(`...${$Y}...`)
+          - pattern: $S.literal($REQ.body.$F)
+          - pattern: $S.literal($REQ.query.$F)
+          - pattern: $S.literal($REQ.params.$F)
+      - metavariable-regex:
+          metavariable: $S
+          regex: ^(?:Sequelize|sequelize|db|models)$
+
+  - id: pathos.database.javascript.nosql-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A request value (req.body, req.query, req.params) is used as a MongoDB query value without conversion. A JSON
+      body or a query string such as user[$ne]=x can carry query operators instead of plain values and change what
+      the query matches (NoSQL injection). Convert values with String() or validate them; with Mongoose, keep
+      sanitizeFilter enabled.
+    metadata:
+      category: database
+      language: javascript
+      cwe: ["CWE-943: Improper Neutralization of Special Elements in Data Query Logic"]
+      confidence: MEDIUM
+      references:
+        - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/07-Input_Validation_Testing/05.6-Testing_for_NoSQL_Injection
+        - https://mongoosejs.com/docs/api/mongoose.html#Mongoose.prototype.sanitizeFilter()
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: '$M.$FIND({..., $K: $REQ.$SRC.$F, ...}, ...)'
+          - pattern: '$M.$FIND({..., $K: $REQ.$SRC[$F], ...}, ...)'
+          - pattern: $M.$FIND($REQ.$SRC, ...)
+          - pattern: '$M.$FIND({..., $where: $X, ...}, ...)'
+      - metavariable-regex:
+          metavariable: $FIND
+          regex: ^(?:find|findOne|findOneAndUpdate|findOneAndDelete|findOneAndReplace|countDocuments|updateOne|updateMany|deleteOne|deleteMany|replaceOne|exists|where)$
+      - metavariable-regex:
+          metavariable: $SRC
+          regex: ^(?:body|query|params|cookies)$
+
+  # ------------------------------------------------------------------ Java
+  - id: pathos.database.java.jdbc-string-building
+    languages: [java]
+    severity: ERROR
+    message: >-
+      An SQL statement is built with string concatenation or String.format and passed to JDBC (Statement,
+      Connection.prepareStatement), JPA (createQuery, createNativeQuery) or Spring JdbcTemplate. Values that reach
+      it can change the statement (SQL injection). Use a PreparedStatement with ? placeholders, or named
+      parameters.
+    metadata:
+      category: database
+      language: java
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://docs.oracle.com/javase/tutorial/jdbc/basics/prepared.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Query_Parameterization_Cheat_Sheet.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern-either:
+                  - pattern: $OBJ.$M(<... "$SQL" + $X ...>, ...)
+                  - patterns:
+                      - pattern-inside: |
+                          String $V = <... "$SQL" + $X ...>;
+                          ...
+                      - pattern: $OBJ.$M($V, ...)
+              # Concatenating two constants cannot inject anything.
+              - metavariable-pattern:
+                  metavariable: $X
+                  patterns:
+                    - pattern: $Y
+                    - pattern-not: '"..."'
+          - pattern: $OBJ.$M(String.format("$SQL", ...), ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(?:execute|executeQuery|executeUpdate|executeLargeUpdate|addBatch|prepareStatement|prepareCall|createQuery|createNativeQuery|createSQLQuery|query|queryForObject|queryForList|queryForMap|queryForRowSet|update|batchUpdate)$
+      - metavariable-regex:
+          metavariable: $SQL
+          regex: (?is)^\s*(?:select|insert|update|delete|merge|with|create|alter|drop|truncate|call|exec|from)\b.*
+
+  - id: pathos.database.java.nosql-injection
+    languages: [java]
+    severity: ERROR
+    message: >-
+      A MongoDB $where clause (server-side JavaScript) is built from a non-constant value. Values that reach it can
+      run arbitrary JavaScript in the query (NoSQL injection). Use query operators (Filters.eq and similar).
+    metadata:
+      category: database
+      language: java
+      cwe: ["CWE-943: Improper Neutralization of Special Elements in Data Query Logic"]
+      confidence: HIGH
+      references:
+        - https://www.mongodb.com/docs/manual/reference/operator/query/where/
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: Filters.where($X)
+          - pattern: new BasicDBObject("$where", $X)
+          - pattern: new Document("$where", $X)
+          - pattern: Criteria.where("$where").is($X)
+      - pattern-not: Filters.where("...")
+      - pattern-not: new BasicDBObject("$where", "...")
+      - pattern-not: new Document("$where", "...")
+
+  # -------------------------------------------------------------------- Go
+  - id: pathos.database.go.sql-string-concatenation
+    languages: [go]
+    mode: taint
+    severity: ERROR
+    message: >-
+      HTTP request data (query string, form, path or header values) is concatenated into an SQL statement that is
+      passed to database/sql, sqlx or pgx. The value can change the statement (SQL injection). Use placeholders
+      ($1 or ?) and pass the value as an argument.
+    metadata:
+      category: database
+      language: go
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://go.dev/doc/database/sql-injection
+      license: Apache-2.0
+    # Only direct flows: values computed by other functions (strings.Join of
+    # placeholder clauses, map lookups of allow-listed columns) are not
+    # treated as request data.
+    options:
+      taint_assume_safe_functions: true
+      taint_assume_safe_indexes: true
+    pattern-sources:
+      - pattern: '($R : *http.Request).FormValue(...)'
+      - pattern: '($R : *http.Request).PostFormValue(...)'
+      - pattern: '($R : *http.Request).PathValue(...)'
+      - pattern: '($R : *http.Request).URL.Query()'
+      - pattern: '($R : *http.Request).URL.Query().Get(...)'
+      - pattern: '($R : *http.Request).Header.Get(...)'
+      - pattern: mux.Vars(...)
+      - pattern: chi.URLParam(...)
+      - pattern: '($C : *gin.Context).Param(...)'
+      - pattern: '($C : *gin.Context).Query(...)'
+      - pattern: '($C : *gin.Context).PostForm(...)'
+      - pattern: '($C : *gin.Context).GetHeader(...)'
+      - pattern: '($C : echo.Context).Param(...)'
+      - pattern: '($C : echo.Context).QueryParam(...)'
+      - pattern: '($C : echo.Context).FormValue(...)'
+      - pattern: '($C : *fiber.Ctx).Params(...)'
+      - pattern: '($C : *fiber.Ctx).Query(...)'
+    pattern-sanitizers:
+      - pattern: strconv.Atoi(...)
+      - pattern: strconv.ParseInt(...)
+      - pattern: strconv.ParseBool(...)
+      - pattern: uuid.Parse(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.$M($SQL, ...)
+              - pattern: $DB.$M($CTX, $SQL, ...)
+          - metavariable-regex:
+              metavariable: $M
+              regex: ^(?:Query|QueryRow|Exec|Prepare|QueryContext|QueryRowContext|ExecContext|PrepareContext|Get|Select|Queryx|QueryRowx|MustExec)$
+          - metavariable-pattern:
+              metavariable: $SQL
+              pattern-either:
+                - pattern: <... "..." + $X ...>
+                - pattern: <... $X + "..." ...>
+          - focus-metavariable: $SQL
+
+  - id: pathos.database.go.gorm-raw-sql
+    languages: [go]
+    severity: ERROR
+    message: >-
+      A GORM raw SQL method (Raw, Exec, Where, Order, Select, Group, Having, Joins) receives a statement built with
+      fmt.Sprintf or concatenation, which bypasses GORM's parameter binding (SQL injection). Pass values as
+      arguments: db.Where("name = ?", name).
+    metadata:
+      category: database
+      language: go
+      framework: gorm
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://gorm.io/docs/security.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$M(fmt.Sprintf(...), ...)
+          - pattern: $DB.$M(<... "..." + $X ...>, ...)
+      - metavariable-regex:
+          metavariable: $M
+          regex: ^(?:Raw|Where|Or|Not|Order|Select|Group|Having|Joins|Pluck|Distinct)$
+
+  - id: pathos.database.go.nosql-injection
+    languages: [go]
+    severity: ERROR
+    message: >-
+      A MongoDB $where clause (server-side JavaScript) is built from a non-constant value. Values that reach it can
+      run arbitrary JavaScript in the query (NoSQL injection). Use query operators instead.
+    metadata:
+      category: database
+      language: go
+      cwe: ["CWE-943: Improper Neutralization of Special Elements in Data Query Logic"]
+      confidence: HIGH
+      references:
+        - https://www.mongodb.com/docs/manual/reference/operator/query/where/
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: 'bson.M{..., "$where": $X, ...}'
+          - pattern: 'bson.D{..., {"$where", $X}, ...}'
+          - pattern: 'bson.D{..., {Key: "$where", Value: $X}, ...}'
+      - pattern-not: 'bson.M{..., "$where": "...", ...}'
+      - pattern-not: 'bson.D{..., {"$where", "..."}, ...}'
+
+  # -------------------------------------------------------------------- C#
+  - id: pathos.database.csharp.sql-string-building
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      An SQL statement is built with string concatenation, string.Format or an interpolated string and passed to
+      ADO.NET (SqlCommand, CommandText) or Entity Framework (FromSqlRaw, ExecuteSqlRaw). Values that reach it can
+      change the statement (SQL injection). Use SqlParameter or FromSql/FromSqlInterpolated.
+    metadata:
+      category: database
+      language: csharp
+      cwe: ["CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/ef/core/querying/sql-queries#passing-parameters
+      license: Apache-2.0
+    pattern-either:
+      - pattern: new SqlCommand(<... "..." + $X ...>, ...)
+      - pattern: new SqlCommand($"...", ...)
+      - pattern: new SqlCommand(string.Format(...), ...)
+      - pattern: $CMD.CommandText = <... "..." + $X ...>
+      - pattern: $CMD.CommandText = $"..."
+      - pattern: $CMD.CommandText = string.Format(...)
+      - pattern: $DB.$SET.FromSqlRaw($"...", ...)
+      - pattern: $DB.$SET.FromSqlRaw(<... "..." + $X ...>, ...)
+      - pattern: $DB.Database.ExecuteSqlRaw($"...", ...)
+      - pattern: $DB.Database.ExecuteSqlRaw(<... "..." + $X ...>, ...)
+
+  # ------------------------------------------------- Connection strings
+  - id: pathos.database.connection-string-hardcoded-password
+    languages: [python, javascript, typescript, java, go, csharp, yaml]
+    severity: ERROR
+    message: >-
+      A database connection string contains a plaintext password. Anyone who can read the code or configuration
+      can log in to the database, and the password cannot be rotated without a change. Read the credentials from
+      a secrets manager or the environment and keep only placeholders in the repository.
+    metadata:
+      category: database
+      cwe: ["CWE-798: Use of Hard-coded Credentials", "CWE-259: Use of Hard-coded Password"]
+      confidence: MEDIUM
+      references:
+        - https://cheatsheetseries.owasp.org/cheatsheets/Database_Security_Cheat_Sheet.html
+        - https://cwe.mitre.org/data/definitions/798.html
+      license: Apache-2.0
+    pattern-either:
+      # URL form: scheme://user:password@host (not a ${VAR}, {var}, <var>, %s or :password placeholder).
+      - pattern-regex: >-
+          (?i)\b(postgres(ql)?|mysql|mariadb|mongodb(\+srv)?|rediss?|amqps?|mssql|sqlserver|oracle|cockroachdb|clickhouse|jdbc:[a-z0-9]+)(\+[a-z0-9]+)?://[^\s:/@"'`$<>{}]+:(?!\$|\{|<|%s|\*+@|password@|pass@|pwd@|changeme@|secret@)[^\s:/@"'`<>{}]{3,}@[^\s"'`]+
+      # ADO.NET / ODBC form: Server=...;User Id=...;Password=...
+      - pattern-regex: >-
+          (?i)(server|data source|host|address)\s*=[^;"'`]+;[^"'`]*\b(password|pwd)\s*=\s*(?!\{|\$|<|%s|\*+;)[^;"'`\s{}$<>]{3,}
+
+  - id: pathos.database.connection-string-tls-disabled
+    languages: [python, javascript, typescript, java, go, csharp, yaml]
+    severity: WARNING
+    message: >-
+      A database connection string turns TLS off or accepts any server certificate (sslmode=disable, useSSL=false,
+      Encrypt=False, TrustServerCertificate=True, tlsInsecure=true and similar). Credentials and data then cross
+      the network unprotected, or a network attacker can impersonate the database. Require TLS and verify the
+      certificate (sslmode=verify-full, Encrypt=True).
+    metadata:
+      category: database
+      cwe: ["CWE-319: Cleartext Transmission of Sensitive Information", "CWE-295: Improper Certificate Validation"]
+      confidence: MEDIUM
+      references:
+        - https://www.postgresql.org/docs/current/libpq-ssl.html#LIBPQ-SSL-PROTECTION
+        - https://learn.microsoft.com/en-us/sql/connect/ado-net/connection-string-syntax
+      license: Apache-2.0
+    pattern-either:
+      - pattern-regex: (?i)[?&;"'\s]sslmode=(disable|allow|prefer)\b
+      - pattern-regex: (?i)[?&;]\s*(usessl|requiressl|ssl|tls)\s*=\s*false\b
+      - pattern-regex: (?i)[?&;]\s*(tlsinsecure|tlsallowinvalidcertificates|tlsallowinvalidhostnames|trustservercertificate)\s*=\s*true\b
+      - pattern-regex: (?i)[?&;]ssl_cert_reqs=(none|cert_none)\b
+      - pattern-regex: (?i);\s*encrypt\s*=\s*(false|no|optional)\b

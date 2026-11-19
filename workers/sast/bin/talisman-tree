@@ -1,0 +1,25 @@
+#!/bin/sh
+# Runs Talisman's repository scan on the current files of a directory tree
+# (--ignoreHistory) and copies its JSON report. Talisman needs a Git
+# repository: the worker's source tree has none, so a throwaway repository
+# with one commit of the tree is created in the job's temporary directory
+# (the tree itself is not modified).
+#   talisman-tree <directory> <report> <tmp>
+# Exit status: 0 no secrets, 1 secrets found, other values on errors.
+set -eu
+if [ "${1:-}" = "--version" ]; then exec /opt/pathos/sast/bin/talisman --version; fi
+[ "$#" -eq 3 ] && [ -d "$1" ] && [ -d "$3" ] || { echo "usage: talisman-tree <directory> <report> <tmp>" >&2; exit 2; }
+GIT_WORK_TREE="$(cd "$1" && pwd)"
+export GIT_DIR="$3/talisman-git" GIT_WORK_TREE
+export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL=/dev/null GIT_AUTHOR_NAME=pathos GIT_AUTHOR_EMAIL=pathos@localhost \
+  GIT_COMMITTER_NAME=pathos GIT_COMMITTER_EMAIL=pathos@localhost GIT_AUTHOR_DATE=2000-01-01T00:00:00Z GIT_COMMITTER_DATE=2000-01-01T00:00:00Z
+git init -q
+git add -A -f -- . ':!.git'
+git commit -q --no-verify --allow-empty -m scan
+cd "$GIT_WORK_TREE"
+set +e
+/opt/pathos/sast/bin/talisman --scan --ignoreHistory --reportDirectory "$3/talisman-report" >&2
+status=$?
+set -e
+cp "$3/talisman-report/talisman_reports/data/report.json" "$2"
+exit "$status"

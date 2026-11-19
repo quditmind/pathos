@@ -1,0 +1,30 @@
+# Test fixture for workers/rules/pathos-cicd.yml (Bitbucket Pipelines). Not run.
+# ruleid: pathos.cicd.unpinned-container-image
+image: python
+pipelines:
+  default:
+    - step:
+        name: Build
+        script:
+          # ruleid: pathos.cicd.bitbucket.script-injection
+          - git tag build-$BITBUCKET_BRANCH
+          # ok: pathos.cicd.bitbucket.script-injection
+          - echo "branch is $BITBUCKET_BRANCH"
+          # ruleid: pathos.cicd.bitbucket.script-injection
+          - bash -c "deploy.sh $BITBUCKET_TAG"
+          # ruleid: pathos.cicd.bitbucket.unpinned-pipe
+          - pipe: atlassian/aws-s3-deploy
+          # ruleid: pathos.cicd.bitbucket.unpinned-pipe
+          - pipe: atlassian/slack-notify:latest
+          # ok: pathos.cicd.bitbucket.unpinned-pipe
+          - pipe: atlassian/ssh-run:0.8.1
+          # ruleid: pathos.cicd.secret-echoed
+          - echo $AWS_SECRET_ACCESS_KEY
+          # ruleid: pathos.cicd.curl-pipe-shell
+          - curl -s https://example.com/get.sh | sudo -E bash
+    - step:
+        name: Test
+        # ok: pathos.cicd.unpinned-container-image
+        image: python:3.13.1-slim
+        script:
+          - pytest

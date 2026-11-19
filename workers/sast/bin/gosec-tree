@@ -1,0 +1,12 @@
+#!/bin/sh
+# Runs gosec on every Go package of a directory tree (gosec walks the tree
+# itself, including multi-module repositories) and writes its JSON report.
+#   gosec-tree <directory> <report> <tmp>
+# Exit status: 0 (gosec -no-fail), other values on errors.
+set -eu
+if [ "${1:-}" = "--version" ]; then exec /opt/pathos/sast/bin/gosec -version; fi
+[ "$#" -eq 3 ] && [ -d "$1" ] && [ -d "$3" ] || { echo "usage: gosec-tree <directory> <report> <tmp>" >&2; exit 2; }
+go_tmp="$3"
+. /opt/pathos/sast/bin/go-env
+cd "$1"
+exec /opt/pathos/sast/bin/gosec -fmt=json -out="$2" -no-fail -quiet -exclude-dir=testdata ./...

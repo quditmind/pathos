@@ -1,0 +1,53 @@
+// Test fixture for workers/rules/pathos-cicd.yml (Jenkinsfile). Not run.
+// ruleid: pathos.cicd.jenkins.unpinned-shared-library
+@Library('pipeline-utils') _
+// ok: pathos.cicd.jenkins.unpinned-shared-library
+@Library('release-utils@v1.4.2') _
+
+pipeline {
+    agent {
+        docker {
+            // ruleid: pathos.cicd.jenkins.unpinned-container-image
+            image 'maven'
+            // ruleid: pathos.cicd.jenkins.privileged-docker
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+    parameters {
+        string(name: 'TARGET', defaultValue: 'staging')
+    }
+    stages {
+        stage('Build') {
+            steps {
+                // ruleid: pathos.cicd.jenkins.script-injection
+                sh "git checkout ${env.BRANCH_NAME}"
+                // ruleid: pathos.cicd.jenkins.script-injection
+                sh "./deploy.sh ${params.TARGET}"
+                // ok: pathos.cicd.jenkins.script-injection
+                sh 'git checkout "$BRANCH_NAME"'
+                // ruleid: pathos.cicd.jenkins.curl-pipe-shell
+                sh 'curl -fsSL https://example.com/install.sh | bash'
+                // ok: pathos.cicd.jenkins.curl-pipe-shell
+                sh 'curl -fsSLO https://example.com/tool.tar.gz && sha256sum -c tool.tar.gz.sha256'
+                // ok: pathos.cicd.jenkins.privileged-docker
+                sh 'docker run --rm builder:1.2.3 make'
+                withCredentials([string(credentialsId: 'api', variable: 'API_TOKEN')]) {
+                    // ruleid: pathos.cicd.jenkins.secret-interpolation
+                    sh "curl -H 'Authorization: Bearer ${API_TOKEN}' https://api.example.com/deploy"
+                    // ok: pathos.cicd.jenkins.secret-interpolation
+                    sh 'curl -H "Authorization: Bearer $API_TOKEN" https://api.example.com/deploy'
+                }
+                script {
+                    // ruleid: pathos.cicd.jenkins.unpinned-container-image
+                    docker.image('node:latest').inside {
+                        sh 'npm ci'
+                    }
+                    // ok: pathos.cicd.jenkins.unpinned-container-image
+                    docker.image('node:22.11.0').inside {
+                        sh 'npm test'
+                    }
+                }
+            }
+        }
+    }
+}

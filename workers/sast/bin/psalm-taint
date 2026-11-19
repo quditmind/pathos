@@ -1,0 +1,29 @@
+#!/bin/sh
+# Runs Psalm's taint analysis on the PHP files of a directory tree and
+# writes its JSON report. Psalm needs a configuration file naming the
+# project directory: one is written to the job's temporary directory (a
+# repository's own psalm.xml, which can load plugins, is never read).
+#   psalm-taint <directory> <report> <tmp>
+# Exit status: 0 no issues, 2 issues found, other values on errors.
+set -eu
+if [ "${1:-}" = "--version" ]; then exec /opt/pathos/sast/bin/psalm --version; fi
+[ "$#" -eq 3 ] && [ -d "$1" ] && [ -d "$3" ] || { echo "usage: psalm-taint <directory> <report> <tmp>" >&2; exit 2; }
+src="$(cd "$1" && pwd)"
+case "$src" in *'"'*|*'<'*|*'&'*) echo "psalm-taint: unsupported directory name" >&2; exit 2 ;; esac
+conf="$3/psalm.xml"
+cat > "$conf" <<XML
+<?xml version="1.0"?>
+<psalm errorLevel="8" resolveFromConfigFile="false" findUnusedCode="false" findUnusedBaselineEntry="false"
+       cacheDirectory="$3/psalm-cache">
+  <projectFiles>
+    <directory name="$src"/>
+    <ignoreFiles allowMissingFiles="true">
+      <directory name="$src/vendor"/>
+      <directory name="$src/node_modules"/>
+    </ignoreFiles>
+  </projectFiles>
+</psalm>
+XML
+cd "$src"
+exec /usr/bin/php -d memory_limit=2G /opt/pathos/sast/bin/psalm --config="$conf" --root="$src" --taint-analysis --no-cache \
+  --no-progress --threads=1 --output-format=json --report="$2" --report-show-info=false

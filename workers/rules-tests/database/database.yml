@@ -1,0 +1,10 @@
+# Test fixture for workers/rules/pathos-database.yml (configuration files).
+services:
+  api:
+    environment:
+      # ruleid: pathos.database.connection-string-hardcoded-password
+      DATABASE_URL: "mysql://app:fixture-compose-pass@db:3306/app"
+      # ok: pathos.database.connection-string-hardcoded-password
+      CACHE_URL: "redis://:${REDIS_PASSWORD}@cache:6379/0"
+      # ruleid: pathos.database.connection-string-tls-disabled
+      REPORTING_URL: "postgresql://reporting.internal/reports?sslmode=prefer"

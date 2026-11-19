@@ -1,0 +1,204 @@
+{
+	"Golang errors": {},
+	"Issues": [
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "295",
+				"url": "https://cwe.mitre.org/data/definitions/295.html"
+			},
+			"rule_id": "G402",
+			"details": "TLS InsecureSkipVerify set to true.",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "24: func fetch(url string) {\n25: \tclient := \u0026http.Client{Transport: \u0026http.Transport{TLSClientConfig: \u0026tls.Config{InsecureSkipVerify: true}}}\n26: \tresp, err := client.Get(url)\n",
+			"line": "25",
+			"column": "101",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "918",
+				"url": "https://cwe.mitre.org/data/definitions/918.html"
+			},
+			"rule_id": "G704",
+			"details": "SSRF via taint analysis: (*net/http.Client).Get",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "25: \tclient := \u0026http.Client{Transport: \u0026http.Transport{TLSClientConfig: \u0026tls.Config{InsecureSkipVerify: true}}}\n26: \tresp, err := client.Get(url)\n27: \tif err != nil {\n",
+			"line": "26",
+			"column": "25",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "89",
+				"url": "https://cwe.mitre.org/data/definitions/89.html"
+			},
+			"rule_id": "G701",
+			"details": "SQL injection via taint analysis: (*database/sql.DB).Query",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "16: \t\tname := r.URL.Query().Get(\"name\")\n17: \t\trows, _ := db.Query(\"SELECT * FROM users WHERE name = '\" + name + \"'\")\n18: \t\tdefer rows.Close()\n",
+			"line": "17",
+			"column": "22",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "HIGH",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "78",
+				"url": "https://cwe.mitre.org/data/definitions/78.html"
+			},
+			"rule_id": "G702",
+			"details": "Command injection via taint analysis: os/exec.Command",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "18: \t\tdefer rows.Close()\n19: \t\tout, _ := exec.Command(\"sh\", \"-c\", \"echo \"+name).Output()\n20: \t\tfmt.Fprintf(w, \"%s %x\", out, md5.Sum([]byte(name)))\n",
+			"line": "19",
+			"column": "25",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "79",
+				"url": "https://cwe.mitre.org/data/definitions/79.html"
+			},
+			"rule_id": "G705",
+			"details": "XSS via taint analysis: fmt.Fprintf",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "19: \t\tout, _ := exec.Command(\"sh\", \"-c\", \"echo \"+name).Output()\n20: \t\tfmt.Fprintf(w, \"%s %x\", out, md5.Sum([]byte(name)))\n21: \t}\n",
+			"line": "20",
+			"column": "14",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "328",
+				"url": "https://cwe.mitre.org/data/definitions/328.html"
+			},
+			"rule_id": "G401",
+			"details": "Use of weak cryptographic primitive",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "19: \t\tout, _ := exec.Command(\"sh\", \"-c\", \"echo \"+name).Output()\n20: \t\tfmt.Fprintf(w, \"%s %x\", out, md5.Sum([]byte(name)))\n21: \t}\n",
+			"line": "20",
+			"column": "32",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "676",
+				"url": "https://cwe.mitre.org/data/definitions/676.html"
+			},
+			"rule_id": "G114",
+			"details": "Use of net/http serve function that has no support for setting timeouts",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "35: \tfetch(os.Args[1])\n36: \thttp.ListenAndServe(\":8080\", nil)\n37: }\n",
+			"line": "36",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "78",
+				"url": "https://cwe.mitre.org/data/definitions/78.html"
+			},
+			"rule_id": "G204",
+			"details": "Subprocess launched with a potential tainted input or cmd arguments",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "18: \t\tdefer rows.Close()\n19: \t\tout, _ := exec.Command(\"sh\", \"-c\", \"echo \"+name).Output()\n20: \t\tfmt.Fprintf(w, \"%s %x\", out, md5.Sum([]byte(name)))\n",
+			"line": "19",
+			"column": "13",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "89",
+				"url": "https://cwe.mitre.org/data/definitions/89.html"
+			},
+			"rule_id": "G202",
+			"details": "SQL string concatenation",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "16: \t\tname := r.URL.Query().Get(\"name\")\n17: \t\trows, _ := db.Query(\"SELECT * FROM users WHERE name = '\" + name + \"'\")\n18: \t\tdefer rows.Close()\n",
+			"line": "17",
+			"column": "23",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "MEDIUM",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "327",
+				"url": "https://cwe.mitre.org/data/definitions/327.html"
+			},
+			"rule_id": "G501",
+			"details": "Blocklisted import crypto/md5: weak cryptographic primitive",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "4: import (\n5: \t\"crypto/md5\"\n6: \t\"crypto/tls\"\n",
+			"line": "5",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "35: \tfetch(os.Args[1])\n36: \thttp.ListenAndServe(\":8080\", nil)\n37: }\n",
+			"line": "36",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		},
+		{
+			"severity": "LOW",
+			"confidence": "HIGH",
+			"cwe": {
+				"id": "703",
+				"url": "https://cwe.mitre.org/data/definitions/703.html"
+			},
+			"rule_id": "G104",
+			"details": "Errors unhandled",
+			"file": "/work/fixture/src/go/main.go",
+			"code": "30: \tfmt.Println(resp.StatusCode)\n31: \tos.Remove(\"/tmp/sample.lock\")\n32: }\n",
+			"line": "31",
+			"column": "2",
+			"nosec": false,
+			"suppressions": null
+		}
+	],
+	"Stats": {
+		"files": 1,
+		"lines": 37,
+		"nosec": 0,
+		"found": 12
+	},
+	"GosecVersion": "2.30.0"
+}

@@ -103,3 +103,91 @@ func TestMisconfigurationRules(t *testing.T) {
 		}
 	}
 }
+
+// The PATHOS rule packs for cryptography, database security, AI/LLM
+// applications and CI/CD pipelines (workers/rules/pathos-<pack>.yml) are
+// complete: every rule has an id pathos.<pack>.*, a message, CWE,
+// references, severity, the pack's metadata category, and both a positive
+// ("ruleid:") and a negative ("ok:") test case in workers/rules-tests
+// (scripts/test-opengrep-rules.py runs them with Opengrep).
+func TestRulePacks(t *testing.T) {
+	var fixtures strings.Builder
+	_ = filepath.WalkDir("../../../workers/rules-tests", func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() {
+			b, _ := os.ReadFile(p) // #nosec G304 -- test fixtures in the repository
+			fixtures.Write(b)
+			fixtures.WriteByte('\n')
+		}
+		return nil
+	})
+	annotated := fixtures.String()
+	annotatedAs := func(kind, id string) bool {
+		for _, l := range strings.Split(annotated, "\n") {
+			_, rest, ok := strings.Cut(l, kind+": ")
+			if !ok {
+				continue
+			}
+			for _, r := range strings.Split(rest, ",") {
+				if strings.TrimSpace(r) == id {
+					return true
+				}
+			}
+		}
+		return false
+	}
+	seen := map[string]bool{}
+	for _, pack := range []string{"crypto", "database", "ai", "cicd"} {
+		file := "../../../workers/rules/pathos-" + pack + ".yml"
+		raw, err := os.ReadFile(file) // #nosec G304 -- rule files in the repository
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc struct {
+			Rules []map[string]any `yaml:"rules"`
+		}
+		if err := yaml.Unmarshal(raw, &doc); err != nil {
+			t.Fatalf("%s: %v", file, err)
+		}
+		if len(doc.Rules) < 8 {
+			t.Errorf("%s: only %d rules", pack, len(doc.Rules))
+		}
+		for _, r := range doc.Rules {
+			id, _ := r["id"].(string)
+			if !strings.HasPrefix(id, "pathos."+pack+".") || seen[id] {
+				t.Errorf("%s: rule id %q must be unique and start with pathos.%s.", pack, id, pack)
+			}
+			seen[id] = true
+			if msg, _ := r["message"].(string); len(msg) < 60 {
+				t.Errorf("%s: message too short", id)
+			}
+			switch r["severity"] {
+			case "ERROR", "WARNING", "INFO":
+			default:
+				t.Errorf("%s: severity %v", id, r["severity"])
+			}
+			if langs, _ := r["languages"].([]any); len(langs) == 0 {
+				t.Errorf("%s: no languages", id)
+			}
+			meta, _ := r["metadata"].(map[string]any)
+			if meta["category"] != pack || meta["license"] != "Apache-2.0" {
+				t.Errorf("%s: metadata category/license: %v", id, meta)
+			}
+			if cwe, _ := meta["cwe"].([]any); len(cwe) == 0 || !strings.HasPrefix(cwe[0].(string), "CWE-") {
+				t.Errorf("%s: CWE missing", id)
+			}
+			if refs, _ := meta["references"].([]any); len(refs) == 0 || !strings.HasPrefix(refs[0].(string), "https://") {
+				t.Errorf("%s: references missing", id)
+			}
+			hasPattern := false
+			for _, k := range []string{"pattern", "patterns", "pattern-either", "pattern-regex", "pattern-sinks"} {
+				hasPattern = hasPattern || r[k] != nil
+			}
+			if !hasPattern {
+				t.Errorf("%s: no pattern", id)
+			}
+			if !annotatedAs("ruleid", id) || !annotatedAs("ok", id) {
+				t.Errorf("%s: needs a positive (ruleid:) and a negative (ok:) test case in workers/rules-tests", id)
+			}
+		}
+	}
+}

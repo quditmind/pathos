@@ -69,6 +69,21 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-sast | Bandit | 1.9.4 | Apache-2.0 | `pip install --require-hashes` into `/opt/pathos/sast` (`workers/sast/requirements.txt`) |
 | worker-sast | njsscan (with libsast 3.2.0 and Semgrep CE 1.172.0) | 1.0.2 | LGPL-3.0-or-later (Semgrep: LGPL-2.1-or-later) | Same; mcp 1.28.1 and PyJWT 2.14.0 replace the versions Semgrep pins (fixable CVEs) |
 | worker-sast | ShellCheck | 0.11.0 | GPL-3.0-only | Release archive, SHA-256 pinned; run through the `shellcheck-tree` helper (`workers/sast/bin`) |
+| worker-sast | gosec | 2.30.0 | Apache-2.0 | Built from its Go module with Go 1.27.4 (Go checksum database); golang.org/x/net 0.62.0 replaces 0.61.0 (fixable CVE). Run through `gosec-tree` with the image's Go toolchain (Go 1.27.4, `/opt/pathos/sast/go`), offline |
+| worker-sast | golangci-lint | 2.15.0 | GPL-3.0-only | Built from its Go module with Go 1.27.4; run through `golangci-lint-tree` with the image's configuration (`workers/sast/config/golangci.yml`) |
+| worker-sast | TruffleHog | 3.99.9 | AGPL-3.0-only | Built from its Go module with Go 1.27.4; run unmodified as a separate process, verification off |
+| worker-sast | Talisman | 1.37.0 | MIT | GitHub source archive of the tag, SHA-256 pinned, built with Go 1.27.4 (dependencies checked against its go.sum); golang.org/x/text 0.43.0 replaces 0.23.0 (fixable CVEs) |
+| worker-sast | Bearer CLI (with Bearer/bearer-rules 0.48.4) | 2.1.3 | Elastic-2.0 | GitHub source archive of the tag, SHA-256 pinned, built with Go 1.27.4 and cgo on Debian trixie; golang.org/x/net 0.62.0 replaces 0.61.0. Rule archives SHA-256 pinned |
+| worker-sast | Kingfisher | 2.19.1 | Apache-2.0 | Release archive (linux-x64), SHA-256 pinned |
+| worker-sast | cppcheck | 2.19.0 | GPL-3.0-or-later | GitHub source archive of the tag, SHA-256 pinned, built with CMake (the Debian package depends on a second Python) |
+| worker-sast | PHPStan | 2.3.6 | MIT | Release PHAR, SHA-256 pinned; runs on Debian's php8.4-cli |
+| worker-sast | Psalm | 7.11.0 | MIT | Release PHAR, SHA-256 pinned; run through `psalm-taint` |
+| worker-sast | ESLint, eslint-plugin-security, @typescript-eslint/parser, TypeScript | 10.15.0, 4.2.1, 8.73.0, 6.0.3 | MIT, Apache-2.0, MIT, Apache-2.0 | `npm ci` from `workers/sast/eslint/package-lock.json` (integrity hashes, no install scripts); Node.js 24.22.3 (MIT) release archive, SHA-256 pinned (only the `node` binary is kept) |
+| worker-sast | Flawfinder | 2.0.20 | GPL-2.0-or-later | `pip install --require-hashes` (`workers/sast/requirements.txt`) |
+| worker-sast | Ruff | 0.17.5 | MIT | Same |
+| worker-sast | detect-secrets | 1.5.0 | Apache-2.0 | Same |
+| worker-sast | Pylint (with astroid 4.3.4) | 4.1.4 | GPL-2.0-or-later | Same |
+| worker-sast | Semgrep CE | 1.172.0 | LGPL-2.1-or-later | Installed as njsscan's dependency; the `semgrep-ce` manifest runs it with the PATHOS rules only |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 

@@ -126,7 +126,8 @@ func TestScanPipeline(t *testing.T) {
 	if !strings.Contains(strings.Join(keys, ","), "gitleaks") {
 		t.Errorf("gitleaks must be added automatically: %v", keys)
 	}
-	if code, _ := h.user(admin, "POST", "/api/v1/scan-profiles", map[string]any{"name": "x", "scanners": []map[string]any{{"key": "trufflehog"}}}); code != 400 {
+	// CodeQL is catalogued but never bundled (its licence forbids it).
+	if code, _ := h.user(admin, "POST", "/api/v1/scan-profiles", map[string]any{"name": "x", "scanners": []map[string]any{{"key": "codeql"}}}); code != 400 {
 		t.Errorf("unavailable scanner: want 400, got %d", code)
 	}
 	if code, p2 := h.user(admin, "PUT", "/api/v1/scan-profiles/"+prof["id"].(string), map[string]any{"change_note": "add trivy", "sbom": true,

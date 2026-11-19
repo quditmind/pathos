@@ -1,0 +1,26 @@
+# Bearer CLI: data-flow SAST for Go, Java, JavaScript/TypeScript, PHP,
+# Python and Ruby (security and privacy rules). Licence Elastic-2.0, so
+# the tool is optional in the catalog. Its rule packages
+# (Bearer/bearer-rules v0.48.4) are installed in the image and passed as an
+# external rule directory; the default rule download and the version check
+# are off, so Bearer makes no network connection. JSON report parsed with
+# the PATHOS Bearer import parser.
+name: bearer
+display_name: Bearer CLI
+category: sast
+scan_types: [sast]
+license_spdx: Elastic-2.0
+homepage: https://github.com/Bearer/bearer
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/bearer
+version_args: ["version"]
+args: ["scan", "{source}", "--disable-default-rules", "--external-rule-dir", "/opt/pathos/sast/bearer-rules", "--disable-version-check", "--hide-progress-bar", "--quiet", "--format", "json", "--output", "{output}", "--exit-code", "0"]
+ok_exit_codes: [0]
+timeout: 60m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:bearer

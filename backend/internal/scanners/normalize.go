@@ -266,9 +266,9 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 					f.SnippetStart = &n
 				}
 			}
-			if key == Opengrep && misconfigurationRule(res.RuleID, rule.Properties) {
-				f.Category = "misconfiguration"
-				if strings.Contains(strings.ToLower(res.RuleID), "secret") {
+			if c := ruleCategory(res.RuleID, rule.Properties); c != "" && (key == Opengrep || key == SemgrepCE) {
+				f.Category = c
+				if secretRuleRe.MatchString(res.RuleID) {
 					// Rules about hard-coded keys match the key itself: keep
 					// it out of the stored code context.
 					f.Snippet, f.SnippetStart = "", nil
@@ -450,25 +450,48 @@ func packageOf(key string, res sarifResult) (name, version, fixed string) {
 // configuration check: the PATHOS rules "pathos.misconfig.*" and any rule
 // whose metadata category (a SARIF tag) is "misconfiguration".
 func misconfigurationRule(ruleID string, props map[string]any) bool {
-	if strings.HasPrefix(opengrepPrefix.ReplaceAllString(ruleID, ""), "pathos.misconfig.") {
-		return true
+	return ruleCategory(ruleID, props) == "misconfiguration"
+}
+
+// rulePackCategories maps the PATHOS rule packs (rule ids pathos.<pack>.*)
+// to their finding categories; a rule whose metadata category (a SARIF
+// tag) is one of these categories is recorded under it as well.
+var rulePackCategories = map[string]string{"misconfig": "misconfiguration", "crypto": "crypto", "database": "database",
+	"ai": "ai", "cicd": "cicd"}
+
+// ruleCategory returns the finding category of an Opengrep or Semgrep rule
+// that belongs to a PATHOS rule pack or declares such a category, else "".
+func ruleCategory(ruleID string, props map[string]any) string {
+	id := opengrepPrefix.ReplaceAllString(ruleID, "")
+	if rest, ok := strings.CutPrefix(id, "pathos."); ok {
+		if pack, _, ok := strings.Cut(rest, "."); ok && rulePackCategories[pack] != "" {
+			return rulePackCategories[pack]
+		}
 	}
 	if tags, ok := props["tags"].([]any); ok {
 		for _, t := range tags {
-			if s, ok := t.(string); ok && strings.EqualFold(s, "misconfiguration") {
-				return true
+			if s, ok := t.(string); ok {
+				for _, c := range rulePackCategories {
+					if strings.EqualFold(s, c) {
+						return c
+					}
+				}
 			}
 		}
 	}
-	return false
+	return ""
 }
+
+// secretRuleRe matches rule ids about hard-coded secrets and keys: their
+// match is the secret itself.
+var secretRuleRe = regexp.MustCompile(`(?i)hardcoded|password|api-key|credential|secret-key|session-secret|jwt-secret`)
 
 // opengrepPrefix matches the path-derived prefix Opengrep adds to rule IDs.
 var opengrepPrefix = regexp.MustCompile(`^(?:[a-z0-9_-]+\.)*?(?:rules\.)`)
 
 // applyToolRules adjusts per-tool quirks.
 func applyToolRules(f *Finding, res sarifResult) {
-	if f.ScannerKey == Opengrep {
+	if f.ScannerKey == Opengrep || f.ScannerKey == SemgrepCE {
 		f.RuleID = opengrepPrefix.ReplaceAllString(f.RuleID, "")
 		// The rule message is the useful title; the SARIF short description
 		// is a generic "Opengrep Finding: <id>".

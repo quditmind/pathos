@@ -1,0 +1,24 @@
+# Pylint with its security-relevant checks only (code injection, unsafe
+# defaults, error handling that hides failures, resources that are never
+# closed, subprocess and environment misuse); style checks are disabled.
+# The repository's pylintrc is not read (--rcfile names the image's).
+# JSON report on stdout parsed with the PATHOS Pylint import parser.
+name: pylint
+display_name: Pylint
+category: code-quality
+scan_types: [code-quality]
+license_spdx: GPL-2.0-or-later
+homepage: https://github.com/pylint-dev/pylint
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/pylint
+version_args: ["--version"]
+args: ["--rcfile", "/opt/pathos/sast/config/pylintrc", "--recursive", "y", "--output-format", "json2", "--exit-zero", "{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:pylint

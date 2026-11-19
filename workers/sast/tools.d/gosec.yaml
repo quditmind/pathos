@@ -1,0 +1,25 @@
+# gosec: Go security checker. The image's gosec-tree helper runs it on
+# every Go package of the repository with the image's Go toolchain, offline
+# (modules that are not vendored are not downloaded; their packages are
+# reported as errors in the report, not as findings). JSON report parsed with
+# the PATHOS gosec import parser.
+name: gosec
+display_name: gosec
+category: sast
+scan_types: [sast]
+license_spdx: Apache-2.0
+homepage: https://github.com/securego/gosec
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/gosec-tree
+version_args: ["--version"]
+# {tmp}: Go build and module caches of this run.
+args: ["{source}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:gosec

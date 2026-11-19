@@ -1,0 +1,25 @@
+# Talisman (Thoughtworks): secrets and sensitive files (keys,
+# certificates, high-entropy strings) in the repository's current files.
+# The image's talisman-tree helper commits the tree to a throwaway Git
+# repository in the job's temporary directory (Talisman scans Git
+# repositories). Talisman reports no line numbers. JSON report parsed with
+# the PATHOS Talisman import parser (quoted secrets are removed).
+name: talisman
+display_name: Talisman
+category: secrets
+scan_types: [secrets]
+license_spdx: MIT
+homepage: https://github.com/thoughtworks/talisman
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/talisman-tree
+version_args: ["--version"]
+args: ["{source}", "{output}", "{tmp}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:talisman

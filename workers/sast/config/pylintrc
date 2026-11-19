@@ -1,0 +1,30 @@
+# Pylint configuration of the PATHOS worker-sast image: the checks with a
+# security impact only. A repository's own pylintrc is not read (it can
+# load plugins, which are Python code).
+[MAIN]
+# No C extension module is imported to inspect it.
+unsafe-load-any-extension=no
+ignore=.git,node_modules,vendor,venv,.venv,site-packages
+jobs=1
+
+[MESSAGES CONTROL]
+disable=all
+# W0123 eval-used, W0122 exec-used: code injection
+# W0102 dangerous-default-value: shared mutable default arguments
+# W0702 bare-except: hides every error, including KeyboardInterrupt and SystemExit
+# W0150 lost-exception: return or break in finally discards an exception
+# W0199 assert-on-tuple: an assertion that is always true
+# W1501 bad-open-mode
+# W1508 invalid-envvar-default, E1507 invalid-envvar-value
+# W1509 subprocess-popen-preexec-fn: not safe with threads
+# W1510 subprocess-run-check: a failed command is not detected
+# W3101 missing-timeout: HTTP requests that can hang forever
+# R1732 consider-using-with: files, sockets and processes that may never be closed
+# W4901 deprecated-module, W4902 deprecated-method
+enable=eval-used,exec-used,dangerous-default-value,bare-except,lost-exception,assert-on-tuple,bad-open-mode,
+       invalid-envvar-default,invalid-envvar-value,subprocess-popen-preexec-fn,subprocess-run-check,missing-timeout,
+       consider-using-with,deprecated-module,deprecated-method
+
+[REPORTS]
+reports=no
+score=no
