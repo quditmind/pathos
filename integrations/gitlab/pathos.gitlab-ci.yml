@@ -5,12 +5,12 @@
 # Include it (pin the tag) and set the variables:
 #
 #   include:
-#     - remote: https://raw.githubusercontent.com/quditmind/pathos/v2.2.0/integrations/gitlab/pathos.gitlab-ci.yml
+#     - remote: https://raw.githubusercontent.com/quditmind/pathos/v2.2.1/integrations/gitlab/pathos.gitlab-ci.yml
 #
 #   variables:
 #     PATHOS_URL: https://pathos.example.com
 #     PATHOS_REPOSITORY: acme/payments-api
-#     PATHOS_CLI_VERSION: "2.2.0"
+#     PATHOS_CLI_VERSION: "2.2.1"
 #   # PATHOS_TOKEN: a masked, protected CI/CD variable (Settings > CI/CD > Variables)
 #
 #   pathos-import:
