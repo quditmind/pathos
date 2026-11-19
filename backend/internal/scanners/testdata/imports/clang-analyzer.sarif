@@ -1,0 +1,129 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/cos02/schemas/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "columnKind": "unicodeCodePoints",
+      "results": [
+        {
+          "codeFlows": [
+            {
+              "threadFlows": [
+                {
+                  "locations": [
+                    {
+                      "importance": "essential",
+                      "location": {
+                        "message": {
+                          "text": "Memory is allocated"
+                        },
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "index": 0,
+                            "uri": "file:///tmp/main.c"
+                          },
+                          "region": {
+                            "endColumn": 23,
+                            "endLine": 4,
+                            "startColumn": 13,
+                            "startLine": 4
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "importance": "essential",
+                      "location": {
+                        "message": {
+                          "text": "Memory is released"
+                        },
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "index": 0,
+                            "uri": "file:///tmp/main.c"
+                          },
+                          "region": {
+                            "endColumn": 10,
+                            "endLine": 5,
+                            "startColumn": 3,
+                            "startLine": 5
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "importance": "essential",
+                      "location": {
+                        "message": {
+                          "text": "Use of memory after it is freed"
+                        },
+                        "physicalLocation": {
+                          "artifactLocation": {
+                            "index": 0,
+                            "uri": "file:///tmp/main.c"
+                          },
+                          "region": {
+                            "endColumn": 21,
+                            "endLine": 6,
+                            "startColumn": 3,
+                            "startLine": 6
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ],
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "index": 0,
+                  "uri": "file:///tmp/main.c"
+                },
+                "region": {
+                  "endColumn": 21,
+                  "endLine": 6,
+                  "startColumn": 3,
+                  "startLine": 6
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Use of memory after it is freed"
+          },
+          "ruleId": "unix.Malloc",
+          "ruleIndex": 0
+        }
+      ],
+      "tool": {
+        "driver": {
+          "fullName": "clang static analyzer",
+          "informationUri": "https://clang.llvm.org/docs/UsersManual.html",
+          "language": "en-US",
+          "name": "clang",
+          "rules": [
+            {
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "warning",
+                "rank": -1
+              },
+              "fullDescription": {
+                "text": "Check for memory leaks, double free, and use-after-free problems. Traces memory managed by malloc()/free()."
+              },
+              "helpUri": "https://clang.llvm.org/docs/analyzer/checkers.html#unix-malloc",
+              "id": "unix.Malloc",
+              "name": "unix.Malloc"
+            }
+          ],
+          "version": "Debian clang version 19.1.7 (3+b1)"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

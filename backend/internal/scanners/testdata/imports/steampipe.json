@@ -1,0 +1,150 @@
+{
+  "group_id": "root_result_group",
+  "title": "AWS Compliance",
+  "description": "",
+  "tags": {},
+  "summary": {
+    "status": {
+      "alarm": 2,
+      "ok": 1,
+      "info": 0,
+      "skip": 0,
+      "error": 1
+    }
+  },
+  "groups": [
+    {
+      "group_id": "aws_compliance.benchmark.cis_v300",
+      "title": "CIS v3.0.0",
+      "description": "",
+      "tags": {
+        "cis": "true"
+      },
+      "summary": {
+        "status": {
+          "alarm": 2,
+          "ok": 1,
+          "info": 0,
+          "skip": 0,
+          "error": 1
+        }
+      },
+      "groups": [
+        {
+          "group_id": "aws_compliance.benchmark.cis_v300_2_1",
+          "title": "2.1 Simple Storage Service (S3)",
+          "description": "",
+          "tags": {},
+          "summary": {
+            "status": {
+              "alarm": 1,
+              "ok": 1,
+              "info": 0,
+              "skip": 0,
+              "error": 0
+            }
+          },
+          "groups": [],
+          "controls": [
+            {
+              "summary": {
+                "alarm": 1,
+                "ok": 1,
+                "info": 0,
+                "skip": 0,
+                "error": 0
+              },
+              "results": [
+                {
+                  "reason": "example-logs not blocked at bucket level.",
+                  "resource": "arn:aws:s3:::example-logs",
+                  "status": "alarm",
+                  "dimensions": [
+                    {
+                      "key": "account_id",
+                      "value": "123456789012"
+                    },
+                    {
+                      "key": "region",
+                      "value": "eu-west-1"
+                    }
+                  ]
+                },
+                {
+                  "reason": "example-assets blocked at bucket level.",
+                  "resource": "arn:aws:s3:::example-assets",
+                  "status": "ok",
+                  "dimensions": [
+                    {
+                      "key": "account_id",
+                      "value": "123456789012"
+                    },
+                    {
+                      "key": "region",
+                      "value": "eu-west-1"
+                    }
+                  ]
+                }
+              ],
+              "control_id": "aws_compliance.control.cis_v300_2_1_4",
+              "description": "S3 provides Block public access (bucket settings) and Block public access (account settings) to help you manage public access to Amazon S3 resources.",
+              "severity": "high",
+              "tags": {
+                "cis_item_id": "2.1.4",
+                "cis_level": "1"
+              },
+              "title": "2.1.4 Ensure that S3 Buckets are configured with 'Block public access (bucket settings)'",
+              "run_status": 4,
+              "run_error": ""
+            }
+          ]
+        }
+      ],
+      "controls": [
+        {
+          "summary": {
+            "alarm": 1,
+            "ok": 0,
+            "info": 0,
+            "skip": 0,
+            "error": 1
+          },
+          "results": [
+            {
+              "reason": "Root account MFA not enabled.",
+              "resource": "arn:aws:::123456789012",
+              "status": "alarm",
+              "dimensions": [
+                {
+                  "key": "account_id",
+                  "value": "123456789012"
+                }
+              ]
+            },
+            {
+              "reason": "AccessDenied: the role cannot read the credential report.",
+              "resource": "arn:aws:::210987654321",
+              "status": "error",
+              "dimensions": [
+                {
+                  "key": "account_id",
+                  "value": "210987654321"
+                }
+              ]
+            }
+          ],
+          "control_id": "aws_compliance.control.cis_v300_1_5",
+          "description": "The root user account is the most privileged user in an AWS account. MFA adds an extra layer of protection.",
+          "severity": "critical",
+          "tags": {
+            "cis_item_id": "1.5"
+          },
+          "title": "1.5 Ensure MFA is enabled for the 'root' user account",
+          "run_status": 4,
+          "run_error": ""
+        }
+      ]
+    }
+  ],
+  "controls": null
+}

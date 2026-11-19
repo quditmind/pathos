@@ -1,0 +1,122 @@
+{
+  "apiVersion": "v1",
+  "kind": "List",
+  "metadata": {
+    "resourceVersion": ""
+  },
+  "items": [
+    {
+      "apiVersion": "aquasecurity.github.io/v1alpha1",
+      "kind": "VulnerabilityReport",
+      "metadata": {
+        "name": "replicaset-web-6d4cf56db6-web",
+        "namespace": "shop",
+        "labels": {
+          "trivy-operator.container.name": "web",
+          "trivy-operator.resource.kind": "ReplicaSet",
+          "trivy-operator.resource.name": "web-6d4cf56db6",
+          "trivy-operator.resource.namespace": "shop"
+        }
+      },
+      "report": {
+        "artifact": {
+          "repository": "library/nginx",
+          "tag": "1.25.3"
+        },
+        "registry": {
+          "server": "index.docker.io"
+        },
+        "os": {
+          "family": "debian",
+          "name": "12.4"
+        },
+        "scanner": {
+          "name": "Trivy",
+          "vendor": "Aqua Security",
+          "version": "0.56.2"
+        },
+        "summary": {
+          "criticalCount": 0,
+          "highCount": 1,
+          "mediumCount": 1,
+          "lowCount": 0,
+          "unknownCount": 0
+        },
+        "updateTimestamp": "2026-11-01T10:00:00Z",
+        "vulnerabilities": [
+          {
+            "vulnerabilityID": "CVE-2023-45853",
+            "resource": "zlib1g",
+            "installedVersion": "1:1.2.13.dfsg-1",
+            "fixedVersion": "",
+            "severity": "CRITICAL",
+            "title": "zlib: integer overflow in MiniZip",
+            "score": 9.8,
+            "primaryLink": "https://avd.aquasec.com/nvd/cve-2023-45853",
+            "links": [],
+            "target": "",
+            "publishedDate": "2023-10-14T02:15:09Z"
+          },
+          {
+            "vulnerabilityID": "CVE-2024-2511",
+            "resource": "libssl3",
+            "installedVersion": "3.0.11-1~deb12u2",
+            "fixedVersion": "3.0.13-1~deb12u1",
+            "severity": "MEDIUM",
+            "title": "openssl: Unbounded memory growth with session handling in TLSv1.3",
+            "score": 5.9,
+            "primaryLink": "https://avd.aquasec.com/nvd/cve-2024-2511"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "aquasecurity.github.io/v1alpha1",
+      "kind": "ConfigAuditReport",
+      "metadata": {
+        "name": "replicaset-web-6d4cf56db6",
+        "namespace": "shop",
+        "labels": {
+          "trivy-operator.resource.kind": "ReplicaSet",
+          "trivy-operator.resource.name": "web-6d4cf56db6",
+          "trivy-operator.resource.namespace": "shop"
+        }
+      },
+      "report": {
+        "scanner": {
+          "name": "Trivy",
+          "vendor": "Aqua Security",
+          "version": "0.56.2"
+        },
+        "summary": {
+          "criticalCount": 0,
+          "highCount": 1,
+          "mediumCount": 0,
+          "lowCount": 0
+        },
+        "checks": [
+          {
+            "checkID": "KSV017",
+            "title": "Privileged container",
+            "severity": "HIGH",
+            "category": "Kubernetes Security Check",
+            "success": false,
+            "description": "Privileged containers share namespaces with the host system and do not offer any security.",
+            "messages": [
+              "Container 'web' of ReplicaSet 'web-6d4cf56db6' should set 'securityContext.privileged' to false"
+            ],
+            "remediation": "Change 'containers[].securityContext.privileged' to 'false'."
+          },
+          {
+            "checkID": "KSV001",
+            "title": "Process can elevate its own privileges",
+            "severity": "MEDIUM",
+            "success": true,
+            "description": "A program inside the container can elevate its own privileges.",
+            "messages": []
+          }
+        ]
+      }
+    }
+  ]
+}

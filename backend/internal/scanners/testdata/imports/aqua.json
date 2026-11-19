@@ -1,0 +1,84 @@
+{
+  "image": "registry.example.test/app:1.4.2",
+  "registry": "registry.example.test",
+  "scan_started": {
+    "seconds": 1767225600,
+    "nanos": 0
+  },
+  "scan_duration": 12,
+  "digest": "sha256:9a8b7c6d5e4f30210000000000000000000000000000000000000000000000cd",
+  "os": "debian",
+  "version": "12",
+  "resources": [
+    {
+      "resource": {
+        "format": "deb",
+        "name": "openssl",
+        "version": "3.0.11-1~deb12u2",
+        "arch": "amd64",
+        "cpe": "pkg:/debian:12:openssl:3.0.11-1~deb12u2",
+        "license": "Apache-2.0",
+        "layer_digest": "sha256:aa"
+      },
+      "scanned": true,
+      "vulnerabilities": [
+        {
+          "name": "CVE-2024-2511",
+          "description": "Unbounded memory growth with session handling in TLSv1.3.",
+          "nvd_score_v3": 5.9,
+          "nvd_vectors_v3": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+          "nvd_severity_v3": "medium",
+          "nvd_url": "https://nvd.nist.gov/vuln/detail/CVE-2024-2511",
+          "vendor_severity": "low",
+          "aqua_score": 5.9,
+          "aqua_severity": "medium",
+          "fix_version": "3.0.13-1~deb12u1",
+          "solution": "Upgrade package openssl to version 3.0.13-1~deb12u1 or above."
+        }
+      ]
+    },
+    {
+      "resource": {
+        "format": "npm",
+        "name": "lodash",
+        "version": "4.17.20",
+        "path": "/app/node_modules/lodash/package.json"
+      },
+      "scanned": true,
+      "vulnerabilities": [
+        {
+          "name": "CVE-2021-23337",
+          "description": "Command injection via template.",
+          "nvd_score_v3": 7.2,
+          "nvd_vectors_v3": "CVSS:3.1/AV:N/AC:L/PR:H/UI:N/S:U/C:H/I:H/A:H",
+          "nvd_severity_v3": "high",
+          "aqua_score": 7.2,
+          "aqua_severity": "high",
+          "fix_version": "4.17.21",
+          "already_acknowledged": true
+        },
+        {
+          "name": "CVE-2020-28500",
+          "description": "Regular expression denial of service in toNumber, trim and trimEnd.",
+          "nvd_score_v3": 5.3,
+          "nvd_severity_v3": "medium",
+          "aqua_severity": "medium",
+          "fix_version": "4.17.21"
+        }
+      ]
+    }
+  ],
+  "vulnerability_summary": {
+    "total": 3,
+    "high": 1,
+    "medium": 2,
+    "low": 0,
+    "negligible": 0,
+    "sensitive": 0,
+    "malware": 0,
+    "critical": 0
+  },
+  "image_assurance_results": {
+    "disallowed": false
+  }
+}

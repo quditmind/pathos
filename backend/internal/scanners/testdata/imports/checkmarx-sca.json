@@ -1,0 +1,74 @@
+{
+  "RiskReportSummary": {
+    "RiskReportId": "0d3e5c2a-0000-4f1b-9a8c-000000000001",
+    "ProjectName": "web",
+    "HighVulnerabilityCount": 1,
+    "MediumVulnerabilityCount": 1
+  },
+  "Packages": [
+    {
+      "Id": "Npm-lodash-4.17.20",
+      "Name": "lodash",
+      "Version": "4.17.20",
+      "Licenses": [
+        "MIT"
+      ],
+      "MatchType": "Filename",
+      "HighVulnerabilityCount": 1,
+      "IsDirectDependency": true
+    },
+    {
+      "Id": "Npm-minimist-1.2.5",
+      "Name": "minimist",
+      "Version": "1.2.5",
+      "Licenses": [
+        "MIT"
+      ],
+      "MediumVulnerabilityCount": 1,
+      "IsDirectDependency": false
+    }
+  ],
+  "Vulnerabilities": [
+    {
+      "Id": "CVE-2021-23337",
+      "CveName": "CVE-2021-23337",
+      "Score": 7.2,
+      "Severity": "High",
+      "PublishDate": "2021-02-15T13:15:00",
+      "References": [
+        "https://nvd.nist.gov/vuln/detail/CVE-2021-23337"
+      ],
+      "Description": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+      "Cvss": {
+        "Version": 3,
+        "AttackVector": "NETWORK"
+      },
+      "Recommendations": null,
+      "PackageId": "Npm-lodash-4.17.20",
+      "FixResolutionText": "4.17.21",
+      "IsIgnored": false,
+      "ExploitableMethods": [],
+      "Cwe": "CWE-94",
+      "IsViolatingPolicy": true,
+      "Type": "Regular"
+    },
+    {
+      "Id": "CVE-2021-44906",
+      "CveName": "CVE-2021-44906",
+      "Score": 5.6,
+      "Severity": "Medium",
+      "Description": "Minimist is vulnerable to prototype pollution via setKey.",
+      "PackageId": "Npm-minimist-1.2.5",
+      "FixResolutionText": "1.2.6",
+      "IsIgnored": true,
+      "Cwe": "CWE-1321"
+    }
+  ],
+  "Licenses": [
+    {
+      "ReferenceType": "Url",
+      "Name": "MIT",
+      "RiskLevel": "Low"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "ComplianceByResources": [
+    {
+      "ResourceType": "AWS::EC2::Instance",
+      "ResourceId": "i-0123456789abcdef0",
+      "Compliance": {
+        "ComplianceType": "NON_COMPLIANT",
+        "ComplianceContributorCount": {
+          "CappedCount": 2,
+          "CapExceeded": false
+        }
+      }
+    },
+    {
+      "ResourceType": "AWS::EC2::Instance",
+      "ResourceId": "i-0fedcba9876543210",
+      "Compliance": {
+        "ComplianceType": "COMPLIANT"
+      }
+    }
+  ]
+}

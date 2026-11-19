@@ -132,6 +132,10 @@ func SameImportParser(a, b string) bool { return parserOf(a) == parserOf(b) }
 // (Gitleaks and TruffleHog report the secrets they find in plain text).
 // Finding identity never depends on the removed values.
 func SanitizeImport(format string, raw []byte) []byte {
+	// An alias may have its own sanitizer (sarif-gitleaks).
+	if f, ok := importFormats[format]; ok && f.sanitize != nil {
+		return f.sanitize(raw)
+	}
 	if f, ok := importFormats[parserOf(format)]; ok && f.sanitize != nil {
 		return f.sanitize(raw)
 	}
@@ -353,8 +357,9 @@ func importFormat(raw []byte) string {
 		// The original three formats.
 		switch {
 		case p.has("runs"):
-			return "sarif"
-		case p.has("matches"):
+			// A log of a known tool is its named SARIF format.
+			return sarifFormatOf(p)
+		case p.has("matches") && !isXeol(p):
 			return "grype"
 		// PATHOS findings JSON has no fields but tool and findings, and its
 		// findings only GenericFinding fields (Kingfisher, Sobelow, poutine,

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Mariana Trench",
+          "informationUri": "https://github.com/facebook/mariana-trench/",
+          "rules": [
+            {
+              "id": "4001",
+              "name": "User input flows into code execution (RCE)"
+            },
+            {
+              "id": "4011",
+              "name": "Intent data flows into a file path (path traversal)"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "4001",
+          "level": "warning",
+          "message": {
+            "text": "User input flows into code execution (RCE) [4001]: Data from [ActivityUserInput] source(s) may reach [CodeExecution] sink(s)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "com/example/app/MainActivity.java"
+                },
+                "region": {
+                  "startLine": 42
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "4011",
+          "level": "warning",
+          "message": {
+            "text": "Intent data flows into a file path (path traversal) [4011]: Data from [IntentData] source(s) may reach [FileResolver] sink(s)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "com/example/app/FileProvider.java"
+                },
+                "region": {
+                  "startLine": 77
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

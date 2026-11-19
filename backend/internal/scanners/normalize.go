@@ -424,6 +424,16 @@ var (
 // packageOf extracts package identity for SCA results.
 func packageOf(key string, res sarifResult) (name, version, fixed string) {
 	msg := res.Message.Text
+	// Imported SARIF of these tools (import-<category>-<tool>) has the
+	// same messages as their native runs.
+	if m := importKeyRe.FindStringSubmatch(key); m != nil {
+		switch m[2] {
+		case "trivy":
+			key = TrivyFS
+		case Grype, OSVScanner:
+			key = m[2]
+		}
+	}
 	switch key {
 	case TrivyFS, TrivyImage:
 		if m := trivyPkgRe.FindStringSubmatch(msg); m != nil {

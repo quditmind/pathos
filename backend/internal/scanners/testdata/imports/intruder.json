@@ -1,0 +1,69 @@
+{
+  "count": 2,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 9001,
+      "severity": "high",
+      "title": "OpenSSH regreSSHion (CVE-2024-6387)",
+      "description": "The OpenSSH server is vulnerable to unauthenticated remote code execution.",
+      "remediation": "Upgrade OpenSSH to 9.8p1 or later.",
+      "cvss_score": 8.1,
+      "snoozed": false,
+      "exploit_likelihood": "MEDIUM",
+      "occurrences": [
+        {
+          "id": 1,
+          "occurrence_id": 500001,
+          "target": "bastion.example.test",
+          "display_address": "bastion.example.test",
+          "port": "22",
+          "protocol": "tcp",
+          "first_seen_at": "2026-10-01T12:00:00Z",
+          "snoozed": false,
+          "cvss_score": 8.1,
+          "cves": [
+            "CVE-2024-6387"
+          ],
+          "extra_info": {
+            "banner": "SSH-2.0-OpenSSH_9.2p1"
+          }
+        },
+        {
+          "id": 2,
+          "occurrence_id": 500002,
+          "target": "jump.example.test",
+          "port": "2222",
+          "protocol": "tcp",
+          "first_seen_at": "2026-10-02T12:00:00Z",
+          "snoozed": true,
+          "snooze_reason": "MITIGATING_CONTROLS",
+          "cves": [
+            "CVE-2024-6387"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 9002,
+      "severity": "medium",
+      "title": "TLS certificate expires within 14 days",
+      "description": "The certificate presented by the service expires shortly.",
+      "remediation": "Renew the certificate.",
+      "snoozed": false,
+      "occurrences": [
+        {
+          "id": 3,
+          "occurrence_id": 500003,
+          "target": "shop.example.test",
+          "port": "443",
+          "protocol": "tcp",
+          "first_seen_at": "2026-11-01T12:00:00Z",
+          "snoozed": false,
+          "cves": []
+        }
+      ]
+    }
+  ]
+}

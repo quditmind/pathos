@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "BinSkim",
+          "fullName": "BinSkim 4.3.1",
+          "version": "4.3.1",
+          "semanticVersion": "4.3.1",
+          "rules": [
+            {
+              "id": "BA3001",
+              "name": "EnablePositionIndependentExecutable",
+              "fullDescription": {
+                "text": "A Position Independent Executable (PIE) relocates all of its sections at load time, including the code section, if ASLR is enabled in the Linux kernel."
+              }
+            },
+            {
+              "id": "BA3003",
+              "name": "EnableStackProtector",
+              "fullDescription": {
+                "text": "The stack protector ensures that all functions that use buffers over a certain size will use a stack cookie (and check it) to prevent stack based buffer overflows."
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "BA3001",
+          "level": "error",
+          "message": {
+            "text": "PIE disabled on executable 'app'.  This means the code section will always be loaded to the same address, even if ASLR is enabled in the Linux kernel."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///work/build/app"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "ruleIndex": 0
+        },
+        {
+          "ruleId": "BA3003",
+          "level": "error",
+          "message": {
+            "text": "The stack protector was not found in 'app'. This may be because '--stack-protector-strong' was not used, or because it was explicitly disabled by '-fno-stack-protectors'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///work/build/app"
+                },
+                "region": {
+                  "startLine": 1
+                }
+              }
+            }
+          ],
+          "ruleIndex": 1
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "data": [
+    {
+      "id": "f0e1d2c3-0001-4a5b-9c8d-000000000001-default-asset-101",
+      "host_name": "web-01.example.test",
+      "ip": "10.0.1.20",
+      "mac": "02:42:AC:11:00:02",
+      "os_description": "Ubuntu Linux 22.04",
+      "os_family": "Linux",
+      "risk_score": 2412.5,
+      "tags": [
+        {
+          "name": "Production",
+          "type": "CRITICALITY"
+        }
+      ],
+      "last_assessed_for_vulnerabilities": "2026-11-01T10:00:00Z",
+      "new": [
+        {
+          "vulnerability_id": "ubuntu-cve-2024-6387",
+          "check_id": "ubuntu-cve-2024-6387-openssh-server",
+          "key": "",
+          "port": 22,
+          "protocol": "tcp",
+          "nic": null,
+          "proof": "<p><ul><li>Vulnerable OS: Ubuntu Linux 22.04</li><li>openssh-server 1:8.9p1-3ubuntu0.7</li></ul></p>",
+          "status": "VULNERABLE_VERS",
+          "first_found": "2026-11-01T10:00:00Z",
+          "last_found": "2026-11-01T10:00:00Z",
+          "solution_fix": "Upgrade openssh-server to the latest version"
+        }
+      ],
+      "same": [
+        {
+          "vulnerability_id": "ssh-cbc-ciphers",
+          "check_id": "ssh-cbc-ciphers",
+          "port": 22,
+          "protocol": "tcp",
+          "proof": "<p>Running SSH service: aes128-cbc is supported</p>",
+          "status": "VULNERABLE_EXPL",
+          "first_found": "2026-09-01T10:00:00Z",
+          "last_found": "2026-11-01T10:00:00Z"
+        },
+        {
+          "vulnerability_id": "tls-untrusted-ca",
+          "check_id": "tls-untrusted-ca",
+          "port": 443,
+          "protocol": "tcp",
+          "status": "EXCEPTION_VULN_EXPL",
+          "proof": "Self-signed certificate",
+          "first_found": "2026-09-01T10:00:00Z",
+          "last_found": "2026-11-01T10:00:00Z"
+        }
+      ],
+      "remediated": [
+        {
+          "vulnerability_id": "apache-httpd-cve-2023-25690",
+          "check_id": "apache-httpd-cve-2023-25690",
+          "port": 80,
+          "protocol": "tcp",
+          "status": "NOT_VULNERABLE"
+        }
+      ]
+    }
+  ],
+  "metadata": {
+    "cursor": null,
+    "size": 1
+  }
+}

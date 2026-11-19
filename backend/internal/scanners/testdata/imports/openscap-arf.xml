@@ -1,0 +1,426 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<arf:asset-report-collection xmlns:ai="http://scap.nist.gov/schema/asset-identification/1.1" xmlns:arf="http://scap.nist.gov/schema/asset-reporting-format/1.1" xmlns:core="http://scap.nist.gov/schema/reporting-core/1.1" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:ds="http://scap.nist.gov/schema/scap/source/1.2" xmlns:html="http://www.w3.org/1999/xhtml" xmlns:ns3="http://checklists.nist.gov/xccdf/1.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <core:relationships>
+    <core:relationship type="arfvocab:createdFor" subject="xccdf1">
+      <core:ref>collection1</core:ref>
+    </core:relationship>
+    <core:relationship type="arfvocab:isAbout" subject="xccdf1">
+      <core:ref>asset0</core:ref>
+    </core:relationship>
+  </core:relationships>
+  <arf:report-requests>
+    <arf:report-request id="collection1">
+      <arf:content>
+        <ds:data-stream-collection id="scap_org.open-scap_collection_from_xccdf_ssg-fedora-xccdf.xml" schematron-version="1.3">
+  <ds:data-stream id="scap_org.open-scap_datastream_from_xccdf_ssg-fedora-xccdf.xml" scap-version="1.3" use-case="OTHER" timestamp="2026-09-02T00:00:00">
+    </ds:data-stream>
+  <ds:component id="scap_org.open-scap_comp_ssg-fedora-xccdf.xml" timestamp="2026-09-02T00:00:00">
+    <ns3:Benchmark id="xccdf_org.ssgproject.content_benchmark_FEDORA" xsi:schemaLocation="http://checklists.nist.gov/xccdf/1.2 xccdf-1.2.xsd" style="SCAP_1.2" resolved="true" xml:lang="en-US">
+      <ns3:status date="2026-09-02">draft</ns3:status>
+      <ns3:title>Guide to the Secure Configuration of Fedora</ns3:title>
+      <ns3:description>This guide presents a catalog of security-relevant
+configuration settings for Fedora. It is a rendering of
+content structured in the eXtensible Configuration Checklist Description Format (XCCDF)
+in order to support security automation.  The SCAP content is
+is available in the </ns3:description>
+      <ns3:version update="https://github.com/ComplianceAsCode/content/releases/latest">0.1.82</ns3:version>
+      <ns3:metadata>
+        <dc:publisher>SCAP Security Guide Project</dc:publisher>
+        <dc:creator>SCAP Security Guide Project</dc:creator>
+        <dc:source>https://github.com/ComplianceAsCode/content/releases/latest</dc:source>
+      </ns3:metadata>
+      <ns3:Group id="xccdf_org.ssgproject.content_group_system">
+        <ns3:title>System Settings</ns3:title>
+        <ns3:description>Contains rules that check correct system settings.</ns3:description>
+        <ns3:Group id="xccdf_org.ssgproject.content_group_software">
+          <ns3:title>Installing and Maintaining Software</ns3:title>
+          <ns3:description>The following sections contain information on
+security-relevant choices during the initial operating system
+installation process and the setup of software
+updates.</ns3:description>
+          <ns3:Group id="xccdf_org.ssgproject.content_group_integrity">
+            <ns3:title>System and Software Integrity</ns3:title>
+            <ns3:description>System and software integrity can be gained by installing antivirus, increasing
+system encryption strength with FIPS, verifying installed software, enabling SELinux,
+installing an Intrusion Prevention System, etc. However, installing or enabling integrity
+checking tools cannot <html:i>prevent</html:i> intrusions, but they can detect that an intrusion
+may have occurred. Requirements for integrity checking may be highly dependent on
+the environment in which the system will be used. Snapshot-based approaches such
+as AIDE may induce considerable overhead in the presence of frequent software updates.</ns3:description>
+            <ns3:Group id="xccdf_org.ssgproject.content_group_software-integrity">
+              <ns3:title>Software Integrity Checking</ns3:title>
+              <ns3:description>Both the AIDE (Advanced Intrusion Detection Environment)
+software and the RPM package management system provide
+mechanisms for verifying the integrity of installed software.
+AIDE uses snapshots of file metadata (such as hashes) and compares these
+to current system files in order to detect changes.
+<html:br />
+        <html:br />
+The RPM package management system can conduct integrity
+checks by comparing information in its metadata database with
+files installed on the system.</ns3:description>
+              <ns3:Group id="xccdf_org.ssgproject.content_group_rpm_verification">
+                <ns3:title>Verify Integrity with RPM</ns3:title>
+                <ns3:description>The RPM package management system includes the ability
+to verify the integrity of installed packages by comparing the
+installed files with information about the files taken from the
+package metadata stored in the RPM database. Although an attacker
+could corrupt the RPM database (analogous to attacking the AIDE
+database as described above), this check can still reveal
+modification of important files. To list which files on the system differ from what is expected by the RPM database:
+<html:pre>$ rpm -qVa</html:pre>
+See the man page for <html:code>rpm</html:code> to see a complete explanation of each column.</ns3:description>
+                <ns3:Rule selected="false" id="xccdf_org.ssgproject.content_rule_rpm_verify_hashes" severity="high">
+                  <ns3:title>Verify File Hashes with RPM</ns3:title>
+                  <ns3:description>Without cryptographic integrity protections, system executables and files can be altered by
+unauthorized users without detection. The RPM package management system can check the hashes
+of installed software packages, including many that are important to system security.
+
+To verify that the cryptographic hash of system files and commands matches vendor values, run
+the following command to list whic</ns3:description>
+                  <ns3:warning category="general">This rule can take a long time to perform the check and might consume a considerable
+amount of resources depending on the number of packages present on the system. It is not a
+problem in most cases, but especially systems with a large number of installed packages
+can be affected.</ns3:warning>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">11</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">2</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">3</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">9</ns3:reference>
+                  <ns3:reference href="https://www.fbi.gov/file-repository/cjis-security-policy-v5_5_20160601-2-1.pdf">5.10.4.1</ns3:reference>
+                  <ns3:reference href="https://www.isaca.org/resources/cobit">APO01.06</ns3:reference>
+                  <ns3:rationale>The hashes of important files like system executables should match the
+information given by the RPM database. Executables with erroneous hashes could
+be a sign of nefarious activity on the system.</ns3:rationale>
+                  <ns3:fix system="urn:xccdf:fix:script:sh" id="rpm_verify_hashes"># Remediation is applicable only in certain platforms
+if ! ( { rpm --quiet -q kernel-core ;} &amp;&amp; { rpm --quiet -q bootc ;} &amp;&amp; { ! rpm --quiet -q openshift-kubelet ;} &amp;&amp; ([ -f /run/ostree-booted ] || [ -L /ostree ]) ); then
+
+# Find which files have incorrect hash (not in /etc, because of the system related config files) and then get files names
+files_with_incorrect_hash="$(rpm -Va --noconfig | grep </ns3:fix>
+                  <ns3:fix system="urn:xccdf:fix:script:ansible" id="rpm_verify_hashes" complexity="high" disruption="medium" reboot="false" strategy="restrict">- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CJIS-5.10.4.1
+  - NIST-800-171-3.3.8
+  - NIST-800-171-3.4.1
+  - NIST-800-53-AU-9(3)
+  - NIST-800-53-CM-6(c)
+  - NIST-800-53-CM-6(d)
+  - NIST-800-53-SI-7
+  - NIST-800-53-SI-7(1)
+  - NIST-800-53-SI-7(6)
+  - PCI-DSS-Req-11.5
+  - PCI-DSSv4-11.5.2
+  - high_complexity
+  - high_severity
+  - medium_disruption
+  - no_reboot_nee</ns3:fix>
+                  <ns3:check system="http://open-scap.org/page/SCE">
+                    <ns3:check-import import-name="stdout" />
+                    <ns3:check-content-ref href="fedora/checks/sce/rpm_verify_hashes.sh" />
+                  </ns3:check>
+                  <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+                    <ns3:check-content-ref href="ssg-fedora-oval.xml" name="oval:ssg-rpm_verify_hashes:def:1" />
+                  </ns3:check>
+                  <ns3:check system="http://scap.nist.gov/schema/ocil/2">
+                    <ns3:check-content-ref href="ssg-fedora-ocil.xml" name="ocil:ssg-rpm_verify_hashes_ocil:questionnaire:1" />
+                  </ns3:check>
+                </ns3:Rule>
+                <ns3:Rule selected="false" id="xccdf_org.ssgproject.content_rule_rpm_verify_permissions" severity="high">
+                  <ns3:title>Verify and Correct File Permissions with RPM</ns3:title>
+                  <ns3:description>The RPM package management system can check file access permissions of installed software
+packages, including many that are important to system security. Verify that the file
+permissions of system files and commands match vendor values. Check the file permissions with
+the following command:
+</ns3:description>
+                  <ns3:warning category="general">Profiles may require that specific files have stricter file permissions than defined by
+the vendor. Such files will be reported as a finding and need to be evaluated according to
+your policy and deployment environment.</ns3:warning>
+                  <ns3:warning category="general">This rule can take a long time to perform the check and might consume a considerable
+amount of resources depending on the number of packages present on the system. It is not a
+problem in most cases, but especially systems with a large number of installed packages
+can be affected.</ns3:warning>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">1</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">11</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">12</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">13</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">14</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">15</ns3:reference>
+                  <ns3:rationale>Permissions on system binaries and configuration files that are too generous could allow an
+unauthorized user to gain privileges that they should not have. The permissions set by the
+vendor should be maintained. Any deviations from this baseline should be investigated.</ns3:rationale>
+                  <ns3:fix system="urn:xccdf:fix:script:sh" id="rpm_verify_permissions" complexity="high" disruption="medium" reboot="false" strategy="restrict"># Remediation is applicable only in certain platforms
+if ! ( { rpm --quiet -q kernel-core ;} &amp;&amp; { rpm --quiet -q bootc ;} &amp;&amp; { ! rpm --quiet -q openshift-kubelet ;} &amp;&amp; ([ -f /run/ostree-booted ] || [ -L /ostree ]) ); then
+
+# Declare array to hold set of RPM packages we need to correct permissions for
+declare -A SETPERMS_RPM_DICT
+
+# Create a list of files on the system having permissions different </ns3:fix>
+                  <ns3:fix system="urn:xccdf:fix:script:ansible" id="rpm_verify_permissions" complexity="high" disruption="medium" reboot="false" strategy="restrict">- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CJIS-5.10.4.1
+  - NIST-800-171-3.3.8
+  - NIST-800-171-3.4.1
+  - NIST-800-53-AU-9(3)
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-CM-6(c)
+  - NIST-800-53-CM-6(d)
+  - NIST-800-53-SI-7
+  - NIST-800-53-SI-7(1)
+  - NIST-800-53-SI-7(6)
+  - PCI-DSS-Req-11.5
+  - PCI-DSSv4-11.5.2
+  - high_complexity
+  - high_severity
+  - medium_disr</ns3:fix>
+                  <ns3:check system="http://open-scap.org/page/SCE">
+                    <ns3:check-import import-name="stdout" />
+                    <ns3:check-content-ref href="fedora/checks/sce/rpm_verify_permissions.sh" />
+                  </ns3:check>
+                  <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+                    <ns3:check-content-ref href="ssg-fedora-oval.xml" name="oval:ssg-rpm_verify_permissions:def:1" />
+                  </ns3:check>
+                  <ns3:check system="http://scap.nist.gov/schema/ocil/2">
+                    <ns3:check-content-ref href="ssg-fedora-ocil.xml" name="ocil:ssg-rpm_verify_permissions_ocil:questionnaire:1" />
+                  </ns3:check>
+                </ns3:Rule>
+              </ns3:Group>
+              <ns3:Group id="xccdf_org.ssgproject.content_group_aide">
+                <ns3:title>Verify Integrity with AIDE</ns3:title>
+                <ns3:description>AIDE conducts integrity checks by comparing information about
+files with previously-gathered information. Ideally, the AIDE database is
+created immediately after initial system configuration, and then again after any
+software update.  AIDE is highly configurable, with further configuration
+information located in <html:code>/usr/share/doc/aide-<html:i>VERSION</html:i>
+         </html:code>.</ns3:description>
+                <ns3:Rule selected="false" id="xccdf_org.ssgproject.content_rule_aide_build_database" severity="medium">
+                  <ns3:title>Build and Test AIDE Database</ns3:title>
+                  <ns3:description>Run the following command to generate a new database:
+
+</ns3:description>
+                  <ns3:warning category="general">In Fedora Image Mode (bootc) systems, the AIDE database must be regenerated after each system update.
+Image Mode systems receive updates through new container images that may include modified files.
+After applying system updates, run the following commands to regenerate the AIDE database:
+<html:pre>$ sudo /usr/sbin/aide --init</html:pre>
+Then replace the existing database:
+<html:pre>$ sudo cp /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz</html:pre>
+Failure to regenerate the AIDE database after updates will result in false positive alerts
+for legitimate system changes introduced by the update process.</ns3:warning>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">1</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">11</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">12</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">13</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">14</ns3:reference>
+                  <ns3:reference href="https://www.cisecurity.org/controls/">15</ns3:reference>
+                  <ns3:rationale>For AIDE to be effective, an initial database of "known-good" information about files
+must be captured and it should be able to be verified against the installed files.</ns3:rationale>
+                  <ns3:fix system="urn:xccdf:fix:script:sh" id="aide_build_database"># Remediation is applicable only in certain platforms
+if rpm --quiet -q kernel-core; then
+
+if ! rpm -q --quiet "aide" ; then
+    dnf install -y "aide"
+fi
+
+/usr/sbin/aide --init
+/bin/cp -p /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
+
+else
+    &gt;&amp;2 echo 'Remediation is not applicable, nothing was done'
+fi
+</ns3:fix>
+                  <ns3:fix system="urn:xccdf:fix:script:ansible" id="aide_build_database" complexity="low" disruption="low" reboot="false" strategy="restrict">- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CJIS-5.10.1.3
+  - NIST-800-53-CM-6(a)
+  - PCI-DSS-Req-11.5
+  - PCI-DSSv4-11.5.2
+  - aide_build_database
+  - low_complexity
+  - low_disruption
+  - medium_severity
+  - no_reboot_needed
+  - restrict_strategy
+
+- name: Build and Test AIDE Database - Ensure AIDE Is Installed
+  ansible.builtin.package:
+    name: '{{ item }}'
+</ns3:fix>
+                  <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+                    <ns3:check-content-ref href="ssg-fedora-oval.xml" name="oval:ssg-aide_build_database:def:1" />
+                  </ns3:check>
+                  <ns3:check system="http://scap.nist.gov/schema/ocil/2">
+                    <ns3:check-content-ref href="ssg-fedora-ocil.xml" name="ocil:ssg-aide_build_database_ocil:questionnaire:1" />
+                  </ns3:check>
+                </ns3:Rule>
+                </ns3:Group>
+            </ns3:Group>
+            </ns3:Group>
+          <ns3:Group id="xccdf_org.ssgproject.content_group_updating">
+            <ns3:title>Updating Software</ns3:title>
+            <ns3:description>
+The <html:code>dnf</html:code> command line tool is used to install and
+update software packages. The system also provides a graphical
+software update tool in the <html:b>System</html:b> menu, in the <html:b>Administration</html:b> submenu,
+called <html:b>Software Update</html:b>.
+<html:br />
+       <html:br />
+Fedora systems contain an installed software catalog called
+the RPM database, which records metadata of installed packages. Consistently using
+<html:code>dnf</html:code> or the graphical <html:b>Software Update</html:b> for all software installation
+allows for insight into the current inventory of installed software on the system.
+<html:br />
+       <html:br />
+      </ns3:description>
+            <ns3:Rule selected="false" id="xccdf_org.ssgproject.content_rule_ensure_gpgcheck_globally_activated" severity="high">
+              <ns3:title>Ensure gpgcheck Enabled In Main dnf Configuration</ns3:title>
+              <ns3:description>The <html:code>gpgcheck</html:code> option controls whether
+RPM packages' signatures are always checked prior to installation.
+To configure dnf to check package signatures before installing
+them, ensure the following line appears in <html:code>/etc/dnf/dnf.conf</html:code> in
+the <html:code>[main]</html:code> section:
+<html:pre>gpgcheck=1</html:pre>
+       </ns3:description>
+              <ns3:reference href="https://www.cisecurity.org/controls/">11</ns3:reference>
+              <ns3:reference href="https://www.cisecurity.org/controls/">2</ns3:reference>
+              <ns3:reference href="https://www.cisecurity.org/controls/">3</ns3:reference>
+              <ns3:reference href="https://www.cisecurity.org/controls/">9</ns3:reference>
+              <ns3:reference href="https://www.fbi.gov/file-repository/cjis-security-policy-v5_5_20160601-2-1.pdf">5.10.4.1</ns3:reference>
+              <ns3:reference href="https://www.isaca.org/resources/cobit">APO01.06</ns3:reference>
+              <ns3:rationale>Changes to any software components can have significant effects on the
+overall security of the operating system. This requirement ensures the
+software has not been tampered with and that it has been provided by a
+trusted vendor.
+</ns3:rationale>
+              <ns3:fix system="urn:xccdf:fix:script:sh" id="ensure_gpgcheck_globally_activated"># Remediation is applicable only in certain platforms
+if rpm --quiet -q dnf5; then
+
+# Strip any search characters in the key arg so that the key can be replaced without
+# adding any search characters to the config file.
+stripped_key=$(sed 's/[\^=\$,;+]*//g' &lt;&lt;&lt; "^gpgcheck")
+
+# shellcheck disable=SC2059
+printf -v formatted_output "%s = %s" "$stripped_key" "1"
+
+# If the key exists, change it. Otherw</ns3:fix>
+              <ns3:fix system="urn:xccdf:fix:script:ansible" id="ensure_gpgcheck_globally_activated" complexity="low" disruption="medium" reboot="false" strategy="configure">- name: Gather the package facts
+  package_facts:
+    manager: auto
+  tags:
+  - CJIS-5.10.4.1
+  - NIST-800-171-3.4.8
+  - NIST-800-53-CM-11(a)
+  - NIST-800-53-CM-11(b)
+  - NIST-800-53-CM-5(3)
+  - NIST-800-53-CM-6(a)
+  - NIST-800-53-SA-12
+  - NIST-800-53-SA-12(10)
+  - NIST-800-53-SC-12
+  - NIST-800-53-SC-12(3)
+  - NIST-800-53-SI-7
+  - PCI-DSS-Req-6.2
+  - PCI-DSSv4-6.3
+  - PCI-DSSv4-6.3.3
+  - configu</ns3:fix>
+              <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+                <ns3:check-content-ref href="ssg-fedora-oval.xml" name="oval:ssg-ensure_gpgcheck_globally_activated:def:1" />
+              </ns3:check>
+              <ns3:check system="http://scap.nist.gov/schema/ocil/2">
+                <ns3:check-content-ref href="ssg-fedora-ocil.xml" name="ocil:ssg-ensure_gpgcheck_globally_activated_ocil:questionnaire:1" />
+              </ns3:check>
+            </ns3:Rule>
+            </ns3:Group>
+        </ns3:Group>
+        </ns3:Group>
+      </ns3:Benchmark>
+  </ds:component>
+  </ds:data-stream-collection>
+      </arf:content>
+    </arf:report-request>
+  </arf:report-requests>
+  <arf:assets>
+    <arf:asset id="asset0">
+      <ai:computing-device>
+        <ai:connections>
+          <ai:connection>
+            <ai:ip-address>
+              <ai:ip-v4>127.0.0.1</ai:ip-v4>
+            </ai:ip-address>
+          </ai:connection>
+          <ai:connection>
+            <ai:ip-address>
+              <ai:ip-v4>172.17.0.6</ai:ip-v4>
+            </ai:ip-address>
+          </ai:connection>
+          <ai:connection>
+            <ai:ip-address>
+              <ai:ip-v6>0:0:0:0:0:0:0:1</ai:ip-v6>
+            </ai:ip-address>
+          </ai:connection>
+          <ai:connection>
+            <ai:mac-address>00:00:00:00:00:00</ai:mac-address>
+          </ai:connection>
+          <ai:connection>
+            <ai:mac-address>F2:5D:E0:30:0F:0D</ai:mac-address>
+          </ai:connection>
+        </ai:connections>
+        <ai:fqdn>c2908399b057</ai:fqdn>
+        <ai:hostname>c2908399b057</ai:hostname>
+      </ai:computing-device>
+    </arf:asset>
+  </arf:assets>
+  <arf:reports>
+    <arf:report id="xccdf1">
+      <arf:content>
+        <ns3:TestResult id="xccdf_org.open-scap_testresult_xccdf_org.ssgproject.content_profile_standard" start-time="2026-11-19T07:49:28+00:00" end-time="2026-11-19T07:49:32+00:00" version="0.1.82" test-system="cpe:/a:redhat:openscap:1.4.6">
+          <ns3:benchmark href="#scap_org.open-scap_comp_ssg-fedora-xccdf.xml" id="xccdf_org.ssgproject.content_benchmark_FEDORA" />
+          <ns3:title>OSCAP Scan Result</ns3:title>
+          <ns3:identity authenticated="false" privileged="false">root</ns3:identity>
+          <ns3:profile idref="xccdf_org.ssgproject.content_profile_standard" />
+          <ns3:target>c2908399b057</ns3:target>
+          <ns3:target-address>127.0.0.1</ns3:target-address>
+          <ns3:target-address>172.17.0.6</ns3:target-address>
+          <ns3:target-address>0:0:0:0:0:0:0:1</ns3:target-address>
+          <ns3:target-facts>
+            <ns3:fact name="urn:xccdf:fact:scanner:name" type="string">OpenSCAP</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:scanner:version" type="string">1.4.6</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:fqdn" type="string">c2908399b057</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:host_name" type="string">c2908399b057</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:ethernet:MAC" type="string">00:00:00:00:00:00</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:mac" type="string">00:00:00:00:00:00</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:ethernet:MAC" type="string">F2:5D:E0:30:0F:0D</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:mac" type="string">F2:5D:E0:30:0F:0D</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:ipv4" type="string">127.0.0.1</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:ipv4" type="string">172.17.0.6</ns3:fact>
+            <ns3:fact name="urn:xccdf:fact:asset:identifier:ipv6" type="string">::1</ns3:fact>
+          </ns3:target-facts>
+          <ns3:target-id-ref system="http://scap.nist.gov/schema/asset-identification/1.1" name="asset0" href="" />
+          <ns3:rule-result idref="xccdf_org.ssgproject.content_rule_rpm_verify_hashes" role="full" time="2026-11-19T07:49:31+00:00" severity="high" weight="1.000000">
+            <ns3:result>pass</ns3:result>
+            <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+              <ns3:check-content-ref name="oval:ssg-rpm_verify_hashes:def:1" href="#oval0" />
+            </ns3:check>
+          </ns3:rule-result>
+          <ns3:rule-result idref="xccdf_org.ssgproject.content_rule_rpm_verify_permissions" role="full" time="2026-11-19T07:49:32+00:00" severity="high" weight="1.000000">
+            <ns3:result>fail</ns3:result>
+            <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+              <ns3:check-content-ref name="oval:ssg-rpm_verify_permissions:def:1" href="#oval0" />
+            </ns3:check>
+          </ns3:rule-result>
+          <ns3:rule-result idref="xccdf_org.ssgproject.content_rule_aide_build_database" role="full" time="2026-11-19T07:49:32+00:00" severity="medium" weight="1.000000">
+            <ns3:result>notapplicable</ns3:result>
+          </ns3:rule-result>
+          <ns3:rule-result idref="xccdf_org.ssgproject.content_rule_ensure_gpgcheck_globally_activated" role="full" time="2026-11-19T07:49:32+00:00" severity="high" weight="1.000000">
+            <ns3:result>fail</ns3:result>
+            <ns3:check system="http://oval.mitre.org/XMLSchema/oval-definitions-5">
+              <ns3:check-content-ref name="oval:ssg-ensure_gpgcheck_globally_activated:def:1" href="#oval0" />
+            </ns3:check>
+          </ns3:rule-result>
+          </ns3:TestResult>
+      </arf:content>
+    </arf:report>
+    </arf:reports>
+</arf:asset-report-collection>

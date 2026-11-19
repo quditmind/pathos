@@ -1,0 +1,62 @@
+[
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n\n\tlocation / {\n\t\tadd_header X-Frame-Options DENY;\n\n\t\tif ($http_origin ~ ^https://.*example.test) {\n\t\t\tadd_header Access-Control-Allow-Origin $http_origin;\n\t\t}\n\t}\n}",
+    "description": "\"add_header\" replaces ALL parent headers. See documentation: https://nginx.org/en/docs/http/ngx_http_headers_module.html#add_header",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "add_header_redefinition",
+    "reason": "Parent headers \"x-frame-options\" was dropped in current level",
+    "reference": "https://github.com/dvershinin/gixy/blob/master/docs/en/plugins/addheaderredefinition.md",
+    "severity": "MEDIUM",
+    "summary": "Nested \"add_header\" drops parent headers."
+  },
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n\n\tlocation ~ /redirect {\n\t\treturn 302 https://example.test$uri;\n\t}\n}",
+    "description": "Using variables that can contain \"\\n\" or \"\\r\" may lead to http injection.",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "http_splitting",
+    "reason": "At least variable \"$uri\" can contain \"\\n\"",
+    "reference": "https://github.com/dvershinin/gixy/blob/master/docs/en/plugins/httpsplitting.md",
+    "severity": "HIGH",
+    "summary": "Possible HTTP-Splitting vulnerability."
+  },
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n\n\tlocation / {\n\n\t\tif ($http_origin ~ ^https://.*example.test) {\n\t\t}\n\t}\n}",
+    "description": "Improve the regular expression to match only correct and trusted referers and origins.",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "origins",
+    "reason": "Regex matches insecure \"https://exampleatest.evil.com\", \"https://aaaaaexampleatest.evil.com\" as a valid origin.",
+    "reference": "https://github.com/dvershinin/gixy/blob/master/docs/en/plugins/origins.md",
+    "severity": "HIGH",
+    "summary": "Validation regex for \"origin\" or \"referer\" matches untrusted domain or invalid value."
+  },
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n}",
+    "description": "Using server_tokens on; or server_tokens build;  allows an attacker to learn the version of NGINX you are running, which can be used to exploit known vulnerabilities.",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "version_disclosure",
+    "reason": "Missing server_tokens directive - defaults to 'on' which promotes information disclosure",
+    "reference": "https://gixy.getpagespeed.com/en/plugins/version_disclosure/",
+    "severity": "HIGH",
+    "summary": "Do not enable server_tokens on or server_tokens build"
+  },
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n\n\tlocation / {\n\n\t\tif ($http_origin ~ ^https://.*example.test) {\n\t\t\tadd_header Access-Control-Allow-Origin $http_origin;\n\t\t}\n\t}\n}",
+    "description": "Directive \"if\" has problems when used in location context, in some cases it does not do what you expect but something completely different instead. In some cases it even segfaults. It is generally a good idea to avoid it if possible.",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "if_is_evil",
+    "reason": "Directive \"add_header\" is not safe to use in \"if in location\" context",
+    "reference": "https://github.com/dvershinin/gixy/blob/master/docs/en/plugins/if_is_evil.md",
+    "severity": "HIGH",
+    "summary": "If is Evil... when used in location context."
+  },
+  {
+    "config": "\nserver {\n\tserver_name example.test;\n\n\tlocation /files {\n\t\talias /var/www/files/;\n\t}\n}",
+    "description": "Using alias in a prefixed location that doesn't ends with directory separator could lead to path traversal vulnerability. ",
+    "path": "/src/nginx/nginx.conf",
+    "plugin": "alias_traversal",
+    "reason": "",
+    "reference": "https://github.com/dvershinin/gixy/blob/master/docs/en/plugins/aliastraversal.md",
+    "severity": "HIGH",
+    "summary": "Path traversal via misconfigured alias."
+  }
+]

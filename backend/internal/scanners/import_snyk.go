@@ -43,7 +43,9 @@ func isSnykProject(m map[string]json.RawMessage) bool {
 func init() {
 	registerImportFormat(ImportFormat{ID: "snyk", Label: "Snyk Open Source JSON", Category: "sca", Media: "json", Order: 41,
 		match: func(p *importProbe) bool {
-			return (p.kind == "object" || p.kind == "array") && isSnykProject(p.keys)
+			// Snyk Container (docker) and Snyk IaC reports have formats of
+			// their own (snyk-container, snyk-iac).
+			return (p.kind == "object" || p.kind == "array") && isSnykProject(p.keys) && !isSnykContainer(p.keys) && !p.has("infrastructureAsCodeIssues")
 		},
 		parse: parseSnykJSON})
 }

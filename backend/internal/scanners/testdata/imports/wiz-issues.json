@@ -1,0 +1,117 @@
+{
+  "data": {
+    "issuesV2": {
+      "nodes": [
+        {
+          "id": "1a2b3c4d-0001-4e5f-8a9b-000000000001",
+          "sourceRule": {
+            "__typename": "Control",
+            "id": "wc-id-1335",
+            "name": "Publicly exposed VM with a high severity vulnerability",
+            "controlDescription": "This VM is exposed to the internet and has a vulnerability with high severity.",
+            "resolutionRecommendation": "Patch the vulnerable package or restrict network exposure.",
+            "securitySubCategories": [
+              {
+                "title": "Exposure",
+                "category": {
+                  "name": "Network exposure",
+                  "framework": {
+                    "name": "Wiz"
+                  }
+                }
+              }
+            ]
+          },
+          "createdAt": "2026-10-01T10:00:00Z",
+          "updatedAt": "2026-11-01T10:00:00Z",
+          "dueAt": null,
+          "type": "TOXIC_COMBINATION",
+          "resolvedAt": null,
+          "statusChangedAt": "2026-10-01T10:00:00Z",
+          "projects": [
+            {
+              "id": "p1",
+              "name": "Payments",
+              "slug": "payments",
+              "businessUnit": "",
+              "riskProfile": {
+                "businessImpact": "HBI"
+              }
+            }
+          ],
+          "status": "OPEN",
+          "severity": "HIGH",
+          "entitySnapshot": {
+            "id": "e-0001",
+            "type": "VIRTUAL_MACHINE",
+            "nativeType": "virtualMachine",
+            "name": "web-01",
+            "status": "Active",
+            "cloudPlatform": "AWS",
+            "cloudProviderURL": "",
+            "providerId": "arn:aws:ec2:eu-west-1:123456789012:instance/i-0123456789abcdef0",
+            "region": "eu-west-1",
+            "resourceGroupExternalId": "",
+            "subscriptionExternalId": "123456789012",
+            "subscriptionName": "prod",
+            "subscriptionTags": {},
+            "tags": {
+              "env": "prod"
+            },
+            "externalId": "i-0123456789abcdef0"
+          },
+          "serviceTickets": [],
+          "notes": []
+        },
+        {
+          "id": "1a2b3c4d-0002-4e5f-8a9b-000000000002",
+          "sourceRule": {
+            "__typename": "CloudConfigurationRule",
+            "id": "s3-002",
+            "name": "S3 Bucket should block public access",
+            "description": "S3 bucket allows public access.",
+            "resolutionRecommendation": "Enable Block Public Access on the bucket."
+          },
+          "createdAt": "2026-09-01T10:00:00Z",
+          "type": "CLOUD_CONFIGURATION",
+          "status": "REJECTED",
+          "severity": "MEDIUM",
+          "entitySnapshot": {
+            "id": "e-0002",
+            "type": "BUCKET",
+            "nativeType": "s3Bucket",
+            "name": "example-assets",
+            "cloudPlatform": "AWS",
+            "providerId": "arn:aws:s3:::example-assets",
+            "region": "eu-west-1",
+            "subscriptionExternalId": "123456789012",
+            "externalId": "example-assets"
+          }
+        },
+        {
+          "id": "1a2b3c4d-0003-4e5f-8a9b-000000000003",
+          "sourceRule": {
+            "__typename": "Control",
+            "id": "wc-id-77",
+            "name": "IAM user without MFA"
+          },
+          "createdAt": "2026-08-01T10:00:00Z",
+          "type": "THREAT_DETECTION",
+          "status": "RESOLVED",
+          "severity": "LOW",
+          "entitySnapshot": {
+            "id": "e-0003",
+            "type": "USER_ACCOUNT",
+            "name": "deploy",
+            "cloudPlatform": "AWS",
+            "providerId": "arn:aws:iam::123456789012:user/deploy"
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": false,
+        "endCursor": "Mw=="
+      }
+    }
+  }
+}

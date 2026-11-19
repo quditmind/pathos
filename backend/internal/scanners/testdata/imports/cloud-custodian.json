@@ -1,0 +1,154 @@
+{
+  "results": [
+    {
+      "policy": {
+        "name": "s3-no-public-acl",
+        "resource": "terraform.aws_s3_bucket",
+        "description": "S3 buckets must not use a public canned ACL",
+        "metadata": {
+          "severity": "high",
+          "category": "storage"
+        },
+        "filters": [
+          {
+            "type": "value",
+            "key": "acl",
+            "value": "public-read"
+          }
+        ],
+        "mode": {
+          "type": "terraform-source"
+        }
+      },
+      "resource": {
+        "__tfmeta": {
+          "filename": "main.tf",
+          "label": "aws_s3_bucket",
+          "line_end": 4,
+          "line_start": 1,
+          "path": "aws_s3_bucket.logs",
+          "type": "resource",
+          "src_dir": "/src/tf"
+        },
+        "acl": "public-read",
+        "bucket": "example-logs",
+        "id": "1479b167-0161-4229-ad93-b867bac7dbf8",
+        "c7n:MatchedFilters": [
+          "acl"
+        ]
+      },
+      "file_path": "/src/tf/main.tf",
+      "file_line_start": 1,
+      "file_line_end": 4,
+      "code_block": [
+        [
+          1,
+          "resource \"aws_s3_bucket\" \"logs\" {"
+        ],
+        [
+          2,
+          "  bucket = \"example-logs\""
+        ],
+        [
+          3,
+          "  acl    = \"public-read\""
+        ],
+        [
+          4,
+          "}"
+        ]
+      ]
+    },
+    {
+      "policy": {
+        "name": "sg-no-open-ssh",
+        "resource": "terraform.aws_security_group",
+        "description": "Security groups must not allow SSH from anywhere",
+        "metadata": {
+          "severity": "critical"
+        },
+        "filters": [
+          {
+            "type": "value",
+            "key": "ingress.cidr_blocks[0]",
+            "value": "0.0.0.0/0"
+          }
+        ],
+        "mode": {
+          "type": "terraform-source"
+        }
+      },
+      "resource": {
+        "__tfmeta": {
+          "filename": "main.tf",
+          "label": "aws_security_group",
+          "line_end": 14,
+          "line_start": 6,
+          "path": "aws_security_group.ssh",
+          "type": "resource",
+          "src_dir": "/src/tf"
+        },
+        "id": "0f2f5860-49be-4e51-9fd0-404a98ac3f69",
+        "ingress": {
+          "__tfmeta": {
+            "filename": "main.tf",
+            "line_end": 13,
+            "line_start": 8
+          },
+          "cidr_blocks": [
+            "0.0.0.0/0"
+          ],
+          "from_port": 22,
+          "id": "0697b87f-d18b-4da2-b4c9-ddc51238a848",
+          "protocol": "tcp",
+          "to_port": 22
+        },
+        "name": "ssh",
+        "c7n:MatchedFilters": [
+          "ingress.cidr_blocks[0]"
+        ]
+      },
+      "file_path": "/src/tf/main.tf",
+      "file_line_start": 6,
+      "file_line_end": 14,
+      "code_block": [
+        [
+          6,
+          "resource \"aws_security_group\" \"ssh\" {"
+        ],
+        [
+          7,
+          "  name = \"ssh\""
+        ],
+        [
+          8,
+          "  ingress {"
+        ],
+        [
+          9,
+          "    from_port   = 22"
+        ],
+        [
+          10,
+          "    to_port     = 22"
+        ],
+        [
+          11,
+          "    protocol    = \"tcp\""
+        ],
+        [
+          12,
+          "    cidr_blocks = [\"0.0.0.0/0\"]"
+        ],
+        [
+          13,
+          "  }"
+        ],
+        [
+          14,
+          "}"
+        ]
+      ]
+    }
+  ]
+}

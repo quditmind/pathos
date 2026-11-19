@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Vulnerabilities>
+  <Vulnerability>
+    <ID>6507875/467621776</ID>
+    <Name>Code Injection in /contributions</Name>
+    <Date>2026-10-24 12:27:24</Date>
+    <Status>new</Status>
+    <Type>Code Injection</Type>
+    <CWE-ID>CWE-94</CWE-ID>
+    <CVE-ID></CVE-ID>
+    <CVSSv3>9.8 [CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H]</CVSSv3>
+    <Risk>CRITICAL</Risk>
+    <URL>https://shop.example.test/contributions</URL>
+    <Description><![CDATA[<p>The preTax parameter is passed to eval() on the server.</p>]]></Description>
+    <PoC><![CDATA[POST /contributions HTTP/1.1
+Host: shop.example.test
+Cookie: connect.sid=FIXTURE-not-a-real-session
+
+preTax=require('child_process').execSync('id')]]></PoC>
+    <Remediation><![CDATA[Do not pass user input to eval(); parse numbers with parseInt().]]></Remediation>
+  </Vulnerability>
+  <Vulnerability>
+    <ID>6507875/467621777</ID>
+    <Name>Missing HTTP Strict Transport Security header</Name>
+    <Date>2026-10-24 12:30:00</Date>
+    <Status>new</Status>
+    <Type>Security Misconfiguration</Type>
+    <CWE-ID>CWE-523</CWE-ID>
+    <CVE-ID></CVE-ID>
+    <CVSSv3></CVSSv3>
+    <Risk>WARNING</Risk>
+    <URL>https://shop.example.test/</URL>
+    <Description><![CDATA[The server does not send the Strict-Transport-Security header.]]></Description>
+    <PoC><![CDATA[]]></PoC>
+    <Remediation><![CDATA[Send Strict-Transport-Security: max-age=31536000.]]></Remediation>
+  </Vulnerability>
+  <Vulnerability>
+    <ID>6507875/467621778</ID>
+    <Name>Reflected XSS in /search</Name>
+    <Date>2026-09-01 08:00:00</Date>
+    <Status>fixed</Status>
+    <Type>Cross-Site Scripting</Type>
+    <CWE-ID>CWE-79</CWE-ID>
+    <CVE-ID></CVE-ID>
+    <CVSSv3>6.1 [CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N]</CVSSv3>
+    <Risk>MEDIUM</Risk>
+    <URL>https://shop.example.test/search</URL>
+    <Description><![CDATA[Fixed.]]></Description>
+    <PoC><![CDATA[]]></PoC>
+    <Remediation><![CDATA[]]></Remediation>
+  </Vulnerability>
+</Vulnerabilities>
