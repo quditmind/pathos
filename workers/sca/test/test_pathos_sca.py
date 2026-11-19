@@ -161,6 +161,24 @@ json.dump({"bomFormat": "CycloneDX", "home": home, "gradle": os.environ.get("GRA
         self.assertTrue(rep["home_readable"], rep)
         self.assertTrue(rep["gradle"].startswith(rep["home"]), rep)
 
+    def test_govulncheck_module_without_packages(self):
+        # alertmanager's internal/tools module only has files with a
+        # "tools" build tag: govulncheck exits 1 with "no packages matched".
+        script(os.path.join(self.mod.BIN, "govulncheck"), r'''
+import json, sys
+args = sys.argv[1:]
+mod = args[args.index("-C") + 1]
+if mod.endswith("tools"):
+    print("govulncheck: no packages matched the provided patterns", file=sys.stderr)
+    sys.exit(1)
+print(json.dumps({"config": {"protocol_version": "v1.0.0"}}))
+''')
+        self.put("go.mod", "module example.com/app\n")
+        self.put("internal/tools/go.mod", "module example.com/tools\n")
+        code, _, err = self.call(self.mod.govulncheck)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(any("no Go packages to check" in e for e in err), err)
+
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")
         self.put("services/web/package-lock.json", "{}")

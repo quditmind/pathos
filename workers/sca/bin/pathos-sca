@@ -196,6 +196,12 @@ def govulncheck(src, out, cache):
             if r.returncode == 0:
                 f.write(govulncheck_with_dir(r.stdout, "" if d == "." else d))
                 runs += 1
+            elif b"no packages matched the provided patterns" in r.stderr:
+                # A module without buildable packages for this platform
+                # (for example a tools module whose files all carry a
+                # "tools" build tag, as in alertmanager): nothing to check.
+                log("govulncheck %s: no Go packages to check" % d)
+                runs += 1
             else:
                 failures.append("%s: %s" % (d, last_error(r.stderr)))
     return finish(runs, failures)
