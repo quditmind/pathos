@@ -174,8 +174,13 @@ func CycloneDXDocument(name string, comps []invComponent, edges map[string][]str
 			ref = fmt.Sprintf("pathos-%d", i+1)
 		}
 		typ := c.Type
-		if typ == "" {
+		switch typ {
+		case "":
 			typ = "library"
+		case "github-action":
+			// Not a CycloneDX component type: a workflow step is an
+			// application the pipeline runs (purl pkg:github/...).
+			typ = "application"
 		}
 		x := comp{Ref: ref, Type: typ, Name: c.Name, Version: c.Version, PURL: c.PURL}
 		for _, l := range c.Licenses {
