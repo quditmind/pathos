@@ -2,7 +2,9 @@
 #
 #   1. Runs the complete CI (unit, integration, frontend, full stack, security).
 #   2. Builds the three images with VERSION=X.Y.Z and pushes them to
-#      ghcr.io/<owner>/{pathos,pathos-proxy,pathos-worker-core}:X.Y.Z (+ X.Y).
+#      ghcr.io/<owner>/{pathos,pathos-proxy,pathos-worker-core}:X.Y.Z (+ X.Y),
+#      then the family worker images (pathos-worker-<family>, built on the
+#      pushed worker-core image by digest).
 #      Each image carries BuildKit SBOM and max-mode provenance attestations.
 #   3. Signs every image digest with cosign keyless (GitHub OIDC; the
 #      signature identity is this workflow at the release tag).
@@ -106,6 +108,88 @@ jobs:
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           echo "${{ matrix.name }}: ${{ steps.build.outputs.digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
 
+  # Family worker images extend the worker-core image of the same release.
+  family-images:
+    needs: images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write # push to GHCR
+      id-token: write # cosign keyless signing
+    strategy:
+      fail-fast: true
+      matrix:
+        family: [sast]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Version from tag
+        id: v
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          {
+            echo "version=$version"
+            echo "minor=${version%.*}"
+            echo "image=ghcr.io/${owner}/pathos-worker-${{ matrix.family }}"
+            echo "core=ghcr.io/${owner}/pathos-worker-core:${version}"
+          } >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+        with:
+          cosign-release: v3.1.4
+      - name: Pin the worker-core image (signature and digest)
+        id: core
+        env:
+          CORE: ${{ steps.v.outputs.core }}
+        run: |
+          cosign verify "$CORE" \
+            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          digest="$(docker buildx imagetools inspect "$CORE" --format '{{json .Manifest}}' | jq -r .digest)"
+          echo "ref=${CORE%:*}@${digest}" >> "$GITHUB_OUTPUT"
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: workers/${{ matrix.family }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VERSION=${{ steps.v.outputs.version }}
+            CORE_IMAGE=${{ steps.core.outputs.ref }}
+          tags: |
+            ${{ steps.v.outputs.image }}:${{ steps.v.outputs.version }}
+            ${{ steps.v.outputs.image }}:${{ steps.v.outputs.minor }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=Apache-2.0
+            org.opencontainers.image.title=pathos-worker-${{ matrix.family }}
+          sbom: true
+          provenance: mode=max
+      - name: Sign (cosign keyless)
+        env:
+          REF: ${{ steps.v.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "$REF"
+      - name: Verify the signature
+        env:
+          REF: ${{ steps.v.outputs.image }}@${{ steps.build.outputs.digest }}
+        run: |
+          cosign verify "$REF" \
+            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
+          echo "pathos-worker-${{ matrix.family }}: ${{ steps.build.outputs.digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
+
   cli:
     needs: ci
     runs-on: ubuntu-24.04
@@ -152,7 +236,7 @@ jobs:
           retention-days: 7
 
   release:
-    needs: [images, cli]
+    needs: [images, family-images, cli]
     runs-on: ubuntu-24.04
     permissions:
       contents: write # create the release
@@ -185,7 +269,7 @@ jobs:
           ## Verify the images
 
           \`\`\`bash
-          for i in pathos pathos-proxy pathos-worker-core; do
+          for i in pathos pathos-proxy pathos-worker-core pathos-worker-sast; do
             cosign verify ghcr.io/${owner}/\$i:${version} \\
               --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}" \\
               --certificate-oidc-issuer https://token.actions.githubusercontent.com

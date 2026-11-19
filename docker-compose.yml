@@ -22,6 +22,50 @@ x-pathos-onboarding-env: &onboarding-env
   PATHOS_IMPORT_MAX_EXTRACTED_BYTES: ${PATHOS_IMPORT_MAX_EXTRACTED_BYTES:-8589934592}
   PATHOS_IMPORT_MAX_FILE_BYTES: ${PATHOS_IMPORT_MAX_FILE_BYTES:-1073741824}
 
+# Scan workers: the core worker and the opt-in family workers share the same
+# isolation (read-only, no capabilities, unprivileged user, tmpfs workspace),
+# egress proxy and networks.
+x-pathos-worker: &worker
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  user: "10001:10001"
+  tmpfs:
+    - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
+    - /tmp:size=1g,mode=1777
+  volumes:
+    - scanner_cache:/cache
+    # Declarative scanner adapters (operator-defined; empty by default).
+    - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+    - ./workers/rules-extra:/rules:ro
+  # scan: egress proxy only. worker-api: the API's worker listener only.
+  # malware: clamd only (no other service is on that network).
+  networks: [scan, worker-api, malware]
+  mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
+  pids_limit: 1024
+  depends_on:
+    api: { condition: service_healthy }
+    egress: { condition: service_healthy }
+
+x-pathos-worker-env: &worker-env
+  PATHOS_API_URL: http://api:8081
+  PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+  # Air-gapped: only the vulnerability databases imported with
+  # scripts/offline-bundle.sh are used.
+  PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
+  PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+  HTTPS_PROXY: http://egress:3128
+  HTTP_PROXY: http://egress:3128
+  https_proxy: http://egress:3128
+  http_proxy: http://egress:3128
+  NO_PROXY: api,clamav
+  no_proxy: api,clamav
+  # Malware scanning of repository content (the "clamav" scanner in a
+  # scan profile): COMPOSE_PROFILES=clamav and
+  # PATHOS_CLAMAV_ADDRESS=clamav:3310. Empty: the scanner is skipped.
+  PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
+
 x-pathos-env: &pathos-env
   PATHOS_ENV: ${PATHOS_ENV:-production}
   PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
@@ -322,50 +366,34 @@ services:
       retries: 5
 
   worker-core:
+    <<: *worker
     build:
       context: .
       dockerfile: workers/core/Dockerfile
       args: { VERSION: "${PATHOS_VERSION:-dev}" }
     image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-core:${PATHOS_VERSION:-dev}
-    restart: unless-stopped
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]
-    user: "10001:10001"
     environment:
-      PATHOS_API_URL: http://api:8081
-      PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+      <<: *worker-env
       PATHOS_WORKER_FAMILY: core
-      # Air-gapped: only the vulnerability databases imported with
-      # scripts/offline-bundle.sh are used.
-      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
-      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
-      HTTPS_PROXY: http://egress:3128
-      HTTP_PROXY: http://egress:3128
-      https_proxy: http://egress:3128
-      http_proxy: http://egress:3128
-      NO_PROXY: api,clamav
-      no_proxy: api,clamav
-      # Malware scanning of repository content (the "clamav" scanner in a
-      # scan profile): COMPOSE_PROFILES=clamav and
-      # PATHOS_CLAMAV_ADDRESS=clamav:3310. Empty: the scanner is skipped.
-      PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
-    tmpfs:
-      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
-      - /tmp:size=1g,mode=1777
-    volumes:
-      - scanner_cache:/cache
-      # Declarative scanner adapters (operator-defined; empty by default).
-      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
-      - ./workers/rules-extra:/rules:ro
-    # scan: egress proxy only. worker-api: the API's worker listener only.
-    # malware: clamd only (no other service is on that network).
-    networks: [scan, worker-api, malware]
-    mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
-    pids_limit: 1024
-    depends_on:
-      api: { condition: service_healthy }
-      egress: { condition: service_healthy }
+
+  # Family workers (opt-in): the core image plus a family of tools defined by
+  # manifests (docs/OPERATIONS.md, "Family worker images"). Jobs that use a
+  # family tool go to the workers that provide it.
+  #   COMPOSE_PROFILES=sast  ->  Bandit, njsscan, ShellCheck
+  worker-sast:
+    <<: *worker
+    profiles: [sast]
+    build:
+      context: .
+      dockerfile: workers/sast/Dockerfile
+      # The family image extends the worker-core image built by this file.
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-sast:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: sast
 
   mailpit:
     profiles: [dev]

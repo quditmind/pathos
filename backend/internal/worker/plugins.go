@@ -407,9 +407,9 @@ func (t pluginTool) expand(args []string, in RunInput, tmp string) []string {
 	return out
 }
 
-// noProxyEnv hides the egress proxy from tools that declare network: none
-// (the worker's networks reach nothing else).
-var noProxyEnv = []string{"HTTPS_PROXY=", "HTTP_PROXY=", "https_proxy=", "http_proxy=", "NO_PROXY=*", "no_proxy=*"}
+// noProxyEnv removes the egress proxy from the environment of tools that
+// declare network: none (the worker's networks reach nothing else).
+var noProxyEnv = []string{"HTTPS_PROXY", "HTTP_PROXY", "https_proxy", "http_proxy"}
 
 func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 	kind := ""

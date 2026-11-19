@@ -69,13 +69,31 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "github.com/rhysd/actionlint/cmd/actionlint@v${ACTIONLINT}"; \
     /out/actionlint -version | grep -q "${ACTIONLINT}"
 
+# Trivy, Syft, Grype and OSV-Scanner are built from their Go modules
+# (integrity: Go checksum database) with the current toolchain, because the
+# upstream release binaries (Trivy 0.76.2, Syft 1.57.1, Grype 0.121.3,
+# OSV-Scanner 2.7.1) were built with Go 1.27.3 and carry a fixable standard
+# library CVE (CVE-2026-97054, fixed in Go 1.27.4).
+FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gotools
+ARG TRIVY=0.76.2 SYFT=1.57.1 GRYPE=0.121.3 OSV=2.7.1
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
+    build() { mod="$1"; ver="$2"; pkg="$3"; out="$4"; shift 4; \
+      dir="$(go mod download -json "${mod}@v${ver}" | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p')"; \
+      rm -rf /src && cp -r "$dir" /src && chmod -R u+w /src && cd /src; \
+      CGO_ENABLED=0 go build -trimpath -ldflags "-s -w $*" -o "/out/${out}" "${pkg}"; cd /; }; \
+    build github.com/aquasecurity/trivy "$TRIVY" ./cmd/trivy trivy "-X github.com/aquasecurity/trivy/pkg/version/app.ver=${TRIVY}"; \
+    build github.com/anchore/syft "$SYFT" ./cmd/syft syft "-X main.version=${SYFT}"; \
+    build github.com/anchore/grype "$GRYPE" ./cmd/grype grype "-X main.version=${GRYPE}"; \
+    build github.com/google/osv-scanner/v2 "$OSV" ./cmd/osv-scanner osv-scanner; \
+    /out/trivy --version | grep -q "Version: ${TRIVY}"; \
+    /out/syft version | grep -q "${SYFT}"; \
+    /out/grype version | grep -q "${GRYPE}"; \
+    /out/osv-scanner --version | grep -q "${OSV}"; \
+    for b in trivy syft grype osv-scanner; do go version "/out/$b" | grep -q "go1.27.4"; done
+
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS tools
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip && rm -rf /var/lib/apt/lists/*
 WORKDIR /dl
-ARG TRIVY=0.76.2   TRIVY_SHA=bc0fc726e017b8927a62b2d3531d7a84ee01769daf5c99ed866dced54089fdbf
-ARG SYFT=1.57.1    SYFT_SHA=bf52519eb57f675d47c07d43213cb6dff6449f3d6d1147ff6701ed91f44eef0c
-ARG GRYPE=0.121.3  GRYPE_SHA=e9da18cc1429e786722e32161288103600efffd8e483c90761f90485bd1bec85
-ARG OSV=2.7.1      OSV_SHA=fb7dab19a8bd9bbe5c3189f09d4b7ee1820c9553a23bac202648a56efd2f6ee8
 ARG OPENGREP=2.0.0 OPENGREP_SHA=37e93f4da5fd04a18c5c1febbdd12f7e98dfccd4d0c9cf2593bcb25eeb462da0
 ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f16397d86208a9957b
 # Nuclei templates: GitHub source archive of the release tag (hash computed
@@ -86,17 +104,12 @@ ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f163
 ARG NUCLEI_TEMPLATES=10.5.1 NUCLEI_TEMPLATES_SHA=30fe1cfaced4635f886e4a2673641bba86998dceec28e468274524e789aa56eb
 RUN set -eux; \
     fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
-    fetch trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY}/trivy_${TRIVY}_Linux-64bit.tar.gz" "$TRIVY_SHA"; \
-    fetch syft.tgz "https://github.com/anchore/syft/releases/download/v${SYFT}/syft_${SYFT}_linux_amd64.tar.gz" "$SYFT_SHA"; \
-    fetch grype.tgz "https://github.com/anchore/grype/releases/download/v${GRYPE}/grype_${GRYPE}_linux_amd64.tar.gz" "$GRYPE_SHA"; \
-    fetch osv-scanner "https://github.com/google/osv-scanner/releases/download/v${OSV}/osv-scanner_linux_amd64" "$OSV_SHA"; \
     fetch opengrep "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP}/opengrep_linux_x86" "$OPENGREP_SHA"; \
     fetch zizmor.tgz "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR}/zizmor-x86_64-unknown-linux-gnu.tar.gz" "$ZIZMOR_SHA"; \
     fetch templates.tgz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES}.tar.gz" "$NUCLEI_TEMPLATES_SHA"; \
     mkdir -p /out /templates; \
-    for t in trivy syft grype; do tar -xzf "$t.tgz" -C /out "$t"; done; \
     tar -xzf zizmor.tgz -C /out zizmor; \
-    install -m 0755 osv-scanner opengrep /out/; \
+    install -m 0755 opengrep /out/; \
     chmod 0755 /out/*; \
     t="nuclei-templates-${NUCLEI_TEMPLATES}"; \
     tar -xzf templates.tgz -C /templates --strip-components=1 \
@@ -116,6 +129,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     && python -m pip uninstall -y pip \
     && find /usr/local/lib/python3.13 -name '__pycache__' -prune -exec rm -rf {} +
 COPY --from=tools /out/ /usr/local/bin/
+COPY --from=gotools /out/ /usr/local/bin/
 COPY --from=gitleaks /out/gitleaks /usr/local/bin/gitleaks
 COPY --from=nuclei /out/nuclei /usr/local/bin/nuclei
 COPY --from=actionlint /out/actionlint /usr/local/bin/actionlint

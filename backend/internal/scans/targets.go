@@ -105,7 +105,7 @@ type ScanTarget struct {
 	IntrusiveAuthorizedAt      *time.Time `json:"intrusive_authorized_at"`
 	IntrusiveAuthorizationNote string     `json:"intrusive_authorization_note"`
 	Enabled                    bool       `json:"enabled"`
-	Scanners          []string     `json:"scanners"`
+	Scanners                   []string   `json:"scanners"`
 	// HasSignature: an artifact's signature or Sigstore bundle was uploaded.
 	HasSignature bool `json:"has_signature"`
 	// LastVerification is the latest signature verification evidence.

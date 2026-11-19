@@ -73,6 +73,9 @@ func New(cfg Config, log *slog.Logger) *Agent {
 	if cfg.MaxRepoBytes == 0 {
 		cfg.MaxRepoBytes = 2 << 30
 	}
+	// Tools run with HOME=/tmp/home; /tmp is a tmpfs in the worker
+	// containers, so the directory is created at start.
+	_ = os.MkdirAll("/tmp/home", 0o700)
 	tools := Tools(cfg)
 	// First-party manifests first. Neither kind can replace a built-in
 	// tool, and operator plugin keys (plugin-<category>-<name>) never
