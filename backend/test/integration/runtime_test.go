@@ -160,6 +160,17 @@ func TestRuntimeContext(t *testing.T) {
 	if bytes.Contains(stored, []byte("c4-sa-token")) {
 		t.Error("the token is stored encrypted")
 	}
+	// Editing the cluster without pasting the CA certificate again keeps it
+	// (the form shows "a certificate is stored; paste to replace").
+	if code, out := call(admin, "PUT", "/api/v1/runtime/clusters/"+clusterID.String(), map[string]any{"name": "prod-" + tag, "auth_type": "token",
+		"api_server": "https://k8s.example.test", "sync_interval_minutes": 120}); code != 200 || out["has_ca_cert"] != true {
+		t.Errorf("update keeps the CA certificate: %d %v", code, out)
+	}
+	var keptCA string
+	_ = appPool.QueryRow(ctx, `SELECT ca_cert FROM runtime_clusters WHERE id = $1`, clusterID).Scan(&keptCA)
+	if strings.TrimSpace(keptCA) != strings.TrimSpace(caPEM) {
+		t.Error("the stored CA certificate changed")
+	}
 	_, _ = appPool.Exec(ctx, `UPDATE runtime_clusters SET api_server = $2 WHERE id = $1`, clusterID, srv.URL)
 	if code, out := call(admin, "POST", "/api/v1/runtime/clusters/"+clusterID.String()+"/sync", nil); code != 202 || out["sync_requested_at"] == nil {
 		t.Fatalf("sync request: %d %v", code, out)
@@ -450,7 +461,7 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	var audits int
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id = $1 AND action LIKE 'runtime_cluster.%'`, clusterID.String()).Scan(&audits)
-	if audits != 3 {
-		t.Errorf("create, sync request and delete audited: %d", audits)
+	if audits != 4 {
+		t.Errorf("create, update, sync request and delete audited: %d", audits)
 	}
 }
