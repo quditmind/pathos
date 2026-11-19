@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -95,5 +96,47 @@ func TestSecretDefaultExclusions(t *testing.T) {
 		WHERE j.id = $1`, jobID).Scan(&on)
 	if !on {
 		t.Error("existing profile versions get the default secret exclusions")
+	}
+}
+
+// TestMissingFamilyToolsArePartial: an execution whose profile tools no
+// worker has is partial (failed when nothing ran), with PTH-SCAN-1101,
+// never succeeded (VALIDATION_REPORT O15).
+func TestMissingFamilyToolsArePartial(t *testing.T) {
+	ctx := t.Context()
+	h := newScanHarness(t)
+	admin := reviewUser(t, "platform_admin")
+	_, reg := h.worker(bootstrap, "POST", "/internal/worker/v1/register", map[string]any{"name": "miss-" + uuid.NewString()[:6], "family": "core"})
+	token := reg["token"].(string)
+	run := func(results ...map[string]any) (string, string) {
+		t.Helper()
+		repo := createRepo(t, "miss-"+uuid.NewString()[:6])
+		_, q := h.user(admin, "POST", "/api/v1/repositories/"+repo.String()+"/scan", nil)
+		jobID := q["job_id"].(string)
+		h.leaseJob(token, jobID)
+		for _, r := range results {
+			if code, out := h.worker(token, "POST", "/internal/worker/v1/jobs/"+jobID+"/results", r); code != 200 && code != 201 {
+				t.Fatalf("upload: %d %v", code, out)
+			}
+		}
+		h.worker(token, "POST", "/internal/worker/v1/jobs/"+jobID+"/complete", map[string]any{"status": "succeeded"})
+		var status, errText string
+		_ = appPool.QueryRow(ctx, `SELECT status, error FROM scan_jobs WHERE id = $1`, jobID).Scan(&status, &errText)
+		return status, errText
+	}
+	missing := func(key string) map[string]any {
+		return map[string]any{"scanner": key, "status": "skipped", "error": scans.ToolUnavailable}
+	}
+	ok := map[string]any{"scanner": "grype", "status": "succeeded", "output_gzip": gzB64([]byte(`{"matches":[]}`))}
+	status, msg := run(ok, missing("gosec"), missing("psalm"))
+	if status != "partial" || !strings.Contains(msg, "PTH-SCAN-1101") || !strings.Contains(msg, "gosec, psalm") {
+		t.Errorf("some family tools missing: %s %q", status, msg)
+	}
+	if status, _ := run(missing("gosec")); status != "failed" {
+		t.Errorf("no tool ran: %s", status)
+	}
+	// Ordinary skips (no matching files) still succeed.
+	if status, msg := run(ok, map[string]any{"scanner": "psalm", "status": "skipped", "error": "no matching files in the repository (*.php)"}); status != "succeeded" {
+		t.Errorf("a tool skipped for lack of files: %s %q", status, msg)
 	}
 }

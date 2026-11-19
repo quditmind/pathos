@@ -437,22 +437,26 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr, &trigger, &commit, &targetKind); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
+		rows, err := tx.Query(ctx, `SELECT scanner_key, status, error FROM scan_results WHERE scan_job_id = $1`, jobID)
 		if err != nil {
 			return err
 		}
-		var ok, bad []string
+		var ok, bad, missing []string
 		for rows.Next() {
-			var k, st string
-			if err := rows.Scan(&k, &st); err != nil {
+			var k, st, e string
+			if err := rows.Scan(&k, &st, &e); err != nil {
 				rows.Close()
 				return err
 			}
-			switch st {
-			case "succeeded":
+			switch {
+			case st == "succeeded":
 				ok = append(ok, k)
-			case "failed", "timed_out":
+			case st == "failed" || st == "timed_out":
 				bad = append(bad, k)
+			case st == "skipped" && strings.HasPrefix(e, ToolUnavailable):
+				// The worker that ran the execution does not have the tool
+				// (no online worker of its family): not a success.
+				missing = append(missing, k)
 			}
 		}
 		rows.Close()
@@ -466,6 +470,14 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		}
 		if len(ok) == 0 && len(bad) > 0 {
 			status = "failed"
+		}
+		// O15: tools of the profile that no worker could run make the
+		// execution partial (failed when nothing ran), never succeeded.
+		if len(missing) > 0 && status == "succeeded" {
+			status = "partial"
+			if len(ok) == 0 {
+				status = "failed"
+			}
 		}
 
 		if pr != nil {
@@ -563,6 +575,17 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		if errText == "" && len(bad) > 0 {
 			errText = "scanners failed: " + joinSorted(bad)
 		}
+		if len(missing) > 0 {
+			msg := MissingToolsMessage(missing)
+			if errText == "" {
+				errText = msg
+			} else {
+				errText = truncate(errText+"; "+msg, 2000)
+			}
+			if err := AddEvent(ctx, tx, orgID, jobID, "finalize", "", "skipped", msg); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL,
 			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6, change_summary = $7 WHERE id = $1`,
 			jobID, status, newCount, fixed, gate, errText, change); err != nil {
@@ -572,6 +595,17 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		return nil
 	})
 	return job, err
+}
+
+// ToolUnavailable is the start of the error a worker reports for a profile
+// tool it does not have (worker.Agent).
+const ToolUnavailable = "scanner not available in this worker image"
+
+// MissingToolsMessage explains tools that no worker could run (PTH-SCAN-1101).
+func MissingToolsMessage(keys []string) string {
+	return fmt.Sprintf("PTH-SCAN-1101: %d tool(s) of the profile did not run because no online worker has them: %s. "+
+		"Start the worker family image that provides them (Administration > Scanners & workers) or remove them from the profile",
+		len(keys), joinSorted(keys))
 }
 
 // lockRepositoryFindings serializes the writes of results and the

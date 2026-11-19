@@ -467,6 +467,8 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		start := time.Now()
 		rep.event("scanner", js.Key, "started", "")
 		if !ok {
+			// The API makes the execution partial on this exact text
+			// (scans.ToolUnavailable, VALIDATION_REPORT O15).
 			res.Status, res.Error = "skipped", "scanner not available in this worker image"
 		} else {
 			res.Version, _ = tool.Version(ctx)
