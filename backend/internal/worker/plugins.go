@@ -438,7 +438,11 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 		return "", err
 	}
 	defer os.RemoveAll(tmp)
-	if err := os.MkdirAll(filepath.Join(t.cacheDir, "plugins", t.def.Name), 0o700); err != nil {
+	// The persistent cache directory; failing to create it matters only to
+	// tools that use it (a worker without a writable cache volume can still
+	// run the others).
+	if err := os.MkdirAll(filepath.Join(t.cacheDir, "plugins", t.def.Name), 0o700); err != nil &&
+		strings.Contains(strings.Join(t.def.Args, " "), "{cache}") {
 		return "", err
 	}
 	var env []string

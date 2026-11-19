@@ -20,7 +20,7 @@ Custom Opengrep detection rules are described in [Scanners, scan profiles and cu
 | `repository_id` | yes | Target repository |
 | `format` | no | One of the format IDs [below](#supported-formats). Omitted: detected from the content. When given, the content must agree (`422` *the file is X, not Y*); an empty report (for example `[]`) is only accepted with a named format |
 | `tool` | for generic formats | Tool name, e.g. `Snyk Code`. Results are stored under the scanner key `import-<category>-<tool>` (here `import-sast-snyk-code`). Tool-specific formats default to their tool (`Trivy`, `OWASP ZAP`, ...); SARIF, PATHOS findings JSON and CSV need it |
-| `category` | no | `sast`, `sca`, `secrets`, `iac`, `container`, `license`, `dast`, `other`. Default: the format's category, else `other`. With `other`, each finding keeps its natural category (Trivy vulnerabilities `sca`, misconfigurations `iac`, secrets `secrets`) |
+| `category` | no | Any finding category except `eol`: `sast`, `sca`, `secrets`, `iac`, `container`, `license`, `dast`, `api`, `iast`, `mobile`, `fuzz`, `malware`, `misconfiguration`, `binary`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database`, `code-quality`, `supply-chain`, `other`. Default: the format's category, else `other`. With `other`, each finding keeps its natural category (Trivy vulnerabilities `sca`, misconfigurations `iac`, secrets `secrets`) |
 | `commit_sha`, `branch` | no | The commit and branch the tool analysed |
 | `resolve_missing` | no | `true` when the file is the tool's complete result for the repository: findings from this tool that are no longer reported are marked fixed. Default `false` (partial imports never resolve anything) |
 

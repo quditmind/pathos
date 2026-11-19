@@ -8,7 +8,7 @@
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
-> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; declarative scanner plugins.
+> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; opt-in family worker images (worker-sast: Bandit, njsscan, ShellCheck) and tools added as manifests; a coverage view of 25 scan types.
 > - Contextual risk scoring with EPSS, CISA KEV and OSV; reachability, attack paths and posture analytics.
 > - Human Eye manual review, AI review (Anthropic, OpenAI, xAI) with human approval, the AI Security Analyst and an MCP server.
 > - Vulnerability lifecycle: SLAs, risk acceptance, security policies, compliance views, SBOM export and license policy.
@@ -72,7 +72,7 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every pull request. It 
 | [SCANNING_MODULE](docs/SCANNING_MODULE.md) | Scan executions, schedules and comparison: design notes |
 | [REPOSITORY_ONBOARDING](docs/REPOSITORY_ONBOARDING.md) | Repository onboarding: design notes |
 | [HUMAN_REVIEW](docs/HUMAN_REVIEW.md) | Human Eye: design notes |
-| [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Implemented scanners, licensing review, scanner plugins |
+| [SCANNER_CATALOG](docs/SCANNER_CATALOG.md) | Implemented scanners, licensing review, scan types, adding tools with manifests |
 | [DEPENDENCIES](docs/DEPENDENCIES.md) | Dependencies, versions and licenses |
 | [OpenAPI](backend/api/openapi.yaml) | OpenAPI 3.1 description |
 
