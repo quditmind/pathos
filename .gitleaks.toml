@@ -13,4 +13,12 @@ paths = [
   '''^backend/test/integration/schedule_notify_test\.go$''',
   '''^backend/internal/platform/logging/logging_test\.go$''',
   '''^backend/test/integration/(analyst|tickets)_test\.go$''',
+  '''^backend/internal/scanners/import_[gr][1-5]_test\.go$''',
+  # worker-sast pack: real tool output on a sample with fake credentials,
+  # and the Opengrep rule-pack test fixtures.
+  '''^backend/internal/worker/testdata/manifests/''',
+  '''^backend/internal/scanners/testdata/opengrep-packs\.sarif$''',
+  '''^workers/rules-tests/''',
+  # Real output of the family-image tools (hashes in capa's report).
+  '''^backend/internal/worker/testdata/manifests/(mobile|binary|ai|fuzz)-''',
 ]

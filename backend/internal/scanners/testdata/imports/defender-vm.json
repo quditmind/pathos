@@ -1,0 +1,47 @@
+{
+  "@odata.context": "https://api.securitycenter.microsoft.com/api/$metadata#Collection(microsoft.windowsDefenderATP.api.PublicAssetVulnerabilityDto)",
+  "value": [
+    {
+      "id": "aa0000000000000000000000000000000000000a-_-CVE-2024-38063-_-microsoft-_-windows_server_2022-_-10.0.20348.2527-_-",
+      "deviceId": "aa0000000000000000000000000000000000000a",
+      "rbacGroupName": "Servers",
+      "deviceName": "app-01.example.test",
+      "osPlatform": "WindowsServer2022",
+      "osVersion": null,
+      "osArchitecture": "x64",
+      "softwareVendor": "microsoft",
+      "softwareName": "windows_server_2022",
+      "softwareVersion": "10.0.20348.2527",
+      "cveId": "CVE-2024-38063",
+      "vulnerabilitySeverityLevel": "Critical",
+      "recommendedSecurityUpdate": "August 2024 Security Updates",
+      "recommendedSecurityUpdateId": "5041160",
+      "recommendedSecurityUpdateUrl": "https://catalog.update.microsoft.com/v7/site/Search.aspx?q=KB5041160",
+      "diskPaths": [],
+      "registryPaths": [],
+      "lastSeenTimestamp": "2026-11-01 10:00:00",
+      "firstSeenTimestamp": "2026-08-14 10:00:00",
+      "exploitabilityLevel": "NoExploit",
+      "recommendationReference": "va-_-microsoft-_-windows_server_2022",
+      "securityUpdateAvailable": true,
+      "cvssScore": 9.8
+    },
+    {
+      "id": "bb0000000000000000000000000000000000000b-_-CVE-2023-4863-_-google-_-chrome-_-116.0.5845.97-_-",
+      "deviceId": "bb0000000000000000000000000000000000000b",
+      "deviceName": "laptop-17",
+      "osPlatform": "Windows11",
+      "softwareVendor": "google",
+      "softwareName": "chrome",
+      "softwareVersion": "116.0.5845.97",
+      "cveId": "CVE-2023-4863",
+      "vulnerabilitySeverityLevel": "High",
+      "recommendedSecurityUpdate": null,
+      "diskPaths": [
+        "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+      ],
+      "exploitabilityLevel": "ExploitIsVerified",
+      "cvssScore": 8.8
+    }
+  ]
+}

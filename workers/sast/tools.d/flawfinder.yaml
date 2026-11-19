@@ -1,0 +1,23 @@
+# Flawfinder: C and C++ source scanner for risky functions (buffer
+# overflows, format strings, race conditions). CSV report on stdout, parsed
+# with the PATHOS Flawfinder import parser.
+name: flawfinder
+display_name: Flawfinder
+category: sast
+scan_types: [sast]
+license_spdx: GPL-2.0-or-later
+homepage: https://github.com/david-a-wheeler/flawfinder
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/flawfinder
+version_args: ["--version"]
+# --minlevel 1: hits of risk level 0 (no risk) are not reported.
+args: ["--csv", "--quiet", "--minlevel", "1", "{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:flawfinder

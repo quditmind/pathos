@@ -2,7 +2,7 @@
 title: "Running scans: executions, schedules, targets and imports"
 section: user-guide
 order: 11
-version: "1.0"
+version: "2.0"
 updated: 2026-11-19
 summary: Start and monitor scans, read scan details (findings, logs, stages, configuration, history), schedule scans, compare executions, scan deployed targets and import results from other tools.
 ---
@@ -16,7 +16,7 @@ The **Scanning** section runs and follows scans:
 | **Scans** | Start scans, follow running ones, cancel or retry, and open any execution |
 | **Scan Schedules** | Run scans automatically: once, daily, weekly, monthly, at intervals or by cron |
 | **Scan Comparison** | Compare executions over up to 360 days: what is new, fixed, recurring or unchanged |
-| **Scan targets** | Scan container images, running web applications and APIs, SBOMs and build artifacts |
+| **Scan targets** | Scan container images, running web applications and APIs, SBOMs, build artifacts, mobile apps and LLM endpoints |
 | **Pull request checks** | Check pull requests before they merge, see [Supply chain](supply-chain.md#pull-request-checks) |
 | **Import Results** | Bring in findings and SBOMs from other tools |
 
@@ -172,12 +172,14 @@ The comparison also shows severity counts, duration and its change, whether the 
 |---|---|---|
 | **Container image** | Trivy | Vulnerable OS and language packages in an image in a registry |
 | **Web application (DAST)** | Nuclei | Misconfigurations, exposed files and panels, known vulnerabilities of a running application |
-| **API (OpenAPI)** | Nuclei DAST templates | Injection and similar flaws in each operation of your OpenAPI document |
+| **API (OpenAPI)** | Nuclei (injection testing only when intrusive testing is authorized on the target) | Injection and similar flaws in each operation of your OpenAPI document |
 | **SBOM** | Grype | Vulnerabilities in software you receive but cannot scan as source (vendor products, appliances). CycloneDX JSON or SPDX 2.x JSON |
 | **Build artifact** | Trivy, binary hardening | Vulnerable components inside a release file (up to 200 MiB): a zip, tar or tar.gz archive, a Java archive (`.jar`, `.war`, `.ear`) or a binary, and missing hardening of the executables and libraries in it ([Binary hardening](security-scanning.md#binary-hardening)). Archives are checked and unpacked safely on a worker; nothing in them is run |
+| **Mobile app (APK, AAB, IPA)** | Binary hardening; mobsfscan, APKLeaks, Quark-Engine and the PATHOS mobile app checks when the `worker-mobile` family worker runs and you select them | An Android or iOS package (up to 200 MiB): insecure manifest and Info.plist settings (debuggable builds, backups, cleartext traffic, exported components, App Transport Security exceptions, URL schemes), weak signing, debug entitlements, hard-coded secrets and endpoints, insecure code and malware behaviour. The package is read on a worker, never run |
+| **LLM endpoint** | garak and promptfoo (the `worker-ai` family worker), selected on the target | An LLM application's chat completions API (OpenAI-compatible): prompt injection, jailbreaks, system prompt and secret disclosure, unsafe output. Needs the authorization statement and intrusive testing |
 | **Declared public endpoints** | PATHOS endpoint checks (and optionally Nuclei exposure templates) | The repository's declared public URLs, domains and IPs: DNS, reachability, TLS and security headers. Enabled and authorized from the repository, see [Verify declared public endpoints](repository-management.md#verify-declared-public-endpoints) |
 
-Container images and build artifacts can also have their **Sigstore signature** (and, for images, an in-toto attestation) verified with cosign on every scan; see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification).
+Container images, build artifacts and mobile apps can also have their **Sigstore signature** (and, for images, an in-toto attestation) verified with cosign on every scan; see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification).
 
 Each target belongs to a repository, so its findings reach that repository's application, owners and teams. Adding, changing and deleting targets needs `repos.manage` on the repository; scanning one needs `scans.run`.
 
@@ -189,13 +191,33 @@ Each target belongs to a repository, so its findings reach that repository's app
 4. Tick **I am authorized to security-test this application** and add a reference (change ticket, owner's approval). Your name and the time are recorded.
 5. Select **Scan**. Follow the execution from the link, or open the target's findings from **Open findings**.
 
-Scans send real requests, at most the configured rate (default 20 per second). They never run intrusive, brute-force or denial-of-service checks, and web application scans do not fuzz. API scans test the operations in your OpenAPI document, which must point at the same host.
+Scans send real requests, at most the configured rate (default 20 per second). The built-in scanners never run intrusive, brute-force or denial-of-service checks, and web application scans do not fuzz. API scans test the operations in your OpenAPI document, which must point at the same host.
+
+### Additional tools and intrusive testing
+
+When a family worker or an operator plugin provides tools for a kind of target, the target's dialog lists them under **Additional tools**; the selected ones run in addition to the built-in scanners. Tools marked **intrusive** send attack traffic (active scans, fuzzing, injection probes) that can change data or slow the application down. They run only when **Intrusive testing of this application is authorized** is ticked on the target, in addition to the authorization statement:
+
+1. Agree a test window with the application's owner.
+2. Edit the target, select the tool under **Additional tools**, tick **Intrusive testing of this application is authorized** and enter a reference (for example the penetration test ticket).
+3. Select **Scan**. Without the flag, PATHOS refuses the scan and says which tool needs it.
+4. Untick the flag when the window ends. Setting and removing it are recorded in the audit log with your name; changing the target's address removes it.
+
+### Step-by-step: red-team an LLM application
+
+1. Ask your administrator to run the `worker-ai` family worker and to allow the LLM endpoint's host in the egress proxy.
+2. Select **Add target**, choose **LLM endpoint**, the repository, a name, the **Chat completions URL** (for example `https://assistant.staging.example.com/v1/chat/completions`) and the **Model** name the API expects.
+3. Under **Authentication**, choose **Request header** with `Authorization` and the API key or token (encrypted, never shown again).
+4. Tick the authorization statement, select **garak** and **promptfoo** under **Additional tools**, tick **Intrusive testing of this application is authorized** and enter a reference.
+5. Select **Scan**. Each failed test (a successful attack) becomes an `ai` finding with the prompt and the model's answer as evidence; secrets in them are redacted.
+
+garak sends one request at a time; promptfoo waits between requests when **Requests per second** is set. Test a staging deployment: the probes include jailbreak and harmful-content prompts.
 
 ### Notes
 
+- **Mobile apps:** choose **Mobile app (APK, AAB, IPA)** and upload the package, then select the mobile tools under **Additional tools** (shown when the `worker-mobile` family worker runs). For an Android App Bundle, mobsfscan and APKLeaks read the code; the manifest checks need an APK (for example the universal APK from bundletool).
 - **Container images:** for private registries choose **Registry username and token**. `ghcr.io` is allowed out of the box; Docker Hub and other registries need their hosts in the egress allowlist.
 - **Findings** of a target are kept apart from the repository's own findings. Filter them with **Asset** on the Findings page. Only a successful scan of the same target marks them fixed.
-- **Changing the address** of a web or API target needs a new authorization statement.
+- **Changing the address** of a web or API target needs a new authorization statement, and removes the intrusive testing authorization.
 - **Targets with findings** cannot be deleted (their evidence is kept). Disable them instead.
 
 ## Importing results from other tools

@@ -2,7 +2,7 @@
 # then imports a results file, starts a scan and/or evaluates the security
 # gate. Documented in docs/user-guide/ci-cd-integration.md.
 #
-#   - uses: quditmind/pathos/integrations/github-action@v1.1.1
+#   - uses: quditmind/pathos/integrations/github-action@v2.0.0
 #     with:
 #       url: https://pathos.example.com
 #       token: ${{ secrets.PATHOS_TOKEN }}
@@ -27,7 +27,7 @@ inputs:
     description: The PATHOS repository (ID, full name such as acme/api, or QD-REPO key).
     required: true
   cli-version:
-    description: PATHOS CLI release version (e.g. 1.1.1). Defaults to the version of this action's tag.
+    description: PATHOS CLI release version (e.g. 2.0.0). Defaults to the version of this action's tag.
     required: false
     default: ""
   ca-cert:

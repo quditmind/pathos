@@ -1,0 +1,21 @@
+# composer audit of the repository root's composer.lock, with plugins and
+# scripts disabled. Security advisories from https://packagist.org through
+# the egress proxy.
+name: composer-audit
+display_name: Composer audit
+category: sca
+scan_types: [sca]
+license_spdx: MIT
+homepage: https://getcomposer.org/doc/03-cli.md#audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["composer-audit", "--version"]
+args: ["composer-audit", "{source}", "{output}", "{cache}"]
+timeout: 20m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:composer-audit

@@ -1,0 +1,26 @@
+# PHPStan: static analysis of PHP (type errors, calls to undefined
+# methods and functions). PHPStan has no security rules: its findings are
+# code-quality findings. Without the repository's Composer dependencies,
+# classes they define are reported as unknown. JSON report parsed with the
+# PATHOS PHPStan import parser.
+name: phpstan
+display_name: PHPStan
+category: code-quality
+scan_types: [sast, code-quality]
+license_spdx: MIT
+homepage: https://github.com/phpstan/phpstan
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/phpstan
+version_args: ["--version"]
+# Level 5 of 0-10; the repository's phpstan.neon is not read (it can load
+# extensions): -c names the image's empty configuration.
+args: ["analyse", "--no-progress", "--no-interaction", "--error-format=json", "--level=5", "--memory-limit=2G", "-c", "/opt/pathos/sast/config/phpstan.neon", "{source}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:phpstan

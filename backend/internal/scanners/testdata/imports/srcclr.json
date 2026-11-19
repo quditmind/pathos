@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "requestDate": "2026-11-01T10:00:00.000+0000"
+  },
+  "records": [
+    {
+      "metadata": {
+        "recordType": "SCAN",
+        "report": "https://sca.analysiscenter.veracode.com/teams/AbCdEf/scans/1234567"
+      },
+      "graphs": [],
+      "libraries": [
+        {
+          "name": "lodash",
+          "description": "Lodash modular utilities.",
+          "author": "John-David Dalton",
+          "authorUrl": null,
+          "language": "JS",
+          "coordinateType": "NPM",
+          "coordinate1": "lodash",
+          "coordinate2": null,
+          "bugTrackerUrl": null,
+          "codeRepoType": "GIT",
+          "codeRepoUrl": "https://github.com/lodash/lodash",
+          "versions": [
+            {
+              "version": "4.17.20",
+              "releaseDate": null,
+              "sha1": null,
+              "licenses": [
+                {
+                  "name": "MIT license",
+                  "license": "MIT"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "minimist",
+          "language": "JS",
+          "coordinateType": "NPM",
+          "coordinate1": "minimist",
+          "coordinate2": null,
+          "versions": [
+            {
+              "version": "1.2.5",
+              "licenses": []
+            }
+          ]
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "cve": "2021-23337",
+          "title": "Command Injection",
+          "overview": "lodash is vulnerable to command injection through the template function.",
+          "language": "JS",
+          "vulnerabilityTypes": [],
+          "disclosureDate": "2021-02-15T00:00:00.000+0000",
+          "cvssScore": 6.5,
+          "cvss3Score": 7.2,
+          "hasExploits": false,
+          "libraries": [
+            {
+              "details": [
+                {
+                  "versionRange": "<4.17.21",
+                  "fixText": "Upgrade to 4.17.21 or later.",
+                  "patch": "",
+                  "updateToVersion": "4.17.21"
+                }
+              ],
+              "_links": {
+                "ref": "/records/0/libraries/0"
+              }
+            }
+          ],
+          "_links": {
+            "html": "https://sca.analysiscenter.veracode.com/vulnerability-database/security/1/1/sid-29567"
+          }
+        },
+        {
+          "cve": "2021-44906",
+          "title": "Prototype Pollution",
+          "overview": "minimist is vulnerable to prototype pollution.",
+          "cvssScore": 5.0,
+          "cvss3Score": 5.6,
+          "libraries": [
+            {
+              "details": [
+                {
+                  "versionRange": "<1.2.6",
+                  "fixText": "",
+                  "updateToVersion": "1.2.6"
+                }
+              ],
+              "_links": {
+                "ref": "/records/0/libraries/1"
+              }
+            }
+          ],
+          "_links": {
+            "html": "https://sca.analysiscenter.veracode.com/vulnerability-database/security/1/1/sid-34567"
+          }
+        }
+      ],
+      "unmatchedLibraries": []
+    }
+  ]
+}

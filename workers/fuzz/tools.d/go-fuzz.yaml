@@ -1,0 +1,43 @@
+# Go native fuzzing: `go test -fuzz` for each Fuzz* target in the
+# repository's *_test.go files (FUZZ_SECONDS each, FUZZ_TOTAL_SECONDS in
+# all, at most FUZZ_MAX_TARGETS targets). Builds and runs repository code
+# in the worker sandbox, on a copy of the checkout, without network access
+# (GOPROXY=off: only vendored or no module dependencies) and under CPU,
+# file size and time limits. Crashes are findings with the reproducer
+# input (base64, at most 4 KiB) in the report as evidence; targets that do
+# not build are listed in the report, not reported as findings.
+name: go-fuzz
+display_name: Go native fuzzing
+category: fuzz
+scan_types: [fuzzing]
+license_spdx: BSD-3-Clause
+homepage: https://go.dev/doc/security/fuzz/
+family: fuzz
+targets: [repository]
+command: /opt/pathos/fuzz/bin/pathos-fuzz
+version_args: ["version", "go"]
+args: ["go", "{source}", "{output}", "{tmp}"]
+timeout: 45m
+env:
+  FUZZ_SECONDS: "60"
+  FUZZ_TOTAL_SECONDS: "1200"
+  FUZZ_MAX_TARGETS: "20"
+  FUZZ_JOBS: "2"
+output: file
+network: none
+intrusive: false
+requires_build: true
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: findings
+  rule_id: rule_id
+  title: title
+  message: description
+  severity: severity
+  default_severity: medium
+  confidence: confidence
+  file: file
+  line: line
+  cwe: cwe
+  identity: "{rule_id} {target} {file}"

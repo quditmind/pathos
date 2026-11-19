@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE ASSET_DATA_REPORT SYSTEM "https://qualysguard.example.test/asset_data_report.dtd">
+<ASSET_DATA_REPORT>
+  <HEADER>
+    <COMPANY><![CDATA[Example]]></COMPANY>
+    <GENERATION_DATETIME>2026-11-12T20:03:10Z</GENERATION_DATETIME>
+    <TEMPLATE><![CDATA[All confirmed and Information Vulnerabilities 1-5]]></TEMPLATE>
+  </HEADER>
+  <HOST_LIST>
+    <HOST>
+      <IP>192.0.2.20</IP>
+      <TRACKING_METHOD>IP</TRACKING_METHOD>
+      <DNS><![CDATA[web01.example.test]]></DNS>
+      <OPERATING_SYSTEM><![CDATA[Ubuntu 22.04]]></OPERATING_SYSTEM>
+      <VULN_INFO_LIST>
+        <VULN_INFO>
+          <QID id="qid_6">6</QID>
+          <TYPE>Ig</TYPE>
+          <SSL>false</SSL>
+          <RESULT format="table"><![CDATA[IP address	Host name
+192.0.2.20	web01.example.test]]></RESULT>
+          <FIRST_FOUND>2026-11-01T21:57:48Z</FIRST_FOUND>
+          <LAST_FOUND>2026-11-12T21:57:48Z</LAST_FOUND>
+          <TIMES_FOUND>3</TIMES_FOUND>
+        </VULN_INFO>
+        <VULN_INFO>
+          <QID id="qid_38913">38913</QID>
+          <TYPE>Vuln</TYPE>
+          <PORT>22</PORT>
+          <SERVICE>ssh</SERVICE>
+          <PROTOCOL>tcp</PROTOCOL>
+          <SSL>false</SSL>
+          <RESULT format="table"><![CDATA[SSH version	OpenSSH_8.9p1]]></RESULT>
+          <VULN_STATUS>Active</VULN_STATUS>
+          <FIRST_FOUND>2026-11-01T21:57:48Z</FIRST_FOUND>
+          <LAST_FOUND>2026-11-12T21:57:48Z</LAST_FOUND>
+          <TIMES_FOUND>3</TIMES_FOUND>
+        </VULN_INFO>
+        <VULN_INFO>
+          <QID id="qid_38913">38913</QID>
+          <TYPE>Vuln</TYPE>
+          <PORT>2222</PORT>
+          <SERVICE>ssh</SERVICE>
+          <PROTOCOL>tcp</PROTOCOL>
+          <SSL>false</SSL>
+          <RESULT format="table"><![CDATA[SSH version	OpenSSH_8.9p1]]></RESULT>
+          <VULN_STATUS>New</VULN_STATUS>
+        </VULN_INFO>
+      </VULN_INFO_LIST>
+    </HOST>
+  </HOST_LIST>
+  <GLOSSARY>
+    <VULN_DETAILS_LIST>
+      <VULN_DETAILS id="qid_6">
+        <QID id="qid_6">6</QID>
+        <TITLE><![CDATA[DNS Host Name]]></TITLE>
+        <SEVERITY>1</SEVERITY>
+        <CATEGORY>Information gathering</CATEGORY>
+        <THREAT><![CDATA[The fully qualified domain name of this host is displayed in the RESULT section.]]></THREAT>
+        <IMPACT><![CDATA[N/A]]></IMPACT>
+        <SOLUTION><![CDATA[N/A]]></SOLUTION>
+        <PCI_FLAG>0</PCI_FLAG>
+      </VULN_DETAILS>
+      <VULN_DETAILS id="qid_38913">
+        <QID id="qid_38913">38913</QID>
+        <TITLE><![CDATA[OpenSSH Remote Unauthenticated Code Execution Vulnerability (regreSSHion)]]></TITLE>
+        <SEVERITY>5</SEVERITY>
+        <CATEGORY>General remote services</CATEGORY>
+        <THREAT><![CDATA[A signal handler race condition was found in OpenSSH's server (sshd).<P>]]></THREAT>
+        <IMPACT><![CDATA[Successful exploitation allows remote code execution as root.]]></IMPACT>
+        <SOLUTION><![CDATA[Upgrade to OpenSSH 9.8p1 or later.]]></SOLUTION>
+        <PCI_FLAG>1</PCI_FLAG>
+        <CVSS_SCORE>
+          <CVSS_BASE>9.3 (AV:N/AC:M/Au:N/C:C/I:C/A:C)</CVSS_BASE>
+          <CVSS_TEMPORAL>7.9 (E:U/RL:U/RC:C)</CVSS_TEMPORAL>
+        </CVSS_SCORE>
+        <CVSS3_SCORE>
+          <CVSS3_BASE>8.1 (AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H)</CVSS3_BASE>
+          <CVSS3_TEMPORAL>7.3 (E:U/RL:O/RC:C)</CVSS3_TEMPORAL>
+        </CVSS3_SCORE>
+        <CVE_ID_LIST>
+          <CVE_ID>
+            <ID><![CDATA[CVE-2024-6387]]></ID>
+            <URL><![CDATA[https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2024-6387]]></URL>
+          </CVE_ID>
+        </CVE_ID_LIST>
+      </VULN_DETAILS>
+    </VULN_DETAILS_LIST>
+  </GLOSSARY>
+</ASSET_DATA_REPORT>

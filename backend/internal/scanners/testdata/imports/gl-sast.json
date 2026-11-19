@@ -1,0 +1,119 @@
+{
+  "version": "15.1.4",
+  "vulnerabilities": [
+    {
+      "id": "f4ce1a9e43f7572dcefe6b57e6fb39bb9d598498af1ef03c962e17d6b32d85c9",
+      "category": "sast",
+      "name": "Improper neutralization of special elements used in an OS Command ('OS Command Injection')",
+      "description": "Found `subprocess` function `call` with `shell=True`. This is dangerous because this call will\nspawn the command using a shell process. Doing so propagates current shell settings and\nvariables,\nwhich makes it much easier for a malicious actor to execute commands. Use `shell=False`\ninstead.\n",
+      "cve": "semgrep_id:bandit.B602:6:6",
+      "severity": "High",
+      "scanner": {
+        "id": "semgrep",
+        "name": "Semgrep"
+      },
+      "location": {
+        "file": "app/views.py",
+        "start_line": 6
+      },
+      "identifiers": [
+        {
+          "type": "semgrep_id",
+          "name": "bandit.B602",
+          "value": "bandit.B602",
+          "url": "https://semgrep.dev/r/gitlab.bandit.B602"
+        },
+        {
+          "type": "cwe",
+          "name": "CWE-78",
+          "value": "78",
+          "url": "https://cwe.mitre.org/data/definitions/78.html"
+        },
+        {
+          "type": "owasp",
+          "name": "A03:2021 - Injection",
+          "value": "A03:2021"
+        },
+        {
+          "type": "owasp",
+          "name": "A1:2017 - Injection",
+          "value": "A1:2017"
+        },
+        {
+          "type": "bandit_test_id",
+          "name": "Bandit Test ID B602",
+          "value": "B602"
+        }
+      ]
+    },
+    {
+      "id": "3a3fc226ecbf739e9e102f4460671373db85c4173b66492007cb01e1c25f863b",
+      "category": "sast",
+      "name": "Use of a broken or risky cryptographic algorithm",
+      "description": "The application was found using an insecure or risky digest or signature algorithm. MD2, MD4,\n MD5  and SHA1 hash algorithms have been found to be vulnerable to producing collisions.\n\nThis means\nthat two different values, when hashed, can lead to the same hash value. If the application is\ntrying\nto use these hash methods for storing passwords, then it is recommended to switch to a\npassword hashing\nalgorithm such as Argon2id or PBKDF2.\n\nNote that the `Crypto` and `Cryptodome` Python packages are no longer recommended for\nnew applications, instead consider using the [cryptography](https://cryptography.io/) package.\n\nExample of creating a SHA-384 hash using the `cryptography` package:\n```\nfrom cryptography.hazmat.primitives import hashes\n# Create a SHA384 digest\ndigest = hashes.Hash(hashes.SHA384())\n# Update the digest with some initial data\ndigest.update(b\"some data to hash\")\n# Add more data to the digest\ndigest.update(b\"some more data\")\n# Finalize the digest as bytes\nresult = digest.finalize()\n```\n\nFor more information on secure password storage see OWASP:\n- https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html\n\nFor more information on the cryptography module see:\n- https://cryptography.io/en/latest/\n",
+      "cve": "semgrep_id:bandit.B303-1:10:10",
+      "severity": "Medium",
+      "scanner": {
+        "id": "semgrep",
+        "name": "Semgrep"
+      },
+      "location": {
+        "file": "app/views.py",
+        "start_line": 10
+      },
+      "identifiers": [
+        {
+          "type": "semgrep_id",
+          "name": "bandit.B303-1",
+          "value": "bandit.B303-1",
+          "url": "https://semgrep.dev/r/gitlab.bandit.B303-1"
+        },
+        {
+          "type": "cwe",
+          "name": "CWE-327",
+          "value": "327",
+          "url": "https://cwe.mitre.org/data/definitions/327.html"
+        },
+        {
+          "type": "owasp",
+          "name": "A02:2021 - Cryptographic Failures",
+          "value": "A02:2021"
+        },
+        {
+          "type": "owasp",
+          "name": "A3:2017 - Sensitive Data Exposure",
+          "value": "A3:2017"
+        },
+        {
+          "type": "bandit_test_id",
+          "name": "Bandit Test ID B303",
+          "value": "B303"
+        }
+      ]
+    }
+  ],
+  "scan": {
+    "analyzer": {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "url": "https://gitlab.com/gitlab-org/security-products/analyzers/semgrep",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "5.32.2"
+    },
+    "scanner": {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "url": "https://github.com/returntocorp/semgrep",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "1.110.0"
+    },
+    "type": "sast",
+    "start_time": "2026-11-19T06:42:55",
+    "end_time": "2026-11-19T06:43:03",
+    "status": "success"
+  }
+}

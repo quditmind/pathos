@@ -158,7 +158,9 @@ jobs:
       - name: Fresh install (.env with generated secrets)
         run: PATHOS_BOOTSTRAP_ADMIN_EMAIL=admin@example.com ./deploy/scripts/install.sh
       - name: Build images
-        run: docker compose build
+        # Family worker images are opt-in profiles; build them too so the
+        # image scan covers them.
+        run: docker compose --profile sast --profile iac --profile sca --profile dast --profile mobile --profile binary --profile ai --profile fuzz build
       - name: Start the stack
         run: docker compose up -d --wait --wait-timeout 600
       - name: Smoke test
@@ -169,6 +171,8 @@ jobs:
           CI: "true"
       - name: Image scan (Trivy) and DAST baseline (ZAP)
         run: scripts/security-scan.sh --no-code
+        env:
+          PATHOS_REQUIRE_FAMILY_IMAGES: "1"
       # Active, authenticated scan of every API endpoint. It modifies data, so
       # it runs on this disposable stack only, and not on pull requests (they
       # get the passive baseline). Runs on main, releases, weekly and manually.

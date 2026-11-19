@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Fortify on Demand",
+          "informationUri": "https://www.microfocus.com/en-us/products/application-security-testing",
+          "version": "SCA 24.2",
+          "rules": [
+            {
+              "id": "F7C5A4E1-0B6A-4C5D-9E21-3C7A5D2E8B11",
+              "shortDescription": {
+                "text": "SQL Injection"
+              },
+              "fullDescription": {
+                "text": "Constructing a dynamic SQL statement with input that comes from an untrusted source might allow an attacker to modify the statement's meaning or to execute arbitrary SQL commands."
+              },
+              "help": {
+                "text": "Use parameterized queries."
+              },
+              "properties": {
+                "tags": [
+                  "Critical",
+                  "CWE-89"
+                ],
+                "precision": "high",
+                "security-severity": "9.0"
+              }
+            },
+            {
+              "id": "0D5A1E77-4B2E-4F3C-8C90-1E2F3A4B5C6D",
+              "shortDescription": {
+                "text": "Weak Cryptographic Hash"
+              },
+              "fullDescription": {
+                "text": "Weak cryptographic hashes cannot guarantee data integrity and should not be used in security-critical contexts."
+              },
+              "properties": {
+                "tags": [
+                  "Medium",
+                  "CWE-328"
+                ],
+                "precision": "high",
+                "security-severity": "5.0"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "F7C5A4E1-0B6A-4C5D-9E21-3C7A5D2E8B11",
+          "level": "error",
+          "message": {
+            "text": "SQL Injection: the method find() in App.java passes unvalidated input to executeQuery()."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main/java/com/example/App.java"
+                },
+                "region": {
+                  "startLine": 33
+                }
+              }
+            }
+          ],
+          "ruleIndex": 0
+        },
+        {
+          "ruleId": "0D5A1E77-4B2E-4F3C-8C90-1E2F3A4B5C6D",
+          "level": "warning",
+          "message": {
+            "text": "Weak Cryptographic Hash: MD5 is used in hash()."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/main/java/com/example/Crypto.java"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ],
+          "ruleIndex": 1
+        }
+      ]
+    }
+  ]
+}

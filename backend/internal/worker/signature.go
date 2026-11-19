@@ -44,8 +44,8 @@ func (t cosignTool) Version(ctx context.Context) (string, error) {
 
 func (t cosignTool) Run(ctx context.Context, in RunInput) (string, error) {
 	tg := in.Target
-	if tg == nil || (tg.Kind != "image" && tg.Kind != "artifact") {
-		return "only runs for container image and artifact targets", nil
+	if tg == nil || (tg.Kind != "image" && tg.Kind != "artifact" && tg.Kind != "mobile-app") {
+		return "only runs for container image, artifact and mobile app targets", nil
 	}
 	if tg.Signature == nil || tg.Signature.Mode == "" {
 		return "signature verification is not configured for this target", nil
@@ -72,7 +72,7 @@ func verifySignature(ctx context.Context, run runner, offline bool, in RunInput,
 	tg := in.Target
 	sc := tg.Signature
 	rep := scanners.SignatureReport{Version: 1, Subject: tg.Reference, Mode: sc.Mode, Required: sc.Require, Offline: offline}
-	if tg.Kind == "artifact" {
+	if tg.Kind == "artifact" || tg.Kind == "mobile-app" {
 		rep.Subject = firstNonEmptyStr(tg.FileName, tg.Reference)
 	}
 	fail := func(status, detail string) scanners.SignatureReport {
@@ -111,7 +111,7 @@ func verifySignature(ctx context.Context, run runner, offline bool, in RunInput,
 		}
 		env = append(env, "DOCKER_CONFIG="+cfgDir)
 	}
-	if tg.Kind == "artifact" {
+	if tg.Kind == "artifact" || tg.Kind == "mobile-app" {
 		file := artifactOriginal(in.TargetFile, tg.FileName)
 		if file == "" {
 			return fail("error", "the artifact file is not available")

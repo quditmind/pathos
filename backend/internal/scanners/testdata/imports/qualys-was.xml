@@ -1,0 +1,130 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<WAS_SCAN_REPORT>
+    <HEADER>
+        <NAME>Scan Report</NAME>
+        <GENERATION_DATETIME>12 Nov 2026 01:15PM GMT+0000</GENERATION_DATETIME>
+    </HEADER>
+    <TARGET>
+        <SCAN>Web Application Vulnerability Scan - Store - 2026-11-12</SCAN>
+    </TARGET>
+    <RESULTS>
+        <VULNERABILITY_LIST>
+            <VULNERABILITY>
+                <UNIQUE_ID>2ba09eec-7bb4-11ea-8a61-939892c11a65</UNIQUE_ID>
+                <ID>101507528</ID>
+                <DETECTION_ID>6058986</DETECTION_ID>
+                <QID>150004</QID>
+                <URL>https://store.example.test/backup/</URL>
+                <AJAX>false</AJAX>
+                <AUTHENTICATION>Not Required</AUTHENTICATION>
+                <PAYLOADS>
+                    <PAYLOAD>
+                        <NUM>1</NUM>
+                        <PAYLOAD>https://store.example.test/backup/</PAYLOAD>
+                        <REQUEST>
+                            <METHOD>GET</METHOD>
+                            <URL>https://store.example.test/backup/</URL>
+                            <HEADERS>
+                                <HEADER>
+                                    <key>Cookie</key>
+                                    <value><![CDATA[ JSESSIONID=qualys-request-cookie-secret;]]></value>
+                                </HEADER>
+                                <HEADER>
+                                    <key>Host</key>
+                                    <value><![CDATA[ store.example.test]]></value>
+                                </HEADER>
+                            </HEADERS>
+                        </REQUEST>
+                        <RESPONSE>
+                            <CONTENTS base64="true">SFRUUC8xLjEgMjAwIE9LClNldC1Db29raWU6IEpTRVNTSU9OSUQ9cXVhbHlzLXNldC1jb29raWUtc2VjcmV0OyBQYXRoPS8KQ29udGVudC1UeXBlOiB0ZXh0L2h0bWwKCjxodG1sPkluZGV4IG9mIC9iYWNrdXA8L2h0bWw+</CONTENTS>
+                        </RESPONSE>
+                    </PAYLOAD>
+                </PAYLOADS>
+                <IGNORED>false</IGNORED>
+            </VULNERABILITY>
+            <VULNERABILITY>
+                <UNIQUE_ID>5c1d2e3f-7bb4-11ea-8a61-939892c11a66</UNIQUE_ID>
+                <ID>101507529</ID>
+                <QID>150001</QID>
+                <URL>https://store.example.test/search</URL>
+                <PARAM>q</PARAM>
+                <PAYLOADS>
+                    <PAYLOAD>
+                        <NUM>1</NUM>
+                        <PAYLOAD>q=%22%3E%3Cqss%3E</PAYLOAD>
+                        <REQUEST>
+                            <METHOD>GET</METHOD>
+                            <URL>https://store.example.test/search?q=%22%3E%3Cqss%3E</URL>
+                            <HEADERS>
+                                <HEADER>
+                                    <key>Authorization</key>
+                                    <value><![CDATA[ Bearer qualys-bearer-token-secret]]></value>
+                                </HEADER>
+                            </HEADERS>
+                        </REQUEST>
+                    </PAYLOAD>
+                </PAYLOADS>
+                <IGNORED>true</IGNORED>
+                <IGNORE_REASON>False Positive</IGNORE_REASON>
+            </VULNERABILITY>
+        </VULNERABILITY_LIST>
+        <INFORMATION_GATHERED_LIST>
+            <INFORMATION_GATHERED>
+                <UNIQUE_ID>d5ad72f6-7bb0-11ea-9509-c75c9c776794</UNIQUE_ID>
+                <ID>101588228</ID>
+                <QID>150009</QID>
+                <DATA base64="true">I3RhYmxlCkxpbmtzIGNyYXdsZWQKaHR0cHM6Ly9zdG9yZS5leGFtcGxlLnRlc3QvCmh0dHBzOi8vc3RvcmUuZXhhbXBsZS50ZXN0L2JhY2t1cC8=</DATA>
+            </INFORMATION_GATHERED>
+        </INFORMATION_GATHERED_LIST>
+    </RESULTS>
+    <GLOSSARY>
+        <QID_LIST>
+            <QID>
+                <QID>150001</QID>
+                <CATEGORY>Confirmed Vulnerability</CATEGORY>
+                <SEVERITY>5</SEVERITY>
+                <TITLE>Reflected Cross-Site Scripting (XSS) Vulnerabilities</TITLE>
+                <GROUP>XSS</GROUP>
+                <OWASP>A3</OWASP>
+                <WASC>WASC-8</WASC>
+                <CWE>CWE-79</CWE>
+                <CVSS_BASE>4.3</CVSS_BASE>
+                <DESCRIPTION>XSS vulnerabilities occur when the Web application echoes user-supplied data in an HTML response.</DESCRIPTION>
+                <IMPACT>An attacker can run script in the victim's browser.</IMPACT>
+                <SOLUTION>Encode output.</SOLUTION>
+            </QID>
+            <QID>
+                <QID>150004</QID>
+                <CATEGORY>Confirmed Vulnerability</CATEGORY>
+                <SEVERITY>2</SEVERITY>
+                <TITLE>Path-Based Vulnerability</TITLE>
+                <GROUP>PATH</GROUP>
+                <OWASP>A5</OWASP>
+                <WASC>WASC-17,WASC-16,WASC-15</WASC>
+                <CWE>CWE-22</CWE>
+                <CVSS_BASE>2.1</CVSS_BASE>
+                <CVSS_TEMPORAL>1.9</CVSS_TEMPORAL>
+                <DESCRIPTION>A potentially sensitive file, directory, or directory listing was discovered on the Web server.</DESCRIPTION>
+                <IMPACT>The contents of this file or directory may disclose sensitive information.</IMPACT>
+                <SOLUTION>Verify that access to this file or directory is permitted.</SOLUTION>
+            </QID>
+            <QID>
+                <QID>150009</QID>
+                <CATEGORY>Information Gathered</CATEGORY>
+                <SEVERITY>1</SEVERITY>
+                <TITLE>Links Crawled</TITLE>
+                <GROUP>IG-DIAG</GROUP>
+                <DESCRIPTION>The list of unique links crawled appears in the Results section.</DESCRIPTION>
+                <IMPACT>N/A</IMPACT>
+                <SOLUTION>N/A</SOLUTION>
+            </QID>
+        </QID_LIST>
+    </GLOSSARY>
+    <APPENDIX>
+        <WEBAPP>
+            <ID>57405567</ID>
+            <NAME>Store</NAME>
+            <URL>https://store.example.test/</URL>
+        </WEBAPP>
+    </APPENDIX>
+</WAS_SCAN_REPORT>

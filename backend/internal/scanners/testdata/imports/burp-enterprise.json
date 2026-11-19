@@ -1,0 +1,69 @@
+{
+  "task_id": "7",
+  "scan_status": "succeeded",
+  "scan_metrics": {
+    "crawl_requests_made": 3842,
+    "crawl_network_errors": 0,
+    "crawl_unique_locations_visited": 82,
+    "audit_requests_made": 21407,
+    "audit_network_errors": 1,
+    "issue_events": 2,
+    "crawl_and_audit_progress": 100,
+    "total_elapsed_time": 6789
+  },
+  "issue_events": [
+    {
+      "id": "74",
+      "type": "issue_found",
+      "issue": {
+        "name": "Cross-site scripting (reflected)",
+        "type_index": 2097920,
+        "serial_number": "8825325317190135808",
+        "origin": "https://shop.example.test",
+        "path": "/search",
+        "severity": "high",
+        "confidence": "certain",
+        "description": "The value of the <b>q</b> request parameter is copied into the HTML document as plain text.",
+        "issue_background": "<p>Reflected cross-site scripting vulnerabilities arise when data is copied from a request and echoed into the response in an unsafe way.</p>",
+        "remediation_background": "<p>Encode output for its context.</p>",
+        "caption": "/search [q parameter]",
+        "evidence": [
+          {
+            "type": "FirstOrderEvidence",
+            "detail": {"band_flags": ["in_band"], "payload": {"bytes": "PHNjcmlwdD4=", "flags": 0}},
+            "request_response": {
+              "url": "https://shop.example.test/search?q=%3Cscript%3E",
+              "request": [
+                {"type": "DataSegment", "data": "R0VUIC9zZWFyY2g/cT0lM0NzY3JpcHQlM0UgSFRUUC8yDQpIb3N0OiBzaG9wLmV4YW1wbGUudGVzdA0KQ29va2llOiBzZXNzaW9uPWJ1cnAtZW50LWNvb2tpZS1zZWNyZXQNCkF1dGhvcml6YXRpb246IEJlYXJlciBidXJwLWVudC1iZWFyZXItdG9rZW4tMQ0KDQo=", "length": 140}
+              ],
+              "response": [
+                {"type": "DataSegment", "data": "SFRUUC8yIDIwMCBPSw0KU2V0LUNvb2tpZTogc2Vzc2lvbj1idXJwLWVudC1zZXQtY29va2llLXNlY3JldDsgU2VjdXJlDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbA0KDQo8cD48c2NyaXB0PjwvcD4=", "length": 116}
+              ],
+              "was_redirect_followed": false,
+              "request_time": "2026-11-12T13:28:47.012Z"
+            }
+          }
+        ],
+        "internal_data": "eyJ0eXBlIjoiaW50ZXJuYWwifQ=="
+      }
+    },
+    {
+      "id": "75",
+      "type": "issue_found",
+      "issue": {
+        "name": "Strict transport security not enforced",
+        "type_index": 16777984,
+        "serial_number": "1153042418390913024",
+        "origin": "https://shop.example.test",
+        "path": "/",
+        "severity": "low",
+        "confidence": "false_positive",
+        "description": "The application fails to prevent users from connecting to it over unencrypted connections.",
+        "issue_background": "",
+        "remediation_background": "<p>Enable HTTP Strict Transport Security.</p>",
+        "caption": "",
+        "evidence": []
+      }
+    }
+  ]
+}

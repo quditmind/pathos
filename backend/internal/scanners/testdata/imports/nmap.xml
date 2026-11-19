@@ -1,0 +1,406 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<?xml-stylesheet href="file:///usr/bin/../share/nmap/nmap.xsl" type="text/xsl"?>
+<!-- Nmap 7.98 scan initiated Thu Nov 19 06:29:13 2026 as: /usr/bin/nmap -sV -p 22,80,443 -&#45;script ssl-enum-ciphers,ssl-cert,http-server-header,http-methods,ssl-dh-params,sslv2,http-vuln-cve2011-3192,http-enum -oX /out/nmap.xml a3-g2-target -->
+<nmaprun scanner="nmap" args="/usr/bin/nmap -sV -p 22,80,443 -&#45;script ssl-enum-ciphers,ssl-cert,http-server-header,http-methods,ssl-dh-params,sslv2,http-vuln-cve2011-3192,http-enum -oX /out/nmap.xml a3-g2-target" start="1795069753" startstr="Thu Nov 19 06:29:13 2026" version="7.98" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="3" services="22,80,443"/>
+<verbose level="0"/>
+<debugging level="0"/>
+<hosthint><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="172.24.0.2" addrtype="ipv4"/>
+<address addr="FA:04:B5:37:08:2F" addrtype="mac"/>
+<hostnames>
+<hostname name="a3-g2-target" type="user"/>
+</hostnames>
+</hosthint>
+<host starttime="1795069753" endtime="1795069774"><status state="up" reason="arp-response" reason_ttl="0"/>
+<address addr="172.24.0.2" addrtype="ipv4"/>
+<address addr="FA:04:B5:37:08:2F" addrtype="mac"/>
+<hostnames>
+<hostname name="a3-g2-target" type="user"/>
+<hostname name="a3-g2-target.a3-g2-net" type="PTR"/>
+</hostnames>
+<ports><port protocol="tcp" portid="22"><state state="closed" reason="reset" reason_ttl="64"/><service name="ssh" method="table" conf="3"/></port>
+<port protocol="tcp" portid="80"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="nginx" version="1.28.3" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.28.3</cpe></service><script id="http-vuln-cve2011-3192" output="&#xa;  VULNERABLE:&#xa;  Apache byterange filter DoS&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2011-3192  BID:49303&#xa;      The Apache web server is vulnerable to a denial of service attack when numerous&#xa;      overlapping byte ranges are requested.&#xa;    Disclosure date: 2011-08-19&#xa;    References:&#xa;      https://seclists.org/fulldisclosure/2011/Aug/175&#xa;      https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192&#xa;      https://www.tenable.com/plugins/nessus/55976&#xa;      https://www.securityfocus.com/bid/49303&#xa;"><table key="CVE-2011-3192">
+<elem key="title">Apache byterange filter DoS</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2011-3192</elem>
+<elem>BID:49303</elem>
+</table>
+<table key="description">
+<elem>The Apache web server is vulnerable to a denial of service attack when numerous&#xa;overlapping byte ranges are requested.</elem>
+</table>
+<table key="dates">
+<table key="disclosure">
+<elem key="year">2011</elem>
+<elem key="month">08</elem>
+<elem key="day">19</elem>
+</table>
+</table>
+<elem key="disclosure">2011-08-19</elem>
+<table key="refs">
+<elem>https://seclists.org/fulldisclosure/2011/Aug/175</elem>
+<elem>https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192</elem>
+<elem>https://www.tenable.com/plugins/nessus/55976</elem>
+<elem>https://www.securityfocus.com/bid/49303</elem>
+</table>
+</table>
+</script><script id="http-server-header" output="nginx/1.28.3"><elem>nginx/1.28.3</elem>
+</script><script id="http-methods" output="&#xa;  Supported Methods: GET HEAD"><table key="Supported Methods">
+<elem>GET</elem>
+<elem>HEAD</elem>
+</table>
+</script></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="64"/><service name="http" product="nginx" version="1.28.3" tunnel="ssl" method="probed" conf="10"><cpe>cpe:/a:igor_sysoev:nginx:1.28.3</cpe></service><script id="http-server-header" output="nginx/1.28.3"><elem>nginx/1.28.3</elem>
+</script><script id="ssl-enum-ciphers" output="&#xa;  TLSv1.0: &#xa;    ciphers: &#xa;      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_256_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_128_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (rsa 2048) - A&#xa;    compressors: &#xa;      NULL&#xa;    cipher preference: server&#xa;    warnings: &#xa;      Anonymous key exchange, score capped at F&#xa;  TLSv1.1: &#xa;    ciphers: &#xa;      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_256_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_128_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (rsa 2048) - A&#xa;    compressors: &#xa;      NULL&#xa;    cipher preference: server&#xa;    warnings: &#xa;      Anonymous key exchange, score capped at F&#xa;  TLSv1.2: &#xa;    ciphers: &#xa;      TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256 (ecdh_x25519) - A&#xa;      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_256_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (ecdh_x25519) - A&#xa;      TLS_ECDH_anon_WITH_AES_128_CBC_SHA (ecdh_x25519) - F&#xa;      TLS_RSA_WITH_AES_256_GCM_SHA384 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_256_CCM (rsa 2048) - A&#xa;      TLS_RSA_WITH_ARIA_256_GCM_SHA384 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_GCM_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CCM (rsa 2048) - A&#xa;      TLS_RSA_WITH_ARIA_128_GCM_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_256_CCM_8 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CCM_8 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_256_CBC_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CBC_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256 (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A&#xa;      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (rsa 2048) - A&#xa;    compressors: &#xa;      NULL&#xa;    cipher preference: server&#xa;    warnings: &#xa;      Anonymous key exchange, score capped at F&#xa;  TLSv1.3: &#xa;    ciphers: &#xa;      TLS_AKE_WITH_AES_256_GCM_SHA384 (X25519MLKEM768) - A&#xa;      TLS_AKE_WITH_CHACHA20_POLY1305_SHA256 (X25519MLKEM768) - A&#xa;      TLS_AKE_WITH_AES_128_GCM_SHA256 (X25519MLKEM768) - A&#xa;    cipher preference: server&#xa;  least strength: F"><table key="TLSv1.0">
+<table key="ciphers">
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+</table>
+<table key="compressors">
+<elem>NULL</elem>
+</table>
+<elem key="cipher preference">server</elem>
+<table key="warnings">
+<elem>Anonymous key exchange, score capped at F</elem>
+</table>
+</table>
+<table key="TLSv1.1">
+<table key="ciphers">
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+</table>
+<table key="compressors">
+<elem>NULL</elem>
+</table>
+<elem key="cipher preference">server</elem>
+<table key="warnings">
+<elem>Anonymous key exchange, score capped at F</elem>
+</table>
+</table>
+<table key="TLSv1.2">
+<table key="ciphers">
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">F</elem>
+<elem key="name">TLS_ECDH_anon_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">ecdh_x25519</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_GCM_SHA384</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CCM</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_ARIA_256_GCM_SHA384</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_GCM_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CCM</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_ARIA_128_GCM_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CCM_8</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CCM_8</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CBC_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CBC_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_256_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_AES_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_RSA_WITH_CAMELLIA_128_CBC_SHA</elem>
+<elem key="kex_info">rsa 2048</elem>
+</table>
+</table>
+<table key="compressors">
+<elem>NULL</elem>
+</table>
+<elem key="cipher preference">server</elem>
+<table key="warnings">
+<elem>Anonymous key exchange, score capped at F</elem>
+</table>
+</table>
+<table key="TLSv1.3">
+<table key="ciphers">
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_AKE_WITH_AES_256_GCM_SHA384</elem>
+<elem key="kex_info">X25519MLKEM768</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_AKE_WITH_CHACHA20_POLY1305_SHA256</elem>
+<elem key="kex_info">X25519MLKEM768</elem>
+</table>
+<table>
+<elem key="strength">A</elem>
+<elem key="name">TLS_AKE_WITH_AES_128_GCM_SHA256</elem>
+<elem key="kex_info">X25519MLKEM768</elem>
+</table>
+</table>
+<elem key="cipher preference">server</elem>
+</table>
+<elem key="least strength">F</elem>
+</script><script id="http-vuln-cve2011-3192" output="&#xa;  VULNERABLE:&#xa;  Apache byterange filter DoS&#xa;    State: VULNERABLE&#xa;    IDs:  CVE:CVE-2011-3192  BID:49303&#xa;      The Apache web server is vulnerable to a denial of service attack when numerous&#xa;      overlapping byte ranges are requested.&#xa;    Disclosure date: 2011-08-19&#xa;    References:&#xa;      https://seclists.org/fulldisclosure/2011/Aug/175&#xa;      https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192&#xa;      https://www.tenable.com/plugins/nessus/55976&#xa;      https://www.securityfocus.com/bid/49303&#xa;"><table key="CVE-2011-3192">
+<elem key="title">Apache byterange filter DoS</elem>
+<elem key="state">VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2011-3192</elem>
+<elem>BID:49303</elem>
+</table>
+<table key="description">
+<elem>The Apache web server is vulnerable to a denial of service attack when numerous&#xa;overlapping byte ranges are requested.</elem>
+</table>
+<table key="dates">
+<table key="disclosure">
+<elem key="year">2011</elem>
+<elem key="month">08</elem>
+<elem key="day">19</elem>
+</table>
+</table>
+<elem key="disclosure">2011-08-19</elem>
+<table key="refs">
+<elem>https://seclists.org/fulldisclosure/2011/Aug/175</elem>
+<elem>https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2011-3192</elem>
+<elem>https://www.tenable.com/plugins/nessus/55976</elem>
+<elem>https://www.securityfocus.com/bid/49303</elem>
+</table>
+</table>
+</script><script id="ssl-cert" output="Subject: commonName=a3-g2-target&#xa;Issuer: commonName=a3-g2-target&#xa;Public Key type: rsa&#xa;Public Key bits: 2048&#xa;Signature Algorithm: sha256WithRSAEncryption&#xa;Not valid before: 2026-11-19T06:29:01&#xa;Not valid after:  2026-12-19T06:29:01&#xa;MD5:     b033 ad13 cdb1 2272 043c b373 7004 b6a4&#xa;SHA-1:   4c7e 9ff9 fd03 1cef 0d61 eea6 d88f 3a40 cd39 3790&#xa;SHA-256: 3f54 e395 52c0 e21a 7483 f474 0dee 6bb3 91e7 687f e291 4587 e4b8 1b60 4826 6420"><table key="subject">
+<elem key="commonName">a3-g2-target</elem>
+</table>
+<table key="issuer">
+<elem key="commonName">a3-g2-target</elem>
+</table>
+<table key="pubkey">
+<elem key="type">rsa</elem>
+<elem key="bits">2048</elem>
+<elem key="modulus">D10A412B93A34EB295B8AF2EFA4643A72CD99C39724AC9F84D8CFBEE6D9681C0A0157A619FF8D3CACBDF0CA24D9520EBBBDABD5476CD7FC3ECBA24B92E71EF57DFC8011E0E9A1057A43B09E53B95225D1293AE2F2F0147CA99300BBE3F456B09F7B6451AFADA45AEDF1FD6A4F081994D115B599B9E36E2B78AB2925F10C256596F34DD24677452904EFCF5AA09BD843489E221F088974E33228F278FFC6D36F681B6C7E18CCA16D89806CDB904872CA568880FE096481079AC36C0318A6CC2FAD41315874EB4D9396D24F0485F77156A36BB1A17A10791B6B5D40BBD8F9ABC78B734A3DE07626FF5B153211A101061247D74F304617DE92608BAA6CD8EBC12E7</elem>
+<elem key="exponent">65537</elem>
+</table>
+<table key="extensions">
+<table>
+<elem key="name">X509v3 Subject Key Identifier</elem>
+<elem key="value">8E:66:D2:31:CA:A0:88:47:91:04:8C:C1:00:CF:A9:B9:51:01:9E:9C</elem>
+</table>
+<table>
+<elem key="name">X509v3 Authority Key Identifier</elem>
+<elem key="value">8E:66:D2:31:CA:A0:88:47:91:04:8C:C1:00:CF:A9:B9:51:01:9E:9C</elem>
+</table>
+<table>
+<elem key="name">X509v3 Basic Constraints</elem>
+<elem key="value">CA:TRUE</elem>
+<elem key="critical">true</elem>
+</table>
+</table>
+<elem key="sig_algo">sha256WithRSAEncryption</elem>
+<table key="validity">
+<elem key="notBefore">2026-11-19T06:29:01</elem>
+<elem key="notAfter">2026-12-19T06:29:01</elem>
+</table>
+<elem key="md5">b033ad13cdb12272043cb3737004b6a4</elem>
+<elem key="sha1">4c7e9ff9fd031cef0d61eea6d88f3a40cd393790</elem>
+<elem key="sha256">3f54e39552c0e21a7483f4740dee6bb391e7687fe2914587e4b81b6048266420</elem>
+<elem key="pem">-&#45;&#45;&#45;&#45;BEGIN CERTIFICATE-&#45;&#45;&#45;&#45;&#xa;MIIDDzCCAfegAwIBAgIUHwNSUV8ozdbyhlcSSguFLQ6Z9IwwDQYJKoZIhvcNAQEL&#xa;BQAwFzEVMBMGA1UEAwwMYTMtZzItdGFyZ2V0MB4XDTI2MTExOTA2MjkwMVoXDTI2&#xa;MTIxOTA2MjkwMVowFzEVMBMGA1UEAwwMYTMtZzItdGFyZ2V0MIIBIjANBgkqhkiG&#xa;9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0QpBK5OjTrKVuK8u+kZDpyzZnDlySsn4TYz7&#xa;7m2WgcCgFXphn/jTysvfDKJNlSDru9q9VHbNf8PsuiS5LnHvV9/IAR4OmhBXpDsJ&#xa;5TuVIl0Sk64vLwFHypkwC74/RWsJ97ZFGvraRa7fH9ak8IGZTRFbWZueNuK3irKS&#xa;XxDCVllvNN0kZ3RSkE789aoJvYQ0ieIh8IiXTjMijyeP/G029oG2x+GMyhbYmAbN&#xa;uQSHLKVoiA/glkgQeaw2wDGKbML61BMVh0602TltJPBIX3cVaja7GhehB5G2tdQL&#xa;vY+avHi3NKPeB2Jv9bFTIRoQEGEkfXTzBGF96SYIuqbNjrwS5wIDAQABo1MwUTAd&#xa;BgNVHQ4EFgQUjmbSMcqgiEeRBIzBAM+puVEBnpwwHwYDVR0jBBgwFoAUjmbSMcqg&#xa;iEeRBIzBAM+puVEBnpwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOC&#xa;AQEAXI3fzaJrBgBMNl1F5OSQv6pJitSy6xq/gi79uBD0B0OTISRgn19C9urdLqHu&#xa;67M5MbmGiAwwwfYvIh2VgX5s/nLHyLOdzahUwuMi+Y2jfH6DxYbGv5sUppWhnAh9&#xa;ae3vcQE+69aS7AkDwylcdlVY3WUqPiGumwCKO9atChKGfS1XEThv/VAsZTNJHZUq&#xa;Dq6hYlbpDuAO/PEud1Fq4kUxrO4q7zuYJQ9mu3uJmk1REsXcAXpriSHT2q3NjFrI&#xa;c9BhPtyqz+8e7X4tF/QPz9snUz3g6F4gUgpXSREILbSl/n0coT7OU+4+TBkmm7fn&#xa;3G0DGF7xNZuCjupY9Z9Qzr4XOQ==&#xa;-&#45;&#45;&#45;&#45;END CERTIFICATE-&#45;&#45;&#45;&#45;&#xa;</elem>
+</script><script id="http-methods" output="&#xa;  Supported Methods: GET HEAD"><table key="Supported Methods">
+<elem>GET</elem>
+<elem>HEAD</elem>
+</table>
+</script></port>
+</ports>
+<times srtt="28" rttvar="2127" to="100000"/>
+</host>
+<runstats><finished time="1795069774" timestr="Thu Nov 19 06:29:34 2026" summary="Nmap done at Thu Nov 19 06:29:34 2026; 1 IP address (1 host up) scanned in 21.13 seconds" elapsed="21.13" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

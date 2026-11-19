@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<xml-report name="AppScan Report" technology="DAST" xmlExportVersion="2.7">
+  <dictionary>
+    <item id="severity">Severity</item>
+  </dictionary>
+  <issue-type-group>
+    <item id="attCrossSiteScripting" count="1" maxIssueSeverity="3">
+      <name>Cross-Site Scripting</name>
+      <cve />
+      <cwe>79</cwe>
+      <xfid>6784</xfid>
+      <remediation><ref>fix_52000</ref></remediation>
+      <advisory><ref>attCrossSiteScripting</ref></advisory>
+      <threat-class><ref>catCrossSiteScripting</ref></threat-class>
+    </item>
+    <item id="attLoginNotOverSSL" count="1" maxIssueSeverity="2">
+      <name>Unencrypted Login Request</name>
+      <cve />
+      <cwe>523</cwe>
+      <remediation><ref>fix_52720</ref></remediation>
+      <threat-class><ref>catInsufficientTransLayerProtection</ref></threat-class>
+    </item>
+  </issue-type-group>
+  <remediation-group>
+    <item id="fix_52000">
+      <name>Review possible solutions for hazardous character injection</name>
+      <priority>High</priority>
+    </item>
+    <item id="fix_52720">
+      <name>Send sensitive information only over SSL/TLS</name>
+      <priority>Medium</priority>
+    </item>
+  </remediation-group>
+  <threat-class-group>
+    <item id="catCrossSiteScripting"><name>Cross-site Scripting</name></item>
+    <item id="catInsufficientTransLayerProtection"><name>Insufficient Transport Layer Protection</name></item>
+  </threat-class-group>
+  <url-group>
+    <item id="775863246">
+      <name>https://bank.example.test/bank/queryxpath.jsp</name>
+      <issue-type>attCrossSiteScripting</issue-type>
+    </item>
+    <item id="997983916">
+      <name>http://bank.example.test/doLogin</name>
+      <issue-type>attLoginNotOverSSL</issue-type>
+    </item>
+  </url-group>
+  <entity-group>
+    <item id="-3517474992796452096">
+      <name>query</name>
+      <url-name>https://bank.example.test/bank/queryxpath.jsp</url-name>
+      <entity-type>Parameter</entity-type>
+    </item>
+    <item id="-9130171565661200384">
+      <name>passw</name>
+      <url-name>http://bank.example.test/doLogin</url-name>
+      <entity-type>Parameter</entity-type>
+    </item>
+  </entity-group>
+  <cookie-group>
+    <total>1</total>
+    <item>
+      <name>JSESSIONID</name>
+      <value>appscan-cookie-group-secret</value>
+      <first-requested-in-url>https://bank.example.test/</first-requested-in-url>
+      <secure>False</secure>
+    </item>
+  </cookie-group>
+  <issue-group total="2">
+    <item id="4817056231027443712" id-v2="-8937896718345817344">
+      <severity>High</severity>
+      <severity-id>3</severity-id>
+      <cvss-score>6.1</cvss-score>
+      <cvss-vector>
+        <vector>AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N/E:X/RL:X/RC:X/CR:X/IR:X/AR:X/MAV:X/MAC:X/MPR:X/MUI:X/MS:X/MC:X/MI:X/MA:X</vector>
+      </cvss-vector>
+      <cwe>79</cwe>
+      <issue-type><ref>attCrossSiteScripting</ref></issue-type>
+      <remediation><ref>fix_52000</ref></remediation>
+      <advisory><ref>attCrossSiteScripting</ref></advisory>
+      <threat-class><ref>catCrossSiteScripting</ref></threat-class>
+      <entity><ref>-3517474992796452096</ref></entity>
+      <url original_request_method="GET"><ref>775863246</ref></url>
+      <security-risks><ref>userImpersonation</ref></security-risks>
+      <cause-id><ref>sanitationOfHazardousCharacters</ref></cause-id>
+      <variant-group>
+        <item id="1">
+          <reasoning id="3001">The test result seems to indicate a vulnerability because the response contains the injected script.</reasoning>
+          <differences>
+            <item altered="&lt;script&gt;alert(1)&lt;/script&gt;" original="1" name="query" difference-type="changed" difference-element="parameter" />
+          </differences>
+          <test-http-traffic>GET /bank/queryxpath.jsp?query=--begin_highlight_tag--%3Cscript%3Ealert(1)%3C%2Fscript%3E--end_highlight_tag-- HTTP/1.1
+Host: bank.example.test
+Cookie: JSESSIONID=appscan-traffic-cookie-secret
+Authorization: Basic YXBwc2NhbjphcHBzY2FuLXNlY3JldA==
+
+HTTP/1.1 200 OK
+Set-Cookie: JSESSIONID=appscan-set-cookie-secret
+Content-Type: text/html
+
+&lt;script&gt;alert(1)&lt;/script&gt;</test-http-traffic>
+        </item>
+      </variant-group>
+    </item>
+    <item id="-7884510270036130816" id-v2="-4964452190666439936">
+      <severity>Medium</severity>
+      <severity-id>2</severity-id>
+      <cvss-score>5.3</cvss-score>
+      <cwe>523</cwe>
+      <issue-type><ref>attLoginNotOverSSL</ref></issue-type>
+      <remediation><ref>fix_52720</ref></remediation>
+      <threat-class><ref>catInsufficientTransLayerProtection</ref></threat-class>
+      <entity><ref>-9130171565661200384</ref></entity>
+      <url original_request_method="POST"><ref>997983916</ref></url>
+      <variant-group>
+        <item id="434">
+          <reasoning id="3256">AppScan identified a password parameter that was not sent over SSL.</reasoning>
+          <differences />
+          <test-http-traffic>POST /doLogin HTTP/1.1
+Host: bank.example.test
+Content-Type: application/x-www-form-urlencoded
+
+uid=jsmith&amp;password=appscan-form-password</test-http-traffic>
+        </item>
+      </variant-group>
+    </item>
+  </issue-group>
+</xml-report>

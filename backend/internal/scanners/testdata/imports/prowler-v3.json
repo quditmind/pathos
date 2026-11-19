@@ -1,0 +1,83 @@
+[
+  {
+    "AssessmentStartTime": "2023-04-25T23:49:42",
+    "FindingUniqueId": "prowler-aws-ec2_ebs_default_encryption-123456789012-eu-west-1-123456789012",
+    "Provider": "aws",
+    "CheckID": "ec2_ebs_default_encryption",
+    "CheckTitle": "Check if EBS Default Encryption is activated.",
+    "CheckType": [
+      "Data Protection"
+    ],
+    "ServiceName": "ec2",
+    "SubServiceName": "",
+    "Status": "FAIL",
+    "StatusExtended": "EBS Default Encryption is not activated.",
+    "Severity": "medium",
+    "ResourceType": "AwsEc2Volume",
+    "ResourceDetails": "",
+    "Description": "Check if EBS Default Encryption is activated.",
+    "Risk": "Unencrypted volumes expose data at rest.",
+    "RelatedUrl": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html",
+    "Remediation": {
+      "Code": {
+        "NativeIaC": "",
+        "Terraform": "",
+        "CLI": "aws ec2 enable-ebs-encryption-by-default",
+        "Other": ""
+      },
+      "Recommendation": {
+        "Text": "Enable encryption by default.",
+        "Url": "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSEncryption.html"
+      }
+    },
+    "Compliance": {
+      "CIS-1.5": [
+        "2.2.1"
+      ]
+    },
+    "Categories": [
+      "encryption"
+    ],
+    "Notes": "",
+    "Profile": null,
+    "AccountId": "123456789012",
+    "OrganizationsInfo": null,
+    "Region": "eu-west-1",
+    "ResourceId": "123456789012",
+    "ResourceArn": "arn:aws:ec2:eu-west-1:123456789012:volume",
+    "ResourceTags": []
+  },
+  {
+    "AssessmentStartTime": "2023-04-25T23:49:42",
+    "FindingUniqueId": "prowler-aws-iam_password_policy_minimum_length_14-123456789012-us-east-1-123456789012",
+    "Provider": "aws",
+    "CheckID": "iam_password_policy_minimum_length_14",
+    "CheckTitle": "Ensure IAM password policy requires minimum length of 14 or greater",
+    "CheckType": [
+      "IAM"
+    ],
+    "ServiceName": "iam",
+    "SubServiceName": "",
+    "Status": "PASS",
+    "StatusExtended": "IAM password policy requires minimum length of 14.",
+    "Severity": "medium",
+    "ResourceType": "AwsIamPasswordPolicy",
+    "ResourceDetails": "",
+    "Description": "",
+    "Risk": "",
+    "RelatedUrl": "",
+    "Remediation": {
+      "Code": {},
+      "Recommendation": {
+        "Text": "",
+        "Url": ""
+      }
+    },
+    "Compliance": {},
+    "AccountId": "123456789012",
+    "Region": "us-east-1",
+    "ResourceId": "123456789012",
+    "ResourceArn": "arn:aws:iam:us-east-1:123456789012:password-policy",
+    "ResourceTags": []
+  }
+]

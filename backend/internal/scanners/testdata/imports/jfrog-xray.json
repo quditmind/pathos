@@ -1,0 +1,56 @@
+{
+  "total_rows": 2,
+  "rows": [
+    {
+      "cves": [
+        {
+          "cve": "CVE-2021-44228",
+          "cvss_v2_score": 9.3,
+          "cvss_v2_vector": "CVSS:2.0/AV:N/AC:M/Au:N/C:C/I:C/A:C",
+          "cvss_v3_score": 10.0,
+          "cvss_v3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        }
+      ],
+      "cvss2_max_score": 9.3,
+      "cvss3_max_score": 10.0,
+      "summary": "Apache Log4j2 JNDI features do not protect against attacker controlled LDAP and other JNDI related endpoints.",
+      "issue_type": "security",
+      "package_type": "maven",
+      "provider": "JFrog",
+      "vulnerable_component": "gav://org.apache.logging.log4j:log4j-core:2.14.1",
+      "impacted_artifact": "gav://com.acme:shop-api:1.0.0",
+      "impact_path": ["gav://com.acme:shop-api:1.0.0", "gav://org.apache.logging.log4j:log4j-core:2.14.1"],
+      "path": "libs-release-local/com/acme/shop-api/1.0.0/shop-api-1.0.0.jar",
+      "fixed_versions": ["[2.15.0]"],
+      "published": "2021-12-10T00:00:00Z",
+      "artifact_scan_time": "2026-10-01T10:00:00Z",
+      "issue_id": "XRAY-191834",
+      "severity": "Critical",
+      "cwe": ["CWE-502"],
+      "references": ["https://logging.apache.org/log4j/2.x/security.html"],
+      "applicability": null
+    },
+    {
+      "cves": [
+        {
+          "cve": "CVE-2022-25857",
+          "cvss_v3_score": 7.5,
+          "cvss_v3_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+        }
+      ],
+      "cvss3_max_score": 7.5,
+      "summary": "SnakeYAML denial of service via nested collections.",
+      "issue_type": "security",
+      "package_type": "maven",
+      "provider": "JFrog",
+      "vulnerable_component": "gav://org.yaml:snakeyaml:1.30",
+      "impacted_artifact": "gav://com.acme:shop-api:1.0.0",
+      "impact_path": ["gav://com.acme:shop-api:1.0.0", "gav://org.yaml:snakeyaml:1.30"],
+      "path": "libs-release-local/com/acme/shop-api/1.0.0/shop-api-1.0.0.jar",
+      "fixed_versions": ["[1.31]"],
+      "issue_id": "XRAY-256170",
+      "severity": "High",
+      "references": []
+    }
+  ]
+}

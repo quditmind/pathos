@@ -1,0 +1,288 @@
+[
+  {
+    "message": "IAM Access Analyzer in account 123456789012 is not enabled.",
+    "metadata": {
+      "event_code": "accessanalyzer_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.4.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.4.0"
+    },
+    "severity_id": 2,
+    "severity": "Low",
+    "status": "New",
+    "status_code": "FAIL",
+    "status_detail": "IAM Access Analyzer in account 123456789012 is not enabled.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "additional_urls": [],
+      "notes": "",
+      "compliance": {
+        "CIS-3.0": [
+          "1.20"
+        ],
+        "ISO27001-2013": [
+          "A.12.4"
+        ]
+      }
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1763550000,
+      "created_time_dt": "2025-11-19T10:00:00",
+      "desc": "Check if IAM Access Analyzer is enabled",
+      "product_uid": "prowler",
+      "title": "Check if IAM Access Analyzer is enabled",
+      "types": [
+        "IAM"
+      ],
+      "uid": "prowler-aws-accessanalyzer_enabled-123456789012-eu-west-1-arn:aws:accessanalyzer:eu-west-1:123456789012:analyzer/unknown"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-1",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "accessanalyzer"
+        },
+        "labels": [],
+        "name": "analyzer/unknown",
+        "type": "Other",
+        "uid": "arn:aws:accessanalyzer:eu-west-1:123456789012:analyzer/unknown"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-1"
+    },
+    "remediation": {
+      "desc": "Follow the remediation guidance of accessanalyzer_enabled.",
+      "references": [
+        "https://docs.aws.amazon.com/"
+      ]
+    },
+    "risk_details": "Risk of check if iam access analyzer is enabled.",
+    "time": 1763550000,
+    "time_dt": "2025-11-19T10:00:00",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "MFA is enabled for root account.",
+    "metadata": {
+      "event_code": "iam_root_mfa_enabled",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.4.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.4.0"
+    },
+    "severity_id": 5,
+    "severity": "Critical",
+    "status": "New",
+    "status_code": "PASS",
+    "status_detail": "MFA is enabled for root account.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "additional_urls": [],
+      "notes": "",
+      "compliance": {}
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1763550000,
+      "created_time_dt": "2025-11-19T10:00:00",
+      "desc": "Ensure MFA is enabled for the root account",
+      "product_uid": "prowler",
+      "title": "Ensure MFA is enabled for the root account",
+      "types": [
+        "IAM"
+      ],
+      "uid": "prowler-aws-iam_root_mfa_enabled-123456789012-us-east-1-arn:aws:iam::123456789012:root"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "us-east-1",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "iam"
+        },
+        "labels": [],
+        "name": "root",
+        "type": "AwsIamUser",
+        "uid": "arn:aws:iam::123456789012:root"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "us-east-1"
+    },
+    "remediation": {
+      "desc": "Follow the remediation guidance of iam_root_mfa_enabled.",
+      "references": [
+        "https://docs.aws.amazon.com/"
+      ]
+    },
+    "risk_details": "Risk of ensure mfa is enabled for the root account.",
+    "time": 1763550000,
+    "time_dt": "2025-11-19T10:00:00",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  },
+  {
+    "message": "S3 Bucket example-public-assets is publicly accessible.",
+    "metadata": {
+      "event_code": "s3_bucket_public_access",
+      "product": {
+        "name": "Prowler",
+        "uid": "prowler",
+        "vendor_name": "Prowler",
+        "version": "5.4.0"
+      },
+      "profiles": [
+        "cloud",
+        "datetime"
+      ],
+      "tenant_uid": "",
+      "version": "1.4.0"
+    },
+    "severity_id": 4,
+    "severity": "High",
+    "status": "Suppressed",
+    "status_code": "FAIL",
+    "status_detail": "S3 Bucket example-public-assets is publicly accessible.",
+    "status_id": 1,
+    "unmapped": {
+      "related_url": "https://docs.aws.amazon.com/",
+      "categories": [],
+      "depends_on": [],
+      "related_to": [],
+      "additional_urls": [],
+      "notes": "",
+      "compliance": {}
+    },
+    "activity_name": "Create",
+    "activity_id": 1,
+    "finding_info": {
+      "created_time": 1763550000,
+      "created_time_dt": "2025-11-19T10:00:00",
+      "desc": "Ensure there are no S3 buckets open to Everyone or Any AWS user",
+      "product_uid": "prowler",
+      "title": "Ensure there are no S3 buckets open to Everyone or Any AWS user",
+      "types": [
+        "IAM"
+      ],
+      "uid": "prowler-aws-s3_bucket_public_access-123456789012-eu-west-1-arn:aws:s3:::example-public-assets"
+    },
+    "resources": [
+      {
+        "cloud_partition": "aws",
+        "region": "eu-west-1",
+        "data": {
+          "details": "",
+          "metadata": {}
+        },
+        "group": {
+          "name": "s3"
+        },
+        "labels": [],
+        "name": "example-public-assets",
+        "type": "AwsS3Bucket",
+        "uid": "arn:aws:s3:::example-public-assets"
+      }
+    ],
+    "category_name": "Findings",
+    "category_uid": 2,
+    "class_name": "Detection Finding",
+    "class_uid": 2004,
+    "cloud": {
+      "account": {
+        "name": "",
+        "type": "AWS Account",
+        "type_id": 10,
+        "uid": "123456789012",
+        "labels": []
+      },
+      "org": {
+        "name": "",
+        "uid": ""
+      },
+      "provider": "aws",
+      "region": "eu-west-1"
+    },
+    "remediation": {
+      "desc": "Follow the remediation guidance of s3_bucket_public_access.",
+      "references": [
+        "https://docs.aws.amazon.com/"
+      ]
+    },
+    "risk_details": "Risk of ensure there are no s3 buckets open to everyone or any aws user.",
+    "time": 1763550000,
+    "time_dt": "2025-11-19T10:00:00",
+    "type_uid": 200401,
+    "type_name": "Detection Finding: Create"
+  }
+]

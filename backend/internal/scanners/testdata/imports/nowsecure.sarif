@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/schemastore/schemastore/master/src/schemas/json/sarif-2.1.0-rtm.5.json",
+  "runs": [
+    {
+      "results": [
+        {
+          "level": "warning",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": "Unknown", "uriBaseId": "%SRCROOT%"},
+                "region": {"byteLength": 0, "byteOffset": 0, "endLine": 1, "startLine": 1}
+              }
+            }
+          ],
+          "message": {"text": "This is a descriptive explanation of the example check."},
+          "ruleId": "5e63241d7f766e1697c5a450f8178a53bdcc66af0d5bcc73775749a044896c7e"
+        },
+        {
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": "app/src/main/java/com/example/shop/FileProvider.java", "uriBaseId": "%SRCROOT%"},
+                "region": {"byteLength": 0, "byteOffset": 0, "endLine": 14, "startLine": 14}
+              }
+            }
+          ],
+          "message": {"text": "The app resolves file paths from untrusted input without canonicalisation."},
+          "ruleId": "9b1c0f4a2d7e5b3c6a8f0e1d2c3b4a5968778695a4b3c2d1e0f1a2b3c4d5e6f7"
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://www.nowsecure.com/",
+          "name": "NowSecure",
+          "rules": [
+            {
+              "fullDescription": {"text": "This check is an example check."},
+              "help": {
+                "markdown": "## Business Impact\nThis is the impact of the example check.\n## Steps to Reproduce\nThese are steps to reproduce the issue.\n## Remediation Resources\n### Recommended Fix\nThis is an example recommendation.\n\n\n",
+                "text": "NowSecure only provides recommendations in a Markdown format."
+              },
+              "helpUri": "https://app.nowsecure.com/app/00000000-0000-0000-0000-000000000000/assessment/00000000-0000-0000-0000-000000000001/findings#finding-example_check",
+              "id": "5e63241d7f766e1697c5a450f8178a53bdcc66af0d5bcc73775749a044896c7e",
+              "name": "This Is An Example Check",
+              "properties": {"precision": "medium", "problem": {"severity": "medium"}, "security-severity": "5.5", "tags": ["CVSS-10.00"]},
+              "shortDescription": {"text": "This Is An Example Check"}
+            },
+            {
+              "fullDescription": {"text": "Path traversal in a content provider."},
+              "help": {"markdown": "## Remediation Resources\n### Recommended Fix\nCanonicalise paths and check them against the allowed directory.\n", "text": "NowSecure only provides recommendations in a Markdown format."},
+              "helpUri": "https://app.nowsecure.com/app/00000000-0000-0000-0000-000000000000/assessment/00000000-0000-0000-0000-000000000001/findings#finding-path_traversal",
+              "id": "9b1c0f4a2d7e5b3c6a8f0e1d2c3b4a5968778695a4b3c2d1e0f1a2b3c4d5e6f7",
+              "name": "Path Traversal",
+              "properties": {"precision": "medium", "problem": {"severity": "high"}, "security-severity": "8.0", "tags": ["Storage", "CVSS-7.50"]},
+              "shortDescription": {"text": "Path Traversal"}
+            }
+          ],
+          "semanticVersion": "1.0.0"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

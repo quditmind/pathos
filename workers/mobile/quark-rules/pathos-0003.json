@@ -1,0 +1,21 @@
+{
+    "crime": "Execute a shell command",
+    "permission": [],
+    "api": [
+        {
+            "class": "Ljava/lang/Runtime;",
+            "method": "getRuntime",
+            "descriptor": "()Ljava/lang/Runtime;"
+        },
+        {
+            "class": "Ljava/lang/Runtime;",
+            "method": "exec",
+            "descriptor": "(Ljava/lang/String;)Ljava/lang/Process;"
+        }
+    ],
+    "score": 2,
+    "label": [
+        "command",
+        "execution"
+    ]
+}

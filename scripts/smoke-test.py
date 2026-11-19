@@ -266,12 +266,19 @@ def main():
 
     print("\nScanning engine (Phase 4)")
     s, cat = admin.api("GET", "/api/v1/scanners")
-    check("scanner catalog lists 55 integrations + Syft + 3 built-in checks", s == 200 and len(cat["items"]) == 59, s)
+    # 97 catalogued integrations (catalog.go and the family packs'
+    # catalog_<family>.go), Syft and 4 built-in checks (endpoint
+    # verification, cosign, endoflife.date, AI-BOM).
+    check("scanner catalog lists 97 integrations + Syft + 4 built-in checks", s == 200 and len(cat["items"]) == 102,
+          (s, len(cat.get("items", [])) if s == 200 else None))
     if s == 200:
         avail = sorted(x["key"] for x in cat["items"] if x["adapter_available"])
-        check("16 scanners runnable (7 core, zizmor, actionlint, licensecheck, clamav, binary-hardening, image and DAST targets, endpoint checks, cosign)",
-              avail == sorted(["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft", "zizmor", "actionlint",
-                               "licensecheck", "clamav", "binary-hardening", "trivy-image", "nuclei", "pathos-endpoints", "cosign"]), avail)
+        core = ["gitleaks", "opengrep", "trivy-fs", "grype", "osv-scanner", "checkov", "syft", "zizmor", "actionlint",
+                "licensecheck", "clamav", "binary-hardening", "trivy-image", "nuclei", "pathos-endpoints", "cosign"]
+        # Adapter available: worker-core's tools plus the family images'
+        # manifest tools (80 catalogued, Syft, 3 built-in checks).
+        check("84 scanners have an adapter, including the 16 of worker-core", len(avail) == 84 and set(core) <= set(avail),
+              (len(avail), sorted(set(core) - set(avail))))
         cats = {x["key"]: x["category"] for x in cat["items"]}
         check("content scanners in their finding categories", cats.get("clamav") == "malware" and cats.get("binary-hardening") == "binary"
               and cats.get("licensecheck") == "license", cats)

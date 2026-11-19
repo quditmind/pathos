@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<detailedreport xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns="https://www.veracode.com/schema/reports/export/1.0" xsi:schemaLocation="https://www.veracode.com/schema/reports/export/1.0 https://analysiscenter.veracode.com/resource/detailedreport.xsd" report_format_version="1.5" account_id="12345" app_name="shop-api" app_id="1000001" analysis_id="2000002" static_analysis_unit_id="3000003" sandbox_id="0" first_build_submitted_date="2026-10-01 09:00:00 UTC" version="2026-11-02" build_id="4000004" submitter="ci" platform="Not Specified" assurance_level="5" business_criticality="5" generation_date="2026-11-02 10:30:12 UTC" veracode_level="VL1" total_flaws="4" flaws_not_mitigated="3" teams="" life_cycle_stage="Not Specified" planned_deployment_date="" last_update_time="2026-11-02 10:20:00 UTC" is_latest_build="true" policy_name="Veracode Recommended High" policy_version="1" policy_compliance_status="Did Not Pass" policy_rules_status="Did Not Pass" grace_period_expired="false" scan_overdue="false" any_type_scan_due="false" business_owner="" business_unit="Not Specified" tags="" legacy_scan_engine="false">
+  <static-analysis rating="C" score="71" submitted_date="2026-11-02 09:50:00 UTC" published_date="2026-11-02 10:20:00 UTC" version="2026-11-02" analysis_size_bytes="40960" engine_version="20261015120000">
+    <modules>
+      <module name="shop-api.war" compiler="JAVAC_17" os="Java J2SE 17" architecture="JVM" loc="1200" score="71" numflawssev0="0" numflawssev1="0" numflawssev2="1" numflawssev3="1" numflawssev4="0" numflawssev5="1"/>
+    </modules>
+  </static-analysis>
+  <dynamic-analysis rating="B" score="90" submitted_date="2026-11-01 08:00:00 UTC" published_date="2026-11-01 12:00:00 UTC" version="DA-2026-11-01" scan_exit_status_id="0" scan_exit_status_desc="Successful">
+    <modules>
+      <module name="dynamic_analysis" compiler="" os="" architecture="" score="90" numflawssev0="0" numflawssev1="0" numflawssev2="0" numflawssev3="1" numflawssev4="0" numflawssev5="0"/>
+    </modules>
+  </dynamic-analysis>
+  <severity level="5">
+    <category categoryid="19" categoryname="SQL Injection" pcirelated="true">
+      <desc>
+        <para text="SQL injection vulnerabilities occur when data enters an application from an untrusted source and is used to dynamically construct a SQL query."/>
+      </desc>
+      <recommendations>
+        <para text="Use parameterized prepared statements rather than dynamically constructing SQL queries."/>
+      </recommendations>
+      <cwe cweid="89" cwename="Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')" pcirelated="true" owasp="1347" sans="89" certjava="1166">
+        <description>
+          <text text="This database query contains a SQL injection flaw."/>
+        </description>
+        <staticflaws>
+          <flaw severity="5" categoryname="Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')" count="1" issueid="12" module="shop-api.war" type="java.sql.Statement.executeQuery" description="This database query contains a SQL injection flaw. The call to java.sql.Statement.executeQuery() constructs a dynamic SQL query using a variable derived from untrusted input." note="" cweid="89" remediationeffort="3" exploitLevel="0" categoryid="19" pcirelated="true" date_first_occurrence="2026-10-01 09:30:00 UTC" remediation_status="New" cia_impact="ppp" grace_period_expires="2026-11-01 09:30:00 UTC" affects_policy_compliance="true" mitigation_status="none" mitigation_status_desc="Not Mitigated" sourcefile="OrderDao.java" line="14" sourcefilepath="com/acme/" scope="com.acme.OrderDao" functionprototype="java.sql.ResultSet find(java.lang.String)" functionrelativelocation="40"/>
+        </staticflaws>
+      </cwe>
+    </category>
+  </severity>
+  <severity level="4"/>
+  <severity level="3">
+    <category categoryid="20" categoryname="Cryptographic Issues" pcirelated="true">
+      <desc>
+        <para text="Applications commonly use cryptography to implement authentication mechanisms and to ensure the confidentiality and integrity of sensitive data."/>
+      </desc>
+      <recommendations>
+        <para text="Use SHA-256 or stronger hash algorithms."/>
+      </recommendations>
+      <cwe cweid="327" cwename="Use of a Broken or Risky Cryptographic Algorithm" pcirelated="true" owasp="1346" sans="327" certjava="1170">
+        <description>
+          <text text="The use of a broken or risky cryptographic algorithm is an unnecessary risk."/>
+        </description>
+        <staticflaws>
+          <flaw severity="3" categoryname="Use of a Broken or Risky Cryptographic Algorithm" count="1" issueid="13" module="shop-api.war" type="java.security.MessageDigest.getInstance" description="This function uses the MD5() function, which uses a hash algorithm that is considered weak." note="" cweid="327" remediationeffort="2" exploitLevel="0" categoryid="20" pcirelated="true" date_first_occurrence="2026-10-01 09:30:00 UTC" remediation_status="Open" cia_impact="ppn" grace_period_expires="2026-12-01 09:30:00 UTC" affects_policy_compliance="false" mitigation_status="accepted" mitigation_status_desc="Mitigation Accepted" sourcefile="OrderDao.java" line="18" sourcefilepath="com/acme/" scope="com.acme.OrderDao" functionprototype="byte [] hash(java.lang.String)" functionrelativelocation="10">
+            <mitigations>
+              <mitigation action="Mitigate by Design" description="Used only for cache keys, not for passwords." user="appsec" date="2026-10-05 11:00:00 UTC"/>
+              <mitigation action="Approve Mitigation" description="Approved." user="lead" date="2026-10-06 11:00:00 UTC"/>
+            </mitigations>
+          </flaw>
+          <flaw severity="3" categoryname="Use of a Broken or Risky Cryptographic Algorithm" count="1" issueid="9" module="shop-api.war" type="javax.crypto.Cipher.getInstance" description="This function uses the DES algorithm." note="" cweid="327" remediationeffort="2" exploitLevel="0" categoryid="20" pcirelated="true" date_first_occurrence="2026-09-01 09:30:00 UTC" remediation_status="Fixed" cia_impact="ppn" grace_period_expires="" affects_policy_compliance="false" mitigation_status="none" mitigation_status_desc="Not Mitigated" sourcefile="Legacy.java" line="31" sourcefilepath="com/acme/" scope="com.acme.Legacy" functionprototype="void enc()" functionrelativelocation="5"/>
+        </staticflaws>
+      </cwe>
+      <cwe cweid="614" cwename="Sensitive Cookie in HTTPS Session Without 'Secure' Attribute" pcirelated="true" owasp="1346" sans="0">
+        <description>
+          <text text="The Secure attribute for sensitive cookies in HTTPS sessions is not set."/>
+        </description>
+        <dynamicflaws>
+          <flaw severity="3" categoryname="Sensitive Cookie in HTTPS Session Without 'Secure' Attribute" count="1" issueid="1001" module="dynamic_analysis" type="Session Cookie Without Secure Flag" description="The session cookie JSESSIONID is set without the Secure attribute." note="" cweid="614" remediationeffort="1" exploitLevel="0" categoryid="20" pcirelated="true" date_first_occurrence="2026-11-01 12:00:00 UTC" remediation_status="New" cia_impact="pnn" grace_period_expires="" affects_policy_compliance="false" mitigation_status="none" mitigation_status_desc="Not Mitigated" url="https://shop.example/login" vuln_parameter="JSESSIONID" hostname="shop.example" port="443" path="/login"/>
+        </dynamicflaws>
+      </cwe>
+    </category>
+  </severity>
+  <severity level="2"/>
+  <severity level="1"/>
+  <severity level="0"/>
+  <software_composition_analysis third_party_components="12" violate_policy="true" components_violated_policy="1" blacklisted_components="0" sca_service_available="true">
+    <vulnerable_components>
+      <component component_id="a1b2c3d4-0000-4000-8000-000000000001" file_name="log4j-core-2.14.1.jar" sha1="9141212b8507ab50a45525b545b39d224614528b" vulnerabilities="1" max_cvss_score="10.0" version="2.14.1" library="log4j-core" library_id="maven:org.apache.logging.log4j:log4j-core:2.14.1:" vendor="org.apache.logging.log4j" description="The Apache Log4j Implementation" added_date="2026-10-01 09:30:00 UTC" component_affects_policy_compliance="true" new="false">
+        <file_paths>
+          <file_path value="shop-api.war#WEB-INF/lib/log4j-core-2.14.1.jar"/>
+        </file_paths>
+        <licenses>
+          <license name="Apache License 2.0" spdx_id="Apache-2.0" license_url="https://spdx.org/licenses/Apache-2.0.html" risk_rating="2"/>
+        </licenses>
+        <vulnerabilities>
+          <vulnerability cve_id="CVE-2021-44228" cvss_score="10.0" severity="5" cwe_id="CWE-502" first_found_date="2026-10-01 09:30:00 UTC" cve_summary="Apache Log4j2 JNDI features do not protect against attacker controlled LDAP and other JNDI related endpoints." severity_desc="Very High" mitigation="false" mitigation_type="" mitigated_date="" vulnerability_affects_policy_compliance="true"/>
+        </vulnerabilities>
+        <violated_policy_rules/>
+      </component>
+    </vulnerable_components>
+  </software_composition_analysis>
+</detailedreport>

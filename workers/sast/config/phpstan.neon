@@ -1,0 +1,4 @@
+# PHPStan configuration of the PATHOS worker-sast image. It replaces a
+# repository's phpstan.neon, which can load extensions (PHP code).
+parameters:
+	reportUnmatchedIgnoredErrors: false

@@ -1,0 +1,112 @@
+{
+  "clientProblem1": [
+    {
+      "id": "engine_problem",
+      "severity": "WARN",
+      "finding": "No engine or GOST support via engine with your /home/testssl/bin/openssl.Linux.x86_64"
+    }
+  ],
+  "Invocation": "testssl.sh --quiet --warnings off -p -U -S --jsonfile-pretty /out/testssl-pretty.json https://a3-g2-target",
+  "at": "b567b19d767b:/home/testssl/bin/openssl.Linux.x86_64",
+  "version": "3.2.5 ",
+  "openssl": "OpenSSL 1.0.2-bad from Fri Mar 28 16:54:51 2025",
+  "startTime": "1795069916",
+  "scanResult": [
+    {
+      "targetHost": "a3-g2-target",
+      "ip": "172.24.0.2",
+      "port": "443",
+      "rDNS": "a3-g2-target.a3-g2-net.",
+      "service": "HTTP",
+      "pretest": [
+        {
+          "id": "pre_128cipher",
+          "severity": "INFO",
+          "finding": "No 128 cipher limit bug"
+        }
+      ],
+      "protocols": [
+        {
+          "id": "TLS1",
+          "severity": "LOW",
+          "finding": "offered (deprecated)"
+        },
+        {
+          "id": "TLS1_1",
+          "severity": "LOW",
+          "finding": "offered (deprecated)"
+        },
+        {
+          "id": "SSLv2",
+          "severity": "OK",
+          "finding": "not offered"
+        }
+      ],
+      "grease": [],
+      "ciphers": [],
+      "serverPreferences": [],
+      "fs": [],
+      "serverDefaults": [
+        {
+          "id": "cert_subjectAltName",
+          "severity": "HIGH",
+          "finding": "No SAN, browsers are complaining"
+        },
+        {
+          "id": "cert_trust",
+          "severity": "HIGH",
+          "finding": "via CN only (same w/o SNI)"
+        },
+        {
+          "id": "cert_chain_of_trust",
+          "severity": "CRITICAL",
+          "finding": "failed (self signed)."
+        },
+        {
+          "id": "cert_expirationStatus",
+          "severity": "HIGH",
+          "finding": "expires < 30 days (29)"
+        },
+        {
+          "id": "TLS_extensions",
+          "severity": "INFO",
+          "finding": "'server name/#0' 'max fragment length/#1' 'supported_groups/#10' 'EC point formats/#11' 'application layer protocol negotiation/#16' 'encrypt-then-mac/#22' 'extended master secret/#23' 'supported versions/#43' 'key share/#51' 'renegotiation info/#65281'"
+        }
+      ],
+      "vulnerabilities": [
+        {
+          "id": "BEAST_CBC_TLS1",
+          "severity": "MEDIUM",
+          "cve": "CVE-2011-3389",
+          "cwe": "CWE-20",
+          "finding": "ECDHE-RSA-AES256-SHA AECDH-AES256-SHA ECDHE-RSA-AES128-SHA AECDH-AES128-SHA AES256-SHA CAMELLIA256-SHA AES128-SHA CAMELLIA128-SHA"
+        },
+        {
+          "id": "BEAST",
+          "severity": "LOW",
+          "cve": "CVE-2011-3389",
+          "cwe": "CWE-20",
+          "finding": "VULNERABLE -- but also supports higher protocols  TLSv1.1 TLSv1.2 (likely mitigated)"
+        },
+        {
+          "id": "LUCKY13",
+          "severity": "LOW",
+          "cve": "CVE-2013-0169",
+          "cwe": "CWE-310",
+          "finding": "potentially vulnerable, uses obsolete TLS CBC ciphers"
+        },
+        {
+          "id": "heartbleed",
+          "severity": "OK",
+          "cve": "CVE-2014-0160",
+          "cwe": "CWE-119",
+          "finding": "not vulnerable, no heartbeat extension"
+        }
+      ],
+      "cipherTests": [],
+      "browserSimulations": [],
+      "rating": []
+    }
+  ],
+  "scanTime": 37
+}

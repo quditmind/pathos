@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<results version="2">
+    <cppcheck version="2.17.1"/>
+    <errors>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdio.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="vuln.c" line="1" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;string.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="vuln.c" line="2" column="0"/>
+        </error>
+        <error id="missingIncludeSystem" severity="information" msg="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results." verbose="Include file: &lt;stdlib.h&gt; not found. Please note: Cppcheck does not need standard library headers to get proper results.">
+            <location file="vuln.c" line="3" column="0"/>
+        </error>
+        <error id="arrayIndexOutOfBounds" severity="error" msg="Array &apos;a[10]&apos; accessed at index 10, which is out of bounds." verbose="Array &apos;a[10]&apos; accessed at index 10, which is out of bounds." cwe="788" file0="vuln.c">
+            <location file="vuln.c" line="13" column="6" info="Array index out of bounds"/>
+        </error>
+        <error id="memleak" severity="error" msg="Memory leak: p" verbose="Memory leak: p" cwe="401" file0="vuln.c">
+            <location file="vuln.c" line="17" column="5"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="constParameterPointer" severity="style" msg="Parameter &apos;in&apos; can be declared as pointer to const" verbose="Parameter &apos;in&apos; can be declared as pointer to const" cwe="398" file0="vuln.c">
+            <location file="vuln.c" line="5" column="17" info="Parameter &apos;in&apos; can be declared as pointer to const"/>
+            <symbol>in</symbol>
+        </error>
+        <error id="constVariablePointer" severity="style" msg="Variable &apos;p&apos; can be declared as pointer to const" verbose="Variable &apos;p&apos; can be declared as pointer to const" cwe="398" file0="vuln.c">
+            <location file="vuln.c" line="14" column="11" info="Variable &apos;p&apos; can be declared as pointer to const"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;a[10]&apos; is assigned a value that is never used." verbose="Variable &apos;a[10]&apos; is assigned a value that is never used." cwe="563" file0="vuln.c">
+            <location file="vuln.c" line="13" column="11"/>
+            <symbol>a[10]</symbol>
+        </error>
+        <error id="unreadVariable" severity="style" msg="Variable &apos;p&apos; is assigned a value that is never used." verbose="Variable &apos;p&apos; is assigned a value that is never used." cwe="563" file0="vuln.c">
+            <location file="vuln.c" line="14" column="13"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="unusedAllocatedMemory" severity="style" msg="Variable &apos;p&apos; is allocated memory that is never used." verbose="Variable &apos;p&apos; is allocated memory that is never used." cwe="563" file0="vuln.c">
+            <location file="vuln.c" line="14" column="15"/>
+            <symbol>p</symbol>
+        </error>
+        <error id="staticFunction" severity="style" msg="The function &apos;copy&apos; should have static linkage since it is not used outside of its translation unit." verbose="The function &apos;copy&apos; should have static linkage since it is not used outside of its translation unit.">
+            <location file="vuln.c" line="5" column="0"/>
+            <symbol>copy</symbol>
+        </error>
+        <error id="checkersReport" severity="information" msg="Active checkers: 109/856 (use --checkers-report=&lt;filename&gt; to see details)" verbose="Active checkers: 109/856 (use --checkers-report=&lt;filename&gt; to see details)"/>
+    </errors>
+</results>

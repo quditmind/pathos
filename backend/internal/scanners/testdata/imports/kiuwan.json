@@ -1,0 +1,58 @@
+{
+  "name": "payments-api",
+  "analysisCode": "A-7e3-18d2f0a9b1c",
+  "analysisURL": "https://www.kiuwan.com/saas/application?app=payments-api",
+  "analysisStatus": "FINISHED",
+  "defects_count": 3,
+  "activeDefects_count": 3,
+  "count": 3,
+  "page": 1,
+  "defects": [
+    {
+      "defectId": 4407251,
+      "ruleCode": "OPT.JAVA.SEC_JAVA.SqlInjectionRule",
+      "rule": "Avoid non-neutralized user-controlled input composed in SQL sentences",
+      "priority": "Very High",
+      "language": "Java",
+      "characteristic": "Security",
+      "vulnerabilityType": "Injection",
+      "file": "src/main/java/com/example/UserDao.java",
+      "line": 42,
+      "code": "ResultSet rs = st.executeQuery(\"SELECT * FROM users WHERE name='\" + name + \"'\");",
+      "cweId": 89,
+      "muted": false,
+      "status": "None",
+      "effort": "15m",
+      "explanation": "User-controlled input reaches a SQL statement without neutralization."
+    },
+    {
+      "defectId": 4407252,
+      "ruleCode": "OPT.JAVA.SEC_JAVA.WeakCryptographicHashRule",
+      "rule": "Weak cryptographic hash",
+      "priority": "Normal",
+      "language": "Java",
+      "characteristic": "Security",
+      "vulnerabilityType": "Cryptography",
+      "file": "src/main/java/com/example/Crypto.java",
+      "line": 12,
+      "code": "MessageDigest md = MessageDigest.getInstance(\"MD5\");",
+      "cweId": 328,
+      "muted": true,
+      "status": "Reviewed"
+    },
+    {
+      "defectId": 4407253,
+      "ruleCode": "OPT.JAVA.RGM.CPI",
+      "rule": "Avoid empty catch blocks",
+      "priority": "Low",
+      "language": "Java",
+      "characteristic": "Reliability",
+      "file": "src/main/java/com/example/App.java",
+      "line": 77,
+      "code": "} catch (Exception e) { }",
+      "cweId": 1069,
+      "muted": false,
+      "status": "None"
+    }
+  ]
+}

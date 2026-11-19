@@ -1,0 +1,16 @@
+Plugin ID,CVE,CVSS,Risk,Host,Protocol,Port,Name,Synopsis,Description,Solution,See Also,Plugin Output,CVSS v3.0 Base Score,CVSS v3.0 Vector,XREF
+"10107","","","None","192.0.2.30","tcp","80","HTTP Server Type and Version","A web server is running on the remote host.","This plugin attempts to determine the type and the version of the
+  remote web server.","n/a","","The remote web server type is :
+
+nginx/1.25.3","","",""
+"201198","CVE-2024-38474","10.0","Critical","192.0.2.30","tcp","443","Apache 2.4.x < 2.4.60 Multiple Vulnerabilities","The remote web server is affected by multiple vulnerabilities.","The version of Apache httpd installed on the remote host is prior to 2.4.60.","Upgrade to Apache version 2.4.60 or later.","https://httpd.apache.org/security/vulnerabilities_24.html","
+  Installed version : 2.4.59
+  Fixed version     : 2.4.60
+  Cookie: session=tenable-plugin-output-secret
+","9.8","CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H","CWE:20"
+"201198","CVE-2024-38476","10.0","Critical","192.0.2.30","tcp","443","Apache 2.4.x < 2.4.60 Multiple Vulnerabilities","The remote web server is affected by multiple vulnerabilities.","The version of Apache httpd installed on the remote host is prior to 2.4.60.","Upgrade to Apache version 2.4.60 or later.","https://httpd.apache.org/security/vulnerabilities_24.html","
+  Installed version : 2.4.59
+  Fixed version     : 2.4.60
+  Cookie: session=tenable-plugin-output-secret
+","9.8","CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H","CWE:20"
+"187315","CVE-2023-48795","5.9","Medium","192.0.2.30","tcp","22","SSH Terrapin Prefix Truncation Weakness (CVE-2023-48795)","The remote SSH server is vulnerable to a mitm prefix truncation attack.","The remote SSH server is vulnerable to a man-in-the-middle prefix truncation weakness known as Terrapin.","Contact the vendor for an update with the strict key exchange countermeasures.","https://terrapin-attack.com/","","5.9","AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:H/A:N",""

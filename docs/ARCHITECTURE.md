@@ -18,7 +18,7 @@ PATHOS is a **modular monolith** (Go) with **separately deployed scanner workers
 | REST API, authentication, RBAC, MCP server, ingestion of scan results | `pathos --role=api` | Replicas (stateless; sessions and rate limits in Valkey) |
 | Background work: AI reviews, notifications and outbound webhooks, repository imports and sync, intelligence feeds, risk scoring, policies, ticket sync, retention | `pathos --role=jobs` (same binary) | Replicas, independent from the API |
 | Scan scheduling, missed-run and offline-worker detection, lease recovery, platform metrics | `pathos --role=scheduler` (same binary, leader-elected) | Standby replicas |
-| Scanner execution | `pathos-worker` agent inside the `worker-core` image | Replicas |
+| Scanner execution | `pathos-worker` agent inside the `worker-core` image and the opt-in family images (`worker-sast`, `worker-iac`, `worker-sca`, `worker-dast`, built on `worker-core`) | Replicas |
 | Identity | Keycloak | Single instance in Compose |
 | Relational data and job queues | PostgreSQL (`FOR UPDATE SKIP LOCKED` queues) | Vertical |
 | Sessions, OIDC state, rate limits | Valkey | Vertical |
@@ -98,7 +98,7 @@ PATHOS/
 │   └── test/integration/        # integration tests against PostgreSQL
 ├── frontend/                    # Vite + React + TypeScript + Tailwind
 │   └── src/{app,api,components/{ui,layout,data},features/*,lib}
-├── workers/                     # worker-core Dockerfile, PATHOS baseline Opengrep rules, rules-extra mount
+├── workers/                     # worker-core and family (workers/<family>/) Dockerfiles and tool manifests, PATHOS baseline Opengrep rules, rules-extra mount
 ├── deploy/                      # caddy, egress (Squid), keycloak (realm, theme, setup.sh),
 │                                # postgres init, scanners.d (plugins), security (ZAP), scripts/
 ├── scripts/                     # smoke, e2e, security, DAST, load, offline bundles, SSO test
@@ -135,7 +135,7 @@ Each scan job is processed in stages inside a worker container:
 
 1. **Lease.** The worker leases a job over the internal API. The response includes the repository URL and ref (or the scan target), the profile's scanners and configuration, and a **short-lived** clone credential: a GitHub App installation token (≤ 1 hour) or the connection's stored credential. Uploaded repositories are fetched instead as a source snapshot through the worker API, which decrypts it; the worker verifies its SHA-256.
 2. **Fetch.** A shallow `git clone` with hooks disabled, no `file://` or `ext::` transports, no symlinks, fsck on, no redirects and a size cap. The credential travels in environment variables, never in the URL or `.git/config`. `.git` is removed before the scanners run.
-3. **Scan.** Each tool runs as a non-root process in its own process group, in a per-job `tmpfs` workspace, with a timeout that kills the whole group. **Repository code is never built or executed.** Catalogue entries that need a build (CodeQL for compiled languages, SpotBugs, Infer) are flagged `requires_build` and have no adapter.
+3. **Scan.** Each tool runs as a non-root process in its own process group, in a per-job `tmpfs` workspace, with a timeout that kills the whole group. **Repository code is never built or executed,** except by the opt-in fuzzers of the `worker-fuzz` family image (Go native fuzzing, Atheris), which build and run the repository's own fuzz harnesses in that worker's sandbox under CPU, memory, file size and time limits, without network access. Other catalogue entries that need a build (CodeQL for compiled languages, SpotBugs, Infer) are flagged `requires_build` and have no adapter.
 4. **Report.** The worker uploads the raw reports (and its code inventory for reachability), the API parses and normalises them, and the workspace is destroyed.
 
 Container hardening: read-only root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, non-root UID, PID and memory limits, **no Docker socket**.
@@ -146,8 +146,8 @@ Container hardening: read-only root filesystem, `cap_drop: [ALL]`, `no-new-privi
 
 - **On the worker,** each tool implements `worker.Tool` (`Version`, `Run`) and writes its report; tools that only apply to some repositories (zizmor, actionlint without workflows) report themselves as skipped.
 - **On the API,** `backend/internal/scanners` parses the reports. Most tools emit SARIF, so a shared SARIF parser covers them; Grype, Nuclei and actionlint have dedicated parsers. Parsing never runs on the worker.
-- **Adding a built-in engine** means a catalogue entry (`scanners/catalog.go`), a tool in `worker/tools.go`, a parser if the tool has no SARIF, and the binary in the worker image.
-- **Without code changes,** operators can add SARIF-producing tools as declarative plugins on the worker ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)), and any tool's SARIF or JSON can be imported ([API: result imports](api-reference/result-imports.md)).
+- **Adding a tool** to a family image means a catalogue entry (`scanners/catalog.go`), its scan types (`scanners/scantypes.go`), a manifest in `workers/<family>/tools.d` (parser `sarif`, `import:<format>` or `jsonmap`) and the binary in the family Dockerfile; no Go code unless its output format has no parser. Built-in core engines remain in `worker/tools.go`.
+- **Without code changes,** operators can add tools as manifests (SARIF, an import format or a JSON mapping) on the worker ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#adding-a-tool-tool-manifests)), and any tool's SARIF or JSON can be imported ([API: result imports](api-reference/result-imports.md)).
 
 ### Scan targets and pull requests
 
@@ -183,7 +183,7 @@ What each service does is listed in [INSTALLATION.md](INSTALLATION.md#what-runs)
 | `keycloak` | app, data, edge | — | — |
 | `keycloak-setup` (one-shot) | app | — | — |
 | `egress` | scan, edge | — | `egress_logs` |
-| `worker-core` | scan, worker-api, malware | — | `scanner_cache` (vulnerability databases) |
+| `worker-core`, family workers (`worker-sast`, `worker-iac`, `worker-sca`, `worker-dast`; profiles `sast`, `iac`, `sca`, `dast`) | scan, worker-api, malware | — | `scanner_cache` (vulnerability databases) |
 | `mailpit` (profile `dev`) | app, edge | 127.0.0.1:8025 | — |
 | `objectstore` (profile `objectstore`) | data | — | `s3_data` |
 | `clamav` (profile `clamav`) | data, edge, malware | — | `clamav_db` |
@@ -218,7 +218,7 @@ What each service does is listed in [INSTALLATION.md](INSTALLATION.md#what-runs)
 | D8 | Non-scanners: Cosign, in-toto, SLSA verifier, GUAC, CycloneDX CLI, SPDX tools. | Catalogued as supply-chain and SBOM utilities, not counted as scanners. |
 | D9 | Repositories are untrusted input; build-requiring analysers execute code. | Never build; `requires_build` tools have no adapter. |
 | D10 | Azure DevOps has no GitHub-App-style short-lived tokens. | Entra ID OAuth or a service principal (client secret or certificate), or a narrowly scoped PAT (*Code: Read*), all encrypted at rest. |
-| R1 | Around 50 catalogued scanners would mean large worker images. | One `worker-core` image with the implemented tools; operators add tools as plugins in derived images. |
+| R1 | Around 50 catalogued scanners would mean large worker images. | One `worker-core` image with the core tools; opt-in family images (core plus a family of manifest tools) for the rest; operators add tools as plugins in derived images. Jobs that use family tools are routed to the workers that advertise them. |
 | R2 | Vulnerability databases (Trivy, Grype, OSV) are large and rate-limited. | Shared `scanner_cache` volume; offline bundles for air-gapped installs ([AIRGAP.md](AIRGAP.md)). |
 
 Secrets at rest use **envelope encryption**: AES-256-GCM data keys wrapped by a versioned master key (`PATHOS_MASTER_KEY`). This covers SCM, AI, MCP, SMTP, webhook, scan-target and integration credentials, each kind authenticated separately. Rotation: [SECURITY.md](SECURITY.md#secrets-at-rest).
@@ -267,7 +267,7 @@ flowchart LR
 
 | Extension | Interface |
 |---|---|
-| Scanner (no code) | Declarative plugin on the worker: [SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins) |
+| Scanner (no code) | Declarative plugin on the worker: [SCANNER_CATALOG.md](SCANNER_CATALOG.md#adding-a-tool-tool-manifests) |
 | Third-party results | SARIF, 21 native tool formats (JSON, JSON lines, XML), generic CSV or the PATHOS findings JSON through the import API (`scanners.ImportFormats`), also from CI with the `pathos` CLI (`backend/cmd/pathos-cli`) |
 | Issue tracker | `tickets.Connector` (`Check`, `Create`, `Status`) in `backend/internal/tickets`, registered by kind. Storage, permissions, audit and status sync are shared. Jira and ServiceNow implement it |
 | Outbound events | Outbound webhooks for any notification event |

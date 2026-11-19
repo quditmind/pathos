@@ -1,0 +1,23 @@
+#!/bin/sh
+# Runs ShellCheck on the shell scripts in a directory tree (ShellCheck itself
+# takes file names only). Shell scripts are files named *.sh, *.bash, *.ksh,
+# *.bats, or files of at most 1 MiB whose first line is a sh/bash/ksh/dash
+# shebang. The .git directory is skipped.
+#
+# Output: one ShellCheck json1 document per line (xargs may run ShellCheck
+# more than once for many files). Exit status: 0 when no issue was found,
+# 123 when ShellCheck reported issues (xargs), other values on errors.
+# File names containing a newline are not scanned.
+set -eu
+if [ "${1:-}" = "--version" ]; then exec shellcheck --version; fi
+[ "$#" -eq 1 ] && [ -d "$1" ] || { echo "usage: shellcheck-tree <directory>" >&2; exit 2; }
+find "$1" -name .git -prune -o -type f -size -1025k -print | while IFS= read -r f; do
+  case "$f" in
+    *.sh|*.bash|*.ksh|*.bats) printf '%s\n' "$f" ;;
+    *)
+      first=$(head -c 128 "$f" 2>/dev/null | head -n 1 | tr -d '\000') || first=""
+      case "$first" in
+        '#!'*/sh|'#!'*/sh' '*|'#!'*' sh'|'#!'*' sh '*|'#!'*bash*|'#!'*ksh*|'#!'*dash*) printf '%s\n' "$f" ;;
+      esac ;;
+  esac
+done | xargs -r -d '\n' shellcheck --format=json1 --severity=style --norc --

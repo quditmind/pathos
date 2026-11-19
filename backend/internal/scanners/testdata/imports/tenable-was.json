@@ -1,0 +1,81 @@
+[
+  {
+    "finding_id": "9f3c1e2a-0001-4b5c-8d7e-000000000001",
+    "url": "https://shop.example.test/search?q=1",
+    "input_type": "query",
+    "input_name": "q",
+    "http_method": "GET",
+    "payload": "\"><script>alert(1)</script>",
+    "proof": "The payload was reflected in the response body.",
+    "output": "",
+    "state": "OPEN",
+    "severity": "HIGH",
+    "severity_id": 3,
+    "severity_modification_type": "NONE",
+    "first_found": "2026-10-01T10:00:00Z",
+    "last_found": "2026-11-01T10:00:00Z",
+    "asset": {
+      "uuid": "00000000-0000-0000-0000-0000000000a1",
+      "fqdn": "shop.example.test",
+      "ipv4": "192.0.2.10"
+    },
+    "scan": {
+      "uuid": "00000000-0000-0000-0000-0000000000b1",
+      "started_at": "2026-11-01T09:00:00Z",
+      "completed_at": "2026-11-01T10:00:00Z"
+    },
+    "plugin": {
+      "id": 98104,
+      "name": "Cross-Site Scripting (XSS)",
+      "family": "Cross Site Scripting",
+      "risk_factor": "High",
+      "synopsis": "The application is vulnerable to reflected XSS.",
+      "description": "User input is included in the page without encoding.",
+      "solution": "Encode output and validate input.",
+      "cvss3_base_score": 6.1,
+      "cvss3_vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+      "cve": [],
+      "cwe": [
+        "79"
+      ],
+      "see_also": [
+        "https://owasp.org/www-community/attacks/xss/"
+      ]
+    }
+  },
+  {
+    "finding_id": "9f3c1e2a-0002-4b5c-8d7e-000000000002",
+    "url": "https://shop.example.test/",
+    "http_method": "GET",
+    "state": "OPEN",
+    "severity": "LOW",
+    "severity_id": 1,
+    "severity_modification_type": "ACCEPTED",
+    "asset": {
+      "fqdn": "shop.example.test"
+    },
+    "plugin": {
+      "id": 98527,
+      "name": "Missing Content Security Policy",
+      "risk_factor": "Low",
+      "synopsis": "No Content-Security-Policy header.",
+      "solution": "Send a Content-Security-Policy header.",
+      "cwe": [
+        "693"
+      ]
+    }
+  },
+  {
+    "finding_id": "9f3c1e2a-0003-4b5c-8d7e-000000000003",
+    "url": "https://shop.example.test/login",
+    "state": "FIXED",
+    "severity": "MEDIUM",
+    "plugin": {
+      "id": 98059,
+      "name": "Cookie Without Secure Flag",
+      "cwe": [
+        "614"
+      ]
+    }
+  }
+]

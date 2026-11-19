@@ -1,0 +1,326 @@
+# PATHOS AI / LLM application rules: prompt-injection sinks (non-constant
+# text in system prompts), model output used as code, shell commands or SQL,
+# unsafe model loading (pickle-based formats, torch.load without
+# weights_only, trust_remote_code=True) and LLM API keys in code, for Python
+# and JavaScript/TypeScript.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from these rules (ids
+# pathos.ai.*, metadata category "ai") are reported in the "ai" finding
+# category. Test fixtures: workers/rules-tests/ai/.
+# pickle.load/loads is already reported by the baseline rule
+# pathos.python.pickle-loads and is not repeated here.
+rules:
+  # ---------------------------------------------------------------- Python
+  - id: pathos.ai.python.dynamic-system-prompt
+    languages: [python]
+    severity: WARNING
+    message: >-
+      The system prompt (or instructions) of an LLM request is built from variables. If any of them carries user,
+      document or tool content, that content gets the authority of the system prompt and can override the
+      application's instructions (prompt injection). Keep the system prompt constant and pass untrusted content in
+      a user message, clearly delimited.
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-77: Improper Neutralization of Special Elements used in a Command ('Command Injection')", "CWE-1427: Improper Neutralization of Input Used for LLM Prompting"]
+      owasp-llm: "LLM01:2025 Prompt Injection"
+      confidence: MEDIUM
+      references:
+        - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+        - https://cwe.mitre.org/data/definitions/1427.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: '{..., "role": "system", "content": $C, ...}'
+          - pattern: '{..., "role": "developer", "content": $C, ...}'
+          - pattern: SystemMessage(content=$C, ...)
+          - pattern: SystemMessage($C, ...)
+          - pattern: $CLIENT.messages.create(..., system=$C, ...)
+          - pattern: $CLIENT.responses.create(..., instructions=$C, ...)
+          - pattern: $AGENT(..., system_prompt=$C, ...)
+          - pattern: $AGENT(..., instructions=$C, ...)
+      - metavariable-pattern:
+          metavariable: $C
+          pattern-either:
+            - pattern: f"...{$X}..."
+            - pattern: '"..." + $X'
+            - pattern: '$X + "..."'
+            - pattern: '"..." % $X'
+            - pattern: '"...".format(...)'
+            - pattern: $TEMPLATE.format(...)
+
+  - id: pathos.ai.python.llm-output-execution
+    languages: [python]
+    mode: taint
+    severity: ERROR
+    message: >-
+      Output of a language model (a completion, a tool or function call, an agent result) reaches eval/exec, a
+      shell command or an SQL statement. Model output follows whatever instructions reached the model, including
+      injected ones, so this executes attacker-controlled code, commands or SQL. Treat model output as untrusted
+      input: parse it into an allow-listed action, and use argument lists and query parameters.
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-94: Improper Control of Generation of Code ('Code Injection')", "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"]
+      owasp-llm: "LLM05:2025 Improper Output Handling"
+      confidence: HIGH
+      references:
+        - https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/
+      license: Apache-2.0
+    pattern-sources:
+      - pattern: $CLIENT.chat.completions.create(...)
+      - pattern: await $CLIENT.chat.completions.create(...)
+      - pattern: $CLIENT.completions.create(...)
+      - pattern: $CLIENT.messages.create(...)
+      - pattern: await $CLIENT.messages.create(...)
+      - pattern: $CLIENT.responses.create(...)
+      - pattern: await $CLIENT.responses.create(...)
+      - pattern: $MODEL.generate_content(...)
+      - pattern: ollama.chat(...)
+      - pattern: ollama.generate(...)
+      - pattern: litellm.completion(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $LLM.invoke(...)
+              - pattern: await $LLM.ainvoke(...)
+              - pattern: $LLM.predict(...)
+          - metavariable-regex:
+              metavariable: $LLM
+              regex: (?i).*(?:llm|chat|model|chain|agent|openai|anthropic|claude|gpt|gemini|mistral|ollama).*
+    pattern-sinks:
+      - pattern: eval(...)
+      - pattern: exec(...)
+      - pattern: compile(...)
+      - pattern: os.system(...)
+      - pattern: os.popen(...)
+      - pattern: subprocess.$F(..., shell=True, ...)
+      - patterns:
+          - pattern: subprocess.$F($CMD, ...)
+          - focus-metavariable: $CMD
+      - patterns:
+          - pattern: $CUR.$EXEC($SQL, ...)
+          - metavariable-regex:
+              metavariable: $EXEC
+              regex: ^(?:execute|executemany|executescript)$
+          - focus-metavariable: $SQL
+      - pattern: text(...)
+
+  - id: pathos.ai.python.unsafe-model-load
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A model or array file is loaded with a pickle-based loader (torch.load without weights_only=True, joblib,
+      dill, cloudpickle, pandas.read_pickle, numpy.load with allow_pickle=True, Keras load_model with
+      safe_mode=False). Loading a malicious model file runs arbitrary code. Use safetensors or ONNX, pass
+      weights_only=True to torch.load, and load only files whose origin and hash you verified.
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-502: Deserialization of Untrusted Data"]
+      owasp-llm: "LLM03:2025 Supply Chain"
+      confidence: HIGH
+      references:
+        - https://pytorch.org/docs/stable/generated/torch.load.html
+        - https://huggingface.co/docs/hub/security-pickle
+      license: Apache-2.0
+    pattern-either:
+      - patterns:
+          - pattern: torch.load(...)
+          - pattern-not: torch.load(..., weights_only=True, ...)
+      - pattern: joblib.load(...)
+      - pattern: dill.load(...)
+      - pattern: dill.loads(...)
+      - pattern: cloudpickle.load(...)
+      - pattern: cloudpickle.loads(...)
+      - pattern: pandas.read_pickle(...)
+      - pattern: pd.read_pickle(...)
+      - pattern: numpy.load(..., allow_pickle=True, ...)
+      - pattern: np.load(..., allow_pickle=True, ...)
+      - pattern: $KERAS.models.load_model(..., safe_mode=False, ...)
+      - pattern: load_model(..., safe_mode=False, ...)
+
+  - id: pathos.ai.python.trust-remote-code
+    languages: [python]
+    severity: ERROR
+    message: >-
+      trust_remote_code=True downloads and runs Python code from the model repository when the model is loaded.
+      Anyone who can change that repository (or the revision it resolves to) can run code here. Use models that
+      need no custom code, or pin a reviewed commit with revision="<sha>".
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere", "CWE-94: Improper Control of Generation of Code ('Code Injection')"]
+      owasp-llm: "LLM03:2025 Supply Chain"
+      confidence: HIGH
+      references:
+        - https://huggingface.co/docs/transformers/models#custom-models
+      license: Apache-2.0
+    patterns:
+      - pattern: $F(..., trust_remote_code=True, ...)
+      - pattern-not: $F(..., trust_remote_code=True, ..., revision="...", ...)
+      - pattern-not: $F(..., revision="...", ..., trust_remote_code=True, ...)
+
+  - id: pathos.ai.python.hardcoded-llm-api-key
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An LLM provider API key is a constant in the source code. Anyone with the code can use the account (and its
+      spending limit). Read the key from the environment or a secrets manager, and rotate this one.
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-798: Use of Hard-coded Credentials"]
+      owasp-llm: "LLM02:2025 Sensitive Information Disclosure"
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: $CLIENT(..., api_key="$KEY", ...)
+              - metavariable-regex:
+                  metavariable: $CLIENT
+                  regex: (?i).*(?:openai|anthropic|mistral|cohere|groq|gemini|genai|together|fireworks|perplexity|deepseek|ollama|chat|llm|embeddings).*
+          - pattern: openai.api_key = "$KEY"
+          - pattern: anthropic.api_key = "$KEY"
+          - pattern: genai.configure(..., api_key="$KEY", ...)
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: ^(?!(?:your|my|xxx|placeholder|changeme|test|dummy|example|<|\$\{)).{12,}$
+
+  - id: pathos.ai.python.llm-api-key-in-environment
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An LLM provider API key is written into the process environment from a constant in the source code. Anyone
+      with the code can use the account. Provide the variable from outside (deployment secrets) instead.
+    metadata:
+      category: ai
+      language: python
+      cwe: ["CWE-798: Use of Hard-coded Credentials"]
+      owasp-llm: "LLM02:2025 Sensitive Information Disclosure"
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: os.environ["$ENV"] = "$KEY"
+          - pattern: os.environ.setdefault("$ENV", "$KEY")
+      - metavariable-regex:
+          metavariable: $ENV
+          regex: ^(?:OPENAI|ANTHROPIC|AZURE_OPENAI|MISTRAL|COHERE|GROQ|GEMINI|GOOGLE|TOGETHER|FIREWORKS|PERPLEXITY|DEEPSEEK|HUGGINGFACEHUB|HF|REPLICATE)_API_(?:KEY|TOKEN)$
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: ^(?!(?:your|my|xxx|placeholder|changeme|test|dummy|example|<|\$\{)).{12,}$
+
+  # ------------------------------------------------------ JavaScript / TS
+  - id: pathos.ai.javascript.dynamic-system-prompt
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      The system prompt (or instructions) of an LLM request is built from variables. If any of them carries user,
+      document or tool content, that content gets the authority of the system prompt and can override the
+      application's instructions (prompt injection). Keep the system prompt constant and pass untrusted content in
+      a user message, clearly delimited.
+    metadata:
+      category: ai
+      language: javascript
+      cwe: ["CWE-77: Improper Neutralization of Special Elements used in a Command ('Command Injection')", "CWE-1427: Improper Neutralization of Input Used for LLM Prompting"]
+      owasp-llm: "LLM01:2025 Prompt Injection"
+      confidence: MEDIUM
+      references:
+        - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: '{..., role: "system", content: $C, ...}'
+          - pattern: '{..., role: "developer", content: $C, ...}'
+          - pattern: '$CLIENT.messages.create({..., system: $C, ...})'
+          - pattern: '$CLIENT.responses.create({..., instructions: $C, ...})'
+          - pattern: '$GEN({..., system: $C, ...})'
+          - pattern: new SystemMessage($C)
+      - metavariable-pattern:
+          metavariable: $C
+          pattern-either:
+            - pattern: '`...${$X}...`'
+            - pattern: '"..." + $X'
+            - pattern: '$X + "..."'
+
+  - id: pathos.ai.javascript.llm-output-execution
+    languages: [javascript, typescript]
+    mode: taint
+    severity: ERROR
+    message: >-
+      Output of a language model (a completion, a tool or function call, generated text) reaches eval, new
+      Function, the vm module, a shell command or an SQL query. Model output follows whatever instructions reached
+      the model, including injected ones, so this executes attacker-controlled code, commands or SQL. Treat model
+      output as untrusted: map it to allow-listed actions and use argument arrays and query parameters.
+    metadata:
+      category: ai
+      language: javascript
+      cwe: ["CWE-94: Improper Control of Generation of Code ('Code Injection')", "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"]
+      owasp-llm: "LLM05:2025 Improper Output Handling"
+      confidence: HIGH
+      references:
+        - https://genai.owasp.org/llmrisk/llm052025-improper-output-handling/
+      license: Apache-2.0
+    pattern-sources:
+      - pattern: $CLIENT.chat.completions.create(...)
+      - pattern: $CLIENT.messages.create(...)
+      - pattern: $CLIENT.responses.create(...)
+      - pattern: generateText(...)
+      - pattern: generateObject(...)
+      - pattern: $MODEL.generateContent(...)
+      - patterns:
+          - pattern: $LLM.invoke(...)
+          - metavariable-regex:
+              metavariable: $LLM
+              regex: (?i).*(?:llm|chat|model|chain|agent|openai|anthropic|claude|gpt|gemini|mistral|ollama).*
+    pattern-sinks:
+      - pattern: eval(...)
+      - pattern: new Function(...)
+      - pattern: vm.runInNewContext(...)
+      - pattern: vm.runInThisContext(...)
+      - pattern: $CP.exec(...)
+      - pattern: $CP.execSync(...)
+      - pattern: exec(...)
+      - pattern: execSync(...)
+      - patterns:
+          - pattern: $DB.$Q($SQL, ...)
+          - metavariable-regex:
+              metavariable: $Q
+              regex: ^(?:query|execute|raw|\$queryRawUnsafe|\$executeRawUnsafe)$
+          - focus-metavariable: $SQL
+
+  - id: pathos.ai.javascript.hardcoded-llm-api-key
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      An LLM provider API key is a constant in the source code. Anyone with the code (including a browser bundle)
+      can use the account. Read the key from the environment on the server, and rotate this one.
+    metadata:
+      category: ai
+      language: javascript
+      cwe: ["CWE-798: Use of Hard-coded Credentials"]
+      owasp-llm: "LLM02:2025 Sensitive Information Disclosure"
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/798.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - patterns:
+              - pattern: 'new $CLIENT({..., apiKey: "$KEY", ...})'
+              - metavariable-regex:
+                  metavariable: $CLIENT
+                  regex: (?i).*(?:openai|anthropic|mistral|cohere|groq|gemini|genai|together|fireworks|deepseek|chat|llm|embeddings).*
+          - patterns:
+              - pattern: '$FACTORY({..., apiKey: "$KEY", ...})'
+              - metavariable-regex:
+                  metavariable: $FACTORY
+                  regex: ^create(?:OpenAI|Anthropic|Mistral|Cohere|Groq|GoogleGenerativeAI|DeepSeek|Together|Fireworks|AzureOpenAI)$
+      - metavariable-regex:
+          metavariable: $KEY
+          regex: ^(?!(?:your|my|xxx|placeholder|changeme|test|dummy|example|<|\$\{)).{12,}$

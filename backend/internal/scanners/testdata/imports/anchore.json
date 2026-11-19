@@ -1,0 +1,61 @@
+{
+  "imageDigest": "sha256:91f5c377c6b3c8eabe4112057f71794a648fc7d88e06336384fb4ea1042a2dee",
+  "vulnerability_type": "all",
+  "vulnerabilities": [
+    {
+      "feed": "vulnerabilities",
+      "feed_group": "debian:12",
+      "fix": "3.0.14-1~deb12u1",
+      "nvd_data": [
+        {
+          "cvss_v2": {
+            "base_score": -1.0
+          },
+          "cvss_v3": {
+            "base_score": 9.1,
+            "exploitability_score": 3.9,
+            "impact_score": 5.2
+          },
+          "id": "CVE-2024-5535"
+        }
+      ],
+      "package": "libssl3-3.0.13-1~deb12u1",
+      "package_cpe": "None",
+      "package_cpe23": "None",
+      "package_name": "libssl3",
+      "package_path": "None",
+      "package_type": "dpkg",
+      "package_version": "3.0.13-1~deb12u1",
+      "severity": "Critical",
+      "url": "https://security-tracker.debian.org/tracker/CVE-2024-5535",
+      "vendor_data": [],
+      "vuln": "CVE-2024-5535"
+    },
+    {
+      "feed": "nvdv2",
+      "feed_group": "nvdv2:cves",
+      "fix": "None",
+      "nvd_data": [
+        {
+          "cvss_v2": {
+            "base_score": 5.0
+          },
+          "cvss_v3": {
+            "base_score": -1.0
+          },
+          "id": "CVE-2020-36518"
+        }
+      ],
+      "package": "jackson-databind-2.9.7",
+      "package_cpe": "cpe:/a:-:jackson-databind:2.9.7:-:-",
+      "package_name": "jackson-databind",
+      "package_path": "/app/shop.jar:BOOT-INF/lib/jackson-databind-2.9.7.jar",
+      "package_type": "java",
+      "package_version": "2.9.7",
+      "severity": "High",
+      "url": "https://nvd.nist.gov/vuln/detail/CVE-2020-36518",
+      "vendor_data": [],
+      "vuln": "CVE-2020-36518"
+    }
+  ]
+}

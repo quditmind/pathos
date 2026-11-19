@@ -1,0 +1,22 @@
+# Bandit: security linter for Python. Its JSON report is parsed with the
+# PATHOS Bandit import parser (the same code as result imports).
+name: bandit
+display_name: Bandit
+category: sast
+scan_types: [sast]
+license_spdx: Apache-2.0
+homepage: https://github.com/PyCQA/bandit
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/bandit
+version_args: ["--version"]
+# -r: recurse; -q: no progress output; exit 1 means issues were found.
+args: ["-r", "-q", "-f", "json", "-o", "{output}", "{source}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:bandit

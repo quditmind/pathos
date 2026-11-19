@@ -9,6 +9,7 @@ package scanners
 import (
 	"context"
 	"fmt"
+	"slices"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,7 +21,7 @@ import (
 type Scanner struct {
 	Key              string `json:"key"`
 	Name             string `json:"name"`
-	Category         string `json:"category"` // secrets | sast | sca | iac | container | license | dast | malware | binary | supply-chain
+	Category         string `json:"category"` // one of FindingCategories (except eol), or "sbom" for Syft
 	License          string `json:"license_spdx"`
 	Decision         string `json:"decision"` // use | optional | restricted
 	Family           string `json:"worker_family"`
@@ -34,19 +35,44 @@ type Scanner struct {
 	OutputFormat string `json:"output_format"`
 	Homepage     string `json:"homepage"`
 	Notes        string `json:"notes"`
+	// Network is what the tool contacts while it runs: none, target (the
+	// scan target itself, e.g. DAST) or registry (a package or image
+	// registry). Tools that contact a target need the target's
+	// authorization statement.
+	Network string `json:"network"`
+	// Intrusive tools send attack traffic (active scans, fuzzing, SQL
+	// injection probes) and also need the target's "intrusive testing
+	// authorized" flag.
+	Intrusive bool `json:"intrusive"`
+	// ScanTypes are the scan types (ScanTypes) the tool covers; filled from
+	// the scan-type registry.
+	ScanTypes []string `json:"scan_types"`
+	// Targets are what the tool scans (repository, image, url, api,
+	// mobile-app, binary, model); filled by the API (TargetsOf or the
+	// manifest).
+	Targets []string `json:"targets"`
+	// Runnable is set by the API: an online worker advertises the tool.
+	Runnable bool `json:"runnable"`
 }
 
 // FindingCategories are the values of findings.category, in display order.
 // "misconfiguration" findings come from the framework configuration rules
 // (Opengrep rules tagged misconfiguration), "malware" from ClamAV and
 // "binary" from the binary hardening checks, "eol" from end-of-life dates
-// and "supply-chain" from signature verification.
-var FindingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "misconfiguration", "binary", "eol", "supply-chain", "other"}
+// and "supply-chain" from signature verification. The PATHOS 2.0 scan types
+// added api (API security), iast, mobile (MAST), fuzz, crypto, cicd (CI/CD
+// pipelines), ai (AI/LLM), runtime, compliance, database and code-quality
+// (code-quality security); configuration scanning keeps misconfiguration.
+var FindingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "api", "iast", "mobile", "fuzz",
+	"malware", "misconfiguration", "binary", "crypto", "cicd", "ai", "runtime", "compliance", "database", "code-quality",
+	"eol", "supply-chain", "other"}
+
+// IsFindingCategory reports whether c is a value of findings.category.
+func IsFindingCategory(c string) bool { return slices.Contains(FindingCategories, c) }
 
 // FindingCategory maps a scanner category to the findings.category column.
 func (s Scanner) FindingCategory() string {
-	switch s.Category {
-	case "secrets", "sast", "sca", "iac", "container", "license", "dast", "malware", "binary", "eol", "supply-chain":
+	if s.Category != "other" && IsFindingCategory(s.Category) {
 		return s.Category
 	}
 	return "other"
@@ -75,7 +101,7 @@ const (
 )
 
 func s(key, name, cat, lic, decision, family string, opts ...func(*Scanner)) Scanner {
-	sc := Scanner{Key: key, Name: name, Category: cat, License: lic, Decision: decision, Family: family, OutputFormat: "sarif"}
+	sc := Scanner{Key: key, Name: name, Category: cat, License: lic, Decision: decision, Family: family, OutputFormat: "sarif", Network: "none"}
 	for _, o := range opts {
 		o(&sc)
 	}
@@ -95,9 +121,15 @@ var (
 	format    = func(f string) func(*Scanner) { return func(sc *Scanner) { sc.OutputFormat = f } }
 	note      = func(n string) func(*Scanner) { return func(sc *Scanner) { sc.Notes = n } }
 	home      = func(u string) func(*Scanner) { return func(sc *Scanner) { sc.Homepage = u } }
+	// contacts: the tool contacts the scan target (target) or a package,
+	// image or vulnerability-database registry (registry) while it runs.
+	contacts = func(n string) func(*Scanner) { return func(sc *Scanner) { sc.Network = n } }
+	// intrusive tools send attack traffic to the target.
+	intrusive = func(sc *Scanner) { sc.Intrusive, sc.Network = true, "target" }
 )
 
-// Catalog lists every scanner integration (55), in display order.
+// Catalog lists every scanner integration, in display order: 55 here,
+// more appended by the catalog_<family>.go files of the family images.
 var Catalog = []Scanner{
 	s(Gitleaks, "Gitleaks", "secrets", "MIT", "use", "core", core, mandatory, home("https://github.com/gitleaks/gitleaks"), note("Always on; secrets are redacted in reports")),
 	s("trufflehog", "TruffleHog", "secrets", "AGPL-3.0", "use", "secrets", note("Verification mode off by default")),
@@ -106,7 +138,8 @@ var Catalog = []Scanner{
 	s(Opengrep, "Opengrep", "sast", "LGPL-2.1", "use", "core", core, home("https://github.com/opengrep/opengrep"), note("Runs the PATHOS baseline rules plus administrator rule sets")),
 	s("semgrep-ce", "Semgrep CE", "sast", "LGPL-2.1", "optional", "lang", note("Registry rules are license-restricted")),
 	s("codeql", "CodeQL", "sast", "LicenseRef-GitHub-CodeQL-Terms", "restricted", "build", build, note("Free only for OSS/research")),
-	s("bandit", "Bandit", "sast", "Apache-2.0", "use", "lang"),
+	s("bandit", "Bandit", "sast", "Apache-2.0", "use", "sast", available, format("json"), home("https://github.com/PyCQA/bandit"),
+		note("worker-sast image (tool manifest; Bandit JSON parsed with the bandit import parser)")),
 	s("gosec", "Gosec", "sast", "Apache-2.0", "use", "lang"),
 	s("brakeman", "Brakeman", "sast", "LicenseRef-Brakeman", "optional", "lang", note("Verify license before enabling")),
 	s("spotbugs", "SpotBugs + FindSecBugs", "sast", "LGPL-2.1", "optional", "build", build),
@@ -119,14 +152,16 @@ var Catalog = []Scanner{
 	s("phpstan", "PHPStan", "sast", "MIT", "use", "lang"),
 	s("ruff", "Ruff (S rules)", "sast", "MIT", "use", "lang"),
 	s("eslint-security", "ESLint + eslint-plugin-security", "sast", "MIT", "use", "lang"),
-	s("njsscan", "njsscan", "sast", "LGPL-3.0", "use", "lang"),
-	s("mobsfscan", "mobsfscan", "sast", "LGPL-3.0", "use", "lang"),
+	s("njsscan", "njsscan", "sast", "LGPL-3.0-or-later", "use", "sast", available, home("https://github.com/ajinabraham/njsscan"),
+		note("worker-sast image (tool manifest; SARIF)")),
+	s("mobsfscan", "mobsfscan", "mobile", "LGPL-3.0", "use", "lang"),
 	s("sobelow", "Sobelow", "sast", "Apache-2.0", "use", "lang"),
-	s("shellcheck", "ShellCheck", "sast", "GPL-3.0", "use", "lang"),
-	s(TrivyFS, "Trivy (filesystem)", "sca", "Apache-2.0", "use", "core", core, home("https://github.com/aquasecurity/trivy")),
-	s(Grype, "Grype", "sca", "Apache-2.0", "use", "core", core, format("json"), home("https://github.com/anchore/grype"), note("Scans the Syft SBOM")),
-	s(OSVScanner, "OSV-Scanner", "sca", "Apache-2.0", "use", "core", core, home("https://github.com/google/osv-scanner")),
-	s("dependency-check", "OWASP Dependency-Check", "sca", "Apache-2.0", "use", "jvm", note("Needs an NVD API key")),
+	s("shellcheck", "ShellCheck", "code-quality", "GPL-3.0-only", "use", "sast", available, format("json"), home("https://github.com/koalaman/shellcheck"),
+		note("worker-sast image (tool manifest; json1 output mapped with jsonmap)")),
+	s(TrivyFS, "Trivy (filesystem)", "sca", "Apache-2.0", "use", "core", core, contacts("registry"), home("https://github.com/aquasecurity/trivy")),
+	s(Grype, "Grype", "sca", "Apache-2.0", "use", "core", core, contacts("registry"), format("json"), home("https://github.com/anchore/grype"), note("Scans the Syft SBOM")),
+	s(OSVScanner, "OSV-Scanner", "sca", "Apache-2.0", "use", "core", core, contacts("registry"), home("https://github.com/google/osv-scanner")),
+	s("dependency-check", "OWASP Dependency-Check", "sca", "Apache-2.0", "use", "jvm", contacts("registry"), note("Needs an NVD API key")),
 	s("retirejs", "Retire.js", "sca", "Apache-2.0", "use", "lang"),
 	s("govulncheck", "govulncheck", "sca", "BSD-3-Clause", "use", "lang"),
 	s("pip-audit", "pip-audit", "sca", "Apache-2.0", "use", "lang"),
@@ -141,10 +176,10 @@ var Catalog = []Scanner{
 	s("conftest", "Conftest", "iac", "Apache-2.0", "use", "iac"),
 	s("hadolint", "Hadolint", "iac", "GPL-3.0", "use", "iac"),
 	s("dockle", "Dockle", "container", "Apache-2.0", "use", "container"),
-	s(TrivyImage, "Trivy (image)", "container", "Apache-2.0", "use", "core", target, home("https://github.com/aquasecurity/trivy"), note("Runs for container image targets")),
+	s(TrivyImage, "Trivy (image)", "container", "Apache-2.0", "use", "core", target, contacts("registry"), home("https://github.com/aquasecurity/trivy"), note("Runs for container image targets")),
 	s(Actionlint, "actionlint", "iac", "MIT", "use", "core", core, format("json"), home("https://github.com/rhysd/actionlint"), note("GitHub Actions workflow checks (script injection, syntax, types); runs only when the repository has workflows")),
 	s(Zizmor, "zizmor", "iac", "MIT", "use", "core", core, home("https://github.com/zizmorcore/zizmor"), note("GitHub Actions workflow security; runs offline and only when the repository has workflows")),
-	s("scorecard", "OpenSSF Scorecard", "supply-chain", "Apache-2.0", "use", "supply-chain"),
+	s("scorecard", "OpenSSF Scorecard", "supply-chain", "Apache-2.0", "use", "supply-chain", contacts("registry")),
 	s("scancode", "ScanCode Toolkit", "license", "Apache-2.0", "use", "license"),
 	s("trivy-license", "Trivy (license)", "license", "Apache-2.0", "use", "license"),
 	s(LicenseCheck, "File licences (licensecheck)", "license", "BSD-3-Clause", "use", "core", core, format("json"), home("https://github.com/google/licensecheck"),
@@ -153,15 +188,55 @@ var Catalog = []Scanner{
 		note("Opt-in: streams every repository file to the clamd service; skipped when PATHOS_CLAMAV_ADDRESS is not set for the worker")),
 	s(BinaryHardening, "Binary hardening (checksec)", "binary", "Apache-2.0", "use", "core", available, format("json"),
 		note("Built into the worker: PIE, RELRO, stack canaries, NX, FORTIFY_SOURCE, RPATH (ELF), ASLR, DEP, CFG, SafeSEH (PE), Mach-O flags; always runs for build artifacts, optional for repositories")),
-	s("zap", "OWASP ZAP", "dast", "Apache-2.0", "use", "dast", note("Targets a URL, not a repository")),
-	s(Nuclei, "Nuclei", "dast", "MIT", "use", "core", target, format("jsonl"), home("https://github.com/projectdiscovery/nuclei"), note("Runs for authorized web application and API targets; non-intrusive templates only")),
-	s("schemathesis", "Schemathesis", "dast", "MIT", "use", "dast"),
+	s("zap", "OWASP ZAP", "dast", "Apache-2.0", "use", "dast", intrusive, note("Targets a URL, not a repository; the active scan is intrusive")),
+	s(Nuclei, "Nuclei", "dast", "MIT", "use", "core", target, format("jsonl"), contacts("target"), home("https://github.com/projectdiscovery/nuclei"), note("Runs for authorized web application and API targets; non-intrusive templates only")),
+	s("schemathesis", "Schemathesis", "api", "MIT", "use", "dast", intrusive, note("Property-based API testing (sends generated requests to the API)")),
 	s("kube-bench", "kube-bench", "iac", "Apache-2.0", "optional", "cluster", note("Cluster target")),
 }
 
 // Syft is an SBOM utility run alongside Grype; it is not a finding source.
-var SyftUtility = Scanner{Key: Syft, Name: "Syft", Category: "sbom", License: "Apache-2.0", Decision: "use", Family: "core",
+var SyftUtility = Scanner{Key: Syft, Name: "Syft", Category: "sbom", License: "Apache-2.0", Decision: "use", Family: "core", Network: "none",
 	AdapterAvailable: true, OutputFormat: "cyclonedx-json", Homepage: "https://github.com/anchore/syft", Notes: "SBOM generation (CycloneDX)"}
+
+// TargetsOf returns what a catalog tool scans (the targets of a tool
+// manifest): repository for repository scanners, otherwise the scan target
+// kinds it runs for.
+func TargetsOf(sc Scanner) []string {
+	if len(sc.Targets) > 0 {
+		return sc.Targets
+	}
+	if !sc.TargetOnly {
+		if sc.Network == "target" {
+			return []string{"url", "api"}
+		}
+		return []string{"repository"}
+	}
+	out := []string{}
+	add := func(t string) {
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
+	}
+	for _, kind := range []string{"image", "url", "api", "artifact", "endpoints"} {
+		if !slices.Contains(TargetScanners[kind], sc.Key) {
+			continue
+		}
+		switch kind {
+		case "artifact":
+			add("binary")
+		case "endpoints":
+			add("url")
+		default:
+			add(kind)
+		}
+	}
+	// Family-image tools for web and API targets (worker-dast): their
+	// manifests narrow this when a worker registers them.
+	if len(out) == 0 && sc.Network == "target" {
+		return []string{"url", "api"}
+	}
+	return out
+}
 
 // Lookup returns a catalog entry.
 // TargetScanners maps a scan target kind to the scanners that run for it.
@@ -209,16 +284,19 @@ func Sync(ctx context.Context, pool *pgxpool.Pool) error {
 		for i, sc := range all {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO scanner_catalog (key, name, category, license_spdx, decision, worker_family, requires_build,
-				  mandatory, adapter_available, default_enabled, output_format, homepage, notes, sort_order)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+				  mandatory, adapter_available, default_enabled, output_format, homepage, notes, sort_order,
+				  scan_types, targets, network, intrusive)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 				ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, category = EXCLUDED.category,
 				  license_spdx = EXCLUDED.license_spdx, decision = EXCLUDED.decision, worker_family = EXCLUDED.worker_family,
 				  requires_build = EXCLUDED.requires_build, mandatory = EXCLUDED.mandatory,
 				  adapter_available = EXCLUDED.adapter_available, default_enabled = EXCLUDED.default_enabled,
 				  output_format = EXCLUDED.output_format, homepage = EXCLUDED.homepage, notes = EXCLUDED.notes,
-				  sort_order = EXCLUDED.sort_order`,
+				  sort_order = EXCLUDED.sort_order, scan_types = EXCLUDED.scan_types, targets = EXCLUDED.targets,
+				  network = EXCLUDED.network, intrusive = EXCLUDED.intrusive`,
 				sc.Key, sc.Name, sc.Category, sc.License, sc.Decision, sc.Family, sc.RequiresBuild, sc.Mandatory,
-				sc.AdapterAvailable, sc.DefaultEnabled, sc.OutputFormat, sc.Homepage, sc.Notes, i); err != nil {
+				sc.AdapterAvailable, sc.DefaultEnabled, sc.OutputFormat, sc.Homepage, sc.Notes, i,
+				ScanTypesOf(sc.Key), TargetsOf(sc), sc.Network, sc.Intrusive); err != nil {
 				return fmt.Errorf("sync scanner %s: %w", sc.Key, err)
 			}
 		}

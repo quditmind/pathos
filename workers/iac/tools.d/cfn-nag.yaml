@@ -1,0 +1,21 @@
+# cfn_nag: security checks of CloudFormation templates. The cfn-nag-tree
+# helper runs cfn_nag_scan on each template and prints one JSON array.
+name: cfn-nag
+display_name: cfn_nag
+category: iac
+scan_types: [iac]
+license_spdx: MIT
+homepage: https://github.com/stelligent/cfn_nag
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/cfn-nag-tree
+version_args: ["--version"]
+args: ["{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:cfn-nag

@@ -1,0 +1,123 @@
+{
+  "runs": [
+    {
+      "results": [
+        {
+          "fixes": [],
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "endColumn": 24,
+                  "endLine": 13,
+                  "startColumn": 12,
+                  "startLine": 13
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "pickle.loads is not safe for deserializing unstrusted data"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "ba63ae889eb93cc2ed44baf4f8e6f4469005c28cde85e0d99df6caa2ec623026"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:SECURITY",
+              "CWE:502"
+            ]
+          },
+          "ruleId": "python-security/deserialize-untrusted-data",
+          "ruleIndex": 0
+        },
+        {
+          "fixes": [],
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app.py"
+                },
+                "region": {
+                  "endColumn": 64,
+                  "endLine": 10,
+                  "startColumn": 25,
+                  "startLine": 10
+                }
+              }
+            }
+          ],
+          "message": {
+            "text": "Potential SQL injection"
+          },
+          "partialFingerprints": {
+            "DATADOG_FINGERPRINT": "87ff7edd61783ef7dcd9fa72b60709bec5617b2a9f17be840fc362eaf0a4da27"
+          },
+          "properties": {
+            "tags": [
+              "DATADOG_CATEGORY:SECURITY",
+              "CWE:89"
+            ]
+          },
+          "ruleId": "python-security/variable-sql-statement-injection",
+          "ruleIndex": 1
+        }
+      ],
+      "tool": {
+        "driver": {
+          "informationUri": "https://www.datadoghq.com",
+          "name": "datadog-static-analyzer",
+          "properties": {
+            "tags": [
+              "DATADOG_DIFF_AWARE_CONFIG_DIGEST:f858fb6f75ad0306302915935fac4704e1a87313a93944b0cf809f035a312bc9",
+              "DATADOG_EXECUTION_TIME_SECS:0",
+              "DATADOG_DIFF_AWARE_ENABLED:false"
+            ]
+          },
+          "rules": [
+            {
+              "fullDescription": {
+                "text": "Do not deserialize untrusted data. Make sure you use alternatives to check that the data can be deserialized safely. There is no workaround around this: unless you **really** trust the data source, it's better to use another way to exchange data, such as an API or other protocols such as [protobuf](https://developers.google.com/protocol-buffers) or [thrift](https://thrift.apache.org/).\n\n### Learn More\n\n - [Unsafe Deserialization in Python (CWE-502)](https://www.codiga.io/blog/python-unsafe-deserialization/)\n\n - [CWE-502: Deserialization of Untrusted Data](https://cwe.mitre.org/data/definitions/502.html)"
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/python-security/deserialize-untrusted-data",
+              "id": "python-security/deserialize-untrusted-data",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS",
+                  "CWE:502"
+                ]
+              },
+              "shortDescription": {
+                "text": "avoid unsafe function to (de)serialize data"
+              }
+            },
+            {
+              "fullDescription": {
+                "text": "In Python, SQL injection is a code injection technique used to attack data-driven applications. This vulnerability occurs when an attacker can insert a SQL query through the input data from the client to the application. This is aimed at preventing SQL injection vulnerability.\n\nPreventing SQL injections is critical because they can lead to the exposure of confidential information, loss of data integrity, and other serious database-related issues. If an attacker successfully performs a SQL injection, they might gain unauthorized access to sensitive data, including passwords, credit card numbers, or personal user information.\n\n## How to remediate\n\nTo avoid SQL injections, use parameterized queries or prepared statements instead of building SQL commands using string format or concatenation. \n\nFor example, instead of writing a query as:\n\n```python\ncursor.execute(\"SELECT * FROM table WHERE column = '%s'\" % value)\n```\n\nYou can use \n```python\ncursor.execute(\"SELECT * FROM table WHERE column = ?\", (value,))\n```\n\nThis way, the value is automatically escaped properly by the database driver, thus preventing SQL injection. Also, always validate and sanitize user inputs to ensure they do not contain SQL code."
+              },
+              "helpUri": "https://docs.datadoghq.com/static_analysis/rules/python-security/variable-sql-statement-injection",
+              "id": "python-security/variable-sql-statement-injection",
+              "properties": {
+                "tags": [
+                  "DATADOG_RULE_TYPE:STATIC_ANALYSIS",
+                  "CWE:89"
+                ]
+              },
+              "shortDescription": {
+                "text": "Avoid SQL injections"
+              }
+            }
+          ],
+          "version": "0.7.3"
+        }
+      }
+    }
+  ],
+  "version": "2.1.0"
+}

@@ -1,0 +1,49 @@
+{
+  "totalCount": 2,
+  "items": [
+    {
+      "componentName": "Apache Commons Text",
+      "componentVersionName": "1.9",
+      "componentVersion": "https://blackduck.example/api/components/0a1b/versions/2c3d",
+      "componentVersionOriginName": "maven",
+      "componentVersionOriginId": "org.apache.commons:commons-text:1.9",
+      "ignored": false,
+      "license": {"type": "CONJUNCTIVE", "licenses": [{"licenseDisplay": "Apache License 2.0", "spdxId": "Apache-2.0"}]},
+      "vulnerabilityWithRemediation": {
+        "vulnerabilityName": "BDSA-2022-2729",
+        "description": "Apache Commons Text is vulnerable to remote code execution (RCE) when untrusted input is passed to the StringSubstitutor interpolation.",
+        "vulnerabilityPublishedDate": "2022-10-13T00:00:00.000Z",
+        "vulnerabilityUpdatedDate": "2023-01-10T00:00:00.000Z",
+        "baseScore": 9.8,
+        "overallScore": 9.8,
+        "exploitabilitySubscore": 3.9,
+        "impactSubscore": 5.9,
+        "source": "BDSA",
+        "severity": "CRITICAL",
+        "remediationStatus": "NEW",
+        "cweId": "CWE-94",
+        "relatedVulnerability": "https://blackduck.example/api/vulnerabilities/CVE-2022-42889",
+        "remediationCreatedAt": "2026-10-01T10:00:00.000Z",
+        "remediationUpdatedAt": "2026-10-01T10:00:00.000Z"
+      },
+      "_meta": {"href": "https://blackduck.example/api/projects/1/versions/2/vulnerable-bom-components/3", "links": []}
+    },
+    {
+      "componentName": "lodash",
+      "componentVersionName": "4.17.20",
+      "componentVersionOriginName": "npmjs",
+      "componentVersionOriginId": "lodash/4.17.20",
+      "vulnerabilityWithRemediation": {
+        "vulnerabilityName": "CVE-2021-23337",
+        "description": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+        "baseScore": 7.2,
+        "overallScore": 7.2,
+        "source": "NVD",
+        "severity": "HIGH",
+        "remediationStatus": "IGNORED",
+        "cweId": "CWE-77"
+      },
+      "_meta": {"href": "https://blackduck.example/api/projects/1/versions/2/vulnerable-bom-components/4"}
+    }
+  ]
+}

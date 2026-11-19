@@ -1,0 +1,69 @@
+[
+  {
+    "id": 21581,
+    "asset_id": 60,
+    "name": "Cross-site scripting (reflected)",
+    "location": "https://shop.example.test/search",
+    "location_specifier_id": 1904,
+    "asset_name": "Shop",
+    "label": "",
+    "status": "open",
+    "pci_compliance_status": "fail",
+    "date_opened": "2026-10-05 14:53:43 UTC",
+    "date_closed": null,
+    "risk": 3,
+    "severity": 3,
+    "threat": 4,
+    "layer": "application",
+    "remediation": "Encode user input before writing it to the page.",
+    "description": "The q parameter is reflected without encoding.",
+    "cwes": [
+      "CWE-79"
+    ],
+    "cves": [],
+    "pci_exception": "none",
+    "cvss_score": 6.1,
+    "cvss_vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N",
+    "cvss_version": 3,
+    "asset_tags": "prod,web"
+  },
+  {
+    "id": 21582,
+    "asset_id": 61,
+    "name": "OpenSSH regreSSHion",
+    "location": "203.0.113.20",
+    "asset_name": "Bastion",
+    "status": "open",
+    "date_opened": "2026-10-06 09:00:00 UTC",
+    "date_closed": null,
+    "severity": 5,
+    "layer": "network",
+    "remediation": "Upgrade OpenSSH.",
+    "description": "Remote code execution in sshd.",
+    "cwes": [
+      "CWE-364"
+    ],
+    "cves": [
+      "CVE-2024-6387"
+    ],
+    "cvss_score": 8.1,
+    "cvss_vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+    "cvss_version": 3
+  },
+  {
+    "id": 21583,
+    "asset_id": 60,
+    "name": "Directory listing",
+    "location": "https://shop.example.test/static/",
+    "asset_name": "Shop",
+    "status": "closed",
+    "date_opened": "2026-08-01 09:00:00 UTC",
+    "date_closed": "2026-09-01 09:00:00 UTC",
+    "severity": 2,
+    "layer": "application",
+    "cwes": [
+      "CWE-548"
+    ],
+    "cves": []
+  }
+]

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "SonarLint",
+          "version": "10.6.0",
+          "rules": [
+            {
+              "id": "csharpsquid:S2077",
+              "shortDescription": {
+                "text": "Formatting SQL queries is security-sensitive"
+              },
+              "properties": {
+                "tags": [
+                  "cwe",
+                  "sql"
+                ]
+              }
+            },
+            {
+              "id": "csharpsquid:S4790",
+              "shortDescription": {
+                "text": "Using weak hashing algorithms is security-sensitive"
+              },
+              "properties": {
+                "tags": [
+                  "cwe"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "csharpsquid:S2077",
+          "level": "warning",
+          "message": {
+            "text": "Make sure using a dynamically formatted SQL query is safe here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/App.cs"
+                },
+                "region": {
+                  "startLine": 12
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "csharpsquid:S4790",
+          "level": "warning",
+          "message": {
+            "text": "Make sure this weak hash algorithm is not used in a sensitive context here."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/App.cs"
+                },
+                "region": {
+                  "startLine": 18
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

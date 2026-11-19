@@ -55,7 +55,11 @@ def expectations():
 
 
 def run_opengrep():
-    rule_files = sorted(f for f in os.listdir(RULES) if f.startswith("pathos-misconfig-") and f.endswith(".yml"))
+    # Every PATHOS rule pack with fixtures: the framework configuration
+    # rules and the crypto, database, AI and CI/CD packs (the baseline rules
+    # have no fixtures).
+    rule_files = sorted(f for f in os.listdir(RULES)
+                        if f.startswith("pathos-") and f.endswith(".yml") and f != "pathos-baseline.yml")
     binary = os.environ.get("OPENGREP") or shutil.which("opengrep")
     if binary:
         cmd = [binary, "scan", "--json", "--quiet", "--disable-version-check"]

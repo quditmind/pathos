@@ -1,0 +1,81 @@
+{
+  "summary": {
+    "types": {
+      "filecontent": 28,
+      "filesize": 0,
+      "filename": 3,
+      "warnings": 0,
+      "ignores": 0
+    }
+  },
+  "results": [
+    {
+      "filename": "config/app.env",
+      "failure_list": [
+        {
+          "type": "filename",
+          "message": "The file name \"config/app.env\" failed checks against the pattern \\.?env",
+          "commits": [
+            "40801ee236afa282300010808cd0bbfca3f6af68"
+          ],
+          "severity": "low"
+        },
+        {
+          "type": "filecontent",
+          "message": "Expected file to not contain base64 encoded texts such as: SLACK_WEBHOOK=https://hooks.slack.com/services/...",
+          "commits": [],
+          "severity": "high"
+        },
+        {
+          "type": "filecontent",
+          "message": "Expected file to not contain base64 encoded texts such as: AWS_SECRET_ACCESS_KEY=jp1vRt/1fjORS+6ilI8ihN5KX...",
+          "commits": [],
+          "severity": "high"
+        },
+        {
+          "type": "filecontent",
+          "message": "Potential secret pattern : STRIPE_KEY=sk_live_FIXTURE_NOT_A_REAL_KEY_",
+          "commits": [
+            "40801ee236afa282300010808cd0bbfca3f6af68"
+          ],
+          "severity": "low"
+        }
+      ],
+      "warning_list": [],
+      "ignore_list": []
+    },
+    {
+      "filename": "config/id_rsa",
+      "failure_list": [
+        {
+          "type": "filename",
+          "message": "The file name \"config/id_rsa\" failed checks against the pattern ^.+_rsa$",
+          "commits": [
+            "40801ee236afa282300010808cd0bbfca3f6af68"
+          ],
+          "severity": "high"
+        },
+        {
+          "type": "filecontent",
+          "message": "Expected file to not contain base64 encoded texts such as: SA1xOxmpxzJBX0McVTp3F3P8fgNk7uNTDvXAusFzprrm7rj...",
+          "commits": [],
+          "severity": "high"
+        },
+        {
+          "type": "filecontent",
+          "message": "Expected file to not contain base64 encoded texts such as: KJxBkSib7UYG35DT+apxWZICtYDO5Q2P+RrKrNVW5sePmDE...",
+          "commits": [],
+          "severity": "high"
+        },
+        {
+          "type": "filecontent",
+          "message": "Expected file to not contain base64 encoded texts such as: Ke43c8m8/qhnpi7yVGq/uuNaZTvl3MLPIrJjNzVdCHM7ycx...",
+          "commits": [],
+          "severity": "high"
+        }
+      ],
+      "warning_list": [],
+      "ignore_list": []
+    }
+  ]
+}

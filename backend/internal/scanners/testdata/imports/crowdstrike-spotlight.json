@@ -1,0 +1,101 @@
+{
+  "meta": {
+    "query_time": 0.04,
+    "pagination": {
+      "limit": 400,
+      "total": 2,
+      "after": ""
+    },
+    "powered_by": "spapi",
+    "trace_id": "00000000-0000-0000-0000-000000000000"
+  },
+  "resources": [
+    {
+      "id": "aid0000000000000000000000000001_spotlightvuln0000000000000001",
+      "cid": "cid00000000000000000000000000001",
+      "aid": "aid0000000000000000000000000001",
+      "created_timestamp": "2026-10-15T09:24:11Z",
+      "updated_timestamp": "2026-11-01T11:02:44Z",
+      "status": "open",
+      "apps": [
+        {
+          "product_name_version": "OpenSSH 8.9p1",
+          "product_name_normalized": "OpenSSH",
+          "vendor_normalized": "OpenBSD",
+          "sub_status": "open",
+          "remediation": {
+            "ids": [
+              "rem0001"
+            ]
+          }
+        }
+      ],
+      "suppression_info": {
+        "is_suppressed": false
+      },
+      "cve": {
+        "id": "CVE-2024-6387",
+        "base_score": 8.1,
+        "severity": "HIGH",
+        "exploit_status": 90,
+        "exprt_rating": "CRITICAL",
+        "remediation_level": "O",
+        "description": "A signal handler race condition was found in OpenSSH's server (sshd).",
+        "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "references": [
+          "https://nvd.nist.gov/vuln/detail/CVE-2024-6387"
+        ],
+        "cwes": [
+          "CWE-364"
+        ],
+        "cisa_info": {
+          "is_cisa_kev": false
+        },
+        "published_date": "2024-07-01T13:15:00Z"
+      },
+      "host_info": {
+        "hostname": "bastion-01",
+        "local_ip": "10.0.1.15",
+        "machine_domain": "example.test",
+        "os_version": "Ubuntu 22.04",
+        "platform": "Linux",
+        "product_type_desc": "Server",
+        "tags": [
+          "SensorGroupingTags/prod"
+        ]
+      },
+      "remediation": {
+        "entities": [
+          {
+            "id": "rem0001",
+            "reference": "openssh-server",
+            "title": "Update OpenSSH",
+            "action": "Upgrade openssh-server to 1:8.9p1-3ubuntu0.10",
+            "link": "https://ubuntu.com/security/CVE-2024-6387"
+          }
+        ]
+      }
+    },
+    {
+      "id": "aid0000000000000000000000000002_spotlightvuln0000000000000002",
+      "aid": "aid0000000000000000000000000002",
+      "status": "closed",
+      "apps": [
+        {
+          "product_name_version": "Google Chrome 126.0"
+        }
+      ],
+      "cve": {
+        "id": "CVE-2024-6100",
+        "base_score": 8.8,
+        "severity": "HIGH"
+      },
+      "host_info": {
+        "hostname": "laptop-17",
+        "local_ip": "10.0.5.17",
+        "platform": "Windows"
+      }
+    }
+  ],
+  "errors": []
+}

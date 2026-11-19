@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -259,6 +260,32 @@ func TestContentScanning(t *testing.T) {
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM repository_file_licenses WHERE repository_id = $1`, repo).Scan(&files)
 	if files != 0 {
 		t.Errorf("file licence inventory replaced by the latest run: %d", files)
+	}
+
+	// cdxgen (worker-sca) is an SBOM generator like Syft: its CycloneDX
+	// output replaces the component inventory and is stored as the SBOM
+	// artifact, without findings.
+	third := map[string]any{"cdxgen": sbom(comp("cdxlib", "4.0.0", "MIT"), comp("gpllib", "3.0.0", "GPL-3.0-only"))}
+	cdxJob := runScan(third)
+	var names []string
+	rows, err := appPool.Query(ctx, `SELECT name FROM sbom_components WHERE repository_id = $1 ORDER BY name`, repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for rows.Next() {
+		var n string
+		_ = rows.Scan(&n)
+		names = append(names, n)
+	}
+	rows.Close()
+	if strings.Join(names, ",") != "cdxlib,gpllib" {
+		t.Errorf("cdxgen SBOM replaces the inventory: %v", names)
+	}
+	var kind string
+	var cdxFindings int
+	if err := appPool.QueryRow(ctx, `SELECT a.kind, r.findings_count FROM scan_results r JOIN scan_artifacts a ON a.scan_result_id = r.id
+		WHERE r.scan_job_id = $1 AND r.scanner_key = 'cdxgen'`, cdxJob).Scan(&kind, &cdxFindings); err != nil || kind != "sbom" || cdxFindings != 0 {
+		t.Errorf("cdxgen result: kind %q, %d findings, %v", kind, cdxFindings, err)
 	}
 
 	// Category filters elsewhere accept the new categories.

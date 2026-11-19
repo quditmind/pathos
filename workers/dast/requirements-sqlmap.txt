@@ -1,0 +1,4 @@
+# sqlmap (opt-in build: WITH_SQLMAP=true, see the Dockerfile), hash-pinned.
+sqlmap==1.10.11 \
+    --hash=sha256:223a0dda06eadb8eb8a06d2e9ef90281919fdc2203d9cf5979da3311d6af440a \
+    --hash=sha256:b9f4f09a7c7fc044c359b8df2c4c12c565ec87049b7c07d3a176a67928df287f

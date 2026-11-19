@@ -1,0 +1,114 @@
+{
+  "Controls": [
+    {
+      "id": "4",
+      "version": "cis-1.6",
+      "detected_version": "1.18",
+      "text": "Worker Node Security Configuration",
+      "node_type": "node",
+      "tests": [
+        {
+          "section": "4.1",
+          "type": "",
+          "pass": 1,
+          "fail": 1,
+          "warn": 1,
+          "info": 0,
+          "desc": "Worker Node Configuration Files",
+          "results": [
+            {
+              "test_number": "4.1.1",
+              "test_desc": "Ensure that the kubelet service file permissions are set to 644 or more restrictive (Automated)",
+              "audit": "/bin/sh -c 'if test -e /etc/systemd/system/kubelet.service.d/10-kubeadm.conf; then stat -c permissions=%a /etc/systemd/system/kubelet.service.d/10-kubeadm.conf; fi' ",
+              "AuditEnv": "",
+              "AuditConfig": "",
+              "type": "",
+              "remediation": "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchmod 644 /etc/systemd/system/kubelet.service.d/10-kubeadm.conf\n",
+              "test_info": [
+                "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchmod 644 /etc/systemd/system/kubelet.service.d/10-kubeadm.conf\n"
+              ],
+              "status": "FAIL",
+              "actual_value": "",
+              "scored": true,
+              "IsMultiple": false,
+              "expected_result": "'permissions' is present"
+            },
+            {
+              "test_number": "4.1.2",
+              "test_desc": "Ensure that the kubelet service file ownership is set to root:root (Automated)",
+              "audit": "/bin/sh -c \"if test -e /etc/systemd/system/kubelet.service.d/10-kubeadm.conf; then stat -c %U:%G /etc/systemd/system/kubelet.service.d/10-kubeadm.conf; else echo \\\"File not found\\\"; fi\"",
+              "AuditEnv": "",
+              "AuditConfig": "",
+              "type": "",
+              "remediation": "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchown root:root /etc/systemd/system/kubelet.service.d/10-kubeadm.conf\n",
+              "test_info": [
+                "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchown root:root /etc/systemd/system/kubelet.service.d/10-kubeadm.conf\n"
+              ],
+              "status": "PASS",
+              "actual_value": "File not found",
+              "scored": true,
+              "IsMultiple": false,
+              "expected_result": "'root:root' is present OR 'File not found' is present"
+            },
+            {
+              "test_number": "4.1.6",
+              "test_desc": "Ensure that the --kubeconfig kubelet.conf file ownership is set to root:root (Manual)",
+              "audit": "/bin/sh -c 'if test -e /etc/kubernetes/kubelet.conf; then stat -c %U:%G /etc/kubernetes/kubelet.conf; fi' ",
+              "AuditEnv": "",
+              "AuditConfig": "",
+              "type": "",
+              "remediation": "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchown root:root /etc/kubernetes/kubelet.conf\n",
+              "test_info": [
+                "Run the below command (based on the file location on your system) on the each worker node.\nFor example,\nchown root:root /etc/kubernetes/kubelet.conf\n"
+              ],
+              "status": "WARN",
+              "actual_value": "",
+              "scored": false,
+              "IsMultiple": false,
+              "expected_result": "'root:root' is present"
+            }
+          ]
+        },
+        {
+          "section": "4.2",
+          "type": "",
+          "pass": 0,
+          "fail": 1,
+          "warn": 0,
+          "info": 0,
+          "desc": "Kubelet",
+          "results": [
+            {
+              "test_number": "4.2.1",
+              "test_desc": "Ensure that the anonymous-auth argument is set to false (Automated)",
+              "audit": "/bin/ps -fC $kubeletbin",
+              "AuditEnv": "",
+              "AuditConfig": "/bin/cat /var/lib/kubelet/config.yaml",
+              "type": "",
+              "remediation": "If using a Kubelet config file, edit the file to set authentication: anonymous: enabled to\nfalse.\nIf using executable arguments, edit the kubelet service file\n/etc/systemd/system/kubelet.service.d/10-kubeadm.conf on each worker node and\nset the below parameter in KUBELET_SYSTEM_PODS_ARGS variable.\n--anonymous-auth=false\nBased on your system, restart the kubelet service. For example:\nsystemctl daemon-reload\nsystemctl restart kubelet.service\n",
+              "test_info": [
+                "If using a Kubelet config file, edit the file to set authentication: anonymous: enabled to\nfalse.\nIf using executable arguments, edit the kubelet service file\n/etc/systemd/system/kubelet.service.d/10-kubeadm.conf on each worker node and\nset the below parameter in KUBELET_SYSTEM_PODS_ARGS variable.\n--anonymous-auth=false\nBased on your system, restart the kubelet service. For example:\nsystemctl daemon-reload\nsystemctl restart kubelet.service\n"
+              ],
+              "status": "FAIL",
+              "actual_value": "",
+              "scored": true,
+              "IsMultiple": false,
+              "expected_result": "",
+              "reason": "failed to run: \"/bin/ps -fC $kubeletbin\", output: \"error: list of command names must follow -C\\n\\nUsage:\\n ps [options]\\n\\n Try 'ps --help <simple|list|output|threads|misc|all>'\\n  or 'ps --help <s|l|o|t|m|a>'\\n for additional help text.\\n\\nFor more details see ps(1).\\n\", error: exit status 1"
+            }
+          ]
+        }
+      ],
+      "total_pass": 1,
+      "total_fail": 2,
+      "total_warn": 1,
+      "total_info": 0
+    }
+  ],
+  "Totals": {
+    "total_pass": 1,
+    "total_fail": 2,
+    "total_warn": 1,
+    "total_info": 0
+  }
+}

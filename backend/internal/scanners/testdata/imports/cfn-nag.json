@@ -1,0 +1,55 @@
+[
+  {
+    "filename": "cfn/template.yaml",
+    "file_results": {
+      "failure_count": 1,
+      "violations": [
+        {
+          "id": "W31",
+          "name": "S3BucketPublicReadAclRule",
+          "type": "WARN",
+          "message": "S3 Bucket likely should not have a public read acl",
+          "logical_resource_ids": [
+            "Bucket"
+          ],
+          "line_numbers": [
+            4
+          ],
+          "element_types": [
+            "resource"
+          ]
+        },
+        {
+          "id": "F1000",
+          "name": "SecurityGroupMissingEgressRule",
+          "type": "FAIL",
+          "message": "Missing egress rule means all traffic is allowed outbound.  Make this explicit if it is desired configuration",
+          "logical_resource_ids": [
+            "SG"
+          ],
+          "line_numbers": [
+            8
+          ],
+          "element_types": [
+            "resource"
+          ]
+        },
+        {
+          "id": "W9",
+          "name": "SecurityGroupIngressCidrNon32Rule",
+          "type": "WARN",
+          "message": "Security Groups found with ingress cidr that is not /32",
+          "logical_resource_ids": [
+            "SG"
+          ],
+          "line_numbers": [
+            8
+          ],
+          "element_types": [
+            "resource"
+          ]
+        }
+      ]
+    }
+  }
+]

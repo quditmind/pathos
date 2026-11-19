@@ -1,0 +1,71 @@
+{
+  "version": "1.2",
+  "meta": {
+    "application": "Dependency-Track",
+    "version": "4.12.0",
+    "timestamp": "2026-10-01T10:00:00Z",
+    "baseUrl": "https://dtrack.example"
+  },
+  "project": {
+    "uuid": "1f8b3a3e-2c76-4fa0-a1c5-0d5e7f6a8b9c",
+    "name": "shop-api",
+    "version": "1.0.0",
+    "description": "Shop backend"
+  },
+  "findings": [
+    {
+      "component": {
+        "uuid": "9a0c5f71-7c51-4c3f-8bb1-6f5c40d6e2a1",
+        "name": "log4j-core",
+        "group": "org.apache.logging.log4j",
+        "version": "2.14.1",
+        "purl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1?type=jar",
+        "project": "1f8b3a3e-2c76-4fa0-a1c5-0d5e7f6a8b9c"
+      },
+      "vulnerability": {
+        "uuid": "0d8b6a36-6a3d-4f1a-8b4f-4a2c0f1d9e11",
+        "source": "NVD",
+        "vulnId": "CVE-2021-44228",
+        "title": "Log4Shell",
+        "description": "Apache Log4j2 JNDI features do not protect against attacker controlled LDAP and other JNDI related endpoints.",
+        "recommendation": "Upgrade to 2.17.1 or later.",
+        "severity": "CRITICAL",
+        "severityRank": 0,
+        "cweId": 502,
+        "cweName": "Deserialization of Untrusted Data",
+        "cwes": [{"cweId": 502, "name": "Deserialization of Untrusted Data"}, {"cweId": 917, "name": "Expression Language Injection"}],
+        "cvssV3BaseScore": 10.0,
+        "cvssV3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H",
+        "aliases": [{"cveId": "CVE-2021-44228", "ghsaId": "GHSA-jfh8-c2jp-5v3q"}]
+      },
+      "analysis": {"state": "EXPLOITABLE", "isSuppressed": false},
+      "attribution": {"analyzerIdentity": "INTERNAL_ANALYZER", "attributedOn": "2026-10-01T10:00:00Z"},
+      "matrix": "1f8b3a3e-2c76-4fa0-a1c5-0d5e7f6a8b9c:9a0c5f71-7c51-4c3f-8bb1-6f5c40d6e2a1:0d8b6a36-6a3d-4f1a-8b4f-4a2c0f1d9e11"
+    },
+    {
+      "component": {
+        "uuid": "3e2d1c0b-aaaa-4bbb-8ccc-000000000002",
+        "name": "minimist",
+        "version": "1.2.5",
+        "purl": "pkg:npm/minimist@1.2.5",
+        "project": "1f8b3a3e-2c76-4fa0-a1c5-0d5e7f6a8b9c"
+      },
+      "vulnerability": {
+        "uuid": "5b4a3c2d-bbbb-4ccc-8ddd-000000000003",
+        "source": "GITHUB",
+        "vulnId": "GHSA-xvch-5gv4-984h",
+        "title": "Prototype Pollution in minimist",
+        "description": "Minimist prior to 1.2.6 and 0.2.4 is vulnerable to Prototype Pollution.",
+        "severity": "CRITICAL",
+        "severityRank": 0,
+        "cwes": [{"cweId": 1321, "name": "Prototype Pollution"}],
+        "cvssV3BaseScore": 9.8,
+        "cvssV3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+        "aliases": [{"cveId": "CVE-2021-44906", "ghsaId": "GHSA-xvch-5gv4-984h"}]
+      },
+      "analysis": {"state": "FALSE_POSITIVE", "isSuppressed": true},
+      "attribution": {"analyzerIdentity": "OSSINDEX_ANALYZER", "attributedOn": "2026-10-01T10:00:00Z"},
+      "matrix": "1f8b3a3e-2c76-4fa0-a1c5-0d5e7f6a8b9c:3e2d1c0b-aaaa-4bbb-8ccc-000000000002:5b4a3c2d-bbbb-4ccc-8ddd-000000000003"
+    }
+  ]
+}

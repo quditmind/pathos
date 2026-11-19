@@ -1,0 +1,78 @@
+{
+  "date": "2026-11-19T06:45:42Z",
+  "repo": {
+    "name": "file://.",
+    "commit": "unknown"
+  },
+  "scorecard": {
+    "version": "v5.7.0",
+    "commit": "unknown"
+  },
+  "score": 2.4,
+  "checks": [
+    {
+      "details": null,
+      "score": 10,
+      "reason": "no binaries found in the repo",
+      "name": "Binary-Artifacts",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#binary-artifacts",
+        "short": "Determines if the project has generated executable (binary) artifacts in the source repository."
+      }
+    },
+    {
+      "details": [
+        "Warn: script injection with untrusted input ' github.event.pull_request.title ': .github/workflows/ci.yml:10",
+        "Warn: untrusted code checkout '${{ github.event.pull_request.head.sha }}': .github/workflows/ci.yml:7"
+      ],
+      "score": 0,
+      "reason": "dangerous workflow patterns detected",
+      "name": "Dangerous-Workflow",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#dangerous-workflow",
+        "short": "Determines if the project's GitHub Action workflows avoid dangerous patterns."
+      }
+    },
+    {
+      "details": [
+        "Warn: no GitHub/GitLab publishing workflow detected."
+      ],
+      "score": -1,
+      "reason": "packaging workflow not detected",
+      "name": "Packaging",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#packaging",
+        "short": "Determines if the project is published as a package that others can easily download, install, easily update, and uninstall."
+      }
+    },
+    {
+      "details": [
+        "Warn: GitHub-owned GitHubAction not pinned by hash: .github/workflows/ci.yml:7",
+        "Warn: containerImage not pinned by hash: Dockerfile:1: pin your Docker image by updating ubuntu:latest to ubuntu:latest@sha256:d66b366dac61b575bee2aef07e9c26e8070096fbe84a3d4d3eb0da069b5d76db",
+        "Info:   0 out of   1 GitHub-owned GitHubAction dependencies pinned",
+        "Info:   0 out of   1 containerImage dependencies pinned"
+      ],
+      "score": 0,
+      "reason": "dependency not pinned by hash detected -- score normalized to 0",
+      "name": "Pinned-Dependencies",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#pinned-dependencies",
+        "short": "Determines if the project has declared and pinned the dependencies of its build process."
+      }
+    },
+    {
+      "details": [
+        "Warn: no topLevel permission defined: .github/workflows/ci.yml:1",
+        "Info: no jobLevel write permissions found"
+      ],
+      "score": 0,
+      "reason": "detected GitHub workflow tokens with excessive permissions",
+      "name": "Token-Permissions",
+      "documentation": {
+        "url": "https://github.com/ossf/scorecard/blob/main/docs/checks.md#token-permissions",
+        "short": "Determines if the project's workflows follow the principle of least privilege."
+      }
+    }
+  ],
+  "metadata": null
+}

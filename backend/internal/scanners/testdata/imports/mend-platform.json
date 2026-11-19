@@ -1,0 +1,71 @@
+{
+  "additionalData": {"totalItems": 2, "paging": {"next": null}},
+  "supportToken": "f0a1b2c3",
+  "response": [
+    {
+      "uuid": "0b3e8a10-1111-4000-8000-000000000001",
+      "name": "CVE-2021-44228",
+      "type": "SECURITY_VULNERABILITY",
+      "component": {
+        "uuid": "a6b1d4c0-2222-4000-8000-000000000001",
+        "name": "log4j-core-2.14.1.jar",
+        "description": "The Apache Log4j Implementation",
+        "componentType": "Library",
+        "libraryType": "MAVEN_ARTIFACT",
+        "rootLibrary": true,
+        "references": {"url": "https://logging.apache.org/log4j/2.x/"},
+        "groupId": "org.apache.logging.log4j",
+        "artifactId": "log4j-core",
+        "version": "2.14.1",
+        "path": "services/api/pom.xml",
+        "dependencyFile": "services/api/pom.xml"
+      },
+      "findingInfo": {"status": "ACTIVE", "comment": {}, "detectedAt": "2026-10-01T10:00:00Z", "modifiedAt": "2026-10-01T10:00:00Z"},
+      "project": {"uuid": "p-1", "name": "shop-backend", "path": "shop", "productName": "shop", "productUuid": "pr-1"},
+      "application": {"uuid": "app-1", "name": "shop"},
+      "vulnerability": {
+        "name": "CVE-2021-44228",
+        "type": "CVE",
+        "description": "Apache Log4j2 JNDI features do not protect against attacker controlled LDAP and other JNDI related endpoints.",
+        "score": 10.0,
+        "severity": "CRITICAL",
+        "publishDate": "2021-12-10T00:00:00Z",
+        "modifiedDate": "2023-04-03T00:00:00Z",
+        "vulnerabilityScoring": [{"score": 10.0, "severity": "CRITICAL", "type": "CVSS_3"}]
+      },
+      "topFix": {"id": 1, "vulnerability": "CVE-2021-44228", "type": "UPGRADE_VERSION", "origin": "WHITESOURCE_EXPERT", "url": "https://logging.apache.org/log4j/2.x/security.html", "fixResolution": "Upgrade to version 2.15.0", "date": "2021-12-10T00:00:00Z", "message": "Upgrade to version"},
+      "effective": "CRITICAL",
+      "threatAssessment": {"exploitCodeMaturity": "HIGH", "epssPercentage": 97.5},
+      "exploitable": true,
+      "scoreMetadataVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+    },
+    {
+      "uuid": "0b3e8a10-1111-4000-8000-000000000002",
+      "name": "CVE-2022-25857",
+      "type": "SECURITY_VULNERABILITY",
+      "component": {
+        "uuid": "a6b1d4c0-2222-4000-8000-000000000002",
+        "name": "snakeyaml-1.30.jar",
+        "componentType": "Library",
+        "libraryType": "MAVEN_ARTIFACT",
+        "rootLibrary": false,
+        "groupId": "org.yaml",
+        "artifactId": "snakeyaml",
+        "version": "1.30",
+        "path": "services/api/pom.xml",
+        "dependencyFile": "services/api/pom.xml"
+      },
+      "findingInfo": {"status": "IGNORED", "comment": {"comment": "not reachable"}},
+      "vulnerability": {
+        "name": "CVE-2022-25857",
+        "type": "CVE",
+        "description": "The package org.yaml:snakeyaml from 0 and before 1.31 are vulnerable to Denial of Service (DoS) due missing to nested depth limitation for collections.",
+        "score": 7.5,
+        "severity": "HIGH"
+      },
+      "topFix": {"type": "UPGRADE_VERSION", "fixResolution": "Upgrade to version 1.31"},
+      "exploitable": false,
+      "scoreMetadataVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+    }
+  ]
+}

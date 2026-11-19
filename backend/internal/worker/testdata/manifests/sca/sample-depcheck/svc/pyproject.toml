@@ -1,0 +1,7 @@
+[project]
+name = "svc"
+version = "0.1.0"
+dependencies = [
+  "djnago>=5.0",
+  "numpy",
+]

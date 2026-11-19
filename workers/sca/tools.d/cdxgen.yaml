@@ -1,0 +1,23 @@
+# cdxgen: CycloneDX 1.6 SBOM of the repository (with cryptographic assets
+# of the libraries it recognises), from lockfiles and manifests only:
+# --no-install-deps, and the Node.js permission model forbids starting
+# processes. The SBOM replaces the repository's component inventory like
+# Syft's; it produces no findings (parser: sarif is not used for it).
+name: cdxgen
+display_name: cdxgen
+category: sbom
+scan_types: [sbom]
+license_spdx: Apache-2.0
+homepage: https://github.com/CycloneDX/cdxgen
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["cdxgen", "--version"]
+args: ["cdxgen", "{source}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

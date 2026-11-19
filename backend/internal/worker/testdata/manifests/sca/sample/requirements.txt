@@ -1,0 +1,5 @@
+# Sample requirements for the worker-sca fixtures (old versions with known
+# vulnerabilities).
+requests==2.25.0
+urllib3==1.26.4
+jinja2==2.11.2

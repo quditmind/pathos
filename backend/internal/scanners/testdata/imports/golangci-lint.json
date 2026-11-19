@@ -1,0 +1,164 @@
+{
+  "Issues": [
+    {
+      "FromLinter": "errcheck",
+      "Text": "Error return value of `db.Query` is not checked",
+      "Severity": "",
+      "SourceLines": [
+        "\tdb.Query(q)"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 239,
+        "Line": 13,
+        "Column": 10
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "errcheck",
+      "Text": "Error return value of `(*os/exec.Cmd).Run` is not checked",
+      "Severity": "",
+      "SourceLines": [
+        "\texec.Command(\"sh\", \"-c\", r.URL.Query().Get(\"cmd\")).Run()"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 298,
+        "Line": 14,
+        "Column": 56
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "errcheck",
+      "Text": "Error return value of `http.ListenAndServe` is not checked",
+      "Severity": "",
+      "SourceLines": [
+        "func main() { http.ListenAndServe(\":8080\", nil) }"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 388,
+        "Line": 19,
+        "Column": 34
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "gosec",
+      "Text": "G501: Blocklisted import crypto/md5: weak cryptographic primitive",
+      "Severity": "medium",
+      "SourceLines": [
+        "\t\"crypto/md5\""
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 0,
+        "Line": 4,
+        "Column": 2
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "gosec",
+      "Text": "G202: SQL string concatenation",
+      "Severity": "medium",
+      "SourceLines": [
+        "\tq := \"SELECT * FROM users WHERE name = '\" + r.URL.Query().Get(\"name\") + \"'\""
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 0,
+        "Line": 12,
+        "Column": 7
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "gosec",
+      "Text": "G401: Use of weak cryptographic primitive",
+      "Severity": "medium",
+      "SourceLines": [
+        "\t_ = md5.Sum([]byte(\"x\"))"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 0,
+        "Line": 16,
+        "Column": 6
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "govet",
+      "Text": "printf: fmt.Printf format %d has arg \"x\" of wrong type string",
+      "Severity": "",
+      "SourceLines": [
+        "\tfmt.Printf(\"%d\\n\", \"x\")"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 314,
+        "Line": 15,
+        "Column": 14
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    },
+    {
+      "FromLinter": "unused",
+      "Text": "func handler is unused",
+      "Severity": "",
+      "SourceLines": [
+        "func handler(db *sql.DB, w http.ResponseWriter, r *http.Request) {"
+      ],
+      "Pos": {
+        "Filename": "main.go",
+        "Offset": 91,
+        "Line": 11,
+        "Column": 6
+      },
+      "ExpectNoLint": false,
+      "ExpectedNoLintLinter": ""
+    }
+  ],
+  "Report": {
+    "Linters": [
+      {
+        "Name": "errcheck",
+        "Enabled": true
+      },
+      {
+        "Name": "gosec",
+        "Enabled": true
+      },
+      {
+        "Name": "govet",
+        "Enabled": true
+      },
+      {
+        "Name": "ineffassign",
+        "Enabled": true
+      },
+      {
+        "Name": "staticcheck",
+        "Enabled": true
+      },
+      {
+        "Name": "typecheck",
+        "Enabled": true
+      },
+      {
+        "Name": "unused",
+        "Enabled": true
+      }
+    ]
+  }
+}

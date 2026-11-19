@@ -1,0 +1,74 @@
+{
+  "vulnerabilities": [
+    {
+      "id": "SNYK-DEBIAN12-OPENSSL-6593979",
+      "title": "Excessive Memory Consumption",
+      "description": "## Overview\nUnbounded memory growth with session handling in TLSv1.3.",
+      "severity": "low",
+      "cvssScore": 5.9,
+      "CVSSv3": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H",
+      "packageName": "openssl",
+      "version": "3.0.11-1~deb12u2",
+      "fixedIn": [
+        "3.0.13-1~deb12u1"
+      ],
+      "from": [
+        "docker-image|registry.example.test/app@1.4.2",
+        "openssl/libssl3@3.0.11-1~deb12u2"
+      ],
+      "identifiers": {
+        "CVE": [
+          "CVE-2024-2511"
+        ],
+        "CWE": [
+          "CWE-1325"
+        ]
+      },
+      "dockerFileInstruction": "FROM debian:12",
+      "nearestFixedInVersion": "3.0.13-1~deb12u1"
+    },
+    {
+      "id": "SNYK-DEBIAN12-ZLIB-6008963",
+      "title": "Integer Overflow or Wraparound",
+      "description": "MiniZip in zlib through 1.3 has an integer overflow.",
+      "severity": "critical",
+      "cvssScore": 9.8,
+      "CVSSv3": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+      "packageName": "zlib",
+      "version": "1:1.2.13.dfsg-1",
+      "fixedIn": [],
+      "from": [
+        "docker-image|registry.example.test/app@1.4.2",
+        "zlib/zlib1g@1:1.2.13.dfsg-1"
+      ],
+      "identifiers": {
+        "CVE": [
+          "CVE-2023-45853"
+        ],
+        "CWE": [
+          "CWE-190"
+        ]
+      }
+    }
+  ],
+  "ok": false,
+  "dependencyCount": 92,
+  "org": "example-org",
+  "policy": "# Snyk (https://snyk.io) policy file\n",
+  "isPrivate": true,
+  "licensesPolicy": null,
+  "packageManager": "deb",
+  "ignoreSettings": null,
+  "docker": {
+    "baseImage": "debian:12",
+    "baseImageRemediation": {
+      "code": "NO_REMEDIATION_AVAILABLE"
+    }
+  },
+  "summary": "42 vulnerable dependency paths",
+  "filesystemPolicy": false,
+  "uniqueCount": 2,
+  "projectName": "docker-image|registry.example.test/app",
+  "platform": "linux/amd64",
+  "path": "registry.example.test/app:1.4.2"
+}

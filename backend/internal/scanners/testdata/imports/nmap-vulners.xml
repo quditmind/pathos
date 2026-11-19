@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE nmaprun>
+<nmaprun scanner="nmap" args="nmap -sV --script vulners,ssl-ccs-injection -oX out.xml 192.0.2.20" start="1795000000" startstr="Wed Nov 18 10:00:00 2026" version="7.98" xmloutputversion="1.05">
+<scaninfo type="syn" protocol="tcp" numservices="1000" services="1-1000"/>
+<host starttime="1795000001" endtime="1795000030"><status state="up" reason="echo-reply" reason_ttl="63"/>
+<address addr="192.0.2.20" addrtype="ipv4"/>
+<hostnames>
+</hostnames>
+<ports><port protocol="tcp" portid="22"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="ssh" product="OpenSSH" version="8.9p1 Ubuntu 3ubuntu0.1" extrainfo="Ubuntu Linux; protocol 2.0" ostype="Linux" method="probed" conf="10"><cpe>cpe:/a:openbsd:openssh:8.9p1</cpe><cpe>cpe:/o:linux:linux_kernel</cpe></service><script id="vulners" output="&#xa;  cpe:/a:openbsd:openssh:8.9p1: &#xa;    &#x9;CVE-2023-38408&#x9;9.8&#x9;https://vulners.com/cve/CVE-2023-38408&#xa;    &#x9;CVE-2023-48795&#x9;5.9&#x9;https://vulners.com/cve/CVE-2023-48795"><table key="cpe:/a:openbsd:openssh:8.9p1">
+<table>
+<elem key="id">CVE-2023-38408</elem>
+<elem key="cvss">9.8</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+</table>
+<table>
+<elem key="id">CVE-2023-48795</elem>
+<elem key="cvss">5.9</elem>
+<elem key="type">cve</elem>
+<elem key="is_exploit">false</elem>
+</table>
+</table>
+</script></port>
+<port protocol="tcp" portid="443"><state state="open" reason="syn-ack" reason_ttl="63"/><service name="https" method="table" conf="3"/><script id="ssl-ccs-injection" output="&#xa;  NOT VULNERABLE:&#xa;  SSL/TLS MITM vulnerability (CCS Injection)"><table key="NMAP-1">
+<elem key="title">SSL/TLS MITM vulnerability (CCS Injection)</elem>
+<elem key="state">NOT VULNERABLE</elem>
+<table key="ids">
+<elem>CVE:CVE-2014-0224</elem>
+</table>
+</table>
+</script></port>
+<port protocol="tcp" portid="8080"><state state="filtered" reason="no-response" reason_ttl="0"/><service name="http-proxy" method="table" conf="3"/></port>
+</ports>
+</host>
+<runstats><finished time="1795000030" timestr="Wed Nov 18 10:00:30 2026" summary="Nmap done" elapsed="30.00" exit="success"/><hosts up="1" down="0" total="1"/>
+</runstats>
+</nmaprun>

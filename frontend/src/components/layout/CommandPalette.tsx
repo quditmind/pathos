@@ -92,6 +92,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
     { label: "Scan comparison", to: "/scans/compare", icon: <Radar />, show: can("scans.compare") },
     { label: "Configurations: Scan profiles", to: "/configurations/scan-profiles", icon: <Radar />, show: can("scans.read") },
     { label: "Configurations: Scanners & workers", to: "/configurations/scanners", icon: <Radar />, show: can("scanners.read") },
+    { label: "Configurations: Scan coverage", to: "/configurations/scan-coverage", icon: <Radar />, show: can("scanners.read") },
     { label: "AI reviews", to: "/ai", icon: <Radar />, show: can("findings.read") },
     { label: "AI settings", to: "/admin/ai", icon: <Radar />, show: canOrgWide("ai.configure") },
     { label: "MCP registry", to: "/admin/mcp", icon: <Radar />, show: can("ai.review") },

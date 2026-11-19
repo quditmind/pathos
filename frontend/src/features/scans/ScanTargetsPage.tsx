@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Boxes, Container, FileJson, Globe, Package, Pencil, Play, Plus, Radar, ShieldAlert, ShieldCheck, Trash2 } from "lucide-react";
+import { Bot, Boxes, Container, FileJson, Globe, Package, Pencil, Play, Plus, Radar, ShieldAlert, ShieldCheck, Smartphone, Trash2 } from "lucide-react";
 import { api, ApiError, getCsrfToken } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
@@ -10,14 +10,18 @@ import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skele
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
+import type { CatalogScanner } from "@/api/types";
+import { useCatalog } from "./api";
 
-export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
+export type TargetKind = "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint";
 /** Kinds added on this page (declared endpoints are managed from the repository). */
-const creatableKinds: TargetKind[] = ["image", "url", "api", "sbom", "artifact"];
+const creatableKinds: TargetKind[] = ["image", "url", "api", "sbom", "artifact", "mobile-app", "llm-endpoint"];
 /** Targets whose content is an uploaded file. */
-const uploaded = (k: TargetKind) => k === "sbom" || k === "artifact";
+const uploaded = (k: TargetKind) => k === "sbom" || k === "artifact" || k === "mobile-app";
 /** Targets whose signature can be verified (cosign). */
-const signable = (k: TargetKind) => k === "image" || k === "artifact";
+const signable = (k: TargetKind) => k === "image" || k === "artifact" || k === "mobile-app";
+/** Running systems PATHOS sends requests to (they need an authorization statement). */
+export const liveKind = (k: TargetKind) => k === "url" || k === "api" || k === "llm-endpoint";
 
 /** Sigstore verification policy of an image or artifact target. */
 export interface SignatureConfig {
@@ -57,7 +61,7 @@ export interface ScanTarget {
   name: string;
   reference: string;
   egress_host: string;
-  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig };
+  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig; tools?: string[]; model?: string };
   api_spec?: string;
   sbom_format: string;
   sbom_components: number;
@@ -69,6 +73,10 @@ export interface ScanTarget {
   authorized_by: string | null;
   authorized_at: string | null;
   authorization_note: string;
+  /** Intrusive testing (active scans, fuzzing) authorized separately; url and api targets only. */
+  intrusive_authorized_by?: string | null;
+  intrusive_authorized_at?: string | null;
+  intrusive_authorization_note?: string;
   enabled: boolean;
   scanners: string[];
   /** An artifact's signature or Sigstore bundle was uploaded. */
@@ -89,6 +97,8 @@ export const targetKindLabel: Record<TargetKind, string> = {
   sbom: "SBOM",
   artifact: "Build artifact",
   endpoints: "Declared public endpoints",
+  "mobile-app": "Mobile app (APK, AAB, IPA)",
+  "llm-endpoint": "LLM endpoint",
 };
 
 const kindIcon: Record<TargetKind, React.ReactNode> = {
@@ -98,6 +108,8 @@ const kindIcon: Record<TargetKind, React.ReactNode> = {
   sbom: <FileJson className="size-4" />,
   artifact: <Package className="size-4" />,
   endpoints: <Radar className="size-4" />,
+  "mobile-app": <Smartphone className="size-4" />,
+  "llm-endpoint": <Bot className="size-4" />,
 };
 
 const kindHelp: Record<TargetKind, string> = {
@@ -109,6 +121,10 @@ const kindHelp: Record<TargetKind, string> = {
     "Trivy looks for vulnerable components inside a release artifact (zip or tar archive, Java archive, binary), and every executable and shared library in it is checked for binary hardening (PIE, RELRO, stack canaries, NX, FORTIFY_SOURCE, RPATH; ASLR, DEP, CFG and SafeSEH on Windows). Archives are validated and extracted on a worker; nothing in them is run.",
   endpoints:
     "Verification of a repository's declared public URLs, domains and IPs (DNS, reachability, TLS, security headers). It is enabled and authorized on the repository's Details tab.",
+  "mobile-app":
+    "An Android (APK, AAB) or iOS (IPA) package. Its native code is checked for binary hardening; the mobile tools of the worker-mobile image (mobsfscan, APKLeaks, Quark-Engine, the PATHOS manifest, signing, Info.plist and entitlement checks) run when you select them below. The package is read on a worker, never run.",
+  "llm-endpoint":
+    "A chat completions API of an LLM application (OpenAI-compatible request format). The red-teaming tools of the worker-ai image (garak, promptfoo) send attack prompts to it: they need your authorization statement and the intrusive testing flag.",
 };
 
 const verificationTone: Record<string, "success" | "warning" | "danger" | "neutral"> = {
@@ -164,6 +180,28 @@ interface FormState {
   signature: SignatureConfig;
   /** Artifact signature or Sigstore bundle text; undefined = unchanged. */
   signature_material?: string;
+  /** Manifest tools that also run for the target. */
+  tools: string[];
+  intrusive_authorized: boolean;
+  intrusive_note: string;
+  /** Model name sent to an LLM endpoint. */
+  model: string;
+}
+
+/** Manifest targets a tool must list to scan a target kind. */
+const toolTargetsFor: Partial<Record<TargetKind, string[]>> = {
+  image: ["image"],
+  url: ["url"],
+  api: ["api", "url"],
+  artifact: ["binary", "mobile-app", "model"],
+  "mobile-app": ["mobile-app"],
+  "llm-endpoint": ["llm-endpoint"],
+};
+
+/** Tools of family worker images and operator plugins that scan a target kind. */
+export function targetTools(catalog: CatalogScanner[], kind: TargetKind): CatalogScanner[] {
+  const want = toolTargetsFor[kind] ?? [];
+  return catalog.filter((s) => s.worker_family !== "core" && s.worker_family !== "intel" && s.adapter_available && (s.targets ?? []).some((t) => want.includes(t)));
 }
 
 const emptyForm = (kind: TargetKind): FormState => ({
@@ -181,6 +219,10 @@ const emptyForm = (kind: TargetKind): FormState => ({
   authorization_note: "",
   enabled: true,
   signature: { mode: "" },
+  tools: [],
+  intrusive_authorized: false,
+  intrusive_note: "",
+  model: "",
 });
 
 /** The signature policy as sent to the API (fields of the mode only). */
@@ -259,7 +301,7 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
           )}
         </div>
       )}
-      {s.mode && kind === "artifact" && (
+      {s.mode && (kind === "artifact" || kind === "mobile-app") && (
         <div className="mt-3">
           <Label htmlFor="sig-file" hint={target?.has_signature && f.signature_material === undefined ? "(uploaded; choose a file to replace)" : "(cosign sign-blob output)"}>
             Signature (base64) or Sigstore bundle (.sigstore.json)
@@ -272,6 +314,70 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
         The verification result is kept as evidence with each scan. Keyless verification uses the public Sigstore infrastructure (Fulcio, Rekor);
         offline, only key-based verification runs.
       </p>
+    </fieldset>
+  );
+}
+
+/**
+ * Additional tools (family worker images, operator plugins) for a target,
+ * and the separate authorization of intrusive testing.
+ */
+function ToolFields({ f, set, target, addressChanged }: { f: FormState; set: (p: Partial<FormState>) => void; target: ScanTarget | null; addressChanged: boolean }) {
+  const catalog = useCatalog();
+  const tools = targetTools(catalog.data ?? [], f.kind);
+  const live = liveKind(f.kind);
+  const selected = tools.filter((t) => f.tools.includes(t.key));
+  const needsIntrusive = selected.some((t) => t.intrusive);
+  // Tools selected earlier whose worker is not registered any more stay listed.
+  const missing = f.tools.filter((k) => !tools.some((t) => t.key === k));
+  if (!toolTargetsFor[f.kind] || (!tools.length && !missing.length)) return null;
+  const toggle = (k: string) => set({ tools: f.tools.includes(k) ? f.tools.filter((x) => x !== k) : [...f.tools, k] });
+  return (
+    <fieldset className="rounded-md border border-border p-3">
+      <legend className="px-1 text-[12px] font-medium">Additional tools</legend>
+      <p className="mb-2 text-[11.5px] text-muted-foreground">Tools of family worker images and operator plugins that scan this kind of target. They run in addition to the built-in scanners.</p>
+      <div className="grid gap-1.5 md:grid-cols-2">
+        {tools.map((t) => (
+          <label key={t.key} className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.tools.includes(t.key)} onChange={() => toggle(t.key)} />
+            <span>
+              <span className="font-medium">{t.name}</span>{" "}
+              {t.intrusive ? <Badge tone="danger">intrusive</Badge> : t.network === "target" ? <Badge tone="warning">sends requests</Badge> : null}
+              {!t.runnable && <span className="block text-[11px] text-muted-foreground">No online worker provides it now.</span>}
+            </span>
+          </label>
+        ))}
+        {missing.map((k) => (
+          <label key={k} className="flex items-center gap-2 text-[12.5px] text-muted-foreground">
+            <input type="checkbox" className="accent-[var(--primary)]" checked onChange={() => toggle(k)} />
+            <span className="font-mono text-[11.5px]">{k}</span> (not registered by any worker)
+          </label>
+        ))}
+      </div>
+      {live && (
+        <div className="mt-3 rounded-md border border-danger/40 bg-danger/5 p-3">
+          <label className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.intrusive_authorized} onChange={(e) => set({ intrusive_authorized: e.target.checked })} />
+            <span>
+              <span className="font-medium">Intrusive testing of this application is authorized.</span>
+              <span className="block text-[11.5px] text-muted-foreground">
+                Intrusive tools send attack traffic (active scans, fuzzing, injection probes) that can change data or degrade the service. They run only with this flag, in addition to the authorization above; setting and withdrawing it is audited.
+                {target?.intrusive_authorized_by && !addressChanged ? ` Currently: ${target.intrusive_authorized_by}, ${formatDateTime(target.intrusive_authorized_at!)}.` : ""}
+                {addressChanged && target?.intrusive_authorized_at ? " A new address withdraws it unless you confirm it again." : ""}
+              </span>
+            </span>
+          </label>
+          {f.intrusive_authorized && (
+            <div className="mt-2">
+              <Label htmlFor="tgt-inote" hint="(optional)">Intrusive testing reference</Label>
+              <Input id="tgt-inote" value={f.intrusive_note} maxLength={2000} onChange={(e) => set({ intrusive_note: e.target.value })} placeholder="e.g. penetration test window, change ticket" />
+            </div>
+          )}
+          {needsIntrusive && !f.intrusive_authorized && (
+            <p className="mt-2 text-[11.5px] text-danger">An intrusive tool is selected: scans of this target are refused until intrusive testing is authorized.</p>
+          )}
+        </div>
+      )}
     </fieldset>
   );
 }
@@ -321,10 +427,14 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
       authorization_note: t.authorization_note,
       enabled: t.enabled,
       signature: { mode: "", ...t.config.signature },
+      tools: t.config.tools ?? [],
+      intrusive_authorized: !!t.intrusive_authorized_at,
+      intrusive_note: t.intrusive_authorization_note ?? "",
+      model: t.config.model ?? "",
     });
   }, [open, target, initialKind, full.data]);
   const set = (p: Partial<FormState>) => setF((x) => ({ ...x, ...p }));
-  const live = f.kind === "url" || f.kind === "api";
+  const live = liveKind(f.kind);
   const addressChanged = !!target && live && f.reference.trim() !== target.reference;
   const save = useMutation({
     mutationFn: async () => {
@@ -334,7 +444,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         fd.set("repository_id", f.repository_id!);
         fd.set("name", f.name);
         fd.set("file", file!);
-        if (f.kind === "artifact" && f.signature_material) fd.set("signature", f.signature_material);
+        if ((f.kind === "artifact" || f.kind === "mobile-app") && f.signature_material) fd.set("signature", f.signature_material);
         const created = await uploadTarget(f.kind, fd);
         // The verification policy is set right after the upload.
         if (signature) return api<ScanTarget>(`/api/v1/scan-targets/${created.id}`, { method: "PUT", body: { config: { signature } } });
@@ -352,11 +462,17 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         body.auth_username = f.auth_username;
         body.auth_header_name = f.auth_header_name;
         if (!target || secretTouched) body.auth_secret = f.auth_secret;
-        if (live) body.config = { rate_limit: f.rate_limit ? Number(f.rate_limit) : undefined, min_severity: f.min_severity || undefined };
+        if (live && f.kind !== "llm-endpoint") body.config = { rate_limit: f.rate_limit ? Number(f.rate_limit) : undefined, min_severity: f.min_severity || undefined };
+        if (f.kind === "llm-endpoint") body.config = { rate_limit: f.rate_limit ? Number(f.rate_limit) : undefined, model: f.model.trim() };
         if (f.kind === "api") body.api_spec = f.api_spec;
       }
       if (signable(f.kind)) body.config = { ...(body.config as object | undefined), signature };
-      if (f.kind === "artifact" && f.signature_material !== undefined) body.signature_material = f.signature_material;
+      if (toolTargetsFor[f.kind]) body.config = { ...(body.config as object | undefined), tools: f.tools.length ? f.tools : undefined };
+      if (live && (!target || f.intrusive_authorized !== !!target.intrusive_authorized_at || f.intrusive_note !== (target.intrusive_authorization_note ?? ""))) {
+        body.intrusive_authorized = f.intrusive_authorized;
+        body.intrusive_authorization_note = f.intrusive_note;
+      }
+      if ((f.kind === "artifact" || f.kind === "mobile-app") && f.signature_material !== undefined) body.signature_material = f.signature_material;
       if (target) return api<ScanTarget>(`/api/v1/scan-targets/${target.id}`, { method: "PUT", body });
       return api<ScanTarget>("/api/v1/scan-targets", { method: "POST", body: { ...body, repository_id: f.repository_id, kind: f.kind } });
     },
@@ -372,6 +488,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
     f.name.trim() !== "" &&
     (uploaded(f.kind) ? !!target || !!file : f.reference.trim() !== "") &&
     (f.kind !== "api" || f.api_spec.trim() !== "") &&
+    (f.kind !== "llm-endpoint" || f.model.trim() !== "") &&
     (!needsAuthorization || f.authorized) &&
     (f.auth_type !== "basic" || f.auth_username.trim() !== "") &&
     (f.auth_type !== "header" || f.auth_header_name.trim() !== "") &&
@@ -417,20 +534,33 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         <div className="grid gap-3 md:grid-cols-2">
           <div>
             <Label htmlFor="tgt-name">Name</Label>
-            <Input id="tgt-name" value={f.name} maxLength={200} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === "image" ? "e.g. Payments API image" : f.kind === "sbom" ? "e.g. Vendor appliance 4.2" : f.kind === "artifact" ? "e.g. payments-service 2.3.0 release" : "e.g. Payments staging"} />
+            <Input id="tgt-name" value={f.name} maxLength={200} onChange={(e) => set({ name: e.target.value })} placeholder={f.kind === "image" ? "e.g. Payments API image" : f.kind === "sbom" ? "e.g. Vendor appliance 4.2" : f.kind === "artifact" ? "e.g. payments-service 2.3.0 release" : f.kind === "mobile-app" ? "e.g. Payments app 5.1 (Android)" : f.kind === "llm-endpoint" ? "e.g. Support assistant (staging)" : "e.g. Payments staging"} />
           </div>
           {!uploaded(f.kind) && (
             <div>
-              <Label htmlFor="tgt-ref">{f.kind === "image" ? "Image reference" : "Base URL"}</Label>
+              <Label htmlFor="tgt-ref">{f.kind === "image" ? "Image reference" : f.kind === "llm-endpoint" ? "Chat completions URL" : "Base URL"}</Label>
               <Input id="tgt-ref" className="font-mono text-[12px]" value={f.reference} maxLength={1000} onChange={(e) => set({ reference: e.target.value })}
-                placeholder={f.kind === "image" ? "ghcr.io/acme/payments:1.4.2" : "https://staging.payments.example.com"} />
+                placeholder={f.kind === "image" ? "ghcr.io/acme/payments:1.4.2" : f.kind === "llm-endpoint" ? "https://assistant.staging.example.com/v1/chat/completions" : "https://staging.payments.example.com"} />
             </div>
           )}
         </div>
+        {f.kind === "llm-endpoint" && (
+          <div>
+            <Label htmlFor="tgt-model" hint="(the request's model field)">Model</Label>
+            <Input id="tgt-model" className="font-mono text-[12px]" value={f.model} maxLength={200} onChange={(e) => set({ model: e.target.value })} placeholder="e.g. support-assistant-v2" />
+          </div>
+        )}
         {f.kind === "sbom" && !target && (
           <div>
             <Label htmlFor="tgt-file" hint="(at most 64 MiB; .gz accepted)">SBOM: CycloneDX JSON or SPDX 2.x JSON</Label>
             <input id="tgt-file" type="file" accept=".json,.gz" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
+          </div>
+        )}
+        {f.kind === "mobile-app" && !target && (
+          <div>
+            <Label htmlFor="tgt-file" hint="(at most 200 MiB)">Package: Android .apk or .aab, iOS .ipa</Label>
+            <input id="tgt-file" type="file" accept=".apk,.aab,.ipa" onChange={(e) => setFile(e.target.files?.[0] ?? null)}
               className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
           </div>
         )}
@@ -489,10 +619,10 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         {live && (
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <Label htmlFor="tgt-rate" hint="(1-100, default 20)">Requests per second</Label>
+              <Label htmlFor="tgt-rate" hint={f.kind === "llm-endpoint" ? "(1-100; promptfoo waits between requests, garak sends one at a time)" : "(1-100, default 20)"}>Requests per second</Label>
               <Input id="tgt-rate" type="number" min={1} max={100} value={f.rate_limit} onChange={(e) => set({ rate_limit: e.target.value })} />
             </div>
-            <div>
+            {f.kind !== "llm-endpoint" && <div>
               <Label htmlFor="tgt-sev">Checks to run</Label>
               <Select id="tgt-sev" className="w-full" value={f.min_severity} onChange={(e) => set({ min_severity: e.target.value })}>
                 <option value="">All severities (including informational)</option>
@@ -501,7 +631,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
                 <option value="high">High and critical</option>
                 <option value="critical">Critical only</option>
               </Select>
-            </div>
+            </div>}
           </div>
         )}
         {live && (
@@ -521,6 +651,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
             </div>
           </div>
         )}
+        <ToolFields f={f} set={set} target={target} addressChanged={addressChanged} />
         {signable(f.kind) && <SignatureFields f={f} set={set} kind={f.kind} target={target} />}
         {target && (
           <label className="flex items-center gap-1.5 text-[13px]">
@@ -626,6 +757,11 @@ export function ScanTargetsPage() {
                     {(t.kind === "url" || t.kind === "api" || t.kind === "endpoints") && t.authorized_by && (
                       <div className="flex items-center gap-1 text-[11px] text-muted-foreground" title={t.authorization_note}>
                         <ShieldAlert className="size-3" /> Authorized by {t.authorized_by}, {formatDateTime(t.authorized_at!)}
+                      </div>
+                    )}
+                    {t.intrusive_authorized_at && (
+                      <div className="flex items-center gap-1 text-[11px] text-danger" title={t.intrusive_authorization_note}>
+                        <ShieldAlert className="size-3" /> Intrusive testing authorized by {t.intrusive_authorized_by ?? "a former user"}, {formatDateTime(t.intrusive_authorized_at)}
                       </div>
                     )}
                   </Td>

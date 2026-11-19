@@ -25,13 +25,13 @@ const (
 
 // Builtins are synced into the scanner catalog with the integrations.
 var Builtins = []Scanner{
-	{Key: EndpointCheck, Name: "PATHOS endpoint verification", Category: "dast", License: "Apache-2.0", Decision: "use", Family: "core",
+	{Key: EndpointCheck, Name: "PATHOS endpoint verification", Category: "dast", License: "Apache-2.0", Decision: "use", Family: "core", Network: "target",
 		AdapterAvailable: true, TargetOnly: true, OutputFormat: "json", Homepage: "https://github.com/quditmind/pathos",
 		Notes: "Built into the worker: DNS, reachability, TLS (certificate, protocols, ciphers), HSTS and security headers of a repository's declared public endpoints; opt-in and authorized per repository"},
-	{Key: Cosign, Name: "Sigstore cosign", Category: "supply-chain", License: "Apache-2.0", Decision: "use", Family: "core",
+	{Key: Cosign, Name: "Sigstore cosign", Category: "supply-chain", License: "Apache-2.0", Decision: "use", Family: "core", Network: "registry",
 		AdapterAvailable: true, TargetOnly: true, OutputFormat: "json", Homepage: "https://github.com/sigstore/cosign",
 		Notes: "Verifies signatures and in-toto/SLSA attestations of container image and artifact targets (key-based or keyless)"},
-	{Key: EndOfLife, Name: "endoflife.date", Category: "eol", License: "MIT", Decision: "use", Family: "intel",
+	{Key: EndOfLife, Name: "endoflife.date", Category: "eol", License: "MIT", Decision: "use", Family: "intel", Network: "none",
 		OutputFormat: "json", Homepage: "https://endoflife.date",
 		Notes: "End-of-life findings from the endoflife.date intelligence feed (opt-in); not a worker tool"},
 }

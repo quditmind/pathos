@@ -6,7 +6,9 @@
 #   gosec        static analysis of the Go code (justified #nosec only)
 #   govulncheck  known vulnerabilities in reachable Go dependencies
 #   npm audit    frontend dependencies (production and development)
-#   trivy        our three images (pathos, proxy, worker-core)
+#   trivy        our images (pathos, proxy, worker-core) and the family
+#                worker images (worker-<family>) that are built locally;
+#                PATHOS_REQUIRE_FAMILY_IMAGES=1 (CI) makes a missing one fail
 #   zap          OWASP ZAP baseline (passive) against the running stack
 #
 # Gate: exits 1 on any gosec issue, govulncheck finding, npm advisory of
@@ -22,6 +24,12 @@ GOVULNCHECK=v1.9.0
 ZAP_IMAGE="zaproxy/zap-stable@sha256:9624669db72f54d86c4b46a7064518bd9bf79d8c61a4c31befa9923489f328af"
 P="${PATHOS_IMAGE_PREFIX:-}"
 IMAGES=("${P}pathos:${PATHOS_VERSION:-dev}" "${P}pathos-proxy:${PATHOS_VERSION:-dev}" "${P}pathos-worker-core:${PATHOS_VERSION:-dev}")
+# Family worker images: one per workers/<family>/Dockerfile.
+FAMILY_IMAGES=()
+for d in workers/*/Dockerfile; do
+  f="$(basename "$(dirname "$d")")"
+  [ "$f" = core ] || FAMILY_IMAGES+=("${P}pathos-worker-${f}:${PATHOS_VERSION:-dev}")
+done
 
 code=1 images=1 zap=1 target="https://localhost/"
 while [ $# -gt 0 ]; do
@@ -65,6 +73,15 @@ fi
 fi
 
 if [ "$images" = 1 ]; then
+  for img in "${FAMILY_IMAGES[@]}"; do
+    if docker image inspect "$img" >/dev/null 2>&1; then
+      IMAGES+=("$img")
+    elif [ "${PATHOS_REQUIRE_FAMILY_IMAGES:-0}" = 1 ]; then
+      gate "trivy $img" "image not built" fail
+    else
+      echo "== trivy $img: not built locally, skipped"
+    fi
+  done
   tmp="$(mktemp -d)"; chmod 755 "$tmp"
   docker volume create pathos_security_cache >/dev/null
   for img in "${IMAGES[@]}"; do

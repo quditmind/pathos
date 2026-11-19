@@ -1,0 +1,58 @@
+{
+  "data": [
+    {
+      "id": "8a0f3b5e-1c2d-4e5f-9a8b-7c6d5e4f3a21",
+      "app": {"id": "0c9e8d7f-6a5b-4c3d-2e1f-0a9b8c7d6e5f"},
+      "root_cause": {"url": "https://portal.example.test/api/orders", "parameter": "orderId", "method": "GET"},
+      "severity": "HIGH",
+      "status": "VERIFIED",
+      "first_discovered": "2026-11-01T10:00:00.000Z",
+      "last_discovered": "2026-11-12T10:00:00.000Z",
+      "newly_discovered": false,
+      "vector_string": "CVSS:3.1/AV:N/AC:L/PR:L/UI:N/S:U/C:H/I:H/A:N",
+      "vulnerability_score": 8.1,
+      "insight_ui_url": "https://us.insight.example.test/ias/vulnerabilities/8a0f3b5e",
+      "variances": [
+        {
+          "id": "1b2c3d4e-0000-4000-8000-000000000001",
+          "original_value": "1001",
+          "original_exchange": {
+            "id": "ex-1",
+            "request": "GET /api/orders?orderId=1001 HTTP/1.1\r\nHost: portal.example.test\r\nAuthorization: Bearer ias-original-bearer-token\r\nCookie: session=ias-cookie-secret\r\n\r\n",
+            "response": "HTTP/1.1 200 OK\r\nSet-Cookie: session=ias-set-cookie-secret\r\n\r\n{\"order\":1001}"
+          },
+          "module": {"id": "3f2a1b0c-9d8e-4f7a-b6c5-d4e3f2a1b0c9"},
+          "attack": {"id": "SQLI-BLIND-BOOLEAN"},
+          "attack_value": "1001 AND 1=1",
+          "message": "Blind SQL injection (boolean based) in the orderId parameter",
+          "proof": "The response differed between true and false conditions.",
+          "attack_exchanges": [
+            {"id": "ex-2", "request": "GET /api/orders?orderId=1001%20AND%201=1 HTTP/1.1\r\nHost: portal.example.test\r\nAuthorization: Bearer ias-attack-bearer-token\r\n\r\n", "response": "HTTP/1.1 200 OK\r\n\r\n{\"order\":1001}"}
+          ],
+          "proof_description": "Boolean conditions change the response."
+        }
+      ]
+    },
+    {
+      "id": "9b1e4c6f-2d3e-4f50-8b9c-0d1e2f3a4b52",
+      "app": {"id": "0c9e8d7f-6a5b-4c3d-2e1f-0a9b8c7d6e5f"},
+      "root_cause": {"url": "https://portal.example.test/", "parameter": "", "method": "GET"},
+      "severity": "INFORMATIONAL",
+      "status": "FALSE_POSITIVE",
+      "first_discovered": "2026-11-01T10:00:00.000Z",
+      "last_discovered": "2026-11-12T10:00:00.000Z",
+      "newly_discovered": false,
+      "variances": [
+        {
+          "id": "1b2c3d4e-0000-4000-8000-000000000002",
+          "module": {"id": "7a6b5c4d-3e2f-4a1b-8c9d-0e1f2a3b4c5d"},
+          "attack": {"id": "INFO-SERVER-BANNER"},
+          "message": "Server banner discloses the web server version",
+          "proof": "Server: nginx/1.25.3"
+        }
+      ]
+    }
+  ],
+  "metadata": {"index": 0, "size": 2, "total_data": 2, "total_pages": 1, "page_token": ""},
+  "links": [{"rel": "self", "href": "https://us.api.insight.example.test/ias/v1/vulnerabilities?index=0&size=50"}]
+}

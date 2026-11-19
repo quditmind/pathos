@@ -1,0 +1,22 @@
+# kube-score: checks of Kubernetes objects. The kube-score-tree helper finds
+# the Kubernetes YAML files (not Helm templates), runs the checks with
+# security impact and prints one JSON array.
+name: kube-score
+display_name: kube-score
+category: iac
+scan_types: [iac]
+license_spdx: MIT
+homepage: https://github.com/zegl/kube-score
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/kube-score-tree
+version_args: ["--version"]
+args: ["{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:kube-score

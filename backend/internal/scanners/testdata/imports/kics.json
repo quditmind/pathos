@@ -1,0 +1,114 @@
+{
+  "kics_version": "v2.2.1",
+  "files_scanned": 5,
+  "lines_scanned": 74,
+  "files_parsed": 5,
+  "lines_parsed": 74,
+  "lines_ignored": 0,
+  "files_failed_to_scan": 0,
+  "queries_total": 1869,
+  "queries_failed_to_execute": 0,
+  "queries_failed_to_compute_similarity_id": 0,
+  "scan_id": "console",
+  "severity_counters": {
+    "CRITICAL": 1,
+    "HIGH": 1,
+    "INFO": 0,
+    "LOW": 1,
+    "MEDIUM": 0,
+    "TRACE": 0
+  },
+  "total_counter": 3,
+  "total_bom_resources": 0,
+  "start": "2026-11-19T06:23:26.350618783Z",
+  "end": "2026-11-19T06:23:31.835286857Z",
+  "paths": [
+    "/path"
+  ],
+  "queries": [
+    {
+      "query_name": "S3 Bucket ACL Allows Read Or Write to All Users",
+      "query_id": "38c5ee0d-7f22-4260-ab72-5073048df100",
+      "query_url": "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket",
+      "severity": "CRITICAL",
+      "platform": "Terraform",
+      "cwe": "732",
+      "risk_score": "9.1",
+      "cloud_provider": "AWS",
+      "category": "Access Control",
+      "experimental": false,
+      "description": "S3 Buckets should not be readable and writable to all users",
+      "description_id": "d535387f",
+      "files": [
+        {
+          "file_name": "../../path/infra/main.tf",
+          "similarity_id": "6ed736ab0df4cde21ce2716cc0a80470709d43045ca36a0c897af1f7913f1009",
+          "line": 3,
+          "resource_type": "aws_s3_bucket",
+          "resource_name": "acme-logs",
+          "issue_type": "IncorrectValue",
+          "search_key": "aws_s3_bucket[logs].acl=public-read",
+          "search_line": 3,
+          "search_value": "",
+          "expected_value": "'acl' should equal to 'private'",
+          "actual_value": "'acl' is equal 'public-read'"
+        }
+      ]
+    },
+    {
+      "query_name": "Container Is Privileged",
+      "query_id": "dd29336b-fe57-445b-a26e-e6aa867ae609",
+      "query_url": "https://kubernetes.io/docs/concepts/workloads/pods/#privileged-mode-for-containers",
+      "severity": "HIGH",
+      "platform": "Kubernetes",
+      "cwe": "269",
+      "risk_score": "7.7",
+      "cloud_provider": "COMMON",
+      "category": "Insecure Configurations",
+      "experimental": false,
+      "description": "Privileged containers lack essential security restrictions and should be avoided by removing the 'privileged' flag or by changing its value to false",
+      "description_id": "55f59030",
+      "files": [
+        {
+          "file_name": "../../path/k8s/deployment.yaml",
+          "similarity_id": "8dc249d6ca0d1434a843053977a6c7e3c24f7e284d46a7c13429aea4e2f6f83b",
+          "line": 19,
+          "resource_type": "Deployment",
+          "resource_name": "web",
+          "issue_type": "IncorrectValue",
+          "search_key": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged",
+          "search_line": -1,
+          "search_value": "",
+          "expected_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged is unset or false",
+          "actual_value": "metadata.name={{web}}.spec.template.spec.containers.name={{web}}.securityContext.privileged is true"
+        }
+      ]
+    },
+    {
+      "query_name": "Curl or Wget Instead of Add",
+      "query_id": "4b410d24-1cbe-4430-a632-62c9a931cf1c",
+      "query_url": "https://docs.docker.com/develop/develop-images/dockerfile_best-practices/",
+      "severity": "LOW",
+      "platform": "Dockerfile",
+      "cwe": "610",
+      "risk_score": "2.8",
+      "category": "Best Practices",
+      "experimental": false,
+      "description": "Use of Curl or Wget should be done instead of Add to fetch packages from remote URLs due to the use of Add being strongly discouraged",
+      "description_id": "29e8216b",
+      "files": [
+        {
+          "file_name": "../../path/Dockerfile",
+          "similarity_id": "91240d2935375c7eba5621607703f682d80876743e78725f5e791fe16fb271e2",
+          "line": 4,
+          "issue_type": "IncorrectValue",
+          "search_key": "FROM={{ubuntu:latest}}.{{ADD https://example.com/x.tar.gz /tmp/}}",
+          "search_line": -1,
+          "search_value": "",
+          "expected_value": "Should use 'curl' or 'wget' to download https://example.com/x.tar.gz",
+          "actual_value": "'ADD' https://example.com/x.tar.gz"
+        }
+      ]
+    }
+  ]
+}

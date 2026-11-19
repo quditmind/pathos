@@ -1,0 +1,23 @@
+# ProtectAI ModelScan: unsafe operators in serialised models (pickle,
+# PyTorch, Keras, TensorFlow SavedModel) that would run code when the model
+# is loaded. Scans uploaded model artifacts and (when a scan profile
+# selects it) repositories. JSON, parsed with the modelscan import parser;
+# files ModelScan could not scan are info findings.
+name: modelscan
+display_name: ModelScan
+category: ai
+scan_types: [ai]
+license_spdx: Apache-2.0
+homepage: https://github.com/protectai/modelscan
+family: ai
+targets: [repository, model]
+command: /opt/pathos/ai/bin/pathos-ai
+version_args: ["version", "modelscan"]
+args: ["modelscan", "{source}", "{artifact}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:modelscan

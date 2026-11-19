@@ -51,12 +51,18 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 
 	var findings []scanners.Finding
 	parseErr := ""
-	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
+	// SBOM generators (Syft, cdxgen, the AI-BOM) produce the component inventory, not
+	// findings.
+	sbomTool := scanners.IsSBOMTool(up.Scanner)
+	if up.Status == "succeeded" && !sbomTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
-		if scanners.IsImportKey(up.Scanner) {
+		switch {
+		case scanners.IsImportKey(up.Scanner):
 			fs, err = scanners.ParseImport(up.Scanner, up.Format, raw)
-		} else {
+		case up.Parser != nil:
+			fs, err = scanners.ParseToolOutput(up.Scanner, *up.Parser, raw)
+		default:
 			fs, err = scanners.Parse(up.Scanner, raw)
 		}
 		if err != nil {
@@ -76,6 +82,16 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				f.Fingerprint = targetFingerprint(*targetID, f.Fingerprint)
 			}
 			findings = append(findings, f)
+		}
+	}
+	if up.Parser != nil && up.Parser.Kind == "import" && len(raw) > 0 {
+		// A manifest tool parsed with an import parser (TruffleHog,
+		// Kingfisher, detect-secrets, Talisman, ...): its report is stored
+		// like an imported one, without the secret values the format
+		// carries. Identities do not depend on them, so findings are
+		// located in the stored copy as well.
+		if clean := scanners.SanitizeImport(up.Parser.Format, raw); !bytes.Equal(clean, raw) {
+			raw, gz = clean, nil
 		}
 	}
 	errText := logging.RedactString(firstNonEmpty(parseErr, up.Error))
@@ -101,16 +117,24 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		if len(raw) > 0 {
 			kind, ct := "raw", "application/sarif+json"
 			switch up.Scanner {
-			case scanners.Syft:
-				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
 				ct = "application/json"
 			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint:
 				ct = "application/json"
 			}
+			if sbomTool {
+				kind, ct = "sbom", "application/vnd.cyclonedx+json"
+			}
 			if scanners.IsImportKey(up.Scanner) {
 				// The content type records the format for evidence capture.
 				ct = scanners.ImportContentType(firstNonEmpty(up.Format, scanners.DetectImportFormat(raw)))
+			}
+			// Manifest tools with another parser: the parser is kept with
+			// the tool's original output.
+			var parser []byte
+			if up.Parser != nil {
+				ct = scanners.ToolContentType(*up.Parser)
+				parser, _ = json.Marshal(up.Parser)
 			}
 			sum := sha256.Sum256(raw)
 			artID := uuid.Must(uuid.NewV7())
@@ -121,9 +145,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			if key != nil {
 				written = append(written, *key)
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip, object_key)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, artID, orgID, resultID, kind, ct,
-				hex.EncodeToString(sum[:]), len(raw), inline, key); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO scan_artifacts (id, organization_id, scan_result_id, kind, content_type, sha256, size_bytes, data_gzip, object_key, parser)
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`, artID, orgID, resultID, kind, ct,
+				hex.EncodeToString(sum[:]), len(raw), inline, key, parser); err != nil {
 				return err
 			}
 		}
@@ -133,11 +157,18 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			return insertPRFindings(ctx, tx, jobID, findings)
 		}
 		licenses := false
-		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+		if sbomTool && up.Scanner != scanners.AIBOM && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			} else {
 				licenses = true
+			}
+		}
+		// The AI-BOM adds the repository's AI frameworks, models and LLM
+		// APIs to its component inventory (beside Syft's components).
+		if up.Scanner == scanners.AIBOM && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			if _, err := vuln.StoreAIBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+				s.Log.Warn("AI-BOM inventory not updated", "job_id", jobID, "err", err)
 			}
 		}
 		// Evidence kept besides findings: per-endpoint verification status

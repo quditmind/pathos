@@ -1,0 +1,197 @@
+{
+  "maxCount": 2,
+  "records": [
+    {
+      "code": "EXAMPLESHOP-AB12CD34",
+      "title": "Password reset token leaks via Referer",
+      "originators": {
+        "programId": "prog-0001",
+        "pentestCode": ""
+      },
+      "severity": {
+        "id": 4,
+        "value": "Exceptional",
+        "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+      },
+      "state": {
+        "status": {
+          "id": 3,
+          "value": "Accepted"
+        },
+        "closeReason": {
+          "id": 0,
+          "value": ""
+        }
+      },
+      "createdAt": 1762000000,
+      "lastUpdatedAt": 1762100000,
+      "tags": [
+        "web"
+      ],
+      "webLinks": {
+        "details": "https://app.intigriti.com/company/submissions/EXAMPLESHOP-AB12CD34"
+      },
+      "detail": {
+        "code": "EXAMPLESHOP-AB12CD34",
+        "title": "Password reset token leaks via Referer",
+        "severity": {
+          "value": "Exceptional",
+          "vector": ""
+        },
+        "state": {
+          "status": {
+            "value": "Accepted"
+          },
+          "closeReason": {
+            "value": ""
+          }
+        },
+        "report": {
+          "originalTitle": "Password reset token leaks via Referer",
+          "type": {
+            "name": "Information Exposure",
+            "category": "Information Disclosure",
+            "cwe": "cwe-200"
+          },
+          "domain": {
+            "name": "https://shop.example.test",
+            "description": "Main web application"
+          },
+          "endpointVulnerableComponent": "/reset",
+          "pocDescription": "<p>Open <code>https://shop.example.test/reset?token=planted-reset-token-999</code> and follow the external link.</p><p>Authorization: Bearer planted-intigriti-bearer-123</p>",
+          "impact": "<p>Account takeover.</p>",
+          "recommendedSolution": "<p>Validate the token.</p>",
+          "questions": []
+        }
+      }
+    },
+    {
+      "code": "EXAMPLESHOP-EF56GH78",
+      "title": "Verbose error page",
+      "originators": {
+        "programId": "prog-0001",
+        "pentestCode": ""
+      },
+      "severity": {
+        "id": 4,
+        "value": "Low",
+        "vector": ""
+      },
+      "state": {
+        "status": {
+          "id": 3,
+          "value": "Archived"
+        },
+        "closeReason": {
+          "id": 0,
+          "value": "Out of scope"
+        }
+      },
+      "createdAt": 1762000000,
+      "lastUpdatedAt": 1762100000,
+      "tags": [
+        "web"
+      ],
+      "webLinks": {
+        "details": "https://app.intigriti.com/company/submissions/EXAMPLESHOP-EF56GH78"
+      },
+      "detail": {
+        "code": "EXAMPLESHOP-EF56GH78",
+        "title": "Verbose error page",
+        "severity": {
+          "value": "Low",
+          "vector": ""
+        },
+        "state": {
+          "status": {
+            "value": "Archived"
+          },
+          "closeReason": {
+            "value": "Out of scope"
+          }
+        },
+        "report": {
+          "originalTitle": "Verbose error page",
+          "type": {
+            "name": "Information Exposure",
+            "category": "Information Disclosure",
+            "cwe": "cwe-209"
+          },
+          "domain": {
+            "name": "https://shop.example.test",
+            "description": "Main web application"
+          },
+          "endpointVulnerableComponent": "/api/debug",
+          "pocDescription": "<p>Stack trace shown.</p>",
+          "impact": "<p>Account takeover.</p>",
+          "recommendedSolution": "<p>Validate the token.</p>",
+          "questions": []
+        }
+      }
+    },
+    {
+      "code": "EXAMPLESHOP-IJ90KL12",
+      "title": "Stored XSS in reviews",
+      "originators": {
+        "programId": "prog-0001",
+        "pentestCode": ""
+      },
+      "severity": {
+        "id": 4,
+        "value": "High",
+        "vector": ""
+      },
+      "state": {
+        "status": {
+          "id": 3,
+          "value": "Archived"
+        },
+        "closeReason": {
+          "id": 0,
+          "value": "Resolved"
+        }
+      },
+      "createdAt": 1762000000,
+      "lastUpdatedAt": 1762100000,
+      "tags": [
+        "web"
+      ],
+      "webLinks": {
+        "details": "https://app.intigriti.com/company/submissions/EXAMPLESHOP-IJ90KL12"
+      },
+      "detail": {
+        "code": "EXAMPLESHOP-IJ90KL12",
+        "title": "Stored XSS in reviews",
+        "severity": {
+          "value": "High",
+          "vector": ""
+        },
+        "state": {
+          "status": {
+            "value": "Archived"
+          },
+          "closeReason": {
+            "value": "Resolved"
+          }
+        },
+        "report": {
+          "originalTitle": "Stored XSS in reviews",
+          "type": {
+            "name": "Cross-site Scripting",
+            "category": "Injection",
+            "cwe": "cwe-79"
+          },
+          "domain": {
+            "name": "https://shop.example.test",
+            "description": "Main web application"
+          },
+          "endpointVulnerableComponent": "/reviews",
+          "pocDescription": "<p>Fixed.</p>",
+          "impact": "<p>Account takeover.</p>",
+          "recommendedSolution": "<p>Validate the token.</p>",
+          "questions": []
+        }
+      }
+    }
+  ]
+}

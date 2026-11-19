@@ -1,0 +1,133 @@
+{
+  "type": "Coverity issues",
+  "formatVersion": 7,
+  "suppressedIssueCount": 0,
+  "issues": [
+    {
+      "mergeKey": "b1c5e0a7f2d94c1e8a3b6d0f9e2c4a71",
+      "occurrenceCountForMK": 1,
+      "occurrenceNumberInMK": 1,
+      "referenceOccurrenceCountForMK": 0,
+      "checkerName": "SQLI",
+      "subcategory": "none",
+      "type": "sql_injection",
+      "subtype": "none",
+      "code-language": "java",
+      "extra": "executeQuery",
+      "domain": "STATIC_JAVA",
+      "language": "Java",
+      "mainEventFilePathname": "/builds/shop-api/src/main/java/com/acme/OrderDao.java",
+      "strippedMainEventFilePathname": "src/main/java/com/acme/OrderDao.java",
+      "mainEventLineNumber": 14,
+      "properties": {},
+      "functionDisplayName": "com.acme.OrderDao.find(java.lang.String)",
+      "functionMangledName": "com.acme.OrderDao.find(java.lang.String)java.sql.ResultSet",
+      "localStatus": null,
+      "ordered": true,
+      "events": [
+        {
+          "covLStrEventDescription": "{CovLStrv2{{t{A tainted value {0} is passed to a SQL API.}{{code{id}}}}}}",
+          "eventDescription": "A tainted value id is passed to a SQL API.",
+          "eventNumber": 1,
+          "eventTreePosition": "1",
+          "eventSet": 0,
+          "eventTag": "sink",
+          "filePathname": "/builds/shop-api/src/main/java/com/acme/OrderDao.java",
+          "strippedFilePathname": "src/main/java/com/acme/OrderDao.java",
+          "lineNumber": 14,
+          "main": true,
+          "moreInformationId": null,
+          "remediation": false,
+          "events": null
+        }
+      ],
+      "stateOnServer": null,
+      "checkerProperties": {
+        "category": "SQL injection",
+        "categoryDescription": "SQL injection",
+        "cweCategory": "89",
+        "issueKinds": ["SECURITY"],
+        "eventSetCaptions": [],
+        "impact": "High",
+        "impactDescription": "High",
+        "subcategoryLocalEffect": "An attacker can modify the SQL query.",
+        "subcategoryShortDescription": "SQL injection",
+        "subcategoryLongDescription": "A user-controllable string is incorporated into a SQL query without escaping."
+      }
+    },
+    {
+      "mergeKey": "0e9d8c7b6a5f4e3d2c1b0a9f8e7d6c5b",
+      "occurrenceCountForMK": 1,
+      "occurrenceNumberInMK": 1,
+      "referenceOccurrenceCountForMK": 0,
+      "checkerName": "FORWARD_NULL",
+      "subcategory": "none",
+      "type": "null_pointer_dereference",
+      "subtype": "none",
+      "code-language": "java",
+      "extra": "conn",
+      "domain": "STATIC_JAVA",
+      "language": "Java",
+      "mainEventFilePathname": "/builds/shop-api/src/main/java/com/acme/OrderDao.java",
+      "strippedMainEventFilePathname": "src/main/java/com/acme/OrderDao.java",
+      "mainEventLineNumber": 13,
+      "properties": {},
+      "functionDisplayName": "com.acme.OrderDao.find(java.lang.String)",
+      "functionMangledName": "com.acme.OrderDao.find(java.lang.String)java.sql.ResultSet",
+      "localStatus": null,
+      "ordered": true,
+      "events": [
+        {
+          "eventDescription": "Dereferencing null pointer conn.",
+          "eventNumber": 1,
+          "eventTreePosition": "1",
+          "eventSet": 0,
+          "eventTag": "var_deref_model",
+          "filePathname": "/builds/shop-api/src/main/java/com/acme/OrderDao.java",
+          "strippedFilePathname": "src/main/java/com/acme/OrderDao.java",
+          "lineNumber": 13,
+          "main": true,
+          "moreInformationId": null,
+          "remediation": false,
+          "events": null
+        }
+      ],
+      "stateOnServer": {
+        "cid": 10234,
+        "presentInReferenceSnapshot": false,
+        "firstDetectedDateTime": "2026-10-01T09:30:00Z",
+        "stream": "shop-api",
+        "components": ["Default.Other"],
+        "componentOwners": {},
+        "cached": false,
+        "retrievalDateTime": "2026-11-02T10:30:00Z",
+        "ownerLdapServerName": "",
+        "triage": {
+          "classification": "False Positive",
+          "action": "Ignore",
+          "fixTarget": "Untargeted",
+          "severity": "Unspecified",
+          "legacy": "False",
+          "owner": "",
+          "externalReference": ""
+        },
+        "customTriage": {}
+      },
+      "checkerProperties": {
+        "category": "Null pointer dereferences",
+        "categoryDescription": "Null pointer dereferences",
+        "cweCategory": "476",
+        "issueKinds": ["QUALITY"],
+        "eventSetCaptions": [],
+        "impact": "Medium",
+        "impactDescription": "Medium",
+        "subcategoryLocalEffect": "The application may crash.",
+        "subcategoryShortDescription": "Dereference after null check",
+        "subcategoryLongDescription": "A value that may be null is dereferenced."
+      }
+    }
+  ],
+  "desktopAnalysisSettings": null,
+  "error": null,
+  "warnings": []
+}

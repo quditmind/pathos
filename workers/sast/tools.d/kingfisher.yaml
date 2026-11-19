@@ -1,0 +1,26 @@
+# Kingfisher (MongoDB): secrets in the repository's files. Validation is
+# OFF (--no-validate): Kingfisher would otherwise test every secret it finds
+# against its provider. --no-update-check: no update check. JSON report
+# parsed with the PATHOS Kingfisher import parser (the secret values are
+# removed before the report is stored).
+name: kingfisher
+display_name: Kingfisher
+category: secrets
+scan_types: [secrets]
+license_spdx: Apache-2.0
+homepage: https://github.com/mongodb/kingfisher
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/kingfisher
+version_args: ["--version"]
+# --git-history none: the current files only (the worker's source tree
+# has no Git history).
+args: ["scan", "{source}", "--no-validate", "--no-update-check", "--git-history", "none", "--format", "json", "--output", "{output}"]
+ok_exit_codes: [0, 200, 205]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:kingfisher

@@ -1,0 +1,23 @@
+# Ruff with the flake8-bandit rules (S): Bandit's Python security checks,
+# re-implemented in Rust. The repository's own Ruff configuration is not
+# read (--isolated), so it cannot deselect rules. JSON report parsed with
+# the PATHOS Ruff import parser.
+name: ruff
+display_name: Ruff (S rules)
+category: sast
+scan_types: [sast, code-quality]
+license_spdx: MIT
+homepage: https://github.com/astral-sh/ruff
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/ruff
+version_args: ["--version"]
+args: ["check", "--isolated", "--no-cache", "--select", "S", "--output-format", "json", "--output-file", "{output}", "--exit-zero", "{source}"]
+ok_exit_codes: [0]
+timeout: 20m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:ruff

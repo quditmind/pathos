@@ -1,0 +1,30 @@
+#!/usr/local/bin/python3 -I
+"""Runs cfn-lint on the CloudFormation templates of a directory tree (files
+that declare AWSTemplateFormatVersion or AWS:: resource types) and prints one
+JSON array of matches. Exit status 0 when cfn-lint ran (its own status
+encodes the severities found), other values on errors.
+"""
+import json
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import iacfiles  # noqa: E402
+
+CFN_LINT = "/opt/pathos/iac/venv/bin/cfn-lint"
+
+if sys.argv[1:] == ["--version"]:
+    os.execv(CFN_LINT, [CFN_LINT, "--version"])
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    iacfiles.usage("cfn-lint-tree")
+results = []
+found = iacfiles.cfn_templates(sys.argv[1])
+for i in range(0, len(found), 200):
+    run = subprocess.run([CFN_LINT, "--format", "json", "--", *found[i:i + 200]], stdout=subprocess.PIPE, check=False)
+    # cfn-lint: 0 none, bit flags 2 (error), 4 (warning), 8 (informational);
+    # 1 is a failure of cfn-lint itself.
+    if run.returncode & 1 or run.returncode > 15:
+        sys.exit(run.returncode or 1)
+    results.extend(json.loads(run.stdout or b"[]"))
+json.dump(results, sys.stdout)

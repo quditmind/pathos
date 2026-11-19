@@ -1,0 +1,26 @@
+# golangci-lint configuration of the PATHOS worker-sast image: linters
+# that find defects with a security impact (code-quality security), not
+# style. Test files are not analysed.
+version: "2"
+run:
+  tests: false
+  relative-path-mode: wd
+linters:
+  default: none
+  enable:
+    - gosec          # security problems (the gosec rules)
+    - errcheck       # unchecked errors
+    - bodyclose      # HTTP response bodies that are never closed
+    - noctx          # HTTP requests and SQL queries without a context (no timeout or cancellation)
+    - rowserrcheck   # sql.Rows.Err not checked
+    - sqlclosecheck  # sql.Rows and sql.Stmt not closed
+    - govet          # suspicious constructs (copied locks, printf, unreachable code)
+    - staticcheck    # bugs and deprecated APIs (including deprecated crypto)
+    - errorlint      # error comparisons that break with wrapped errors
+    - nilerr         # returning nil after checking an error
+  settings:
+    errcheck:
+      check-type-assertions: true
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

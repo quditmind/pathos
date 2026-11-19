@@ -43,11 +43,17 @@ func nativeTools(cfg Config) map[string]Tool {
 			}
 			return "", runLicenseCheck(ctx, in.Src, in.Out, nativeVersion(cfg))
 		}},
+		scanners.AIBOM: nativeTool{version: fixed, run: func(ctx context.Context, in RunInput) (string, error) {
+			if in.Target != nil {
+				return "only runs for repository sources", nil
+			}
+			return "", runAIBOM(ctx, in.Src, in.Out, nativeVersion(cfg))
+		}},
 		scanners.BinaryHardening: nativeTool{version: fixed, run: func(ctx context.Context, in RunInput) (string, error) {
 			dir := in.Src
 			if in.Target != nil {
-				if in.Target.Kind != "artifact" {
-					return "only runs for repository sources and build artifacts", nil
+				if in.Target.Kind != "artifact" && in.Target.Kind != "mobile-app" {
+					return "only runs for repository sources, build artifacts and mobile apps", nil
 				}
 				dir = in.TargetFile
 			}
@@ -61,8 +67,8 @@ func nativeTools(cfg Config) map[string]Tool {
 				}
 				dir := in.Src
 				if in.Target != nil {
-					if in.Target.Kind != "artifact" {
-						return "only runs for repository sources and build artifacts", nil
+					if in.Target.Kind != "artifact" && in.Target.Kind != "mobile-app" {
+						return "only runs for repository sources, build artifacts and mobile apps", nil
 					}
 					dir = in.TargetFile
 				}

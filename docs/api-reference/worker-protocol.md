@@ -35,7 +35,7 @@ Bodies are JSON unless stated otherwise. Errors use the [common error format](in
 | `POST` | `/internal/worker/v1/lease` | [Lease the next job](#lease-a-job) |
 | `POST` | `/internal/worker/v1/jobs/{id}/heartbeat` | [Extend the lease, learn about cancellation](#heartbeat) |
 | `GET` | `/internal/worker/v1/jobs/{id}/source` | [Download the source snapshot](#download-the-source-or-target-file) of an uploaded repository |
-| `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM or artifact](#download-the-source-or-target-file) of a scan target job |
+| `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM, artifact or mobile app](#download-the-source-or-target-file) of a scan target job |
 | `POST` | `/internal/worker/v1/jobs/{id}/events` | [Report stage events and log lines](#events-and-logs) |
 | `POST` | `/internal/worker/v1/jobs/{id}/imports` | [Upload the code inventory](#code-inventory) used for reachability |
 | `POST` | `/internal/worker/v1/jobs/{id}/changes` | [Upload the material change report](#material-changes) |
@@ -55,16 +55,22 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
   "name": "worker-core-1",
   "family": "core",
   "version": "1.4.0",
-  "scanners": { "opengrep": "1.10.0", "gitleaks": "8.21.2" },
-  "plugins": { "plugin-example": { "name": "Example scanner", "homepage": "https://scanner.example.com" } }
+  "scanners": { "opengrep": "1.10.0", "gitleaks": "8.21.2", "bandit": "1.9.4", "plugin-sast-example": "2.0" },
+  "plugins": { "plugin-sast-example": { "name": "Example scanner", "homepage": "https://scanner.example.com" } },
+  "tools": {
+    "bandit": { "name": "Bandit", "category": "sast", "scan_types": ["sast"], "license_spdx": "Apache-2.0", "family": "sast",
+                "targets": ["repository"], "network": "none", "intrusive": false, "parser": "import:bandit", "first_party": true },
+    "plugin-sast-example": { "name": "Example scanner", "category": "sast", "scan_types": ["sast"], "license_spdx": "MIT",
+                "targets": ["repository"], "network": "none", "parser": "sarif", "first_party": false }
+  }
 }
 ```
 
-`name` is 1–100 characters of letters, digits, `.`, `_` and `-` (defaults to the host name in the agent, `PATHOS_WORKER_NAME`); `family` 1–40 characters (`PATHOS_WORKER_FAMILY`, default `core`); at most 100 scanners. Unknown scanner keys are dropped unless they are declarative plugin adapters described in `plugins`; those become selectable in scan profiles. Response `200`: `{ "worker_id": "<uuid>", "token": "<worker token>" }`. Jobs still leased by a previous run of the same worker are returned to the queue. Audited as `worker.register`.
+`name` is 1–100 characters of letters, digits, `.`, `_` and `-` (defaults to the host name in the agent, `PATHOS_WORKER_NAME`); `family` 1–40 characters (`PATHOS_WORKER_FAMILY`, default `core`); at most 700 scanners. `tools` describes the [tool manifests](scan-types-and-tools.md#tool-manifests) among `scanners` (metadata only, never commands): first-party manifests of family images (catalog keys that are not built into the core image) and operator plugins (`plugin-<category>-<name>`). Invalid entries (a first-party claim for a core tool or a plugin key, a category that does not match the key, an unknown scan type or target) are dropped. `plugins` is the PATHOS 1.x form (name and homepage of SARIF plugins) and is still accepted. Unknown scanner keys are dropped. Plugins become selectable in scan profiles or on scan targets, with the declared scan types, targets, network and intrusive flags. Response `200`: `{ "worker_id": "<uuid>", "token": "<worker token>" }`. Jobs still leased by a previous run of the same worker are returned to the queue. Audited as `worker.register`.
 
 ### Lease a job
 
-`POST /internal/worker/v1/lease` (empty JSON object). Before leasing, expired leases are returned to the queue (or failed when the job has used all its attempts). Returns `204` when nothing is queued; the agent polls every 5 seconds. Otherwise `200` with the job, which is now `running` with a 5-minute lease:
+`POST /internal/worker/v1/lease` (empty JSON object). Before leasing, expired leases are returned to the queue (or failed when the job has used all its attempts). Jobs that use manifest tools are routed: a worker leases such a job only when it advertises every manifest tool of the job, unless no online worker advertises all of them (then any worker leases it and reports the tools it lacks as `skipped`). Returns `204` when nothing is queued; the agent polls every 5 seconds. Otherwise `200` with the job, which is now `running` with a 5-minute lease:
 
 | Field | Description |
 |---|---|
@@ -73,7 +79,7 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
 | `credential` | Clone credential of the repository's SCM connection, if any. |
 | `public` | The repository is public; the worker may clone anonymously if the credential fails. |
 | `source` | For uploaded repositories: `{ type: "snapshot", sha256, size }`; download it from `/internal/worker/v1/jobs/{id}/source`. |
-| `target` | For scan-target jobs (image, web application, API, artifact, SBOM, declared endpoints): kind, reference and any decrypted target credential. Endpoints jobs carry `endpoints[]` (`kind`, `value`, `authorized`: only authorized endpoints may be contacted) and `rate_limit`; image and artifact jobs with a verification policy carry `signature` (the [policy](scan-targets.md#signature-verification)) and, for artifacts, `signature_material`. |
+| `target` | For scan-target jobs (image, web application, API, artifact, mobile app, LLM endpoint, SBOM, declared endpoints): kind, reference and any decrypted target credential; LLM endpoint jobs also carry `model`. Endpoints jobs carry `endpoints[]` (`kind`, `value`, `authorized`: only authorized endpoints may be contacted) and `rate_limit`; image and artifact jobs with a verification policy carry `signature` (the [policy](scan-targets.md#signature-verification)) and, for artifacts, `signature_material`. `intrusive_authorized: true` when intrusive testing of the target is authorized; the agent skips intrusive tools otherwise. |
 | `timeout_seconds`, `exclusions`, `scanners[]` | From the pinned scan profile version: `{ key, config }` per scanner. Opengrep's config includes the organization's custom rules. |
 | `previous_commit_sha` | Commit of the repository's previous successful scan of the same ref (Git branch scans only; omitted for the first scan, pull requests, uploads and targets). The worker compares it with the scanned commit. |
 | `collect_authors` | `true` only while the organization has developer attribution on: the worker then lists the commit author names between the two commits. |
@@ -88,7 +94,7 @@ If no clone credential can be obtained, the job fails and `204` is returned.
 
 `GET /internal/worker/v1/jobs/{id}/source` streams the decrypted snapshot (`application/gzip`, with `Content-Length`); the worker verifies its SHA-256 and size before scanning. `404 no_snapshot` if the job has none.
 
-`GET /internal/worker/v1/jobs/{id}/target-file` returns the uploaded SBOM or build artifact of a scan-target job, decompressed (`application/json`). `404 no_target_file` if the job has none.
+`GET /internal/worker/v1/jobs/{id}/target-file` returns the uploaded SBOM, build artifact or mobile app of a scan-target job, decompressed (`application/json`). `404 no_target_file` if the job has none.
 
 ### Events and logs
 
@@ -141,8 +147,9 @@ After the scanners of a repository job (not for scan targets; ignored for pull r
 | `duration_ms`, `error` | Run time and error message. |
 | `content_type` | Format of the raw output. |
 | `output_gzip` | The raw tool output, gzip-compressed and base64-encoded. |
+| `parser` | Manifest tools whose output is not SARIF: `{ "kind": "import", "format": "bandit" }` or `{ "kind": "jsonmap", "jsonmap": { … } }` ([jsonmap](scan-types-and-tools.md#jsonmap)). Refused (`400`) for built-in tools and for invalid parsers. |
 
-The output is parsed into findings at once. Response `{ "findings": n }`. A decompressed output over the size limit returns `413 too_large`.
+The output is parsed into findings at once; the tool's original output is stored with its parser, so findings can be located in it later. Response `{ "findings": n }`. A decompressed output over the size limit returns `413 too_large`.
 
 ### Complete
 

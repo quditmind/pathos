@@ -51,11 +51,11 @@ const (
 )
 
 // blameCategories are the finding categories with code locations.
-var blameCategories = map[string]bool{"sast": true, "secrets": true, "iac": true}
+var blameCategories = map[string]bool{"sast": true, "secrets": true, "iac": true, "code-quality": true, "crypto": true, "cicd": true}
 
 // blameLocations reads the reports of code scanners in outDir and returns
 // the distinct file:line locations of their findings.
-func blameLocations(outDir string, keys []string) map[string][]int {
+func blameLocations(outDir string, keys []string, parserOf func(string) (scanners.ToolParser, bool)) map[string][]int {
 	locs := map[string]map[int]bool{}
 	n := 0
 	for _, key := range keys {
@@ -67,7 +67,12 @@ func blameLocations(outDir string, keys []string) map[string][]int {
 		if err != nil || len(raw) == 0 {
 			continue
 		}
-		fs, _ := scanners.Parse(key, raw)
+		var fs []scanners.Finding
+		if p, ok := parserOf(key); ok {
+			fs, _ = scanners.ParseToolOutput(key, p, raw)
+		} else {
+			fs, _ = scanners.Parse(key, raw)
+		}
 		for _, f := range fs {
 			if f.StartLine == nil || *f.StartLine <= 0 || f.FilePath == "" || n >= maxBlameLocations {
 				continue
@@ -104,8 +109,8 @@ func categoryOf(key string) string {
 	if sc, ok := scanners.Lookup(key); ok {
 		return sc.FindingCategory()
 	}
-	if parts := strings.SplitN(key, "-", 3); len(parts) == 3 && parts[0] == "plugin" {
-		return parts[1]
+	if sc, ok := scanners.ResolvePlugin(key); ok {
+		return sc.FindingCategory()
 	}
 	return ""
 }

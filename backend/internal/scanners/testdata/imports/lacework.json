@@ -1,0 +1,83 @@
+{
+  "paging": {
+    "rows": 3,
+    "totalRows": 3,
+    "urls": {
+      "nextPage": null
+    }
+  },
+  "data": [
+    {
+      "evalGuid": "c3a3f0b6e7d84d2a9b1c000000000001",
+      "imageId": "sha256:6f1e2d3c4b5a69780000000000000000000000000000000000000000000000ab",
+      "vulnId": "CVE-2024-2511",
+      "severity": "Medium",
+      "status": "Active",
+      "startTime": "2026-11-01T00:00:00.000Z",
+      "evalCtx": {
+        "image_info": {
+          "repo": "registry.example.test/app",
+          "registry": "registry.example.test",
+          "tags": [
+            "1.4.2"
+          ],
+          "digest": "sha256:9a8b7c6d5e4f30210000000000000000000000000000000000000000000000cd"
+        }
+      },
+      "featureKey": {
+        "name": "openssl",
+        "namespace": "debian:12",
+        "version": "3.0.11-1~deb12u2"
+      },
+      "fixInfo": {
+        "fix_available": 1,
+        "fixed_version": "3.0.13-1~deb12u1"
+      }
+    },
+    {
+      "mid": 1042,
+      "vulnId": "CVE-2024-6387",
+      "severity": "Critical",
+      "status": "Active",
+      "startTime": "2026-11-01T00:00:00.000Z",
+      "featureKey": {
+        "name": "openssh-server",
+        "namespace": "ubuntu:22.04",
+        "version_installed": "1:8.9p1-3ubuntu0.7",
+        "package_active": 1
+      },
+      "fixInfo": {
+        "fix_available": 1,
+        "fixed_version": "1:8.9p1-3ubuntu0.10"
+      },
+      "cveProps": {
+        "description": "Signal handler race condition in sshd (regreSSHion).",
+        "link": "https://nvd.nist.gov/vuln/detail/CVE-2024-6387"
+      },
+      "evalCtx": {
+        "hostname": "bastion-01.example.test"
+      },
+      "machineTags": {
+        "Hostname": "bastion-01.example.test"
+      }
+    },
+    {
+      "mid": 1042,
+      "vulnId": "CVE-2023-38408",
+      "severity": "High",
+      "status": "Fixed",
+      "featureKey": {
+        "name": "openssh-client",
+        "namespace": "ubuntu:22.04",
+        "version_installed": "1:8.9p1-3ubuntu0.1"
+      },
+      "fixInfo": {
+        "fix_available": 1,
+        "fixed_version": "1:8.9p1-3ubuntu0.3"
+      },
+      "evalCtx": {
+        "hostname": "bastion-01.example.test"
+      }
+    }
+  ]
+}

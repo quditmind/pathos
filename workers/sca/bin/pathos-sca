@@ -1,0 +1,452 @@
+#!/usr/local/bin/python3 -I
+"""Runs a worker-sca tool on a repository checkout for its tool manifest.
+
+    pathos-sca <tool> --version
+    pathos-sca <tool> <source> <output> [<cache>]
+
+Finds the files the tool reads (lockfiles, requirement files, modules),
+runs the tool on each with options that keep it from running repository
+code (no package-manager plugins, scripts, toolchain or package-manager
+version switching), and writes one report in the tool's own format to
+<output> (several runs are merged; an empty file means nothing to scan).
+Exit status: 0 when the report was written, 3 when every run failed.
+"""
+
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+
+# Optional operator settings. The worker passes tools a scrubbed environment
+# (PATH, proxy and locale variables only), so registry and NVD settings come
+# from a file the operator mounts read-only: KEY=VALUE lines; only the keys
+# below are read, everything else is ignored.
+SETTINGS_FILE = "/etc/pathos/sca.env"
+SETTINGS_KEYS = {"NVD_API_KEY", "NVD_DATAFEED_URL", "GOPROXY", "GOVULNDB", "NPM_CONFIG_REGISTRY"}
+
+
+def load_settings(path=SETTINGS_FILE):
+    try:
+        with open(path, encoding="utf-8") as f:
+            lines = f.read(64 << 10).splitlines()
+    except OSError:
+        return
+    for line in lines:
+        key, sep, value = line.strip().partition("=")
+        key, value = key.strip(), value.strip().strip('"').strip("'")
+        if sep and key in SETTINGS_KEYS and value:
+            os.environ.setdefault(key, value)
+
+
+load_settings()
+
+SCA = "/opt/pathos/sca"
+BIN = SCA + "/bin"
+NODE = SCA + "/node/bin/node"
+NPM_BIN = SCA + "/npm/node_modules/.bin"
+SKIP_DIRS = {".git", "node_modules", "vendor", ".venv", "venv", "site-packages", "bower_components", ".tox", "testdata", "target"}
+# GuardDog's popular-package lists, never refreshed (see the Dockerfile).
+GUARDDOG_ENV = {"GUARDDOG_TOP_PACKAGES_CACHE_LOCATION": SCA + "/guarddog-top"}
+NPM_REGISTRY = os.environ.get("NPM_CONFIG_REGISTRY") or "https://registry.npmjs.org/"
+
+
+def log(msg):
+    print("pathos-sca: " + msg, file=sys.stderr, flush=True)
+
+
+def find(src, match, limit=200):
+    """Repository files whose name satisfies match (sorted, at most limit)."""
+    out = []
+    for root, dirs, files in os.walk(src):
+        dirs[:] = sorted(d for d in dirs if d not in SKIP_DIRS)
+        for f in sorted(files):
+            if match(f):
+                out.append(os.path.join(root, f))
+                if len(out) >= limit:
+                    return out
+    return out
+
+
+def run(args, cwd=None, env=None, ok=(0,), stdout=None):
+    """Runs a command (no shell); returns its exit status or None on failure."""
+    e = dict(os.environ)
+    e.update(env or {})
+    try:
+        p = subprocess.run(args, cwd=cwd, env=e, stdout=stdout, stdin=subprocess.DEVNULL)
+    except OSError as err:
+        log("%s: %s" % (args[0], err))
+        return None
+    if p.returncode not in ok:
+        log("%s exited with status %d" % (os.path.basename(args[0]), p.returncode))
+        return None
+    return p.returncode
+
+
+def capture(args, **kw):
+    """Runs a command and returns its standard output, or None."""
+    r = subprocess.run(args, capture_output=True, stdin=subprocess.DEVNULL, **kw)
+    if r.returncode != 0:
+        sys.stderr.write(r.stderr.decode(errors="replace"))
+    return r
+
+
+def rel(src, path):
+    return os.path.relpath(path, src)
+
+
+def write(out, data):
+    with open(out, "wb") as f:
+        f.write(data)
+
+
+def finish(runs, failed):
+    if failed and not runs:
+        log("every run failed")
+        return 3
+    if failed:
+        log("%d of %d runs failed; the report has the others" % (failed, failed + runs))
+    return 0
+
+
+# --- tools -------------------------------------------------------------------
+
+
+def govulncheck(src, out, cache):
+    """govulncheck -format json on every Go module (call-graph reachability).
+    Modules and the vulnerability database are downloaded through the egress
+    proxy (GOPROXY, default https://proxy.golang.org; https://vuln.go.dev)."""
+    mods = [os.path.dirname(p) for p in find(src, lambda f: f == "go.mod")]
+    env = {
+        "PATH": SCA + "/go/bin:" + os.environ.get("PATH", "/usr/bin:/bin"),
+        "GOROOT": SCA + "/go",
+        "GOTOOLCHAIN": "local",  # never download another toolchain
+        "CGO_ENABLED": "0",  # package loading runs no C compiler
+        "GOFLAGS": "-mod=readonly -buildvcs=false",
+        "GOENV": "off",
+        "GOPATH": os.path.join(cache, "gopath"),
+        "GOMODCACHE": os.path.join(cache, "gopath", "pkg", "mod"),
+        "GOCACHE": os.path.join(cache, "build"),
+        "GOPROXY": os.environ.get("GOPROXY") or "https://proxy.golang.org",
+    }
+    db = os.environ.get("GOVULNDB") or "https://vuln.go.dev"
+    runs = failed = 0
+    with open(out, "wb") as f:
+        for m in mods:
+            log("govulncheck " + (rel(src, m) or "."))
+            r = capture([BIN + "/govulncheck", "-db", db, "-C", m, "-format", "json", "./..."], env={**os.environ, **env})
+            if r.returncode == 0:
+                f.write(r.stdout)
+                runs += 1
+            else:
+                failed += 1
+    return finish(runs, failed)
+
+
+def pip_audit(src, out, cache):
+    """pip-audit on every requirements*.txt (pinned requirements; no pip, no
+    dependency resolution). Vulnerability data: PyPI (https://pypi.org)."""
+    reqs = find(src, lambda f: f.startswith("requirements") and f.endswith(".txt"))
+    if not reqs:
+        write(out, b"")
+        return 0
+    # pip is not installed: pip-audit reads a pip version from pip-version.
+    env = {"PIPAPI_PYTHON_LOCATION": BIN + "/pip-version"}
+    args = [SCA + "/bin/pip-audit", "--disable-pip", "--no-deps", "--progress-spinner", "off", "-f", "json", "-o", out,
+            "--cache-dir", os.path.join(cache, "pip-audit")]
+    for r in reqs:
+        args += ["-r", r]
+    return 0 if run(args, env=env, ok=(0, 1)) is not None else 3
+
+
+def cargo_audit(src, out, cache):
+    """cargo-audit on every Cargo.lock with the bundled RustSec database
+    (offline)."""
+    reports, failed = [], 0
+    for lock in find(src, lambda f: f == "Cargo.lock"):
+        r = capture([BIN + "/cargo-audit", "audit", "--db", SCA + "/db/advisory-db", "--no-fetch", "--stale", "--json",
+                     "--file", lock])
+        try:
+            reports.append(json.loads(r.stdout))
+        except ValueError:
+            failed += 1
+    if not reports:
+        write(out, b"")
+        return finish(0, failed)
+    merged = reports[0]
+    for rep in reports[1:]:
+        v = merged.setdefault("vulnerabilities", {"found": False, "count": 0, "list": []})
+        rv = rep.get("vulnerabilities") or {}
+        v["list"] = (v.get("list") or []) + (rv.get("list") or [])
+        v["count"] = len(v["list"])
+        v["found"] = bool(v["list"])
+        w = merged.setdefault("warnings", {})
+        for kind, items in (rep.get("warnings") or {}).items():
+            w[kind] = (w.get(kind) or []) + (items or [])
+    write(out, json.dumps(merged).encode())
+    return finish(len(reports), failed)
+
+
+def bundler_audit(src, out, cache):
+    """bundler-audit on every Gemfile.lock with the bundled Ruby advisory
+    database (offline)."""
+    env = {"BUNDLE_GEMFILE": "/nonexistent/Gemfile"}
+    reports, failed = [], 0
+    for lock in find(src, lambda f: f == "Gemfile.lock"):
+        r = capture(["/usr/local/bin/bundle-audit", "check", "--no-update", "--database", SCA + "/db/ruby-advisory-db",
+                     "--format", "json", "--gemfile-lock", os.path.basename(lock), os.path.dirname(lock)],
+                    env={**os.environ, **env})
+        try:
+            reports.append(json.loads(r.stdout))
+        except ValueError:
+            failed += 1
+    if not reports:
+        write(out, b"")
+        return finish(0, failed)
+    merged = reports[0]
+    for rep in reports[1:]:
+        merged["results"] = (merged.get("results") or []) + (rep.get("results") or [])
+    write(out, json.dumps(merged).encode())
+    return finish(len(reports), failed)
+
+
+def retire(src, out, cache):
+    """Retire.js on the JavaScript files of the repository with the bundled
+    Retire.js repository (offline)."""
+    args = [NODE, NPM_BIN + "/retire", "--path", src, "--outputformat", "json", "--outputpath", out,
+            "--jsrepo", SCA + "/db/jsrepository.json", "--exitwith", "0", "--ignore", "node_modules"]
+    return 0 if run(args) is not None else 3
+
+
+def node_env():
+    return {"PATH": SCA + "/node/bin:" + os.environ.get("PATH", "/usr/bin:/bin"),
+            "npm_config_update_notifier": "false", "npm_config_fund": "false",
+            # yarn 1: never run the yarn release a repository's .yarnrc names.
+            "YARN_IGNORE_PATH": "1", "COREPACK_ENABLE_STRICT": "0"}
+
+
+def root_file(src, *names):
+    for n in names:
+        p = os.path.join(src, n)
+        if os.path.isfile(p):
+            return p
+    return None
+
+
+def npm_audit(src, out, cache):
+    """npm audit of the root package-lock.json (npm's audit endpoint of
+    registry.npmjs.org, or NPM_CONFIG_REGISTRY)."""
+    if not root_file(src, "package-lock.json", "npm-shrinkwrap.json"):
+        write(out, b"")
+        return 0
+    with open(out, "wb") as f:
+        r = run([NODE, SCA + "/npm/node_modules/npm/bin/npm-cli.js", "audit", "--json", "--package-lock-only",
+                 "--ignore-scripts", "--registry", NPM_REGISTRY, "--cache", os.path.join(cache, "npm")],
+                cwd=src, env=node_env(), ok=(0, 1), stdout=f)
+    return 0 if r is not None else 3
+
+
+def yarn_audit(src, out, cache):
+    """yarn audit (Yarn 1) of the root yarn.lock. Yarn 2+ lockfiles are not
+    audited (Yarn 2+ runs the release committed in the repository)."""
+    lock = root_file(src, "yarn.lock")
+    if not lock:
+        write(out, b"")
+        return 0
+    with open(lock, "rb") as f:
+        if b"__metadata:" in f.read(4096):
+            log("yarn.lock is a Yarn 2+ lockfile; yarn audit (Yarn 1) cannot read it")
+            write(out, b"")
+            return 0
+    with open(out, "wb") as f:
+        # Exit status: a bit mask of the severities found (0-31).
+        r = run([NODE, NPM_BIN + "/yarn", "audit", "--json", "--non-interactive", "--ignore-engines", "--registry", NPM_REGISTRY,
+                 "--cache-folder", os.path.join(cache, "yarn")],
+                cwd=src, env=node_env(), ok=tuple(range(32)), stdout=f)
+    return 0 if r is not None else 3
+
+
+def pnpm_audit(src, out, cache):
+    """pnpm audit of the root pnpm-lock.yaml (registry.npmjs.org)."""
+    if not root_file(src, "pnpm-lock.yaml"):
+        write(out, b"")
+        return 0
+    with open(out, "wb") as f:
+        r = run([NODE, NPM_BIN + "/pnpm", "audit", "--json", "--ignore-scripts", "--registry", NPM_REGISTRY],
+                # Never download and run the pnpm version a package.json names.
+                cwd=src, env={**node_env(), "npm_config_manage_package_manager_versions": "false", "npm_config_store_dir": os.path.join(cache, "pnpm-store"),
+                              "XDG_CACHE_HOME": os.path.join(cache, "xdg")}, ok=(0, 1), stdout=f)
+    return 0 if r is not None else 3
+
+
+def composer_audit(src, out, cache):
+    """composer audit of the root composer.lock (no plugins, no scripts;
+    advisories from packagist.org)."""
+    if not root_file(src, "composer.lock"):
+        write(out, b"")
+        return 0
+    env = {"COMPOSER_HOME": os.path.join(cache, "composer"), "COMPOSER_CACHE_DIR": os.path.join(cache, "composer", "cache"),
+           "COMPOSER_NO_INTERACTION": "1", "COMPOSER_ALLOW_SUPERUSER": "0", "COMPOSER_DISABLE_XDEBUG_WARN": "1"}
+    with open(out, "wb") as f:
+        # Exit status: 1 vulnerable, 2 abandoned packages, 3 both.
+        r = run(["/usr/bin/php", SCA + "/composer.phar", "audit", "--locked", "--format=json", "--no-plugins", "--no-scripts",
+                 "--no-interaction", "--working-dir", src], env=env, ok=(0, 1, 2, 3), stdout=f)
+    return 0 if r is not None else 3
+
+
+NVD_FEEDS = "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz"
+
+
+def dependency_check(src, out, cache):
+    """OWASP Dependency-Check. The NVD data is downloaded into the cache
+    (https://services.nvd.nist.gov); NVD_API_KEY (optional, from
+    /etc/pathos/sca.env) uses the NVD API instead of the yearly data feeds. Analyzers that run package
+    managers or contact other services are disabled."""
+    args = [SCA + "/dependency-check/bin/dependency-check.sh", "--scan", src, "--format", "JSON", "--out", out,
+            "--data", os.path.join(cache, "data"), "--project", "pathos",
+            "--disableOssIndex", "--disableCentral", "--disableRetireJs", "--disableNodeAudit", "--disableYarnAudit",
+            "--disablePnpmAudit", "--disableBundleAudit", "--disableGolangMod", "--disableMixAudit", "--disableAssembly",
+            "--disableHostedSuppressions", "--disableKnownExploited", "--disableVersionCheck",
+            "--exclude", "**/.git/**", "--exclude", "**/node_modules/**"]
+    key = os.environ.get("NVD_API_KEY")
+    env = {"JAVA_HOME": SCA + "/jre"}
+    if key:
+        args += ["--nvdApiKey", key]
+    else:
+        # Without an API key: the NVD's yearly JSON 2.0 data feeds
+        # (https://nvd.nist.gov/feeds), or a mirror (NVD_DATAFEED_URL).
+        args += ["--nvdDatafeed", os.environ.get("NVD_DATAFEED_URL") or NVD_FEEDS]
+    os.makedirs(os.path.join(cache, "data"), exist_ok=True)
+    return 0 if run(args, env=env) is not None else 3
+
+
+def guarddog(src, out, cache):
+    """GuardDog verify on every requirements*.txt and package.json: each
+    dependency is downloaded from PyPI or npm and checked for malware
+    heuristics (source code rules and metadata rules such as
+    typosquatting). Nothing is installed or executed."""
+    targets = [("pypi", p) for p in find(src, lambda f: f.startswith("requirements") and f.endswith(".txt"))]
+    targets += [("npm", p) for p in find(src, lambda f: f == "package.json")]
+    runs_out, failed = [], 0
+    base = None
+    for eco, path in targets:
+        r = capture([SCA + "/bin/guarddog", eco, "verify", path, "--output-format", "sarif"], env={**os.environ, **GUARDDOG_ENV})
+        try:
+            doc = json.loads(r.stdout)
+        except ValueError:
+            failed += 1
+            continue
+        base = base or doc
+        for run_ in doc.get("runs") or []:
+            for res in run_.get("results") or []:
+                # The dependency file the package was declared in, relative
+                # to the repository.
+                for loc in res.get("locations") or []:
+                    al = loc.setdefault("physicalLocation", {}).setdefault("artifactLocation", {})
+                    uri = al.get("uri") or ""
+                    al["uri"] = rel(src, uri) if os.path.isabs(uri) else (uri or rel(src, path))
+                # GuardDog reports every rule as a warning. Its capability-*
+                # rules describe what a package can do (read files, open
+                # connections, start processes), which most legitimate
+                # packages do; they are kept, as notes (low). The threat and
+                # metadata rules (malware indicators, typosquatting) keep
+                # GuardDog's level.
+                if str(res.get("ruleId", "")).startswith("capability-"):
+                    res["level"] = "note"
+                if not res.get("locations"):
+                    res["locations"] = [{"physicalLocation": {"artifactLocation": {"uri": rel(src, path)}}}]
+            runs_out.append(run_)
+    if base is None:
+        write(out, b"")
+        return finish(0, failed)
+    base["runs"] = runs_out
+    write(out, json.dumps(base).encode())
+    return finish(len(targets) - failed, failed)
+
+
+def depcheck(src, out, cache):
+    """pathos-depcheck: dependency confusion and typosquatting (offline)."""
+    return 0 if run([BIN + "/pathos-depcheck", "-o", out, src]) is not None else 3
+
+
+def cdxgen(src, out, cache):
+    """cdxgen CycloneDX SBOM (with cryptographic assets) of the repository,
+    from lockfiles and manifests only. It runs under the Node.js permission
+    model: it can read the repository and write only its report and a
+    temporary directory, and it cannot start processes (so no package
+    manager or build tool of the repository runs)."""
+    tmp = os.path.join(os.path.dirname(out), "cdxgen-tmp")
+    os.makedirs(tmp, exist_ok=True)
+    # CDXGEN_SECURE_MODE: cdxgen checks the permission model itself and
+    # skips every command instead of failing on the first one.
+    env = {"CDXGEN_SECURE_MODE": "true", "FETCH_LICENSE": "false", "CDXGEN_TEMP_DIR": tmp, "TMPDIR": tmp, "CDXGEN_NO_BANNER": "true",
+           "NODE_NO_WARNINGS": "1", "CDX_MAVEN_SKIP": "true", "npm_config_update_notifier": "false"}
+    args = [NODE, "--permission", "--allow-fs-read=" + SCA + "/npm/", "--allow-fs-read=" + src, "--allow-fs-read=" + tmp,
+            "--allow-fs-write=" + tmp,
+            SCA + "/npm/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js", "-r", "--no-install-deps", "--include-crypto",
+            # Secure mode fails on the first build tool it may not run; the
+            # BOM is then made from the lockfiles and manifests.
+            "--no-fail-on-error",
+            "--spec-version", "1.6", "-o", os.path.join(tmp, "bom.json"), src]
+    r = run(args, env=env)
+    if r is not None:
+        shutil.move(os.path.join(tmp, "bom.json"), out)
+    shutil.rmtree(tmp, ignore_errors=True)
+    return 0 if r is not None else 3
+
+
+# --- versions ----------------------------------------------------------------
+
+
+def version(tool):
+    cmds = {
+        "govulncheck": [BIN + "/govulncheck", "-version"],
+        "pip-audit": [SCA + "/bin/pip-audit", "--version"],
+        "cargo-audit": [BIN + "/cargo-audit", "--version"],
+        "bundler-audit": ["/usr/local/bin/bundle-audit", "version"],
+        "retire": [NODE, NPM_BIN + "/retire", "--version"],
+        "npm-audit": [NODE, SCA + "/npm/node_modules/npm/bin/npm-cli.js", "--version"],
+        "yarn-audit": [NODE, NPM_BIN + "/yarn", "--version"],
+        "pnpm-audit": [NODE, NPM_BIN + "/pnpm", "--version"],
+        "composer-audit": ["/usr/bin/php", SCA + "/composer.phar", "--version", "--no-plugins", "--no-interaction"],
+        "dependency-check": [SCA + "/dependency-check/bin/dependency-check.sh", "--version"],
+        "guarddog": [SCA + "/bin/guarddog", "--version"],
+        "depcheck": [BIN + "/pathos-depcheck", "--version"],
+        "cdxgen": [NODE, SCA + "/npm/node_modules/@cyclonedx/cdxgen/bin/cdxgen.js", "--version"],
+    }
+    env = {"JAVA_HOME": SCA + "/jre", "COMPOSER_HOME": "/tmp/composer-version", "PIPAPI_PYTHON_LOCATION": BIN + "/pip-version",
+           **GUARDDOG_ENV}
+    env.update(node_env())
+    r = subprocess.run(cmds[tool], capture_output=True, env={**os.environ, **env}, stdin=subprocess.DEVNULL)
+    text = re.sub(r"\x1b\[[0-9;]*m", "", (r.stdout or r.stderr).decode(errors="replace"))
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    if tool == "govulncheck":
+        lines = [l for l in lines if l.startswith("Scanner:")] or lines
+    print(lines[0] if lines else "")
+    return r.returncode
+
+
+TOOLS = {
+    "govulncheck": govulncheck, "pip-audit": pip_audit, "cargo-audit": cargo_audit, "bundler-audit": bundler_audit,
+    "retire": retire, "npm-audit": npm_audit, "yarn-audit": yarn_audit, "pnpm-audit": pnpm_audit,
+    "composer-audit": composer_audit, "dependency-check": dependency_check, "guarddog": guarddog, "depcheck": depcheck,
+    "cdxgen": cdxgen,
+}
+
+
+def main(argv):
+    if len(argv) >= 2 and argv[0] in TOOLS and argv[1] == "--version":
+        return version(argv[0])
+    if len(argv) not in (3, 4) or argv[0] not in TOOLS:
+        print(__doc__, file=sys.stderr)
+        print("tools: " + ", ".join(sorted(TOOLS)), file=sys.stderr)
+        return 2
+    tool, src, out = argv[0], argv[1], argv[2]
+    cache = argv[3] if len(argv) == 4 else os.path.join(os.path.dirname(out), "cache")
+    os.makedirs(cache, mode=0o700, exist_ok=True)
+    return TOOLS[tool](os.path.abspath(src), out, cache)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

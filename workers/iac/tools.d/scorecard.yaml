@@ -1,0 +1,25 @@
+# OpenSSF Scorecard in --local mode: the checks that read only the files of
+# the checkout (no repository host API, no token, no network). Fuzzing and
+# Vulnerabilities are left out because they query online services; the
+# repository host checks (Branch-Protection, Code-Review, Maintained, ...)
+# do not run on a local folder. A check scoring below 10 is a finding.
+name: scorecard
+display_name: OpenSSF Scorecard (local)
+category: supply-chain
+scan_types: [supply-chain, cicd]
+license_spdx: Apache-2.0
+homepage: https://github.com/ossf/scorecard
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/scorecard
+version_args: ["version"]
+args: ["--local", "{source}", "--format", "json", "--show-details",
+       "--checks", "Binary-Artifacts,Dangerous-Workflow,Dependency-Update-Tool,License,Packaging,Pinned-Dependencies,SAST,Security-Policy,Token-Permissions"]
+ok_exit_codes: [0]
+timeout: 20m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:scorecard

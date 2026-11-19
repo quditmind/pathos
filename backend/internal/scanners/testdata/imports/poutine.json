@@ -1,0 +1,83 @@
+{
+  "findings": [
+    {
+      "meta": {
+        "details": "Detected usage of `make`",
+        "event_triggers": [
+          "pull_request_target"
+        ],
+        "job": "build",
+        "line": 11,
+        "lotp_targets": [
+          "Makefile"
+        ],
+        "lotp_tool": "make",
+        "path": ".github/workflows/ci.yml"
+      },
+      "purl": "pkg:localrepo/localrepo/local?repository_url=.",
+      "rule_id": "untrusted_checkout_exec"
+    },
+    {
+      "meta": {
+        "details": "Sources: github.event.pull_request.title",
+        "event_triggers": [
+          "pull_request_target"
+        ],
+        "injection_sources": [
+          "github.event.pull_request.title"
+        ],
+        "job": "build",
+        "line": 10,
+        "path": ".github/workflows/ci.yml",
+        "step": "1"
+      },
+      "purl": "pkg:localrepo/localrepo/local?repository_url=.",
+      "rule_id": "injection"
+    },
+    {
+      "meta": {
+        "event_triggers": [
+          "pull_request_target"
+        ],
+        "path": ".github/workflows/ci.yml"
+      },
+      "purl": "pkg:localrepo/localrepo/local?repository_url=.",
+      "rule_id": "default_permissions_on_risky_events"
+    }
+  ],
+  "packages": {
+    "pkg:localrepo/localrepo/local?repository_url=.": {
+      "commit_sha": "",
+      "dependencies": [
+        "pkg:githubactions/actions/checkout@v4"
+      ],
+      "ref": "local"
+    }
+  },
+  "rules": {
+    "default_permissions_on_risky_events": {
+      "description": "The workflow and some of its jobs do not explicitely define permissions\nand the workflow triggers on events that are typically used to run builds from forks.\nBecause no permissions is set, the workflow inherits the default permissions\nconfigured on the repository or the organization.",
+      "id": "default_permissions_on_risky_events",
+      "level": "warning",
+      "title": "Default permissions used on risky events"
+    },
+    "injection": {
+      "description": "The pipeline contains an injection into bash or JavaScript with an expression\nthat can contain user input. Prefer placing the expression in an environment variable\ninstead of interpolating it directly into a script.",
+      "id": "injection",
+      "level": "warning",
+      "refs": [
+        {
+          "description": "",
+          "ref": "https://securitylab.github.com/research/github-actions-preventing-pwn-requests/"
+        }
+      ],
+      "title": "Injection with Arbitrary External Contributor Input"
+    },
+    "untrusted_checkout_exec": {
+      "description": "The workflow appears to checkout untrusted code from a fork\nand uses a command that is known to allow code execution.",
+      "id": "untrusted_checkout_exec",
+      "level": "error",
+      "title": "Arbitrary Code Execution from Untrusted Code Changes"
+    }
+  }
+}

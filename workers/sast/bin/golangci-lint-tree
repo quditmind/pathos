@@ -1,0 +1,30 @@
+#!/bin/sh
+# Runs golangci-lint with the image's configuration (security-relevant
+# linters only; a repository's own .golangci.yml is never read, so it
+# cannot load plugins or disable checks) in every Go module of a directory
+# tree (at most 50), and merges the JSON reports into one.
+#   golangci-lint-tree <directory> <report> <tmp>
+# Exit status: 0, or the exit status of a failed golangci-lint run.
+set -eu
+if [ "${1:-}" = "--version" ]; then exec /opt/pathos/sast/bin/golangci-lint --version; fi
+[ "$#" -eq 3 ] && [ -d "$1" ] && [ -d "$3" ] || { echo "usage: golangci-lint-tree <directory> <report> <tmp>" >&2; exit 2; }
+go_tmp="$3"
+. /opt/pathos/sast/bin/go-env
+reports="$3/golangci-reports"
+mkdir -p "$reports"
+i=0
+find "$1" \( -name .git -o -name vendor -o -name testdata -o -name node_modules \) -prune -o -type f -name go.mod -print | sort | head -n 50 |
+while IFS= read -r mod; do
+  i=$((i + 1))
+  (cd "$(dirname "$mod")" && /opt/pathos/sast/bin/golangci-lint run --config /opt/pathos/sast/config/golangci.yml \
+    --output.json.path "$reports/$i.json" --path-mode abs --issues-exit-code 0 --max-issues-per-linter 0 --max-same-issues 0 ./...)
+done
+exec /usr/local/bin/python3 -I -c '
+import glob, json, sys
+issues = []
+for p in sorted(glob.glob(sys.argv[1] + "/*.json")):
+    with open(p, encoding="utf-8") as f:
+        issues += json.load(f).get("Issues") or []
+with open(sys.argv[2], "w", encoding="utf-8") as f:
+    json.dump({"Issues": issues}, f)
+' "$reports" "$2"

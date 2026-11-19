@@ -1,0 +1,1497 @@
+[
+         {
+              "id"           : "engine_problem",
+              "ip"           : "/",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "No engine or GOST support via engine with your /usr/bin/openssl"
+          }
+,         {
+              "id"           : "service",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "HTTP"
+          }
+,         {
+              "id"           : "pre_128cipher",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No 128 cipher limit bug"
+          }
+,         {
+              "id"           : "SSLv2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "SSLv3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "TLS1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "offered (deprecated)"
+          }
+,         {
+              "id"           : "TLS1_2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "TLS1_3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered with final"
+          }
+,         {
+              "id"           : "NPN",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "not tested as proxies do not support proxying it"
+          }
+,         {
+              "id"           : "ALPN",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "WARN",
+              "finding"      : "not tested as proxies do not support proxying it"
+          }
+,         {
+              "id"           : "cipherlist_NULL",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_aNULL",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "cwe"          : "CWE-327",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_EXPORT",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_LOW",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-327",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_3DES_IDEA",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-310",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cipherlist_OBSOLETED",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cwe"          : "CWE-310",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_NOFS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipherlist_STRONG_FS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "cipher_order-tls1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_xc014",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_xc019",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1   xc019   AECDH-AES256-SHA                  ECDH 253   AES         256      TLS_ECDH_anon_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_xc013",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_xc018",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1   xc018   AECDH-AES128-SHA                  ECDH 253   AES         128      TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x35",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x84",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x84     CAMELLIA256-SHA                   RSA        Camellia    256      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x2f",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_x41",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1   x41     CAMELLIA128-SHA                   RSA        Camellia    128      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES256-SHA AECDH-AES256-SHA ECDHE-RSA-AES128-SHA AECDH-AES128-SHA AES256-SHA CAMELLIA256-SHA AES128-SHA CAMELLIA128-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc014",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc019",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1.1   xc019   AECDH-AES256-SHA                  ECDH 253   AES         256      TLS_ECDH_anon_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc013",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_xc018",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1.1   xc018   AECDH-AES128-SHA                  ECDH 253   AES         128      TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x35",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x84",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x84     CAMELLIA256-SHA                   RSA        Camellia    256      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x2f",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_1_x41",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.1   x41     CAMELLIA128-SHA                   RSA        Camellia    128      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES256-SHA AECDH-AES256-SHA ECDHE-RSA-AES128-SHA AECDH-AES128-SHA AES256-SHA CAMELLIA256-SHA AES128-SHA CAMELLIA128-SHA"
+          }
+,         {
+              "id"           : "cipher_order-tls1_2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc030",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc030   ECDHE-RSA-AES256-GCM-SHA384       ECDH 253   AESGCM      256      TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xcca8",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xcca8   ECDHE-RSA-CHACHA20-POLY1305       ECDH 253   ChaCha20    256      TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc061",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc061   ECDHE-ARIA256-GCM-SHA384          ECDH 253   ARIAGCM     256      TLS_ECDHE_RSA_WITH_ARIA_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc02f",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc02f   ECDHE-RSA-AES128-GCM-SHA256       ECDH 253   AESGCM      128      TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc060",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc060   ECDHE-ARIA128-GCM-SHA256          ECDH 253   ARIAGCM     128      TLS_ECDHE_RSA_WITH_ARIA_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc028",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc028   ECDHE-RSA-AES256-SHA384           ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc077",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc077   ECDHE-RSA-CAMELLIA256-SHA384      ECDH 253   Camellia    256      TLS_ECDHE_RSA_WITH_CAMELLIA_256_CBC_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc027",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc027   ECDHE-RSA-AES128-SHA256           ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc076",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc076   ECDHE-RSA-CAMELLIA128-SHA256      ECDH 253   Camellia    128      TLS_ECDHE_RSA_WITH_CAMELLIA_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc014",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc014   ECDHE-RSA-AES256-SHA              ECDH 253   AES         256      TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc019",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1.2   xc019   AECDH-AES256-SHA                  ECDH 253   AES         256      TLS_ECDH_anon_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc013",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc013   ECDHE-RSA-AES128-SHA              ECDH 253   AES         128      TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc018",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "TLSv1.2   xc018   AECDH-AES128-SHA                  ECDH 253   AES         128      TLS_ECDH_anon_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9d",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9d     AES256-GCM-SHA384                 RSA        AESGCM      256      TLS_RSA_WITH_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc09d",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc09d   AES256-CCM                        RSA        AESCCM      256      TLS_RSA_WITH_AES_256_CCM"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc051",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc051   ARIA256-GCM-SHA384                RSA        ARIAGCM     256      TLS_RSA_WITH_ARIA_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x9c",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   x9c     AES128-GCM-SHA256                 RSA        AESGCM      128      TLS_RSA_WITH_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc09c",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc09c   AES128-CCM                        RSA        AESCCM      128      TLS_RSA_WITH_AES_128_CCM"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc050",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc050   ARIA128-GCM-SHA256                RSA        ARIAGCM     128      TLS_RSA_WITH_ARIA_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc0a1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc0a1   AES256-CCM8                       RSA        AESCCM8     256      TLS_RSA_WITH_AES_256_CCM_8"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc0a0",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.2   xc0a0   AES128-CCM8                       RSA        AESCCM8     128      TLS_RSA_WITH_AES_128_CCM_8"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3d",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3d     AES256-SHA256                     RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xc0",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xc0     CAMELLIA256-SHA256                RSA        Camellia    256      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x3c",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x3c     AES128-SHA256                     RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_xba",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   xba     CAMELLIA128-SHA256                RSA        Camellia    128      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x35",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x35     AES256-SHA                        RSA        AES         256      TLS_RSA_WITH_AES_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x84",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x84     CAMELLIA256-SHA                   RSA        Camellia    256      TLS_RSA_WITH_CAMELLIA_256_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x2f",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x2f     AES128-SHA                        RSA        AES         128      TLS_RSA_WITH_AES_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipher-tls1_2_x41",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "TLSv1.2   x41     CAMELLIA128-SHA                   RSA        Camellia    128      TLS_RSA_WITH_CAMELLIA_128_CBC_SHA"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-CHACHA20-POLY1305 ECDHE-ARIA256-GCM-SHA384 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-ARIA128-GCM-SHA256 ECDHE-RSA-AES256-SHA384 ECDHE-RSA-CAMELLIA256-SHA384 ECDHE-RSA-AES128-SHA256 ECDHE-RSA-CAMELLIA128-SHA256 ECDHE-RSA-AES256-SHA AECDH-AES256-SHA ECDHE-RSA-AES128-SHA AECDH-AES128-SHA AES256-GCM-SHA384 AES256-CCM ARIA256-GCM-SHA384 AES128-GCM-SHA256 AES128-CCM ARIA128-GCM-SHA256 AES256-CCM8 AES128-CCM8 AES256-SHA256 CAMELLIA256-SHA256 AES128-SHA256 CAMELLIA128-SHA256 AES256-SHA CAMELLIA256-SHA AES128-SHA CAMELLIA128-SHA"
+          }
+,         {
+              "id"           : "prioritize_chacha_TLSv1_2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "false"
+          }
+,         {
+              "id"           : "cipher_order-tls1_3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1302",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1302   TLS_AES_256_GCM_SHA384            ECDH/MLKEM AESGCM      256      TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1303",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1303   TLS_CHACHA20_POLY1305_SHA256      ECDH/MLKEM ChaCha20    256      TLS_CHACHA20_POLY1305_SHA256"
+          }
+,         {
+              "id"           : "cipher-tls1_3_x1301",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "TLSv1.3   x1301   TLS_AES_128_GCM_SHA256            ECDH/MLKEM AESGCM      128      TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "cipherorder_TLSv1_3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 TLS_AES_128_GCM_SHA256"
+          }
+,         {
+              "id"           : "prioritize_chacha_TLSv1_3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "false"
+          }
+,         {
+              "id"           : "cipher_order",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "server"
+          }
+,         {
+              "id"           : "FS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "offered"
+          }
+,         {
+              "id"           : "FS_ciphers",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLS_AES_256_GCM_SHA384 TLS_CHACHA20_POLY1305_SHA256 ECDHE-RSA-AES256-GCM-SHA384 ECDHE-RSA-AES256-SHA384 ECDHE-RSA-AES256-SHA ECDHE-RSA-CHACHA20-POLY1305 ECDHE-RSA-CAMELLIA256-SHA384 ECDHE-ARIA256-GCM-SHA384 TLS_AES_128_GCM_SHA256 ECDHE-RSA-AES128-GCM-SHA256 ECDHE-RSA-AES128-SHA256 ECDHE-RSA-AES128-SHA ECDHE-RSA-CAMELLIA128-SHA256 ECDHE-ARIA128-GCM-SHA256"
+          }
+,         {
+              "id"           : "FS_KEMs",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "X25519MLKEM768"
+          }
+,         {
+              "id"           : "FS_ECDHE_curves",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "prime256v1 secp384r1 secp521r1 X25519 X448"
+          }
+,         {
+              "id"           : "DH_groups",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "ffdhe2048 ffdhe3072"
+          }
+,         {
+              "id"           : "FS_TLS12_sig_algs",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA-PSS-RSAE+SHA384 RSA-PSS-RSAE+SHA512 RSA+SHA256 RSA+SHA384 RSA+SHA512 RSA+SHA224 RSA+SHA1"
+          }
+,         {
+              "id"           : "FS_TLS13_sig_algs",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA-PSS-RSAE+SHA256 RSA-PSS-RSAE+SHA384 RSA-PSS-RSAE+SHA512"
+          }
+,         {
+              "id"           : "TLS_extensions",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "'max fragment length/#1' 'EC point formats/#11' 'encrypt-then-mac/#22' 'extended master secret/#23' 'session ticket/#35' 'supported versions/#43' 'key share/#51' 'renegotiation info/#65281'"
+          }
+,         {
+              "id"           : "TLS_session_ticket",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "valid for 7200 seconds only (<daily)"
+          }
+,         {
+              "id"           : "SSL_sessionID_support",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "yes"
+          }
+,         {
+              "id"           : "sessionresumption_ticket",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "sessionresumption_ID",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "TLS_timestamp",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "random"
+          }
+,         {
+              "id"           : "certificate_compression",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "clientAuth",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "none"
+          }
+,         {
+              "id"           : "cert_numbers",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1"
+          }
+,         {
+              "id"           : "cert_signatureAlgorithm",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "SHA256 with RSA"
+          }
+,         {
+              "id"           : "cert_keySize",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "RSA 2048 bits (exponent is 65537)"
+          }
+,         {
+              "id"           : "cert_keyUsage",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No server key usage information"
+          }
+,         {
+              "id"           : "cert_extKeyUsage",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No server extended key usage information"
+          }
+,         {
+              "id"           : "cert_serialNumber",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "101E8645147671FFE34E331ABFC0EB489A70DDDB"
+          }
+,         {
+              "id"           : "cert_serialNumberLen",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "20"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "98655EF423751BD0EC9E1F0C109C5E67504B9919"
+          }
+,         {
+              "id"           : "cert_fingerprintSHA256",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "B8F1B4F463689F26071CF22F0FC989935B910A2C288AD1F4AE4C41C26D70B34E"
+          }
+,         {
+              "id"           : "cert",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "-----BEGIN CERTIFICATE-----\nMIIDCzCCAfOgAwIBAgIUEB6GRRR2cf/jTjMav8DrSJpw3dswDQYJKoZIhvcNAQELBQAwFTETMBEGA1UEAwwKYjMtdnVsbmFwcDAeFw0yNjExMTkwNzM1NTFaFw0yNjEyMTkwNzM1NTFaMBUxEzARBgNVBAMMCmIzLXZ1bG5hcHAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDVo5SMP9KYOqA48iRRi+2AKXPtPBZhzINVYVkodg4lI7qMS+r14Nv1lZLx1ytHqHHsY0PHozoSDq8o9c6Tx8Wsbbjd4dMsMCT9PihkAQexBjNwfZAa5DinIWdr2hEw3McrnwtJvRCp3JRma5XkmTPWtjoFoVHq5QnV+nZ2v1aCiqU3mBoyrEh787gPcdjlm4NNIaPEOIBP4MNr/+2yMuDnSSRiOpmwLu3ExbfkKs8YfJPS+CdQq4QjMuOwqT7eF0jqUZyzdXrpE5EQlHiNcZ9igu6NA1Ld+EepFcKUa3VH9hdpzCW1QyOJIaAK5YbJXVvmwPG3sG0bEUSJwGbpv789AgMBAAGjUzBRMB0GA1UdDgQWBBTPXhaKfLSwinPxOcegE55eKj82czAfBgNVHSMEGDAWgBTPXhaKfLSwinPxOcegE55eKj82czAPBgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQAJmB2I0v6kI8u0HKopXT5a9sBLQI63SQ7wnz51wNr9eIwb6U3c5fZ6R69hC101tw7TRSROpyc6dmMNYIkS63NhFiMkR2ezgtGHx4w0QCqo+2rcBmqEQsV/3ARGj+oySbfMYiNZDxVhf8aUtfpPDb+2aicUiZhIIVPmQi/4rIRIzf0eybnZoNSJJaAQcT6EbpGInIHBBcL43D7VKogETmNra9xbF3y5mZ4NRHNFmyGl+lZ2YjhlAyMpYRN6tAtPmZKIh2jbQ4s51f3+XenGiy3s7FOKbJKhQiwH4Vw9BD9ubIE4BQtKdqxer6dTfXsPwoa5UvGAAcSYW/jO5WCNqeml\n-----END CERTIFICATE-----"
+          }
+,         {
+              "id"           : "cert_commonName",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "b3-vulnapp"
+          }
+,         {
+              "id"           : "cert_commonName_wo_SNI",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "b3-vulnapp"
+          }
+,         {
+              "id"           : "cert_subjectAltName",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "No SAN, browsers are complaining"
+          }
+,         {
+              "id"           : "cert_trust",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "via CN only (same w/o SNI)"
+          }
+,         {
+              "id"           : "cert_chain_of_trust",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "failed (self signed)."
+          }
+,         {
+              "id"           : "cert_certificatePolicies_EV",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_expirationStatus",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "expires < 30 days (29)"
+          }
+,         {
+              "id"           : "cert_notBefore",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "2026-11-19 07:35"
+          }
+,         {
+              "id"           : "cert_notAfter",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "2026-12-19 07:35"
+          }
+,         {
+              "id"           : "cert_extlifeSpan",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "certificate has no extended life time according to browser forum"
+          }
+,         {
+              "id"           : "cert_eTLS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not present"
+          }
+,         {
+              "id"           : "cert_crlDistributionPoints",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "cert_ocspURL",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "cert_revocation",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "HIGH",
+              "finding"      : "Neither CRL nor OCSP URI provided"
+          }
+,         {
+              "id"           : "OCSP_stapling",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "cert_mustStapleExtension",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "DNS_CAArecord",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "check skipped as instructed (proxy)"
+          }
+,         {
+              "id"           : "certificate_transparency",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "certs_countServer",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1"
+          }
+,         {
+              "id"           : "certs_list_ordering_problem",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "no"
+          }
+,         {
+              "id"           : "cert_caIssuers",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "b3-vulnapp"
+          }
+,         {
+              "id"           : "intermediate_cert_badOCSP",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "intermediate certificate(s) is/are ok"
+          }
+,         {
+              "id"           : "HTTP_status_code",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "200 OK ('/')"
+          }
+,         {
+              "id"           : "HTTP_clock_skew",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0 seconds from localtime"
+          }
+,         {
+              "id"           : "HTTP_headerTime",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1795075921"
+          }
+,         {
+              "id"           : "HSTS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "finding"      : "not offered"
+          }
+,         {
+              "id"           : "HPKP",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No support for HTTP Public Key Pinning"
+          }
+,         {
+              "id"           : "banner_server",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Werkzeug/3.1.9 Python/3.13.18"
+          }
+,         {
+              "id"           : "banner_application",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "No application banner found"
+          }
+,         {
+              "id"           : "cookie_count",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "1 at '/'"
+          }
+,         {
+              "id"           : "cookie_secure",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0/1 at '/' marked as secure"
+          }
+,         {
+              "id"           : "cookie_httponly",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0/1 at '/' marked as HttpOnly"
+          }
+,         {
+              "id"           : "security_headers",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "banner_reverseproxy",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cwe"          : "CWE-200",
+              "finding"      : "--"
+          }
+,         {
+              "id"           : "heartbleed",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0160",
+              "cwe"          : "CWE-119",
+              "finding"      : "not vulnerable, no heartbeat extension"
+          }
+,         {
+              "id"           : "CCS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-0224",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ticketbleed",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-9244",
+              "cwe"          : "CWE-200",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "ROBOT",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2017-17382 CVE-2017-17427 CVE-2017-17428 CVE-2017-13098 CVE-2017-1000385 CVE-2017-13099 CVE-2016-6883 CVE-2012-5081 CVE-2017-6168",
+              "cwe"          : "CWE-203",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "secure_renego",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cwe"          : "CWE-310",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "secure_client_renego",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2011-1473",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "CRIME_TLS",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2012-4929",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "BREACH",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-3587",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no gzip/deflate/compress/br HTTP compression  - only supplied '/' tested"
+          }
+,         {
+              "id"           : "POODLE_SSL",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-3566",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no SSLv3"
+          }
+,         {
+              "id"           : "fallback_SCSV",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "finding"      : "supported"
+          }
+,         {
+              "id"           : "SWEET32",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-2183 CVE-2016-6329",
+              "cwe"          : "CWE-327",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "FREAK",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-0204",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "DROWN",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable on this host and port"
+          }
+,         {
+              "id"           : "DROWN_hint",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "cve"          : "CVE-2016-0800 CVE-2016-0703",
+              "cwe"          : "CWE-310",
+              "finding"      : "Make sure you don't use this certificate elsewhere with SSLv2 enabled services, see https://search.censys.io/search?resource=hosts&virtual_hosts=INCLUDE&q=B8F1B4F463689F26071CF22F0FC989935B910A2C288AD1F4AE4C41C26D70B34E"
+          }
+,         {
+              "id"           : "LOGJAM",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable, no DH EXPORT ciphers,"
+          }
+,         {
+              "id"           : "LOGJAM-common_primes",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2015-4000",
+              "cwe"          : "CWE-310",
+              "finding"      : "no DH key with <= TLS 1.2"
+          }
+,         {
+              "id"           : "BEAST_CBC_TLS1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "MEDIUM",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "ECDHE-RSA-AES256-SHA AECDH-AES256-SHA ECDHE-RSA-AES128-SHA AECDH-AES128-SHA AES256-SHA CAMELLIA256-SHA AES128-SHA CAMELLIA128-SHA"
+          }
+,         {
+              "id"           : "BEAST",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2011-3389",
+              "cwe"          : "CWE-20",
+              "finding"      : "VULNERABLE -- but also supports higher protocols  TLSv1.1 TLSv1.2 (likely mitigated)"
+          }
+,         {
+              "id"           : "LUCKY13",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "LOW",
+              "cve"          : "CVE-2013-0169",
+              "cwe"          : "CWE-310",
+              "finding"      : "potentially vulnerable, uses obsolete TLS CBC ciphers"
+          }
+,         {
+              "id"           : "winshock",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2014-6321",
+              "cwe"          : "CWE-94",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "RC4",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "OK",
+              "cve"          : "CVE-2013-2566 CVE-2015-2808",
+              "cwe"          : "CWE-310",
+              "finding"      : "not vulnerable"
+          }
+,         {
+              "id"           : "clientsimulation-android_70",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_81",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_90",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_X",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_11_12",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_13_14",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-android_15",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-chrome_101_win10",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-chromium_137_win11",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_100_win10",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-firefox_137_win11",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-ie_8_win7",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES256-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win7",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win81",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_winphone81",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES128-SHA256"
+          }
+,         {
+              "id"           : "clientsimulation-ie_11_win10",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-edge_15_win10",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-edge_101_win10_21h2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-edge_133_win11_23h2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_ios_184",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-safari_154_osx_1231",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-safari_184_osx_154",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_7u25",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.0 ECDHE-RSA-AES128-SHA"
+          }
+,         {
+              "id"           : "clientsimulation-java_80442",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_1102",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_1703",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-java_2106",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-go_1178",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-libressl_336",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_102e",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_111d",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_315",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-openssl_350",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-apple_mail_16_0",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.2 ECDHE-RSA-AES256-GCM-SHA384"
+          }
+,         {
+              "id"           : "clientsimulation-thunderbird_91_9",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "TLSv1.3 TLS_AES_256_GCM_SHA384"
+          }
+,         {
+              "id"           : "rating_spec",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "SSL Labs's 'SSL Server Rating Guide' (version 2009r from 2025-05-16)"
+          }
+,         {
+              "id"           : "rating_doc",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "https://github.com/ssllabs/research/wiki/SSL-Server-Rating-Guide"
+          }
+,         {
+              "id"           : "protocol_support_score",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "protocol_support_score_weighted",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "key_exchange_score",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "key_exchange_score_weighted",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "cipher_strength_score",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "cipher_strength_score_weighted",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "final_score",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "0"
+          }
+,         {
+              "id"           : "overall_grade",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "CRITICAL",
+              "finding"      : "T"
+          }
+,         {
+              "id"           : "grade_cap_reason_1",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to T. Issues with chain of trust (self signed)"
+          }
+,         {
+              "id"           : "grade_cap_reason_2",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.1 offered"
+          }
+,         {
+              "id"           : "grade_cap_reason_3",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "Grade capped to B. TLS 1.0 offered"
+          }
+,         {
+              "id"           : "scanTime",
+              "ip"           : "b3-vulnapp/b3-vulnapp",
+              "port"         : "443",
+              "severity"     : "INFO",
+              "finding"      : "82"
+          }
+]

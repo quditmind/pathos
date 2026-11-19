@@ -1,0 +1,132 @@
+{
+  "rule_results": [
+    {
+      "controls": [
+        "CIS-AWS_v1.3.0_1.20",
+        "CIS-AWS_v1.4.0_2.1.5"
+      ],
+      "families": [
+        "CIS-AWS_v1.3.0",
+        "CIS-AWS_v1.4.0"
+      ],
+      "filepath": "/src/main.tf",
+      "input_type": "tf",
+      "provider": "aws",
+      "resource_id": "aws_s3_bucket.logs",
+      "resource_type": "aws_s3_bucket",
+      "resource_tags": {},
+      "rule_description": "S3 buckets should have all `block public access` options enabled. AWS's S3 Block Public Access feature has four settings: BlockPublicAcls, IgnorePublicAcls, BlockPublicPolicy, and RestrictPublicBuckets. All four settings should be enabled to help prevent the risk of a data breach.",
+      "rule_id": "FG_R00229",
+      "rule_message": "",
+      "rule_name": "tf_aws_s3_block_public_access",
+      "rule_raw_result": false,
+      "rule_remediation_doc": "https://docs.fugue.co/FG_R00229.html",
+      "rule_result": "FAIL",
+      "rule_severity": "High",
+      "rule_summary": "S3 buckets should have all `block public access` options enabled",
+      "source_location": [
+        {
+          "path": "/src/main.tf",
+          "line": 1,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "controls": [],
+      "families": [],
+      "filepath": "/src/main.tf",
+      "input_type": "tf",
+      "provider": "aws",
+      "resource_id": "aws_s3_bucket.logs",
+      "resource_type": "aws_s3_bucket",
+      "resource_tags": {},
+      "rule_description": "S3 bucket access logging should be enabled. Enabling server access logging provides detailed records for the requests that are made to a S3 bucket. This information is useful for security and compliance auditing purposes.",
+      "rule_id": "FG_R00274",
+      "rule_message": "",
+      "rule_name": "tf_aws_s3_bucket_access_logging",
+      "rule_raw_result": false,
+      "rule_remediation_doc": "https://docs.fugue.co/FG_R00274.html",
+      "rule_result": "FAIL",
+      "rule_severity": "Medium",
+      "rule_summary": "S3 bucket access logging should be enabled",
+      "source_location": [
+        {
+          "path": "/src/main.tf",
+          "line": 1,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "controls": [],
+      "families": [],
+      "filepath": "/src/main.tf",
+      "input_type": "tf",
+      "provider": "aws",
+      "resource_id": "aws_s3_bucket.logs",
+      "resource_type": "aws_s3_bucket",
+      "resource_tags": {},
+      "rule_description": "S3 bucket policies and ACLs should not be configured for public read access. It is a security risk for a bucket to have an ACL or bucket policy that is configured for public read access, even if the bucket itself is not currently public. A bucket configured for public read access can potentially be made public, allowing any AWS user or anonymous user to access the data in it.",
+      "rule_id": "FG_R00279",
+      "rule_message": "S3 buckets should not be configured for public access: An ACL allows public access to the bucket",
+      "rule_name": "tf_aws_s3_bucket_config_public_read",
+      "rule_raw_result": false,
+      "rule_remediation_doc": "https://docs.fugue.co/FG_R00279.html",
+      "rule_result": "FAIL",
+      "rule_severity": "High",
+      "rule_summary": "S3 bucket policies and ACLs should not be configured for public read access",
+      "source_location": [
+        {
+          "path": "/src/main.tf",
+          "line": 1,
+          "column": 1
+        }
+      ]
+    },
+    {
+      "controls": [],
+      "families": [],
+      "filepath": "/src/main.tf",
+      "input_type": "tf",
+      "provider": "aws",
+      "resource_id": "aws_s3_bucket.logs",
+      "resource_type": "aws_s3_bucket",
+      "resource_tags": {},
+      "rule_description": "S3 bucket policies should not allow all actions for all IAM principals and public users. S3 bucket policies - and access control policies in general - should not allow wildcard/all actions, except in very specific administrative situations. Allowing all principals to wildcard access is overly permissive.",
+      "rule_id": "FG_R00210",
+      "rule_message": "",
+      "rule_name": "tf_aws_s3_bucketpolicy_allowall",
+      "rule_raw_result": true,
+      "rule_remediation_doc": "https://docs.fugue.co/FG_R00210.html",
+      "rule_result": "PASS",
+      "rule_severity": "High",
+      "rule_summary": "S3 bucket policies should not allow all actions for all IAM principals and public users",
+      "source_location": [
+        {
+          "path": "/src/main.tf",
+          "line": 1,
+          "column": 1
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "filepaths": [
+      "/src/main.tf"
+    ],
+    "rule_results": {
+      "FAIL": 12,
+      "PASS": 38,
+      "WAIVED": 0
+    },
+    "severities": {
+      "Critical": 1,
+      "High": 4,
+      "Informational": 0,
+      "Low": 2,
+      "Medium": 5,
+      "Unknown": 0
+    }
+  }
+}

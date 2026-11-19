@@ -1,0 +1,2 @@
+Target URL,Place,Parameter,Technique(s),Note(s)
+http://target:8080/user?id=1,GET,id,BETU,

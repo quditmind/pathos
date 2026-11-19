@@ -1,0 +1,24 @@
+# Psalm taint analysis: follows untrusted input (request data) in PHP
+# code to sinks (SQL, shell, HTML output, file paths, unserialize). The
+# image's psalm-taint helper writes a Psalm configuration for the
+# repository to the job's temporary directory. JSON report parsed with the
+# PATHOS Psalm import parser (taint issues are high, with their CWE).
+name: psalm
+display_name: Psalm (taint analysis)
+category: sast
+scan_types: [sast]
+license_spdx: MIT
+homepage: https://github.com/vimeo/psalm
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/psalm-taint
+version_args: ["--version"]
+args: ["{source}", "{output}", "{tmp}"]
+ok_exit_codes: [0, 2]
+timeout: 60m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:psalm

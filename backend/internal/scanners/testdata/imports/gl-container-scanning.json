@@ -1,0 +1,428 @@
+{
+  "vulnerabilities": [
+    {
+      "id": "25c0cf583bc251c66c08b37115271e53bc71a316",
+      "severity": "Critical",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "apk-tools"
+          },
+          "version": "2.12.5-r1"
+        },
+        "operating_system": "alpine 3.14.0",
+        "image": "alpine:3.14.0"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2021-36159",
+          "value": "CVE-2021-36159",
+          "url": "https://access.redhat.com/security/cve/CVE-2021-36159"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2021-36159"
+        },
+        {
+          "url": "https://github.com/freebsd/freebsd-src/commits/main/lib/libfetch"
+        },
+        {
+          "url": "https://gitlab.alpinelinux.org/alpine/apk-tools/-/issues/10749"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/r61db8e7dcb56dc000a5387a88f7a473bacec5ee01b9ff3f55308aacc@%3Cdev.kafka.apache.org%3E"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/r61db8e7dcb56dc000a5387a88f7a473bacec5ee01b9ff3f55308aacc@%3Cusers.kafka.apache.org%3E"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/rbf4ce74b0d1fa9810dec50ba3ace0caeea677af7c27a97111c06ccb7@%3Cdev.kafka.apache.org%3E"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/rbf4ce74b0d1fa9810dec50ba3ace0caeea677af7c27a97111c06ccb7@%3Cusers.kafka.apache.org%3E"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-36159"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-36159"
+        }
+      ],
+      "details": {
+        "vulnerable_package": {
+          "name": "Vulnerable Package",
+          "type": "text",
+          "value": "apk-tools:2.12.5-r1"
+        },
+        "vendor_status": {
+          "name": "Vendor Status",
+          "type": "text",
+          "value": "fixed"
+        }
+      },
+      "category": "container_scanning",
+      "message": "CVE-2021-36159 in apk-tools-2.12.5-r1",
+      "description": "libfetch before 2021-07-26, as used in apk-tools, xbps, and other products, mishandles numeric strings for the FTP and HTTP protocols. The FTP passive mode implementation allows an out-of-bounds read because strtol is used to parse the relevant numbers into address bytes. It does not check if the line ends prematurely. If it does, the for-loop condition checks for the '\\0' terminator one byte too late.",
+      "cve": "CVE-2021-36159",
+      "confidence": "Unknown",
+      "solution": "Upgrade apk-tools to 2.12.6-r0",
+      "scanner": {
+        "id": "trivy",
+        "name": "trivy"
+      }
+    },
+    {
+      "id": "41de32e6632a3d70cdaa2bb005727efa3869d56c",
+      "severity": "Critical",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "libcrypto1.1"
+          },
+          "version": "1.1.1k-r0"
+        },
+        "operating_system": "alpine 3.14.0",
+        "image": "alpine:3.14.0"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2021-3711",
+          "value": "CVE-2021-3711",
+          "url": "http://www.openwall.com/lists/oss-security/2021/08/26/2"
+        }
+      ],
+      "links": [
+        {
+          "url": "http://www.openwall.com/lists/oss-security/2021/08/26/2"
+        },
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2021-3711"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/pdf/ssa-389290.pdf"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git%3Ba=commitdiff%3Bh=59f5e75f3bced8fc0e130d72a3f582cf7b480b46"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=59f5e75f3bced8fc0e130d72a3f582cf7b480b46"
+        },
+        {
+          "url": "https://github.com/advisories/GHSA-5ww6-px42-wc85"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/r18995de860f0e63635f3008fd2a6aca82394249476d21691e7c59c9e@%3Cdev.tomcat.apache.org%3E"
+        },
+        {
+          "url": "https://lists.apache.org/thread.html/rad5d9f83f0d11fb3f8bb148d179b8a9ad7c6a17f18d70e5805a713d1@%3Cdev.tomcat.apache.org%3E"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-3711"
+        },
+        {
+          "url": "https://rustsec.org/advisories/RUSTSEC-2021-0097.html"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202209-02"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202210-02"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20210827-0010"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20210827-0010/"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20211022-0003"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20211022-0003/"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20240621-0006"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20240621-0006/"
+        },
+        {
+          "url": "https://ubuntu.com/security/notices/USN-5051-1"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2021-3711"
+        },
+        {
+          "url": "https://www.debian.org/security/2021/dsa-4963"
+        },
+        {
+          "url": "https://www.openssl.org/news/secadv/20210824.txt"
+        },
+        {
+          "url": "https://www.oracle.com/security-alerts/cpuapr2022.html"
+        },
+        {
+          "url": "https://www.oracle.com/security-alerts/cpujan2022.html"
+        },
+        {
+          "url": "https://www.oracle.com/security-alerts/cpuoct2021.html"
+        },
+        {
+          "url": "https://www.tenable.com/security/tns-2021-16"
+        },
+        {
+          "url": "https://www.tenable.com/security/tns-2022-02"
+        }
+      ],
+      "details": {
+        "vulnerable_package": {
+          "name": "Vulnerable Package",
+          "type": "text",
+          "value": "libcrypto1.1:1.1.1k-r0"
+        },
+        "vendor_status": {
+          "name": "Vendor Status",
+          "type": "text",
+          "value": "fixed"
+        }
+      },
+      "category": "container_scanning",
+      "message": "CVE-2021-3711 in libcrypto1.1-1.1.1k-r0",
+      "description": "In order to decrypt SM2 encrypted data an application is expected to call the API function EVP_PKEY_decrypt(). Typically an application will call this function twice. The first time, on entry, the \"out\" parameter can be NULL and, on exit, the \"outlen\" parameter is populated with the buffer size required to hold the decrypted plaintext. The application can then allocate a sufficiently sized buffer and call EVP_PKEY_decrypt() again, but this time passing a non-NULL value for the \"out\" parameter. A bug in the implementation of the SM2 decryption code means that the calculation of the buffer size required to hold the plaintext returned by the first call to EVP_PKEY_decrypt() can be smaller than the actual size required by the second call. This can lead to a buffer overflow when EVP_PKEY_decrypt() is called by the application a second time with a buffer that is too small. A malicious attacker who is able present SM2 content for decryption to an application could cause attacker chosen data to overflow the buffer by up to a maximum of 62 bytes altering the contents of other data held after the buffer, possibly changing application behaviour or causing the application to crash. The location of the buffer is application dependent but is typically heap allocated. Fixed in OpenSSL 1.1.1l (Affected 1.1.1-1.1.1k).",
+      "cve": "CVE-2021-3711",
+      "confidence": "Unknown",
+      "solution": "Upgrade libcrypto1.1 to 1.1.1l-r0",
+      "scanner": {
+        "id": "trivy",
+        "name": "trivy"
+      }
+    },
+    {
+      "id": "90ea265b560dbac6b7f8a6519ad6d0f41af5ec00",
+      "severity": "Medium",
+      "location": {
+        "dependency": {
+          "package": {
+            "name": "libcrypto1.1"
+          },
+          "version": "1.1.1k-r0"
+        },
+        "operating_system": "alpine 3.14.0",
+        "image": "alpine:3.14.0"
+      },
+      "identifiers": [
+        {
+          "type": "cve",
+          "name": "CVE-2022-2097",
+          "value": "CVE-2022-2097",
+          "url": "https://access.redhat.com/errata/RHSA-2022:6224"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://access.redhat.com/errata/RHSA-2022:6224"
+        },
+        {
+          "url": "https://access.redhat.com/security/cve/CVE-2022-2097"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/2081494"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/2087911"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/2087913"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/2097310"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/2104905"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2081494"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2097310"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2100554"
+        },
+        {
+          "url": "https://bugzilla.redhat.com/show_bug.cgi?id=2104905"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/html/ssa-332410.html"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/html/ssa-398330.html"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/html/ssa-625862.html"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/html/ssa-794697.html"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/html/ssa-879734.html"
+        },
+        {
+          "url": "https://cert-portal.siemens.com/productcert/pdf/ssa-332410.pdf"
+        },
+        {
+          "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-1292"
+        },
+        {
+          "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-2068"
+        },
+        {
+          "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2022-2097"
+        },
+        {
+          "url": "https://errata.almalinux.org/9/ALSA-2022-6224.html"
+        },
+        {
+          "url": "https://errata.rockylinux.org/RLSA-2022:5818"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git%3Ba=commitdiff%3Bh=919925673d6c9cfed3c1085497f5dfbbed5fc431"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git%3Ba=commitdiff%3Bh=a98f339ddd7e8f487d6e0088d4a9a42324885a93"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=919925673d6c9cfed3c1085497f5dfbbed5fc431"
+        },
+        {
+          "url": "https://git.openssl.org/gitweb/?p=openssl.git;a=commitdiff;h=a98f339ddd7e8f487d6e0088d4a9a42324885a93"
+        },
+        {
+          "url": "https://github.com/advisories/GHSA-3wx7-46ch-7rq2"
+        },
+        {
+          "url": "https://github.com/alexcrichton/openssl-src-rs"
+        },
+        {
+          "url": "https://linux.oracle.com/cve/CVE-2022-2097.html"
+        },
+        {
+          "url": "https://linux.oracle.com/errata/ELSA-2022-9955.html"
+        },
+        {
+          "url": "https://lists.debian.org/debian-lts-announce/2023/02/msg00019.html"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/R6CK57NBQFTPUMXAPJURCGXUYT76NQAK/"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/V6567JERRHHJW2GNGJGKDRNHR7SNPZK7/"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VCMNWKERPBKOEBNL7CLTTX3ZZCZLH7XA"
+        },
+        {
+          "url": "https://lists.fedoraproject.org/archives/list/package-announce@lists.fedoraproject.org/message/VCMNWKERPBKOEBNL7CLTTX3ZZCZLH7XA/"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2022-2097"
+        },
+        {
+          "url": "https://rustsec.org/advisories/RUSTSEC-2022-0032.html"
+        },
+        {
+          "url": "https://security.gentoo.org/glsa/202210-02"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20220715-0011"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20220715-0011/"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20230420-0008"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20230420-0008/"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20240621-0006"
+        },
+        {
+          "url": "https://security.netapp.com/advisory/ntap-20240621-0006/"
+        },
+        {
+          "url": "https://ubuntu.com/security/notices/USN-5502-1"
+        },
+        {
+          "url": "https://ubuntu.com/security/notices/USN-6457-1"
+        },
+        {
+          "url": "https://www.cve.org/CVERecord?id=CVE-2022-2097"
+        },
+        {
+          "url": "https://www.debian.org/security/2023/dsa-5343"
+        },
+        {
+          "url": "https://www.openssl.org/news/secadv/20220705.txt"
+        }
+      ],
+      "details": {
+        "vulnerable_package": {
+          "name": "Vulnerable Package",
+          "type": "text",
+          "value": "libcrypto1.1:1.1.1k-r0"
+        },
+        "vendor_status": {
+          "name": "Vendor Status",
+          "type": "text",
+          "value": "fixed"
+        }
+      },
+      "category": "container_scanning",
+      "message": "CVE-2022-2097 in libcrypto1.1-1.1.1k-r0",
+      "description": "AES OCB mode for 32-bit x86 platforms using the AES-NI assembly optimised implementation will not encrypt the entirety of the data under some circumstances. This could reveal sixteen bytes of data that was preexisting in the memory that wasn't written. In the special case of \"in place\" encryption, sixteen bytes of the plaintext would be revealed. Since OpenSSL does not support OCB based cipher suites for TLS and DTLS, they are both unaffected. Fixed in OpenSSL 3.0.5 (Affected 3.0.0-3.0.4). Fixed in OpenSSL 1.1.1q (Affected 1.1.1-1.1.1p).",
+      "cve": "CVE-2022-2097",
+      "confidence": "Unknown",
+      "solution": "Upgrade libcrypto1.1 to 1.1.1q-r0",
+      "scanner": {
+        "id": "trivy",
+        "name": "trivy"
+      }
+    }
+  ],
+  "remediations": [],
+  "scan": {
+    "scanner": {
+      "id": "trivy",
+      "name": "Trivy",
+      "url": "https://github.com/aquasecurity/trivy/",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "0.61.0"
+    },
+    "analyzer": {
+      "id": "gcs",
+      "name": "GitLab Container Scanning",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "7.5.8"
+    },
+    "type": "container_scanning",
+    "start_time": "2026-11-19T06:47:26",
+    "end_time": "2026-11-19T06:47:29",
+    "status": "success"
+  },
+  "version": "14.1.2"
+}

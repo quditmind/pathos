@@ -1,0 +1,24 @@
+# govulncheck: known vulnerabilities in Go modules with call-graph
+# reachability (symbols called, packages imported, modules required). The
+# Go toolchain loads every module of the repository without running a C
+# compiler or another toolchain; modules come from GOPROXY (default
+# https://proxy.golang.org, checked against sum.golang.org) and the
+# vulnerability database from https://vuln.go.dev, through the egress proxy.
+name: govulncheck
+display_name: govulncheck
+category: sca
+scan_types: [sca]
+license_spdx: BSD-3-Clause
+homepage: https://pkg.go.dev/golang.org/x/vuln/cmd/govulncheck
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["govulncheck", "--version"]
+args: ["govulncheck", "{source}", "{output}", "{cache}"]
+timeout: 60m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:govulncheck

@@ -1,0 +1,4 @@
+id,title,severity_rating,severity_score,state,substate,weakness,reported_at,first_response_at,triaged_at,closed_at,awarded_at,assigned,reporter,source,bounty,bonus,public,reference,reference_url,structured_scope,structured_scope_reference,original_report_id,cve_ids,collaborating_users,duplicate_report_ids
+2900004,Open redirect on logout,low,3.4,open,triaged,Open Redirect,2025-11-02 04:05:27 UTC,,,,,,researcher-example,,,,no,,,shop.example.test,,,,,
+2900005,Outdated jQuery with known XSS,medium,,closed,informative,Use of Known Vulnerable Component,2025-11-03 04:05:27 UTC,,,,,,,,,,,,,shop.example.test,,,CVE-2020-11022,,
+2900006,Stored XSS in reviews,high,,closed,resolved,Cross-site Scripting (XSS) - Stored,,,,,,,,,,,,,,shop.example.test,,,,,

@@ -1,0 +1,24 @@
+# OWASP ZAP baseline scan: the ZAP spider (5 minutes) and passive scan rules only;
+# it sends ordinary requests and no attacks. Automation framework plan written
+# by dast-run; ZAP's traditional JSON report.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: zap-baseline
+display_name: OWASP ZAP baseline scan
+category: dast
+scan_types: [dast]
+license_spdx: Apache-2.0
+homepage: https://www.zaproxy.org
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["zap-baseline", "--version"]
+args: ["zap-baseline", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 40m
+output: file
+network: target
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:zap

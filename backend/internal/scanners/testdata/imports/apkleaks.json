@@ -1,0 +1,33 @@
+{
+    "package": "com.example.shop",
+    "results": [
+        {
+            "name": "Amazon_AWS_Access_Key_ID",
+            "matches": [
+                "AKIAEXAMPLEFAKE12345"
+            ]
+        },
+        {
+            "name": "Google_API_Key",
+            "matches": [
+                "AIzaSyFAKE-fake_FAKEfakeFAKEfake012345",
+                "AIzaSyFAKE-other_FAKEfakeFAKEfake01234"
+            ]
+        },
+        {
+            "name": "IP_Address",
+            "matches": [
+                "10.0.2.2",
+                "192.0.2.10"
+            ]
+        },
+        {
+            "name": "LinkFinder",
+            "matches": [
+                "/api/v1/orders",
+                "https://api.shop.example.test/login?token=abc123secret",
+                "/api/v1/users"
+            ]
+        }
+    ]
+}

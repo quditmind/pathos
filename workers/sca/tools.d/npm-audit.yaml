@@ -1,0 +1,22 @@
+# npm audit of the repository root's package-lock.json (or
+# npm-shrinkwrap.json), without installing anything. The lockfile's
+# dependency tree is sent to the audit endpoint of https://registry.npmjs.org
+# (or NPM_CONFIG_REGISTRY of the worker) through the egress proxy.
+name: npm-audit
+display_name: npm audit
+category: sca
+scan_types: [sca]
+license_spdx: Artistic-2.0
+homepage: https://docs.npmjs.com/cli/commands/npm-audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["npm-audit", "--version"]
+args: ["npm-audit", "{source}", "{output}", "{cache}"]
+timeout: 20m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:npm-audit

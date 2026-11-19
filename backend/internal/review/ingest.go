@@ -374,10 +374,11 @@ func (s *Service) captureOriginal(ctx context.Context, v rec) error {
 	var raw []byte
 	var key *string
 	var scanner, contentType string
-	err := s.DB.QueryRow(ctx, `SELECT a.data_gzip, a.object_key, sr.scanner_key, a.content_type FROM finding_occurrences o
+	var parser []byte
+	err := s.DB.QueryRow(ctx, `SELECT a.data_gzip, a.object_key, sr.scanner_key, a.content_type, a.parser FROM finding_occurrences o
 		JOIN scan_results sr ON sr.id = o.scan_result_id
 		JOIN scan_artifacts a ON a.scan_result_id = sr.id AND a.kind = 'raw'
-		WHERE o.finding_id = $1 ORDER BY (sr.scan_job_id = $2) DESC, o.created_at DESC LIMIT 1`, v.FindingID, v.ScanJobID).Scan(&raw, &key, &scanner, &contentType)
+		WHERE o.finding_id = $1 ORDER BY (sr.scan_job_id = $2) DESC, o.created_at DESC LIMIT 1`, v.FindingID, v.ScanJobID).Scan(&raw, &key, &scanner, &contentType, &parser)
 	var capErr string
 	var loc *scanners.Located
 	switch {
@@ -401,7 +402,7 @@ func (s *Service) captureOriginal(ctx context.Context, v rec) error {
 			capErr = "the raw scanner report could not be read"
 			break
 		}
-		loc, err = scanners.LocateArtifact(scanner, contentType, plain, v.Fingerprint)
+		loc, err = scanners.LocateStored(scanner, contentType, parser, plain, v.Fingerprint)
 		if err != nil {
 			loc, capErr = nil, "the finding was not found in the scanner report"
 		}

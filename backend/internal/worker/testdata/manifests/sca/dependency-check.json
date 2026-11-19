@@ -1,0 +1,280 @@
+{
+    "reportSchema": "1.1",
+    "scanInfo": {
+        "engineVersion": "13.0.0",
+        "dataSource": [
+{
+                "name": "NVD API Last Checked",
+                "timestamp": "2026-11-19T08:14:43Z"
+            }
+,{
+                "name": "NVD API Last Modified",
+                "timestamp": "2026-11-19T01:00:14-05"
+            }
+,{
+                "name": "NVD Cache Last Checked",
+                "timestamp": "2026-11-19T08:14:43Z"
+            }
+,{
+                "name": "NVD Cache Last Modified",
+                "timestamp": "2026-11-19T01:00:14-05"
+            }
+        ]
+
+
+    },
+    "projectInfo": {
+        "name": "pathos",
+        "reportDate": "2026-11-19T08:16:21.803755583Z",
+        "credits": {
+            "NVD": "This product uses the NVD API but is not endorsed or certified by the NVD. This report contains data retrieved from the National Vulnerability Database: https://nvd.nist.gov",
+            "CISA": "This report may contain data retrieved from the CISA Known Exploited Vulnerability Catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+            "NPM": "This report may contain data retrieved from the Github Advisory Database (via NPM Audit API): https://github.com/advisories/",
+            "RETIREJS": "This report may contain data retrieved from the RetireJS community: https://retirejs.github.io/retire.js/",
+            "OSSINDEX": "This report may contain data retrieved from the Sonatype Guide OSS Index API: https://www.sonatype.com/products/sonatype-guide/oss-index-users"
+        }
+    },
+    "dependencies": [
+{
+            "isVirtual": false,
+            "fileName": "commons-text-1.9.jar",
+            "filePath": "\/work\/fixture\/src\/lib\/commons-text-1.9.jar"
+,"md5": "689c73511de10a1d716b1573ef43eb9f",
+            "sha1": "1678f9246caed2b43a1b11516a879b9f01464b43",
+            "sha256": "b43394985caf09f0cca5ed1a9fd0bb46013f3d2af821693a8996c809b4fea512"            ,"evidenceCollected": {
+                "vendorEvidence": [
+{
+                            "type": "vendor",
+                            "confidence": "HIGH",
+                            "source": "file",
+                            "name": "name",
+                            "value": "commons-text"
+                        }
+,{
+                            "type": "vendor",
+                            "confidence": "HIGH",
+                            "source": "Manifest",
+                            "name": "Implementation-Vendor",
+                            "value": "The Apache Software Foundation"
+                        }
+                ],
+                "productEvidence": [
+{
+                            "type": "product",
+                            "confidence": "HIGH",
+                            "source": "file",
+                            "name": "name",
+                            "value": "commons-text"
+                    }
+,{
+                            "type": "product",
+                            "confidence": "HIGH",
+                            "source": "Manifest",
+                            "name": "Implementation-Title",
+                            "value": "Apache Commons Text"
+                    }
+                ],
+                "versionEvidence": [
+                    {
+                        "type": "version",
+                        "confidence": "HIGH",
+                        "source": "file",
+                        "name": "version",
+                        "value": "1.9"
+                    }
+,                    {
+                        "type": "version",
+                        "confidence": "HIGH",
+                        "source": "Manifest",
+                        "name": "Implementation-Version",
+                        "value": "1.9"
+                    }
+                ]
+            }
+                ,"vulnerabilityIds": [
+                {
+                    "id": "cpe:2.3:a:apache:commons_net:1.9:*:*:*:*:*:*:*"
+,"confidence": "HIGH","url": "https:\/\/nvd.nist.gov\/vuln\/search#\/nvd\/home?sortOrder=3&sortDirection=2&cpeFilterMode=applicability&resultType=records&cpeName=cpe%3A2.3%3Aa%3Aapache%3Acommons_net%3A1.9%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A"                }
+,                {
+                    "id": "cpe:2.3:a:apache:commons_text:1.9:*:*:*:*:*:*:*"
+,"confidence": "HIGH","url": "https:\/\/nvd.nist.gov\/vuln\/search#\/nvd\/home?sortOrder=3&sortDirection=2&cpeFilterMode=applicability&resultType=records&cpeName=cpe%3A2.3%3Aa%3Aapache%3Acommons_text%3A1.9%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A%3A%2A"                }
+            ]
+            ,"vulnerabilities": [
+ {
+                "source": "NVD",
+                "name": "CVE-2022-42889",
+                    "severity" : "CRITICAL",
+                    "cvssv3": {
+                        "baseScore": 9.8
+                        ,"attackVector": "NETWORK"
+                        ,"attackComplexity": "LOW"
+                        ,"privilegesRequired": "NONE"
+                        ,"userInteraction": "NONE"
+                        ,"scope": "UNCHANGED"
+                        ,"confidentialityImpact": "HIGH"
+                        ,"integrityImpact": "HIGH"
+                        ,"availabilityImpact": "HIGH"
+                        ,"baseSeverity": "CRITICAL"
+,"exploitabilityScore": "3.9","impactScore": "5.9","version": "3.1"                    },
+                    "cwes": [
+                        "CWE-94"                    ],
+                "description": "Apache Commons Text performs variable interpolation, allowing properties to be dynamically evaluated and expanded. The standard format for interpolation is \"${prefix:name}\", where \"prefix\" is used to locate an instance of org.apache.commons.text.lookup.StringLookup that performs the interpolation. Starting with version 1.5 and continuing through 1.9, the set of default Lookup instances included interpolators that could result in arbitrary code execution or contact with remote servers. These lookups are: - \"script\" - execute expressions using the JVM script execution engine (javax.script) - \"dns\" - resolve dns records - \"url\" - load values from urls, including from remote servers Applications using the interpolation defaults in the affected versions may be vulnerable to remote code execution or unintentional contact with remote servers if untrusted configuration values are used. Users are recommended to upgrade to Apache Commons Text 1.10.0, which disables the problematic interpolators by default.",
+                "notes": "",
+                "references": [
+ {
+                        "source": "security@apache.org"
+,"url": "http:\/\/packetstormsecurity.com\/files\/176650\/Apache-Commons-Text-1.9-Remote-Code-Execution.html"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/packetstormsecurity.com\/files\/176650\/Apache-Commons-Text-1.9-Remote-Code-Execution.html"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/security.gentoo.org\/glsa\/202301-05","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "http:\/\/seclists.org\/fulldisclosure\/2023\/Feb\/3","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/packetstormsecurity.com\/files\/171003\/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html","name": "THIRD_PARTY_ADVISORY,VDB_ENTRY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/10\/13\/4","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/security.gentoo.org\/glsa\/202301-05","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/10\/18\/1","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/psirt.global.sonicwall.com\/vuln-detail\/SNWLID-2022-0022","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/lists.apache.org\/thread\/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om","name": "MAILING_LIST,VENDOR_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/security.netapp.com\/advisory\/ntap-20221020-0004\/","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/10\/13\/4","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/seclists.org\/fulldisclosure\/2023\/Feb\/3","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/10\/18\/1","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/lists.apache.org\/thread\/n2bd4vdsgkqh2tm14l1wyc3jyol7s1om","name": "MAILING_LIST,VENDOR_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "http:\/\/packetstormsecurity.com\/files\/171003\/OX-App-Suite-Cross-Site-Scripting-Server-Side-Request-Forgery.html","name": "THIRD_PARTY_ADVISORY,VDB_ENTRY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/psirt.global.sonicwall.com\/vuln-detail\/SNWLID-2022-0022","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/security.netapp.com\/advisory\/ntap-20221020-0004\/","name": "THIRD_PARTY_ADVISORY"                    }                ],
+                "vulnerableSoftware": [
+ {
+                        "software": { 
+                            "id":"cpe:2.3:a:apache:commons_text:*:*:*:*:*:*:*:*"
+,"vulnerabilityIdMatched":"true","versionStartIncluding":"1.5","versionEndExcluding":"1.10.0"                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:juniper:security_threat_response_manager:*:*:*:*:*:*:*:*"
+,"versionEndExcluding":"7.5.0"                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:juniper:security_threat_response_manager:7.5.0:-:*:*:*:*:*:*"
+                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:juniper:security_threat_response_manager:7.5.0:up1:*:*:*:*:*:*"
+                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:juniper:security_threat_response_manager:7.5.0:up2:*:*:*:*:*:*"
+                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:juniper:security_threat_response_manager:7.5.0:up3:*:*:*:*:*:*"
+                        }
+                    }, {
+                        "software": { 
+                            "id":"cpe:2.3:a:netapp:bluexp:-:*:*:*:*:*:*:*"
+                        }
+                    }                ]
+                }, {
+                "source": "NVD",
+                "name": "CVE-2021-37533",
+                    "severity" : "MEDIUM",
+                    "cvssv3": {
+                        "baseScore": 6.5
+                        ,"attackVector": "NETWORK"
+                        ,"attackComplexity": "LOW"
+                        ,"privilegesRequired": "NONE"
+                        ,"userInteraction": "REQUIRED"
+                        ,"scope": "UNCHANGED"
+                        ,"confidentialityImpact": "HIGH"
+                        ,"integrityImpact": "NONE"
+                        ,"availabilityImpact": "NONE"
+                        ,"baseSeverity": "MEDIUM"
+,"exploitabilityScore": "2.8","impactScore": "3.6","version": "3.1"                    },
+                    "cwes": [
+                        "CWE-20"                    ],
+                "description": "Prior to Apache Commons Net 3.9.0, Net's FTP client trusts the host from PASV response by default. A malicious server can redirect the Commons Net code to use a different host, but the user has to connect to the malicious server in the first place. This may lead to leakage of information about services running on the private network of the client. The default in version 3.9.0 is now false to ignore such hosts, as cURL does. See https:\/\/issues.apache.org\/jira\/browse\/NET-711.",
+                "notes": "",
+                "references": [
+ {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/lists.apache.org\/thread\/o6yn9r9x6s94v97264hmgol1sf48mvx7","name": "ISSUE_TRACKING,MAILING_LIST,VENDOR_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/lists.apache.org\/thread\/o6yn9r9x6s94v97264hmgol1sf48mvx7","name": "ISSUE_TRACKING,MAILING_LIST,VENDOR_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/12\/03\/1","name": "ISSUE_TRACKING,MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/lists.debian.org\/debian-lts-announce\/2022\/12\/msg00038.html","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "http:\/\/www.openwall.com\/lists\/oss-security\/2022\/12\/03\/1","name": "ISSUE_TRACKING,MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/lists.debian.org\/debian-lts-announce\/2022\/12\/msg00038.html","name": "MAILING_LIST,THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "security@apache.org"
+,"url": "https:\/\/www.debian.org\/security\/2022\/dsa-5307","name": "THIRD_PARTY_ADVISORY"                    }, {
+                        "source": "af854a3a-2127-422b-91ae-364da2661108"
+,"url": "https:\/\/www.debian.org\/security\/2022\/dsa-5307","name": "THIRD_PARTY_ADVISORY"                    }                ],
+                "vulnerableSoftware": [
+ {
+                        "software": { 
+                            "id":"cpe:2.3:a:apache:commons_net:*:*:*:*:*:*:*:*"
+,"vulnerabilityIdMatched":"true","versionEndExcluding":"3.9.0"                        }
+                    }                ]
+                }            ]        },{
+            "isVirtual": false,
+            "fileName": "package-lock.json",
+            "filePath": "\/work\/fixture\/src\/package-lock.json"
+,"md5": "1b91ac416f8377cc3feac8ca4041bad5",
+            "sha1": "4ed60b55dac2d070dd1578957048de9d5d11a04a",
+            "sha256": "f63ceab2f9200849116778d734b971af008b81eeeb51c25d11d15b616dc41292"            ,"evidenceCollected": {
+                "vendorEvidence": [
+{
+                            "type": "vendor",
+                            "confidence": "HIGH",
+                            "source": "file",
+                            "name": "name",
+                            "value": "package-lock"
+                        }
+                ],
+                "productEvidence": [
+{
+                            "type": "product",
+                            "confidence": "HIGH",
+                            "source": "file",
+                            "name": "name",
+                            "value": "package-lock"
+                    }
+                ],
+                "versionEvidence": [
+                ]
+            }
+
+        },{
+            "isVirtual": false,
+            "fileName": "package.json",
+            "filePath": "\/work\/fixture\/src\/package.json"
+,"md5": "34668e8a101335f4e3d7ba48284f6cf5",
+            "sha1": "e00cc07bad0d470b78aa5303c7542fb036adf130",
+            "sha256": "495e1d02ad8f91ac2aaef5280678746adbde4574d8049e398a698e261f484e39"            ,"evidenceCollected": {
+                "vendorEvidence": [
+                ],
+                "productEvidence": [
+                ],
+                "versionEvidence": [
+                ]
+            }
+
+        }    ]
+}

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Benchmark xmlns="http://checklists.nist.gov/xccdf/1.2" xmlns:xhtml="http://www.w3.org/1999/xhtml" id="xccdf_org.cisecurity.benchmarks_benchmark_2.0.0_CIS_Ubuntu_Linux_22.04_LTS_Benchmark" resolved="1" xml:lang="en">
+  <status date="2024-03-28">accepted</status>
+  <title>CIS Ubuntu Linux 22.04 LTS Benchmark</title>
+  <version>2.0.0</version>
+  <Group id="xccdf_org.cisecurity.benchmarks_group_1_Initial_Setup">
+    <title>Initial Setup</title>
+    <Rule id="xccdf_org.cisecurity.benchmarks_rule_1.1.1.1_Ensure_cramfs_kernel_module_is_not_available" selected="false" severity="medium" weight="1.000000" role="full">
+      <title>Ensure cramfs kernel module is not available</title>
+      <description><xhtml:p>The cramfs filesystem type is a compressed read-only Linux filesystem embedded in small footprint systems.</xhtml:p></description>
+      <rationale><xhtml:p>Removing support for unneeded filesystem types reduces the local attack surface of the system.</xhtml:p></rationale>
+      <fixtext><xhtml:p>Unload and disable the cramfs kernel module.</xhtml:p></fixtext>
+      <ident system="https://cisecurity.org/controls/v8">CIS Controls v8: 4.8</ident>
+    </Rule>
+    <Rule id="xccdf_org.cisecurity.benchmarks_rule_1.4.1_Ensure_bootloader_password_is_set" selected="false" severity="high" weight="1.000000" role="full">
+      <title>Ensure bootloader password is set</title>
+      <description><xhtml:p>Setting the boot loader password requires that anyone rebooting the system enter a password before changing boot parameters.</xhtml:p></description>
+      <fixtext><xhtml:p>Create an encrypted password with grub-mkpasswd-pbkdf2 and add it to the GRUB configuration.</xhtml:p></fixtext>
+    </Rule>
+  </Group>
+  <Group id="xccdf_org.cisecurity.benchmarks_group_5_Access_Control">
+    <title>Access Control</title>
+    <Rule id="xccdf_org.cisecurity.benchmarks_rule_5.1.20_Ensure_sshd_PermitRootLogin_is_disabled" selected="false" severity="high" weight="1.000000" role="full">
+      <title>Ensure sshd PermitRootLogin is disabled</title>
+      <description><xhtml:p>The PermitRootLogin parameter specifies if the root user can log in using SSH.</xhtml:p></description>
+      <fixtext><xhtml:p>Set PermitRootLogin no in /etc/ssh/sshd_config.</xhtml:p></fixtext>
+    </Rule>
+  </Group>
+  <TestResult id="xccdf_org.cisecurity_testresult_20261101T100000" start-time="2026-11-01T10:00:00Z" end-time="2026-11-01T10:02:13Z" test-system="cpe:/a:cisecurity:cis-cat_pro_assessor:4.40.0">
+    <benchmark href="#xccdf_org.cisecurity.benchmarks_benchmark_2.0.0_CIS_Ubuntu_Linux_22.04_LTS_Benchmark"/>
+    <title>CIS-CAT Pro Assessor results</title>
+    <identity authenticated="true" privileged="true">root</identity>
+    <profile idref="xccdf_org.cisecurity.benchmarks_profile_Level_1_-_Server"/>
+    <target>app-01.example.test</target>
+    <target-address>10.0.1.20</target-address>
+    <rule-result idref="xccdf_org.cisecurity.benchmarks_rule_1.1.1.1_Ensure_cramfs_kernel_module_is_not_available" time="2026-11-01T10:00:05Z" role="full" severity="medium" weight="1.000000">
+      <result>fail</result>
+    </rule-result>
+    <rule-result idref="xccdf_org.cisecurity.benchmarks_rule_1.4.1_Ensure_bootloader_password_is_set" time="2026-11-01T10:00:06Z" role="full" severity="high" weight="1.000000">
+      <result>pass</result>
+    </rule-result>
+    <rule-result idref="xccdf_org.cisecurity.benchmarks_rule_5.1.20_Ensure_sshd_PermitRootLogin_is_disabled" time="2026-11-01T10:01:10Z" role="full" severity="high" weight="1.000000">
+      <result>fail</result>
+      <message severity="info">PermitRootLogin is set to yes</message>
+    </rule-result>
+    <score system="urn:xccdf:scoring:default" maximum="100.000000">33.333333</score>
+  </TestResult>
+</Benchmark>

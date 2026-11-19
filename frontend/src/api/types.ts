@@ -849,7 +849,7 @@ export interface ScanJob {
   scan_key: string;
   name: string;
   /** repository, or the kind of scan target the execution scanned. */
-  asset_type: "repository" | "image" | "url" | "api" | "sbom" | "artifact" | "endpoints";
+  asset_type: "repository" | "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint";
   target_id?: string | null;
   target_name?: string | null;
   target_reference?: string | null;
@@ -1076,7 +1076,7 @@ export interface Finding {
   application_name?: string | null;
   /** Scan target (container image, web application, API, SBOM); null for the repository's code. */
   scan_target_id?: string | null;
-  scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | null;
+  scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint" | null;
   scan_target_name?: string | null;
   snippet?: string;
   snippet_start_line?: number | null;
@@ -1175,6 +1175,59 @@ export interface CatalogScanner {
   output_format: string;
   homepage: string;
   notes: string;
+  /** What the tool contacts while it runs: none, target (the scan target) or registry. */
+  network?: "none" | "target" | "registry";
+  /** Sends attack traffic: needs the target's "intrusive testing authorized" flag. */
+  intrusive?: boolean;
+  /** Scan types the tool covers (GET /api/v1/scan-types). */
+  scan_types?: string[];
+  /** An online worker advertises the tool. */
+  runnable?: boolean;
+  /** What the tool scans: repository, image, url, api, mobile-app, binary, model. */
+  targets?: string[];
+}
+
+/** A tool of a scan type (GET /api/v1/scan-types). */
+export interface ScanTypeTool {
+  key: string;
+  name: string;
+  category: string;
+  license_spdx: string;
+  /** catalog, plugin (operator plugin advertised by a worker) or server (evaluated by PATHOS). */
+  source: "catalog" | "plugin" | "server";
+  adapter_available: boolean;
+  runnable: boolean;
+  workers: number;
+  network: string;
+  intrusive: boolean;
+  targets: string[];
+  decision: string;
+}
+
+export interface ScanTypeFormat {
+  id: string;
+  label: string;
+  tool: string;
+}
+
+/** One of the 25 scan types with what this deployment provides. */
+export interface ScanTypeCoverage {
+  id: string;
+  name: string;
+  description: string;
+  categories: string[];
+  note?: string;
+  tools: ScanTypeTool[];
+  import_formats: ScanTypeFormat[];
+  runnable_tools: number;
+  runnable: boolean;
+  importable: boolean;
+}
+
+export interface ScanTypesResponse {
+  items: ScanTypeCoverage[];
+  generic_import_formats: ScanTypeFormat[];
+  workers_online: number;
 }
 
 export interface ProfileSettings {

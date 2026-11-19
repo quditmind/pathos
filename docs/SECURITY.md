@@ -137,7 +137,7 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - The credential travels in `GIT_CONFIG_*` environment variables (an HTTP header), never in argv, the URL or `.git/config`.
   - Hooks are disabled, `file://` and `ext::` transports are forbidden, symlinks are not checked out, objects are fsck'd, redirects are not followed, refs are validated against option injection, and repository size is capped.
   - `.git` is deleted before scanners run, and the workspace is removed after every job.
-  - Repository code is never built or executed.
+  - Repository code is never built or executed, except by the opt-in fuzzing tools of the `worker-fuzz` family image (Go native fuzzing, Atheris), which a scan profile must select: they run the repository's fuzz harnesses in that worker's sandbox only (never on the API or jobs host), on a copy of the checkout, without the egress proxy variables and with `GOPROXY=off`, under CPU-time, file-size, memory and time limits, in a container with a CPU limit ([OPERATIONS.md](OPERATIONS.md#fuzzing-worker)).
   - Code context for AI evidence is read only from paths whose fully resolved location (`EvalSymlinks`) stays inside the checkout.
 - **Process control:** each tool runs in its own process group; on timeout or cancellation the whole group is killed. Tool output and stderr captures are size-limited, and credentials in error text are redacted.
 - **Egress:** Squid allows only the domains in `deploy/egress/allowlist.txt`. It denies RFC 1918, loopback, link-local and metadata, CGNAT and multicast destinations whatever DNS returns, strips `Via` and `X-Forwarded-For`, and logs every request to the `egress_logs` volume.
@@ -189,17 +189,19 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 
 ### Scanner plugins
 
-Declarative scanner adapters let operators add tools without changing PATHOS ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#declarative-scanner-adapters-plugins)). The trust model:
+Tool manifests let PATHOS and operators add tools without code ([SCANNER_CATALOG.md](SCANNER_CATALOG.md#adding-a-tool-tool-manifests)). The trust model:
 
-- **Definitions are files on the worker host** (`deploy/scanners.d`, mounted read-only), never API input. A PATHOS administrator, or anyone with API access, cannot make a worker run a program.
-- The command must be an absolute path to an existing executable that is not writable by group or others. Arguments are passed without a shell; only the placeholders `{source}`, `{output}`, `{cache}` and `{tmp}` are substituted.
-- Extra environment variables cannot set `PATH`, `HOME`, `LD_*`, proxy variables or `PATHOS_*`.
-- Plugins run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout. They scan repository source only, not scan targets.
-- The worker registers plugins in the catalog through a database function that accepts only `plugin-<category>-<name>` keys and cannot change built-in entries. At most 20 plugins load; invalid files are skipped with a log message.
+- **Manifests are files**, never API input: first-party manifests are read-only in the family images (`/opt/pathos/tools.d`); operator plugins are on the worker host (`deploy/scanners.d`, mounted read-only). A PATHOS administrator, or anyone with API access, cannot make a worker run a program.
+- The command must be an absolute path to an existing executable that is not writable by group or others. Arguments are passed without a shell; only the documented placeholders are substituted.
+- Extra environment variables cannot set `PATH`, `HOME`, `LD_*`, proxy variables or `PATHOS_*`. Tools that declare `network: none` run without the egress proxy variables.
+- Tools run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout.
+- A tool that declares `network: target` runs only for url and api targets with an authorization statement; an `intrusive` tool also needs the target's **intrusive testing authorized** flag, which is recorded (who, when, reference), audited (`scan_target.intrusive_authorize`, `scan_target.intrusive_revoke`) and withdrawn when the address changes. The API checks both when a scan is queued; workers skip intrusive tools for targets without the flag. Repository scan profiles cannot select such tools.
+- First-party manifests can only name catalog tools that are not built into the core image; operator plugins always get `plugin-<category>-<name>` keys, so neither can replace a built-in tool. The worker registers plugins through a database function that accepts only plugin keys, cannot change built-in entries, and never lowers a tool's network or intrusive declaration. At most 500 first-party manifests and 50 operator plugins load; invalid files are skipped with a log message.
+- A worker's result upload may name the parser of a manifest tool (an import format or a JSON mapping): parsing is data only, on the API server, and the parser is accepted only for manifest tools.
 
 ### Result imports and the CLI
 
-[Result imports](api-reference/result-imports.md) parse reports of 25 formats on the API server. Parsing is data only; nothing in a report is executed or fetched.
+[Result imports](api-reference/result-imports.md) parse reports of 232 formats on the API server. Parsing is data only; nothing in a report is executed or fetched. A Fortify FPR (a zip archive) is read in memory with bounded sizes; nothing is extracted to disk.
 
 - Uploads need `scans.run` on the repository and are limited to 64 MiB (gzip expanded to at most 256 MiB); at most 20 000 findings per report.
 - **XML** (ZAP, Burp, Nessus, OpenVAS, Checkmarx) is parsed with Go's `encoding/xml` in strict mode: DTDs and external entities are never processed or resolved (no XXE, no external fetches), only the five predefined entities are accepted (entity-expansion bombs fail), nesting depth is bounded by the standard library, and only UTF-8, US-ASCII and ISO-8859-1 / Windows-1252 are accepted.

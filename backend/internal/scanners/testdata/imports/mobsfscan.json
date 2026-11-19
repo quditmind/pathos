@@ -1,0 +1,40 @@
+{
+  "errors": [],
+  "mobsfscan_version": "1.2.0",
+  "results": {
+    "android_root_detection": {
+      "metadata": {
+        "cwe": "CWE-919: Weaknesses in Mobile Applications",
+        "description": "This app does not have root detection capabilities. Running a sensitive application on a rooted device questions the device integrity and affects users data.",
+        "masvs": "MSTG-RESILIENCE-1",
+        "owasp-mobile": "M8: Code Tampering",
+        "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1",
+        "severity": "INFO"
+      }
+    },
+    "weak_hash": {
+      "files": [
+        {
+          "file_path": "app/src/main/java/com/acme/Main.java",
+          "match_lines": [
+            7,
+            7
+          ],
+          "match_position": [
+            5,
+            57
+          ],
+          "match_string": "    MessageDigest md = MessageDigest.getInstance(\"MD5\");"
+        }
+      ],
+      "metadata": {
+        "cwe": "CWE-327: Use of a Broken or Risky Cryptographic Algorithm",
+        "description": "Weak Hash algorithm used. The hash algorithm is known to have hash collisions.",
+        "masvs": "MSTG-CRYPTO-4",
+        "owasp-mobile": "M5: Insufficient Cryptography",
+        "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#identifying-insecure-andor-deprecated-cryptographic-algorithms-mstg-crypto-4",
+        "severity": "WARNING"
+      }
+    }
+  }
+}

@@ -1,0 +1,124 @@
+{
+  "results": [
+    {
+      "type": "sast",
+      "label": "sast",
+      "id": "1hYz2Fh0V5pY7kQ+0z7S1nqAqXo=",
+      "similarityId": "-1872614538",
+      "status": "NEW",
+      "state": "TO_VERIFY",
+      "severity": "HIGH",
+      "created": "2026-11-01T10:00:00Z",
+      "firstFoundAt": "2026-11-01T10:00:00Z",
+      "foundAt": "2026-11-01T10:00:00Z",
+      "firstScanId": "6f1c2d3e-0000-4a5b-8c9d-000000000001",
+      "description": "The application's find method executes an SQL query with execute, at line 9 of /py/app.py. The query is built from user input.",
+      "data": {
+        "queryId": 11870983477716066000,
+        "queryName": "SQL_Injection",
+        "group": "Python_High_Risk",
+        "resultHash": "1hYz2Fh0V5pY7kQ+0z7S1nqAqXo=",
+        "languageName": "Python",
+        "nodes": [
+          {
+            "id": "n1",
+            "line": 15,
+            "name": "request",
+            "column": 9,
+            "length": 7,
+            "method": "view",
+            "nodeID": 101,
+            "domType": "ParamDecl",
+            "fileName": "/py/app.py",
+            "fullName": "app.view.request",
+            "typeName": "",
+            "methodLine": 14,
+            "definitions": "1"
+          },
+          {
+            "id": "n2",
+            "line": 9,
+            "name": "execute",
+            "column": 24,
+            "length": 7,
+            "method": "find",
+            "nodeID": 202,
+            "domType": "MethodInvokeExpr",
+            "fileName": "/py/app.py",
+            "fullName": "app.find.execute",
+            "typeName": "",
+            "methodLine": 8,
+            "definitions": "0"
+          }
+        ]
+      },
+      "comments": {},
+      "vulnerabilityDetails": {
+        "cweId": 89,
+        "cvss": {},
+        "compliances": [
+          "OWASP Top 10 2021",
+          "PCI DSS v4.0"
+        ]
+      }
+    },
+    {
+      "type": "sca",
+      "label": "sca",
+      "id": "CVE-2021-23337",
+      "similarityId": "CVE-2021-23337",
+      "status": "RECURRENT",
+      "state": "NOT_EXPLOITABLE",
+      "severity": "HIGH",
+      "description": "Lodash versions prior to 4.17.21 are vulnerable to Command Injection via the template function.",
+      "data": {
+        "packageIdentifier": "Npm-lodash-4.17.20",
+        "recommendedVersion": "4.17.21",
+        "packageData": [
+          {
+            "url": "https://github.com/lodash/lodash/commit/3469357",
+            "type": "Commit",
+            "comment": ""
+          }
+        ]
+      },
+      "vulnerabilityDetails": {
+        "cweId": "CWE-94",
+        "cvssScore": 7.2,
+        "cveName": "CVE-2021-23337",
+        "cvss": {
+          "version": 3,
+          "attackVector": "NETWORK",
+          "availability": "HIGH",
+          "confidentiality": "HIGH"
+        }
+      }
+    },
+    {
+      "type": "kics",
+      "label": "IaC Security",
+      "id": "a3f4b5c6d7e8f9a0",
+      "similarityId": "c0ffee00c0ffee00c0ffee00c0ffee00",
+      "status": "NEW",
+      "state": "CONFIRMED",
+      "severity": "HIGH",
+      "description": "S3 Buckets must not allow public read access.",
+      "data": {
+        "queryId": "38c5ee0d-7f22-4260-ab72-5073048df100",
+        "queryName": "S3 Bucket ACL Allows Read Or Write to All Users",
+        "group": "Access Control",
+        "line": "3",
+        "platform": "Terraform",
+        "issueType": "IncorrectValue",
+        "expectedValue": "'acl' should equal to 'private'",
+        "value": "'acl' is equal 'public-read'",
+        "filename": "/tf/main.tf"
+      },
+      "vulnerabilityDetails": {
+        "cweId": 0
+      }
+    }
+  ],
+  "totalCount": 3,
+  "scanID": "6f1c2d3e-0000-4a5b-8c9d-000000000001"
+}

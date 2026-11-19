@@ -1,0 +1,1139 @@
+{
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "mobsfscan",
+          "rules": [
+            {
+              "id": "java_insecure_random",
+              "help": {
+                "text": "The App uses an insecure Random Number Generator.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-random-number-generators"
+              },
+              "name": "The App uses an insecure Random Number Generator (CWE-330)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-330",
+                  "owasp-mobile/m5",
+                  "masvs/crypto-6"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "The App uses an insecure Random Number Generator."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-random-number-generators",
+              "shortDescription": {
+                "text": "The App uses an insecure Random Number Generator (CWE-330)"
+              }
+            },
+            {
+              "id": "hardcoded_api_key",
+              "help": {
+                "text": "A hardcoded Key is identified.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#storing-a-key---example"
+              },
+              "name": "A hardcoded Key is identified (CWE-798)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-798",
+                  "owasp-mobile/m9",
+                  "masvs/storage-14"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "A hardcoded Key is identified."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#storing-a-key---example",
+              "shortDescription": {
+                "text": "A hardcoded Key is identified (CWE-798)"
+              }
+            },
+            {
+              "id": "webview_set_allow_file_access",
+              "help": {
+                "text": "WebView File System Access is enabled. An attacker able to inject script into a WebView, could exploit the opportunity to access local resources.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md/#testing-webview-protocol-handlers-mstg-platform-6"
+              },
+              "name": "WebView File System Access is enabled (CWE-73)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-73",
+                  "owasp-mobile/m7",
+                  "masvs/platform-6"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "WebView File System Access is enabled. An attacker able to inject script into a WebView, could exploit the opportunity to access local resources."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md/#testing-webview-protocol-handlers-mstg-platform-6",
+              "shortDescription": {
+                "text": "WebView File System Access is enabled (CWE-73)"
+              }
+            },
+            {
+              "id": "webview_javascript_interface",
+              "help": {
+                "text": "Ensure that javascript interface is implemented securely. Execution of user controlled code in WebView is a  critical Security issue.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#determining-whether-java-objects-are-exposed-through-webviews-mstg-platform-7"
+              },
+              "name": "Ensure that javascript interface is implemented securely (CWE-749)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-749",
+                  "owasp-mobile/m1",
+                  "masvs/platform-7"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "Ensure that javascript interface is implemented securely. Execution of user controlled code in WebView is a  critical Security issue."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#determining-whether-java-objects-are-exposed-through-webviews-mstg-platform-7",
+              "shortDescription": {
+                "text": "Ensure that javascript interface is implemented securely (CWE-749)"
+              }
+            },
+            {
+              "id": "android_logging",
+              "help": {
+                "text": "The App logs information. Please ensure that sensitive information is never logged.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#logs"
+              },
+              "name": "The App logs information (CWE-532)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-532",
+                  "owasp-mobile/m1",
+                  "masvs/storage-3"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "The App logs information. Please ensure that sensitive information is never logged."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#logs",
+              "shortDescription": {
+                "text": "The App logs information (CWE-532)"
+              }
+            },
+            {
+              "id": "command_injection",
+              "help": {
+                "text": "User controlled strings in exec() will result in command execution.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04h-Testing-Code-Quality.md#injection-flaws-mstg-arch-2-and-mstg-platform-2"
+              },
+              "name": "User controlled strings in exec() will result in command execution (CWE-78)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-78",
+                  "owasp-mobile/m7",
+                  "masvs/platform-2"
+                ],
+                "precision": "high",
+                "security-severity": "9.0",
+                "problem.severity": "error"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "User controlled strings in exec() will result in command execution."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04h-Testing-Code-Quality.md#injection-flaws-mstg-arch-2-and-mstg-platform-2",
+              "shortDescription": {
+                "text": "User controlled strings in exec() will result in command execution (CWE-78)"
+              }
+            },
+            {
+              "id": "weak_hash",
+              "help": {
+                "text": "Weak Hash algorithm used. The hash algorithm is known to have hash collisions.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#identifying-insecure-andor-deprecated-cryptographic-algorithms-mstg-crypto-4"
+              },
+              "name": "Weak Hash algorithm used (CWE-327)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327",
+                  "owasp-mobile/m5",
+                  "masvs/crypto-4"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "Weak Hash algorithm used. The hash algorithm is known to have hash collisions."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#identifying-insecure-andor-deprecated-cryptographic-algorithms-mstg-crypto-4",
+              "shortDescription": {
+                "text": "Weak Hash algorithm used (CWE-327)"
+              }
+            },
+            {
+              "id": "aes_ecb_mode",
+              "help": {
+                "text": "The App uses ECB mode in Cryptographic encryption algorithm. ECB mode is known to be weak as it results in the same ciphertext for identical blocks of plaintext.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-block-cipher-mode"
+              },
+              "name": "The App uses ECB mode in Cryptographic encryption algorithm (CWE-327)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-327",
+                  "owasp-mobile/m5",
+                  "masvs/crypto-2"
+                ],
+                "precision": "high",
+                "security-severity": "9.0",
+                "problem.severity": "error"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "The App uses ECB mode in Cryptographic encryption algorithm. ECB mode is known to be weak as it results in the same ciphertext for identical blocks of plaintext."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-block-cipher-mode",
+              "shortDescription": {
+                "text": "The App uses ECB mode in Cryptographic encryption algorithm (CWE-327)"
+              }
+            },
+            {
+              "id": "android_manifest_insecure_minsdk_error",
+              "help": {
+                "text": "App supports Android version 4.4-4.4.4, API Level: 19. This application can be installed on an older version of android that has multiple unfixed vulnerabilities. These devices won't receive reasonable security updates from Google. Support an Android version >= 10, API 29 to receive reasonable security updates.\n\nReference: https://github.com/OWASP/owasp-mastg/blob/master/Document/0x05a-Platform-Overview.md"
+              },
+              "name": "App supports Android version 4.4-4.4.4, API Level: 19 (CWE-1104)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-1104",
+                  "owasp-mobile/m1",
+                  "masvs/platform-1"
+                ],
+                "precision": "high",
+                "security-severity": "9.0",
+                "problem.severity": "error"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "App supports Android version 4.4-4.4.4, API Level: 19. This application can be installed on an older version of android that has multiple unfixed vulnerabilities. These devices won't receive reasonable security updates from Google. Support an Android version >= 10, API 29 to receive reasonable security updates."
+              },
+              "helpUri": "https://github.com/OWASP/owasp-mastg/blob/master/Document/0x05a-Platform-Overview.md",
+              "shortDescription": {
+                "text": "App supports Android version 4.4-4.4.4, API Level: 19 (CWE-1104)"
+              }
+            },
+            {
+              "id": "android_manifest_allow_backup",
+              "help": {
+                "text": "This flag allows anyone to backup your application data via adb. It allows users who have enabled USB debugging to copy application data off of the device.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#static-analysis-7"
+              },
+              "name": "This flag allows anyone to backup your application data via adb (CWE-921)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-921",
+                  "owasp-mobile/m1",
+                  "masvs/storage-8"
+                ],
+                "precision": "high",
+                "security-severity": "5.5",
+                "problem.severity": "warning"
+              },
+              "defaultConfiguration": {},
+              "fullDescription": {
+                "text": "This flag allows anyone to backup your application data via adb. It allows users who have enabled USB debugging to copy application data off of the device."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#static-analysis-7",
+              "shortDescription": {
+                "text": "This flag allows anyone to backup your application data via adb (CWE-921)"
+              }
+            },
+            {
+              "id": "android_manifest_usescleartext",
+              "help": {
+                "text": "The app intends to use cleartext network traffic, such as cleartext HTTP, FTP stacks, DownloadManager, and MediaPlayer. The default value for apps that target API level 27 or lower is \"true\". Apps that target API level 28 or higher default to \"false\". The key reason for avoiding cleartext traffic is the lack of confidentiality, authenticity, and protections against tampering; a network attacker can eavesdrop on transmitted data and also modify it without being detected.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-for-cleartext-traffic"
+              },
+              "name": "The app intends to use cleartext network traffic, such as cleartext HTTP, FTP stacks, DownloadManager, and MediaPlayer (CWE-319)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-319",
+                  "owasp-mobile/m3",
+                  "masvs/network-1"
+                ],
+                "precision": "high",
+                "security-severity": "9.0",
+                "problem.severity": "error"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "The app intends to use cleartext network traffic, such as cleartext HTTP, FTP stacks, DownloadManager, and MediaPlayer. The default value for apps that target API level 27 or lower is \"true\". Apps that target API level 28 or higher default to \"false\". The key reason for avoiding cleartext traffic is the lack of confidentiality, authenticity, and protections against tampering; a network attacker can eavesdrop on transmitted data and also modify it without being detected."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-for-cleartext-traffic",
+              "shortDescription": {
+                "text": "The app intends to use cleartext network traffic, such as cleartext HTTP, FTP stacks, DownloadManager, and MediaPlayer (CWE-319)"
+              }
+            },
+            {
+              "id": "android_manifest_debugging_enabled",
+              "help": {
+                "text": "Debugging was enabled on the app which makes it easier for reverse engineers to hook a debugger to it. This allows dumping a stack trace and accessing debugging helper classes.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05i-Testing-Code-Quality-and-Build-Settings.md#testing-whether-the-app-is-debuggable-mstg-code-2"
+              },
+              "name": "Debugging was enabled on the app which makes it easier for reverse engineers to hook a debugger to it (CWE-489)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-489",
+                  "owasp-mobile/m10",
+                  "masvs/code-2"
+                ],
+                "precision": "high",
+                "security-severity": "9.0",
+                "problem.severity": "error"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "fullDescription": {
+                "text": "Debugging was enabled on the app which makes it easier for reverse engineers to hook a debugger to it. This allows dumping a stack trace and accessing debugging helper classes."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05i-Testing-Code-Quality-and-Build-Settings.md#testing-whether-the-app-is-debuggable-mstg-code-2",
+              "shortDescription": {
+                "text": "Debugging was enabled on the app which makes it easier for reverse engineers to hook a debugger to it (CWE-489)"
+              }
+            },
+            {
+              "id": "android_root_detection",
+              "help": {
+                "text": "This app does not have root detection capabilities. Running a sensitive application on a rooted device questions the device integrity and affects users data.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1"
+              },
+              "name": "This app does not have root detection capabilities (CWE-919)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-919",
+                  "owasp-mobile/m8",
+                  "masvs/resilience-1"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not have root detection capabilities. Running a sensitive application on a rooted device questions the device integrity and affects users data."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1",
+              "shortDescription": {
+                "text": "This app does not have root detection capabilities (CWE-919)"
+              }
+            },
+            {
+              "id": "android_safetynet_api",
+              "help": {
+                "text": "This app does not uses SafetyNet Attestation API that provides cryptographically-signed attestation, assessing the device's integrity. This check helps to ensure that the servers are interacting with the genuine app running on a genuine Android device. \n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1"
+              },
+              "name": "This app does not uses SafetyNet Attestation API that provides cryptographically-signed attestation, assessing the device's integrity (CWE-353)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-353",
+                  "owasp-mobile/m8",
+                  "masvs/resilience-1"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not uses SafetyNet Attestation API that provides cryptographically-signed attestation, assessing the device's integrity. This check helps to ensure that the servers are interacting with the genuine app running on a genuine Android device. "
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1",
+              "shortDescription": {
+                "text": "This app does not uses SafetyNet Attestation API that provides cryptographically-signed attestation, assessing the device's integrity (CWE-353)"
+              }
+            },
+            {
+              "id": "android_certificate_transparency",
+              "help": {
+                "text": "This app does not enforce TLS Certificate Transparency that helps to detect SSL certificates that have been mistakenly issued by a certificate authority or maliciously acquired from an otherwise unimpeachable certificate authority.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4"
+              },
+              "name": "This app does not enforce TLS Certificate Transparency that helps to detect SSL certificates that have been mistakenly issued by a certificate authority or maliciously acquired from an otherwise unimpeachable certificate authority (CWE-295)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-295",
+                  "owasp-mobile/m3",
+                  "masvs/network-4"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not enforce TLS Certificate Transparency that helps to detect SSL certificates that have been mistakenly issued by a certificate authority or maliciously acquired from an otherwise unimpeachable certificate authority."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4",
+              "shortDescription": {
+                "text": "This app does not enforce TLS Certificate Transparency that helps to detect SSL certificates that have been mistakenly issued by a certificate authority or maliciously acquired from an otherwise unimpeachable certificate authority (CWE-295)"
+              }
+            },
+            {
+              "id": "android_detect_tapjacking",
+              "help": {
+                "text": "This app does not have capabilities to prevent tapjacking attacks. An attacker can hijack the user's taps and tricks him into performing some critical operations that he did not intend to.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#testing-for-overlay-attacks-mstg-platform-9"
+              },
+              "name": "This app does not have capabilities to prevent tapjacking attacks (CWE-200)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "owasp-mobile/m1",
+                  "masvs/platform-9"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not have capabilities to prevent tapjacking attacks. An attacker can hijack the user's taps and tricks him into performing some critical operations that he did not intend to."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#testing-for-overlay-attacks-mstg-platform-9",
+              "shortDescription": {
+                "text": "This app does not have capabilities to prevent tapjacking attacks (CWE-200)"
+              }
+            },
+            {
+              "id": "android_prevent_screenshot",
+              "help": {
+                "text": "This app does not have capabilities to prevent against Screenshots from Recent Task History/ Now On Tap etc.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#finding-sensitive-information-in-auto-generated-screenshots-mstg-storage-9"
+              },
+              "name": "This app does not have capabilities to prevent against Screenshots from Recent Task History/ Now On Tap etc (CWE-200)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-200",
+                  "owasp-mobile/m2",
+                  "masvs/storage-9"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not have capabilities to prevent against Screenshots from Recent Task History/ Now On Tap etc."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#finding-sensitive-information-in-auto-generated-screenshots-mstg-storage-9",
+              "shortDescription": {
+                "text": "This app does not have capabilities to prevent against Screenshots from Recent Task History/ Now On Tap etc (CWE-200)"
+              }
+            },
+            {
+              "id": "android_certificate_pinning",
+              "help": {
+                "text": "This app does not use a TLS/SSL certificate or public key pinning in code to detect or prevent MITM attacks in secure communication channel. Please verify if pinning is enabled in `network_security_config.xml`.\n\nReference: https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4"
+              },
+              "name": "This app does not use a TLS/SSL certificate or public key pinning in code to detect or prevent MITM attacks in secure communication channel (CWE-295)",
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-295",
+                  "owasp-mobile/m3",
+                  "masvs/network-4"
+                ],
+                "precision": "medium",
+                "security-severity": "2.0",
+                "problem.severity": "note"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "fullDescription": {
+                "text": "This app does not use a TLS/SSL certificate or public key pinning in code to detect or prevent MITM attacks in secure communication channel. Please verify if pinning is enabled in `network_security_config.xml`."
+              },
+              "helpUri": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4",
+              "shortDescription": {
+                "text": "This app does not use a TLS/SSL certificate or public key pinning in code to detect or prevent MITM attacks in secure communication channel (CWE-295)"
+              }
+            }
+          ],
+          "version": "1.2.0",
+          "informationUri": "https://github.com/MobSF/mobsfscan",
+          "semanticVersion": "1.2.0"
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "endTimeUtc": "2026-11-19T08:43:19Z"
+        }
+      ],
+      "results": [
+        {
+          "message": {
+            "text": "The App uses an insecure Random Number Generator."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "import java.util.Random;"
+                  },
+                  "endColumn": 24,
+                  "endLine": 14,
+                  "startColumn": 1,
+                  "startLine": 14
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M5: Insufficient Cryptography",
+            "masvs": "MSTG-CRYPTO-6",
+            "cwe": "CWE-330: Use of Insufficiently Random Values",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-random-number-generators",
+            "security-severity": "5.5"
+          },
+          "ruleId": "java_insecure_random",
+          "ruleIndex": 0
+        },
+        {
+          "message": {
+            "text": "A hardcoded Key is identified."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "    private static final String API_KEY = \"pathosTestApiKeyValue0123456789abcd\";"
+                  },
+                  "endColumn": 80,
+                  "endLine": 20,
+                  "startColumn": 5,
+                  "startLine": 20
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M9: Reverse Engineering",
+            "masvs": "MSTG-STORAGE-14",
+            "cwe": "CWE-798: Use of Hard-coded Credentials",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#storing-a-key---example",
+            "security-severity": "5.5"
+          },
+          "ruleId": "hardcoded_api_key",
+          "ruleIndex": 1
+        },
+        {
+          "message": {
+            "text": "WebView File System Access is enabled. An attacker able to inject script into a WebView, could exploit the opportunity to access local resources."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        webView.getSettings().setAllowFileAccess(true);"
+                  },
+                  "endColumn": 56,
+                  "endLine": 50,
+                  "startColumn": 9,
+                  "startLine": 50
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M7: Client Code Quality",
+            "masvs": "MSTG-PLATFORM-6",
+            "cwe": "CWE-73: External Control of File Name or Path",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md/#testing-webview-protocol-handlers-mstg-platform-6",
+            "security-severity": "5.5"
+          },
+          "ruleId": "webview_set_allow_file_access",
+          "ruleIndex": 2
+        },
+        {
+          "message": {
+            "text": "Ensure that javascript interface is implemented securely. Execution of user controlled code in WebView is a  critical Security issue."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        webView.addJavascriptInterface(new Bridge(), \"bridge\");"
+                  },
+                  "endColumn": 63,
+                  "endLine": 51,
+                  "startColumn": 9,
+                  "startLine": 51
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M1: Improper Platform Usage",
+            "masvs": "MSTG-PLATFORM-7",
+            "cwe": "CWE-749: Exposed Dangerous Method or Function",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#determining-whether-java-objects-are-exposed-through-webviews-mstg-platform-7",
+            "security-severity": "5.5"
+          },
+          "ruleId": "webview_javascript_interface",
+          "ruleIndex": 3
+        },
+        {
+          "message": {
+            "text": "The App logs information. Please ensure that sensitive information is never logged."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        Log.d(\"PathosTest\", \"login password=\" + getIntent().getStringExtra(\"password\"));"
+                  },
+                  "endColumn": 89,
+                  "endLine": 54,
+                  "startColumn": 9,
+                  "startLine": 54
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M1: Improper Platform Usage",
+            "masvs": "MSTG-STORAGE-3",
+            "cwe": "CWE-532: Insertion of Sensitive Information into Log File",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#logs",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_logging",
+          "ruleIndex": 4
+        },
+        {
+          "message": {
+            "text": "The App logs information. Please ensure that sensitive information is never logged."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        Log.i(\"PathosTest\", \"session token \" + new Random().nextInt());"
+                  },
+                  "endColumn": 72,
+                  "endLine": 55,
+                  "startColumn": 9,
+                  "startLine": 55
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M1: Improper Platform Usage",
+            "masvs": "MSTG-STORAGE-3",
+            "cwe": "CWE-532: Insertion of Sensitive Information into Log File",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#logs",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_logging",
+          "ruleIndex": 4
+        },
+        {
+          "message": {
+            "text": "User controlled strings in exec() will result in command execution."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        Runtime.getRuntime().exec(\"sh -c \" + str);"
+                  },
+                  "endColumn": 51,
+                  "endLine": 59,
+                  "startColumn": 9,
+                  "startLine": 59
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M7: Client Code Quality",
+            "masvs": "MSTG-PLATFORM-2",
+            "cwe": "CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04h-Testing-Code-Quality.md#injection-flaws-mstg-arch-2-and-mstg-platform-2",
+            "security-severity": "9.0"
+          },
+          "ruleId": "command_injection",
+          "ruleIndex": 5
+        },
+        {
+          "message": {
+            "text": "Weak Hash algorithm used. The hash algorithm is known to have hash collisions."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        MessageDigest messageDigest = MessageDigest.getInstance(\"MD5\");"
+                  },
+                  "endColumn": 72,
+                  "endLine": 63,
+                  "startColumn": 9,
+                  "startLine": 63
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M5: Insufficient Cryptography",
+            "masvs": "MSTG-CRYPTO-4",
+            "cwe": "CWE-327: Use of a Broken or Risky Cryptographic Algorithm",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#identifying-insecure-andor-deprecated-cryptographic-algorithms-mstg-crypto-4",
+            "security-severity": "5.5"
+          },
+          "ruleId": "weak_hash",
+          "ruleIndex": 6
+        },
+        {
+          "message": {
+            "text": "The App uses ECB mode in Cryptographic encryption algorithm. ECB mode is known to be weak as it results in the same ciphertext for identical blocks of plaintext."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "        Cipher cipher = Cipher.getInstance(\"AES/ECB/PKCS5Padding\");"
+                  },
+                  "endColumn": 67,
+                  "endLine": 65,
+                  "startColumn": 25,
+                  "startLine": 65
+                },
+                "artifactLocation": {
+                  "uri": "sources/org/pathos/testapp/MainActivity.java"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M5: Insufficient Cryptography",
+            "masvs": "MSTG-CRYPTO-2",
+            "cwe": "CWE-327: Use of a Broken or Risky Cryptographic Algorithm",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x04g-Testing-Cryptography.md#weak-block-cipher-mode",
+            "security-severity": "9.0"
+          },
+          "ruleId": "aes_ecb_mode",
+          "ruleIndex": 7
+        },
+        {
+          "message": {
+            "text": "App supports Android version 4.4-4.4.4, API Level: 19. This application can be installed on an older version of android that has multiple unfixed vulnerabilities. These devices won't receive reasonable security updates from Google. Support an Android version >= 10, API 29 to receive reasonable security updates."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "android:minSdkVersion<29"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "resources/AndroidManifest.xml"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "m1",
+            "masvs": "platform-1",
+            "cwe": "cwe-1104",
+            "reference": "https://github.com/OWASP/owasp-mastg/blob/master/Document/0x05a-Platform-Overview.md",
+            "security-severity": "9.0"
+          },
+          "ruleId": "android_manifest_insecure_minsdk_error",
+          "ruleIndex": 8
+        },
+        {
+          "message": {
+            "text": "This flag allows anyone to backup your application data via adb. It allows users who have enabled USB debugging to copy application data off of the device."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "android:allowBackup=true"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "resources/AndroidManifest.xml"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "m1",
+            "masvs": "storage-8",
+            "cwe": "cwe-921",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#static-analysis-7",
+            "security-severity": "5.5"
+          },
+          "ruleId": "android_manifest_allow_backup",
+          "ruleIndex": 9
+        },
+        {
+          "message": {
+            "text": "The app intends to use cleartext network traffic, such as cleartext HTTP, FTP stacks, DownloadManager, and MediaPlayer. The default value for apps that target API level 27 or lower is \"true\". Apps that target API level 28 or higher default to \"false\". The key reason for avoiding cleartext traffic is the lack of confidentiality, authenticity, and protections against tampering; a network attacker can eavesdrop on transmitted data and also modify it without being detected."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "android:usesCleartextTraffic=true"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "resources/AndroidManifest.xml"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "m3",
+            "masvs": "network-1",
+            "cwe": "cwe-319",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-for-cleartext-traffic",
+            "security-severity": "9.0"
+          },
+          "ruleId": "android_manifest_usescleartext",
+          "ruleIndex": 10
+        },
+        {
+          "message": {
+            "text": "Debugging was enabled on the app which makes it easier for reverse engineers to hook a debugger to it. This allows dumping a stack trace and accessing debugging helper classes."
+          },
+          "level": "error",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "android:debuggable=true"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "resources/AndroidManifest.xml"
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "m10",
+            "masvs": "code-2",
+            "cwe": "cwe-489",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05i-Testing-Code-Quality-and-Build-Settings.md#testing-whether-the-app-is-debuggable-mstg-code-2",
+            "security-severity": "9.0"
+          },
+          "ruleId": "android_manifest_debugging_enabled",
+          "ruleIndex": 11
+        },
+        {
+          "message": {
+            "text": "This app does not have root detection capabilities. Running a sensitive application on a rooted device questions the device integrity and affects users data."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M8: Code Tampering",
+            "masvs": "MSTG-RESILIENCE-1",
+            "cwe": "CWE-919: Weaknesses in Mobile Applications",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_root_detection",
+          "ruleIndex": 12
+        },
+        {
+          "message": {
+            "text": "This app does not uses SafetyNet Attestation API that provides cryptographically-signed attestation, assessing the device's integrity. This check helps to ensure that the servers are interacting with the genuine app running on a genuine Android device. "
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M8: Code Tampering",
+            "masvs": "MSTG-RESILIENCE-1",
+            "cwe": "CWE-353: Missing Support for Integrity Check",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05j-Testing-Resiliency-Against-Reverse-Engineering.md#testing-root-detection-mstg-resilience-1",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_safetynet_api",
+          "ruleIndex": 13
+        },
+        {
+          "message": {
+            "text": "This app does not enforce TLS Certificate Transparency that helps to detect SSL certificates that have been mistakenly issued by a certificate authority or maliciously acquired from an otherwise unimpeachable certificate authority."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M3: Insecure Communication",
+            "masvs": "MSTG-NETWORK-4",
+            "cwe": "CWE-295: Improper Certificate Validation",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_certificate_transparency",
+          "ruleIndex": 14
+        },
+        {
+          "message": {
+            "text": "This app does not have capabilities to prevent tapjacking attacks. An attacker can hijack the user's taps and tricks him into performing some critical operations that he did not intend to."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M1: Improper Platform Usage",
+            "masvs": "MSTG-PLATFORM-9",
+            "cwe": "CWE-200: Information Exposure",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05h-Testing-Platform-Interaction.md#testing-for-overlay-attacks-mstg-platform-9",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_detect_tapjacking",
+          "ruleIndex": 15
+        },
+        {
+          "message": {
+            "text": "This app does not have capabilities to prevent against Screenshots from Recent Task History/ Now On Tap etc."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M2: Insecure Data Storage",
+            "masvs": "MSTG-STORAGE-9",
+            "cwe": "CWE-200: Information Exposure",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05d-Testing-Data-Storage.md#finding-sensitive-information-in-auto-generated-screenshots-mstg-storage-9",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_prevent_screenshot",
+          "ruleIndex": 16
+        },
+        {
+          "message": {
+            "text": "This app does not use a TLS/SSL certificate or public key pinning in code to detect or prevent MITM attacks in secure communication channel. Please verify if pinning is enabled in `network_security_config.xml`."
+          },
+          "level": "note",
+          "locations": [
+            {
+              "physicalLocation": {
+                "region": {
+                  "snippet": {
+                    "text": "Missing Best Practice"
+                  },
+                  "endColumn": 1,
+                  "endLine": 1,
+                  "startColumn": 1,
+                  "startLine": 1
+                },
+                "artifactLocation": {
+                  "uri": "."
+                }
+              }
+            }
+          ],
+          "properties": {
+            "owasp-mobile": "M3: Insecure Communication",
+            "masvs": "MSTG-NETWORK-4",
+            "cwe": "CWE-295: Improper Certificate Validation",
+            "reference": "https://github.com/MobSF/owasp-mstg/blob/master/Document/0x05g-Testing-Network-Communication.md#testing-custom-certificate-stores-and-certificate-pinning-mstg-network-4",
+            "security-severity": "2.0"
+          },
+          "ruleId": "android_certificate_pinning",
+          "ruleIndex": 17
+        }
+      ]
+    }
+  ],
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+}

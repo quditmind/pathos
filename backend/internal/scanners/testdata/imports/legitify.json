@@ -1,0 +1,95 @@
+{
+  "type": "flattened",
+  "content": {
+    "data.repository.repository_not_maintained": {
+      "policyInfo": {
+        "title": "Repository Should Be Updated At Least Quarterly",
+        "description": "A project which is not actively maintained may not be patched against security issues within its code and dependencies, and is therefore at higher risk of including known vulnerabilities.",
+        "policyName": "repository_not_maintained",
+        "fullyQualifiedPolicyName": "data.repository.repository_not_maintained",
+        "severity": "HIGH",
+        "threat": [
+          "As new vulnerabilities are found over time, unmaintained repositories are more likely to point to dependencies that have known vulnerabilities, exposing these repositories to 1-day attacks."
+        ],
+        "remediationSteps": [
+          "Either Delete or Archive the repository"
+        ],
+        "namespace": "repository"
+      },
+      "violations": [
+        {
+          "violationEntityType": "repository",
+          "canonicalLink": "https://github.com/acme/legacy-api",
+          "aux": {
+            "entityId": "512345678",
+            "entityName": "legacy-api"
+          },
+          "status": "FAILED"
+        },
+        {
+          "violationEntityType": "repository",
+          "canonicalLink": "https://github.com/acme/web",
+          "aux": {
+            "entityId": "512345679",
+            "entityName": "web"
+          },
+          "status": "PASSED"
+        }
+      ]
+    },
+    "data.organization.two_factor_authentication_not_required_for_org": {
+      "policyInfo": {
+        "title": "Two-Factor Authentication Should Be Enforced For The Organization",
+        "description": "The two-factor authentication requirement is not enabled at the organization level.",
+        "policyName": "two_factor_authentication_not_required_for_org",
+        "fullyQualifiedPolicyName": "data.organization.two_factor_authentication_not_required_for_org",
+        "severity": "CRITICAL",
+        "threat": [
+          "If an attacker gets the valid credentials for one of the organization's users they can authenticate to your GitHub organization."
+        ],
+        "remediationSteps": [
+          "Make sure you have admin permissions",
+          "Go to the organization's settings page",
+          "Enter 'Authentication security' tab",
+          "Check 'Require two-factor authentication for everyone in the organization'"
+        ],
+        "namespace": "organization"
+      },
+      "violations": [
+        {
+          "violationEntityType": "organization",
+          "canonicalLink": "https://github.com/acme",
+          "aux": {
+            "entityId": "91234567",
+            "entityName": "acme"
+          },
+          "status": "FAILED"
+        }
+      ]
+    },
+    "data.actions.all_repositories_can_run_github_actions": {
+      "policyInfo": {
+        "title": "GitHub Actions Should Be Restricted To Selected Repositories",
+        "description": "By not limiting GitHub Actions to specific repositories, every user in the organization is able to run arbitrary workflows.",
+        "policyName": "all_repositories_can_run_github_actions",
+        "fullyQualifiedPolicyName": "data.actions.all_repositories_can_run_github_actions",
+        "severity": "MEDIUM",
+        "threat": [
+          "A pipeline could be used to run code with access to organization secrets."
+        ],
+        "remediationSteps": [
+          "Go to the organization's Actions settings and select specific repositories"
+        ],
+        "namespace": "actions"
+      },
+      "violations": [
+        {
+          "violationEntityType": "organization actions",
+          "canonicalLink": "https://github.com/organizations/acme/settings/actions",
+          "aux": null,
+          "status": "SKIPPED"
+        }
+      ]
+    }
+  }
+}

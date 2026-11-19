@@ -1,0 +1,47 @@
+{
+  "data": {
+    "scan": {
+      "id": "1042",
+      "status": "succeeded",
+      "issues": [
+        {
+          "issue_type": {
+            "name": "SQL injection",
+            "type_index": "1049088",
+            "description_html": "<p>SQL injection vulnerabilities arise when user-controllable data is incorporated into database SQL queries in an unsafe manner.</p>",
+            "remediation_html": "<p>Use parameterized queries.</p>",
+            "vulnerability_classifications_html": "<ul><li><a href=\"https://cwe.mitre.org/data/definitions/89.html\">CWE-89: Improper Neutralization of Special Elements used in an SQL Command</a></li></ul>"
+          },
+          "confidence": "firm",
+          "severity": "high",
+          "serial_number": "5124387011275634688",
+          "origin": "https://api.example.test",
+          "path": "/orders",
+          "novelty": "new",
+          "accepted_risk": false,
+          "description_html": "The <b>id</b> parameter appears to be vulnerable to SQL injection attacks.",
+          "remediation_html": null,
+          "evidence": [
+            {
+              "__typename": "Request",
+              "request_index": 0,
+              "request_count": 1,
+              "request_segments": [
+                {"__typename": "DataSegment", "data_html": "GET /orders?id=1%27 HTTP/1.1\r\nHost: api.example.test\r\nCookie: sid=burp-graphql-cookie-secret\r\n\r\n"},
+                {"__typename": "HighlightSegment", "highlight_html": "%27"}
+              ]
+            },
+            {
+              "__typename": "Response",
+              "response_index": 0,
+              "response_count": 1,
+              "response_segments": [
+                {"__typename": "DataSegment", "data_html": "HTTP/1.1 500 Internal Server Error\r\nSet-Cookie: sid=burp-graphql-set-cookie-secret\r\n\r\nYou have an error in your SQL syntax"}
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

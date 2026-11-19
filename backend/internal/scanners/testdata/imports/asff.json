@@ -1,0 +1,228 @@
+{
+  "Findings": [
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:eu-west-1:123456789012:security-control/IAM.5/finding/0b0c7f8e-1111-4a1b-9c2d-000000000001",
+      "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "CompanyName": "AWS",
+      "Region": "eu-west-1",
+      "GeneratorId": "security-control/IAM.5",
+      "AwsAccountId": "123456789012",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "FirstObservedAt": "2025-11-01T10:00:00Z",
+      "LastObservedAt": "2025-11-19T10:00:00Z",
+      "CreatedAt": "2025-11-01T10:00:00Z",
+      "UpdatedAt": "2025-11-19T10:00:00Z",
+      "Severity": {
+        "Label": "MEDIUM",
+        "Normalized": 40,
+        "Original": "MEDIUM"
+      },
+      "Title": "IAM users with a console password should have MFA enabled",
+      "Description": "This control checks whether MFA is enabled for IAM users that use a console password.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "See the control's remediation guidance.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/remediation"
+        }
+      },
+      "ProductFields": {
+        "aws/securityhub/ProductName": "Security Hub"
+      },
+      "Resources": [
+        {
+          "Type": "AwsIamUser",
+          "Id": "arn:aws:iam::123456789012:user/deploy",
+          "Partition": "aws",
+          "Region": "eu-west-1"
+        }
+      ],
+      "WorkflowState": "NEW",
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ACTIVE",
+      "Compliance": {
+        "Status": "FAILED",
+        "SecurityControlId": "IAM.5",
+        "RelatedRequirements": [
+          "CIS AWS Foundations Benchmark v1.2.0/1.2"
+        ]
+      }
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:eu-west-1:123456789012:security-control/S3.8/finding/0b0c7f8e-1111-4a1b-9c2d-000000000002",
+      "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "CompanyName": "AWS",
+      "Region": "eu-west-1",
+      "GeneratorId": "security-control/S3.8",
+      "AwsAccountId": "123456789012",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "FirstObservedAt": "2025-11-01T10:00:00Z",
+      "LastObservedAt": "2025-11-19T10:00:00Z",
+      "CreatedAt": "2025-11-01T10:00:00Z",
+      "UpdatedAt": "2025-11-19T10:00:00Z",
+      "Severity": {
+        "Label": "HIGH",
+        "Normalized": 70,
+        "Original": "HIGH"
+      },
+      "Title": "S3 general purpose buckets should block public access",
+      "Description": "Checks public access block settings.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "See the control's remediation guidance.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/remediation"
+        }
+      },
+      "ProductFields": {
+        "aws/securityhub/ProductName": "Security Hub"
+      },
+      "Resources": [
+        {
+          "Type": "AwsS3Bucket",
+          "Id": "arn:aws:s3:::example-private-bucket",
+          "Partition": "aws",
+          "Region": "eu-west-1"
+        }
+      ],
+      "WorkflowState": "NEW",
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ACTIVE",
+      "Compliance": {
+        "Status": "PASSED",
+        "SecurityControlId": "S3.8"
+      }
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:inspector2:eu-west-1:123456789012:finding/5d1e3c9a7b0f4e2d8c6a1b3f5e7d9c0a",
+      "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+      "ProductName": "Inspector",
+      "CompanyName": "AWS",
+      "Region": "eu-west-1",
+      "GeneratorId": "AWSInspector",
+      "AwsAccountId": "123456789012",
+      "Types": [
+        "Software and Configuration Checks/Vulnerabilities/CVE"
+      ],
+      "FirstObservedAt": "2025-11-01T10:00:00Z",
+      "LastObservedAt": "2025-11-19T10:00:00Z",
+      "CreatedAt": "2025-11-01T10:00:00Z",
+      "UpdatedAt": "2025-11-19T10:00:00Z",
+      "Severity": {
+        "Label": "MEDIUM",
+        "Normalized": 40,
+        "Original": "MEDIUM"
+      },
+      "Title": "CVE-2023-2650 - openssl",
+      "Description": "Processing some specially crafted ASN.1 object identifiers may be very slow.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "See the control's remediation guidance.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/remediation"
+        }
+      },
+      "ProductFields": {
+        "aws/securityhub/ProductName": "Inspector"
+      },
+      "Resources": [
+        {
+          "Type": "AwsEcrContainerImage",
+          "Id": "arn:aws:ecr:eu-west-1:123456789012:repository/shop-api/sha256:af965ef68c78374a5f987fce98c0ddfa45801df2395bf012c50b863e65978d74",
+          "Partition": "aws",
+          "Region": "eu-west-1"
+        }
+      ],
+      "WorkflowState": "NEW",
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ACTIVE",
+      "Vulnerabilities": [
+        {
+          "Id": "CVE-2023-2650",
+          "VulnerablePackages": [
+            {
+              "Name": "openssl",
+              "Version": "1.1.1n",
+              "Epoch": "0",
+              "Release": "0+deb11u4",
+              "Architecture": "AMD64",
+              "PackageManager": "OS",
+              "FixedInVersion": "0:1.1.1n-0+deb11u5"
+            }
+          ],
+          "Cvss": [
+            {
+              "Version": "3.1",
+              "BaseScore": 6.5,
+              "BaseVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H",
+              "Source": "NVD"
+            }
+          ],
+          "FixAvailable": "YES"
+        }
+      ]
+    },
+    {
+      "SchemaVersion": "2018-10-08",
+      "Id": "arn:aws:securityhub:eu-west-1:123456789012:security-control/EC2.2/finding/0b0c7f8e-1111-4a1b-9c2d-000000000003",
+      "ProductArn": "arn:aws:securityhub:eu-west-1::product/aws/securityhub",
+      "ProductName": "Security Hub",
+      "CompanyName": "AWS",
+      "Region": "eu-west-1",
+      "GeneratorId": "security-control/EC2.2",
+      "AwsAccountId": "123456789012",
+      "Types": [
+        "Software and Configuration Checks/Industry and Regulatory Standards/AWS-Foundational-Security-Best-Practices"
+      ],
+      "FirstObservedAt": "2025-11-01T10:00:00Z",
+      "LastObservedAt": "2025-11-19T10:00:00Z",
+      "CreatedAt": "2025-11-01T10:00:00Z",
+      "UpdatedAt": "2025-11-19T10:00:00Z",
+      "Severity": {
+        "Label": "HIGH",
+        "Normalized": 70,
+        "Original": "HIGH"
+      },
+      "Title": "VPC default security groups should not allow inbound or outbound traffic",
+      "Description": "Checks the default security group.",
+      "Remediation": {
+        "Recommendation": {
+          "Text": "See the control's remediation guidance.",
+          "Url": "https://docs.aws.amazon.com/console/securityhub/remediation"
+        }
+      },
+      "ProductFields": {
+        "aws/securityhub/ProductName": "Security Hub"
+      },
+      "Resources": [
+        {
+          "Type": "AwsEc2SecurityGroup",
+          "Id": "arn:aws:ec2:eu-west-1:123456789012:security-group/sg-0aaa",
+          "Partition": "aws",
+          "Region": "eu-west-1"
+        }
+      ],
+      "WorkflowState": "NEW",
+      "Workflow": {
+        "Status": "NEW"
+      },
+      "RecordState": "ARCHIVED",
+      "Compliance": {
+        "Status": "FAILED",
+        "SecurityControlId": "EC2.2"
+      }
+    }
+  ]
+}

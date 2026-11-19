@@ -1,0 +1,103 @@
+[
+   {
+      "end_time" : "2026-11-19 08:16:40 +0000",
+      "host" : "b3-vulnapp",
+      "ip" : "b3-vulnapp",
+      "port" : 80,
+      "server_banner" : null,
+      "start_time" : "2026-11-19 08:09:05 +0000",
+      "vulnerabilities" : [
+         {
+            "id" : "000029",
+            "method" : "GET",
+            "msg" : "Cookie session created without the httponly flag.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies",
+            "url" : "/"
+         },
+         {
+            "id" : "999100",
+            "method" : "GET",
+            "msg" : "Uncommon header(s) 'cache-status' found, with contents: 612766218ed1;detail=no-cache.",
+            "references" : "",
+            "url" : "/"
+         },
+         {
+            "id" : "999990",
+            "method" : "OPTIONS",
+            "msg" : "OPTIONS: Allowed HTTP Methods: OPTIONS, GET, HEAD (May be proxy's methods, not server's).",
+            "references" : "",
+            "url" : "/"
+         },
+         {
+            "id" : "999100",
+            "method" : "PROPFIND",
+            "msg" : "Uncommon header(s) 'x-pathos-scope' found, with contents: outside the scan target.",
+            "references" : "",
+            "url" : "/"
+         },
+         {
+            "id" : "013587",
+            "method" : "GET",
+            "msg" : "Suggested security header missing: content-security-policy.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP",
+            "url" : "/"
+         },
+         {
+            "id" : "013587",
+            "method" : "GET",
+            "msg" : "Suggested security header missing: strict-transport-security.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security",
+            "url" : "/"
+         },
+         {
+            "id" : "013587",
+            "method" : "GET",
+            "msg" : "Suggested security header missing: x-content-type-options.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options",
+            "url" : "/"
+         },
+         {
+            "id" : "013587",
+            "method" : "GET",
+            "msg" : "Suggested security header missing: referrer-policy.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy",
+            "url" : "/"
+         },
+         {
+            "id" : "013587",
+            "method" : "GET",
+            "msg" : "Suggested security header missing: permissions-policy.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy",
+            "url" : "/"
+         },
+         {
+            "id" : "600652",
+            "method" : "HEAD",
+            "msg" : "Python/3.13.18 appears to be outdated (current is at least 3.14.6).",
+            "references" : "",
+            "url" : "/"
+         },
+         {
+            "id" : "750500",
+            "method" : "GET",
+            "msg" : "Directory indexing found.",
+            "references" : "CWE-548",
+            "url" : "/admin/"
+         },
+         {
+            "id" : "007342",
+            "method" : "GET",
+            "msg" : "X-Frame-Options header is deprecated and was replaced with the Content-Security-Policy HTTP header with the frame-ancestors directive.",
+            "references" : "https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/X-Frame-Options",
+            "url" : "/"
+         },
+         {
+            "id" : "007352",
+            "method" : "GET",
+            "msg" : "The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type.",
+            "references" : "https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/",
+            "url" : "/"
+         }
+      ]
+   }
+]

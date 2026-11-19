@@ -1,0 +1,22 @@
+# Hadolint: Dockerfile lint (with ShellCheck on RUN instructions). Hadolint
+# takes file names only; the hadolint-tree helper finds the Dockerfiles and
+# Containerfiles of the repository and prints one JSON array.
+name: hadolint
+display_name: Hadolint
+category: iac
+scan_types: [iac]
+license_spdx: GPL-3.0-only
+homepage: https://github.com/hadolint/hadolint
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/hadolint-tree
+version_args: ["--version"]
+args: ["{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:hadolint

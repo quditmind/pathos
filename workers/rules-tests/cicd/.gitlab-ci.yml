@@ -1,0 +1,60 @@
+# Test fixture for workers/rules/pathos-cicd.yml (GitLab CI). Not run.
+include:
+  # ruleid: pathos.cicd.gitlab.unpinned-include
+  - remote: "https://example.com/ci/templates/build.yml"
+  # ok: pathos.cicd.gitlab.unpinned-include
+  - remote: "https://example.com/ci/templates/deploy.yml"
+    integrity: "sha256-L3/GAoKaw0Arw6hDCKeKQlV1QPEgHYxGBHsH4zG1IY8="
+  - project: "platform/ci-templates"
+    # ruleid: pathos.cicd.gitlab.unpinned-include
+    ref: main
+    file: "/templates/lint.yml"
+  # ok: pathos.cicd.gitlab.unpinned-include
+  - project: "platform/ci-templates"
+    ref: v2.4.1
+    file: "/templates/test.yml"
+  # ruleid: pathos.cicd.gitlab.unpinned-include
+  - component: $CI_SERVER_FQDN/platform/components/sast@~latest
+  # ok: pathos.cicd.gitlab.unpinned-include
+  - component: $CI_SERVER_FQDN/platform/components/secrets@1.4.0
+
+# ruleid: pathos.cicd.unpinned-container-image
+image: node
+
+variables:
+  # ruleid: pathos.cicd.privileged-docker
+  DOCKER_TLS_CERTDIR: ""
+
+build:
+  # ok: pathos.cicd.unpinned-container-image
+  image: node:22.11.0-bookworm@sha256:6bc7a9e0e83e2e0ae68c8c5f7e4c1f8c9b1a2d3e4f5a6b7c8d9e0f1a2b3c4d5e
+  script:
+    # ok: pathos.cicd.gitlab.script-injection
+    - echo "Building $CI_COMMIT_BRANCH"
+    # ruleid: pathos.cicd.gitlab.script-injection
+    - git checkout $CI_COMMIT_BRANCH
+    # ruleid: pathos.cicd.gitlab.script-injection
+    - eval "echo $CI_MERGE_REQUEST_TITLE"
+    # ruleid: pathos.cicd.curl-pipe-shell
+    - curl -fsSL https://example.com/install.sh | bash
+    # ok: pathos.cicd.curl-pipe-shell
+    - curl -fsSLO https://example.com/tool.tar.gz && echo "$TOOL_SHA256  tool.tar.gz" | sha256sum -c -
+    # ruleid: pathos.cicd.secret-echoed
+    - echo "deploy token is $DEPLOY_TOKEN"
+    # ok: pathos.cicd.secret-echoed
+    - echo "$REGISTRY_PASSWORD" | docker login -u ci --password-stdin registry.example.com
+    # ruleid: pathos.cicd.secret-echoed
+    - printenv
+
+docker-build:
+  # ruleid: pathos.cicd.unpinned-container-image
+  image: docker:latest
+  services:
+    - docker:27.3.1-dind
+  script:
+    # ruleid: pathos.cicd.privileged-docker
+    - docker run --privileged -v "$PWD:/src" builder:1.2.3
+    # ruleid: pathos.cicd.privileged-docker
+    - docker run -v /var/run/docker.sock:/var/run/docker.sock tools:1.0.0
+    # ok: pathos.cicd.privileged-docker
+    - docker run --rm builder:1.2.3

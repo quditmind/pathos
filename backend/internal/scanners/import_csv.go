@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -156,8 +157,9 @@ func parseCSVImport(raw []byte) ([]importRecord, error) {
 		if n, err := strconv.Atoi(v["end_line"]); err == nil {
 			f.EndLine = intPtr(n)
 		}
-		switch c := strings.ToLower(v["category"]); c {
-		case "sast", "sca", "secrets", "iac", "container", "license", "dast":
+		// Any import category but "other" (an empty column means the
+		// import category).
+		if c := strings.ToLower(strings.TrimSpace(v["category"])); c != "other" && slices.Contains(ImportCategories, c) {
 			f.Category = c
 		}
 		out = append(out, importRecord{F: f, SnippetKey: hashOf(firstNonEmpty(v["fingerprint"], v["description"]+"|"+v["url"])), Raw: rawJSON(orig)})

@@ -1,0 +1,5 @@
+[
+  {"id": 1, "file": "src/vuln.c", "method": "main", "code": "ABV.GENERAL", "message": "Array 'a' of size 10 may use index value(s) 10", "line": 13, "column": 5, "severity": "Critical", "severityCode": 1, "state": "New", "status": "Analyze", "taxonomy": "C and C++", "reference": "CWE-119,CWE-788", "title": "Buffer Overflow - Array Index Out of Bounds"},
+  {"id": 2, "file": "src/vuln.c", "method": "copy", "code": "SV.STRBO.UNBOUND_COPY", "message": "Function 'strcpy' does not check buffer boundaries but outputs to buffer 'buf' of fixed size (16)", "line": 7, "column": 5, "severity": "Error", "severityCode": 2, "state": "New", "status": "Analyze", "taxonomy": "C and C++", "reference": "CWE-120", "title": "Use of Unbounded Copy"},
+  {"id": 3, "file": "src/vuln.c", "method": "main", "code": "MLK.MUST", "message": "Memory leak. Dynamic memory stored in 'p' allocated through function 'malloc' at line 14 is lost at line 17", "line": 17, "column": 5, "severity": "Error", "severityCode": 2, "state": "New", "status": "Not a Problem", "taxonomy": "C and C++", "title": "Memory Leak"}
+]

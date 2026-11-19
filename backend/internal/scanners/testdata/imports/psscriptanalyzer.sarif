@@ -1,0 +1,112 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.4.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "PSScriptAnalyzer",
+          "informationUri": "https://github.com/PowerShell/PSScriptAnalyzer",
+          "rules": [
+            {
+              "id": "PSAvoidUsingConvertToSecureStringWithPlainText",
+              "name": "PSAvoidUsingConvertToSecureStringWithPlainText",
+              "helpUri": "https://github.com/PowerShell/Psscriptanalyzer"
+            },
+            {
+              "id": "PSUseDeclaredVarsMoreThanAssignments",
+              "name": "PSUseDeclaredVarsMoreThanAssignments",
+              "helpUri": "https://github.com/PowerShell/Psscriptanalyzer"
+            },
+            {
+              "id": "PSAvoidUsingInvokeExpression",
+              "name": "PSAvoidUsingInvokeExpression",
+              "helpUri": "https://github.com/PowerShell/Psscriptanalyzer"
+            },
+            {
+              "id": "PSAvoidUsingCmdletAliases",
+              "name": "PSAvoidUsingCmdletAliases",
+              "helpUri": "https://github.com/PowerShell/Psscriptanalyzer"
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "PSAvoidUsingConvertToSecureStringWithPlainText",
+          "level": "error",
+          "message": {
+            "text": "File 'deploy.ps1' uses ConvertTo-SecureString with plaintext. This will expose secure information. Encrypted standard strings should be used instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///src/ps1/deploy.ps1"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PSUseDeclaredVarsMoreThanAssignments",
+          "message": {
+            "text": "The variable 'password' is assigned but never used."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///src/ps1/deploy.ps1"
+                },
+                "region": {
+                  "startLine": 2
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PSAvoidUsingInvokeExpression",
+          "message": {
+            "text": "Invoke-Expression is used. Please remove Invoke-Expression from script and find other options instead."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///src/ps1/deploy.ps1"
+                },
+                "region": {
+                  "startLine": 4
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "PSAvoidUsingCmdletAliases",
+          "message": {
+            "text": "'%' is an alias of 'ForEach-Object'. Alias can introduce possible problems and make scripts hard to maintain. Please consider changing alias to its full content."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///src/ps1/deploy.ps1"
+                },
+                "region": {
+                  "startLine": 5
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "pathos/sca-sample",
+  "description": "Sample for the worker-sca fixtures",
+  "license": "Apache-2.0",
+  "require": {
+    "guzzlehttp/guzzle": "6.5.0"
+  },
+  "config": {
+    "audit": {
+      "block-insecure": false
+    }
+  }
+}

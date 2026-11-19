@@ -1,0 +1,55 @@
+{
+  "total": 2,
+  "p": 1,
+  "ps": 100,
+  "paging": { "pageIndex": 1, "pageSize": 100, "total": 2 },
+  "effortTotal": 35,
+  "debtTotal": 35,
+  "issues": [
+    {
+      "key": "AZJx0cloud-xss-01",
+      "rule": "javascript:S5247",
+      "severity": "CRITICAL",
+      "component": "acme_web-shop:src/components/Banner.jsx",
+      "project": "acme_web-shop",
+      "line": 27,
+      "hash": "5a0f3b9e11c2",
+      "textRange": { "startLine": 27, "endLine": 27, "startOffset": 4, "endOffset": 52 },
+      "flows": [],
+      "status": "OPEN",
+      "message": "Make sure disabling auto-escaping feature is safe here.",
+      "effort": "30min",
+      "debt": "30min",
+      "author": "",
+      "tags": ["cwe", "owasp-a3"],
+      "creationDate": "2026-10-02T09:14:31+0000",
+      "updateDate": "2026-10-02T09:14:31+0000",
+      "type": "VULNERABILITY",
+      "organization": "acme",
+      "cleanCodeAttribute": "COMPLETE",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [{ "softwareQuality": "SECURITY", "severity": "HIGH" }]
+    },
+    {
+      "key": "AZJx0cloud-smell-02",
+      "rule": "javascript:S1481",
+      "severity": "MINOR",
+      "component": "acme_web-shop:src/util/format.js",
+      "project": "acme_web-shop",
+      "line": 8,
+      "status": "OPEN",
+      "message": "Remove the declaration of the unused 'tmp' variable.",
+      "effort": "5min",
+      "debt": "5min",
+      "tags": ["unused"],
+      "type": "CODE_SMELL",
+      "organization": "acme",
+      "impacts": [{ "softwareQuality": "MAINTAINABILITY", "severity": "LOW" }]
+    }
+  ],
+  "components": [
+    { "organization": "acme", "key": "acme_web-shop", "qualifier": "TRK", "name": "web-shop", "project": "acme_web-shop" }
+  ],
+  "organizations": [{ "key": "acme", "name": "Acme" }],
+  "facets": []
+}

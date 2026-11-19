@@ -1,0 +1,36 @@
+{
+  "components": [
+    {
+      "hash": "1e1bd3a7cdb1d5ee6a3b",
+      "componentIdentifier": {
+        "format": "maven",
+        "coordinates": {"artifactId": "log4j-core", "classifier": "", "extension": "jar", "groupId": "org.apache.logging.log4j", "version": "2.14.1"}
+      },
+      "packageUrl": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1?type=jar",
+      "proprietary": false,
+      "matchState": "exact",
+      "pathnames": ["shop-api/WEB-INF/lib/log4j-core-2.14.1.jar"],
+      "licenseData": {"declaredLicenses": [{"licenseId": "Apache-2.0", "licenseName": "Apache-2.0"}], "status": "Open"},
+      "securityData": {
+        "securityIssues": [
+          {"source": "cve", "reference": "CVE-2021-44228", "severity": 10.0, "status": "Open", "url": "http://localhost:8070/ui/links/vln/CVE-2021-44228", "threatCategory": "critical", "cwe": "502"},
+          {"source": "cve", "reference": "CVE-2021-45046", "severity": 9.0, "status": "Not Applicable", "url": "http://localhost:8070/ui/links/vln/CVE-2021-45046", "threatCategory": "critical", "cwe": "917"}
+        ]
+      }
+    },
+    {
+      "hash": "40cd5c1b0e7a2c6d0f3a",
+      "componentIdentifier": {"format": "npm", "coordinates": {"packageId": "minimist", "version": "1.2.5"}},
+      "packageUrl": "pkg:npm/minimist@1.2.5",
+      "proprietary": false,
+      "matchState": "exact",
+      "pathnames": ["web/package-lock.json"],
+      "securityData": {
+        "securityIssues": [
+          {"source": "sonatype", "reference": "sonatype-2020-0219", "severity": 5.6, "status": "Open", "url": "http://localhost:8070/ui/links/vln/sonatype-2020-0219", "threatCategory": "severe", "cwe": "1321"}
+        ]
+      }
+    }
+  ],
+  "matchSummary": {"totalComponentCount": 2, "knownComponentCount": 2}
+}

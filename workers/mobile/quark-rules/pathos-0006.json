@@ -1,0 +1,23 @@
+{
+    "crime": "Record audio",
+    "permission": [
+        "android.permission.RECORD_AUDIO"
+    ],
+    "api": [
+        {
+            "class": "Landroid/media/MediaRecorder;",
+            "method": "setAudioSource",
+            "descriptor": "(I)V"
+        },
+        {
+            "class": "Landroid/media/MediaRecorder;",
+            "method": "start",
+            "descriptor": "()V"
+        }
+    ],
+    "score": 2,
+    "label": [
+        "record",
+        "collection"
+    ]
+}

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FVDL xmlns="xmlns://www.fortifysoftware.com/schema/fvdl" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" version="1.12" xsi:type="FVDL">
+  <CreatedTS date="2026-11-02" time="10:15:42"/>
+  <UUID>5d0b2c1e-6a43-4f6e-9a6b-3c2a0e1f7b11</UUID>
+  <Build>
+    <BuildID>shop-api</BuildID>
+    <NumberFiles>2</NumberFiles>
+    <LOC type="Line Count">58</LOC>
+    <SourceBasePath>/builds/shop-api</SourceBasePath>
+    <SourceFiles>
+      <File size="1210" timestamp="1762077000000" loc="32" type="java" encoding="UTF-8">
+        <Name>src/main/java/com/acme/OrderDao.java</Name>
+      </File>
+    </SourceFiles>
+    <ScanTime value="21"/>
+  </Build>
+  <Vulnerabilities>
+    <Vulnerability>
+      <ClassInfo>
+        <ClassID>31D4607A-A3FF-447C-908A-CA2BBE4CE4B7</ClassID>
+        <Kingdom>Input Validation and Representation</Kingdom>
+        <Type>SQL Injection</Type>
+        <AnalyzerName>dataflow</AnalyzerName>
+        <DefaultSeverity>4.0</DefaultSeverity>
+      </ClassInfo>
+      <InstanceInfo>
+        <InstanceID>A1F3C0E3B54C1D0F2C8E5E1E9B7A6D21</InstanceID>
+        <InstanceSeverity>4.0</InstanceSeverity>
+        <Confidence>5.0</Confidence>
+      </InstanceInfo>
+      <AnalysisInfo>
+        <Unified>
+          <Context>
+            <Function name="find" namespace="com.acme" enclosingClass="OrderDao"/>
+            <FunctionDeclarationSourceLocation path="src/main/java/com/acme/OrderDao.java" line="12" lineEnd="15" colStart="5" colEnd="0"/>
+          </Context>
+          <ReplacementDefinitions>
+            <Def key="PrimaryLocation.file" value="OrderDao.java"/>
+            <Def key="PrimaryLocation.line" value="14"/>
+          </ReplacementDefinitions>
+          <Trace>
+            <Primary>
+              <Entry>
+                <NodeRef id="1"/>
+              </Entry>
+              <Entry>
+                <Node isDefault="true" label="executeQuery()">
+                  <SourceLocation path="src/main/java/com/acme/OrderDao.java" line="14" lineEnd="14" colStart="16" colEnd="0" contextId="0" snippet="9A8B7C6D5E4F3A2B1C0D9E8F7A6B5C4D#src/main/java/com/acme/OrderDao.java:14:14"/>
+                  <Action type="InCall">executeQuery(0)</Action>
+                  <Reason>
+                    <Rule ruleID="5C2F4CF6-04D6-4B4A-8AF4-6E8F0A7E6C10"/>
+                  </Reason>
+                  <Knowledge>
+                    <Fact primary="true" type="Call">Direct : java.sql.Statement.executeQuery</Fact>
+                  </Knowledge>
+                </Node>
+              </Entry>
+            </Primary>
+          </Trace>
+        </Unified>
+      </AnalysisInfo>
+    </Vulnerability>
+    <Vulnerability>
+      <ClassInfo>
+        <ClassID>D1B6D9B4-4F33-47A2-9C5B-4F6E0E7A2C55</ClassID>
+        <Kingdom>Security Features</Kingdom>
+        <Type>Weak Cryptographic Hash</Type>
+        <AnalyzerName>semantic</AnalyzerName>
+        <DefaultSeverity>3.0</DefaultSeverity>
+      </ClassInfo>
+      <InstanceInfo>
+        <InstanceID>B7E29F04C6A31D5E8F0B2A4C6E8D0F13</InstanceID>
+        <InstanceSeverity>3.0</InstanceSeverity>
+        <Confidence>5.0</Confidence>
+      </InstanceInfo>
+      <AnalysisInfo>
+        <Unified>
+          <Context>
+            <Function name="hash" namespace="com.acme" enclosingClass="OrderDao"/>
+          </Context>
+          <Trace>
+            <Primary>
+              <Entry>
+                <Node isDefault="true">
+                  <SourceLocation path="src/main/java/com/acme/OrderDao.java" line="18" lineEnd="18" colStart="0" colEnd="0" contextId="1"/>
+                  <Action type="InCall">getInstance()</Action>
+                </Node>
+              </Entry>
+            </Primary>
+          </Trace>
+        </Unified>
+      </AnalysisInfo>
+    </Vulnerability>
+  </Vulnerabilities>
+  <Description contentType="preformatted" classID="31D4607A-A3FF-447C-908A-CA2BBE4CE4B7">
+    <Abstract>Constructing a dynamic SQL statement with input from an untrusted source might allow an attacker to modify the statement's meaning or to execute arbitrary SQL commands.</Abstract>
+    <Explanation>SQL injection errors occur when data enters a program from an untrusted source and is used to dynamically construct a SQL query.</Explanation>
+    <Recommendations>Use parameterized queries (prepared statements).</Recommendations>
+  </Description>
+  <Description contentType="preformatted" classID="D1B6D9B4-4F33-47A2-9C5B-4F6E0E7A2C55">
+    <Abstract>MD5 is a weak cryptographic hash.</Abstract>
+    <Explanation>Weak cryptographic hashes cannot guarantee data integrity.</Explanation>
+    <Recommendations>Use SHA-256 or stronger.</Recommendations>
+  </Description>
+  <UnifiedNodePool>
+    <Node id="1">
+      <SourceLocation path="src/main/java/com/acme/OrderDao.java" line="12" lineEnd="12" colStart="0" colEnd="0" contextId="0"/>
+      <Action type="InputParam">find(0)</Action>
+    </Node>
+  </UnifiedNodePool>
+  <EngineData>
+    <EngineVersion>24.2.0.0150</EngineVersion>
+    <RuleInfo>
+      <Rule id="31D4607A-A3FF-447C-908A-CA2BBE4CE4B7">
+        <MetaInfo>
+          <Group name="Accuracy">5.0</Group>
+          <Group name="Impact">5.0</Group>
+          <Group name="Probability">4.0</Group>
+          <Group name="altcategoryCWE">CWE ID 89</Group>
+        </MetaInfo>
+      </Rule>
+      <Rule id="D1B6D9B4-4F33-47A2-9C5B-4F6E0E7A2C55">
+        <MetaInfo>
+          <Group name="Accuracy">4.0</Group>
+          <Group name="Impact">3.0</Group>
+          <Group name="Probability">1.0</Group>
+          <Group name="altcategoryCWE">CWE ID 328, CWE ID 916</Group>
+        </MetaInfo>
+      </Rule>
+    </RuleInfo>
+  </EngineData>
+</FVDL>

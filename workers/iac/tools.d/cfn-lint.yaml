@@ -1,0 +1,22 @@
+# cfn-lint: CloudFormation template checks. The cfn-lint-tree helper finds
+# the templates (files that declare AWSTemplateFormatVersion or AWS::
+# resource types) and prints one JSON array of matches.
+name: cfn-lint
+display_name: cfn-lint
+category: iac
+scan_types: [iac]
+license_spdx: MIT-0
+homepage: https://github.com/aws-cloudformation/cfn-lint
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/cfn-lint-tree
+version_args: ["--version"]
+args: ["{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:cfn-lint

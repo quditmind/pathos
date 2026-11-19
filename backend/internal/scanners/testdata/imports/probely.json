@@ -1,0 +1,74 @@
+{
+  "count": 2,
+  "page_total": 1,
+  "page": 1,
+  "length": 50,
+  "results": [
+    {
+      "id": 9001,
+      "target": {
+        "id": "3Fx9kQd2mWz1",
+        "site": {
+          "name": "Shop",
+          "url": "https://shop.example.test"
+        }
+      },
+      "definition": {
+        "id": "sql-injection",
+        "name": "SQL Injection",
+        "desc": "The application builds a database query from unvalidated input.",
+        "cwe_id": "CWE-89"
+      },
+      "url": "https://shop.example.test/products?id=1",
+      "path": "/products",
+      "method": "get",
+      "parameter": "id",
+      "insertion_point": "url_query",
+      "params": {},
+      "severity": 30,
+      "cvss_score": 9.1,
+      "cvss_vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N",
+      "state": "notfixed",
+      "fix": "Use parameterised queries.",
+      "evidence": "A single quote in id produced a database error.",
+      "extra": "",
+      "requests": [
+        {
+          "request": "GET /products?id=1%27 HTTP/1.1\nHost: shop.example.test\nCookie: session=FIXTURE-not-a-real-session\n",
+          "response": "HTTP/1.1 500 Internal Server Error\n"
+        }
+      ],
+      "last_found": "2026-11-01T10:00:00Z",
+      "created": "2026-10-01T10:00:00Z"
+    },
+    {
+      "id": 9002,
+      "definition": {
+        "id": "missing-csp",
+        "name": "Content Security Policy not set",
+        "desc": "No Content-Security-Policy header was found.",
+        "cwe_id": "CWE-693"
+      },
+      "url": "https://shop.example.test/",
+      "path": "/",
+      "method": "get",
+      "parameter": "",
+      "severity": 10,
+      "state": "accepted",
+      "fix": "Set a Content-Security-Policy header."
+    },
+    {
+      "id": 9003,
+      "definition": {
+        "id": "xss",
+        "name": "Cross-site Scripting",
+        "cwe_id": "CWE-79"
+      },
+      "url": "https://shop.example.test/search",
+      "method": "get",
+      "parameter": "q",
+      "severity": 20,
+      "state": "fixed"
+    }
+  ]
+}

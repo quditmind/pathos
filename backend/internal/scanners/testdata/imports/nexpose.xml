@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<NexposeReport version="2.0">
+    <scans>
+        <scan id="27992" name="Site1-web" startTime="20261112T162340221" endTime="20261112T164705486" status="finished"/>
+    </scans>
+    <nodes>
+        <node address="192.0.2.50" status="alive" device-id="26083" site-name="Site1" site-importance="Normal" scan-template="Full audit" risk-score="2649.9">
+            <names>
+                <name>web02.example.test</name>
+            </names>
+            <fingerprints>
+                <os certainty="1.00" vendor="Ubuntu" family="Linux" product="Linux" version="22.04"/>
+            </fingerprints>
+            <tests>
+                <test id="generic-icmp-timestamp" key="" status="vulnerable-exploited" scan-id="27992" vulnerable-since="20261112T163822649" pci-compliance-status="pass">
+                    <Paragraph>
+                        <Paragraph>Remote system time: 03:49:09.250 UTC</Paragraph>
+                    </Paragraph>
+                </test>
+                <test id="linux-icmp-redirect" key="" status="not-vulnerable" scan-id="27992">
+                    <Paragraph>ICMP redirects are not accepted.</Paragraph>
+                </test>
+            </tests>
+            <endpoints>
+                <endpoint protocol="tcp" port="443" status="open">
+                    <services>
+                        <service name="HTTPS">
+                            <configuration>
+                                <config name="http.banner">Apache/2.4.49 (Ubuntu)</config>
+                            </configuration>
+                            <tests>
+                                <test id="apache-httpd-cve-2021-41773" key="" status="vulnerable-version" scan-id="27992" vulnerable-since="20261112T163901000" pci-compliance-status="fail">
+                                    <Paragraph>
+                                        <Paragraph>Running HTTPS service. Product HTTPD exists -- Apache HTTPD 2.4.49. Vulnerable version of product HTTPD found -- Apache HTTPD 2.4.49.</Paragraph>
+                                    </Paragraph>
+                                </test>
+                                <test id="http-cookie-secure-flag" key="/login" status="vulnerable-potential" scan-id="27992">
+                                    <Paragraph>
+                                        <Paragraph>Set-Cookie: SESSION=nexpose-cookie-secret; Path=/</Paragraph>
+                                    </Paragraph>
+                                </test>
+                                <test id="http-options-method-enabled" key="" status="skipped-version" scan-id="27992">
+                                    <Paragraph>Skipped.</Paragraph>
+                                </test>
+                            </tests>
+                        </service>
+                    </services>
+                </endpoint>
+            </endpoints>
+        </node>
+    </nodes>
+    <VulnerabilityDefinitions>
+        <vulnerability id="apache-httpd-cve-2021-41773" title="Apache HTTPD: Path traversal and file disclosure vulnerability (CVE-2021-41773)" severity="9" pciSeverity="5" cvssScore="7.5" cvssVector="(AV:N/AC:L/Au:N/C:P/I:P/A:P)" published="20211005T000000000" added="20211005T000000000" modified="20240101T000000000">
+            <description>
+                <ContainerBlockElement>
+                    <Paragraph>A flaw was found in a change made to path normalization in Apache HTTP Server 2.4.49.</Paragraph>
+                </ContainerBlockElement>
+            </description>
+            <references>
+                <reference source="CVE">CVE-2021-41773</reference>
+                <reference source="URL">https://httpd.apache.org/security/vulnerabilities_24.html</reference>
+            </references>
+            <tags>
+                <tag>Apache</tag>
+                <tag>Web</tag>
+            </tags>
+            <solution>
+                <ContainerBlockElement>
+                    <Paragraph>Upgrade to Apache HTTPD 2.4.51 or later.</Paragraph>
+                </ContainerBlockElement>
+            </solution>
+        </vulnerability>
+        <vulnerability id="generic-icmp-timestamp" title="ICMP timestamp response" severity="1" pciSeverity="1" cvssScore="0" cvssVector="(AV:L/AC:L/Au:N/C:N/I:N/A:N)" published="19970801T000000000" added="20040331T000000000" modified="20120504T000000000">
+            <description>
+                <ContainerBlockElement>
+                    <Paragraph>The remote host responded to an ICMP timestamp request.</Paragraph>
+                </ContainerBlockElement>
+            </description>
+            <references>
+                <reference source="CVE">CVE-1999-0524</reference>
+            </references>
+            <solution>
+                <ContainerBlockElement>
+                    <Paragraph>Disable ICMP timestamp responses.</Paragraph>
+                </ContainerBlockElement>
+            </solution>
+        </vulnerability>
+        <vulnerability id="http-cookie-secure-flag" title="Missing Secure Flag From SSL Cookie" severity="4" pciSeverity="3" cvssScore="5" cvssVector="(AV:N/AC:L/Au:N/C:P/I:N/A:N)" published="20050101T000000000" added="20120101T000000000" modified="20240101T000000000">
+            <description>
+                <ContainerBlockElement>
+                    <Paragraph>A cookie is set without the secure flag.</Paragraph>
+                </ContainerBlockElement>
+            </description>
+            <references>
+                <reference source="CWE">CWE-614</reference>
+            </references>
+            <solution>
+                <ContainerBlockElement>
+                    <Paragraph>Set the Secure flag on cookies sent over HTTPS.</Paragraph>
+                </ContainerBlockElement>
+            </solution>
+        </vulnerability>
+    </VulnerabilityDefinitions>
+</NexposeReport>

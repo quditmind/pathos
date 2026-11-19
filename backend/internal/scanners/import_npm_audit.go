@@ -63,7 +63,7 @@ var ghsaRe = regexp.MustCompile(`GHSA(-[23456789cfghjmpqrvwx]{4}){3}`)
 func init() {
 	registerImportFormat(ImportFormat{ID: "npm-audit", Label: "npm audit JSON", Category: "sca", Media: "json", Order: 43,
 		match: func(p *importProbe) bool {
-			return p.kind == "object" && (p.has("auditReportVersion", "vulnerabilities") || p.has("advisories", "metadata"))
+			return p.kind == "object" && (p.has("auditReportVersion", "vulnerabilities") || p.has("advisories", "metadata") && !isPnpmAudit(p))
 		},
 		parse: parseNpmAudit})
 }

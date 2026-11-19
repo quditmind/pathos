@@ -278,7 +278,7 @@ func TestImportEmptyAndAmbiguous(t *testing.T) {
 func TestImportNaturalCategory(t *testing.T) {
 	raw, _ := os.ReadFile("testdata/imports/sonarqube.json")
 	fs, err := ParseImport("import-other-sonar", "sonarqube", raw)
-	if err != nil || fs[0].Category != "sast" || fs[1].Category != "other" {
+	if err != nil || fs[0].Category != "sast" || fs[1].Category != "code-quality" {
 		t.Fatalf("categories: %v %+v", err, fs)
 	}
 	fs, _ = ParseImport("import-sast-sonar", "sonarqube", raw)

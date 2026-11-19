@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "organization": "GitHub",
+          "semanticVersion": "2.19.3",
+          "rules": [
+            {
+              "id": "py/sql-injection",
+              "name": "py/sql-injection",
+              "shortDescription": {
+                "text": "SQL query built from user-controlled sources"
+              },
+              "fullDescription": {
+                "text": "Building a SQL query from user-controlled sources is vulnerable to insertion of malicious SQL code by the user."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-089"
+                ],
+                "kind": "path-problem",
+                "precision": "high",
+                "security-severity": "8.8",
+                "problem.severity": "error",
+                "id": "py/sql-injection"
+              }
+            },
+            {
+              "id": "py/code-injection",
+              "name": "py/code-injection",
+              "shortDescription": {
+                "text": "Code injection"
+              },
+              "fullDescription": {
+                "text": "Interpreting unsanitized user input as code allows a malicious user to perform arbitrary code execution."
+              },
+              "defaultConfiguration": {
+                "enabled": true,
+                "level": "error"
+              },
+              "properties": {
+                "tags": [
+                  "security",
+                  "external/cwe/cwe-094",
+                  "external/cwe/cwe-095"
+                ],
+                "kind": "path-problem",
+                "precision": "high",
+                "security-severity": "9.3",
+                "problem.severity": "error",
+                "id": "py/code-injection"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "py/sql-injection",
+          "level": "error",
+          "message": {
+            "text": "This SQL query depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/views.py"
+                },
+                "region": {
+                  "startLine": 9
+                }
+              }
+            }
+          ],
+          "ruleIndex": 0,
+          "rule": {
+            "id": "py/sql-injection",
+            "index": 0
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "6f2b1a0c9d8e7f61:1"
+          }
+        },
+        {
+          "ruleId": "py/code-injection",
+          "level": "error",
+          "message": {
+            "text": "This code execution depends on a [user-provided value](1)."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "app/views.py"
+                },
+                "region": {
+                  "startLine": 17
+                }
+              }
+            }
+          ],
+          "ruleIndex": 1,
+          "rule": {
+            "id": "py/code-injection",
+            "index": 1
+          },
+          "partialFingerprints": {
+            "primaryLocationLineHash": "a1b2c3d4e5f60718:1"
+          }
+        }
+      ],
+      "automationDetails": {
+        "id": ".github/workflows/codeql.yml:analyze/language:python/"
+      },
+      "columnKind": "unicodeCodePoints"
+    }
+  ]
+}

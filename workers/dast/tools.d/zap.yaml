@@ -1,0 +1,24 @@
+# OWASP ZAP full scan: spider, passive scan and the active scan rules (attacks:
+# injection, XSS, path traversal and more). Intrusive: runs only for targets
+# whose intrusive testing is authorized.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: zap
+display_name: OWASP ZAP full scan
+category: dast
+scan_types: [dast]
+license_spdx: Apache-2.0
+homepage: https://www.zaproxy.org
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["zap-full-scan", "--version"]
+args: ["zap-full-scan", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 2h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:zap

@@ -1,0 +1,59 @@
+{
+  "@odata.context": "https://management.azure.com/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.PolicyInsights/policyStates/$metadata#latest",
+  "@odata.count": 3,
+  "value": [
+    {
+      "@odata.id": null,
+      "timestamp": "2026-11-01T08:15:00Z",
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stexamplelogs",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/policyAssignments/asb-initiative",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/34c877ad-507e-4c82-993e-3452a6e0ad3c",
+      "effectiveParameters": "",
+      "isCompliant": false,
+      "subscriptionId": "00000000-0000-0000-0000-000000000001",
+      "resourceType": "Microsoft.Storage/storageAccounts",
+      "resourceLocation": "westeurope",
+      "resourceGroup": "rg-app",
+      "resourceTags": "tbd",
+      "policyAssignmentName": "asb-initiative",
+      "policyAssignmentOwner": "tbd",
+      "policyAssignmentParameters": "{}",
+      "policyAssignmentScope": "/subscriptions/00000000-0000-0000-0000-000000000001",
+      "policyDefinitionName": "34c877ad-507e-4c82-993e-3452a6e0ad3c",
+      "policyDefinitionAction": "audit",
+      "policyDefinitionCategory": "tbd",
+      "policySetDefinitionId": "/providers/Microsoft.Authorization/policySetDefinitions/1f3afdf9-d0c9-4c3d-847f-89da613e70a8",
+      "policySetDefinitionName": "1f3afdf9-d0c9-4c3d-847f-89da613e70a8",
+      "policyDefinitionReferenceId": "storageAccountShouldRestrictNetworkAccessMonitoring",
+      "complianceState": "NonCompliant",
+      "policyDefinitionGroupNames": [
+        "NS-2"
+      ]
+    },
+    {
+      "timestamp": "2026-11-01T08:15:00Z",
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.KeyVault/vaults/kv-example",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/policyAssignments/deny-public-kv",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/405c5871-3e91-4644-8a63-58e19d68ff5b",
+      "isCompliant": false,
+      "resourceType": "Microsoft.KeyVault/vaults",
+      "policyAssignmentName": "deny-public-kv",
+      "policyDefinitionName": "405c5871-3e91-4644-8a63-58e19d68ff5b",
+      "policyDefinitionAction": "deny",
+      "policyDefinitionReferenceId": "",
+      "complianceState": "Exempt"
+    },
+    {
+      "timestamp": "2026-11-01T08:15:00Z",
+      "resourceId": "/subscriptions/00000000-0000-0000-0000-000000000001/resourceGroups/rg-app/providers/Microsoft.Storage/storageAccounts/stexampledata",
+      "policyAssignmentId": "/subscriptions/00000000-0000-0000-0000-000000000001/providers/Microsoft.Authorization/policyAssignments/asb-initiative",
+      "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/34c877ad-507e-4c82-993e-3452a6e0ad3c",
+      "isCompliant": true,
+      "resourceType": "Microsoft.Storage/storageAccounts",
+      "policyAssignmentName": "asb-initiative",
+      "policyDefinitionName": "34c877ad-507e-4c82-993e-3452a6e0ad3c",
+      "policyDefinitionAction": "audit",
+      "complianceState": "Compliant"
+    }
+  ]
+}

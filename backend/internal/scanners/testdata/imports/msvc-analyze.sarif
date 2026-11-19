@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "PREfast",
+          "fullName": "PREfast Code Analysis",
+          "version": "14.40.33811.0",
+          "rules": [
+            {
+              "id": "C6386",
+              "shortDescription": {
+                "text": "Buffer overrun while writing to 'buffer'."
+              }
+            },
+            {
+              "id": "C6011",
+              "shortDescription": {
+                "text": "Dereferencing NULL pointer 'p'."
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "C6386",
+          "level": "warning",
+          "message": {
+            "text": "Buffer overrun while writing to 'buf':  the writable size is '16' bytes, but '32' bytes might be written."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/src/app/main.cpp"
+                },
+                "region": {
+                  "startLine": 14
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "C6011",
+          "level": "warning",
+          "message": {
+            "text": "Dereferencing NULL pointer 'q'."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "file:///C:/src/app/main.cpp"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+# Atheris: the repository's Python fuzz harnesses (files that import
+# atheris and call atheris.Fuzz()), FUZZ_SECONDS each through libFuzzer's
+# -max_total_time. Runs repository code in the worker sandbox, on a copy of
+# the checkout, without network access and under CPU, memory (address
+# space and libFuzzer's RSS limit), file size and time limits. Only the
+# Python standard library and the repository's own modules are importable.
+# Crashes are findings with the reproducer input (base64, at most 4 KiB)
+# in the report as evidence.
+name: atheris
+display_name: Atheris
+category: fuzz
+scan_types: [fuzzing]
+license_spdx: Apache-2.0
+homepage: https://github.com/google/atheris
+family: fuzz
+targets: [repository]
+command: /opt/pathos/fuzz/bin/pathos-fuzz
+version_args: ["version", "atheris"]
+args: ["atheris", "{source}", "{output}", "{tmp}"]
+timeout: 45m
+env:
+  FUZZ_SECONDS: "60"
+  FUZZ_TOTAL_SECONDS: "1200"
+  FUZZ_MAX_TARGETS: "20"
+  FUZZ_MEMORY_MB: "2048"
+output: file
+network: none
+intrusive: false
+requires_build: true
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: findings
+  rule_id: rule_id
+  title: title
+  message: description
+  severity: severity
+  default_severity: medium
+  confidence: confidence
+  file: file
+  line: line
+  cwe: cwe
+  identity: "{rule_id} {target} {file}"

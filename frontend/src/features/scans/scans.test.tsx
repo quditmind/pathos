@@ -45,6 +45,7 @@ describe("navigation", () => {
     expect(conf.items.map((i) => [i.label, i.to])).toEqual([
       ["Scan profiles", "/configurations/scan-profiles"],
       ["Scanners & workers", "/configurations/scanners"],
+      ["Scan coverage", "/configurations/scan-coverage"],
       ["Custom rules", "/configurations/custom-rules"],
     ]);
     expect(groups.flatMap((g) => g.items).filter((i) => i.label === "Scanners & workers")).toHaveLength(1);

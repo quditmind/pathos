@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -59,7 +60,7 @@ func commandToIn(ctx context.Context, dir string, w io.Writer, env []string, okC
 	cmd := exec.Command(name, args...)
 	cmd.Dir = dir
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	cmd.Env = append(baseEnv(), env...)
+	cmd.Env = mergeEnv(baseEnv(), env)
 	var stderr bytes.Buffer
 	cmd.Stdout = &limitedBuffer{max: 64 << 10}
 	if w != nil {
@@ -107,6 +108,20 @@ func commandToIn(ctx context.Context, dir string, w io.Writer, env []string, okC
 		}
 		return stderr.Bytes(), err
 	}
+}
+
+// mergeEnv appends env to base; an entry without "=" removes that variable
+// (an empty value is not the same: some tools reject an empty proxy URL).
+func mergeEnv(base, env []string) []string {
+	out := append([]string{}, base...)
+	for _, e := range env {
+		if strings.Contains(e, "=") {
+			out = append(out, e)
+			continue
+		}
+		out = slices.DeleteFunc(out, func(kv string) bool { return strings.HasPrefix(kv, e+"=") })
+	}
+	return out
 }
 
 // baseEnv passes only what tools need; the worker's own token is never
@@ -254,7 +269,7 @@ func Tools(cfg Config) map[string]Tool {
 		}},
 		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			dir := in.Src
-			if in.Target != nil && in.Target.Kind == "artifact" {
+			if in.Target != nil && (in.Target.Kind == "artifact" || in.Target.Kind == "mobile-app") {
 				dir = in.TargetFile
 			}
 			if cfg.Offline {

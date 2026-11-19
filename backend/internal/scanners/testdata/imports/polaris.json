@@ -1,0 +1,91 @@
+{
+  "PolarisOutputVersion": "1.0",
+  "AuditTime": "2026-11-19T06:35:08Z",
+  "SourceType": "Path",
+  "SourceName": "/src/k8s",
+  "DisplayName": "/src/k8s",
+  "ClusterInfo": {
+    "Version": "unknown",
+    "Nodes": 0,
+    "Pods": 0,
+    "Namespaces": 0,
+    "Controllers": 1
+  },
+  "Results": [
+    {
+      "Name": "web",
+      "Namespace": "",
+      "Kind": "Deployment",
+      "Results": {
+        "deploymentMissingReplicas": {
+          "ID": "deploymentMissingReplicas",
+          "Message": "Only one replica is scheduled",
+          "Details": null,
+          "Success": false,
+          "Severity": "warning",
+          "Category": "Reliability",
+          "Mutations": null
+        }
+      },
+      "PodResult": {
+        "Name": "",
+        "Results": {
+          "automountServiceAccountToken": {
+            "ID": "automountServiceAccountToken",
+            "Message": "The ServiceAccount will be automounted",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          },
+          "hostIPCSet": {
+            "ID": "hostIPCSet",
+            "Message": "Host IPC is not configured",
+            "Details": null,
+            "Success": true,
+            "Severity": "danger",
+            "Category": "Security",
+            "Mutations": null
+          }
+        },
+        "ContainerResults": [
+          {
+            "Name": "web",
+            "Results": {
+              "privilegeEscalationAllowed": {
+                "ID": "privilegeEscalationAllowed",
+                "Message": "Privilege escalation should not be allowed",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "runAsPrivileged": {
+                "ID": "runAsPrivileged",
+                "Message": "Should not be running as privileged",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "tagNotSpecified": {
+                "ID": "tagNotSpecified",
+                "Message": "Image tag should be specified",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Reliability",
+                "Mutations": null
+              }
+            }
+          }
+        ]
+      },
+      "CreatedTime": "0001-01-01T00:00:00Z"
+    }
+  ],
+  "Score": 44
+}

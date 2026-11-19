@@ -117,7 +117,7 @@ In the user's details:
 **Configurations → Scanners & workers** shows:
 
 - **Workers**: each registered worker with its status (*Online* with the number of running jobs, *Last seen*, or *Revoked*), family, agent version and the scanner versions it provides. With `scanners.manage` you can **Revoke** a worker (its token stops working and it cannot re-register until its record is deleted) or delete its record. If no worker is registered, start one with `docker compose up -d worker-core`. Workers never receive platform secrets or a Docker socket.
-- **Scanner catalog**: every scanner with category, license, availability and policy; see [Scanners](security-scanning.md#scanners) and [Scanner plugins](security-scanning.md#scanner-plugins).
+- **Scanner catalog**: every scanner with category, license, availability and policy; see [Scanners](security-scanning.md#scanners) and [Scanner plugins](security-scanning.md#family-workers-and-scanner-plugins).
 
 Offline (air-gapped) operation is described in [Security scanning](security-scanning.md#offline-air-gapped-operation) and, for operators, in `docs/AIRGAP.md` in the PATHOS repository.
 

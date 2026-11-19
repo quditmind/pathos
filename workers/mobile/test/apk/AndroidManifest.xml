@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- PATHOS test app: a deliberately insecure Android app used to generate
+     the worker-mobile fixtures. It is never published. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="org.pathos.testapp"
+    android:versionCode="1"
+    android:versionName="1.0">
+    <uses-sdk android:minSdkVersion="19" android:targetSdkVersion="35" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <application
+        android:label="PATHOS Test"
+        android:debuggable="true"
+        android:allowBackup="true"
+        android:usesCleartextTraffic="true">
+        <activity android:name=".MainActivity" android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity android:name=".AdminActivity" android:exported="true" />
+        <service android:name=".SyncService" android:exported="true">
+            <intent-filter>
+                <action android:name="org.pathos.testapp.SYNC" />
+            </intent-filter>
+        </service>
+        <receiver android:name=".BootReceiver" android:exported="true"
+            android:permission="android.permission.RECEIVE_BOOT_COMPLETED" />
+        <provider android:name=".NotesProvider" android:authorities="org.pathos.testapp.notes"
+            android:exported="true" />
+    </application>
+</manifest>

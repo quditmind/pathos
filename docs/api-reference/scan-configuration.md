@@ -19,10 +19,14 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | Field | Description |
 |---|---|
 | `key`, `name` | Scanner key (used in profiles, findings and results) and display name |
-| `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `malware` (ClamAV), `binary` (binary hardening), `supply-chain` (`sbom` for Syft). Findings use the same values plus `misconfiguration` (framework configuration rules run by Opengrep) and `other` |
+| `category` | The category of the tool's findings: `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `api`, `iast`, `mobile`, `fuzz`, `malware` (ClamAV), `misconfiguration`, `binary` (binary hardening), `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database`, `code-quality`, `supply-chain` or `other` (`sbom` for Syft). Findings also use `eol` (end-of-life feed) |
+| `scan_types` | The [scan types](scan-types-and-tools.md) the tool covers |
+| `targets` | What it scans: `repository`, `image`, `url`, `api`, `mobile-app`, `binary`, `model` |
+| `network`, `intrusive` | What it contacts while it runs (`none`, `target`, `registry`) and whether it sends attack traffic; see [tool manifests](scan-types-and-tools.md#tool-manifests) |
+| `runnable` | An online, non-revoked worker advertises it now |
 | `license_spdx`, `decision` | The scanner's licence and PATHOS's decision: `use`, `optional` or `restricted` (cannot be enabled) |
-| `worker_family` | Worker image that runs it (`core`, …) |
-| `adapter_available` | A worker can run it; others are catalogued only |
+| `worker_family` | Worker image that runs it (`core`, `sast`, …; `plugin` for operator plugins) |
+| `adapter_available` | A PATHOS worker image or a registered manifest can run it; others are catalogued only |
 | `default_enabled` | Enabled in the seeded **Default** profile |
 | `mandatory` | Always on (Gitleaks); added to every profile automatically |
 | `target_only` | Runs only for [scan targets](scan-targets.md) (Trivy image, Nuclei) and is refused in profiles |
@@ -90,7 +94,7 @@ Audit actions: `scan_profile.create`, `scan_profile.update`, `scan_profile.set_d
 
 Scanner rules (`400 invalid_request` otherwise):
 
-- The key must be in the catalog (or a registered plugin), have an adapter, not be `target_only` and not be licence-restricted.
+- The key must be in the catalog (or a registered plugin), have an adapter, not be `target_only`, not contact or attack a running application (`network: target`, `intrusive`; those are selected on a [scan target](scan-targets.md)) and not be licence-restricted.
 - Mandatory scanners are added automatically; duplicates are ignored.
 - Grype scans the SBOM: it needs `sbom: true`, and Syft is then added automatically.
 

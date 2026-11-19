@@ -1,0 +1,976 @@
+# PATHOS cryptography rules: weak hashes and ciphers, ECB mode, static IVs
+# and nonces, small RSA keys, insecure random numbers for secrets, disabled
+# TLS verification and hard-coded keys in Python, JavaScript/TypeScript,
+# Java, Go and C#.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from these rules (ids
+# pathos.crypto.*, metadata category "crypto") are reported in the "crypto"
+# finding category. Test fixtures: workers/rules-tests/crypto/.
+# Cases the baseline rules already report (requests verify=False, MD5 and
+# SHA-1 MessageDigest in Java, Go InsecureSkipVerify, Node.js
+# rejectUnauthorized: false) are not repeated here.
+rules:
+  # ---------------------------------------------------------------- Python
+  - id: pathos.crypto.python.weak-hash
+    languages: [python]
+    severity: WARNING
+    message: >-
+      MD5 or SHA-1 is used. Both have practical collision attacks and must not protect integrity, signatures or
+      passwords; use SHA-256 or better (and a password hash such as Argon2, scrypt or bcrypt for passwords). Pass
+      usedforsecurity=False when the hash is not used for security.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-328: Use of Weak Hash"]
+      confidence: MEDIUM
+      references:
+        - https://docs.python.org/3/library/hashlib.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: hashlib.md5(...)
+          - pattern: hashlib.sha1(...)
+          - pattern: hashlib.new("md5", ...)
+          - pattern: hashlib.new("MD5", ...)
+          - pattern: hashlib.new("sha1", ...)
+          - pattern: hashlib.new("SHA1", ...)
+          - pattern: Crypto.Hash.MD5.new(...)
+          - pattern: Crypto.Hash.SHA1.new(...)
+          - pattern: MD5.new(...)
+          - pattern: SHA1.new(...)
+          - pattern: hashes.MD5()
+          - pattern: hashes.SHA1()
+      - pattern-not: hashlib.$F(..., usedforsecurity=False, ...)
+      - pattern-not: hashlib.new($A, ..., usedforsecurity=False, ...)
+
+  - id: pathos.crypto.python.weak-cipher
+    languages: [python]
+    severity: ERROR
+    message: >-
+      A broken or obsolete cipher (DES, 3DES, RC4, RC2, Blowfish, CAST5, IDEA, SEED) is used. Their keys or block
+      sizes are too small for current attacks; use AES-GCM or ChaCha20-Poly1305.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://cryptography.io/en/latest/hazmat/decrepit/ciphers/
+        - https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html#algorithms
+      license: Apache-2.0
+    pattern-either:
+      - pattern: DES.new(...)
+      - pattern: DES3.new(...)
+      - pattern: ARC4.new(...)
+      - pattern: ARC2.new(...)
+      - pattern: Blowfish.new(...)
+      - pattern: CAST.new(...)
+      - pattern: algorithms.TripleDES(...)
+      - pattern: algorithms.ARC4(...)
+      - pattern: algorithms.Blowfish(...)
+      - pattern: algorithms.CAST5(...)
+      - pattern: algorithms.IDEA(...)
+      - pattern: algorithms.SEED(...)
+
+  - id: pathos.crypto.python.ecb-mode
+    languages: [python]
+    severity: ERROR
+    message: >-
+      ECB mode encrypts identical plaintext blocks to identical ciphertext blocks, so patterns in the data stay
+      visible and blocks can be reordered. Use an authenticated mode (AES-GCM) with a random nonce.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://cryptography.io/en/latest/hazmat/primitives/symmetric-encryption/#cryptography.hazmat.primitives.ciphers.modes.ECB
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.new($K, $C.MODE_ECB, ...)
+      - pattern: modes.ECB()
+
+  - id: pathos.crypto.python.static-iv
+    languages: [python]
+    severity: ERROR
+    message: >-
+      The IV or nonce is a constant. Reusing an IV with the same key reveals relations between messages (CBC, CFB)
+      and breaks confidentiality and integrity completely for CTR and GCM. Generate a new random IV for every
+      message (os.urandom or secrets.token_bytes) and store it with the ciphertext.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-329: Generation of Predictable IV with CBC Mode", "CWE-323: Reusing a Nonce, Key Pair in Encryption"]
+      confidence: HIGH
+      references:
+        - https://cryptography.io/en/latest/hazmat/primitives/symmetric-encryption/#modes
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.new($K, $M, b"...", ...)
+      - pattern: $C.new($K, $M, iv=b"...", ...)
+      - pattern: $C.new($K, $M, nonce=b"...", ...)
+      - pattern: modes.$MODE(b"...", ...)
+      - pattern: modes.$MODE(bytes(...), ...)
+      - pattern: modes.$MODE(b"..." * $N, ...)
+      - pattern: $C.new($K, $M, b"..." * $N, ...)
+      - pattern: $AEAD.encrypt(b"...", ...)
+
+  - id: pathos.crypto.python.small-rsa-key
+    languages: [python]
+    severity: ERROR
+    message: >-
+      The RSA key is shorter than 2048 bits and can be factored with practical effort. Generate RSA keys of at
+      least 3072 bits (2048 bits is the minimum accepted today), or use an elliptic-curve key.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      confidence: HIGH
+      references:
+        - https://cryptography.io/en/latest/hazmat/primitives/asymmetric/rsa/#generation
+        - https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: rsa.generate_private_key(..., key_size=$N, ...)
+          - pattern: RSA.generate($N, ...)
+          - pattern: RSA.generate(bits=$N, ...)
+      - metavariable-comparison:
+          metavariable: $N
+          comparison: $N < 2048
+
+  - id: pathos.crypto.python.insecure-random-secret
+    languages: [python]
+    severity: WARNING
+    message: >-
+      A token, password, key, salt or nonce is generated with the random module, whose output is predictable
+      (Mersenne Twister). Use the secrets module (secrets.token_urlsafe, secrets.token_bytes) or os.urandom.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"]
+      confidence: MEDIUM
+      references:
+        - https://docs.python.org/3/library/random.html
+        - https://docs.python.org/3/library/secrets.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern-inside: $V = ...
+          - pattern-inside: $O.$V = ...
+      - pattern: random.$F(...)
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(?:random|randint|randrange|choice|choices|sample|getrandbits|randbytes|uniform|shuffle)$
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(?:token|secret|passw|pwd|api_?key|private_?key|salt|nonce|otp|session_?id|csrf|reset_?code|verification_?code)
+
+  - id: pathos.crypto.python.tls-verification-disabled
+    languages: [python]
+    severity: ERROR
+    message: >-
+      TLS certificate or host name verification is disabled. Any network attacker can then impersonate the server
+      and read or change the traffic. Keep verification on and add a private CA to the trust store when needed.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      confidence: HIGH
+      references:
+        - https://docs.python.org/3/library/ssl.html#ssl.create_default_context
+        - https://www.python-httpx.org/advanced/ssl/
+      license: Apache-2.0
+    pattern-either:
+      - pattern: ssl._create_unverified_context(...)
+      - pattern: ssl._create_stdlib_context(...)
+      - pattern: $CTX.verify_mode = ssl.CERT_NONE
+      - pattern: $CTX.check_hostname = False
+      - pattern: ssl.wrap_socket(..., cert_reqs=ssl.CERT_NONE, ...)
+      - pattern: httpx.$F(..., verify=False, ...)
+      - pattern: aiohttp.TCPConnector(..., ssl=False, ...)
+      - pattern: aiohttp.TCPConnector(..., verify_ssl=False, ...)
+      - pattern: urllib3.PoolManager(..., cert_reqs="CERT_NONE", ...)
+
+  - id: pathos.crypto.python.hardcoded-key
+    languages: [python]
+    severity: ERROR
+    message: >-
+      An encryption, MAC or token-signing key is a constant in the source code. Anyone with the code can decrypt
+      data or forge signatures and tokens, and the key cannot be rotated without a release. Load keys from a
+      secrets manager or the environment.
+    metadata:
+      category: crypto
+      language: python
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/321.html
+        - https://cheatsheetseries.owasp.org/cheatsheets/Key_Management_Cheat_Sheet.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.new(b"...", $M, ...)
+      - pattern: $C.new(key=b"...", ...)
+      - pattern: Fernet(b"...")
+      - pattern: Fernet("...")
+      - pattern: AESGCM(b"...")
+      - pattern: ChaCha20Poly1305(b"...")
+      - pattern: hmac.new(b"...", ...)
+      - pattern: hmac.new("...".encode(...), ...)
+      - pattern: jwt.encode($P, "...", ...)
+      - pattern: jwt.decode($T, "...", ...)
+
+  # ------------------------------------------------------ JavaScript / TS
+  - id: pathos.crypto.javascript.weak-hash
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      MD5 or SHA-1 is used. Both have practical collision attacks and must not protect integrity, signatures or
+      passwords; use SHA-256 or better (and scrypt or Argon2 for passwords).
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-328: Use of Weak Hash"]
+      confidence: MEDIUM
+      references:
+        - https://nodejs.org/api/crypto.html#cryptocreatehashalgorithm-options
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createHash("$ALG", ...)
+          - pattern: createHash("$ALG", ...)
+          - pattern: $CRYPTO.createHmac("$ALG", ...)
+          - pattern: createHmac("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(?:md4|md5|sha1|sha-1|ripemd|rmd160)$
+
+  - id: pathos.crypto.javascript.weak-cipher
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      A broken or obsolete cipher (DES, 3DES, RC4, RC2, Blowfish, CAST) is used, or crypto.createCipher, which
+      derives the key with MD5 and uses no IV. Use crypto.createCipheriv with aes-256-gcm and a random IV.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://nodejs.org/api/crypto.html#cryptocreatecipherivalgorithm-key-iv-options
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $CRYPTO.createCipher(...)
+      - pattern: $CRYPTO.createDecipher(...)
+      - patterns:
+          - pattern-either:
+              - pattern: $CRYPTO.createCipheriv("$ALG", ...)
+              - pattern: createCipheriv("$ALG", ...)
+              - pattern: $CRYPTO.createDecipheriv("$ALG", ...)
+          - metavariable-regex:
+              metavariable: $ALG
+              regex: (?i)^(?:des|des-|des3|rc4|rc2|bf|blowfish|cast|idea|seed)
+
+  - id: pathos.crypto.javascript.ecb-mode
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      ECB mode encrypts identical plaintext blocks to identical ciphertext blocks, so patterns in the data stay
+      visible. Use aes-256-gcm with a random IV.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://nodejs.org/api/crypto.html#cryptocreatecipherivalgorithm-key-iv-options
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv("$ALG", ...)
+          - pattern: createCipheriv("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i).*-ecb$
+
+  - id: pathos.crypto.javascript.static-iv
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      The IV is a constant (a string literal or a zero-filled buffer). Reusing an IV with the same key reveals
+      relations between messages and breaks CTR and GCM completely. Use crypto.randomBytes for every message.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-329: Generation of Predictable IV with CBC Mode", "CWE-323: Reusing a Nonce, Key Pair in Encryption"]
+      confidence: HIGH
+      references:
+        - https://nodejs.org/api/crypto.html#cryptocreatecipherivalgorithm-key-iv-options
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $CRYPTO.createCipheriv($ALG, $KEY, $IV, ...)
+          - pattern: createCipheriv($ALG, $KEY, $IV, ...)
+      - metavariable-pattern:
+          metavariable: $IV
+          pattern-either:
+            - pattern: '"..."'
+            - pattern: Buffer.from("...", ...)
+            - pattern: Buffer.alloc($N)
+            - pattern: Buffer.alloc($N, 0)
+            - pattern: new Uint8Array($N)
+
+  - id: pathos.crypto.javascript.small-rsa-key
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      The RSA key is shorter than 2048 bits and can be factored with practical effort. Use a modulusLength of at
+      least 3072 (2048 is the minimum accepted today), or an elliptic-curve key.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      confidence: HIGH
+      references:
+        - https://nodejs.org/api/crypto.html#cryptogeneratekeypairtype-options-callback
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: '$CRYPTO.generateKeyPairSync("rsa", {..., modulusLength: $N, ...})'
+          - pattern: '$CRYPTO.generateKeyPair("rsa", {..., modulusLength: $N, ...}, ...)'
+          - pattern: 'generateKeyPairSync("rsa", {..., modulusLength: $N, ...})'
+          - pattern: 'generateKeyPair("rsa", {..., modulusLength: $N, ...}, ...)'
+      - metavariable-comparison:
+          metavariable: $N
+          comparison: $N < 2048
+
+  - id: pathos.crypto.javascript.insecure-random-secret
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A token, password, key, salt or nonce is generated with Math.random(), whose output is predictable. Use
+      crypto.randomBytes, crypto.randomUUID or crypto.getRandomValues.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"]
+      confidence: MEDIUM
+      references:
+        - https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: const $V = <... Math.random() ...>;
+          - pattern: let $V = <... Math.random() ...>;
+          - pattern: var $V = <... Math.random() ...>;
+          - pattern: $V = <... Math.random() ...>
+          - pattern: $O.$V = <... Math.random() ...>
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(?:token|secret|passw|pwd|apikey|api_key|privatekey|salt|nonce|otp|sessionid|session_id|csrf|resetcode|reset_code)
+
+  - id: pathos.crypto.javascript.tls-verification-disabled
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      checkServerIdentity is replaced by a function that accepts every certificate, so host names are not checked
+      and any certificate for any domain is accepted. Remove the override.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-297: Improper Validation of Certificate with Host Mismatch"]
+      confidence: HIGH
+      references:
+        - https://nodejs.org/api/tls.html#tlscheckserveridentityhostname-cert
+      license: Apache-2.0
+    pattern-either:
+      - pattern: '{..., checkServerIdentity: () => undefined, ...}'
+      - pattern: '{..., checkServerIdentity: () => {}, ...}'
+      - pattern: '{..., checkServerIdentity: function () {}, ...}'
+      - pattern: '{..., checkServerIdentity: () => null, ...}'
+
+  - id: pathos.crypto.javascript.hardcoded-key
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: >-
+      An encryption, MAC or token-signing key is a constant in the source code. Anyone with the code can decrypt
+      data or forge signatures and tokens. Load keys from a secrets manager or the environment.
+    metadata:
+      category: crypto
+      language: javascript
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/321.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $CRYPTO.createCipheriv($ALG, "...", ...)
+      - pattern: $CRYPTO.createCipheriv($ALG, Buffer.from("...", ...), ...)
+      - pattern: $CRYPTO.createDecipheriv($ALG, "...", ...)
+      - pattern: $CRYPTO.createHmac($ALG, "...", ...)
+      - pattern: createHmac($ALG, "...", ...)
+      - pattern: jwt.sign($P, "...", ...)
+      - pattern: jwt.verify($T, "...", ...)
+
+  # ------------------------------------------------------------------ Java
+  - id: pathos.crypto.java.weak-hash
+    languages: [java]
+    severity: WARNING
+    message: >-
+      MD2, MD4, MD5 or SHA-1 is used through a helper library. These hashes have practical collision attacks and
+      must not protect integrity, signatures or passwords; use SHA-256 or better.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-328: Use of Weak Hash"]
+      confidence: MEDIUM
+      references:
+        - https://commons.apache.org/proper/commons-codec/apidocs/org/apache/commons/codec/digest/DigestUtils.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: MessageDigest.getInstance("MD2")
+      - pattern: MessageDigest.getInstance("MD4")
+      - pattern: DigestUtils.md5(...)
+      - pattern: DigestUtils.md5Hex(...)
+      - pattern: DigestUtils.sha1(...)
+      - pattern: DigestUtils.sha1Hex(...)
+      - pattern: DigestUtils.getMd5Digest()
+      - pattern: DigestUtils.getSha1Digest()
+      - pattern: Hashing.md5()
+      - pattern: Hashing.sha1()
+
+  - id: pathos.crypto.java.weak-cipher
+    languages: [java]
+    severity: ERROR
+    message: >-
+      A broken or obsolete cipher (DES, 3DES, RC4, RC2, Blowfish) is requested from the JCA. Use AES/GCM/NoPadding
+      with a random 12-byte IV.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#cipher-algorithm-names
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: Cipher.getInstance("$ALG", ...)
+          - pattern: KeyGenerator.getInstance("$ALG", ...)
+          - pattern: SecretKeyFactory.getInstance("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(?:des|desede|tripledes|rc2|rc4|arcfour|blowfish)(?:/|$)
+
+  - id: pathos.crypto.java.ecb-mode
+    languages: [java]
+    severity: ERROR
+    message: >-
+      The cipher runs in ECB mode ("AES" alone defaults to AES/ECB/PKCS5Padding), which encrypts identical blocks
+      identically and leaks patterns. Use AES/GCM/NoPadding with a random IV.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#cipher-algorithm-modes
+      license: Apache-2.0
+    patterns:
+      - pattern: Cipher.getInstance("$ALG", ...)
+      - metavariable-regex:
+          metavariable: $ALG
+          regex: (?i)^(?:aes|aes/ecb/.*|.*/ecb/.*)$
+
+  - id: pathos.crypto.java.static-iv
+    languages: [java]
+    severity: ERROR
+    message: >-
+      The IV or GCM nonce is a constant. Reusing an IV with the same key reveals relations between messages and
+      breaks GCM completely. Fill the IV from SecureRandom for every message.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-329: Generation of Predictable IV with CBC Mode", "CWE-323: Reusing a Nonce, Key Pair in Encryption"]
+      confidence: HIGH
+      references:
+        - https://docs.oracle.com/en/java/javase/21/docs/api/java.base/javax/crypto/spec/IvParameterSpec.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: new IvParameterSpec("...".getBytes(...))
+      - pattern: new IvParameterSpec(new byte[] {...})
+      - pattern: new IvParameterSpec(new byte[$N])
+      - pattern: new GCMParameterSpec($T, "...".getBytes(...))
+      - pattern: new GCMParameterSpec($T, new byte[] {...})
+      - pattern: new GCMParameterSpec($T, new byte[$N])
+
+  - id: pathos.crypto.java.small-rsa-key
+    languages: [java]
+    severity: ERROR
+    message: >-
+      The RSA key pair generator is initialised with fewer than 2048 bits; such keys can be factored with
+      practical effort. Use at least 3072 bits (2048 is the minimum accepted today), or an elliptic-curve key.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      confidence: HIGH
+      references:
+        - https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/security/KeyPairGenerator.html
+      license: Apache-2.0
+    patterns:
+      - pattern-inside: |
+          $G = KeyPairGenerator.getInstance("RSA", ...);
+          ...
+      - pattern-either:
+          - pattern: $G.initialize($N)
+          - pattern: $G.initialize($N, $R)
+          - pattern: $G.initialize(new RSAKeyGenParameterSpec($N, ...), ...)
+      - metavariable-comparison:
+          metavariable: $N
+          comparison: $N < 2048
+
+  - id: pathos.crypto.java.insecure-random-secret
+    languages: [java]
+    severity: WARNING
+    message: >-
+      A token, password, key, salt or nonce is generated with java.util.Random or Math.random(), whose output is
+      predictable. Use java.security.SecureRandom.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"]
+      confidence: MEDIUM
+      references:
+        - https://docs.oracle.com/en/java/javase/21/docs/api/java.base/java/security/SecureRandom.html
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $T $V = <... new Random(...).$M(...) ...>;
+          - pattern: $T $V = <... Math.random() ...>;
+          - pattern: $V = <... new Random(...).$M(...) ...>;
+          - pattern: $V = <... Math.random() ...>;
+          - patterns:
+              - pattern-inside: |
+                  Random $R = new Random(...);
+                  ...
+              - pattern-either:
+                  - pattern: $T $V = <... $R.$M(...) ...>;
+                  - pattern: $V = <... $R.$M(...) ...>;
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(?:token|secret|passw|pwd|apikey|api_key|privatekey|salt|nonce|otp|sessionid|session_id|csrf|resetcode|reset_code)
+
+  - id: pathos.crypto.java.tls-verification-disabled
+    languages: [java]
+    severity: ERROR
+    message: >-
+      TLS certificate or host name verification is disabled (a trust manager that accepts every certificate, a
+      host name verifier that accepts every name, or an SSL/TLS 1.0/1.1 context). Any network attacker can then
+      impersonate the server. Use the default trust manager and host name verification.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      confidence: HIGH
+      references:
+        - https://cheatsheetseries.owasp.org/cheatsheets/Transport_Layer_Security_Cheat_Sheet.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: |
+          public void checkServerTrusted(X509Certificate[] $C, String $A) {}
+      - pattern: |
+          public void checkServerTrusted(final X509Certificate[] $C, final String $A) {}
+      - pattern: |
+          public boolean verify(String $H, SSLSession $S) { return true; }
+      - pattern: NoopHostnameVerifier.INSTANCE
+      - pattern: new NoopHostnameVerifier()
+      - pattern: SSLConnectionSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER
+      - pattern: SSLContext.getInstance("SSL")
+      - pattern: SSLContext.getInstance("SSLv3")
+      - pattern: SSLContext.getInstance("TLSv1")
+      - pattern: SSLContext.getInstance("TLSv1.1")
+
+  - id: pathos.crypto.java.hardcoded-key
+    languages: [java]
+    severity: ERROR
+    message: >-
+      A secret key is built from a constant in the source code. Anyone with the code can decrypt data or forge
+      MACs and tokens. Load keys from a key store or secrets manager.
+    metadata:
+      category: crypto
+      language: java
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/321.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: new SecretKeySpec("...".getBytes(...), ...)
+      - pattern: new SecretKeySpec(new byte[] {...}, ...)
+      - pattern: Keys.hmacShaKeyFor("...".getBytes(...))
+      - pattern: Algorithm.HMAC256("...")
+      - pattern: Algorithm.HMAC512("...")
+
+  # -------------------------------------------------------------------- Go
+  - id: pathos.crypto.go.weak-hash
+    languages: [go]
+    severity: WARNING
+    message: >-
+      MD5 or SHA-1 is used. Both have practical collision attacks and must not protect integrity, signatures or
+      passwords; use crypto/sha256 or better (and argon2 or bcrypt for passwords).
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-328: Use of Weak Hash"]
+      confidence: MEDIUM
+      references:
+        - https://pkg.go.dev/crypto/md5
+        - https://pkg.go.dev/crypto/sha1
+      license: Apache-2.0
+    pattern-either:
+      - pattern: md5.New()
+      - pattern: md5.Sum(...)
+      - pattern: sha1.New()
+      - pattern: sha1.Sum(...)
+      - pattern: hmac.New(md5.New, ...)
+      - pattern: hmac.New(sha1.New, ...)
+
+  - id: pathos.crypto.go.weak-cipher
+    languages: [go]
+    severity: ERROR
+    message: >-
+      A broken or obsolete cipher (DES, 3DES, RC4, Blowfish, CAST5) is used. Use crypto/aes with GCM, or
+      golang.org/x/crypto/chacha20poly1305.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://pkg.go.dev/crypto/des
+        - https://pkg.go.dev/crypto/rc4
+      license: Apache-2.0
+    pattern-either:
+      - pattern: des.NewCipher(...)
+      - pattern: des.NewTripleDESCipher(...)
+      - pattern: rc4.NewCipher(...)
+      - pattern: blowfish.NewCipher(...)
+      - pattern: cast5.NewCipher(...)
+
+  - id: pathos.crypto.go.ecb-mode
+    languages: [go]
+    severity: ERROR
+    message: >-
+      An AES block cipher encrypts block by block in a loop, which is ECB mode: identical plaintext blocks give
+      identical ciphertext blocks. Use cipher.NewGCM with a random nonce.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: MEDIUM
+      references:
+        - https://pkg.go.dev/crypto/cipher#NewGCM
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              $B, $ERR := aes.NewCipher(...)
+              ...
+          - pattern-inside: |
+              $B, $ERR = aes.NewCipher(...)
+              ...
+      - pattern-inside: |
+          for ... { ... }
+      - pattern-either:
+          - pattern: $B.Encrypt(...)
+          - pattern: $B.Decrypt(...)
+
+  - id: pathos.crypto.go.static-iv
+    languages: [go]
+    severity: ERROR
+    message: >-
+      The IV or GCM nonce is a constant. Reusing an IV with the same key reveals relations between messages and
+      breaks CTR and GCM completely. Fill the IV or nonce from crypto/rand for every message.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-329: Generation of Predictable IV with CBC Mode", "CWE-323: Reusing a Nonce, Key Pair in Encryption"]
+      confidence: HIGH
+      references:
+        - https://pkg.go.dev/crypto/cipher
+      license: Apache-2.0
+    pattern-either:
+      - pattern: cipher.$MODE($B, []byte("..."))
+      - pattern: cipher.$MODE($B, []byte{...})
+      - pattern: $AEAD.Seal($DST, []byte("..."), ...)
+      - pattern: $AEAD.Seal($DST, []byte{...}, ...)
+
+  - id: pathos.crypto.go.small-rsa-key
+    languages: [go]
+    severity: ERROR
+    message: >-
+      The RSA key is shorter than 2048 bits and can be factored with practical effort. Generate at least 3072 bits
+      (2048 is the minimum accepted today), or use an elliptic-curve key.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      confidence: HIGH
+      references:
+        - https://pkg.go.dev/crypto/rsa#GenerateKey
+      license: Apache-2.0
+    patterns:
+      - pattern: rsa.GenerateKey($R, $N)
+      - metavariable-comparison:
+          metavariable: $N
+          comparison: $N < 2048
+
+  - id: pathos.crypto.go.insecure-random-secret
+    languages: [go]
+    severity: WARNING
+    message: >-
+      A token, password, key, salt or nonce is generated with math/rand, whose output is predictable. Use
+      crypto/rand (rand.Read, rand.Text).
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"]
+      confidence: MEDIUM
+      references:
+        - https://pkg.go.dev/crypto/rand
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $V := <... rand.$F(...) ...>
+          - pattern: $V = <... rand.$F(...) ...>
+      - metavariable-regex:
+          metavariable: $F
+          regex: ^(?:Intn|IntN|Int31|Int31n|Int32|Int32N|Int63|Int63n|Int64|Int64N|Uint32|Uint64|Float32|Float64|Perm|N)$
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(?:token|secret|passw|pwd|apikey|api_key|privatekey|salt|nonce|otp|sessionid|session_id|csrf|resetcode|reset_code)
+
+  - id: pathos.crypto.go.weak-tls-version
+    languages: [go]
+    severity: ERROR
+    message: >-
+      The TLS configuration allows SSL 3.0, TLS 1.0 or TLS 1.1, which have known attacks and are deprecated
+      (RFC 8996). Set MinVersion to tls.VersionTLS12 or tls.VersionTLS13.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://pkg.go.dev/crypto/tls#Config
+        - https://www.rfc-editor.org/rfc/rfc8996
+      license: Apache-2.0
+    pattern-either:
+      - pattern: 'tls.Config{..., MinVersion: tls.VersionSSL30, ...}'
+      - pattern: 'tls.Config{..., MinVersion: tls.VersionTLS10, ...}'
+      - pattern: 'tls.Config{..., MinVersion: tls.VersionTLS11, ...}'
+      - pattern: 'tls.Config{..., MaxVersion: tls.VersionTLS10, ...}'
+      - pattern: 'tls.Config{..., MaxVersion: tls.VersionTLS11, ...}'
+
+  - id: pathos.crypto.go.hardcoded-key
+    languages: [go]
+    severity: ERROR
+    message: >-
+      An encryption, MAC or token-signing key is a constant in the source code. Anyone with the code can decrypt
+      data or forge signatures and tokens. Load keys from a secrets manager or the environment.
+    metadata:
+      category: crypto
+      language: go
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/321.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: aes.NewCipher([]byte("..."))
+      - pattern: hmac.New($H, []byte("..."))
+      - pattern: $TOKEN.SignedString([]byte("..."))
+      - pattern: chacha20poly1305.New([]byte("..."))
+
+  # -------------------------------------------------------------------- C#
+  - id: pathos.crypto.csharp.weak-hash
+    languages: [csharp]
+    severity: WARNING
+    message: >-
+      MD5 or SHA-1 is used. Both have practical collision attacks and must not protect integrity, signatures or
+      passwords; use SHA256 or better (and Rfc2898DeriveBytes.Pbkdf2 or Argon2 for passwords).
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-328: Use of Weak Hash"]
+      confidence: MEDIUM
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/standard/security/cryptographic-services
+      license: Apache-2.0
+    pattern-either:
+      - pattern: MD5.Create(...)
+      - pattern: SHA1.Create(...)
+      - pattern: MD5.HashData(...)
+      - pattern: SHA1.HashData(...)
+      - pattern: new MD5CryptoServiceProvider(...)
+      - pattern: new SHA1CryptoServiceProvider(...)
+      - pattern: new SHA1Managed(...)
+      - pattern: new HMACMD5(...)
+      - pattern: new HMACSHA1(...)
+
+  - id: pathos.crypto.csharp.weak-cipher
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      A broken or obsolete cipher (DES, 3DES, RC2) is used. Use AesGcm or ChaCha20Poly1305.
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.aesgcm
+      license: Apache-2.0
+    pattern-either:
+      - pattern: DES.Create(...)
+      - pattern: TripleDES.Create(...)
+      - pattern: RC2.Create(...)
+      - pattern: new DESCryptoServiceProvider(...)
+      - pattern: new TripleDESCryptoServiceProvider(...)
+      - pattern: new RC2CryptoServiceProvider(...)
+
+  - id: pathos.crypto.csharp.ecb-mode
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      ECB mode encrypts identical plaintext blocks to identical ciphertext blocks, so patterns in the data stay
+      visible. Use AesGcm with a random nonce.
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-327: Use of a Broken or Risky Cryptographic Algorithm"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.ciphermode
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.Mode = CipherMode.ECB
+      - pattern: $C.EncryptEcb(...)
+      - pattern: $C.DecryptEcb(...)
+
+  - id: pathos.crypto.csharp.static-iv
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      The IV is a constant. Reusing an IV with the same key reveals relations between messages. Let the algorithm
+      generate a random IV (GenerateIV) for every message and store it with the ciphertext.
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-329: Generation of Predictable IV with CBC Mode"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.symmetricalgorithm.iv
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.IV = Encoding.$E.GetBytes("...")
+      - pattern: $C.IV = new byte[] {...}
+      - pattern: $C.IV = new byte[$N]
+      - pattern: $C.CreateEncryptor($K, Encoding.$E.GetBytes("..."))
+      - pattern: $C.CreateEncryptor($K, new byte[$N])
+
+  - id: pathos.crypto.csharp.small-rsa-key
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      The RSA key is shorter than 2048 bits and can be factored with practical effort. Use at least 3072 bits
+      (2048 is the minimum accepted today).
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-326: Inadequate Encryption Strength"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.rsa.create
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: new RSACryptoServiceProvider($N)
+          - pattern: RSA.Create($N)
+          - pattern: $R.KeySize = $N
+      - metavariable-comparison:
+          metavariable: $N
+          comparison: $N < 2048
+
+  - id: pathos.crypto.csharp.insecure-random-secret
+    languages: [csharp]
+    severity: WARNING
+    message: >-
+      A token, password, key, salt or nonce is generated with System.Random, whose output is predictable. Use
+      RandomNumberGenerator.
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-338: Use of Cryptographically Weak Pseudo-Random Number Generator (PRNG)"]
+      confidence: MEDIUM
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.randomnumbergenerator
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: $T $V = <... new Random(...).$M(...) ...>;
+          - pattern: $V = <... new Random(...).$M(...) ...>;
+          - pattern: $T $V = <... Random.Shared.$M(...) ...>;
+          - pattern: $V = <... Random.Shared.$M(...) ...>;
+      - metavariable-regex:
+          metavariable: $V
+          regex: (?i).*(?:token|secret|passw|pwd|apikey|api_key|privatekey|salt|nonce|otp|sessionid|session_id|csrf|resetcode|reset_code)
+
+  - id: pathos.crypto.csharp.tls-verification-disabled
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      TLS certificate validation is disabled (a validation callback that returns true, or
+      DangerousAcceptAnyServerCertificateValidator), or SSL 3.0 / TLS 1.0 / TLS 1.1 is enabled. Any network attacker
+      can then impersonate the server. Remove the callback and use SslProtocols.None (the system default).
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-295: Improper Certificate Validation"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/dotnet/framework/network-programming/tls
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $X.ServerCertificateValidationCallback = (...) => true
+      - pattern: $X.ServerCertificateCustomValidationCallback = (...) => true
+      - pattern: $X.ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+      - pattern: $X.RemoteCertificateValidationCallback = (...) => true
+      - pattern: SslProtocols.Ssl3
+      - pattern: SslProtocols.Tls
+      - pattern: SslProtocols.Tls11
+      - pattern: SecurityProtocolType.Ssl3
+      - pattern: SecurityProtocolType.Tls
+      - pattern: SecurityProtocolType.Tls11
+
+  - id: pathos.crypto.csharp.hardcoded-key
+    languages: [csharp]
+    severity: ERROR
+    message: >-
+      An encryption, MAC or token-signing key is a constant in the source code. Anyone with the code can decrypt
+      data or forge signatures and tokens. Load keys from a key vault or the configuration's secret store.
+    metadata:
+      category: crypto
+      language: csharp
+      cwe: ["CWE-321: Use of Hard-coded Cryptographic Key"]
+      confidence: MEDIUM
+      references:
+        - https://cwe.mitre.org/data/definitions/321.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $C.Key = Encoding.$E.GetBytes("...")
+      - pattern: new SymmetricSecurityKey(Encoding.$E.GetBytes("..."))
+      - pattern: new HMACSHA256(Encoding.$E.GetBytes("..."))
+      - pattern: new AesGcm(Encoding.$E.GetBytes("..."), ...)

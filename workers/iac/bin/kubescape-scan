@@ -1,0 +1,30 @@
+#!/usr/local/bin/python3 -I
+"""Runs Kubescape offline on a directory: the frameworks bundled in the
+image, no update check, results kept local. A repository without
+Kubernetes manifests, Helm charts or Kustomize files is not an error (empty
+report). Any other Kubescape failure, for example a manifest it cannot
+parse, fails the run with Kubescape's message.
+
+Usage: kubescape-scan <directory> <output file>
+"""
+import os
+import subprocess
+import sys
+
+KUBESCAPE = "/opt/pathos/iac/bin/kubescape"
+ENV = dict(os.environ, KS_SKIP_UPDATE_CHECK="true", KS_OFFLINE="true")
+NO_INPUT = b"no YAML or JSON manifest files found"
+
+if sys.argv[1:] == ["--version"]:
+    os.execve(KUBESCAPE, [KUBESCAPE, "version"], ENV)
+if len(sys.argv) != 3 or not os.path.isdir(sys.argv[1]):
+    sys.stderr.write("usage: kubescape-scan <directory> <output file>\n")
+    sys.exit(2)
+src, out = sys.argv[1:]
+run = subprocess.run([KUBESCAPE, "scan", src, "--format", "json", "--output", out, "--use-artifacts-from", "/opt/pathos/iac/kubescape",
+                      "--keep-local", "--logger", "warning"], stderr=subprocess.PIPE, env=ENV, check=False)
+sys.stderr.buffer.write(run.stderr)
+if run.returncode != 0 and NO_INPUT in run.stderr:
+    open(out, "wb").close()
+    sys.exit(0)
+sys.exit(run.returncode)

@@ -22,6 +22,50 @@ x-pathos-onboarding-env: &onboarding-env
   PATHOS_IMPORT_MAX_EXTRACTED_BYTES: ${PATHOS_IMPORT_MAX_EXTRACTED_BYTES:-8589934592}
   PATHOS_IMPORT_MAX_FILE_BYTES: ${PATHOS_IMPORT_MAX_FILE_BYTES:-1073741824}
 
+# Scan workers: the core worker and the opt-in family workers share the same
+# isolation (read-only, no capabilities, unprivileged user, tmpfs workspace),
+# egress proxy and networks.
+x-pathos-worker: &worker
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  user: "10001:10001"
+  tmpfs:
+    - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
+    - /tmp:size=1g,mode=1777
+  volumes:
+    - scanner_cache:/cache
+    # Declarative scanner adapters (operator-defined; empty by default).
+    - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+    - ./workers/rules-extra:/rules:ro
+  # scan: egress proxy only. worker-api: the API's worker listener only.
+  # malware: clamd only (no other service is on that network).
+  networks: [scan, worker-api, malware]
+  mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
+  pids_limit: 1024
+  depends_on:
+    api: { condition: service_healthy }
+    egress: { condition: service_healthy }
+
+x-pathos-worker-env: &worker-env
+  PATHOS_API_URL: http://api:8081
+  PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+  # Air-gapped: only the vulnerability databases imported with
+  # scripts/offline-bundle.sh are used.
+  PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
+  PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+  HTTPS_PROXY: http://egress:3128
+  HTTP_PROXY: http://egress:3128
+  https_proxy: http://egress:3128
+  http_proxy: http://egress:3128
+  NO_PROXY: api,clamav
+  no_proxy: api,clamav
+  # Malware scanning of repository content (the "clamav" scanner in a
+  # scan profile): COMPOSE_PROFILES=clamav and
+  # PATHOS_CLAMAV_ADDRESS=clamav:3310. Empty: the scanner is skipped.
+  PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
+
 x-pathos-env: &pathos-env
   PATHOS_ENV: ${PATHOS_ENV:-production}
   PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
@@ -322,50 +366,169 @@ services:
       retries: 5
 
   worker-core:
+    <<: *worker
     build:
       context: .
       dockerfile: workers/core/Dockerfile
       args: { VERSION: "${PATHOS_VERSION:-dev}" }
     image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-core:${PATHOS_VERSION:-dev}
-    restart: unless-stopped
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: ["no-new-privileges:true"]
-    user: "10001:10001"
     environment:
-      PATHOS_API_URL: http://api:8081
-      PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+      <<: *worker-env
       PATHOS_WORKER_FAMILY: core
-      # Air-gapped: only the vulnerability databases imported with
-      # scripts/offline-bundle.sh are used.
-      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
-      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
-      HTTPS_PROXY: http://egress:3128
-      HTTP_PROXY: http://egress:3128
-      https_proxy: http://egress:3128
-      http_proxy: http://egress:3128
-      NO_PROXY: api,clamav
-      no_proxy: api,clamav
-      # Malware scanning of repository content (the "clamav" scanner in a
-      # scan profile): COMPOSE_PROFILES=clamav and
-      # PATHOS_CLAMAV_ADDRESS=clamav:3310. Empty: the scanner is skipped.
-      PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
-    tmpfs:
-      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
-      - /tmp:size=1g,mode=1777
+
+  # Family workers (opt-in): the core image plus a family of tools defined by
+  # manifests (docs/OPERATIONS.md, "Family worker images"). Jobs that use a
+  # family tool go to the workers that provide it.
+  #   COMPOSE_PROFILES=sast  ->  Bandit, njsscan, ShellCheck
+  worker-sast:
+    <<: *worker
+    profiles: [sast]
+    build:
+      context: .
+      dockerfile: workers/sast/Dockerfile
+      # The family image extends the worker-core image built by this file.
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-sast:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: sast
+
+  #   COMPOSE_PROFILES=iac  ->  KICS, KubeLinter, Kubescape, TFLint, Conftest,
+  #   Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config),
+  #   OpenSSF Scorecard (--local)
+  worker-iac:
+    <<: *worker
+    profiles: [iac]
+    build:
+      context: .
+      dockerfile: workers/iac/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-iac:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: iac
+
+  #   COMPOSE_PROFILES=sca  ->  language-specific dependency auditors,
+  #   GuardDog, dependency confusion checks, cdxgen (docs/OPERATIONS.md)
+  worker-sca:
+    <<: *worker
+    profiles: [sca]
+    build:
+      context: .
+      dockerfile: workers/sca/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-sca:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: sca
+
+  #   COMPOSE_PROFILES=dast  ->  OWASP ZAP (baseline, full and API scans), Wapiti,
+  #   Dalfox, ffuf, testssl.sh, SSLyze, Schemathesis, Arjun for authorized web
+  #   application and API targets (docs/user-guide/dast.md). sqlmap and Nikto
+  #   only with WITH_SQLMAP=true / WITH_NIKTO=true (licence terms, see
+  #   workers/dast/Dockerfile).
+  worker-dast:
+    <<: *worker
+    profiles: [dast]
+    build:
+      context: .
+      dockerfile: workers/dast/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args:
+        CORE_IMAGE: core
+        WITH_SQLMAP: ${PATHOS_DAST_WITH_SQLMAP:-false}
+        WITH_NIKTO: ${PATHOS_DAST_WITH_NIKTO:-false}
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-dast:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: dast
+
+  #   COMPOSE_PROFILES=mobile  ->  mobsfscan, APKLeaks, Quark-Engine, mobile app checks (mobile app targets)
+  worker-mobile:
+    <<: *worker
+    profiles: [mobile]
+    build:
+      context: .
+      dockerfile: workers/mobile/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-mobile:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: mobile
     volumes:
       - scanner_cache:/cache
-      # Declarative scanner adapters (operator-defined; empty by default).
       - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
       - ./workers/rules-extra:/rules:ro
-    # scan: egress proxy only. worker-api: the API's worker listener only.
-    # malware: clamd only (no other service is on that network).
-    networks: [scan, worker-api, malware]
-    mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
-    pids_limit: 1024
-    depends_on:
-      api: { condition: service_healthy }
-      egress: { condition: service_healthy }
+      # Optional: Quark-Engine rules the operator may use (the community set
+      # has no licence and is not bundled).
+      - ${PATHOS_QUARK_RULES_DIR:-./workers/mobile/quark-rules-extra}:/opt/pathos/mobile/quark-rules-extra:ro
+
+  #   COMPOSE_PROFILES=binary  ->  CVE Binary Tool, capa, YARA-X (build artifacts, firmware)
+  worker-binary:
+    <<: *worker
+    profiles: [binary]
+    build:
+      context: .
+      dockerfile: workers/binary/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-binary:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: binary
+    volumes:
+      - scanner_cache:/cache
+      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+      - ./workers/rules-extra:/rules:ro
+      # Optional: more YARA rules (*.yar, *.yara), compiled at scan time.
+      - ${PATHOS_YARA_RULES_DIR:-./workers/binary/yara-extra}:/opt/pathos/binary/yara-extra:ro
+
+  #   COMPOSE_PROFILES=ai  ->  ModelScan, garak, promptfoo (LLM endpoint targets)
+  worker-ai:
+    <<: *worker
+    profiles: [ai]
+    build:
+      context: .
+      dockerfile: workers/ai/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-ai:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: ai
+
+  #   COMPOSE_PROFILES=fuzz  ->  Go native fuzzing, Atheris. These build and
+  #   run repository code: the container gets a CPU limit, and /work allows
+  #   execution (the Go test binaries run from it).
+  worker-fuzz:
+    <<: *worker
+    profiles: [fuzz]
+    build:
+      context: .
+      dockerfile: workers/fuzz/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-fuzz:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: fuzz
+    tmpfs:
+      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001,exec
+      - /tmp:size=1g,mode=1777
+    cpus: ${PATHOS_FUZZ_CPUS:-2}
+    pids_limit: 512
 
   mailpit:
     profiles: [dev]

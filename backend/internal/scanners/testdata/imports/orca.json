@@ -1,0 +1,58 @@
+[
+  {
+    "Title": "Unused role with policy found",
+    "Labels": [
+      "CSPM",
+      "source: Orca Scan"
+    ],
+    "CreatedAt": "2026-10-15T10:30:00+00:00",
+    "Status": "open",
+    "Category": "IAM misconfigurations",
+    "OrcaScore": 5.1,
+    "Source": "ci-deploy-role",
+    "LastSeen": "2026-11-01T12:00:00+00:00",
+    "CloudAccount": {
+      "Name": "prod-aws"
+    },
+    "Inventory": {
+      "Name": "ci-deploy-role"
+    }
+  },
+  {
+    "Title": "Security group allows SSH from the internet",
+    "Labels": [
+      "CSPM",
+      "network"
+    ],
+    "CreatedAt": "2026-10-10T08:00:00+00:00",
+    "Status": "open",
+    "Category": "Network misconfigurations",
+    "OrcaScore": 7.8,
+    "Source": "sg-0a1b2c3d4e5f60718",
+    "LastSeen": "2026-11-01T12:00:00+00:00",
+    "CloudAccount": {
+      "Name": "prod-aws"
+    },
+    "Inventory": {
+      "Name": "sg-0a1b2c3d4e5f60718"
+    }
+  },
+  {
+    "Title": "Storage bucket logging disabled",
+    "Labels": [
+      "CSPM"
+    ],
+    "CreatedAt": "2026-09-01T08:00:00+00:00",
+    "Status": "closed",
+    "Category": "Logging and monitoring",
+    "OrcaScore": 3.2,
+    "Source": "example-logs",
+    "LastSeen": "2026-10-01T12:00:00+00:00",
+    "CloudAccount": {
+      "Name": "prod-aws"
+    },
+    "Inventory": {
+      "Name": "example-logs"
+    }
+  }
+]

@@ -1,0 +1,13 @@
+{
+  "name": "pathos-worker-sast-eslint",
+  "private": true,
+  "description": "ESLint with eslint-plugin-security for the PATHOS worker-sast image (installed with npm ci from package-lock.json).",
+  "license": "Apache-2.0",
+  "type": "module",
+  "dependencies": {
+    "@typescript-eslint/parser": "8.73.0",
+    "eslint": "10.15.0",
+    "eslint-plugin-security": "4.2.1",
+    "typescript": "6.0.3"
+  }
+}

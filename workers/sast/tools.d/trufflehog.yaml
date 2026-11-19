@@ -1,0 +1,24 @@
+# TruffleHog: secrets in the repository's files (filesystem mode).
+# Verification is OFF (--no-verification): TruffleHog would otherwise send
+# every candidate secret to its provider's API. --no-update: no update
+# check. JSON Lines on stdout, parsed with the PATHOS TruffleHog import
+# parser (the secret values are removed before the report is stored).
+name: trufflehog
+display_name: TruffleHog
+category: secrets
+scan_types: [secrets]
+license_spdx: AGPL-3.0-only
+homepage: https://github.com/trufflesecurity/trufflehog
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/trufflehog
+version_args: ["--version"]
+args: ["filesystem", "{source}", "--no-verification", "--no-update", "--json", "--no-color"]
+ok_exit_codes: [0]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:trufflehog

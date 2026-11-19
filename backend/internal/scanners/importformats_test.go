@@ -2,6 +2,7 @@ package scanners
 
 import (
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -210,5 +211,109 @@ func TestLocateArtifactUsesContentType(t *testing.T) {
 	fs, _ := ParseImport("import-secrets-gitleaks", "gitleaks", g)
 	if loc, err := LocateArtifact("import-secrets-gitleaks", "application/json; pathos-format=gitleaks", g, fs[1].Fingerprint); err != nil || !strings.Contains(string(loc.Raw), "generic-api-key") {
 		t.Errorf("locate: %v", err)
+	}
+}
+
+// TestImportFormatMatchersDoNotOverlap checks that no fixture in
+// testdata/imports is accepted by the matcher of a format with another
+// parser, so detection never depends on the order of the formats, and
+// that every tool-specific format has a fixture.
+func TestImportFormatMatchersDoNotOverlap(t *testing.T) {
+	entries, err := os.ReadDir("testdata/imports")
+	if err != nil {
+		t.Fatal(err)
+	}
+	formats := ImportFormats()
+	covered := map[string]bool{}
+	for _, e := range entries {
+		raw := readImport(t, e.Name())
+		own := DetectImportFormat(raw)
+		covered[parserOf(own)] = true
+		p := newImportProbe(raw)
+		for _, f := range formats {
+			// The generic CSV format may also accept a tool's CSV export:
+			// tool-specific formats are tried first.
+			if f.match != nil && f.match(p) && !SameImportParser(f.ID, own) && f.ID != "csv" {
+				t.Errorf("%s (%s) is also accepted by %s", e.Name(), own, f.ID)
+			}
+		}
+	}
+	for _, f := range formats {
+		// The tool name fits the scanner key without being cut.
+		if slug := strings.Trim(slugRe.ReplaceAllString(strings.ToLower(f.Tool), "-"), "-"); len(slug) > 23 {
+			t.Errorf("%s: tool %q is cut in the scanner key", f.ID, f.Tool)
+		}
+		if f.Parser == "" && !covered[f.ID] && !slices.Contains([]string{"sarif", "grype", "pathos"}, f.ID) {
+			t.Errorf("%s has no fixture", f.ID)
+		}
+	}
+}
+
+// TestImportFixturesMatchOneFormat checks that exactly one format's
+// detector accepts each fixture in testdata/imports, so detection does not
+// depend on the order formats are tried in and no format takes another's
+// reports. SARIF, Grype and PATHOS JSON (detected before the others) must
+// match no other detector. The generic CSV format may also accept a tool's
+// CSV export: tool-specific formats are tried first.
+func TestImportFixturesMatchOneFormat(t *testing.T) {
+	entries, err := os.ReadDir("testdata/imports")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join("testdata", "imports", e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		p := newImportProbe(raw)
+		var matched []string
+		for _, f := range ImportFormats() {
+			if f.match != nil && f.match(p) {
+				matched = append(matched, f.ID)
+			}
+		}
+		want := DetectImportFormat(raw)
+		if parserOf(want) == "sarif" || want == "grype" || want == "pathos" {
+			if len(matched) != 0 {
+				t.Errorf("%s (%s) is also matched by %v", e.Name(), want, matched)
+			}
+			continue
+		}
+		// Aliases of the same parser (the GitLab report types) count once.
+		matched = slices.DeleteFunc(matched, func(id string) bool {
+			return id == "csv" && want != "csv" || id != want && SameImportParser(id, want)
+		})
+		if len(matched) != 1 || matched[0] != want {
+			t.Errorf("%s: matched by %v, want only %q", e.Name(), matched, want)
+		}
+	}
+}
+
+func TestImportEvidenceRedaction(t *testing.T) {
+	req := "GET /a?q=1&token=abc123&x=2 HTTP/1.1\r\nHost: app.test\r\nAuthorization: Basic dXNlcjpwYXNz\r\nCookie: session=s3cr3t\r\n\r\n"
+	got := redactHTTP(req)
+	for _, s := range []string{"dXNlcjpwYXNz", "s3cr3t", "abc123"} {
+		if strings.Contains(got, s) {
+			t.Errorf("%q kept in %q", s, got)
+		}
+	}
+	if !strings.Contains(got, "Host: app.test") || !strings.Contains(got, "q=1") {
+		t.Errorf("non-secret parts lost: %q", got)
+	}
+	doc := `{"headers":[{"name":"Set-Cookie","value":"sid=zzz"}],"Cookie":"a=b","request":"POST / HTTP/1.1\nAuthorization: Bearer abcdefghijkl\n"}`
+	clean := string(sanitizeHTTPJSON([]byte(doc)))
+	for _, s := range []string{"sid=zzz", "a=b", "abcdefghijkl"} {
+		if strings.Contains(clean, s) {
+			t.Errorf("%q kept in %s", s, clean)
+		}
+	}
+	if x := string(sanitizeHTTPText([]byte("<r>Cookie: c=1\nSet-Cookie: d=2</r>"))); strings.Contains(x, "c=1") || strings.Contains(x, "d=2") {
+		t.Errorf("text: %s", x)
+	}
+	if hostLocation("10.0.0.1", "443", "TCP") != "10.0.0.1:443/tcp" || hostLocation("h", "0", "") != "h" {
+		t.Error("hostLocation")
 	}
 }

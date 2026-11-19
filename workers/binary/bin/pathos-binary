@@ -1,0 +1,241 @@
+#!/opt/pathos/binary/bin/python
+"""Runs a worker-binary tool (workers/binary/tools.d).
+
+    pathos-binary yara  <source> <artifact> <output> <tmp>
+    pathos-binary capa  <artifact> <output> <tmp>
+    pathos-binary cve-bin-tool <artifact> <output> <tmp> <cache>
+    pathos-binary version <tool>
+
+    pathos-binary cve-db-update <cache>           (needs network: run by an operator)
+    pathos-binary cve-db-export <cache> <file>    (copy the database out)
+    pathos-binary cve-db-import <cache> <file>    (air-gapped: load a copied database)
+
+The scanned directory is the build artifact (or mobile app) when the job has
+one, else the repository checkout. Every tool runs with the directory as its
+working directory, so reported paths are relative to it.
+
+  yara          YARA-X with the bundled rules (ReversingLabs YARA rules, MIT,
+                and PATHOS' own), compiled when the image was built, plus the
+                operator's rules in /opt/pathos/binary/yara-extra when mounted
+  capa          capa on each executable (ELF, PE, .NET; at most 25 files of up
+                to 64 MiB, largest first). The report is {"capa": {<file>:
+                <capa's own JSON, unchanged>}, "capabilities": [...]}: one
+                record per matched rule and file, without capa's library and
+                subscope rules (capa leaves those out of its own summary too)
+  cve-bin-tool  CVE Binary Tool, offline, on the database in <cache> (it never
+                downloads anything during a scan). The report is
+                {"cve-bin-tool": <its own JSON, unchanged>, "vulnerabilities":
+                [one record per CVE and file, path relative to the artifact]}
+
+Nothing from the scanned files is executed.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+BIN = os.path.dirname(os.path.realpath(__file__))
+YR = "/opt/pathos/binary/yara/yr"
+RULES = "/opt/pathos/binary/yara/rules.yarc"
+RULES_EXTRA = "/opt/pathos/binary/yara-extra"
+CAPA_RULES = "/opt/pathos/binary/capa/rules"
+CAPA_SIGS = "/opt/pathos/binary/capa/sigs"
+CAPA_MAX_FILES, CAPA_MAX_SIZE, CAPA_TIMEOUT = 25, 64 << 20, 600
+# capa namespaces whose capabilities are typical of malware, not of ordinary
+# programs: reported as medium (others: low with an ATT&CK mapping, info
+# without).
+CAPA_MEDIUM = ("anti-analysis", "persistence", "impact", "communication/c2", "host-interaction/process/inject",
+               "collection/keylog", "collection/screenshot", "load-code", "data-manipulation/encryption/rc4", "exploitation")
+
+
+def env(tmp, home=None):
+    e = dict(os.environ)
+    e["HOME"] = home or os.path.join(tmp, "home")
+    e["TMPDIR"] = tmp
+    os.makedirs(e["HOME"], exist_ok=True)
+    return e
+
+
+def scan_dir(source, artifact):
+    for d in (artifact, source):
+        if d and "{" not in d and os.path.isdir(d):
+            return os.path.realpath(d)
+    raise SystemExit("nothing to scan: neither a repository checkout nor an artifact")
+
+
+def yara(source, artifact, output, tmp):
+    target = scan_dir(source, artifact)
+    rules = [RULES]
+    if os.path.isdir(RULES_EXTRA) and any(f.endswith((".yar", ".yara")) for _, _, fs in os.walk(RULES_EXTRA) for f in fs):
+        extra = os.path.join(tmp, "extra.yarc")
+        subprocess.run([YR, "compile", "-w", "-o", extra, "extra:" + RULES_EXTRA], env=env(tmp), check=True, stdout=sys.stderr)
+        rules.append(extra)
+    docs = []
+    for r in rules:
+        # -z: files over 256 MiB are skipped; -a: per-file timeout.
+        p = subprocess.run([YR, "scan", "-C", "-o", "json", "-m", "-r", "-z", "268435456", "-a", "60", "-p", "2", r, "."],
+                           cwd=target, env=env(tmp), capture_output=True, text=True, check=False)
+        if p.returncode != 0:
+            sys.stderr.write(p.stderr[-2000:])
+            raise SystemExit("yr exited with status %d" % p.returncode)
+        docs.append(json.loads(p.stdout or '{"matches": []}'))
+    rep = docs[0]
+    for d in docs[1:]:
+        rep.setdefault("matches", []).extend(d.get("matches") or [])
+    for m in rep.get("matches") or []:
+        # YARA-X prints absolute paths; "path" is relative to the scanned
+        # directory (the file of the finding).
+        f = str(m.get("file", ""))
+        m["path"] = os.path.relpath(f, target) if os.path.isabs(f) and f.startswith(target + os.sep) else f.lstrip("./")
+        meta = m.get("meta") or {}
+        if not isinstance(meta, dict):
+            continue
+        # Severity: the rule's own, else malware rules are high.
+        m["severity"] = str(meta.get("severity") or ("high" if str(meta.get("category", "")).upper() == "MALWARE" else "medium"))
+        m["description"] = str(meta.get("description") or meta.get("malware") or m.get("rule", ""))
+    with open(output, "w") as f:
+        json.dump(rep, f)
+    return 0
+
+
+def executable(path):
+    try:
+        with open(path, "rb") as f:
+            head = f.read(4)
+    except OSError:
+        return False
+    return head == b"\x7fELF" or head[:2] == b"MZ"
+
+
+def capa(artifact, output, tmp):
+    target = scan_dir(None, artifact)
+    files = []
+    for root, dirs, names in os.walk(target):
+        dirs[:] = [d for d in dirs if d != ".git"]
+        for n in names:
+            p = os.path.join(root, n)
+            if os.path.islink(p) or not os.path.isfile(p):
+                continue
+            size = os.path.getsize(p)
+            if 0 < size <= CAPA_MAX_SIZE and executable(p):
+                files.append((size, os.path.relpath(p, target)))
+    files.sort(key=lambda x: (-x[0], x[1]))
+    reports, caps = {}, []
+    for _, rel in files[:CAPA_MAX_FILES]:
+        try:
+            p = subprocess.run([os.path.join(BIN, "capa"), "-j", "-q", "-r", CAPA_RULES, "-s", CAPA_SIGS, rel], cwd=target, env=env(tmp),
+                               capture_output=True, text=True, timeout=CAPA_TIMEOUT, check=False)
+        except subprocess.TimeoutExpired:
+            print("capa: %s timed out after %ds" % (rel, CAPA_TIMEOUT), file=sys.stderr)
+            continue
+        if p.returncode != 0:
+            # Unsupported formats (for example a shared object vivisect
+            # cannot load) are logged, not fatal.
+            print("capa: %s: exit %d: %s" % (rel, p.returncode, p.stderr.strip()[-300:]), file=sys.stderr)
+            continue
+        doc = json.loads(p.stdout)
+        reports[rel] = doc
+        for name, r in sorted((doc.get("rules") or {}).items()):
+            meta = r.get("meta") or {}
+            if meta.get("lib") or meta.get("is_subscope_rule"):
+                continue
+            ns = meta.get("namespace") or ""
+            attack = [a.get("id", "") for a in meta.get("attack") or [] if isinstance(a, dict)]
+            mbc = [m.get("id", "") for m in meta.get("mbc") or [] if isinstance(m, dict)]
+            sev = "medium" if ns.startswith(CAPA_MEDIUM) else ("low" if attack else "info")
+            caps.append({"rule": name, "namespace": ns, "file": rel, "severity": sev,
+                         "attack": ", ".join(t for t in ("%s %s" % (a.get("id", ""), a.get("technique", "")) for a in meta.get("attack") or []) if t.strip()),
+                         "attack_ids": attack, "mbc_ids": mbc, "matches": len(r.get("matches") or []),
+                         "description": meta.get("description") or name})
+    with open(output, "w") as f:
+        json.dump({"capa": reports, "capabilities": caps}, f)
+    return 0
+
+
+def cve_home(cache):
+    # cve-bin-tool keeps its database in ~/.cache/cve-bin-tool.
+    home = os.path.join(cache, "home")
+    os.makedirs(os.path.join(home, ".cache", "cve-bin-tool"), mode=0o700, exist_ok=True)
+    return home
+
+
+def cve_db(cache):
+    return os.path.join(cve_home(cache), ".cache", "cve-bin-tool", "cve.db")
+
+
+def cve_bin_tool(artifact, output, tmp, cache):
+    target = scan_dir(None, artifact)
+    if not os.path.isfile(cve_db(cache)):
+        raise SystemExit("the CVE Binary Tool database is not installed in the worker's cache; an operator installs it with "
+                         "'pathos-binary cve-db-update' (connected) or 'cve-db-import' (air-gapped), see docs/OPERATIONS.md")
+    out = os.path.join(tmp, "cve-bin-tool")
+    # Exit codes: 0 no CVEs, 1 CVEs found; others are errors. (With -q it
+    # writes no report, so its log goes to stderr.)
+    p = subprocess.run([os.path.join(BIN, "cve-bin-tool"), "--offline", "-u", "never", "--disable-version-check", "--nvd-api-key", "no",
+                        "-f", "json", "-o", out, "."], cwd=target, env=env(tmp, cve_home(cache)), stdin=subprocess.DEVNULL,
+                       stdout=sys.stderr, check=False)
+    if p.returncode not in (0, 1):
+        raise SystemExit("cve-bin-tool exited with status %d" % p.returncode)
+    rep = []
+    for src in (out, out + ".json"):
+        if os.path.isfile(src):
+            with open(src) as f:
+                rep = json.load(f)
+            break
+    # The report names files by absolute path in the job directory; the
+    # records PATHOS reads carry the path relative to the artifact.
+    vulns = []
+    for v in rep if isinstance(rep, list) else []:
+        paths = [os.path.relpath(x.strip(), target) if x.strip().startswith(target) else x.strip()
+                 for x in str(v.get("paths", "")).split(",") if x.strip()]
+        for path in paths or [""]:
+            vulns.append({**v, "file": path, "package": "%s/%s" % (v.get("vendor", ""), v.get("product", ""))})
+    with open(output, "w") as f:
+        json.dump({"cve-bin-tool": rep, "vulnerabilities": vulns}, f)
+    return 0
+
+
+def cve_db_update(cache):
+    tmp = os.path.join(cache, "tmp")
+    os.makedirs(tmp, exist_ok=True)
+    # NVD (the cveb.in mirror of the NVD JSON 2.0 feeds, maintained by the
+    # CVE Binary Tool project) and curl's own advisories: two hosts to allow
+    # (cveb.in, curl.se). The other sources are off (OSV needs gsutil).
+    rc = subprocess.run([os.path.join(BIN, "cve-bin-tool"), "-u", "now", "-n", "json-mirror", "-d", "OSV,GAD,REDHAT,PURL2CPE,EPSS,RSD",
+                         "--nvd-api-key", "no",
+                         "--disable-version-check", tmp], env=env(tmp, cve_home(cache)), check=False).returncode
+    return 0 if rc in (0, 1) else rc
+
+
+def main(argv):
+    if len(argv) == 3 and argv[1] == "version":
+        tool = argv[2]
+        if tool == "yara":
+            return subprocess.run([YR, "--version"], check=False).returncode
+        from importlib.metadata import version as v
+
+        print({"capa": "capa %s" % v("flare-capa"), "cve-bin-tool": "cve-bin-tool %s" % v("cve-bin-tool")}.get(tool, "unknown"))
+        return 0
+    cmd = argv[1] if len(argv) > 1 else ""
+    if cmd == "yara" and len(argv) == 6:
+        return yara(*argv[2:])
+    if cmd == "capa" and len(argv) == 5:
+        return capa(*argv[2:])
+    if cmd == "cve-bin-tool" and len(argv) == 6:
+        return cve_bin_tool(*argv[2:])
+    if cmd == "cve-db-update" and len(argv) == 3:
+        return cve_db_update(argv[2])
+    if cmd == "cve-db-export" and len(argv) == 4:
+        shutil.copyfile(cve_db(argv[2]), argv[3])
+        return 0
+    if cmd == "cve-db-import" and len(argv) == 4:
+        shutil.copyfile(argv[3], cve_db(argv[2]))
+        os.chmod(cve_db(argv[2]), 0o600)
+        return 0
+    print(__doc__, file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

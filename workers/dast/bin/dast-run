@@ -1,0 +1,652 @@
+#!/opt/pathos/dast/bin/python -I
+"""dast-run: runs one worker-dast tool against one web or API scan target.
+
+usage: dast-run <tool> --version
+       dast-run <tool> <target_url> <output> <tmp> [<api definition>]
+
+The tool manifests in /opt/pathos/tools.d call this helper; it is the only
+way the image runs its DAST tools. For every run it
+
+  * starts a local forward proxy (127.0.0.1, random port) that the tool must
+    use. The proxy forwards only requests and TLS tunnels to the target's
+    host (on the target's port, 80 or 443) and refuses everything else (other
+    hosts, third-party services, callback servers), and it forwards through
+    the worker's egress proxy (HTTPS_PROXY/HTTP_PROXY) when one is set, so
+    the deployment's egress allowlist still applies;
+  * limits new requests and tunnels to the target's rate limit (requests per
+    second, PATHOS_TARGET_RATE_LIMIT, set by the worker: 1-100, default 20)
+    and passes the same limit to the tool's own rate option where it has
+    one (requests inside a kept-alive TLS tunnel are limited only by that
+    option);
+  * writes the tool's report to <output> in the format of the manifest's
+    parser, or an empty report of that format when the tool found nothing.
+
+The tools run with fixed, reviewed options only: nothing from the target
+(or from PATHOS) can add command-line options. Target credentials are not
+passed to these tools.
+"""
+import glob
+import json
+import os
+import re
+import select
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+from urllib.parse import urlsplit
+
+DAST = "/opt/pathos/dast"
+BIN = DAST + "/bin"
+ZAP_DIR = "/opt/pathos/zap"
+TESTSSL = "/opt/pathos/testssl/testssl.sh"
+NIKTO = "/opt/pathos/nikto/program/nikto.pl"
+WORDLIST = DAST + "/share/ffuf-wordlist.txt"
+
+
+def log(msg):
+    print("dast-run: " + msg, file=sys.stderr, flush=True)
+
+
+# --- target ---------------------------------------------------------------
+
+class Target:
+    def __init__(self, url):
+        u = urlsplit(url)
+        if u.scheme not in ("http", "https") or not u.hostname or u.username or u.password:
+            raise SystemExit("dast-run: the target must be an http or https URL without credentials")
+        self.url = url
+        self.scheme = u.scheme
+        self.host = u.hostname.lower()
+        self.port = u.port or (443 if u.scheme == "https" else 80)
+        # host:port as written in URLs (IPv6 in brackets).
+        self.hostport = ("[%s]" % self.host if ":" in self.host else self.host) + ":%d" % self.port
+        self.origin = "%s://%s" % (self.scheme, self.hostport)
+
+    def allowed(self, host, port):
+        return host.lower().strip("[]") == self.host and port in (self.port, 80, 443)
+
+
+def rate_limit():
+    try:
+        r = int(os.environ.get("PATHOS_TARGET_RATE_LIMIT", "20"))
+    except ValueError:
+        r = 20
+    return min(max(r, 1), 100)
+
+
+# --- scope proxy ----------------------------------------------------------
+
+class Bucket:
+    """Token bucket: at most rate acquisitions per second (burst: rate)."""
+
+    def __init__(self, rate):
+        self.rate, self.tokens, self.last = float(rate), float(rate), time.monotonic()
+        self.lock = threading.Lock()
+
+    def take(self):
+        while True:
+            with self.lock:
+                now = time.monotonic()
+                self.tokens = min(self.rate, self.tokens + (now - self.last) * self.rate)
+                self.last = now
+                if self.tokens >= 1:
+                    self.tokens -= 1
+                    return
+                wait = (1 - self.tokens) / self.rate
+            time.sleep(wait)
+
+
+def upstream_proxy():
+    for k in ("HTTPS_PROXY", "https_proxy", "HTTP_PROXY", "http_proxy"):
+        v = os.environ.get(k, "")
+        if v:
+            u = urlsplit(v if "://" in v else "http://" + v)
+            if u.scheme != "http" or not u.hostname:
+                raise SystemExit("dast-run: unsupported egress proxy %r (an http:// proxy is required)" % v)
+            return u.hostname, u.port or 3128
+    return None
+
+
+class ScopeProxy:
+    """A forward proxy that only reaches the target host."""
+
+    MAX_HEAD = 64 << 10
+
+    def __init__(self, target, rate):
+        self.target, self.bucket, self.upstream = target, Bucket(rate), upstream_proxy()
+        self.blocked = {}
+        self.requests = 0
+        self.lock = threading.Lock()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.bind(("127.0.0.1", 0))
+        self.sock.listen(128)
+        self.port = self.sock.getsockname()[1]
+        self.url = "http://127.0.0.1:%d" % self.port
+        threading.Thread(target=self.serve, daemon=True).start()
+
+    def serve(self):
+        while True:
+            try:
+                c, _ = self.sock.accept()
+            except OSError:
+                return
+            threading.Thread(target=self.handle, args=(c,), daemon=True).start()
+
+    def block(self, what):
+        with self.lock:
+            self.blocked[what] = self.blocked.get(what, 0) + 1
+
+    @staticmethod
+    def read_head(c):
+        # Some clients (testssl.sh) end lines with LF only.
+        buf = b""
+        while True:
+            ends = [(i, len(t)) for t in (b"\r\n\r\n", b"\n\n") for i in [buf.find(t)] if i >= 0]
+            if ends:
+                i, n = min(ends)
+                return buf[:i].decode("iso-8859-1"), buf[i + n:]
+            chunk = c.recv(8192)
+            if not chunk:
+                return None, b""
+            buf += chunk
+            if len(buf) > ScopeProxy.MAX_HEAD:
+                return None, b""
+
+    def connect(self, host, port):
+        """A TCP connection to host:port (a tunnel through the egress proxy
+        when there is one)."""
+        if self.upstream is None:
+            return socket.create_connection((host, port), timeout=30)
+        s = socket.create_connection(self.upstream, timeout=30)
+        hp = ("[%s]" % host if ":" in host else host) + ":%d" % port
+        s.sendall(("CONNECT %s HTTP/1.1\r\nHost: %s\r\n\r\n" % (hp, hp)).encode())
+        head, rest = self.read_head(s)
+        status = head.split(" ", 2)[1] if head and " " in head else "?"
+        if status != "200":
+            s.close()
+            raise OSError("egress proxy answered %s" % status)
+        if rest:
+            raise OSError("unexpected data from the egress proxy")
+        return s
+
+    def handle(self, c):
+        try:
+            c.settimeout(120)
+            head, rest = self.read_head(c)
+            if head is None:
+                return
+            lines = head.splitlines()
+            line, headers = (lines[0] if lines else ""), lines[1:]
+            parts = line.split(" ")
+            if len(parts) != 3:
+                c.sendall(b"HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+                return
+            method, uri, _ = parts
+            if method == "CONNECT":
+                self.tunnel(c, uri, rest)
+            else:
+                self.forward(c, method, uri, headers, rest)
+        except (OSError, ValueError):
+            pass
+        finally:
+            c.close()
+
+    def refuse(self, c, what):
+        self.block(what)
+        c.sendall(b"HTTP/1.1 403 Forbidden\r\nX-Pathos-Scope: outside the scan target\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+
+    def tunnel(self, c, uri, rest):
+        host, _, port = uri.rpartition(":")
+        if not port.isdigit() or not self.target.allowed(host, int(port)):
+            self.refuse(c, uri)
+            return
+        self.bucket.take()
+        with self.lock:
+            self.requests += 1
+        try:
+            u = self.connect(host.strip("[]"), int(port))
+        except OSError as e:
+            c.sendall(("HTTP/1.1 502 Bad Gateway\r\nX-Pathos-Error: %s\r\nConnection: close\r\nContent-Length: 0\r\n\r\n" % str(e)[:200]).encode())
+            return
+        c.sendall(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        if rest:
+            u.sendall(rest)
+        relay(c, u)
+
+    def forward(self, c, method, uri, headers, rest):
+        u = urlsplit(uri)
+        if u.scheme != "http" or not u.hostname:
+            self.refuse(c, uri[:100])
+            return
+        port = u.port or 80
+        if not self.target.allowed(u.hostname, port):
+            self.refuse(c, "%s:%d" % (u.hostname, port))
+            return
+        self.bucket.take()
+        with self.lock:
+            self.requests += 1
+        # One request per connection: hop-by-hop headers are dropped and the
+        # body is relayed by its declared length, so nothing but this request
+        # reaches the target through this connection.
+        keep, length, chunked = [], 0, False
+        for h in headers:
+            name, _, value = h.partition(":")
+            n = name.strip().lower()
+            if n in ("connection", "proxy-connection", "keep-alive", "proxy-authorization", "te", "upgrade"):
+                continue
+            if n == "content-length":
+                length = int(value.strip())
+            if n == "transfer-encoding":
+                if value.strip().lower() != "chunked":
+                    raise ValueError("unsupported transfer-encoding")
+                chunked = True
+            keep.append(h)
+        keep.append("Connection: close")
+        if self.upstream is None:
+            path = u.path or "/"
+            if u.query:
+                path += "?" + u.query
+            line = "%s %s HTTP/1.1" % (method, path)
+        else:
+            line = "%s %s HTTP/1.1" % (method, uri)
+        try:
+            if self.upstream is None:
+                s = socket.create_connection((u.hostname, port), timeout=30)
+            else:
+                s = socket.create_connection(self.upstream, timeout=30)
+        except OSError:
+            c.sendall(b"HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\nContent-Length: 0\r\n\r\n")
+            return
+        try:
+            s.sendall(("\r\n".join([line] + keep) + "\r\n\r\n").encode("iso-8859-1"))
+            if chunked:
+                send_chunked(c, s, rest)
+            else:
+                body = rest[:length]
+                s.sendall(body)
+                remaining = length - len(body)
+                while remaining > 0:
+                    chunk = c.recv(min(65536, remaining))
+                    if not chunk:
+                        break
+                    s.sendall(chunk)
+                    remaining -= len(chunk)
+            while True:
+                chunk = s.recv(65536)
+                if not chunk:
+                    break
+                c.sendall(chunk)
+        finally:
+            s.close()
+
+    def summary(self):
+        with self.lock:
+            log("%d requests or tunnels to %s" % (self.requests, self.target.host))
+            if self.blocked:
+                top = sorted(self.blocked.items(), key=lambda kv: -kv[1])[:10]
+                log("refused (outside the scan target): " + ", ".join("%s (%d)" % kv for kv in top))
+
+
+def send_chunked(c, s, buf):
+    """Relays one chunked request body (and nothing after it)."""
+    def need(n):
+        nonlocal buf
+        while len(buf) < n:
+            chunk = c.recv(65536)
+            if not chunk:
+                raise ValueError("truncated chunked body")
+            buf += chunk
+
+    def line():
+        nonlocal buf
+        while b"\r\n" not in buf:
+            need(len(buf) + 1)
+        ln, buf = buf.split(b"\r\n", 1)
+        return ln
+
+    while True:
+        size_line = line()
+        s.sendall(size_line + b"\r\n")
+        size = int(size_line.split(b";")[0].strip() or b"0", 16)
+        if size == 0:
+            while True:  # trailers up to the empty line
+                t = line()
+                s.sendall(t + b"\r\n")
+                if not t:
+                    return
+        need(size + 2)
+        s.sendall(buf[:size + 2])
+        buf = buf[size + 2:]
+
+
+def relay(a, b):
+    a.settimeout(None)
+    b.settimeout(None)
+    socks = [a, b]
+    try:
+        while True:
+            r, _, _ = select.select(socks, [], [], 300)
+            if not r:
+                return
+            for s in r:
+                data = s.recv(65536)
+                if not data:
+                    return
+                (b if s is a else a).sendall(data)
+    except OSError:
+        return
+    finally:
+        b.close()
+
+
+# --- tools ------------------------------------------------------------------
+
+def zap_plan(ctx, mode):
+    t = ctx.target
+    host_re = re.escape(t.host)
+    include = "^https?://%s(:[0-9]+)?([/?#].*)?$" % host_re
+    lines = [
+        "env:",
+        "  contexts:",
+        "    - name: target",
+        "      urls: [%s]" % json.dumps(t.url),
+        "      includePaths: [%s]" % json.dumps(include),
+        "  parameters:",
+        "    failOnError: true",
+        "    failOnWarning: false",
+        "    progressToStdout: false",
+        "jobs:",
+        "  - type: passiveScan-config",
+        "    parameters: {maxAlertsPerRule: 10, scanOnlyInScope: true, maxBodySizeInBytesToScan: 1000000}",
+    ]
+    if mode == "api":
+        kind, path = api_definition(ctx.definition)
+        if kind == "graphql":
+            lines += ["  - type: graphql", "    parameters: {endpoint: %s, schemaFile: %s}" % (json.dumps(t.url), json.dumps(path))]
+        elif kind == "soap":
+            lines += ["  - type: soap", "    parameters: {wsdlFile: %s}" % json.dumps(path)]
+        else:
+            lines += ["  - type: openapi", "    parameters: {apiFile: %s, targetUrl: %s, context: target}" % (json.dumps(path), json.dumps(t.url))]
+    else:
+        lines += ["  - type: spider",
+                  "    parameters: {context: target, maxDuration: 5, maxDepth: 5, maxChildren: 50, threadCount: 2}"]
+    lines += ["  - type: passiveScan-wait", "    parameters: {maxDuration: 10}"]
+    if mode in ("full", "api"):
+        lines += ["  - type: activeScan",
+                  "    parameters: {context: target, maxRuleDurationInMins: 5, maxScanDurationInMins: 60, threadPerHost: 2}"]
+    lines += ["  - type: report",
+              "    parameters: {template: traditional-json, reportDir: %s, reportFile: zap-report}" % json.dumps(ctx.tmp)]
+    p = os.path.join(ctx.tmp, "zap-plan.yaml")
+    with open(p, "w") as f:
+        f.write("\n".join(lines) + "\n")
+    return p
+
+
+def api_definition(path):
+    """The kind of an API definition file: openapi, graphql (SDL) or soap (WSDL)."""
+    with open(path, "rb") as f:
+        head = f.read(64 << 10).decode("utf-8", "replace")
+    s = head.lstrip()
+    if s.startswith("<") and re.search(r"<(\w+:)?definitions\b", s):
+        return "soap", path
+    if re.search(r"^\s*(type\s+Query\b|schema\s*\{)", head, re.M) and not re.search(r"^\s*(openapi|swagger)\s*:", head, re.M) \
+            and not s.startswith("{"):
+        return "graphql", path
+    return "openapi", path
+
+
+def zap_cmd(ctx, mode):
+    home = os.path.join(ctx.tmp, "zap-home")
+    os.makedirs(home, exist_ok=True)
+    jar = zap_jar()
+    heap = os.environ.get("ZAP_HEAP", "1g")
+    if not re.fullmatch(r"[0-9]{1,5}[mg]", heap):
+        heap = "1g"
+    opts = {
+        "start.checkForUpdates": "false",
+        "callhome.tel.enabled": "false",
+        "start.addonDirectories": "",
+        "network.connection.httpProxy.enabled": "true",
+        "network.connection.httpProxy.host": "127.0.0.1",
+        "network.connection.httpProxy.port": str(ctx.proxy.port),
+        "network.ratelimit.rules.rule(0).description": "pathos-target",
+        "network.ratelimit.rules.rule(0).enabled": "true",
+        "network.ratelimit.rules.rule(0).matchStr": ".*",
+        "network.ratelimit.rules.rule(0).regex": "true",
+        "network.ratelimit.rules.rule(0).reqsPerSec": str(ctx.rate),
+        "network.ratelimit.rules.rule(0).groupBy": "RULE",
+        # No out-of-band callback service (it would contact a third party).
+        "oast.activeScanService": "None",
+        "oast.boast.uri": "",
+        "oast.interactsh.uri": "",
+        "database.recoverylog": "false",
+    }
+    argv = ["java", "-Xmx" + heap, "-Djava.awt.headless=true", "-jar", jar, "-cmd", "-silent", "-dir", home,
+            "-installdir", ZAP_DIR]
+    for k, v in opts.items():
+        argv += ["-config", "%s=%s" % (k, v)]
+    argv += ["-autorun", zap_plan(ctx, mode)]
+    return argv
+
+
+def zap_jar():
+    jars = glob.glob(ZAP_DIR + "/zap-*.jar")
+    if len(jars) != 1:
+        raise SystemExit("dast-run: ZAP is not installed")
+    return jars[0]
+
+
+def zap_version():
+    return "ZAP " + os.path.basename(zap_jar())[4:-4]
+
+
+def zap_report(ctx, rc):
+    rep = os.path.join(ctx.tmp, "zap-report.json")
+    if not os.path.exists(rep):
+        raise SystemExit("dast-run: ZAP wrote no report (exit status %d)" % rc)
+    shutil.copyfile(rep, ctx.out)
+    # 0: done, 2: done with warnings in the plan (e.g. a job found no URLs).
+    return 0 if rc in (0, 2) else rc
+
+
+def wapiti_cmd(ctx):
+    # Modules: the default attack set without ssrf (it needs Wapiti's public
+    # callback endpoint) and ssl (direct TLS connections that bypass the
+    # proxy; testssl.sh and SSLyze cover TLS), plus checks that need no third
+    # party. Not used: nikto and wapp (download databases), takeover and
+    # log4shell (third-party DNS), buster and brute_login_form (brute force),
+    # timesql (time-based probes).
+    modules = "exec,file,permanentxss,redirect,sql,upload,xss,crlf,csrf,htaccess,methods,backup,shellshock"
+    return [BIN + "/wapiti", "-u", ctx.target.url, "--scope", "folder", "-m", modules, "-p", ctx.proxy.url,
+            "-f", "json", "-o", ctx.out, "--flush-session", "--store-session", os.path.join(ctx.tmp, "wapiti-session"),
+            "--store-config", os.path.join(ctx.tmp, "wapiti-config"), "--max-scan-time", "3000", "--max-attack-time", "600",
+            "--tasks", "4", "-t", "15", "-v", "1", "--no-bugreport"]
+
+
+def dalfox_cmd(ctx):
+    # Remote payload and wordlist downloads and blind (out-of-band) XSS are
+    # off by default and are not enabled.
+    return [BIN + "/dalfox", "scan", ctx.target.url, "--format", "json", "--output", ctx.out, "--proxy", ctx.proxy.url,
+            "--rate-limit", str(ctx.rate), "--workers", "4", "--timeout", "10", "--scan-timeout", "1800",
+            "--insecure", "--no-color", "--silence"]
+
+
+def ffuf_cmd(ctx):
+    base = ctx.target.url.split("?", 1)[0].split("#", 1)[0].rstrip("/")
+    return [BIN + "/ffuf", "-u", base + "/FUZZ", "-w", WORDLIST, "-x", ctx.proxy.url, "-rate", str(ctx.rate), "-t", "4",
+            "-timeout", "10", "-maxtime", "1800", "-mc", "200,204,301,302,307,308,401,403,405,500", "-ac",
+            "-of", "json", "-o", ctx.out, "-s", "-noninteractive"]
+
+
+def sqlmap_cmd(ctx):
+    # Detection only: --risk=1 --level=1 in batch mode. No option that
+    # dumps data, reads or writes files, runs SQL or OS commands or
+    # escalates privileges is ever passed.
+    targets = os.path.join(ctx.tmp, "sqlmap-targets.txt")
+    with open(targets, "w") as f:
+        f.write(ctx.target.url + "\n")
+    return [BIN + "/sqlmap", "-m", targets, "--batch", "--risk=1", "--level=1", "--crawl=2", "--forms", "--smart",
+            "--proxy", ctx.proxy.url, "--delay", "%.3f" % (1.0 / ctx.rate), "--threads", "1", "--timeout", "15", "--retries", "1",
+            "--results-file", ctx.out, "--output-dir", os.path.join(ctx.tmp, "sqlmap"), "--disable-coloring",
+            "--answers", "follow=N,skip further tests=N,normalize crawling results=Y,store crawling results=N"]
+
+
+def nikto_cmd(ctx):
+    t = ctx.target
+    # Tuning x6: every test category except denial of service. -nocheck:
+    # no version check against Nikto's telemetry server; -ask no: never
+    # submit version strings to CIRT.net.
+    return ["perl", NIKTO, "-h", t.url, "-Format", "json", "-o", ctx.out, "-useproxy", ctx.proxy.url, "-Tuning", "x6",
+            "-Pause", "%.3f" % (1.0 / ctx.rate), "-timeout", "10", "-maxtime", "1800s", "-ask", "no", "-nointeractive", "-nocheck"]
+
+
+def testssl_cmd(ctx):
+    t = ctx.target
+    return ["bash", TESTSSL, "--jsonfile", ctx.out, "--overwrite", "--quiet", "--color", "0", "--warnings", "off",
+            "--proxy", "127.0.0.1:%d" % ctx.proxy.port, "--ip", "proxy", "--connect-timeout", "10", "--openssl-timeout", "10",
+            "--sneaky", t.hostport]
+
+
+def sslyze_cmd(ctx):
+    return [BIN + "/sslyze", "--json_out", ctx.out, "--quiet", "--https_tunnel", ctx.proxy.url, ctx.target.hostport]
+
+
+def schemathesis_cmd(ctx):
+    return [BIN + "/schemathesis", "run", ctx.definition, "--url", ctx.target.url, "--proxy", ctx.proxy.url,
+            "--rate-limit", "%d/s" % ctx.rate, "--workers", "1", "--phases", "examples,coverage,fuzzing,stateful",
+            "--checks", "all", "--max-examples", "10", "--max-time", "900", "--request-timeout", "10", "--tls-verify", "false",
+            "--generation-database", "none", "--report", "json", "--report-json-path", ctx.out, "--no-color"]
+
+
+def arjun_cmd(ctx):
+    # Never --passive (it queries third-party archives).
+    return [BIN + "/arjun", "-u", ctx.target.url, "-oJ", ctx.out, "-t", "2", "--rate-limit", str(ctx.rate), "-T", "10", "-q"]
+
+
+def arjun_report(ctx, rc):
+    """Arjun writes an object keyed by URL ({url: {params, method, headers}})
+    and nothing when it finds no parameter. The report keeps that object
+    unchanged under "arjun" and adds one record per parameter for the
+    manifest's jsonmap parser."""
+    if rc != 0:
+        log("arjun exited with %d" % rc)
+        return rc if rc > 0 else 1
+    found = {}
+    if os.path.exists(ctx.out) and os.path.getsize(ctx.out) > 0:
+        with open(ctx.out) as f:
+            found = json.load(f)
+    records = []
+    for url, r in sorted(found.items()):
+        for p in r.get("params") or []:
+            records.append({"rule": "hidden-parameter", "url": url, "method": r.get("method", "GET"), "param": p})
+    with open(ctx.out, "w") as f:
+        json.dump({"tool": "arjun", "arjun": found, "records": records}, f, indent=1)
+    return 0
+
+
+def http_only(ctx):
+    if ctx.target.scheme != "https":
+        return "the target is not an https URL"
+    return ""
+
+
+# name -> (command builder, version command, ok exit codes, empty report,
+#          skip check, report post-processing)
+TOOLS = {
+    "zap-baseline": (lambda c: zap_cmd(c, "baseline"), None, None, None, None, zap_report),
+    "zap-full-scan": (lambda c: zap_cmd(c, "full"), None, None, None, None, zap_report),
+    "zap-api-scan": (lambda c: zap_cmd(c, "api"), None, None, None, None, zap_report),
+    "wapiti": (wapiti_cmd, [BIN + "/wapiti", "--version"], (0,), None, None, None),
+    "dalfox": (dalfox_cmd, [BIN + "/dalfox", "--version"], (0, 1), "[]", None, None),
+    "ffuf": (ffuf_cmd, [BIN + "/ffuf", "-V"], (0,), None, None, None),
+    "sqlmap": (sqlmap_cmd, [BIN + "/sqlmap", "--version"], (0,), "Target URL,Place,Parameter,Technique(s),Note(s)\n", None, None),
+    "nikto": (nikto_cmd, ["perl", NIKTO, "-Version"], (0, 1), None, None, None),
+    "testssl": (testssl_cmd, ["bash", TESTSSL, "--version"], None, "[]", http_only, None),
+    # SSLyze exits with 1 when the server is not compliant with Mozilla's
+    # intermediate configuration (findings, not an error).
+    "sslyze": (sslyze_cmd, [BIN + "/sslyze", "--help"], (0, 1), None, http_only, None),
+    "schemathesis": (schemathesis_cmd, [BIN + "/schemathesis", "--version"], (0, 1), None, None, None),
+    "arjun": (arjun_cmd, [BIN + "/arjun", "-h"], (0,), None, None, arjun_report),
+}
+
+
+class Ctx:
+    pass
+
+
+def version(name):
+    """Prints "<tool> <version>"."""
+    import importlib.metadata as md
+    if name.startswith("zap-"):
+        print(zap_version())
+        return 0
+    if name in ("wapiti", "sslyze", "schemathesis", "arjun", "sqlmap"):
+        dist = {"wapiti": "wapiti3"}.get(name, name)
+        print("%s %s" % (name, md.version(dist)))
+        return 0
+    if name == "ffuf":
+        # ffuf v2.3.0 prints "2.1.0-dev"; the image records the module version.
+        with open(DAST + "/share/ffuf.version") as f:
+            print("ffuf " + f.read().strip())
+        return 0
+    out = subprocess.run(TOOLS[name][1], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=120, check=False).stdout.decode("utf-8", "replace")
+    out = re.sub(r"\x1b\[[0-9;]*m", "", out)
+    m = re.search(r"([0-9]+\.[0-9]+(?:\.[0-9]+)?)", out)
+    print("%s %s" % (name, m.group(1) if m else "unknown"))
+    return 0
+
+
+def main(argv):
+    if len(argv) >= 2 and argv[0] in TOOLS and argv[1] == "--version":
+        return version(argv[0])
+    if len(argv) not in (4, 5) or argv[0] not in TOOLS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    name = argv[0]
+    build, _, ok_codes, empty, skip, post = TOOLS[name]
+    ctx = Ctx()
+    ctx.target = Target(argv[1])
+    ctx.out, ctx.tmp = argv[2], argv[3]
+    ctx.definition = argv[4] if len(argv) == 5 else ""
+    ctx.rate = rate_limit()
+    if name in ("zap-api-scan", "schemathesis") and not (ctx.definition and os.path.isfile(ctx.definition)):
+        log("%s needs an API definition (an API target's OpenAPI document)" % name)
+        return 2
+    os.makedirs(ctx.tmp, exist_ok=True)
+    os.chdir(ctx.tmp)
+    if skip and skip(ctx):
+        log("skipped: " + skip(ctx))
+        with open(ctx.out, "w") as f:
+            f.write(empty or "")
+        return 0
+    ctx.proxy = ScopeProxy(ctx.target, ctx.rate)
+    argv = build(ctx)
+    env = {k: v for k, v in os.environ.items() if k.upper() not in ("HTTPS_PROXY", "HTTP_PROXY", "ALL_PROXY", "NO_PROXY")}
+    env.update({"HTTPS_PROXY": ctx.proxy.url, "HTTP_PROXY": ctx.proxy.url, "https_proxy": ctx.proxy.url,
+                "http_proxy": ctx.proxy.url, "NO_PROXY": "", "no_proxy": "", "HOME": env.get("HOME", "/tmp/home"),
+                "PYTHONDONTWRITEBYTECODE": "1", "NO_COLOR": "1"})
+    log("%s -> %s (rate limit %d/s)" % (name, ctx.target.origin, ctx.rate))
+    rc = subprocess.run(argv, env=env, check=False).returncode
+    ctx.proxy.summary()
+    if post:
+        return post(ctx, rc)
+    if ok_codes is not None and rc not in ok_codes:
+        log("%s exited with %d" % (name, rc))
+        return rc if rc > 0 else 1
+    if not os.path.exists(ctx.out) or os.path.getsize(ctx.out) == 0:
+        if empty is None:
+            log("%s wrote no report" % name)
+            return 1
+        with open(ctx.out, "w") as f:
+            f.write(empty)
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main(sys.argv[1:]))
+    except KeyboardInterrupt:
+        sys.exit(130)

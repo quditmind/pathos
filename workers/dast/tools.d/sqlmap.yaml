@@ -1,0 +1,25 @@
+# sqlmap: SQL injection detection in batch mode with --risk=1 --level=1, from
+# the target URL, its forms and a crawl of depth 2. Never dumps data, reads or
+# writes files, or runs commands. Intrusive. Opt-in build only (WITH_SQLMAP,
+# see workers/dast/Dockerfile): the image without sqlmap has no such manifest.
+# Runs through dast-run, which confines the tool to the target host (through
+# the egress proxy) and its rate limit.
+name: sqlmap
+display_name: sqlmap
+category: database
+scan_types: [database, dast]
+license_spdx: GPL-2.0-or-later
+homepage: https://sqlmap.org
+family: dast
+targets: [url]
+command: /opt/pathos/dast/bin/dast-run
+version_args: ["sqlmap", "--version"]
+args: ["sqlmap", "{target_url}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 1h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:sqlmap

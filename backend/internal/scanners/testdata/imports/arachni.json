@@ -1,0 +1,335 @@
+{
+  "version" : "1.5.1",
+  "seed" : "8b9207c6eb76d2805c88ee10e92eedcc",
+  "options" : {
+    "datastore" : {
+      "report_path" : "/out/scan.afr"
+    },
+    "audit" : {
+      "parameter_values" : true,
+      "exclude_vector_patterns" : [],
+      "include_vector_patterns" : [],
+      "link_templates" : [],
+      "links" : true,
+      "forms" : true,
+      "cookies" : true,
+      "ui_inputs" : true,
+      "ui_forms" : true,
+      "jsons" : true,
+      "xmls" : true
+    },
+    "scope" : {
+      "redundant_path_patterns" : {},
+      "dom_depth_limit" : 5,
+      "exclude_file_extensions" : [],
+      "exclude_path_patterns" : [],
+      "exclude_content_patterns" : [],
+      "include_path_patterns" : [],
+      "restrict_paths" : [],
+      "extend_paths" : [],
+      "url_rewrites" : {},
+      "page_limit" : 10
+    },
+    "session" : {},
+    "input" : {
+      "values" : {},
+      "default_values" : {
+        "name" : "arachni_name",
+        "user" : "arachni_user",
+        "usr" : "arachni_user",
+        "pass" : "5543!%arachni_secret",
+        "txt" : "arachni_text",
+        "num" : "132",
+        "amount" : "100",
+        "mail" : "arachni@email.gr",
+        "account" : "12",
+        "id" : "1"
+      },
+      "without_defaults" : false,
+      "force" : false
+    },
+    "browser_cluster" : {
+      "local_storage" : {},
+      "wait_for_elements" : {},
+      "pool_size" : 6,
+      "job_timeout" : 10,
+      "worker_time_to_live" : 100,
+      "ignore_images" : false,
+      "screen_width" : 1600,
+      "screen_height" : 1200
+    },
+    "http" : {
+      "user_agent" : "Arachni/v1.5.1",
+      "request_timeout" : 10000,
+      "request_redirect_limit" : 5,
+      "request_concurrency" : 20,
+      "request_queue_size" : 100,
+      "request_headers" : {
+        "Authorization" : "Bearer a3bearertokensecret123"
+      },
+      "response_max_size" : 500000,
+      "cookies" : {},
+      "authentication_type" : "auto",
+      "cookie_string" : "session=a3cookiesecret"
+    },
+    "checks" : [
+      "xss",
+      "sql_injection",
+      "interesting_responses"
+    ],
+    "platforms" : [],
+    "plugins" : {},
+    "no_fingerprinting" : false,
+    "authorized_by" : null,
+    "url" : "http://target:8080/"
+  },
+  "sitemap" : {
+    "http://target:8080/" : 200,
+    "http://target:8080/search?q=" : 200,
+    "http://target:8080/search?q=1" : 200,
+    "http://target:8080/search?q=hello" : 200,
+    "http://target:8080/user?id=1" : 200,
+    "http://target:8080/search" : 200
+  },
+  "start_datetime" : "2026-11-19 06:36:03 +0000",
+  "finish_datetime" : "2026-11-19 06:36:09 +0000",
+  "delta_time" : "00:00:06",
+  "issues" : [
+    {
+      "name" : "Cross-Site Scripting (XSS)",
+      "description" : "\nClient-side scripts are used extensively by modern web applications.\nThey perform from simple functions (such as the formatting of text) up to full\nmanipulation of client-side data and Operating System interaction.\n\nCross Site Scripting (XSS) allows clients to inject scripts into a request and\nhave the server return the script to the client in the response. This occurs\nbecause the application is taking untrusted data (in this example, from the client)\nand reusing it without performing any validation or sanitisation.\n\nIf the injected script is returned immediately this is known as reflected XSS.\nIf the injected script is stored by the server and returned to any client visiting\nthe affected page, then this is known as persistent XSS (also stored XSS).\n\nArachni has discovered that it is possible to insert script content directly into\nHTML element content.\n",
+      "references" : {
+        "Secunia" : "http://secunia.com/advisories/9716/",
+        "WASC" : "http://projects.webappsec.org/w/page/13246920/Cross%20Site%20Scripting",
+        "OWASP" : "https://www.owasp.org/index.php/XSS_%28Cross_Site_Scripting%29_Prevention_Cheat_Sheet"
+      },
+      "tags" : [
+        "xss",
+        "regexp",
+        "injection",
+        "script"
+      ],
+      "cwe" : 79,
+      "severity" : "high",
+      "remedy_guidance" : "\nTo remedy XSS vulnerabilities, it is important to never use untrusted or unfiltered\ndata within the code of a HTML page.\n\nUntrusted data can originate not only form the client but potentially a third\nparty or previously uploaded file etc.\n\nFiltering of untrusted data typically involves converting special characters to\ntheir HTML entity encoded counterparts (however, other methods do exist, see references).\nThese special characters include:\n\n* `&`\n* `<`\n* `>`\n* `\"`\n* `'`\n* `/`\n\nAn example of HTML entity encoding is converting `<` to `&lt;`.\n\nAlthough it is possible to filter untrusted input, there are five locations\nwithin an HTML page where untrusted input (even if it has been filtered) should\nnever be placed:\n\n1. Directly in a script.\n2. Inside an HTML comment.\n3. In an attribute name.\n4. In a tag name.\n5. Directly in CSS.\n\nEach of these locations have their own form of escaping and filtering.\n\n_Because many browsers attempt to implement XSS protection, any manual verification\nof this finding should be conducted using multiple different browsers and browser\nversions._\n",
+      "check" : {
+        "name" : "XSS",
+        "description" : "\nInjects an HTML element into page inputs and then parses the HTML markup of\ntainted responses to look for proof of vulnerability.\n",
+        "elements" : [
+          "form",
+          "link",
+          "cookie",
+          "header",
+          "link_template"
+        ],
+        "author" : "Tasos \"Zapotek\" Laskos <tasos.laskos@arachni-scanner.com> ",
+        "version" : "0.4.9",
+        "shortname" : "xss"
+      },
+      "vector" : {
+        "class" : "Arachni::Element::Form",
+        "type" : "form",
+        "url" : "http://target:8080/",
+        "source" : "<form action=\"/search\">\n  <input name=\"q\">\n  </input>\n</form>",
+        "inputs" : {
+          "q" : "1<xss_8b9207c6eb76d2805c88ee10e92eedcc/>"
+        },
+        "raw_inputs" : [],
+        "default_inputs" : {
+          "q" : ""
+        },
+        "action" : "http://target:8080/search",
+        "method" : "get",
+        "affected_input_name" : "q",
+        "affected_input_value" : "1<xss_8b9207c6eb76d2805c88ee10e92eedcc/>",
+        "seed" : "<xss_8b9207c6eb76d2805c88ee10e92eedcc/>"
+      },
+      "proof" : "<xss_8b9207c6eb76d2805c88ee10e92eedcc/>",
+      "referring_page" : {
+        "body" : "<html><body><a href=\"/search?q=hello\">search</a> <a href=\"/user?id=1\">user</a><form action=\"/search\"><input name=\"q\"></form></body></html>",
+        "dom" : {
+          "url" : "http://target:8080/",
+          "transitions" : [],
+          "cookies" : [],
+          "digest" : null,
+          "data_flow_sinks" : [],
+          "execution_flow_sinks" : []
+        }
+      },
+      "page" : {
+        "body" : "<html><body>Results for 1<xss_8b9207c6eb76d2805c88ee10e92eedcc/></body></html>",
+        "dom" : {
+          "url" : "http://target:8080/search?q=1%3Cxss_8b9207c6eb76d2805c88ee10e92eedcc/%3E",
+          "transitions" : [],
+          "cookies" : [],
+          "digest" : null,
+          "data_flow_sinks" : [],
+          "execution_flow_sinks" : []
+        }
+      },
+      "remarks" : {},
+      "trusted" : true,
+      "cwe_url" : "http://cwe.mitre.org/data/definitions/79.html",
+      "digest" : 2447583001,
+      "response" : {
+        "headers" : {
+          "Server" : "Apache/2.2.8 Python/3.13.18",
+          "Date" : "Thu, 19 Nov 2026 06:36:07 GMT",
+          "Content-Type" : "text/html",
+          "Set-Cookie" : "session=a3sessionsecret; Path=/",
+          "Content-Length" : "78"
+        },
+        "url" : "http://target:8080/search?q=1%3Cxss_8b9207c6eb76d2805c88ee10e92eedcc/%3E",
+        "code" : 200,
+        "ip_address" : "172.23.0.2",
+        "headers_string" : "HTTP/1.0 200 OK\r\nServer: Apache/2.2.8 Python/3.13.18\r\nDate: Thu, 19 Nov 2026 06:36:07 GMT\r\nContent-Type: text/html\r\nSet-Cookie: session=a3sessionsecret; Path=/\r\nContent-Length: 78\r\n\r\n",
+        "body" : "<html><body>Results for 1<xss_8b9207c6eb76d2805c88ee10e92eedcc/></body></html>",
+        "time" : 0.002802,
+        "app_time" : 0.001886,
+        "total_time" : 0.002802,
+        "return_code" : "ok",
+        "return_message" : "No error"
+      },
+      "request" : {
+        "url" : "http://target:8080/search",
+        "parameters" : {
+          "q" : "1<xss_8b9207c6eb76d2805c88ee10e92eedcc/>"
+        },
+        "headers" : {
+          "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "User-Agent" : "Arachni/v1.5.1",
+          "Accept-Language" : "en-US,en;q=0.8,he;q=0.6",
+          "X-Arachni-Scan-Seed" : "8b9207c6eb76d2805c88ee10e92eedcc",
+          "Authorization" : "Bearer a3bearertokensecret123",
+          "Cookie" : "session=a3sessionsecret"
+        },
+        "headers_string" : "GET /search?q=1%3Cxss_8b9207c6eb76d2805c88ee10e92eedcc%2F%3E HTTP/1.1\r\nHost: target:8080\r\nAccept-Encoding: gzip, deflate\r\nUser-Agent: Arachni/v1.5.1\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8,he;q=0.6\r\nX-Arachni-Scan-Seed: 8b9207c6eb76d2805c88ee10e92eedcc\r\nAuthorization: Bearer a3bearertokensecret123\r\nCookie: session=a3sessionsecret\r\n\r\n",
+        "effective_body" : null,
+        "body" : null,
+        "method" : "get"
+      }
+    },
+    {
+      "name" : "Interesting response",
+      "description" : "\nThe server responded with a non 200 (OK) nor 404 (Not Found) status code.\nThis is a non-issue, however exotic HTTP response status codes can provide useful\ninsights into the behavior of the web application and assist with the penetration test.\n",
+      "references" : {
+        "w3.org" : "http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html"
+      },
+      "tags" : [
+        "interesting",
+        "response",
+        "server"
+      ],
+      "severity" : "informational",
+      "check" : {
+        "name" : "Interesting responses",
+        "description" : "Logs all non 200 (OK) server responses.",
+        "elements" : [
+          "server"
+        ],
+        "author" : "Tasos \"Zapotek\" Laskos <tasos.laskos@arachni-scanner.com>",
+        "version" : "0.2.1",
+        "max_issues" : 25,
+        "shortname" : "interesting_responses"
+      },
+      "vector" : {
+        "class" : "Arachni::Element::Server",
+        "type" : "server",
+        "url" : "http://target:8080/user?id=1%2528%2529%2522%2526%25251%2527-%253B%253Cxss_8b9207c6eb76d2805c88ee10e92eedcc%252F%253E%2527",
+        "affected_input_name" : null
+      },
+      "proof" : "HTTP/1.0 500 Internal Server Error",
+      "referring_page" : {
+        "body" : "<html><body><a href=\"/search?q=hello\">search</a> <a href=\"/user?id=1\">user</a><form action=\"/search\"><input name=\"q\"></form></body></html>",
+        "dom" : {
+          "url" : "http://target:8080/",
+          "transitions" : [],
+          "cookies" : [],
+          "digest" : null,
+          "data_flow_sinks" : [],
+          "execution_flow_sinks" : []
+        }
+      },
+      "page" : {
+        "body" : "<html><body>sqlite3.OperationalError: near \"%\": syntax error</body></html>",
+        "dom" : {
+          "url" : "http://target:8080/user?id=1%2528%2529%2522%2526%25251%2527-%253B%253Cxss_8b9207c6eb76d2805c88ee10e92eedcc%252F%253E%2527",
+          "transitions" : [],
+          "cookies" : [],
+          "digest" : null,
+          "data_flow_sinks" : [],
+          "execution_flow_sinks" : []
+        }
+      },
+      "remarks" : {},
+      "trusted" : true,
+      "digest" : 1390724002,
+      "response" : {
+        "headers" : {
+          "Server" : "Apache/2.2.8 Python/3.13.18",
+          "Date" : "Thu, 19 Nov 2026 06:36:08 GMT",
+          "Content-Type" : "text/html",
+          "Set-Cookie" : "session=a3sessionsecret; Path=/",
+          "Content-Length" : "74"
+        },
+        "url" : "http://target:8080/user?id=1%2528%2529%2522%2526%25251%2527-%253B%253Cxss_8b9207c6eb76d2805c88ee10e92eedcc%252F%253E%2527",
+        "code" : 500,
+        "ip_address" : "172.23.0.2",
+        "headers_string" : "HTTP/1.0 500 Internal Server Error\r\nServer: Apache/2.2.8 Python/3.13.18\r\nDate: Thu, 19 Nov 2026 06:36:08 GMT\r\nContent-Type: text/html\r\nSet-Cookie: session=a3sessionsecret; Path=/\r\nContent-Length: 74\r\n\r\n",
+        "body" : "<html><body>sqlite3.OperationalError: near \"%\": syntax error</body></html>",
+        "time" : 1.067266,
+        "app_time" : 0.000783999999999896,
+        "total_time" : 1.067266,
+        "return_code" : "ok",
+        "return_message" : "No error",
+        "status_line" : "HTTP/1.0 500 Internal Server Error"
+      },
+      "request" : {
+        "url" : "http://target:8080/user",
+        "parameters" : {
+          "id" : "1%28%29%22%26%251%27-%3B%3Cxss_8b9207c6eb76d2805c88ee10e92eedcc%2F%3E%27"
+        },
+        "headers" : {
+          "Accept" : "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "User-Agent" : "Arachni/v1.5.1",
+          "Accept-Language" : "en-US,en;q=0.8,he;q=0.6",
+          "X-Arachni-Scan-Seed" : "8b9207c6eb76d2805c88ee10e92eedcc",
+          "Authorization" : "Bearer a3bearertokensecret123",
+          "Cookie" : "session=a3sessionsecret"
+        },
+        "headers_string" : "GET /user?id=1%2528%2529%2522%2526%25251%2527-%253B%253Cxss_8b9207c6eb76d2805c88ee10e92eedcc%252F%253E%2527 HTTP/1.1\r\nHost: target:8080\r\nAccept-Encoding: gzip, deflate\r\nUser-Agent: Arachni/v1.5.1\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8,he;q=0.6\r\nX-Arachni-Scan-Seed: 8b9207c6eb76d2805c88ee10e92eedcc\r\nAuthorization: Bearer a3bearertokensecret123\r\nCookie: session=a3sessionsecret\r\n\r\n",
+        "effective_body" : null,
+        "body" : null,
+        "method" : "get"
+      }
+    }
+  ],
+  "plugins" : {
+    "healthmap" : {
+      "name" : "Health map",
+      "description" : "Generates a simple list of safe/unsafe URLs.",
+      "author" : "Tasos \"Zapotek\" Laskos <tasos.laskos@arachni-scanner.com>",
+      "version" : "0.1.5",
+      "results" : {
+        "map" : [
+          {
+            "without_issues" : "http://target:8080/"
+          },
+          {
+            "with_issues" : "http://target:8080/search"
+          },
+          {
+            "without_issues" : "http://target:8080/user"
+          },
+          {
+            "with_issues" : "http://target:8080/user?id=1%2528%2529%2522%2526%25251%2527-%253B%253Cxss_8b9207c6eb76d2805c88ee10e92eedcc%252F%253E%2527"
+          }
+        ],
+        "total" : 4,
+        "without_issues" : 2,
+        "with_issues" : 2,
+        "issue_percentage" : 50
+      }
+    }
+  }
+}

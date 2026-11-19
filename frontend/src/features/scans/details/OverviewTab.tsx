@@ -64,7 +64,7 @@ export function OverviewTab({ job: j }: { job: ScanJob }) {
       {j.error && <Alert tone={j.status === "partial" ? "warning" : "danger"}>{j.error}</Alert>}
       {j.gate_failed && (
         <Alert>
-          Security gate failed: new critical findings, a blocking security policy{j.asset_type === "image" || j.asset_type === "artifact" ? " or a required signature that was not verified" : ""}. The Logs tab names the reason.
+          Security gate failed: new critical findings, a blocking security policy{j.asset_type === "image" || j.asset_type === "artifact" || j.asset_type === "mobile-app" ? " or a required signature that was not verified" : ""}. The Logs tab names the reason.
         </Alert>
       )}
 

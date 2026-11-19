@@ -1,0 +1,174 @@
+{
+  "version": "15.1.4",
+  "vulnerabilities": [
+    {
+      "id": "0aac47d114b00de2950e56215c6ad3d2e5fad5723dde7dfe6f2e4971d386ddaf",
+      "name": "Prototype Pollution in minimist",
+      "description": "Minimist <=1.2.5 is vulnerable to Prototype Pollution via file index.js, function setKey() (lines 69-95).",
+      "severity": "Critical",
+      "solution": "Upgrade to version 1.2.6 or above.",
+      "location": {
+        "file": "package-lock.json",
+        "dependency": {
+          "package": {
+            "name": "minimist"
+          },
+          "version": "1.2.5"
+        }
+      },
+      "identifiers": [
+        {
+          "type": "gemnasium",
+          "name": "Gemnasium-9d7c0895-2bb9-442d-9a89-eff7a63c0438",
+          "value": "9d7c0895-2bb9-442d-9a89-eff7a63c0438",
+          "url": "https://gitlab.com/gitlab-org/security-products/gemnasium-db/-/blob/master/npm/minimist/CVE-2021-44906.yml"
+        },
+        {
+          "type": "cve",
+          "name": "CVE-2021-44906",
+          "value": "CVE-2021-44906",
+          "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2021-44906"
+        },
+        {
+          "type": "ghsa",
+          "name": "GHSA-xvch-5gv4-984h",
+          "value": "GHSA-xvch-5gv4-984h",
+          "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h"
+        }
+      ],
+      "cvss_vectors": [
+        {
+          "vendor": "NVD",
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        },
+        {
+          "vendor": "NVD",
+          "vector": "AV:N/AC:L/Au:N/C:P/I:P/A:P"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://github.com/advisories/GHSA-xvch-5gv4-984h"
+        },
+        {
+          "url": "https://github.com/substack/minimist/blob/master/index.js#L69"
+        },
+        {
+          "url": "https://github.com/substack/minimist/issues/164"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2021-44906"
+        },
+        {
+          "url": "https://snyk.io/vuln/SNYK-JS-MINIMIST-559764"
+        },
+        {
+          "url": "https://stackoverflow.com/questions/8588563/adding-custom-properties-to-a-function/20278068#20278068"
+        }
+      ],
+      "details": {
+        "vulnerable_package": {
+          "type": "text",
+          "name": "Vulnerable Package",
+          "value": "minimist:1.2.5"
+        }
+      }
+    },
+    {
+      "id": "25241a279602b22acd65a6d29e6c758156e041b3727be0edf065d9666b5bb1ed",
+      "name": "lodash vulnerable to Code Injection via `_.template` imports key names",
+      "description": "The fix for [CVE-2021-23337](https://github.com/advisories/GHSA-35jh-r3h4-6jhm) added validation for the `variable` option in `_.template` but did not apply the same validation to `options.imports` key names. Both paths flow into the same `Function()` constructor sink.\n\nWhen an application passes untrusted input as `options.imports` key names, an attacker can inject default-parameter expressions that execute arbitrary code at template compilation time.\n\nAdditionally, `_.template` uses `assignInWith` to merge imports, which enumerates inherited properties via `for..in`. If `Object.prototype` has been polluted by any other vector, the polluted keys are copied into the imports object and passed to `Function()`.",
+      "severity": "High",
+      "solution": "Upgrade to version 4.18.0 or above.",
+      "location": {
+        "file": "package-lock.json",
+        "dependency": {
+          "package": {
+            "name": "lodash"
+          },
+          "version": "4.17.20"
+        }
+      },
+      "identifiers": [
+        {
+          "type": "gemnasium",
+          "name": "Gemnasium-cd02b702-718b-43b0-84b5-413ccbf7eabb",
+          "value": "cd02b702-718b-43b0-84b5-413ccbf7eabb",
+          "url": "https://gitlab.com/gitlab-org/security-products/gemnasium-db/-/blob/master/npm/lodash/CVE-2026-4800.yml"
+        },
+        {
+          "type": "cve",
+          "name": "CVE-2026-4800",
+          "value": "CVE-2026-4800",
+          "url": "https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2026-4800"
+        },
+        {
+          "type": "ghsa",
+          "name": "GHSA-r5fr-rjxr-66jc",
+          "value": "GHSA-r5fr-rjxr-66jc",
+          "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+        }
+      ],
+      "cvss_vectors": [
+        {
+          "vendor": "NVD",
+          "vector": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:H/I:H/A:H"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://cna.openjsf.org/security-advisories.html"
+        },
+        {
+          "url": "https://github.com/advisories/GHSA-35jh-r3h4-6jhm"
+        },
+        {
+          "url": "https://github.com/advisories/GHSA-r5fr-rjxr-66jc"
+        },
+        {
+          "url": "https://github.com/lodash/lodash"
+        },
+        {
+          "url": "https://github.com/lodash/lodash/commit/3469357cff396a26c363f8c1b5a91dde28ba4b1c"
+        },
+        {
+          "url": "https://github.com/lodash/lodash/security/advisories/GHSA-r5fr-rjxr-66jc"
+        },
+        {
+          "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-4800"
+        }
+      ],
+      "details": {
+        "vulnerable_package": {
+          "type": "text",
+          "name": "Vulnerable Package",
+          "value": "lodash:4.17.20"
+        }
+      }
+    }
+  ],
+  "scan": {
+    "analyzer": {
+      "id": "gemnasium",
+      "name": "Gemnasium",
+      "url": "https://gitlab.com/gitlab-org/security-products/analyzers/gemnasium",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "5.9.5"
+    },
+    "scanner": {
+      "id": "gemnasium",
+      "name": "Gemnasium",
+      "url": "https://gitlab.com/gitlab-org/security-products/analyzers/gemnasium",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "5.9.5"
+    },
+    "type": "dependency_scanning",
+    "start_time": "2026-11-19T06:45:56",
+    "end_time": "2026-11-19T06:46:00",
+    "status": "success"
+  }
+}

@@ -1,0 +1,25 @@
+# cppcheck: static analysis of C and C++ (undefined behaviour, memory
+# and bounds errors). XML version 2 report, parsed with the PATHOS cppcheck
+# import parser (error and warning are sast findings; style, performance
+# and portability are recorded as well).
+name: cppcheck
+display_name: cppcheck
+category: sast
+scan_types: [sast]
+license_spdx: GPL-3.0-or-later
+homepage: https://github.com/danmar/cppcheck
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/cppcheck
+version_args: ["--version"]
+# Include files that are not in the repository are not searched for
+# (system headers are not installed); --check-level=normal bounds the run time.
+args: ["--enable=warning,portability", "--inconclusive", "--check-level=normal", "--quiet", "--xml", "--xml-version=2", "--output-file={output}", "-j", "4", "-i{source}/node_modules", "{source}"]
+ok_exit_codes: [0]
+timeout: 60m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:cppcheck

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "Mend SAST",
+          "informationUri": "https://www.mend.io",
+          "rules": [
+            {
+              "id": "SQL Injection",
+              "shortDescription": {
+                "text": "SQL Injection"
+              },
+              "properties": {
+                "cwe": "CWE-89",
+                "severity": "high"
+              }
+            },
+            {
+              "id": "Cross-Site Scripting",
+              "shortDescription": {
+                "text": "Cross-Site Scripting"
+              },
+              "properties": {
+                "cwe": "CWE-79",
+                "severity": "medium"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "SQL Injection",
+          "level": "error",
+          "message": {
+            "text": "Untrusted data flows from req.query.id to db.query()."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/routes/users.js"
+                },
+                "region": {
+                  "startLine": 21
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "Cross-Site Scripting",
+          "level": "warning",
+          "message": {
+            "text": "Untrusted data flows from req.query.name to res.send()."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "src/routes/users.js"
+                },
+                "region": {
+                  "startLine": 34
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

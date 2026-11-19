@@ -141,6 +141,12 @@ func IsForeignKeyViolation(err error) bool {
 	return errors.As(err, &pg) && pg.Code == "23503"
 }
 
+// IsCheckViolation reports whether err is a check constraint violation.
+func IsCheckViolation(err error) bool {
+	var pg *pgconn.PgError
+	return errors.As(err, &pg) && pg.Code == "23514"
+}
+
 // SetChangeContext attributes finding status changes made later in tx (read
 // by the pathos_finding_lifecycle trigger). source is one of user, scanner,
 // ai, expiry or system.
