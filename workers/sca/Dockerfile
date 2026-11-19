@@ -53,6 +53,9 @@ RUN --mount=type=cache,target=/root/.cache/pip set -eux; \
 # this repository's code and use the standard library only).
 FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gotools
 ARG GOVULNCHECK=1.10.0
+# PATHOS release version for the PATHOS-built helpers (pathos-depcheck,
+# pathos-reach); the release workflow and Compose pass it.
+ARG VERSION=dev
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 COPY backend/internal/depcheck/ ./internal/depcheck/
@@ -62,9 +65,9 @@ COPY backend/cmd/pathos-reach/ ./cmd/pathos-reach/
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
     GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK}"; \
     /out/govulncheck -version | grep -q "v${GOVULNCHECK}"; \
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=1.0.0" -o /out/pathos-depcheck ./cmd/pathos-depcheck; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/pathos-depcheck ./cmd/pathos-depcheck; \
     /out/pathos-depcheck --version; \
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=1.0.0" -o /out/pathos-reach ./cmd/pathos-reach; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/pathos-reach ./cmd/pathos-reach; \
     /out/pathos-reach --version
 
 # Downloads (hashes computed when the versions were pinned).

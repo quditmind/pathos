@@ -429,7 +429,7 @@ services:
       dockerfile: workers/sca/Dockerfile
       additional_contexts:
         core: service:worker-core
-      args: { CORE_IMAGE: core }
+      args: { CORE_IMAGE: core, VERSION: "${PATHOS_VERSION:-dev}" }
     image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-sca:${PATHOS_VERSION:-dev}
     environment:
       <<: *worker-env
