@@ -178,6 +178,9 @@ From `frontend/package.json`:
 | `marked` | 18.1.2 | Markdown rendering in the Help Center | MIT |
 | `class-variance-authority`, `clsx`, `tailwind-merge` | 0.7.1, 2.1.1, 3.7.0 | Class name utilities | Apache-2.0, MIT, MIT |
 | `@fontsource-variable/inter` | 5.3.0 | Inter font, self-hosted | OFL-1.1 (font), MIT (package) |
+| `@xyflow/react` (React Flow) | 12.12.1 (published 2026-11-02) | Shared graph component (ADR-005); pulls in `@xyflow/system` 0.0.84, `zustand` 4.5.7, `classcat` 5.0.5 and `d3-zoom`, `d3-drag`, `d3-selection`, `d3-transition` 3.x | MIT (all) |
+| `elkjs` | 0.12.1 (published 2026-10-28; `latest` tag) | Graph layout (Eclipse Layout Kernel), run in a web worker, bundled unmodified | EPL-2.0 OR GPL-3.0-or-later (verified in the package `LICENSE.md` and SPDX headers; PATHOS uses it under EPL-2.0, listed in `NOTICE`). 0.13.0 exists but is deprecated on npm |
+| `html-to-image` | 1.11.13 | PNG/SVG export of graphs in the browser | MIT |
 | `typescript` | 6.0.3 | Language | Apache-2.0 |
 | `vite`, `@vitejs/plugin-react` | 8.3.8, 6.3.0 | Build and dev server | MIT |
 | `tailwindcss`, `@tailwindcss/vite` | 4.3.5 | Styling | MIT |

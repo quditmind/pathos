@@ -123,8 +123,8 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(conf.indexOf("Secret validation")).toBe(conf.indexOf("Risk & intelligence") + 1);
   });
 
-  it("new modules are roadmap items with a phase and a feature flag, never a link", () => {
-    const roadmap = groups.flatMap((g) => g.items).filter((i) => !i.to);
+  it("new modules are roadmap items with a phase and a feature flag; built ones link only behind the flag", () => {
+    const roadmap = groups.flatMap((g) => g.items).filter((i) => i.flag);
     expect(roadmap.map((i) => i.label).sort()).toEqual(
       [
         "API & endpoints",
@@ -142,6 +142,38 @@ describe("sidebar regroup (prompt §5)", () => {
       expect(i.phase, i.label).toBeGreaterThan(0);
       expect(i.flag, i.label).toBeTruthy();
     }
+    // Built so far (M4): CodeGraph and API & endpoints.
+    expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to])).toEqual([
+      ["CodeGraph", "/codegraph"],
+      ["API & endpoints", "/api-endpoints"],
+    ]);
+  });
+
+  it("CodeGraph items are links only while the codegraph flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { codegraph: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "CodeGraph" })).toHaveAttribute("href", "/codegraph");
+    expect(within(nav).getByRole("link", { name: "API & endpoints" })).toHaveAttribute("href", "/api-endpoints");
+  });
+
+  it("CodeGraph items stay disabled roadmap items while the flag is off", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { codegraph: false } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const item = within(nav).getByText("CodeGraph").closest("[aria-disabled]");
+    expect(item).toHaveAttribute("title", "CodeGraph: arrives in roadmap phase 4");
+    expect(within(nav).queryByRole("link", { name: "CodeGraph" })).toBeNull();
   });
 
   it("renders roadmap items disabled with their phase", async () => {
