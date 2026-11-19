@@ -4,6 +4,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-11-19
+
+PATHOS 2.0 covers 25 scan types with eight opt-in family worker images, tool manifests and 232 import formats from 207 tools. Upgrading from 1.x needs no configuration change: the family images are opt-in Compose profiles and migrations are additive. Behaviour change: Nuclei fuzzes API targets only when intrusive testing of the target is authorized.
+
 ### Added
 - **25 scan types**: a scan-type registry (SAST, DAST, SCA, secrets, IaC, container, API security, IAST, mobile, fuzzing, licence, SBOM, malware, code-quality security, supply chain, cryptography, configuration, CI/CD pipeline, binary, AI/LLM, runtime, compliance, licence policy, database security, manual review), `GET /api/v1/scan-types` with the tools, import formats and online workers of each type, and a **Scan coverage** page under Configurations.
 - New finding categories `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029), accepted in findings, Human Eye auto-queue settings, imports and plugins. ShellCheck findings use `code-quality`, mobsfscan `mobile`, Schemathesis `api`.

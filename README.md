@@ -4,11 +4,11 @@
 
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
-> **Status: 1.1.1 (stable).** The eight platform phases (P1–P8), the ten ASPM phases and the 1.1 gap closure are implemented and tested (99 of 100 register capabilities; multi-tenant is out by design). Highlights:
+> **Status: 2.0.0 (stable).** The eight platform phases (P1–P8), the ten ASPM phases, the 1.1 gap closure and the 2.0 scan coverage are implemented and tested: 25 scan types, 97 catalogued scanner integrations (80 run in PATHOS worker images) and 232 import formats from 207 tools. Highlights:
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
-> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; opt-in family worker images (worker-sast: Bandit, njsscan, ShellCheck) and tools added as manifests; a coverage view of 25 scan types.
+> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; eight opt-in family worker images (SAST, IaC, SCA, DAST, mobile, binary, AI and fuzzing) whose tools are added as manifests; a coverage view of 25 scan types; intrusive testing only with per-target authorization.
 > - Contextual risk scoring with EPSS, CISA KEV and OSV; reachability, attack paths and posture analytics.
 > - Human Eye manual review, AI review (Anthropic, OpenAI, xAI) with human approval, the AI Security Analyst and an MCP server.
 > - Vulnerability lifecycle: SLAs, risk acceptance, security policies, compliance views, SBOM export and license policy.
