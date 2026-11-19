@@ -4,7 +4,7 @@
 
 **Application Security Posture Management Platform.** PATHOS is an open-source, Docker-first platform that centralizes source-code security scanning, repository and asset management, vulnerability intelligence, AI-assisted finding review, SBOM management and security posture analytics.
 
-> **Status: 2.1.0 (stable).** The eight platform phases (P1–P8), the ten ASPM phases, the 1.1 gap closure, the 2.0 scan coverage and the 2.1 depth features are implemented and tested: 25 scan types, 98 catalogued scanner integrations (81 run in PATHOS worker images) and 232 import formats from 207 tools. Highlights:
+> **Status: 2.2.0 (stable).** The eight platform phases (P1–P8), the ten ASPM phases, the 1.1 gap closure and the 2.0–2.2 work are implemented and tested, all 100 register capabilities included: 25 scan types, 98 catalogued scanner integrations (81 run in PATHOS worker images), 232 import formats from 207 tools, optional multi-tenancy, published benchmarks and performance measurements. Highlights:
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
@@ -16,6 +16,7 @@
 > - Reporting and integrations: executive overview, scheduled reports, REST API tokens, webhooks (Slack, Teams), Jira and ServiceNow.
 > - 1.1: malware, licence, binary-hardening and framework-configuration scanning; endpoint verification, end-of-life dates, introducing commits and Sigstore verification; 25 import formats, the `pathos` CLI and CI templates; automatic fix pull requests; VEX and application versions; secret push protection; material change detection, opt-in developer insights and a VS Code extension.
 > - 2.1: function-level reachability with call paths, AI-proposed fixes verified by re-scanning (and optional sandboxed tests) before a pull request, opt-in live secret validation, Kubernetes and registry runtime context, and a network-less sandbox for repository code.
+> - 2.2: optional multi-tenancy (application scoping plus PostgreSQL row-level security, with a cross-organization isolation test suite), benchmark harness with published results ([docs/BENCHMARKS.md](docs/BENCHMARKS.md)), performance fixes and sizing ([docs/PERFORMANCE.md](docs/PERFORMANCE.md)) and a JetBrains IDE plugin.
 > - Production readiness: scheduling, notifications, rate limiting, backup, restore and upgrade, OpenTelemetry, S3 artifacts, offline (air-gapped) mode and security self-tests.
 >
 > See [docs/DEVELOPMENT_ROADMAP.md](docs/DEVELOPMENT_ROADMAP.md) and [docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md](docs/aspm/PATHOS_IMPLEMENTATION_ROADMAP.md) for the milestone reports.
