@@ -234,6 +234,31 @@ type profileRequest struct {
 	ProfileSettings
 }
 
+// repositoryTools rejects operator plugins that do not scan repositories
+// (their manifest's targets, network and intrusive declarations are known
+// once a worker registered them).
+func (s *Service) repositoryTools(ctx context.Context, sel []ProfileScanner) error {
+	var keys []string
+	for _, ps := range sel {
+		if scanners.IsPluginKey(ps.Key) {
+			keys = append(keys, ps.Key)
+		}
+	}
+	if len(keys) == 0 {
+		return nil
+	}
+	var name string
+	err := s.DB.QueryRow(ctx, `SELECT name FROM scanner_catalog WHERE key = ANY($1)
+		AND (intrusive OR network = 'target' OR (cardinality(targets) > 0 AND NOT ('repository' = ANY(targets)))) LIMIT 1`, keys).Scan(&name)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	return httpx.BadRequest(name + " scans running applications or other targets: select it on a scan target")
+}
+
 // validate checks settings and normalizes scanners (mandatory ones added).
 func (req *profileRequest) validate() error {
 	st := &req.ProfileSettings
@@ -392,6 +417,10 @@ func (s *Service) createProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if err := s.repositoryTools(ctx, req.Scanners); err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	pid := uuid.Must(uuid.NewV7())
 	var out Profile
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
@@ -440,6 +469,10 @@ func (s *Service) updateProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := req.validate(); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if err := s.repositoryTools(ctx, req.Scanners); err != nil {
 		s.fail(w, r, err)
 		return
 	}
