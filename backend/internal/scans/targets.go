@@ -99,6 +99,12 @@ type TargetConfig struct {
 	// Model is the model name sent to an llm-endpoint target (the "model"
 	// field of an OpenAI-compatible chat completions request).
 	Model string `json:"model,omitempty"`
+	// BuiltFromRepository (image targets): the image is built from this
+	// repository's code, so the repository's code findings are deployed
+	// where the image runs. Off by default (2.2.2, VALIDATION_REPORT O10);
+	// an image whose OCI source label names the repository is linked
+	// without it.
+	BuiltFromRepository bool `json:"built_from_repository,omitempty"`
 }
 
 // ScanTarget is the API representation (secrets are never returned).

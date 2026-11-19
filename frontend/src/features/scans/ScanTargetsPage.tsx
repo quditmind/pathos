@@ -61,7 +61,9 @@ export interface ScanTarget {
   name: string;
   reference: string;
   egress_host: string;
-  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig; tools?: string[]; model?: string };
+  config: { rate_limit?: number; min_severity?: string; nuclei?: boolean; signature?: SignatureConfig; tools?: string[]; model?: string;
+    /** Image targets: the image is built from the repository's code (its code findings are deployed where the image runs). */
+    built_from_repository?: boolean };
   api_spec?: string;
   sbom_format: string;
   sbom_components: number;
@@ -186,6 +188,8 @@ interface FormState {
   intrusive_note: string;
   /** Model name sent to an LLM endpoint. */
   model: string;
+  /** Image targets: built from the repository's code. */
+  built_from_repository: boolean;
 }
 
 /** Manifest targets a tool must list to scan a target kind. */
@@ -223,6 +227,7 @@ const emptyForm = (kind: TargetKind): FormState => ({
   intrusive_authorized: false,
   intrusive_note: "",
   model: "",
+  built_from_repository: false,
 });
 
 /** The signature policy as sent to the API (fields of the mode only). */
@@ -431,6 +436,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
       intrusive_authorized: !!t.intrusive_authorized_at,
       intrusive_note: t.intrusive_authorization_note ?? "",
       model: t.config.model ?? "",
+      built_from_repository: !!t.config.built_from_repository,
     });
   }, [open, target, initialKind, full.data]);
   const set = (p: Partial<FormState>) => setF((x) => ({ ...x, ...p }));
@@ -468,6 +474,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
       }
       if (signable(f.kind)) body.config = { ...(body.config as object | undefined), signature };
       if (toolTargetsFor[f.kind]) body.config = { ...(body.config as object | undefined), tools: f.tools.length ? f.tools : undefined };
+      if (f.kind === "image") body.config = { ...(body.config as object | undefined), built_from_repository: f.built_from_repository || undefined };
       if (live && (!target || f.intrusive_authorized !== !!target.intrusive_authorized_at || f.intrusive_note !== (target.intrusive_authorization_note ?? ""))) {
         body.intrusive_authorized = f.intrusive_authorized;
         body.intrusive_authorization_note = f.intrusive_note;
@@ -652,6 +659,12 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
           </div>
         )}
         <ToolFields f={f} set={set} target={target} addressChanged={addressChanged} />
+        {f.kind === "image" && (
+          <label className="flex items-start gap-2 text-[12.5px]">
+            <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={f.built_from_repository} onChange={(e) => set({ built_from_repository: e.target.checked })} />
+            <span>This image is built from the repository's code: where it runs, the repository's code findings count as deployed (runtime context). Leave off for third-party or unrelated images.</span>
+          </label>
+        )}
         {signable(f.kind) && <SignatureFields f={f} set={set} kind={f.kind} target={target} />}
         {target && (
           <label className="flex items-center gap-1.5 text-[13px]">
