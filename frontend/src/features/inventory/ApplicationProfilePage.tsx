@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Boxes, ExternalLink, GitBranch, Package, ShieldAlert, Sparkles } from "lucide-react";
 import { api } from "@/api/client";
-import type { ComponentGroup, Finding, Page, Repository } from "@/api/types";
+import type { ClassificationKind, ComponentGroup, Finding, Page, Repository } from "@/api/types";
+import { catalogLabel, useAssetSettings } from "@/features/assets/api";
 import { CriticalityBadge, TagChip } from "@/components/data/TagChip";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
@@ -170,8 +171,15 @@ function Stat({ label, value, hint }: { label: string; value: React.ReactNode; h
   );
 }
 
+/** Catalogue kinds of the classification fields shown with labels. */
+const overviewKinds: Partial<Record<string, ClassificationKind>> = {
+  application_type: "application_type", data_classification: "data_classification", internet_exposure: "internet_exposure",
+  authentication_model: "authentication_model", hosting_region: "hosting_region",
+};
+
 function OverviewTab({ a }: { a: ApplicationProfile }) {
   const { can } = useSession();
+  const settings = useAssetSettings();
   const life = useApplicationLifecycle(a.id);
   const posture = useAppPosture(90);
   const p = posture.data?.find((x) => x.id === a.id);
@@ -213,7 +221,8 @@ function OverviewTab({ a }: { a: ApplicationProfile }) {
         <dl className="grid gap-x-6 gap-y-1.5 text-[13px] sm:grid-cols-2 lg:grid-cols-3">
           {(["application_type", "languages", "frameworks", "runtimes", "data_classification", "internet_exposure", "authentication_model", "hosting_region", "environment"] as const).map((f) => {
             const v = a[f];
-            const text = Array.isArray(v) ? v.join(", ") : v;
+            const kind = overviewKinds[f];
+            const text = Array.isArray(v) ? v.join(", ") : kind ? catalogLabel(settings.data, kind, v) : v;
             return (
               <div key={f} className="flex gap-2">
                 <dt className="w-40 shrink-0 text-muted-foreground">{fieldLabels[f]}</dt>
