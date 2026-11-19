@@ -4,7 +4,7 @@ section: troubleshooting
 order: 105
 version: "1.0"
 updated: 2026-11-20
-summary: Repository import jobs, source uploads and asset registration (7 codes, PTH-ONB-*)
+summary: Repository import jobs, source uploads and asset registration (11 codes, PTH-ONB-*)
 ---
 
 # Troubleshooting: Onboarding and imports
@@ -24,6 +24,10 @@ Repository import jobs, source uploads and asset registration.
 | [PTH-ONB-1005](#PTH-ONB-1005) | Import worker stopped during the item | warning |
 | [PTH-ONB-1006](#PTH-ONB-1006) | Mandatory tags missing | warning |
 | [PTH-ONB-1007](#PTH-ONB-1007) | Import item metadata no longer valid | warning |
+| [PTH-ONB-1008](#PTH-ONB-1008) | Repository already being onboarded | info |
+| [PTH-ONB-1009](#PTH-ONB-1009) | Mandatory application fields missing | warning |
+| [PTH-ONB-1010](#PTH-ONB-1010) | Mandatory application tags missing | warning |
+| [PTH-ONB-1011](#PTH-ONB-1011) | Application name already exists | info |
 
 <a id="PTH-ONB-1001"></a>
 
@@ -136,7 +140,7 @@ Repository import jobs, source uploads and asset registration.
 | Category | conflict |
 | HTTP status | none (background work and logs) |
 | AI help | not offered |
-| Short codes | `import:duplicate`, `import:name_clash`, `import:upload_consumed` |
+| Short codes | `import:duplicate`, `import:name_clash`, `import:upload_consumed`, `already_registered` |
 | Raised in | internal/repos/import_worker.go, internal/repos/imports.go |
 
 **What it means.** The repository is already registered (through this or another connection), or the asset name is taken.
@@ -257,4 +261,136 @@ Repository import jobs, source uploads and asset registration.
 **Verify**
 
 1. The item completes.
+
+
+<a id="PTH-ONB-1008"></a>
+
+## PTH-ONB-1008: Repository already being onboarded
+
+| | |
+|---|---|
+| Severity | info |
+| Category | conflict |
+| HTTP status | 409 |
+| AI help | not offered |
+| Short codes | `already_onboarding` |
+| Raised in | internal/inventory/onboarding.go (register) |
+
+**What it means.** The onboarding flow found that the repository is already being onboarded or was onboarded into an application. Each repository is onboarded once; the database refuses a second onboarding, also when two people start it at the same time.
+
+**Confirmed cause.** An onboarding record for the same repository (same connection and external ID, or the same normalised URL) already exists. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. Someone else onboarded the repository a moment earlier
+2. The repository was onboarded before under another application
+
+**Impact.** Nothing was created: no application, repository or onboarding record.
+
+**How to fix**
+
+1. Open the application named in the message and continue its onboarding there.
+2. If the repository belongs elsewhere, finish or archive that application first.
+
+**Verify**
+
+1. The repository appears once, in the Repositories tab of its application.
+
+
+<a id="PTH-ONB-1009"></a>
+
+## PTH-ONB-1009: Mandatory application fields missing
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | 422 |
+| AI help | not offered |
+| Short codes | `mandatory_fields_missing`, `onboarding_incomplete` |
+| Raised in | internal/inventory/onboarding.go (completeOnboarding, startDiscovery) |
+
+**What it means.** Save to inventory requires every mandatory application field (Configurations › Asset settings › Application fields). Drafts can be saved incomplete; completing them cannot.
+
+**Confirmed cause.** Mandatory fields are empty (listed in the message and next to the fields). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The draft was saved before every field was known
+2. An administrator made another field mandatory
+
+**Impact.** The application stays a draft ("Onboarding: N of M fields") in the inventory.
+
+**How to fix**
+
+1. Fill the fields marked as required in Tag & classify, then save to the inventory again.
+
+**Verify**
+
+1. The application shows as Registered in the inventory.
+
+
+<a id="PTH-ONB-1010"></a>
+
+## PTH-ONB-1010: Mandatory application tags missing
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | 422 |
+| AI help | not offered |
+| Raised in | internal/inventory/onboarding.go (completeOnboarding) |
+
+**What it means.** Tag categories can be mandatory for some application types (Inventory › Tags). The application lacks a tag in such a category.
+
+**Confirmed cause.** Tags of categories mandatory for this application type are missing (listed in the message). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The application type was set to a type with mandatory categories
+2. A category was made mandatory recently
+
+**Impact.** The application stays a draft.
+
+**How to fix**
+
+1. Add a tag from each listed category in Tag & classify.
+
+**Verify**
+
+1. Save to inventory succeeds.
+
+
+<a id="PTH-ONB-1011"></a>
+
+## PTH-ONB-1011: Application name already exists
+
+| | |
+|---|---|
+| Severity | info |
+| Category | conflict |
+| HTTP status | 409 |
+| AI help | not offered |
+| Short codes | `application_exists` |
+| Raised in | internal/inventory/onboarding.go (register) |
+
+**What it means.** Register as new was chosen with the name of an existing application. Application names are unique within an organization.
+
+**Confirmed cause.** An active application with the same name (ignoring case) exists. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The application already exists and the repositories belong to it
+2. Someone registered the same application at the same time
+
+**Impact.** Nothing was created.
+
+**How to fix**
+
+1. Choose Link to existing for that application, or register under another name.
+
+**Verify**
+
+1. Registration succeeds and the application appears once in the inventory.
 
