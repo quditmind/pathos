@@ -1,6 +1,7 @@
 -- +goose Up
 -- 2.2.2 hardening (docs/VALIDATION_REPORT.md §9): anonymous public
--- repositories (O1) and private CAs for outbound connections (O3).
+-- repositories (O1), private CAs for outbound connections (O3) and
+-- default secret exclusions (O6).
 --
 -- O1: anonymous import of PUBLIC repositories by URL. source_type 'git'
 -- marks a repository registered without an SCM connection or credential
@@ -26,7 +27,16 @@ ALTER TABLE registry_connections ADD COLUMN ca_bundle_pem text NOT NULL DEFAULT 
 ALTER TABLE outbound_webhooks ADD COLUMN ca_bundle_pem text NOT NULL DEFAULT '' CHECK (length(ca_bundle_pem) <= 65536);
 ALTER TABLE ticket_connections ADD COLUMN ca_bundle_pem text NOT NULL DEFAULT '' CHECK (length(ca_bundle_pem) <= 65536);
 
+-- O6: default secret exclusions per profile version. Secret findings in
+-- vendored dependencies, test fixtures, lockfiles and minified files
+-- (scanners.DefaultSecretExclusions) are dropped unless a profile turns
+-- the defaults off; secret_exclusions adds patterns of its own.
+ALTER TABLE scan_profile_versions
+    ADD COLUMN secret_default_exclusions boolean NOT NULL DEFAULT true,
+    ADD COLUMN secret_exclusions text[] NOT NULL DEFAULT '{}';
+
 -- +goose Down
+ALTER TABLE scan_profile_versions DROP COLUMN IF EXISTS secret_exclusions, DROP COLUMN IF EXISTS secret_default_exclusions;
 ALTER TABLE ticket_connections DROP COLUMN IF EXISTS ca_bundle_pem;
 ALTER TABLE outbound_webhooks DROP COLUMN IF EXISTS ca_bundle_pem;
 ALTER TABLE registry_connections DROP COLUMN IF EXISTS ca_bundle_pem;

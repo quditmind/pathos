@@ -42,16 +42,19 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var repoID uuid.UUID
 	var targetID *uuid.UUID
 	var threshold, commit string
-	var exclusions []string
+	var exclusions, secretExclusions []string
+	var secretDefaults bool
 	var pr *int
-	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id, j.pull_request
+	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id, j.pull_request,
+		v.secret_default_exclusions, v.secret_exclusions
 		FROM scan_jobs j JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1`, jobID).
-		Scan(&repoID, &commit, &threshold, &exclusions, &targetID, &pr); err != nil {
+		Scan(&repoID, &commit, &threshold, &exclusions, &targetID, &pr, &secretDefaults, &secretExclusions); err != nil {
 		return 0, err
 	}
 
 	var findings []scanners.Finding
 	parseErr := ""
+	secretDropped := 0
 	// SBOM generators (Syft, cdxgen, the AI-BOM) produce the component inventory, not
 	// findings.
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
@@ -90,6 +93,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			if scanners.SeverityRank(f.Severity) < scanners.SeverityRank(threshold) || scanners.Excluded(f.FilePath, exclusions) {
 				continue
 			}
+			// Secret findings in vendored code, fixtures, lockfiles and
+			// minified files (the profile's secret exclusions). Target
+			// scans (images, artifacts) keep theirs.
+			if f.Category == "secrets" && targetID == nil && scanners.SecretExcluded(f.FilePath, secretDefaults, secretExclusions) {
+				secretDropped++
+				continue
+			}
 			if targetID != nil {
 				// A target's findings are its own: the same CVE in an image
 				// and in the repository's manifests are separate findings.
@@ -100,6 +110,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			}
 			findings = append(findings, f)
 		}
+	}
+	if secretDropped > 0 {
+		s.Log.Info("secret findings dropped by the profile's secret exclusions", "job_id", jobID, "scanner", up.Scanner, "dropped", secretDropped)
 	}
 	if up.Parser != nil && up.Parser.Kind == "import" && len(raw) > 0 {
 		// A manifest tool parsed with an import parser (TruffleHog,

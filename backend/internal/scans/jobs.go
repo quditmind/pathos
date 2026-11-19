@@ -223,6 +223,7 @@ func configSnapshot(ctx context.Context, q db.Querier, versionID uuid.UUID) ([]b
 		"change_note": v.ChangeNote, "severity_threshold": v.SeverityThreshold, "exclusions": v.Exclusions,
 		"timeout_seconds": v.TimeoutSeconds, "sbom": v.SBOM, "fail_on_critical": v.FailOnCritical,
 		"retention_days": v.RetentionDays, "scanners": v.Scanners, "captured_at": time.Now().UTC(),
+		"secret_default_exclusions": v.SecretDefaultExclusions, "secret_exclusions": v.SecretExclusions,
 		"custom_rules": rules,
 	})
 	return b, profileName, err

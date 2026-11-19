@@ -53,3 +53,47 @@ func TestPartialToolReportsAreKept(t *testing.T) {
 	}
 	t.Logf("result error: %s", resErr)
 }
+
+// TestSecretDefaultExclusions: secret findings in vendored code, lockfiles
+// and minified files are dropped by default; other categories are not
+// (VALIDATION_REPORT O6).
+func TestSecretDefaultExclusions(t *testing.T) {
+	ctx := t.Context()
+	h := newScanHarness(t)
+	admin := reviewUser(t, "platform_admin")
+	repo := createRepo(t, "secx-"+uuid.NewString()[:6])
+	_, q := h.user(admin, "POST", "/api/v1/repositories/"+repo.String()+"/scan", nil)
+	jobID := q["job_id"].(string)
+	_, reg := h.worker(bootstrap, "POST", "/internal/worker/v1/register", map[string]any{"name": "secx-" + uuid.NewString()[:6], "family": "core"})
+	token := reg["token"].(string)
+	h.leaseJob(token, jobID)
+	result := func(rule, path string) string {
+		return `{"ruleId":"` + rule + `","level":"error","message":{"text":"secret"},"locations":[{"physicalLocation":{"artifactLocation":{"uri":"` +
+			path + `"},"region":{"startLine":3}}}]}`
+	}
+	sarif := `{"version":"2.1.0","runs":[{"tool":{"driver":{"name":"gitleaks","rules":[{"id":"generic-api-key"}]}},"results":[` +
+		result("generic-api-key", "src/config.py") + "," + result("generic-api-key", "web/node_modules/lib/key.js") + "," +
+		result("generic-api-key", "package-lock.json") + "," + result("generic-api-key", "static/app.min.js") + `]}]}`
+	if code, out := h.worker(token, "POST", "/internal/worker/v1/jobs/"+jobID+"/results", map[string]any{"scanner": "gitleaks", "status": "succeeded",
+		"output_gzip": gzB64([]byte(sarif))}); code != 200 && code != 201 {
+		t.Fatalf("upload: %d %v", code, out)
+	}
+	h.worker(token, "POST", "/internal/worker/v1/jobs/"+jobID+"/complete", map[string]any{"status": "succeeded"})
+	rows, _ := appPool.Query(ctx, `SELECT file_path FROM findings WHERE repository_id = $1 AND category = 'secrets'`, repo)
+	var paths []string
+	for rows.Next() {
+		var p string
+		_ = rows.Scan(&p)
+		paths = append(paths, p)
+	}
+	rows.Close()
+	if len(paths) != 1 || paths[0] != "src/config.py" {
+		t.Errorf("secret findings kept: %v (want only src/config.py)", paths)
+	}
+	var on bool
+	_ = appPool.QueryRow(ctx, `SELECT v.secret_default_exclusions FROM scan_jobs j JOIN scan_profile_versions v ON v.id = j.profile_version_id
+		WHERE j.id = $1`, jobID).Scan(&on)
+	if !on {
+		t.Error("existing profile versions get the default secret exclusions")
+	}
+}

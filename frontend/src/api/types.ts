@@ -1328,6 +1328,10 @@ export interface ScanTypesResponse {
 export interface ProfileSettings {
   severity_threshold: Severity;
   exclusions: string[];
+  /** Drop secret findings in vendored code, test fixtures, lockfiles and minified files (default on). */
+  secret_default_exclusions?: boolean;
+  /** Further globs whose secret findings are dropped. */
+  secret_exclusions?: string[];
   timeout_seconds: number;
   sbom: boolean;
   fail_on_critical: boolean;
