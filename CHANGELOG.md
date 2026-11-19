@@ -4,6 +4,23 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### PATHOS 3.0 M4 — CodeGraph engine (backend and discovery worker)
+
+Behind the `codegraph` feature flag (off by default). Migrations 00049–00051 are additive (five new tables; `scan_jobs.trigger` accepts `codegraph`).
+
+#### Added
+- **Discovery worker** `worker-graph` (family image on `worker-core`, Compose profile `graph`) with the `pathos-graph` engine (`workers/graph/discover`): modules, files, classes, functions, calls and imports (Go parser; tree-sitter for Java, Python, JavaScript/TypeScript, C#, PHP and Ruby), routes, database/ORM access and queues (new PATHOS Opengrep rules in `workers/graph/rules` for net/http, chi, gin, Spring, Flask, Django, FastAPI, Express, NestJS, ASP.NET, Laravel and Rails), OpenAPI operations, Dockerfiles, Compose, Kubernetes and Terraform, secret references (names and locations only), languages (go-enry) and SBOM components (Syft). It reads source only, never builds or runs repository code, and runs without network access. Static evidence only: unresolved calls and connections without a code site are left out.
+- **Graph store** in PostgreSQL (ADR-004): `codegraph_snapshots` (per application, repository and commit), `codegraph_nodes`, `codegraph_edges`, `codegraph_evidence`, `codegraph_settings`. A deferred constraint trigger refuses an edge without evidence of its type; the evidence type is one of `verified`, `observed`, `ai_inferred`, tied to the reference kind. Tenant tables with the standard row-level security policy.
+- **Graph API** under `/api/v1/codegraph` ([API reference](docs/api-reference/codegraph.md)): build (queued through the existing scan job and lease system as an execution with trigger `codegraph`), snapshots, the 15 views (architecture, call graph, data flow, API, dependencies, deployment, ownership, trust boundaries, internet exposure, findings overlay, SBOM, data stores, external services, secrets and configuration, change impact) with server-side aggregation by directory, lifting of edges to shown ancestors and lazy expansion, node inspector (evidence, findings, source links), bounded path tracing (8 hops), diffs between snapshots, JSON export, settings.
+- **Enrichment at ingest**: the application → repository ownership edge (registry evidence), observed runtime edges from the Kubernetes runtime context, and open findings attached to the innermost function, class or file by file and line.
+- **Rediscovery**: a successful repository scan (a new commit, a schedule, a manual scan) rebuilds the graph when automatic rediscovery is on, rate-limited by `min_interval_minutes` (default 60) and skipped when the commit is unchanged or a build is queued. Retention: `keep_snapshots` (default 10) per repository; older snapshots are archived by the jobs service (export kept in object storage when configured).
+- Error codes `PTH-DISC-1001`…`1007` and `PTH-GRAPH-1001`…`1005` with generated troubleshooting pages ([disc](docs/troubleshooting/disc.md), [graph](docs/troubleshooting/graph.md)).
+- Docs: [PATHOS_CODEGRAPH_ARCHITECTURE.md](docs/aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md), [user guide](docs/user-guide/codegraph.md), [API reference](docs/api-reference/codegraph.md), DATABASE, ARCHITECTURE, SCANNER_CATALOG.
+- Tests: discovery extractor unit tests on small sample projects, graph rule fixtures, CodeGraph unit tests (validation, views, aggregation, lifting, paths, diffs), an integration test that builds graphs through the worker API from the real worker's output on a fixture repository and checks views, aggregation, expansion, paths, diff, export, rediscovery, retention and that every edge has evidence, a latency measurement, and the tenant isolation suite over every CodeGraph route.
+
+#### Changed
+- `pathos-graph` cannot be added to scan profiles (`400`); CodeGraph executions appear in the executions list as "CodeGraph discovery" (trigger `codegraph`) and are not used as the previous scan for material change detection.
+
 ### PATHOS 3.0 M1 — Enterprise shell (backend)
 
 Migration 00043 is additive (one new table, `feature_flags`). API error responses keep every existing field; the new ones are added inside `error`.

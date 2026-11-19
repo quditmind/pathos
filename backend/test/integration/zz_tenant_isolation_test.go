@@ -156,6 +156,8 @@ var paramTables = map[string]string{
 	"organizations": "organizations", "providers": "ai_providers", "reviews": "ai_reviews",
 	"ai": "human_review_recommendations", "rules": "notification_rules", "deliveries": "notifications",
 	"reports": "saved_reports",
+	// CodeGraph (M4).
+	"snapshots": "codegraph_snapshots", "nodes": "codegraph_nodes",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -223,6 +225,16 @@ func TestTenantIsolation(t *testing.T) {
 	orgA, _, err := tenancy.CreateOrganization(ctx, iso, "Isolation A", slugA, "", seed)
 	if err != nil {
 		t.Fatal("create organization A:", err)
+	}
+	// Feature-flagged modules are on in both organizations, so their
+	// routes reach authorization instead of answering "feature disabled".
+	for _, o := range []uuid.UUID{orgA.ID, orgB} {
+		for _, f := range []string{"codegraph"} {
+			if _, err := ownerPool.Exec(ctx, `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, $3, true)
+				ON CONFLICT (organization_id, name) DO UPDATE SET enabled = true`, uuid.Must(uuid.NewV7()), o, f); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 	// B must be seeded the same way (it is the suite's main organization).
 	if err := mcp.EnsureBuiltIn(tenant.WithOrg(ctx, orgB), iso, orgB, "https://pathos.example"); err != nil {

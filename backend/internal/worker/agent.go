@@ -279,7 +279,13 @@ type Job struct {
 	// SecretValidation lists the providers an administrator enabled for
 	// live secret validation (nil: off, the default).
 	SecretValidation *SecretValidationConfig `json:"secret_validation,omitempty"`
+	// Kind is "codegraph" for CodeGraph discovery: only the graph tool
+	// runs; change detection and the source inventories are skipped.
+	Kind string `json:"kind,omitempty"`
 }
+
+// JobKindCodeGraph marks CodeGraph discovery executions.
+const JobKindCodeGraph = "codegraph"
 
 // JobSource identifies a non-Git source for a job.
 type JobSource struct {
@@ -399,7 +405,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		msg := fmt.Sprintf("snapshot sha256:%s verified and extracted in %s", job.Source.SHA256, time.Since(start).Round(time.Millisecond))
 		rep.event("source", "", "succeeded", msg)
 		rep.logf("info", "%s", msg)
-		changes = &ChangeReport{Version: 1, Status: "unavailable", Reason: "uploaded snapshots have no Git history to compare with", Changes: []material.Change{}}
+		if job.Kind != JobKindCodeGraph {
+			changes = &ChangeReport{Version: 1, Status: "unavailable", Reason: "uploaded snapshots have no Git history to compare with", Changes: []material.Change{}}
+		}
 	} else {
 		cloneStart := time.Now()
 		mode := "shallow"
@@ -431,10 +439,15 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 			return
 		}
 		// Material changes since the previous scan (may fetch the two
-		// commits, so it runs while the credential is known).
-		changes = detectChanges(ctx, job, commit, gitDir, filepath.Join(ws, "changes"))
+		// commits, so it runs while the credential is known). CodeGraph
+		// discovery is not a scan and reports none.
+		if job.Kind != JobKindCodeGraph {
+			changes = detectChanges(ctx, job, commit, gitDir, filepath.Join(ws, "changes"))
+		}
 		job.Credential = nil // not needed past this point
-		rep.logf("info", "material change detection: %s", changeSummary(changes))
+		if changes != nil {
+			rep.logf("info", "material change detection: %s", changeSummary(changes))
+		}
 		log.Info("cloned", "duration_ms", time.Since(cloneStart).Milliseconds(), "commit", commit, "full_history", job.FullHistory)
 		msg := fmt.Sprintf("cloned %s at commit %s (%s) in %s", job.Ref, commit, mode, time.Since(cloneStart).Round(time.Millisecond))
 		rep.event("source", "", "succeeded", msg)
@@ -520,7 +533,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	mu.Lock()
 	stop := cancelled
 	mu.Unlock()
-	if !stop && job.Target == nil {
+	if !stop && job.Target == nil && job.Kind != JobKindCodeGraph {
 		// Import inventory for dependency reachability (reads source only).
 		inv := collectImports(src)
 		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/imports", a.token, inv, nil); err != nil {

@@ -41,6 +41,9 @@ type Service struct {
 	Secrets *secrets.Store
 	// OnScanFinished runs after a job completes (AI auto-review enqueue).
 	OnScanFinished func(ctx context.Context, orgID, jobID uuid.UUID)
+	// OnGraphResult receives the output of the CodeGraph discovery tool
+	// (pathos-graph) of a repository execution (package codegraph).
+	OnGraphResult func(ctx context.Context, orgID, jobID uuid.UUID, res GraphResult)
 	// StatusWriter returns the commit status writer of a repository's SCM
 	// connection (pull request checks); nil disables posting.
 	StatusWriter func(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error)
@@ -63,6 +66,15 @@ type Service struct {
 }
 
 var errNotFound = errors.New("not found")
+
+// GraphResult is one uploaded CodeGraph discovery result.
+type GraphResult struct {
+	Status  string // succeeded | failed | skipped | timed_out
+	Error   string // redacted tool error
+	Version string // tool version
+	Commit  string // the execution's commit
+	Raw     []byte // the graph JSON (pathos.codegraph/v1)
+}
 
 // Register mounts the user-facing API.
 func (s *Service) Register(mux *http.ServeMux) {

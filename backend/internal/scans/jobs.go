@@ -39,7 +39,9 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 }
 
 // Trigger priorities: interactive requests jump ahead of automation.
-var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pull_request": 55, "push": 50, "onboarding": 40, "schedule": 30}
+var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pull_request": 55, "push": 50, "onboarding": 40, "schedule": 30,
+	// CodeGraph discovery (rediscovery after scans): after the scans.
+	"codegraph": 20}
 
 // ErrNotScannable means the repository is archived or scanning is disabled.
 var ErrNotScannable = errors.New("repository is archived or scanning is disabled")
@@ -75,6 +77,9 @@ type EnqueueOpts struct {
 	// PullRequest scans a pull request's head (results kept apart from
 	// the repository's findings; see prchecks.go).
 	PullRequest int
+	// ProfileVersionID runs a system profile version (CodeGraph
+	// discovery) instead of a selectable profile; ProfileID is ignored.
+	ProfileVersionID *uuid.UUID
 }
 
 // ErrProfileUnavailable means the requested profile does not exist or is archived.
@@ -105,6 +110,9 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	}
 	if archived != nil || (!enabled && trigger != "manual" && trigger != "emergency") {
 		return res, ErrNotScannable
+	}
+	if opt.ProfileVersionID != nil {
+		profileVersion = opt.ProfileVersionID
 	}
 	if profileVersion == nil {
 		if opt.ProfileID != nil {

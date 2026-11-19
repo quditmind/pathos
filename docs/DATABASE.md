@@ -393,6 +393,7 @@ Vulnerable functions named by OSV records are kept in `intel_vulns.affected[].sy
 - Raw reports and SBOM files (`scan_artifacts`, and their objects in S3-compatible storage) are pruned after the `retention_days` of the profile version that produced them (7–3650 days). The row is deleted first, then the object.
 - Execution logs and stage events (`scan_job_logs`, `scan_job_events`) are pruned after `PATHOS_SCAN_LOG_RETENTION_DAYS`.
 - Executions, results, `findings`, `finding_occurrences`, `finding_status_history`, `ai_reviews` and `audit_logs` are not pruned.
+- CodeGraph snapshots beyond each organization's `keep_snapshots` (default 10 per repository) are archived ([CodeGraph](#codegraph-migrations-0004900051)).
 
 ## Findings list indexes (migration 00038)
 
@@ -413,3 +414,21 @@ The rank expressions must stay identical to `sevRank` and `riskRank` in `interna
 | Table | Purpose |
 |---|---|
 | `feature_flags` | One row per organization and flag that an administrator has set: `name` (lower-case, `^[a-z][a-z0-9_]{1,62}$`), `enabled`, `updated_by`, `updated_at`; unique per `(organization_id, name)`. A flag without a row is off. The known flags are defined in code (`internal/featureflags`). Tenant table: it gets the standard row-level security policy from `pathos_apply_app_grants()` (docs/MULTI_TENANCY.md). Changes are audited (`feature_flag.update`) |
+
+## CodeGraph (migrations 00049–00051)
+
+The code graph store of PATHOS 3.0 M4 ([ADR-004](aspm/PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-004-graph-store-postgresql-versus-a-graph-database): plain PostgreSQL tables, no graph database). Design and measurements: [PATHOS_CODEGRAPH_ARCHITECTURE.md](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md). Every table carries `organization_id` and gets the standard row-level security policy from `pathos_apply_app_grants()`; child tables reference their parents by composite `(organization_id, id)` keys.
+
+| Object | Purpose |
+|---|---|
+| `codegraph_snapshots` | One graph per application, repository and commit: `scan_job_id` (the discovery execution), `ref`, `commit_sha`, `trigger` (`manual`, `scan`), `status` (`queued`, `building`, `ready`, `partial`, `failed`, `archived`), `storage` (`rows`, `object`, `none`), `object_key` (archive), `engines` (engine → version), `stats`, `node_count`, `edge_count`, `error_code` (a `PTH-…` code), `error`, timestamps |
+| `codegraph_nodes` | `node_key` (stable across snapshots; unique per snapshot), `type` (the 16 contract node types), `label`, `layer`, `parent_id` (containment tree, used for aggregation and lifting), `depth`, `group_key` (`dir:<directory>` or `type:<type>`: the aggregation group), `language`, `technology`, `file_path`, `start_line`, `end_line`, `attrs` (small scalars, ≤ 8 KB), `finding_counts` and `finding_total` (open findings attached at ingest) |
+| `codegraph_edges` | `edge_key` (`<source key>|<type>|<target key>`, unique per snapshot), `source_id`, `target_id`, `type` (the 12 contract edge types), `evidence` (the strongest evidence held: `verified`, `observed`, `ai_inferred`) |
+| `codegraph_evidence` | The proof of each edge: `evidence`, `kind` (`file_line`, `sbom`, `scan`, `registry`, `runtime`, `ai_record`), `ref`, `detail`, `file_path`, `line`. A check ties the kind to the evidence type (static kinds are `verified`, `runtime` is `observed`, `ai_record` is `ai_inferred`); a `file_line` row needs a path |
+| `codegraph_edge_has_evidence()` | Deferred constraint triggers `codegraph_edges_evidence_required` and `codegraph_evidence_keep_one`: at commit, every edge must have an evidence row of its own evidence type, and deleting evidence cannot leave an edge without any. The loader writes an edge and its evidence in one transaction |
+| `codegraph_settings` | Per organization (no row: defaults): `auto_rebuild` (true), `min_interval_minutes` (60), `keep_snapshots` (10) |
+| `scan_jobs.trigger` | Adds `codegraph`: discovery runs as a scan execution of a per-organization system profile named "CodeGraph discovery (system)", stored archived so it never appears in profile choices |
+
+Indexes serve the view queries: nodes by `(snapshot_id, type)`, `(snapshot_id, parent_id)`, `(snapshot_id, group_key)`, `(snapshot_id, file_path)` and nodes with findings; edges by `(snapshot_id, source_id, type)`, `(snapshot_id, target_id, type)` and `(snapshot_id, type)`; evidence by edge and by `(snapshot_id, file_path)`. Views load a snapshot's nodes and edges once (an in-memory skeleton cached per ready snapshot, which never changes) and read attributes and evidence only for the returned nodes and edges.
+
+Retention: the jobs service archives each repository's snapshots beyond `keep_snapshots` (newest kept). With object storage the full JSON export is written to `graphs/<organization>/<snapshot>.json.gz` first (`storage = object`); without it only the summary row remains (`storage = none`). Nodes, edges and evidence of archived snapshots are deleted; failed snapshots beyond the limit are deleted.

@@ -32,6 +32,7 @@ import (
 
 	"pathos/internal/auth"
 	"pathos/internal/authz"
+	"pathos/internal/codegraph"
 	"pathos/internal/identity"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
@@ -265,6 +266,13 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Error("artifact retention failed", "err", err)
 		} else if n > 0 {
 			log.Info("pruned scan artifacts past retention", "count", n)
+		}
+		// CodeGraph: settle finished builds and archive snapshots beyond
+		// each organization's keep_snapshots.
+		if n, err := codegraph.Retain(ctx, pool, artifacts); err != nil {
+			log.Error("CodeGraph retention failed", "err", err)
+		} else if n > 0 {
+			log.Info("archived CodeGraph snapshots past retention", "count", n)
 		}
 	}
 	// Minimal health listener for container health checks.

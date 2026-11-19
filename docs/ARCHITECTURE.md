@@ -98,7 +98,8 @@ PATHOS/
 │   └── test/integration/        # integration tests against PostgreSQL
 ├── frontend/                    # Vite + React + TypeScript + Tailwind
 │   └── src/{app,api,components/{ui,layout,data},features/*,lib}
-├── workers/                     # worker-core and family (workers/<family>/) Dockerfiles and tool manifests, PATHOS baseline Opengrep rules, rules-extra mount
+├── workers/                     # worker-core and family (workers/<family>/) Dockerfiles and tool manifests, PATHOS baseline Opengrep rules, rules-extra mount;
+│                                # workers/graph/discover: the CodeGraph discovery engine (own Go module)
 ├── deploy/                      # caddy, egress (Squid), keycloak (realm, theme, setup.sh),
 │                                # postgres init, scanners.d (plugins), security (ZAP), scripts/
 ├── scripts/                     # smoke, e2e, security, DAST, load, offline bundles, SSO test
@@ -114,7 +115,7 @@ Backend packages (`backend/internal`):
 | Identity and access | `auth` (OIDC, sessions, CSRF, API tokens), `authz` (permissions, roles, scopes), `identity` (users, teams, MFA), `org` |
 | Assets | `repos` (repositories, imports, uploads, sync, inventory), `scm` (provider clients, SSRF-safe HTTP), `ingest` (archive normalisation, ClamAV) |
 | Scanning | `scanners` (catalog, parsers, plugins), `scans` (profiles, executions, ingestion, targets, PR checks), `schedule`, `worker` (agent) |
-| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture`, `runtimectx` (Kubernetes and registry inventories, linking findings to running workloads) |
+| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture`, `runtimectx` (Kubernetes and registry inventories, linking findings to running workloads), `codegraph` (CodeGraph store, views, paths, diffs, rediscovery; M4) |
 | Review and AI | `review` (Human Eye), `ai`, `analyst`, `mcp` |
 | Governance and reporting | `policy`, `compliance`, `reporting`, `dashboard`, `search` |
 | Integrations | `notify` (notifications, SMTP, outbound webhooks), `tickets` (Jira, ServiceNow) |
@@ -166,6 +167,10 @@ Code from the scanned repository (fuzz harnesses, and a repository's own test su
 ### Scan targets and pull requests
 
 The same workers scan container images, web applications and APIs (Nuclei), uploaded SBOMs (Grype) and build artifacts (Trivy). Targets have no clone: the worker reaches the target through the egress proxy and first checks that the proxy allows it. Pull request scans run the repository's profile on the PR head and keep their results apart from the repository's findings.
+
+### CodeGraph discovery (M4, feature flag `codegraph`)
+
+CodeGraph builds use the same job and lease system. A build is a scan execution with trigger `codegraph` and a per-organization system profile (stored archived, never selectable) whose only routed tool is `pathos-graph`; the lease's routing condition sends it to a `worker-graph` worker (family image on `worker-core`, Compose profile `graph`) and marks it `kind: codegraph`, so the agent clones, runs only the graph tool and skips change detection and the source inventories. `pathos-graph` reads the checkout without network access (no proxy settings), never builds or runs repository code, and uploads a `pathos.codegraph/v1` document as its result. The API (`internal/codegraph`) validates it, adds ownership (application → repository), observed runtime edges and the open findings, and stores one snapshot per application, repository and commit in PostgreSQL ([ADR-004](aspm/PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-004-graph-store-postgresql-versus-a-graph-database)); every edge carries evidence (`verified`, `observed`, `ai_inferred`), enforced by a deferred constraint trigger. Successful scans trigger rate-limited rediscovery. Design, views and measurements: [PATHOS_CODEGRAPH_ARCHITECTURE.md](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md).
 
 ## 6. AI review architecture
 

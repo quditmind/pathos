@@ -367,6 +367,10 @@ type LeasedJob struct {
 	// SecretValidation is set when an administrator enabled live secret
 	// validation providers (repository branch scans only).
 	SecretValidation *SecretValidationLease `json:"secret_validation,omitempty"`
+	// Kind is "codegraph" for CodeGraph discovery executions: the worker
+	// runs only the graph tool and skips change detection and the source
+	// inventories (they belong to scans).
+	Kind string `json:"kind,omitempty"`
 }
 
 // JobSource describes a snapshot to download instead of cloning.
@@ -425,6 +429,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 	}
 	var job LeasedJob
 	var profileVersion uuid.UUID
+	var trigger string
 	var connID, snapshotID *uuid.UUID
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		err := tx.QueryRow(ctx, `
@@ -436,9 +441,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running')
 			    AND `+routingCondition+`
 			  ORDER BY q.priority DESC, q.queued_at FOR UPDATE SKIP LOCKED LIMIT 1)
-			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id`,
+			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id, j.trigger`,
 			wk.orgID, wk.ID, leaseDuration.String(), scanners.RoutedCatalogKeys(), WorkerOnlineWindow.String()).
-			Scan(&job.JobID, &job.RepositoryID, &job.Ref, &job.CommitSHA, &profileVersion)
+			Scan(&job.JobID, &job.RepositoryID, &job.Ref, &job.CommitSHA, &profileVersion, &trigger)
 		if err != nil {
 			return err
 		}
@@ -454,6 +459,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		job.Public = visibility == "public"
+		if trigger == "codegraph" {
+			job.Kind = "codegraph"
+		}
 		if snapshotID != nil {
 			var src JobSource
 			if err := tx.QueryRow(ctx, `SELECT snapshot_sha256, snapshot_size FROM source_snapshots WHERE id = $1`, *snapshotID).
@@ -474,6 +482,12 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		// Target scanners (image, DAST) never run against a repository.
 		job.Scanners = slices.DeleteFunc(job.Scanners, func(ps ProfileScanner) bool { return scanners.IsTargetOnly(ps.Key) })
+		if job.Kind == "codegraph" {
+			// CodeGraph discovery runs only the graph tool (the system
+			// profile lists the mandatory scanners too, as every profile
+			// version must).
+			job.Scanners = slices.DeleteFunc(job.Scanners, func(ps ProfileScanner) bool { return !scanners.IsGraphTool(ps.Key) })
+		}
 		// Opengrep receives the custom rule files pinned in the snapshot.
 		for i, sc := range job.Scanners {
 			if sc.Key != scanners.Opengrep {
@@ -512,10 +526,10 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		job.Credential = &cred
 	}
-	if job.Target == nil && job.Source == nil {
+	if job.Target == nil && job.Source == nil && job.Kind == "" {
 		job.PreviousCommitSHA, job.CollectAuthors = insights.LeaseInfo(ctx, s.DB, wk.orgID, job.JobID)
 	}
-	if job.Target == nil {
+	if job.Target == nil && job.Kind == "" {
 		job.SecretValidation = s.leaseSecretValidation(ctx, wk.orgID, job.JobID)
 	}
 	if err := AddEvent(ctx, s.DB, wk.orgID, job.JobID, "leased", "", "info", "picked up by worker "+wk.Name); err == nil {
