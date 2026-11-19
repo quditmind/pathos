@@ -23,6 +23,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
@@ -186,6 +187,21 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *s
 	}
 	if err := scans.EnsureDefaultProfile(ctx, pool, id); err != nil {
 		return fmt.Errorf("ensure default scan profile: %w", err)
+	}
+	// The Quick, Standard and Comprehensive profiles of every organization
+	// (idempotent; seeded once per organization and template).
+	orgRows, err := pool.Query(ctx, `SELECT id FROM organizations ORDER BY id`)
+	if err != nil {
+		return err
+	}
+	orgIDs, err := pgx.CollectRows(orgRows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		return err
+	}
+	for _, oid := range orgIDs {
+		if err := scans.EnsureTierProfiles(ctx, pool, oid); err != nil {
+			return fmt.Errorf("seed scan profile tiers: %w", err)
+		}
 	}
 	if err := review.EnsureSettings(ctx, pool, id); err != nil {
 		return fmt.Errorf("ensure Human Eye settings: %w", err)

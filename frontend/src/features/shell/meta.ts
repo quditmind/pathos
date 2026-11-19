@@ -23,7 +23,8 @@ export type FeatureFlag =
   | "reverse_engineering"
   | "remediation_workspace"
   | "continuous_monitoring"
-  | "lifecycle_overview";
+  | "lifecycle_overview"
+  | "scan_profile_tiers";
 
 export const metaQueryKey = ["meta"] as const;
 

@@ -42,6 +42,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
   "name": "Secrets and dependencies",
   "description": "Fast checks for every push",
   "is_default": false,
+  "template": null,
   "repository_count": 14,
   "current": {
     "id": "0190c0de-0000-7000-8000-000000000211",
@@ -60,6 +61,8 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 }
 ```
 
+`template` is `quick`, `standard` or `comprehensive` for the profiles PATHOS seeds per organization (PATHOS 3.0 M6) and `null` for Default and custom profiles. The seeded profiles are listed, readable and usable only while the organization's `scan_profile_tiers` [feature flag](administration.md#feature-flags) is on; otherwise they are left out of the list and `GET`/`kinds` answer `404` (`PTH-PLAT-0004`). They are seeded once per organization and template (by `pathosctl migrate` for every organization and when an organization is created); renaming, editing or archiving one is never undone.
+
 `GET /api/v1/scan-profiles/{id}` and the create and update responses add `history` (the 50 latest versions, newest first). Versions are immutable: every update creates a new version, and executions keep the version they used.
 
 ### Endpoints
@@ -72,8 +75,37 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `PUT` | `/api/v1/scan-profiles/{id}` | `profiles.manage` (organization-wide) | New version with the given settings → `200` profile |
 | `POST` | `/api/v1/scan-profiles/{id}/default` | `profiles.manage` (organization-wide) | Make it the organization default → `204` |
 | `DELETE` | `/api/v1/scan-profiles/{id}` | `profiles.manage` (organization-wide) | Archive → `204`. Repositories using it fall back to the default profile. `409` for the default profile |
+| `GET` | `/api/v1/scan-profiles/{id}/kinds` | `scans.read` or `repos.read` at any scope | The profile by [kind of check](#kinds-of-check-of-a-profile) |
 
 Audit actions: `scan_profile.create`, `scan_profile.update`, `scan_profile.set_default`, `scan_profile.archive`.
+
+### Kinds of check of a profile
+
+`GET /api/v1/scan-profiles/{id}/kinds` (PATHOS 3.0 M6) returns the 20 kinds of check of the build plan (then the groups outside them: `ai`, `manual`, `other`) with the profile's tools of each kind and what online workers run now. Errors: `404` (`PTH-PLAT-0004`) for an unknown, archived or hidden profile, `403` (`PTH-AUTH-1002`) without the permission.
+
+```json
+{
+  "profile_id": "0190c0de-0000-7000-8000-000000000201",
+  "workers_online": 1,
+  "kinds": [
+    {
+      "id": "iac", "name": "Infrastructure as code", "phase": 6, "after_v2": false, "outside_kinds": false,
+      "tools_target": 10, "listed": 6,
+      "selected": [ { "key": "checkov", "name": "Checkov", "listed": true, "runnable": true } ],
+      "runnable": 1, "available": 12, "repository_scope": true, "lacks_runnable": false
+    }
+  ]
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `tools_target` | The 10 tools per kind of the build plan's tool catalogue |
+| `listed` | The profile's tools among the kind's ten reference tools ("N of 10 tools") |
+| `selected` | The profile's tools of the kind (reference tools and the other catalogued tools of the kind's scan types); `runnable`: an online worker advertises the tool |
+| `available` | Catalogued tools of the kind that a repository profile can select |
+| `repository_scope` | `false` when no repository profile can cover the kind (it runs on scan targets, or is not built yet) |
+| `lacks_runnable` | The kind applies to repository scans but no selected tool runs on an online worker (such checks are recorded as `skipped`) |
 
 ### Request body
 

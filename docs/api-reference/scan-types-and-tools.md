@@ -22,6 +22,7 @@ PATHOS reports on 25 **scan types** (SAST, DAST, SCA, secrets, IaC, container, A
     {
       "id": "sast",
       "name": "SAST",
+      "kind_of_check": "sast-deep",
       "description": "Static analysis of source code for security weaknesses",
       "categories": ["sast"],
       "tools": [
@@ -54,6 +55,8 @@ PATHOS reports on 25 **scan types** (SAST, DAST, SCA, secrets, IaC, container, A
 | `import_formats` | [Result import formats](result-imports.md) specific to the type: the formats whose default category is the type's first category, and the formats the type names because their findings keep their own categories (for example `gitlab`, `asff`, `gcp-scc`, the linters with `code-quality` rules) or are recorded under another category (DAST tools under API security, TLS scanners under cryptography). The generic ones, listed once in `generic_import_formats` (SARIF, PATHOS findings JSON, CSV), apply to every type |
 | `runnable_tools`, `runnable` | How many tools are runnable now; `true` when at least one is |
 | `importable` | At least one specific import format exists |
+| `kind_of_check` | The kind of check the scan type is grouped under (PATHOS 3.0 M6, a display grouping; every scan type has exactly one) |
+| `kinds[]` | The 20 [kinds of check](../SCANNER_CATALOG.md#kinds-of-check-pathos-30-m6), then `ai`, `manual` and `other` (`outside_kinds: true`): `id`, `name`, `phase`, `after_v2`, `scan_types`, `tools` (the kind's 10 reference tools: `name`, `key` when catalogued, `source` `catalog` \| `feed` \| `pathos` \| `gap`, `mode` for a mode of a catalogued tool that is not wired, `after_v2`, `runnable`), `extra_tools` (other catalogued tools of its scan types), `catalogued`, `runnable` and `gaps` counts |
 
 Nothing in the response is fixed text: workers, plugins and formats come from the database and the registered parsers when the request is made.
 

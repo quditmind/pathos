@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/utils";
 import { humanize } from "../shared";
 import type { ReviewDetail } from "../types";
 import { KV, Panel } from "./section";
+import { findingCheckLabel } from "@/lib/checkKinds";
 
 const cweUrl = (c: string) => `https://cwe.mitre.org/data/definitions/${c.replace(/^CWE-/i, "")}.html`;
 
@@ -20,8 +21,8 @@ export function OverviewTab({ d, openSource }: { d: ReviewDetail; openSource: (p
             ["Vulnerability", f.title],
             ["Rule", <span className="font-mono text-[12px]">{f.rule_id}</span>],
             ["Category", f.category.toUpperCase()],
-            ["Scanner", f.scanner_keys.join(", ")],
-            ["Scanner severity", <span className="flex items-center gap-2"><SeverityBadge value={d.original.severity} />{d.original.cvss != null && <span className="tabular text-[12px]">CVSS {d.original.cvss.toFixed(1)}</span>}</span>],
+            ["Kind of check", findingCheckLabel(f)],
+            ["Detected severity", <span className="flex items-center gap-2"><SeverityBadge value={d.original.severity} />{d.original.cvss != null && <span className="tabular text-[12px]">CVSS {d.original.cvss.toFixed(1)}</span>}</span>],
             ["Human-assessed severity", d.assessed_severity ? <span className="flex items-center gap-2"><SeverityBadge value={d.assessed_severity} />{d.assessed_cvss != null && <span className="tabular text-[12px]">CVSS {d.assessed_cvss.toFixed(1)}</span>}</span> : "Not assessed yet"],
             ["CWE", f.cwe.length ? <span className="flex flex-wrap gap-1.5">{f.cwe.map((c) => <a key={c} href={cweUrl(c)} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">{c}</a>)}</span> : "—"],
             ["CVE", f.cve ? <a href={`https://nvd.nist.gov/vuln/detail/${encodeURIComponent(f.cve)}`} target="_blank" rel="noreferrer noopener" className="text-primary hover:underline">{f.cve}</a> : "—"],

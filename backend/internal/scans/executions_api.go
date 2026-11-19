@@ -20,6 +20,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/scanners"
 )
 
 // HistoryDays is the supported scan history window (comparison, search).
@@ -133,6 +134,14 @@ func (s *Service) scanFindings(w http.ResponseWriter, r *http.Request) {
 		args = append(args, v)
 		where = append(where, fmt.Sprintf("$%d = ANY(f.scanner_keys)", len(args)))
 	}
+	if v := q.Get("kind"); v != "" {
+		if _, ok := scanners.LookupKind(v); !ok {
+			s.fail(w, r, httpx.BadRequest("invalid kind of check"))
+			return
+		}
+		args = append(args, v)
+		where = append(where, fmt.Sprintf("(%s) = $%d", scanners.KindSQL("f"), len(args)))
+	}
 	rows, err := s.DB.Query(ctx, findingSelect+` WHERE f.organization_id = $1 AND `+strings.Join(where, " AND ")+
 		` ORDER BY CASE f.severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 WHEN 'low' THEN 3 ELSE 4 END, f.title LIMIT 1000`, args...)
 	if err != nil {
@@ -239,16 +248,19 @@ func (s *Service) scanLogs(w http.ResponseWriter, r *http.Request) {
 
 // Stage is one execution stage or scanner engine job.
 type Stage struct {
-	Key        string     `json:"key"` // queued | leased | source | scanner:<key> | finalize
-	Label      string     `json:"label"`
-	Scanner    string     `json:"scanner"` // engine key for scanner stages
-	Version    string     `json:"scanner_version"`
-	Status     string     `json:"status"` // pending | running | succeeded | failed | skipped | timed_out | cancelled
-	StartedAt  *time.Time `json:"started_at"`
-	FinishedAt *time.Time `json:"finished_at"`
-	DurationMS *int64     `json:"duration_ms"`
-	Findings   *int       `json:"findings"`
-	Error      string     `json:"error"`
+	Key     string `json:"key"` // queued | leased | source | scanner:<key> | finalize
+	Label   string `json:"label"`
+	Scanner string `json:"scanner"` // engine key for scanner stages (audit; the UI shows the kind of check)
+	// KindOfCheck and KindOfCheckName: the kind of check of a scanner stage.
+	KindOfCheck     string     `json:"kind_of_check,omitempty"`
+	KindOfCheckName string     `json:"kind_of_check_name,omitempty"`
+	Version         string     `json:"scanner_version"`
+	Status          string     `json:"status"` // pending | running | succeeded | failed | skipped | timed_out | cancelled
+	StartedAt       *time.Time `json:"started_at"`
+	FinishedAt      *time.Time `json:"finished_at"`
+	DurationMS      *int64     `json:"duration_ms"`
+	Findings        *int       `json:"findings"`
+	Error           string     `json:"error"`
 }
 
 // Event is a recorded stage event.
@@ -334,7 +346,9 @@ func (s *Service) loadStages(ctx context.Context, j Job) ([]Stage, []Event, erro
 		}
 	}
 	for _, k := range keys {
-		st := Stage{Key: "scanner:" + k, Label: k, Scanner: k, Status: "pending", StartedAt: first("scanner", k, "started")}
+		kind := scanners.PrimaryKindOfTool(k)
+		st := Stage{Key: "scanner:" + k, Label: k, Scanner: k, Status: "pending", StartedAt: first("scanner", k, "started"),
+			KindOfCheck: kind, KindOfCheckName: scanners.KindName(kind)}
 		if res, ok := byKey[k]; ok {
 			st.Status, st.Version, st.Error = res.Status, res.ScannerVersion, res.Error
 			n := res.FindingsCount
@@ -363,6 +377,50 @@ func (s *Service) loadStages(ctx context.Context, j Job) ([]Stage, []Event, erro
 	return stages, events, nil
 }
 
+// KindProgress is the progress of one kind of check in a scan: "Infrastructure
+// as code: 7 of 10 checks finished" (scan progress names kinds, not tools).
+type KindProgress struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Total    int    `json:"total"`
+	Finished int    `json:"finished"`
+	Failed   int    `json:"failed"`
+	Running  int    `json:"running"`
+}
+
+// KindProgressOf groups the scanner stages by kind of check, in the order of
+// the kinds.
+func KindProgressOf(stages []Stage) []KindProgress {
+	by := map[string]*KindProgress{}
+	for _, st := range stages {
+		if st.Scanner == "" {
+			continue
+		}
+		kp := by[st.KindOfCheck]
+		if kp == nil {
+			kp = &KindProgress{ID: st.KindOfCheck, Name: st.KindOfCheckName}
+			by[st.KindOfCheck] = kp
+		}
+		kp.Total++
+		switch st.Status {
+		case "succeeded", "skipped", "cancelled":
+			kp.Finished++
+		case "failed", "timed_out":
+			kp.Finished++
+			kp.Failed++
+		case "running":
+			kp.Running++
+		}
+	}
+	out := []KindProgress{}
+	for _, k := range append(append([]scanners.CheckKind{}, scanners.CheckKinds...), scanners.OutsideKinds...) {
+		if kp := by[k.ID]; kp != nil {
+			out = append(out, *kp)
+		}
+	}
+	return out
+}
+
 func (s *Service) scanStages(w http.ResponseWriter, r *http.Request) {
 	_, j, err := s.loadJobFor(r, authz.PermScansRead)
 	if err != nil {
@@ -378,7 +436,7 @@ func (s *Service) scanStages(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"stages": stages, "events": events})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"stages": stages, "events": events, "kinds": KindProgressOf(stages)})
 }
 
 // loadDetail adds results and the configuration snapshot to a job.

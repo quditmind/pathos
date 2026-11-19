@@ -18,6 +18,8 @@ The page is built from the live state of the installation each time it loads (an
 
 The cards at the top show how many scan types have a tool on an online worker, how many can only be imported, and how many workers are online.
 
+**Kinds of check.** Below the cards, the 20 kinds of check of the PATHOS tool plan (for example *Infrastructure as code*, *Secrets*, *Web app & API testing*) group the scan types: each kind lists its scan types, how many of its 10 reference tools PATHOS catalogues (with the count of other catalogued tools), how many an online worker runs now, and how many are still on the gap list. Expand a kind to see its 10 tools: *runnable*, *catalogued*, *intelligence feed*, *PATHOS engine* or *gap list* (a mode of a catalogued tool that is not wired yet says so). AI / LLM and manual review are shown outside the 20 kinds. The licence and maintenance status of every tool on the gap list is in the [scanner catalog](../SCANNER_CATALOG.md#gap-list). This page, like Scan profiles and Scanners & workers, names tools; the rest of PATHOS shows the kind of check instead.
+
 Each row of the table is a scan type:
 
 | Column | Meaning |
@@ -46,5 +48,12 @@ Use the filter to show the scan types that are runnable now, import only, or cov
 | A tool shows **no online worker** | Ask an administrator to start the family worker that provides it |
 | A scan type is **Import only** | Run the tool in your CI pipeline and import its report (**Scanning → Import Results**, or the `pathos` CLI) |
 | No tool and no dedicated format | Import a SARIF, PATHOS findings JSON or CSV report with the category of the scan type, or ask an administrator to add the tool as a scanner plugin |
+
+## Troubleshooting
+
+| Code | Where | Fix |
+|---|---|---|
+| `PTH-AUTH-1002` | The page answers *forbidden* | You need `scanners.read`; ask an administrator. |
+| — | A kind of check shows *0 runnable* | Start the worker image that runs its tools (**Scanners & workers** shows which), or import results. Tools on the gap list are not in PATHOS yet. |
 
 Related: [Security scanning: scanners and profiles](security-scanning.md), [Scans](scanning.md).

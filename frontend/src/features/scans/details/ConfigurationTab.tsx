@@ -5,6 +5,18 @@ import type { ScanJob } from "@/api/types";
 import { Badge, Card, EmptyState, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { formatDuration } from "../shared";
+import { kindName, kindOfTool, redactToolNames } from "@/lib/checkKinds";
+
+/** Labels engines by kind of check, numbered within the kind ("Secrets · check 2"), never by name (rule 3). */
+export function numbered(keys: string[]): { key: string; label: string }[] {
+  const n = new Map<string, number>();
+  return keys.map((key) => {
+    const kind = kindName(kindOfTool(key));
+    const i = (n.get(kind) ?? 0) + 1;
+    n.set(kind, i);
+    return { key, label: `${kind} · check ${i}` };
+  });
+}
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -59,34 +71,40 @@ export function ConfigurationTab({ job }: { job: ScanJob }) {
             </dl>
           </Card>
           <Card>
-            <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Scanners ({c.scanners.length})</h2>
+            <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Kinds of check ({c.scanners.length} checks)</h2>
+            <p className="border-b border-border px-4 py-2 text-[12px] text-muted-foreground">
+              The engines of each kind are listed in <Link to="/configurations/scan-profiles" className="text-primary hover:underline">Configurations › Scan profiles</Link>.
+            </p>
             <ul className="divide-y divide-border">
-              {c.scanners.map((s) => (
-                <li key={s.key} className="px-4 py-2.5">
-                  <div className="text-[13px] font-medium">{s.key}</div>
-                  {s.config !== undefined && s.config !== null ? (
-                    <pre aria-label={`${s.key} configuration`} className="mt-1.5 max-h-64 overflow-auto rounded-md bg-surface-muted/60 p-2.5 font-mono text-[11.5px]">
-                      {JSON.stringify(s.config, null, 2)}
-                    </pre>
-                  ) : (
-                    <div className="text-[12px] text-muted-foreground">Default configuration</div>
-                  )}
-                </li>
-              ))}
+              {numbered(c.scanners.map((s) => s.key)).map(({ key, label }, i) => {
+                const s = c.scanners[i]!;
+                return (
+                  <li key={key} className="px-4 py-2.5">
+                    <div className="text-[13px] font-medium">{label}</div>
+                    {s.config !== undefined && s.config !== null && JSON.stringify(s.config) !== "{}" ? (
+                      <pre aria-label={`${label} configuration`} className="mt-1.5 max-h-64 overflow-auto rounded-md bg-surface-muted/60 p-2.5 font-mono text-[11.5px]">
+                        {redactToolNames(JSON.stringify(s.config, null, 2))}
+                      </pre>
+                    ) : (
+                      <div className="text-[12px] text-muted-foreground">Default configuration</div>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         </>
       )}
       <Card>
-        <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Scanner versions used</h2>
+        <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Engine versions used</h2>
         {used.length ? (
           <Table>
-            <thead><tr><Th>Engine</Th><Th>Version</Th><Th>Status</Th></tr></thead>
+            <thead><tr><Th>Check</Th><Th>Version</Th><Th>Status</Th></tr></thead>
             <tbody>
-              {used.map((r) => (
+              {used.map((r, i) => (
                 <tr key={r.scanner_key}>
-                  <Td className="font-medium">{r.scanner_key}</Td>
-                  <Td className="font-mono text-[12px]">{r.scanner_version || "—"}</Td>
+                  <Td className="font-medium">{numbered(used.map((u) => u.scanner_key))[i]!.label}</Td>
+                  <Td className="font-mono text-[12px]">{redactToolNames(r.scanner_version) || "—"}</Td>
                   <Td className="text-[12px] capitalize">{r.status.replace("_", " ")}</Td>
                 </tr>
               ))}

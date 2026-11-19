@@ -9,7 +9,7 @@ summary: The findings list and details, status and lifecycle, assignment, bulk a
 ---
 # Working with findings
 
-A **finding** is one security problem that a scanner, an imported report or a scan target reported. PATHOS normalizes and de-duplicates the results of every tool: the same vulnerability reported by several scanners is one finding, and **Detected by** lists the scanners.
+A **finding** is one security problem that a scanner, an imported report or a scan target reported. PATHOS normalizes and de-duplicates the results of every tool: the same vulnerability reported by several scanners is one finding. The finding names its **kind of check** (for example *Infrastructure as code*) and how many engines confirmed it (**confirmed by N engines**), not the tools: tool names appear only on the configuration pages ([why](security-scanning.md#tool-names-and-kinds-of-check)).
 
 Open **Vulnerabilities → Findings** (permission `findings.read`). You see the findings of the repositories in your scope.
 
@@ -19,8 +19,8 @@ Open **Vulnerabilities → Findings** (permission `findings.read`). You see the 
 
 - **Severity cards** (Critical, High, Medium, Low, Info) count the findings that match the other filters. Select a card to filter by that severity.
 - **Search findings** matches the title, rule, CVE, file or package.
-- **Filters**: Status (default *Open*), Assignee (*Assigned to me*, *Unassigned*), Lifecycle, Exploited (KEV), Malicious packages, Deployed and Internet-exposed ([runtime context](runtime.md#in-the-findings-list-and-the-finding-drawer)), Risk, Order (*Order by severity* or *Order by contextual risk*), Human Eye (review state or outcome), SLA (*Breached*, *Due within 7 days*), Reachability (*Reachable*, *Not reachable*, *Unknown*, and by how it was decided: *function level (call graph)*, *function level (calls in the code)*, *package imports*), Asset (source code, container images, web applications, APIs, imported SBOMs, build artifacts), Type, Scanner and Repository.
-- **Columns** shows or hides columns. Hidden by default: Repository, Repository ID, Runtime, Detected by, EPSS, KEV, Confidence, Application, Fixed version and Location. Repository, Repository ID, Runtime, EPSS, KEV, Confidence and Application are always included in **Export** (CSV of the loaded rows).
+- **Filters**: Status (default *Open*), Assignee (*Assigned to me*, *Unassigned*), Lifecycle, Exploited (KEV), Malicious packages, Deployed and Internet-exposed ([runtime context](runtime.md#in-the-findings-list-and-the-finding-drawer)), Risk, Order (*Order by severity* or *Order by contextual risk*), Human Eye (review state or outcome), SLA (*Breached*, *Due within 7 days*), Reachability (*Reachable*, *Not reachable*, *Unknown*, and by how it was decided: *function level (call graph)*, *function level (calls in the code)*, *package imports*), Asset (source code, container images, web applications, APIs, imported SBOMs, build artifacts), Type, **Kind of check** and Repository. Links that still carry the earlier `scanner=` filter keep working.
+- **Columns** shows or hides columns. Hidden by default: Repository, Repository ID, Runtime, Kind of check (with *confirmed by N engines*), EPSS, KEV, Confidence, Application, Fixed version and Location. Repository, Repository ID, Runtime, EPSS, KEV, Confidence and Application are always included in **Export** (CSV of the loaded rows).
 
 Filters are kept in the page address, so a filtered view can be bookmarked or shared.
 
@@ -40,7 +40,7 @@ Select a finding to open its details panel:
 - **Where it runs**: the clusters, namespaces and workloads that run the finding, with the evidence of the link, exposure and matched runtime alerts ([runtime context](runtime.md))
 - **How the package gets in** for dependency findings ([dependency paths](posture.md#dependencies-of-a-repository))
 - the Human Eye review and its outcome, if there is one
-- type, rule, CVE (links to the [vulnerability page](vulnerability-intelligence.md#vulnerability-details)), CWE, package, **Fixed in**, location, **Detected by**, first and last seen, **First detected at commit**, and whether a suppression rule decided it
+- type, rule, CVE (links to the [vulnerability page](vulnerability-intelligence.md#vulnerability-details)), CWE, package, **Fixed in**, location, **Kind of check** (*confirmed by N engines*), first and last seen, **First detected at commit**, and whether a suppression rule decided it
 - **Reachability** for dependency findings: reachable, not reachable or unknown, why, and how it was decided. For a function-level answer it also shows the vulnerable functions checked, the **call paths** (each a chain of `file:line` frames, outermost caller first, ending at the call of the vulnerable function), the dynamic uses or untyped calls that made it unknown, the tool and scan behind it and what the method cannot see ([reachability](vulnerability-intelligence.md#function-level))
 - the security policies it violates, linked tickets, **Fix pull request** (dependency findings), **AI-proposed fix** (SAST, secrets and IaC findings, see [below](#ai-proposed-fixes)), related findings, the code snippet, **AI review** and **Sightings** (every scan that saw it)
 
@@ -175,3 +175,11 @@ The rule's safeguards:
 **Expected result.** The finding shows the new status, assignee and history entry. The first successful scan that no longer detects it closes it as Fixed.
 
 **Related APIs.** [Findings](../api-reference/findings.md), [Vulnerability intelligence](../api-reference/vulnerability-intelligence.md) (suppression rules).
+
+## Troubleshooting
+
+| Code | Where | Fix |
+|---|---|---|
+| `PTH-PLAT-0002` | The list does not load after choosing a filter (an invalid status, severity, category or kind of check in the link) | Reset the filters; the message names the invalid value. |
+| `PTH-AUTH-1002` | The list or a finding answers *forbidden* | You need `findings.read` on the repository; ask an administrator for a role on its business unit or organization. |
+| — | A finding shows *confirmed by 1 engine* although several tools ran | Only the engines that reported this finding count; tools that did not report it, or the same tool run twice, do not. |

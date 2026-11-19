@@ -59,7 +59,7 @@ describe("related findings", () => {
       }),
     });
     renderApp(<RelatedFindings findingId="f1" />, { permissions: ["findings.read"] });
-    expect(await screen.findByText(/Same location, another tool · import-sast-semgrep-pro · app.js:12/)).toBeInTheDocument();
+    expect(await screen.findByText(/Same location, another engine · SAST: deep engines · confirmed by 1 engine · app.js:12/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open in 2 other repositories/ })).toBeInTheDocument();
   });
 });

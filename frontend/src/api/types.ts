@@ -936,6 +936,18 @@ export interface ScanStage {
   duration_ms: number | null;
   findings: number | null;
   error: string;
+  /** Kind of check of a scanner stage (the UI names kinds, not engines). */
+  kind_of_check?: string;
+  kind_of_check_name?: string;
+}
+/** Progress of one kind of check in a scan ("Infrastructure as code: 7 of 10 checks finished"). */
+export interface ScanKindProgress {
+  id: string;
+  name: string;
+  total: number;
+  finished: number;
+  failed: number;
+  running: number;
 }
 export interface ScanEvent {
   stage: string;
@@ -1012,7 +1024,13 @@ export interface Finding {
   /** Permanent Repository ID, e.g. QD-REPO-000042. */
   repository_key: string;
   category: string;
+  /** Engines that reported the finding: kept for audit; the UI shows kind_of_check and engines_count (rule 3). */
   scanner_keys: string[];
+  /** Kind of check (one of the 20 kinds, or ai / manual / other). */
+  kind_of_check?: string;
+  kind_of_check_name?: string;
+  /** Distinct engines that confirmed the finding after de-duplication. */
+  engines_count?: number;
   rule_id: string;
   title: string;
   description: string;
@@ -1306,6 +1324,8 @@ export interface ScanTypeFormat {
 export interface ScanTypeCoverage {
   id: string;
   name: string;
+  /** The kind of check the scan type is grouped under. */
+  kind_of_check?: string;
   description: string;
   categories: string[];
   note?: string;
@@ -1320,6 +1340,48 @@ export interface ScanTypesResponse {
   items: ScanTypeCoverage[];
   generic_import_formats: ScanTypeFormat[];
   workers_online: number;
+  kinds?: KindCoverage[];
+}
+
+/** One §7 tool of a kind of check (Configurations pages only: tool names, rule 3). */
+export interface KindTool {
+  name: string;
+  key?: string;
+  source: "catalog" | "feed" | "pathos" | "gap";
+  mode?: string;
+  after_v2?: boolean;
+  runnable: boolean;
+}
+
+/** A kind of check of the build prompt's §7 table and what the deployment provides. */
+export interface KindCoverage {
+  id: string;
+  name: string;
+  phase: number;
+  after_v2: boolean;
+  outside_kinds: boolean;
+  scan_types: string[];
+  tools: KindTool[];
+  extra_tools: string[];
+  catalogued: number;
+  runnable: number;
+  gaps: number;
+}
+
+/** A kind of check as a scan profile covers it (GET /api/v1/scan-profiles/{id}/kinds). */
+export interface ProfileKind {
+  id: string;
+  name: string;
+  phase: number;
+  after_v2: boolean;
+  outside_kinds: boolean;
+  tools_target: number;
+  listed: number;
+  selected: { key: string; name: string; listed: boolean; runnable: boolean }[];
+  runnable: number;
+  available: number;
+  repository_scope: boolean;
+  lacks_runnable: boolean;
 }
 
 export interface ProfileSettings {
@@ -1345,6 +1407,8 @@ export interface ScanProfile {
   name: string;
   description: string;
   is_default: boolean;
+  /** Seeded tier (quick, standard, comprehensive); null for Default and custom profiles. */
+  template?: "quick" | "standard" | "comprehensive" | null;
   repository_count: number;
   current: ProfileVersion;
   history?: ProfileVersion[];

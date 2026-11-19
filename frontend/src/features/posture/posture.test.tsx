@@ -70,7 +70,7 @@ describe("coverage", () => {
     });
     renderApp(<CoveragePage />, { permissions: ["repos.read"] });
     expect(await screen.findByText("acme/api")).toBeInTheDocument();
-    expect(screen.getByLabelText(/Code \(SAST\): Covered: last success .*\(opengrep\)/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Code \(SAST\): Covered: last success .*\(by 1 engine\)/)).toBeInTheDocument();
     expect(screen.getByLabelText("Web and API (DAST): No target")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
   });

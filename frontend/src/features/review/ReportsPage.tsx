@@ -1,4 +1,5 @@
 import { Download, FileText, Printer } from "lucide-react";
+import { countsByKind } from "@/lib/checkKinds";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
 import { Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
@@ -97,7 +98,7 @@ export function ReportsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <CountTable title="Findings by severity" rows={r.by_severity} />
             <CountTable title="Final dispositions" rows={r.by_disposition} label={(c) => dispositionLabel[c.key as Disposition] ?? c.key} />
-            <CountTable title="Findings by scanner" rows={r.by_scanner} />
+            <CountTable title="Findings by kind of check" rows={countsByKind(r.by_scanner)} label={(c) => c.label || c.key} />
             <CountTable title="Findings by repository" rows={r.by_repository} label={(c) => c.label || c.key} />
             <CountTable title="Independent review results" rows={r.independent_review_results} />
           </div>

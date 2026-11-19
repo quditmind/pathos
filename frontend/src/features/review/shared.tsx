@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Combobox, type ComboOption } from "@/components/ui/combobox";
 import { Badge, Input, Select } from "@/components/ui/primitives";
 import { useApplications } from "@/features/repos/api";
-import { useCatalog as useScannerCatalog } from "@/features/scans/api";
+import { CHECK_KINDS, kindOfTool, toolKeysOfKind } from "@/lib/checkKinds";
 import { cn } from "@/lib/utils";
 import { useReviewers } from "./api";
 import type { Disposition, Priority, RemediationStatus, ReviewFilters, ReviewStatus } from "./types";
@@ -176,7 +176,6 @@ export function ReviewFilterBar({
   show: ("q" | "date" | "repository" | "application" | "scanner" | "severity" | "reviewer" | "status" | "disposition" | "priority" | "overdue")[];
   trailing?: ReactNode;
 }) {
-  const scanners = useScannerCatalog();
   const reviewers = useReviewers();
   const apps = (useApplications().data ?? []).map((a) => ({ value: a.id, label: a.name }));
   const [q, setQ] = useState(values.q ?? "");
@@ -220,10 +219,15 @@ export function ReviewFilterBar({
         </Select>
       )}
       {has("scanner") && (
-        <Select aria-label="Scanner" value={values.scanner ?? ""} onChange={(e) => onChange("scanner", e.target.value || undefined)} className="max-w-40">
-          <option value="">All scanners</option>
-          {(scanners.data ?? []).map((s) => (
-            <option key={s.key} value={s.key}>{s.name}</option>
+        <Select
+          aria-label="Kind of check"
+          value={values.scanner ? kindOfTool(values.scanner.split(",")[0]!) : ""}
+          onChange={(e) => onChange("scanner", e.target.value ? toolKeysOfKind(e.target.value).join(",") : undefined)}
+          className="max-w-48"
+        >
+          <option value="">All kinds of check</option>
+          {CHECK_KINDS.filter((k) => toolKeysOfKind(k.id).length > 0).map((k) => (
+            <option key={k.id} value={k.id}>{k.name}</option>
           ))}
         </Select>
       )}

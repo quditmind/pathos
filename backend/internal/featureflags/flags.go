@@ -44,6 +44,7 @@ var Known = []Flag{
 	{"remediation_workspace", "Remediation workspace and gates", "M8"},
 	{"continuous_monitoring", "Continuous monitoring feed and architecture drift", "M9"},
 	{"lifecycle_overview", "Application security lifecycle overview", "M3"},
+	{"scan_profile_tiers", "Quick, Standard and Comprehensive scan profiles (seeded beside Default)", "M6"},
 }
 
 // IsKnown reports whether name is a known flag.

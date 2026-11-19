@@ -6,6 +6,9 @@ import { Alert, Badge, Card, Table, Td, Th } from "@/components/ui/primitives";
 import { JobStatusPill, SeverityBadge, duration } from "@/components/data/Severity";
 import { formatDateTime } from "@/lib/utils";
 import { jobDuration, ScanProgress, severities, triggerLabel } from "../shared";
+import { isActive, useScanStages } from "../api";
+import { KindProgressCard } from "./StagesTab";
+import { kindName, kindOfTool, redactToolNames } from "@/lib/checkKinds";
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -59,9 +62,10 @@ export function ChangeSummaryCard({ c }: { c: ScanChangeSummary }) {
 }
 
 export function OverviewTab({ job: j }: { job: ScanJob }) {
+  const stages = useScanStages(j.id, isActive(j));
   return (
     <div className="space-y-4">
-      {j.error && <Alert tone={j.status === "partial" ? "warning" : "danger"}>{j.error}</Alert>}
+      {j.error && <Alert tone={j.status === "partial" ? "warning" : "danger"}>{redactToolNames(j.error)}</Alert>}
       {j.gate_failed && (
         <Alert>
           Security gate failed: new critical findings, a blocking security policy{j.asset_type === "image" || j.asset_type === "artifact" || j.asset_type === "mobile-app" ? " or a required signature that was not verified" : ""}. The Logs tab names the reason.
@@ -139,36 +143,68 @@ export function OverviewTab({ job: j }: { job: ScanJob }) {
         </div>
       </Card>
 
+      {!!stages.data?.kinds?.length && <KindProgressCard kinds={stages.data.kinds} />}
+
       {j.change_summary && <ChangeSummaryCard c={j.change_summary} />}
 
-      {!!j.results?.length && (
-        <Card>
-          <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Scanner engines</h2>
-          <Table>
-            <thead>
-              <tr><Th>Engine</Th><Th>Version</Th><Th>Status</Th><Th className="text-right">Findings</Th><Th>Duration</Th><Th><span className="sr-only">Report</span></Th></tr>
-            </thead>
-            <tbody>
-              {j.results.map((r) => (
-                <tr key={r.scanner_key}>
-                  <Td className="font-medium">{r.scanner_key}{r.error && <div className="max-w-md text-[11.5px] font-normal text-danger">{r.error}</div>}</Td>
-                  <Td className="font-mono text-[12px]">{r.scanner_version || "—"}</Td>
-                  <Td><Badge tone={r.status === "succeeded" ? "success" : r.status === "skipped" ? "neutral" : "danger"}>{r.status.replace("_", " ")}</Badge></Td>
-                  <Td className="tabular text-right">{r.scanner_key === "syft" ? "SBOM" : r.findings_count}</Td>
-                  <Td className="tabular text-[12px]">{duration(r.duration_ms)}</Td>
-                  <Td>
-                    {r.has_artifact && (
-                      <a className="text-primary" href={`/api/v1/scans/${j.id}/results/${r.scanner_key}/artifact`} aria-label={`Download ${r.scanner_key} report`} title="Download raw report">
-                        <Download className="size-4" />
-                      </a>
-                    )}
-                  </Td>
-                </tr>
-              ))}
-            </tbody>
-          </Table>
-        </Card>
-      )}
+      {!!j.results?.length && <ChecksByKind job={j} />}
     </div>
+  );
+}
+
+/**
+ * Results by kind of check (rule 3: no engine names). Each kind lists how
+ * many of its checks succeeded, their findings and the raw reports, which
+ * are numbered within the kind.
+ */
+function ChecksByKind({ job: j }: { job: ScanJob }) {
+  const groups = new Map<string, NonNullable<ScanJob["results"]>>();
+  for (const r of j.results ?? []) {
+    const k = kindOfTool(r.scanner_key);
+    groups.set(k, [...(groups.get(k) ?? []), r]);
+  }
+  return (
+    <Card>
+      <h2 className="border-b border-border px-4 py-3 text-[13px] font-semibold">Checks by kind</h2>
+      <Table>
+        <thead>
+          <tr><Th>Kind of check</Th><Th>Checks</Th><Th className="text-right">Findings</Th><Th>Duration</Th><Th>Raw reports</Th></tr>
+        </thead>
+        <tbody>
+          {[...groups.entries()].map(([kind, rs]) => {
+            const ok = rs.filter((r) => r.status === "succeeded").length;
+            const failed = rs.filter((r) => r.status === "failed" || r.status === "timed_out");
+            const skipped = rs.filter((r) => r.status === "skipped").length;
+            const findings = rs.reduce((n, r) => n + (r.scanner_key === "syft" ? 0 : r.findings_count), 0);
+            return (
+              <tr key={kind}>
+                <Td className="font-medium">
+                  {kindName(kind)}
+                  {failed.map((r, i) => r.error && <div key={i} className="max-w-md text-[11.5px] font-normal text-danger">{redactToolNames(r.error)}</div>)}
+                </Td>
+                <Td>
+                  <span className="flex flex-wrap gap-1">
+                    <Badge tone="success">{ok} of {rs.length} succeeded</Badge>
+                    {failed.length > 0 && <Badge tone="danger">{failed.length} failed</Badge>}
+                    {skipped > 0 && <Badge>{skipped} skipped</Badge>}
+                  </span>
+                </Td>
+                <Td className="tabular text-right">{findings}</Td>
+                <Td className="tabular text-[12px]">{duration(rs.reduce((n, r) => Math.max(n, r.duration_ms), 0))}</Td>
+                <Td>
+                  <span className="flex gap-2">
+                    {rs.map((r, i) => r.has_artifact && (
+                      <a key={i} className="inline-flex items-center gap-0.5 text-[12px] text-primary" href={`/api/v1/scans/${j.id}/results/${r.scanner_key}/artifact`} aria-label={`Download raw report ${i + 1} of ${kindName(kind)}`} title="Download raw report">
+                        <Download className="size-3.5" />{i + 1}
+                      </a>
+                    ))}
+                  </span>
+                </Td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+    </Card>
   );
 }

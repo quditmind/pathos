@@ -25,7 +25,8 @@ import { FilterBar, type FilterDef } from "@/components/data/FilterBar";
 import { severityColor, SeverityBadge } from "@/components/data/Severity";
 import { useRepositories } from "@/features/repos/api";
 import { cn, formatDateTime } from "@/lib/utils";
-import { useCatalog, useFinding, useFindings, useFindingSummary } from "@/features/scans/api";
+import { useFinding, useFindings, useFindingSummary } from "@/features/scans/api";
+import { CHECK_KINDS, findingCheckLabel, toolCheckLabel } from "@/lib/checkKinds";
 import { LifecyclePanel, slaState } from "@/features/vuln/LifecyclePanel";
 import { needsReason, statusLabel, useVulnMutation } from "@/features/vuln/api";
 import { reviewApi } from "@/features/review/api";
@@ -45,10 +46,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { control?: string; malicious?: string; deployed?: string; internet_exposed?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string; secret_validation?: string; reachability?: string; reachability_method?: string };
+type FindingSearch = { control?: string; malicious?: string; deployed?: string; internet_exposed?: string; status?: string; severity?: string; category?: string; kind?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string; secret_validation?: string; reachability?: string; reachability_method?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["control", "malicious", "deployed", "internet_exposed", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id", "secret_validation", "reachability", "reachability_method"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["control", "malicious", "deployed", "internet_exposed", "status", "severity", "category", "kind", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id", "secret_validation", "reachability", "reachability_method"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -83,7 +84,7 @@ const columns: Column<Finding>[] = [
   { id: "repository_key", header: "Repository ID", defaultHidden: true, exportAlways: true, className: "whitespace-nowrap font-mono text-[11.5px]", cell: (f) => f.repository_key || "—", csv: (f) => f.repository_key },
   { id: "category", header: "Type", cell: (f) => <span className="whitespace-nowrap text-[12px]">{f.category === "sca" ? "SCA" : f.category === "sast" ? "SAST" : f.category === "iac" ? "IaC" : f.category === "dast" ? "DAST" : categoryLabel[f.category] ?? f.category}</span>, csv: (f) => f.category },
   { id: "rule", header: "Rule / CVE", cell: (f) => <span className="whitespace-nowrap font-mono text-[11.5px]">{f.cve || f.rule_id}</span>, csv: (f) => f.cve || f.rule_id },
-  { id: "scanners", header: "Detected by", defaultHidden: true, cell: (f) => <span className="text-[12px]">{f.scanner_keys.join(", ")}</span>, csv: (f) => f.scanner_keys.join(";") },
+  { id: "scanners", header: "Kind of check", defaultHidden: true, cell: (f) => <span className="text-[12px]">{findingCheckLabel(f)}</span>, csv: (f) => findingCheckLabel(f) },
   { id: "status", header: "Status", cell: (f) => f.lifecycle_status ? <LifecycleBadge value={f.lifecycle_status} /> : <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.lifecycle_status ?? f.status },
   { id: "epss", header: "EPSS", defaultHidden: true, exportAlways: true, className: "tabular text-[12px]", cell: (f) => (f.epss != null ? <span title={`percentile ${pct(f.epss_percentile)}`}>{pct(f.epss)}</span> : "—"), csv: (f) => f.epss ?? "" },
   { id: "kev", header: "KEV", defaultHidden: true, exportAlways: true, cell: (f) => (f.kev ? "Yes" : "—"), csv: (f) => (f.kev ? "yes" : "no") },
@@ -114,7 +115,6 @@ export function FindingsPage() {
   const filters = { ...rest, q: dq || undefined };
   const findings = useFindings(filters);
   const summary = useFindingSummary({ ...filters, severity: undefined });
-  const catalog = useCatalog();
   const repos = useRepositories({});
   const rows = findings.data?.pages.flatMap((p) => p.items) ?? [];
 
@@ -135,7 +135,7 @@ export function FindingsPage() {
     { key: "reachability_method", label: "Reachability method", allLabel: "Any method", options: [{ value: "call_graph", label: "Function level: call graph" }, { value: "symbol_calls", label: "Function level: calls in the code" }, { value: "import", label: "Package level: imports" }, { value: "none", label: "Not analysed" }] },
     { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }, { value: "artifact", label: "Build artifacts" }, { value: "endpoints", label: "Declared public endpoints" }, { value: "mobile-app", label: "Mobile apps" }, { value: "llm-endpoint", label: "LLM endpoints" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
-    { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
+    { key: "kind", label: "Kind of check", allLabel: "All kinds of check", options: CHECK_KINDS.map((k) => ({ value: k.id, label: k.name })) },
     { key: "repository_id", label: "Repository", allLabel: "All repositories", options: (repos.data?.pages.flatMap((p) => p.items) ?? []).map((r) => ({ value: r.id, label: r.repository_key ? `${r.full_name} · ${r.repository_key}` : r.full_name })) },
   ];
   const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
@@ -259,7 +259,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             {d.package_name && <div><dt className="text-[12px] text-muted-foreground">Package</dt><dd className="font-mono text-[12px]">{d.package_name}@{d.package_version}</dd></div>}
             {d.fixed_version && <div><dt className="text-[12px] text-muted-foreground">Fixed in</dt><dd className="font-mono text-[12px] text-success">{d.fixed_version}</dd></div>}
             <div className="col-span-2"><dt className="text-[12px] text-muted-foreground">Location</dt><dd className="break-all font-mono text-[12px]">{location(d)}</dd></div>
-            <div><dt className="text-[12px] text-muted-foreground">Detected by</dt><dd>{d.scanner_keys.join(", ")}</dd></div>
+            <div><dt className="text-[12px] text-muted-foreground">Kind of check</dt><dd>{findingCheckLabel(d)}</dd></div>
             <div><dt className="text-[12px] text-muted-foreground">First seen</dt><dd className="tabular">{formatDateTime(d.first_seen_at)}</dd></div>
             {d.introduced_commit && (
               <div title="Commit of the first scan that detected it: the finding was introduced at or before this commit">
@@ -301,7 +301,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <ul className="divide-y divide-border rounded-md border border-border">
               {(d.occurrences ?? []).map((o, i) => (
                 <li key={i} className="flex items-center justify-between gap-3 px-3 py-2 text-[12px]">
-                  <span>{o.scanner_key}{o.commit_sha && <span className="font-mono text-muted-foreground"> @ {o.commit_sha.slice(0, 8)}</span>}</span>
+                  <span>{toolCheckLabel(o.scanner_key)}{o.commit_sha && <span className="font-mono text-muted-foreground"> @ {o.commit_sha.slice(0, 8)}</span>}</span>
                   <Link to="/scans" search={{ job: o.scan_job_id } as never} className="tabular text-primary hover:underline">{formatDateTime(o.seen_at)}</Link>
                 </li>
               ))}

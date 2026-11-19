@@ -23,6 +23,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/scanners"
 	"pathos/internal/scm"
 )
 
@@ -548,6 +549,19 @@ func (s *Service) listJobs(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := q.Get("scanner"); v != "" {
 		add("EXISTS (SELECT 1 FROM scan_results sr WHERE sr.scan_job_id = j.id AND sr.scanner_key = ?)", v)
+	}
+	if v := q.Get("kind"); v != "" {
+		// Scans that ran a check of this kind (the UI filters by kind of
+		// check, never by engine: rule 3).
+		if _, ok := scanners.LookupKind(v); !ok {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid kind of check"))
+			return
+		}
+		args = append(args, scanners.ToolKeysOfKind(v))
+		keys := len(args)
+		args = append(args, scanners.ImportPrefixesOfKind(v))
+		where = append(where, fmt.Sprintf(`EXISTS (SELECT 1 FROM scan_results sr WHERE sr.scan_job_id = j.id
+			AND (sr.scanner_key = ANY($%d::text[]) OR sr.scanner_key LIKE ANY (SELECT p || '%%' FROM unnest($%d::text[]) p)))`, keys, len(args)))
 	}
 	if v := q.Get("asset_type"); v != "" {
 		if !slices.Contains([]string{"repository", "image", "url", "api", "sbom"}, v) {

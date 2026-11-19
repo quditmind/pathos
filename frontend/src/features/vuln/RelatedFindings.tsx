@@ -4,6 +4,7 @@ import { api } from "@/api/client";
 import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
 import { Skeleton } from "@/components/ui/primitives";
+import { keysCheckLabel } from "@/lib/checkKinds";
 
 interface Related {
   id: string;
@@ -18,9 +19,9 @@ interface Related {
   risk_score: number | null;
 }
 
-const relationLabel = { same_location: "Same location, another tool", same_vulnerability: "Same vulnerability elsewhere in the repository" };
+const relationLabel = { same_location: "Same location, another engine", same_vulnerability: "Same vulnerability elsewhere in the repository" };
 
-/** Findings other tools report at the same place, or the same CVE elsewhere (never merged). */
+/** Findings other engines report at the same place, or the same CVE elsewhere (never merged). */
 export function RelatedFindings({ findingId }: { findingId: string }) {
   const q = useQuery({
     queryKey: ["finding-related", findingId],
@@ -37,7 +38,7 @@ export function RelatedFindings({ findingId }: { findingId: string }) {
             <SeverityBadge value={r.severity} />
             <Link to="/findings" search={{ finding: r.id } as never} className="text-primary hover:underline">{r.title}</Link>
             <span className="text-muted-foreground">
-              · {relationLabel[r.relation]} · {r.scanner_keys.join(", ")}
+              · {relationLabel[r.relation]} · {keysCheckLabel(r.scanner_keys)}
               {r.scan_target_name ? ` · ${r.scan_target_name}` : r.file_path ? ` · ${r.file_path}${r.start_line ? `:${r.start_line}` : ""}` : ""}
               {r.status !== "open" && ` · ${r.status.replace("_", " ")}`}
             </span>

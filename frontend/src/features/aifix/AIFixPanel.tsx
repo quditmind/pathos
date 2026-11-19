@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toolCheckLabel } from "@/lib/checkKinds";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2, Circle, Download, ExternalLink, GitPullRequestArrow, Loader2, MinusCircle, Sparkles, XCircle } from "lucide-react";
 import { api } from "@/api/client";
@@ -127,7 +128,7 @@ export function FindingAIFix({ findingId, category }: { findingId: string; categ
       ) : !latest ? (
         <p className="text-muted-foreground">
           {d.can_request
-            ? <>The configured AI provider proposes a change to the finding's file. A worker then applies it to a fresh checkout and re-runs {d.scanner}{d.test_runner ? ` and the repository's ${d.test_runner} tests (sandboxed)` : ""}. Only a verified fix can become a pull request, and only when you open it.</>
+            ? <>The configured AI provider proposes a change to the finding's file. A worker then applies it to a fresh checkout and re-runs the check that found it ({toolCheckLabel(d.scanner)}){d.test_runner ? ` and the repository's ${d.test_runner} tests (sandboxed)` : ""}. Only a verified fix can become a pull request, and only when you open it.</>
             : "Proposing a fix needs the ai.fix permission on this repository."}
         </p>
       ) : null}
@@ -214,7 +215,7 @@ function ProposalCard({ fix, elig }: { fix: AIFix; elig: AIFixEligibility }) {
       </div>
       {fix.status === "verified" ? (
         <Alert tone="success">
-          Verified: {fix.scanner_key} no longer reports this finding in the changed file{fix.changed_files.length > 1 ? "s" : ""} and reports nothing new there
+          Verified: the check that found it ({toolCheckLabel(fix.scanner_key)}) no longer reports this finding in the changed file{fix.changed_files.length > 1 ? "s" : ""} and reports nothing new there
           {testsPassed ? `, and the ${fix.test_runner} tests pass with the change` : fix.test_runner ? " (the tests did not run; see the steps)" : ""}. Review the
           change before opening a pull request.
         </Alert>
@@ -236,7 +237,7 @@ function ProposalCard({ fix, elig }: { fix: AIFix; elig: AIFixEligibility }) {
       </ol>
       {v && (
         <div className="text-[11.5px] text-muted-foreground">
-          Scanner evidence ({fix.scan_evidence.scanner} {fix.scan_evidence.scanner_version}): {v.before.length} result(s) in the changed files before the fix,{" "}
+          Scanner evidence ({toolCheckLabel(fix.scan_evidence.scanner)}): {v.before.length} result(s) in the changed files before the fix,{" "}
           {v.after.length} after{v.new.length > 0 && <>, <span className="text-danger">{v.new.length} new: {v.new.map((n) => `${n.rule_id} at ${n.file}:${n.line ?? "?"}`).join(", ")}</span></>}.
           {fix.has_reports && (
             <span className="ml-1 inline-flex gap-2">

@@ -28,6 +28,7 @@ func (s *Service) registerProfiles(mux *http.ServeMux) {
 	mux.HandleFunc("PUT /api/v1/scan-profiles/{id}", s.updateProfile)
 	mux.HandleFunc("POST /api/v1/scan-profiles/{id}/default", s.setDefaultProfile)
 	mux.HandleFunc("DELETE /api/v1/scan-profiles/{id}", s.archiveProfile)
+	mux.HandleFunc("GET /api/v1/scan-profiles/{id}/kinds", s.profileKinds)
 }
 
 // ProfileScanner is one enabled scanner in a profile version.
@@ -59,10 +60,13 @@ type ProfileVersion struct {
 
 // Profile is a scan profile with its current version.
 type Profile struct {
-	ID              uuid.UUID        `json:"id"`
-	Name            string           `json:"name"`
-	Description     string           `json:"description"`
-	IsDefault       bool             `json:"is_default"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	IsDefault   bool      `json:"is_default"`
+	// Template is the seeded tier (quick, standard, comprehensive) or nil
+	// for Default and custom profiles.
+	Template        *string          `json:"template"`
 	RepositoryCount int              `json:"repository_count"`
 	Current         ProfileVersion   `json:"current"`
 	History         []ProfileVersion `json:"history,omitempty"`
@@ -156,10 +160,10 @@ func scanVersion(row pgx.Row) (ProfileVersion, error) {
 func (s *Service) loadProfile(ctx context.Context, q db.Querier, orgID, id uuid.UUID, history bool) (Profile, error) {
 	var p Profile
 	var cur uuid.UUID
-	err := q.QueryRow(ctx, `SELECT id, name, description, is_default, current_version_id,
+	err := q.QueryRow(ctx, `SELECT id, name, description, is_default, template, current_version_id,
 		(SELECT count(*) FROM repositories r WHERE r.scan_profile_id = sp.id AND r.archived_at IS NULL)
 		FROM scan_profiles sp WHERE organization_id = $1 AND id = $2 AND archived_at IS NULL`, orgID, id).
-		Scan(&p.ID, &p.Name, &p.Description, &p.IsDefault, &cur, &p.RepositoryCount)
+		Scan(&p.ID, &p.Name, &p.Description, &p.IsDefault, &p.Template, &cur, &p.RepositoryCount)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return p, errNotFound
 	}
@@ -189,8 +193,15 @@ func (s *Service) listProfiles(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}
+	tiers, err := s.tiersVisible(ctx, p.OrganizationID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	rows, err := s.DB.Query(ctx, `SELECT id FROM scan_profiles WHERE organization_id = $1 AND archived_at IS NULL
-		ORDER BY is_default DESC, lower(name)`, p.OrganizationID)
+		AND ($2 OR template IS NULL)
+		ORDER BY is_default DESC, array_position(ARRAY['quick', 'standard', 'comprehensive'], template) NULLS LAST, lower(name)`,
+		p.OrganizationID, tiers)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -223,12 +234,29 @@ func (s *Service) getProfile(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	pr, err := s.loadProfile(r.Context(), s.DB, p.OrganizationID, id, true)
+	pr, err := s.loadVisibleProfile(r.Context(), p.OrganizationID, id, true)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, pr)
+}
+
+// loadVisibleProfile loads a profile; a seeded tier profile is not found
+// while the scan_profile_tiers flag is off.
+func (s *Service) loadVisibleProfile(ctx context.Context, orgID, id uuid.UUID, history bool) (Profile, error) {
+	pr, err := s.loadProfile(ctx, s.DB, orgID, id, history)
+	if err != nil || pr.Template == nil {
+		return pr, err
+	}
+	on, err := s.tiersVisible(ctx, orgID)
+	if err != nil {
+		return pr, err
+	}
+	if !on {
+		return Profile{}, errNotFound
+	}
+	return pr, nil
 }
 
 type profileRequest struct {
