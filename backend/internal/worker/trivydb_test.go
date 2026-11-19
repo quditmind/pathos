@@ -177,3 +177,16 @@ func TestTrivyCacheArgs(t *testing.T) {
 		t.Errorf("trivy cache flags: %v", args)
 	}
 }
+
+// Trivy's downloads (the Java database is about 1 GB) go to the cache
+// volume, not to the worker's 1 GB /tmp tmpfs.
+func TestTrivyTempEnv(t *testing.T) {
+	dir := t.TempDir()
+	env, err := trivyTempEnv(dir)
+	if err != nil || len(env) != 1 || env[0] != "TMPDIR="+filepath.Join(dir, "tmp") {
+		t.Fatalf("env %v err %v", env, err)
+	}
+	if st, err := os.Stat(filepath.Join(dir, "tmp")); err != nil || !st.IsDir() {
+		t.Fatalf("temporary directory not created: %v", err)
+	}
+}

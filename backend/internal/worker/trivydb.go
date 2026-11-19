@@ -35,6 +35,19 @@ func trivyCacheArgs(dir string) []string {
 	return []string{"--cache-dir", dir, "--cache-backend", "memory"}
 }
 
+// trivyTempEnv points Trivy's temporary directory at the cache volume.
+// Trivy downloads its Java database (about 1 GB, for images and
+// directories with Java archives) to $TMPDIR before unpacking it into the
+// cache; the worker's /tmp is a 1 GB tmpfs, so every such scan failed with
+// "write /tmp/getter…/archive: no space left on device" (nginx:1.25).
+func trivyTempEnv(cacheDir string) ([]string, error) {
+	tmp := filepath.Join(cacheDir, "tmp")
+	if err := os.MkdirAll(tmp, 0o700); err != nil {
+		return nil, fmt.Errorf("trivy temporary directory: %w", err)
+	}
+	return []string{"TMPDIR=" + tmp}, nil
+}
+
 // trivyDBLockPoll is how often a waiting worker retries the lock.
 var trivyDBLockPoll = 250 * time.Millisecond
 
@@ -56,7 +69,11 @@ func trivyDBStale(cacheDir string) bool {
 
 // trivyDBUpdate downloads the database when it is due (Trivy decides).
 var trivyDBUpdate = func(ctx context.Context, bin, cacheDir string) error {
-	_, err := command(ctx, nil, []int{0}, bin, "image", "--download-db-only", "--cache-dir", cacheDir, "--cache-backend", "memory",
+	env, err := trivyTempEnv(cacheDir)
+	if err != nil {
+		return err
+	}
+	_, err = command(ctx, env, []int{0}, bin, "image", "--download-db-only", "--cache-dir", cacheDir, "--cache-backend", "memory",
 		"--quiet", "--skip-version-check", "--no-progress", "--timeout", "20m")
 	return err
 }
