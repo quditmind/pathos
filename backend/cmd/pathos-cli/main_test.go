@@ -33,6 +33,9 @@ type fakeAPI struct {
 	lastPath string
 	scanBody map[string]any
 	queries  []string
+	// stage gate: outcome to answer and the last request body.
+	outcome  string
+	evalBody map[string]any
 }
 
 func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +106,20 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			g[k] = v
 		}
 		_ = json.NewEncoder(w).Encode(g)
+	case r.Method == "POST" && r.URL.Path == "/api/v1/gates/evaluate":
+		f.evalBody = map[string]any{}
+		_ = json.NewDecoder(r.Body).Decode(&f.evalBody)
+		out := f.outcome
+		if out == "" {
+			out = "pass"
+		}
+		d := map[string]any{"id": "d1", "stage": f.evalBody["stage"], "outcome": out, "repository_name": "acme/payments",
+			"gates": []map[string]any{}, "reasons": []map[string]any{{"code": "no_policy", "message": "no security gate applies"}}}
+		if out != "pass" {
+			d["gates"] = []map[string]any{{"name": "No criticals", "mode": "block", "effect": out, "count": 2, "policy": map[string]any{"name": "Critical", "version": 2}}}
+			d["reasons"] = []map[string]any{}
+		}
+		_ = json.NewEncoder(w).Encode(d)
 	case r.Method == "GET" && r.URL.Path == "/api/v1/findings":
 		if r.URL.Query().Get("cursor") == "" {
 			_, _ = io.WriteString(w, `{"items":[{"id":"f1","severity":"critical","status":"open","title":"SQL injection","file_path":"a.go","start_line":3,"scanner_keys":["opengrep"]}],"next_cursor":"c2"}`)
@@ -325,6 +342,45 @@ func TestGateExitCodes(t *testing.T) {
 		t.Errorf("json gate: %+v", r)
 	}
 	for _, args := range [][]string{{"gate"}, {"gate", "--scan", jobUUID, "--repo", "x"}, {"gate", "--scan", jobUUID, "--fail-on", "urgent"}, {"gate", "--scan", "nope"}} {
+		if r := runCLI(t, env, args...); r.code != exitUsage {
+			t.Errorf("%v: %+v", args, r)
+		}
+	}
+}
+
+// pathos gate --stage asks the organization's gates (no client threshold):
+// block and approval_required exit 1, everything else 0.
+func TestGateStage(t *testing.T) {
+	api, url, ca := setup(t)
+	env := envFor(url, ca)
+	r := runCLI(t, env, "gate", "--stage", "pre-commit", "--repo", "acme/payments", "--commit", "0123abcd")
+	if r.code != exitOK || !strings.Contains(r.stdout, "PASS") || !strings.Contains(r.stdout, "no security gate applies") {
+		t.Errorf("pass: %+v", r)
+	}
+	if api.evalBody["stage"] != "pre_commit" || api.evalBody["repository_id"] != repoUUID || api.evalBody["commit_sha"] != "0123abcd" {
+		t.Errorf("request: %v", api.evalBody)
+	}
+	for outcome, code := range map[string]int{"warn": exitOK, "exception_applied": exitOK, "block": exitGateFailed, "approval_required": exitGateFailed} {
+		api.outcome = outcome
+		if r := runCLI(t, env, "gate", "--stage", "deploy", "--repo", repoUUID); r.code != code {
+			t.Errorf("%s: %+v", outcome, r)
+		}
+	}
+	api.outcome = "block"
+	if r := runCLI(t, env, "gate", "--stage", "ci", "--repo", repoUUID, "--scan", jobUUID, "--json"); r.code != exitGateFailed || !strings.Contains(r.stdout, `"outcome":"block"`) {
+		t.Errorf("json: %+v", r)
+	}
+	if api.evalBody["scan_id"] != jobUUID {
+		t.Errorf("scan id: %v", api.evalBody)
+	}
+	for _, args := range [][]string{
+		{"gate", "--stage", "prod", "--repo", repoUUID},
+		{"gate", "--stage", "ci"},
+		{"gate", "--stage", "ci", "--repo", repoUUID, "--fail-on", "high"},
+		{"gate", "--stage", "ci", "--repo", repoUUID, "--application", repoUUID},
+		{"gate", "--stage", "ci", "--repo", repoUUID, "--pull-request", "3"},
+		{"gate", "--scan", jobUUID, "--commit", "abcdef1"},
+	} {
 		if r := runCLI(t, env, args...); r.code != exitUsage {
 			t.Errorf("%v: %+v", args, r)
 		}

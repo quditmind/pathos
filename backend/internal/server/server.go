@@ -21,6 +21,7 @@ import (
 	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
 	"pathos/internal/featureflags"
+	"pathos/internal/gates"
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
@@ -37,6 +38,7 @@ import (
 	"pathos/internal/posture"
 	"pathos/internal/pushprotect"
 	"pathos/internal/releases"
+	"pathos/internal/remediation"
 	"pathos/internal/reporting"
 	"pathos/internal/repos"
 	"pathos/internal/review"
@@ -166,6 +168,11 @@ func Build(d Deps) Handlers {
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
 	}
+	// Remediation workspace and security gates (flag "remediation_workspace",
+	// PATHOS 3.0 M8). Fix verification reuses the AI fix machinery: the
+	// scanner configuration of the scan profile and the worker API.
+	remSvc := NewRemediationService(d, az, scanSvc, repoSvc)
+	scanSvc.WorkerRoutes = append(scanSvc.WorkerRoutes, remSvc.RegisterWorker)
 	mcpSvc := &mcp.Service{DB: d.DB, Authz: az, AI: aiSvc, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
 	// The MCP endpoint authenticates with personal API tokens, not sessions.
 	public.Handle("/mcp", mcpSvc.Handler())
@@ -244,6 +251,8 @@ func Build(d Deps) Handlers {
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
 	diagSvc.Register(protected)
 	connSvc.Register(protected)
+	remSvc.Register(protected)
+	(&gates.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&featureflags.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
@@ -317,6 +326,20 @@ func NewReposService(d Deps, az *authz.Authorizer) *repos.Service {
 			_, err := scans.Enqueue(ctx, d.DB, orgID, repoID, trigger, "", "", by)
 			return err
 		}}
+}
+
+// NewRemediationService builds the remediation service (also used by the
+// jobs role for the "fix merged → targeted rescan" feedback loop; scanSvc
+// and repoSvc may be nil there).
+func NewRemediationService(d Deps, az *authz.Authorizer, scanSvc *scans.Service, repoSvc *repos.Service) *remediation.Service {
+	svc := &remediation.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
+	if scanSvc != nil {
+		svc.ScannerConfig = scanSvc.ScannerConfigFor
+	}
+	if repoSvc != nil {
+		svc.CloneCredential = repoSvc.CloneCredential
+	}
+	return svc
 }
 
 // FixPRTarget adapts the repository service for fix pull requests.

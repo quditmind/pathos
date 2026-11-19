@@ -351,6 +351,9 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go releases.RunBackground(ctx, pool, log) // component (SBOM) policies, hourly
 	// Fix pull requests: record merged/closed state (findings are resolved by scans only).
 	go scans.RunFixPRTracker(ctx, pool, log, server.FixPRTarget(reposSvc), 15*time.Minute)
+	// Remediation feedback loop (flag "remediation_workspace"): a merged fix
+	// pull request queues a targeted rescan of its remediation items.
+	go server.NewRemediationService(server.Deps{DB: pool, Log: log}, az, &scans.Service{DB: pool, Log: log}, nil).RunBackground(ctx)
 	// End-of-life status changes with the calendar: recomputed daily.
 	go eol.RunBackground(ctx, pool, log)
 	go func() {

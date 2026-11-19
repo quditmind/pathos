@@ -475,6 +475,17 @@ var writeFixtures = map[string]map[string]any{
 		"auth_username": nil, "auth_header_name": nil, "auth_secret": nil, "signature_material": nil, "intrusive_authorized": nil,
 		"intrusive_authorization_note": nil, "authorized": true},
 	"PUT /api/v1/ticket-connections/{id}": {"kind": "jira", "auth_type": "bearer", "config": map[string]any{"project_key": "ISO"}},
+	// PATHOS 3.0 M8: remediation workspace and security gates.
+	"PUT /api/v1/repositories/{id}/pr-settings":    {"gate_mode": "warn", "gate_severity": "high", "enabled": false},
+	"POST /api/v1/gates":                           {"stage": "deploy", "mode": "warn", "application_id": nil},
+	"PUT /api/v1/gates/{id}":                       {"stage": "deploy", "mode": "warn", "application_id": nil},
+	"POST /api/v1/gates/evaluate":                  {"stage": "deploy", "application_id": nil, "scan_id": nil, "pull_request": nil, "commit_sha": nil},
+	"POST /api/v1/gates/decisions/{id}/exceptions": {"scope": "decision", "gate_id": nil},
+	"POST /api/v1/remediation/items":               {"mode": "per_finding", "kind": "code_fix", "priority": "high"},
+	"PATCH /api/v1/remediation/items/{id}":         {"status": "in_progress", "priority": "high", "fix_pull_request_id": nil, "clear_owner": nil, "clear_due": nil},
+	"POST /api/v1/remediation/items/bulk":          {"status": nil, "priority": "high", "clear_owner": nil},
+	"POST /api/v1/remediation/items/{id}/verify":   {"scan_job_id": nil},
+	"POST /api/v1/remediation/views":               {"filters": map[string]any{"status": "open"}},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

@@ -81,7 +81,11 @@ func TestPullRequestChecks(t *testing.T) {
 	if code, _ := h.user(viewer, "PUT", "/api/v1/repositories/"+repo.String()+"/pr-settings", map[string]any{"enabled": true, "gate_severity": "low"}); code != 403 {
 		t.Errorf("viewer cannot change PR settings: %d", code)
 	}
-	if code, st := h.user(admin, "PUT", "/api/v1/repositories/"+repo.String()+"/pr-settings", map[string]any{"enabled": true, "gate_severity": "low"}); code != 200 || st["enabled"] != true {
+	// Decision C6 (PATHOS 3.0 M8): enabling needs an explicit block or warn.
+	if code, _ := h.user(admin, "PUT", "/api/v1/repositories/"+repo.String()+"/pr-settings", map[string]any{"enabled": true, "gate_severity": "low"}); code != 422 {
+		t.Errorf("enable without block or warn: %d", code)
+	}
+	if code, st := h.user(admin, "PUT", "/api/v1/repositories/"+repo.String()+"/pr-settings", map[string]any{"enabled": true, "gate_severity": "low", "gate_mode": "block"}); code != 200 || st["enabled"] != true {
 		t.Fatalf("enable: %d %v", code, st)
 	}
 	h.svc.OnWebhookEvent(ctx, orgID, repo, ev)

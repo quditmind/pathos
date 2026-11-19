@@ -238,6 +238,10 @@ func (a *Agent) Run(ctx context.Context) error {
 			if a.tryAIFix(ctx) {
 				continue
 			}
+			// Then fix verification of remediation items (targeted rescan).
+			if a.tryRemediation(ctx) {
+				continue
+			}
 		}
 		select {
 		case <-ctx.Done():
