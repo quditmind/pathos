@@ -4,8 +4,11 @@
 package secrets
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"regexp"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -37,7 +40,32 @@ func AAD(kind string, id uuid.UUID) []byte {
 
 type Store struct {
 	Keys *crypto.Keyring
+	// Refs resolves secret references ("vault:<mount>/<path>#<key>") at
+	// use time (internal/vault). nil: references cannot be resolved.
+	Refs RefResolver
 }
+
+// RefResolver resolves an external secret reference for an organization.
+// Implementations must not persist the value.
+type RefResolver interface {
+	Resolve(ctx context.Context, orgID uuid.UUID, ref string) ([]byte, error)
+}
+
+// ErrRefUnavailable means a stored credential is a reference but no
+// resolver is configured.
+var ErrRefUnavailable = errors.New("secret is an external reference but no Vault/OpenBao connection is available")
+
+// refKinds may hold references: connector credentials an administrator
+// enters. PATHOS-generated secrets (webhook signing secrets, worker tokens)
+// never do.
+var refKinds = map[string]bool{KindSCM: true, KindAI: true, KindMCP: true, KindSMTP: true, KindIntegration: true, "scan_target": true}
+
+// IsReference reports whether a plaintext is a Vault/OpenBao reference.
+func IsReference(plain []byte) bool {
+	return bytes.HasPrefix(plain, []byte("vault:")) && refRe.Match(bytes.TrimSpace(plain))
+}
+
+var refRe = regexp.MustCompile(`^vault:[A-Za-z0-9_.-]{1,64}/[A-Za-z0-9_.\-/]{1,512}#[A-Za-z0-9_.-]{1,128}$`)
 
 // Create encrypts and stores a new secret, returning its ID.
 func (s *Store) Create(ctx context.Context, q db.Querier, orgID uuid.UUID, kind, name string, plaintext []byte, by *uuid.UUID) (uuid.UUID, error) {
@@ -71,6 +99,44 @@ func (s *Store) Update(ctx context.Context, q db.Querier, orgID, id uuid.UUID, k
 
 // Reveal decrypts a secret. kind must match the stored kind.
 func (s *Store) Reveal(ctx context.Context, q db.Querier, orgID, id uuid.UUID, kind string) ([]byte, error) {
+	var sealed crypto.Sealed
+	err := q.QueryRow(ctx, `SELECT ciphertext, wrapped_dek, key_version FROM secrets
+		WHERE organization_id = $1 AND id = $2 AND kind = $3`, orgID, id, kind).
+		Scan(&sealed.Ciphertext, &sealed.WrappedDEK, &sealed.KeyVersion)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	plain, err := s.Keys.Open(sealed, AAD(kind, id))
+	if err != nil || !refKinds[kind] || !IsReference(plain) {
+		return plain, err
+	}
+	// An external reference: resolved now, never stored or cached.
+	if s.Refs == nil {
+		return nil, ErrRefUnavailable
+	}
+	return s.Refs.Resolve(ctx, orgID, string(bytes.TrimSpace(plain)))
+}
+
+// ResolveValue resolves one field of a multi-part credential (for example
+// the token inside a user name + token JSON credential) when it is a
+// reference; other values are returned unchanged.
+func (s *Store) ResolveValue(ctx context.Context, orgID uuid.UUID, value string) (string, error) {
+	if !IsReference([]byte(value)) {
+		return value, nil
+	}
+	if s.Refs == nil {
+		return "", ErrRefUnavailable
+	}
+	b, err := s.Refs.Resolve(ctx, orgID, strings.TrimSpace(value))
+	return string(b), err
+}
+
+// RevealStored decrypts a secret without resolving references (to show
+// whether a credential is a reference, or to edit one).
+func (s *Store) RevealStored(ctx context.Context, q db.Querier, orgID, id uuid.UUID, kind string) ([]byte, error) {
 	var sealed crypto.Sealed
 	err := q.QueryRow(ctx, `SELECT ciphertext, wrapped_dek, key_version FROM secrets
 		WHERE organization_id = $1 AND id = $2 AND kind = $3`, orgID, id, kind).

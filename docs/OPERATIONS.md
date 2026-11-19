@@ -329,6 +329,16 @@ The runtime connectors ([user guide](user-guide/runtime.md)) are optional; nothi
 - **Retention.** Workloads, namespaces and network objects that a complete synchronisation no longer sees are deleted; a partial synchronisation (a resource the role does not grant) removes nothing. Synchronisation runs are kept with their connection.
 - **Integration tests** use a fake Kubernetes API server (`httptest`) and, when `PATHOS_TEST_REGISTRY_URL` is set, a `registry:2` container; they never contact a real cluster.
 
+## Connectors health checks
+
+The Connectors page (feature flag `connectors`, [user guide](user-guide/connectors.md)) shows the health of every connection.
+
+- **Who connects.** The API server runs the checks of the kinds it already calls for their **Test** buttons (SCM, Jira, ServiceNow, AI providers, the mail relay, object storage; webhooks only read their delivery log, except the Microsoft Entra token request of a Teams trigger with authentication). Kubernetes clusters, registries and the egress proxy are checked by the **jobs** service only: the API stores the request (`connectors.check_requested_at`) and the jobs service picks it up within 5 seconds.
+- **Schedule.** Every 5 minutes the jobs service checks, for each organization with the flag on, every connector whose last check is older than `PATHOS_CONNECTOR_CHECK_INTERVAL` (default 1 hour), four at a time, each with a 60-second timeout.
+- **Load.** One check is a handful of read requests (see the user guide). No check sends a message, an e-mail or a ticket.
+- **Retention.** `connector_health_checks` keeps 30 days, and at least the last 200 checks of each connector (pruned daily by the jobs service). Removing a connection removes its registry row and its history.
+- **Offline.** With `PATHOS_OFFLINE=true` connections to internet hosts are shown as disabled (`PTH-CONN-1015`) and not checked.
+
 ## Configuration reference
 
 `.env.example` documents the settings an installation normally changes. The table lists every variable the PATHOS services read, with the service that reads it. Variables marked *code only* are not passed through by `docker-compose.yml`; add them to the service's `environment` in an override file to change them.
@@ -355,6 +365,8 @@ The runtime connectors ([user guide](user-guide/runtime.md)) are optional; nothi
 | `PATHOS_SCM_ALLOW_HTTP` | api, jobs (*code only*) | `false` | Allow `http` provider URLs (development) |
 | `PATHOS_HTTPS_PROXY` | api, jobs | empty | Outbound proxy for provider APIs, feeds and integrations |
 | `PATHOS_OFFLINE` | api, jobs, worker-core | `false` | Air-gapped mode ([AIRGAP.md](AIRGAP.md)); also disables declared endpoint verification and keyless signature verification |
+| `PATHOS_EGRESS_PROXY_URL` | api, jobs | `http://egress:3128` | The scanners' egress proxy, listed and checked on the Connectors page (jobs only connects to it); empty: not shown as configured |
+| `PATHOS_CONNECTOR_CHECK_INTERVAL` | jobs | `1h` (5m–168h) | How often the jobs service checks every connector of organizations with the `connectors` flag; a check older than twice the interval shows *unknown* |
 | `PATHOS_WORKER_BOOTSTRAP_TOKEN` | api, worker-core | generated | Worker registration |
 | `PATHOS_WORKER_MEMORY`, `PATHOS_WORKER_TMPFS` | worker-core (Compose limits) | `4g`, `3g` | Memory limit and workspace size per worker |
 | `PATHOS_SCANNER_PLUGINS_DIR` | worker-core (*code only*) | `/etc/pathos/scanners.d` | Declarative scanner adapters |

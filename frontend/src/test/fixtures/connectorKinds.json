@@ -1,0 +1,1091 @@
+{
+  "categories": [
+    {
+      "key": "scm_ide",
+      "label": "SCM \u0026 IDE"
+    },
+    {
+      "key": "cicd",
+      "label": "CI/CD"
+    },
+    {
+      "key": "cloud",
+      "label": "Cloud"
+    },
+    {
+      "key": "containers",
+      "label": "Containers"
+    },
+    {
+      "key": "security",
+      "label": "Security"
+    },
+    {
+      "key": "iam_secrets",
+      "label": "IAM \u0026 Secrets"
+    },
+    {
+      "key": "apis",
+      "label": "APIs"
+    },
+    {
+      "key": "databases",
+      "label": "Databases"
+    },
+    {
+      "key": "monitoring",
+      "label": "Monitoring"
+    }
+  ],
+  "items": [
+    {
+      "kind": "azure_devops_server",
+      "category": "scm_ide",
+      "label": "Azure DevOps Server",
+      "status": "existing",
+      "auth_methods": [
+        "pat"
+      ],
+      "docs_slug": "connectors#azure_devops_server",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Per-connection private CA.",
+      "secret_refs": true
+    },
+    {
+      "kind": "azure_devops",
+      "category": "scm_ide",
+      "label": "Azure DevOps Services",
+      "status": "existing",
+      "auth_methods": [
+        "service_principal",
+        "pat",
+        "oauth"
+      ],
+      "docs_slug": "connectors#azure_devops",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "bitbucket",
+      "category": "scm_ide",
+      "label": "Bitbucket Cloud",
+      "status": "existing",
+      "auth_methods": [
+        "api_token",
+        "pat",
+        "oauth"
+      ],
+      "docs_slug": "connectors#bitbucket",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "bitbucket_data_center",
+      "category": "scm_ide",
+      "label": "Bitbucket Data Center",
+      "status": "existing",
+      "auth_methods": [
+        "pat",
+        "api_token"
+      ],
+      "docs_slug": "connectors#bitbucket_data_center",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": true,
+      "checked_by": "api",
+      "note": "REST 1.0; project/repository HTTP access tokens (Bearer) or user tokens; signed webhooks.",
+      "config_fields": [
+        {
+          "key": "base_url",
+          "label": "Instance URL",
+          "type": "url",
+          "required": true,
+          "help": "https://bitbucket.example.com (with its context path, if any)"
+        },
+        {
+          "key": "auth_method",
+          "label": "Token type",
+          "type": "select",
+          "required": true,
+          "options": [
+            "http_access_token",
+            "user_token"
+          ]
+        },
+        {
+          "key": "username",
+          "label": "User name (user tokens only)",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "project_key",
+          "label": "Project key (optional; required for a repository token)",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "ca_bundle_pem",
+          "label": "Private CA bundle (PEM)",
+          "type": "pem",
+          "required": false,
+          "help": "Only for a certificate issued by a private CA; added to the system trust store for this connection."
+        },
+        {
+          "key": "credential_ref",
+          "label": "Credential as a Vault/OpenBao reference",
+          "type": "secret_ref",
+          "required": false,
+          "help": "vault:\u003cmount\u003e/\u003cpath\u003e#\u003ckey\u003e instead of pasting the token."
+        }
+      ],
+      "secret_refs": true
+    },
+    {
+      "kind": "generic_git",
+      "category": "scm_ide",
+      "label": "Generic Git (HTTPS/SSH)",
+      "status": "existing",
+      "auth_methods": [
+        "api_token",
+        "ssh_key"
+      ],
+      "docs_slug": "connectors#generic_git",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": true,
+      "checked_by": "api",
+      "note": "One connection per repository; health is git ls-remote; SSH host keys are pinned (never accept-new).",
+      "config_fields": [
+        {
+          "key": "base_url",
+          "label": "Repository URL",
+          "type": "url",
+          "required": true,
+          "help": "https://git.example.com/team/app.git or ssh://git@git.example.com/team/app.git"
+        },
+        {
+          "key": "auth_method",
+          "label": "Authentication",
+          "type": "select",
+          "required": true,
+          "options": [
+            "https_token",
+            "ssh_key"
+          ]
+        },
+        {
+          "key": "username",
+          "label": "HTTPS user name (optional, default git)",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "ssh_known_hosts",
+          "label": "known_hosts entry (SSH)",
+          "type": "textarea",
+          "required": false,
+          "help": "From ssh-keyscan -t ed25519 \u003chost\u003e; [host]:port for other ports."
+        },
+        {
+          "key": "ssh_host_key_fingerprint",
+          "label": "Host key fingerprint SHA256:… (SSH)",
+          "type": "text",
+          "required": false,
+          "help": "Confirmed by the server administrator; must match the known_hosts entry."
+        },
+        {
+          "key": "ca_bundle_pem",
+          "label": "Private CA bundle (PEM)",
+          "type": "pem",
+          "required": false,
+          "help": "Only for a certificate issued by a private CA; added to the system trust store for this connection."
+        },
+        {
+          "key": "credential_ref",
+          "label": "Credential as a Vault/OpenBao reference",
+          "type": "secret_ref",
+          "required": false,
+          "help": "vault:\u003cmount\u003e/\u003cpath\u003e#\u003ckey\u003e instead of pasting the token."
+        }
+      ],
+      "secret_refs": true
+    },
+    {
+      "kind": "github",
+      "category": "scm_ide",
+      "label": "GitHub",
+      "status": "existing",
+      "auth_methods": [
+        "github_app",
+        "pat",
+        "oauth"
+      ],
+      "docs_slug": "connectors#github",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "github_enterprise",
+      "category": "scm_ide",
+      "label": "GitHub Enterprise Server",
+      "status": "existing",
+      "auth_methods": [
+        "github_app",
+        "pat",
+        "oauth"
+      ],
+      "docs_slug": "connectors#github_enterprise",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Per-connection private CA; version check (GET /api/v3/meta).",
+      "secret_refs": true
+    },
+    {
+      "kind": "gitlab",
+      "category": "scm_ide",
+      "label": "GitLab (gitlab.com and self-managed)",
+      "status": "existing",
+      "auth_methods": [
+        "pat",
+        "oauth"
+      ],
+      "docs_slug": "connectors#gitlab",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/scm",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Per-connection private CA and version report for self-managed; webhooks: signing token (HMAC) or the legacy secret token.",
+      "secret_refs": true
+    },
+    {
+      "kind": "jetbrains",
+      "category": "scm_ide",
+      "label": "JetBrains IDEs plugin",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#jetbrains",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "pathos_cli",
+      "category": "scm_ide",
+      "label": "PATHOS CLI",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#pathos_cli",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "vscode",
+      "category": "scm_ide",
+      "label": "VS Code extension",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#vscode",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "visual_studio",
+      "category": "scm_ide",
+      "label": "Visual Studio",
+      "status": "planned",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#visual_studio",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "After the lifecycle release.",
+      "secret_refs": false
+    },
+    {
+      "kind": "argo_cd",
+      "category": "cicd",
+      "label": "Argo CD / deploy gate",
+      "status": "planned",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#argo_cd",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "After the lifecycle release.",
+      "secret_refs": false
+    },
+    {
+      "kind": "azure_pipelines",
+      "category": "cicd",
+      "label": "Azure Pipelines",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#azure_pipelines",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "bitbucket_pipelines",
+      "category": "cicd",
+      "label": "Bitbucket Pipelines",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#bitbucket_pipelines",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Template integrations/bitbucket-pipelines/bitbucket-pipelines.yml.",
+      "secret_refs": false
+    },
+    {
+      "kind": "github_actions",
+      "category": "cicd",
+      "label": "GitHub Actions",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#github_actions",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "gitlab_ci",
+      "category": "cicd",
+      "label": "GitLab CI/CD",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#gitlab_ci",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "jenkins",
+      "category": "cicd",
+      "label": "Jenkins",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#jenkins",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "pre_commit",
+      "category": "cicd",
+      "label": "pre-commit and pre-receive hooks",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#pre_commit",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "aws",
+      "category": "cloud",
+      "label": "Amazon Web Services",
+      "status": "planned",
+      "auth_methods": [
+        "assume_role"
+      ],
+      "docs_slug": "connectors#aws",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "gcp",
+      "category": "cloud",
+      "label": "Google Cloud",
+      "status": "planned",
+      "auth_methods": [
+        "workload_identity"
+      ],
+      "docs_slug": "connectors#gcp",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "azure",
+      "category": "cloud",
+      "label": "Microsoft Azure",
+      "status": "planned",
+      "auth_methods": [
+        "workload_identity",
+        "service_principal_certificate"
+      ],
+      "docs_slug": "connectors#azure",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "object_storage",
+      "category": "cloud",
+      "label": "S3-compatible object storage",
+      "status": "partial",
+      "auth_methods": [
+        "access_key"
+      ],
+      "docs_slug": "connectors#object_storage",
+      "offline_ok": true,
+      "direction": "platform",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Static access keys only (no IAM role); configured by environment.",
+      "secret_refs": false
+    },
+    {
+      "kind": "container_registry",
+      "category": "containers",
+      "label": "Container registries (OCI)",
+      "status": "partial",
+      "auth_methods": [
+        "none",
+        "basic",
+        "bearer"
+      ],
+      "docs_slug": "connectors#container_registry",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/runtime",
+      "creatable": false,
+      "checked_by": "jobs",
+      "note": "No ECR, ACR or Artifact Registry token exchange yet.",
+      "secret_refs": false
+    },
+    {
+      "kind": "kubernetes",
+      "category": "containers",
+      "label": "Kubernetes",
+      "status": "existing",
+      "auth_methods": [
+        "service_account_token",
+        "kubeconfig"
+      ],
+      "docs_slug": "connectors#kubernetes",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/runtime",
+      "creatable": false,
+      "checked_by": "jobs",
+      "secret_refs": false
+    },
+    {
+      "kind": "sigstore",
+      "category": "containers",
+      "label": "Sigstore signature verification",
+      "status": "existing",
+      "auth_methods": [
+        "public_key",
+        "keyless"
+      ],
+      "docs_slug": "connectors#sigstore",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/scans/targets",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Keyless verification needs the internet.",
+      "secret_refs": false
+    },
+    {
+      "kind": "egress_proxy",
+      "category": "security",
+      "label": "Egress proxy (scanner allowlist)",
+      "status": "existing",
+      "auth_methods": [
+        "none"
+      ],
+      "docs_slug": "connectors#egress_proxy",
+      "offline_ok": true,
+      "direction": "platform",
+      "creatable": false,
+      "checked_by": "jobs",
+      "note": "Configured by environment (PATHOS_EGRESS_PROXY_URL).",
+      "secret_refs": false
+    },
+    {
+      "kind": "elastic",
+      "category": "security",
+      "label": "Elastic",
+      "status": "planned",
+      "auth_methods": [
+        "api_key"
+      ],
+      "docs_slug": "connectors#elastic",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "secret_validation",
+      "category": "security",
+      "label": "Live secret validation",
+      "status": "existing",
+      "auth_methods": [
+        "none"
+      ],
+      "docs_slug": "connectors#secret_validation",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/secret-validation",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Checked as configuration only: a live check would need a real secret.",
+      "secret_refs": false
+    },
+    {
+      "kind": "sentinel",
+      "category": "security",
+      "label": "Microsoft Sentinel",
+      "status": "planned",
+      "auth_methods": [
+        "entra_app"
+      ],
+      "docs_slug": "connectors#sentinel",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "scanner_import",
+      "category": "security",
+      "label": "Scanner result import",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#scanner_import",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/scans/imports",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "splunk",
+      "category": "security",
+      "label": "Splunk HTTP Event Collector",
+      "status": "planned",
+      "auth_methods": [
+        "hec_token"
+      ],
+      "docs_slug": "connectors#splunk",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "vulnerability_feed",
+      "category": "security",
+      "label": "Vulnerability and end-of-life feeds",
+      "status": "existing",
+      "auth_methods": [
+        "none"
+      ],
+      "docs_slug": "connectors#vulnerability_feed",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/risk-intelligence",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Air-gapped installs import the feed files.",
+      "secret_refs": false
+    },
+    {
+      "kind": "deps_dev",
+      "category": "security",
+      "label": "deps.dev package health",
+      "status": "existing",
+      "auth_methods": [
+        "none"
+      ],
+      "docs_slug": "connectors#deps_dev",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Not available offline.",
+      "secret_refs": false
+    },
+    {
+      "kind": "cloud_secret_manager",
+      "category": "iam_secrets",
+      "label": "Cloud secret managers",
+      "status": "planned",
+      "auth_methods": [
+        "cloud_identity"
+      ],
+      "docs_slug": "connectors#cloud_secret_manager",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Follows Vault.",
+      "secret_refs": false
+    },
+    {
+      "kind": "vault",
+      "category": "iam_secrets",
+      "label": "HashiCorp Vault / OpenBao",
+      "status": "existing",
+      "auth_methods": [
+        "approle",
+        "kubernetes"
+      ],
+      "docs_slug": "connectors#vault",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": true,
+      "checked_by": "api",
+      "note": "Credentials of other connectors may be vault:\u003cmount\u003e/\u003cpath\u003e#\u003ckey\u003e references, resolved at use time.",
+      "config_fields": [
+        {
+          "key": "base_url",
+          "label": "Vault address",
+          "type": "url",
+          "required": true,
+          "help": "https://vault.example.com:8200 (without /v1)"
+        },
+        {
+          "key": "auth_method",
+          "label": "Authentication",
+          "type": "select",
+          "required": true,
+          "options": [
+            "approle",
+            "kubernetes"
+          ]
+        },
+        {
+          "key": "role_id",
+          "label": "AppRole role ID",
+          "type": "text",
+          "required": false,
+          "help": "The secret ID is the credential."
+        },
+        {
+          "key": "kubernetes_role",
+          "label": "Kubernetes auth role",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "auth_mount",
+          "label": "Auth mount (optional)",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "namespace",
+          "label": "Namespace (Vault Enterprise/HCP)",
+          "type": "text",
+          "required": false
+        },
+        {
+          "key": "path_prefix",
+          "label": "Allowed path prefix",
+          "type": "text",
+          "required": false,
+          "help": "e.g. secret/pathos; references outside it are refused."
+        },
+        {
+          "key": "canary_ref",
+          "label": "Canary reference for the health check",
+          "type": "secret_ref",
+          "required": false
+        },
+        {
+          "key": "allow_private",
+          "label": "Allow private network",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "key": "ca_bundle_pem",
+          "label": "Private CA bundle (PEM)",
+          "type": "pem",
+          "required": false,
+          "help": "Only for a certificate issued by a private CA; added to the system trust store for this connection."
+        }
+      ],
+      "secret_refs": false
+    },
+    {
+      "kind": "keycloak_sso",
+      "category": "iam_secrets",
+      "label": "Keycloak sign-in and SAML/OIDC SSO",
+      "status": "existing",
+      "auth_methods": [
+        "oidc",
+        "saml"
+      ],
+      "docs_slug": "connectors#keycloak_sso",
+      "offline_ok": true,
+      "direction": "platform",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Identity providers are configured in Keycloak.",
+      "secret_refs": false
+    },
+    {
+      "kind": "ai_provider",
+      "category": "apis",
+      "label": "AI providers",
+      "status": "existing",
+      "auth_methods": [
+        "api_key",
+        "none"
+      ],
+      "docs_slug": "connectors#ai_provider",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/ai",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": false
+    },
+    {
+      "kind": "api_gateway",
+      "category": "apis",
+      "label": "API gateways",
+      "status": "planned",
+      "auth_methods": [
+        "api_key"
+      ],
+      "docs_slug": "connectors#api_gateway",
+      "offline_ok": false,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "After the lifecycle release.",
+      "secret_refs": false
+    },
+    {
+      "kind": "graphql",
+      "category": "apis",
+      "label": "GraphQL schema",
+      "status": "planned",
+      "auth_methods": [
+        "file",
+        "bearer"
+      ],
+      "docs_slug": "connectors#graphql",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "With API discovery (M4).",
+      "secret_refs": false
+    },
+    {
+      "kind": "mcp_registry",
+      "category": "apis",
+      "label": "MCP registry (outbound MCP servers)",
+      "status": "existing",
+      "auth_methods": [
+        "bearer",
+        "none"
+      ],
+      "docs_slug": "connectors#mcp_registry",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/mcp",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Approval and per-tool allow lists; no health check yet.",
+      "secret_refs": false
+    },
+    {
+      "kind": "openapi",
+      "category": "apis",
+      "label": "OpenAPI / Swagger",
+      "status": "partial",
+      "auth_methods": [
+        "file"
+      ],
+      "docs_slug": "connectors#openapi",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/scans/targets",
+      "creatable": false,
+      "checked_by": "",
+      "note": "File upload for API scan targets.",
+      "secret_refs": false
+    },
+    {
+      "kind": "mcp_api",
+      "category": "apis",
+      "label": "PATHOS REST API and MCP",
+      "status": "existing",
+      "auth_methods": [
+        "api_token"
+      ],
+      "docs_slug": "connectors#mcp_api",
+      "offline_ok": true,
+      "direction": "inbound",
+      "managed_at": "/settings/tokens",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "postman",
+      "category": "apis",
+      "label": "Postman collections",
+      "status": "planned",
+      "auth_methods": [
+        "file",
+        "api_key"
+      ],
+      "docs_slug": "connectors#postman",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "With API discovery (M4).",
+      "secret_refs": false
+    },
+    {
+      "kind": "database",
+      "category": "databases",
+      "label": "Databases (PostgreSQL, MySQL, SQL Server, MongoDB, Oracle)",
+      "status": "planned",
+      "auth_methods": [
+        "read_only_account"
+      ],
+      "docs_slug": "connectors#database",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "note": "After the lifecycle release.",
+      "secret_refs": false
+    },
+    {
+      "kind": "smtp",
+      "category": "monitoring",
+      "label": "E-mail (SMTP)",
+      "status": "existing",
+      "auth_methods": [
+        "none",
+        "password"
+      ],
+      "docs_slug": "connectors#smtp",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/notifications",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "jira",
+      "category": "monitoring",
+      "label": "Jira",
+      "status": "existing",
+      "auth_methods": [
+        "basic",
+        "scoped_api_token",
+        "bearer"
+      ],
+      "docs_slug": "connectors#jira",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/integrations",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "teams",
+      "category": "monitoring",
+      "label": "Microsoft Teams (Workflows)",
+      "status": "existing",
+      "auth_methods": [
+        "workflows_url",
+        "entra_client_credentials"
+      ],
+      "docs_slug": "connectors#teams",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/notifications",
+      "creatable": false,
+      "checked_by": "api",
+      "note": "Office 365 connector webhooks were retired in May 2026; use a Workflows trigger.",
+      "secret_refs": true
+    },
+    {
+      "kind": "opentelemetry",
+      "category": "monitoring",
+      "label": "OpenTelemetry export",
+      "status": "existing",
+      "auth_methods": [
+        "otlp_headers"
+      ],
+      "docs_slug": "connectors#opentelemetry",
+      "offline_ok": true,
+      "direction": "platform",
+      "creatable": false,
+      "checked_by": "",
+      "note": "Configured by environment (OTEL_EXPORTER_OTLP_ENDPOINT).",
+      "secret_refs": false
+    },
+    {
+      "kind": "prometheus",
+      "category": "monitoring",
+      "label": "Prometheus metrics",
+      "status": "planned",
+      "auth_methods": [
+        "none"
+      ],
+      "docs_slug": "connectors#prometheus",
+      "offline_ok": true,
+      "direction": "outbound",
+      "creatable": false,
+      "checked_by": "",
+      "secret_refs": false
+    },
+    {
+      "kind": "servicenow",
+      "category": "monitoring",
+      "label": "ServiceNow",
+      "status": "existing",
+      "auth_methods": [
+        "basic",
+        "bearer"
+      ],
+      "docs_slug": "connectors#servicenow",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/integrations",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "slack",
+      "category": "monitoring",
+      "label": "Slack",
+      "status": "existing",
+      "auth_methods": [
+        "incoming_webhook_url"
+      ],
+      "docs_slug": "connectors#slack",
+      "offline_ok": false,
+      "direction": "outbound",
+      "managed_at": "/admin/notifications",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    },
+    {
+      "kind": "webhook",
+      "category": "monitoring",
+      "label": "Webhooks (signed JSON)",
+      "status": "existing",
+      "auth_methods": [
+        "hmac_signature"
+      ],
+      "docs_slug": "connectors#webhook",
+      "offline_ok": true,
+      "direction": "outbound",
+      "managed_at": "/admin/notifications",
+      "creatable": false,
+      "checked_by": "api",
+      "secret_refs": true
+    }
+  ]
+}

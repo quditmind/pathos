@@ -56,7 +56,7 @@ PATHOS reports on 25 **scan types** (SAST, DAST, SCA, secrets, IaC, container, A
 | `runnable_tools`, `runnable` | How many tools are runnable now; `true` when at least one is |
 | `importable` | At least one specific import format exists |
 | `kind_of_check` | The kind of check the scan type is grouped under (PATHOS 3.0 M6, a display grouping; every scan type has exactly one) |
-| `kinds[]` | The 20 [kinds of check](../SCANNER_CATALOG.md#kinds-of-check-pathos-30-m6), then `ai`, `manual` and `other` (`outside_kinds: true`): `id`, `name`, `phase`, `after_v2`, `scan_types`, `tools` (the kind's 10 reference tools: `name`, `key` when catalogued, `source` `catalog` \| `feed` \| `pathos` \| `gap`, `mode` for a mode of a catalogued tool that is not wired, `after_v2`, `runnable`), `extra_tools` (other catalogued tools of its scan types), `catalogued`, `runnable` and `gaps` counts |
+| `kinds[]` | The 20 [kinds of check](../user-guide/security-scanning.md#tool-names-and-kinds-of-check), then `ai`, `manual` and `other` (`outside_kinds: true`): `id`, `name`, `phase`, `after_v2`, `scan_types`, `tools` (the kind's 10 reference tools: `name`, `key` when catalogued, `source` `catalog` \| `feed` \| `pathos` \| `gap`, `mode` for a mode of a catalogued tool that is not wired, `after_v2`, `runnable`), `extra_tools` (other catalogued tools of its scan types), `catalogued`, `runnable` and `gaps` counts |
 
 Nothing in the response is fixed text: workers, plugins and formats come from the database and the registered parsers when the request is made.
 

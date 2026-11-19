@@ -184,6 +184,8 @@ var orgFieldAllowed = []string{
 	"internal/auth/organizations.go:switchRequest.OrganizationID",       // checked against the caller's memberships
 	"internal/scm/contract.go:RepoRef.Organization",                     // SCM organization (GitHub organization, Azure DevOps organization)
 	"internal/scm/scm.go:RemoteRepo.Organization",                       // SCM organization
+	"internal/inventory/onboarding.go:SourceRef.Organization",           // SCM organization of a repository being onboarded
+	"internal/inventory/onboarding.go:OnboardingSource.Organization",    // SCM organization (response only)
 }
 
 func TestNoOrganizationFromClientInput(t *testing.T) {
@@ -237,7 +239,7 @@ func TestNoOrganizationFromClientInput(t *testing.T) {
 var publicRoutes = []string{
 	"GET /healthz", "GET /readyz", "GET /api/auth/login", "GET /api/auth/callback", "GET /api/v1/meta",
 	"GET /api/v1/me/organizations", "POST /api/v1/me/organization", "/mcp", "/api/", "/api",
-	"POST /api/webhooks/github/{id}", "POST /api/webhooks/azure-devops/{id}", "POST /api/webhooks/gitlab/{id}", "POST /api/webhooks/bitbucket/{id}",
+	"POST /api/webhooks/github/{id}", "POST /api/webhooks/azure-devops/{id}", "POST /api/webhooks/gitlab/{id}", "POST /api/webhooks/bitbucket/{id}", "POST /api/webhooks/bitbucket-data-center/{id}",
 }
 
 func TestOnlyReviewedRoutesBypassAuthentication(t *testing.T) {

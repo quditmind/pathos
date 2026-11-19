@@ -293,6 +293,19 @@ The "Report a problem" bundle is built in the browser from `GET /api/v1/meta` an
 
 There is no `GET /api/v1/applications/{id}` today (applications are read through `GET /api/v1/applications` and `GET /api/v1/posture/applications`). The profile endpoint fills that gap without changing the list.
 
+**As built in M3 (2026-11-20; the code is authoritative, see [applications.md](../api-reference/applications.md#onboarding)).** The design above was adjusted while building:
+
+| Proposed | Built | Why |
+|---|---|---|
+| `GET /api/v1/assets/lookup` | `POST /api/v1/onboarding/match` | Matches a batch of discovered repositories at once and returns application candidates with reasons; body instead of query because a batch holds up to 50 sources |
+| `asset-drafts` (separate draft objects) | Drafts are applications with `onboarding_status = draft`, plus `asset_onboardings` rows per repository | A draft is visible in the inventory and the profile like any application (the M3 "done when"); no second object to reconcile |
+| `POST /asset-drafts/{id}/register` | `POST /api/v1/applications/{id}/onboarding/complete`; repositories still go through `POST /api/v1/repository-imports` | Reuses the import pipeline instead of a second registration path |
+| `GET /api/v1/applications/{id}/profile` | `GET /api/v1/applications/{id}` and `GET /api/v1/applications/{id}/lifecycle` | The missing single read is the plain resource; the strip has its own call |
+| `PUT /api/v1/applications/{id}/tags` | `tag_ids` in `PATCH /api/v1/applications/{id}/classification`; `POST /api/v1/tag-assignments/bulk` | One save for the classification form |
+| `GET /api/v1/tags/history` | `GET /api/v1/tag-history` | `/tags/{id}` is an existing route family |
+| `tag_categories.applies_to` | `tag_categories.mandatory_asset_types` (application types) and `color` | The prompt asks for mandatory categories per asset type |
+| Duplicate codes `PTH-ONB-1001`/`1002` | `PTH-ONB-1008`–`1012` (1012: no silent move of a repository from another application) | 1001–1007 were already taken by import errors in M1 |
+
 ### M4: CodeGraph
 
 All graph reads are limited by repository scope (`graph.read`, resolved like `findings.read` through `authz`).

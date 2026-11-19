@@ -5,7 +5,7 @@ group: connect
 order: 23
 version: "1.1"
 updated: 2026-11-20
-summary: Use the pathos CLI and the GitHub Action, GitLab CI, Azure Pipelines and Jenkins templates to import results, start scans and fail builds on the PATHOS security gate.
+summary: Use the pathos CLI and the GitHub Action, GitLab CI, Azure Pipelines, Bitbucket Pipelines and Jenkins templates to import results, start scans and fail builds on the PATHOS security gate.
 ---
 # CI/CD integration
 
@@ -15,12 +15,12 @@ PATHOS fits into a build pipeline in three ways:
 - **Scan**: start a PATHOS scan of the repository and follow it to the end.
 - **Gate**: fail the build when the security gate fails. The gate fails when the execution's own gate failed (the profile's *fail on critical* setting or a blocking [security policy](policies-and-compliance.md)), or when findings at or above a severity you choose exist.
 
-All three use the **`pathos` command-line tool**. Ready-made templates wrap it for GitHub Actions, GitLab CI, Azure Pipelines and Jenkins.
+All three use the **`pathos` command-line tool**. Ready-made templates wrap it for GitHub Actions, GitLab CI, Azure Pipelines, Bitbucket Pipelines and Jenkins.
 
 ## Before you start
 
 1. **Create a REST API token** for the pipeline: user menu → **API tokens (MCP)** ([REST API tokens](reporting-and-integrations.md#rest-api-tokens)). Allow **REST API: read and write** for imports and scans; **REST API: read** is enough for the gate and for listing findings. The token acts with your current permissions: importing and scanning need `scans.run` on the repository, the gate needs `scans.read`. Tokens expire after at most 90 days; renew them in time.
-2. **Store the token as a secret** of the CI system (GitHub *Actions secret*, GitLab *masked and protected variable*, Azure Pipelines *secret variable*, Jenkins *Secret text credential*). Never write it into a pipeline file.
+2. **Store the token as a secret** of the CI system (GitHub *Actions secret*, GitLab *masked and protected variable*, Azure Pipelines *secret variable*, Bitbucket *secured repository or deployment variable*, Jenkins *Secret text credential*). Never write it into a pipeline file.
 3. Note the repository's **name** (for example `acme/payments-api`) or its **Repository ID** (`QD-REPO-000042`). The CLI accepts either, or the UUID.
 4. If PATHOS uses a certificate from a private CA, make the CA's PEM file available to the pipeline (`--ca-cert`).
 
@@ -57,7 +57,7 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 
 | Command | What it does |
 |---|---|
-| `pathos import --repo R --file F [--format ID] [--tool NAME] [--category CAT] [--commit SHA] [--branch NAME] [--complete]` | Uploads a results file and waits until the import's execution is finished. `--format` names the format (detected when omitted); `--tool` and `--category` default from the format. `--complete` marks findings the tool no longer reports as fixed (only for the tool's complete result). Commit and branch default from the CI environment (`GITHUB_SHA`, `CI_COMMIT_SHA`, `BUILD_SOURCEVERSION`, `GIT_COMMIT`, and the matching branch variables) |
+| `pathos import --repo R --file F [--format ID] [--tool NAME] [--category CAT] [--commit SHA] [--branch NAME] [--complete]` | Uploads a results file and waits until the import's execution is finished. `--format` names the format (detected when omitted); `--tool` and `--category` default from the format. `--complete` marks findings the tool no longer reports as fixed (only for the tool's complete result). Commit and branch default from the CI environment (`GITHUB_SHA`, `CI_COMMIT_SHA`, `BUILD_SOURCEVERSION`, `BITBUCKET_COMMIT`, `GIT_COMMIT`, and the matching branch variables, including `BITBUCKET_BRANCH`) |
 | `pathos import --sbom --repo R --file F` | Uploads a CycloneDX or SPDX JSON SBOM; it replaces the repository's component inventory |
 | `pathos scan --repo R [--profile UUID] [--name NAME] [--no-wait] [--wait-timeout 30m]` | Starts a scan and follows its stages and progress until it finishes |
 | `pathos gate (--scan UUID \| --repo R) [--fail-on SEV] [--scope new\|all] [--allow-partial]` | Evaluates the security gate of an execution (with `--repo`: the repository's latest finished execution). See below |
@@ -165,6 +165,35 @@ steps:
 
 Parameters: `importFile`, `importFormat`, `importTool`, `importCategory`, `complete`, `scan`, `gate` (default `true`), `failOn`, `scope`.
 
+## Bitbucket Pipelines
+
+`integrations/bitbucket-pipelines/bitbucket-pipelines.yml` (Bitbucket Cloud Pipelines) defines three reusable steps under `definitions.steps` with YAML anchors: `&pathos-import`, `&pathos-scan` and `&pathos-gate`. Bitbucket has no remote include for ordinary repositories, so copy the `definitions` block into your `bitbucket-pipelines.yml` and reuse the steps with `*pathos-gate` or `<<: *pathos-import` ([YAML anchors](https://support.atlassian.com/bitbucket-cloud/docs/yaml-anchors/)). Each step installs the CLI and checks its SHA-256 first.
+
+Set these as repository or deployment variables ([Variables and secrets](https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/)): `PATHOS_URL`, `PATHOS_REPOSITORY`, `PATHOS_CLI_VERSION`, and `PATHOS_TOKEN` as a **secured** variable (masked in logs, not editable after creation). Optional: `PATHOS_FAIL_ON`, `PATHOS_SCOPE`, `PATHOS_IMPORT_FILE`, `PATHOS_IMPORT_FORMAT`, `PATHOS_IMPORT_TOOL`, `PATHOS_IMPORT_CATEGORY`, `PATHOS_COMPLETE`, and `PATHOS_CA_CERT_PEM` (the PEM of a private CA that signs PATHOS' certificate). The CLI takes the commit and branch from `BITBUCKET_COMMIT` and `BITBUCKET_BRANCH`.
+
+```yaml
+pipelines:
+  default:
+    - step:
+        name: Semgrep
+        image: semgrep/semgrep
+        script:
+          - semgrep scan --config auto --json --output semgrep.json || true
+        artifacts:
+          - semgrep.json
+    - step:
+        <<: *pathos-import
+        script:
+          - export PATHOS_IMPORT_FILE=semgrep.json
+          - *pathos-install
+          - pathos import --repo "$PATHOS_REPOSITORY" --file "$PATHOS_IMPORT_FILE"
+  pull-requests:
+    '**':
+      - step: *pathos-gate
+```
+
+PATHOS never stores Bitbucket credentials for this integration: the pipeline calls PATHOS with its own token. Bitbucket Data Center has no built-in Pipelines; use its CI (Bamboo, Jenkins) with the Jenkins snippet or the CLI directly.
+
 ## Jenkins
 
 `integrations/jenkins/Jenkinsfile` is a declarative pipeline snippet with three stages: install the CLI (with checksum verification), import, gate. Store the token as a *Secret text* credential (`pathos-token` in the snippet) and keep the `sh` steps in single quotes so that the shell, not Groovy, expands it.
@@ -183,6 +212,7 @@ Any system that can run a shell works: install the CLI as above, set `PATHOS_URL
 | *unrecognised report* | The file is empty or not a supported format; name it with `--format` (an empty report of a named format is a valid, complete result) |
 | *a tool name is required* | SARIF, PATHOS JSON and CSV imports need `--tool` |
 | *a scan of this repository is running* | An import cannot run while a scan of the repository is running; retry when it has finished |
-| certificate errors | Pass the CA with `--ca-cert` |
+| certificate errors | Pass the CA with `--ca-cert` (Bitbucket Pipelines: set `PATHOS_CA_CERT_PEM`) |
+| Bitbucket: *unknown alias* / *anchor not defined* | The `definitions` block of the template was not copied into `bitbucket-pipelines.yml`; anchors work only within one file |
 
 **Related APIs.** [Result imports](../api-reference/result-imports.md), [Scans: evaluate the security gate](../api-reference/scans.md#evaluate-the-security-gate), [REST API tokens](../api-reference/index.md#rest-api-tokens).

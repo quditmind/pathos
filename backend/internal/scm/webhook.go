@@ -10,6 +10,7 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // ErrSignature means a webhook failed authentication.
@@ -176,6 +177,64 @@ func VerifyGitLabToken(secret []byte, header string) error {
 	return nil
 }
 
+// GitLabSignatureTolerance is how far a signed GitLab delivery's
+// webhook-timestamp may be from the receiver's clock.
+const GitLabSignatureTolerance = 5 * time.Minute
+
+// ParseGitLabSigningToken decodes a GitLab webhook signing token
+// ("whsec_" + base64 key, Standard Webhooks) into the HMAC key.
+func ParseGitLabSigningToken(token string) ([]byte, error) {
+	rest, ok := strings.CutPrefix(strings.TrimSpace(token), "whsec_")
+	if !ok {
+		return nil, errors.New("scm: a GitLab signing token starts with whsec_")
+	}
+	key, err := base64.StdEncoding.DecodeString(rest)
+	if err != nil {
+		if key, err = base64.RawStdEncoding.DecodeString(rest); err != nil {
+			return nil, errors.New("scm: the GitLab signing token is not valid base64 after whsec_")
+		}
+	}
+	if len(key) < 16 {
+		return nil, errors.New("scm: the GitLab signing token is too short")
+	}
+	return key, nil
+}
+
+// VerifyGitLabSignature checks a delivery signed with a GitLab webhook
+// signing token (GitLab 19.0+, generally available in 19.1): the
+// webhook-signature header holds space-separated "v1,<base64>" entries,
+// each an HMAC-SHA256 over "<webhook-id>.<webhook-timestamp>.<raw body>"
+// with the decoded token as key. Deliveries whose timestamp is more than
+// GitLabSignatureTolerance from now are refused (replay protection).
+func VerifyGitLabSignature(signingToken []byte, msgID, timestamp, signature string, body []byte, now time.Time) error {
+	key, err := ParseGitLabSigningToken(string(signingToken))
+	if err != nil || msgID == "" || timestamp == "" || signature == "" {
+		return ErrSignature
+	}
+	ts, err := strconv.ParseInt(timestamp, 10, 64)
+	if err != nil {
+		return ErrSignature
+	}
+	if d := now.Sub(time.Unix(ts, 0)); d > GitLabSignatureTolerance || d < -GitLabSignatureTolerance {
+		return ErrSignature
+	}
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte(msgID + "." + timestamp + "."))
+	m.Write(body)
+	want := m.Sum(nil)
+	for _, part := range strings.Fields(signature) {
+		v, sig, ok := strings.Cut(part, ",")
+		if !ok || v != "v1" {
+			continue
+		}
+		got, err := base64.StdEncoding.DecodeString(sig)
+		if err == nil && hmac.Equal(got, want) {
+			return nil
+		}
+	}
+	return ErrSignature
+}
+
 // ParseGitLabEvent normalizes a GitLab webhook (X-Gitlab-Event: Push Hook,
 // Merge Request Hook). It returns the project ID, which is also the event's
 // ExternalID.
@@ -303,4 +362,80 @@ func ParseBitbucketEvent(eventKey string, body []byte) (WebhookEvent, string, er
 		}
 	}
 	return ev, p.Repository.UUID, nil
+}
+
+// ParseBitbucketDataCenterEvent normalizes a Bitbucket Data Center webhook
+// (X-Event-Key repo:refs_changed, pr:opened, pr:from_ref_updated,
+// pr:merged, diagnostics:ping; payloads per
+// https://confluence.atlassian.com/bitbucketserver/event-payload-938025882.html,
+// checked 2026-11-20). Deliveries are signed like Bitbucket Cloud
+// (X-Hub-Signature: sha256=<hex HMAC>, VerifyBitbucketSignature). It
+// returns the numeric repository ID, which is also the ExternalID.
+func ParseBitbucketDataCenterEvent(eventKey string, body []byte) (WebhookEvent, string, error) {
+	type ref struct {
+		DisplayID    string `json:"displayId"`
+		LatestCommit string `json:"latestCommit"`
+		Repository   struct {
+			ID int `json:"id"`
+		} `json:"repository"`
+	}
+	var p struct {
+		Repository *struct {
+			ID int `json:"id"`
+		} `json:"repository"`
+		Changes []struct {
+			Ref struct {
+				DisplayID string `json:"displayId"`
+				Type      string `json:"type"`
+			} `json:"ref"`
+			FromHash string `json:"fromHash"`
+			ToHash   string `json:"toHash"`
+			Type     string `json:"type"`
+		} `json:"changes"`
+		PullRequest struct {
+			ID         int    `json:"id"`
+			State      string `json:"state"`
+			FromRef    ref    `json:"fromRef"`
+			ToRef      ref    `json:"toRef"`
+			Properties struct {
+				MergeCommit *struct {
+					ID string `json:"id"`
+				} `json:"mergeCommit"`
+			} `json:"properties"`
+		} `json:"pullRequest"`
+	}
+	if err := json.Unmarshal(body, &p); err != nil {
+		return WebhookEvent{}, "", errors.New("scm: invalid JSON payload")
+	}
+	ext := ""
+	switch {
+	case p.Repository != nil && p.Repository.ID > 0:
+		ext = strconv.Itoa(p.Repository.ID)
+	case p.PullRequest.ToRef.Repository.ID > 0:
+		ext = strconv.Itoa(p.PullRequest.ToRef.Repository.ID)
+	}
+	ev := WebhookEvent{Kind: "ignored", ExternalID: ext}
+	pr := p.PullRequest
+	switch eventKey {
+	case "diagnostics:ping":
+		ev.Kind = "ping"
+	case "repo:refs_changed":
+		for _, c := range p.Changes {
+			if c.Ref.Type == "BRANCH" && c.Type != "DELETE" && c.ToHash != "" {
+				ev.Kind, ev.Ref, ev.CommitSHA, ev.Before = "push", c.Ref.DisplayID, c.ToHash, c.FromHash
+				break
+			}
+		}
+	case "pr:merged":
+		ev.Kind, ev.Ref, ev.PullRequest = "merge", pr.ToRef.DisplayID, pr.ID
+		if pr.Properties.MergeCommit != nil {
+			ev.CommitSHA = pr.Properties.MergeCommit.ID
+		}
+	case "pr:opened", "pr:from_ref_updated":
+		ev.PullRequest = pr.ID
+		if pr.State == "" || pr.State == "OPEN" {
+			ev.Kind, ev.Ref, ev.CommitSHA = "pull_request", pr.FromRef.DisplayID, pr.FromRef.LatestCommit
+		}
+	}
+	return ev, ext, nil
 }

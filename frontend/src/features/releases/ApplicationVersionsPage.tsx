@@ -19,19 +19,26 @@ export function ApplicationVersionsRoute() {
   return <ApplicationVersionsPage appId={id} />;
 }
 
-export function ApplicationVersionsPage({ appId }: { appId: string }) {
+/** embedded: inside the application profile (no page header or back link). */
+export function ApplicationVersionsPage({ appId, embedded = false }: { appId: string; embedded?: boolean }) {
   const versions = useVersions(appId);
   const [creating, setCreating] = useState(false);
   const [open, setOpen] = useState<string | null>(null);
   const data = versions.data;
   return (
     <>
-      <PageHeader
-        title={data ? `${data.application.name}: versions` : "Application versions"}
-        description="Releases freeze the commit, SBOM and findings of each repository at the time they are created, so you can tell which shipped versions contain a vulnerable component and export VEX for them."
-        actions={data?.can_manage && <Button onClick={() => setCreating(true)}><Plus /> New version</Button>}
-      />
-      <div className="mb-3 text-[12.5px]"><Link to="/applications" className="text-primary hover:underline">← Applications</Link></div>
+      {embedded ? (
+        data?.can_manage && <div className="mb-3 flex justify-end"><Button onClick={() => setCreating(true)}><Plus /> New version</Button></div>
+      ) : (
+        <>
+          <PageHeader
+            title={data ? `${data.application.name}: versions` : "Application versions"}
+            description="Releases freeze the commit, SBOM and findings of each repository at the time they are created, so you can tell which shipped versions contain a vulnerable component and export VEX for them."
+            actions={data?.can_manage && <Button onClick={() => setCreating(true)}><Plus /> New version</Button>}
+          />
+          <div className="mb-3 text-[12.5px]"><Link to="/applications" className="text-primary hover:underline">← Applications</Link></div>
+        </>
+      )}
       {versions.isError && <ErrorPanel error={versions.error} />}
       <Card>
         {versions.isPending ? <Skeleton className="h-32" /> : !data?.items.length ? (

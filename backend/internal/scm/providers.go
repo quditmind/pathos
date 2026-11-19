@@ -141,9 +141,111 @@ func Providers() []ProviderInfo {
 	}
 }
 
+// caField is the per-connection private CA bundle (configuration, not a
+// secret: see tlsca.go).
+var caField = AuthField{Name: "ca_bundle_pem", Label: "Private CA bundle (PEM, optional)", Type: "textarea",
+	Help: "Only for servers whose certificate is issued by a private CA. Added to the system trust store for this connection only."}
+
+// ConnectorProviders are the providers added with the Connectors hub
+// (PATHOS 3.0, M2). They are offered only when the organization's
+// "connectors" feature flag is on.
+func ConnectorProviders() []ProviderInfo {
+	return []ProviderInfo{
+		{
+			Key: GenericGit, Label: "Generic Git (HTTPS or SSH)", Category: "git", BaseURLRequired: true,
+			BaseURLHelp: "The repository URL: https://git.example.com/team/app.git or ssh://git@git.example.com/team/app.git (git@host:path is accepted). One connection per repository.",
+			OwnerLabel:  "",
+			AuthMethods: []AuthMethod{
+				{
+					Key: AuthAPIToken, Label: "HTTPS user name and token",
+					Description: "A read-only token (or password) for the repository. The user name defaults to \"git\".",
+					Fields: []AuthField{
+						{Name: "username", Label: "User name (optional)", Type: "text"},
+						fieldToken("Token", "Read access to this repository only."),
+						caField,
+					},
+					DocsURL: "https://git-scm.com/docs/http-protocol",
+				},
+				{
+					Key: AuthSSHKey, Label: "SSH deploy key",
+					Description: "A read-only deploy key and the server's pinned host key. PATHOS never accepts an unknown host key.",
+					Fields: []AuthField{
+						{Name: "ssh_private_key", Label: "Private key (OpenSSH or PEM)", Type: "textarea", Required: true, Secret: true},
+						{Name: "ssh_passphrase", Label: "Key passphrase (optional)", Type: "password", Secret: true},
+						{Name: "ssh_known_hosts", Label: "known_hosts entry", Type: "textarea", Required: true,
+							Help: "One line per host key, e.g. from ssh-keyscan -t ed25519 git.example.com, checked against the server's published fingerprint."},
+						{Name: "ssh_host_key_fingerprint", Label: "Host key fingerprint (SHA256:…)", Type: "text", Required: true,
+							Help: "From the server administrator (ssh-keygen -lf). Must match the known_hosts entry."},
+					},
+					DocsURL: "https://git-scm.com/docs/pack-protocol",
+				},
+			},
+		},
+		{
+			Key: BitbucketDataCenter, Label: "Bitbucket Data Center", Category: "git", BaseURLRequired: true,
+			BaseURLHelp:  "Root URL of the instance, e.g. https://bitbucket.example.com (with its context path, if any).",
+			OwnerLabel:   "Project key (optional)",
+			Capabilities: Capabilities{Projects: true, ServerSearch: true},
+			AuthMethods: []AuthMethod{
+				{
+					Key: AuthPAT, Label: "Project or repository HTTP access token",
+					Description: "Recommended: a project or repository token with Read permission (Write only for commit statuses and fix pull requests). Sent as a Bearer token.",
+					Fields:      []AuthField{fieldToken("HTTP access token", "Project and repository tokens need a Data Center licence."), caField},
+					DocsURL:     "https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html",
+				},
+				{
+					Key: AuthAPIToken, Label: "User HTTP access token",
+					Description: "A personal HTTP access token with Project read and Repository read, sent with Basic authentication and the user name.",
+					Fields: []AuthField{
+						{Name: "username", Label: "User name", Type: "text", Required: true},
+						fieldToken("HTTP access token", ""),
+						caField,
+					},
+					DocsURL: "https://confluence.atlassian.com/bitbucketserver/http-access-tokens-939515499.html",
+				},
+			},
+		},
+	}
+}
+
+// ConnectorCatalog is what the connection wizard shows with the connectors
+// feature on: every provider, and the private CA field on the non-OAuth
+// methods of self-hosted providers (GitHub Enterprise Server, GitLab
+// self-managed, Azure DevOps Server).
+func ConnectorCatalog() []ProviderInfo {
+	out := AllProviders()
+	for i := range out {
+		switch out[i].Key {
+		case GitHubEnterprise, GitLab, AzureDevOpsServer:
+		default:
+			continue
+		}
+		for j := range out[i].AuthMethods {
+			m := &out[i].AuthMethods[j]
+			if !m.OAuth {
+				m.Fields = append(append([]AuthField{}, m.Fields...), caField)
+			}
+		}
+	}
+	return out
+}
+
+// AllProviders is Providers plus ConnectorProviders.
+func AllProviders() []ProviderInfo { return append(Providers(), ConnectorProviders()...) }
+
+// IsConnectorProvider reports whether provider needs the connectors flag.
+func IsConnectorProvider(provider string) bool {
+	for _, p := range ConnectorProviders() {
+		if p.Key == provider {
+			return true
+		}
+	}
+	return false
+}
+
 // AuthMethodFor returns the auth method of provider, if supported.
 func AuthMethodFor(provider, authType string) (AuthMethod, bool) {
-	for _, p := range Providers() {
+	for _, p := range AllProviders() {
 		if p.Key != provider {
 			continue
 		}

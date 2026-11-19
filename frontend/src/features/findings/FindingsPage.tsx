@@ -46,10 +46,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { control?: string; malicious?: string; deployed?: string; internet_exposed?: string; status?: string; severity?: string; category?: string; kind?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string; secret_validation?: string; reachability?: string; reachability_method?: string };
+type FindingSearch = { application_id?: string; control?: string; malicious?: string; deployed?: string; internet_exposed?: string; status?: string; severity?: string; category?: string; kind?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string; secret_validation?: string; reachability?: string; reachability_method?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["control", "malicious", "deployed", "internet_exposed", "status", "severity", "category", "kind", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id", "secret_validation", "reachability", "reachability_method"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["application_id", "control", "malicious", "deployed", "internet_exposed", "status", "severity", "category", "kind", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id", "secret_validation", "reachability", "reachability_method"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 

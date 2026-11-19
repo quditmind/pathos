@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -66,14 +68,73 @@ func (w *capWriter) Write(p []byte) (int, error) {
 }
 
 // gitAuthEnv is the environment for git commands that talk to the remote.
-func gitAuthEnv(job Job) []string {
+// SSH keys, pinned known_hosts and private CA bundles are written to a
+// private 0700 directory for the duration of one git command; the returned
+// cleanup removes it. SSH never trusts an unknown host key
+// (StrictHostKeyChecking=yes with only the pinned known_hosts file).
+func gitAuthEnv(job Job) ([]string, func(), error) {
 	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
-	if job.Credential != nil && job.Credential.Token != "" {
-		header := "Authorization: Basic " + basicAuth(job.Credential.Username, job.Credential.Token)
-		if job.Credential.Scheme == "bearer" {
-			header = "Authorization: Bearer " + job.Credential.Token
+	noop := func() {}
+	c := job.Credential
+	if c == nil {
+		return env, noop, nil
+	}
+	var cfg [][2]string
+	if c.Token != "" {
+		header := "Authorization: Basic " + basicAuth(c.Username, c.Token)
+		if c.Scheme == "bearer" {
+			header = "Authorization: Bearer " + c.Token
 		}
-		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0="+header)
+		cfg = append(cfg, [2]string{"http.extraHeader", header})
+	}
+	if c.SSHPrivateKey == "" && c.CABundle == "" {
+		return withGitConfig(env, cfg), noop, nil
+	}
+	dir, err := os.MkdirTemp("", "pathos-git-cred-")
+	if err != nil {
+		return nil, noop, err
+	}
+	cleanup := func() { _ = os.RemoveAll(dir) }
+	write := func(name, content string) (string, error) {
+		p := filepath.Join(dir, name)
+		return p, os.WriteFile(p, []byte(content), 0o600) // #nosec G703 -- name is one of the constants below; dir is our own MkdirTemp
+	}
+	if c.CABundle != "" {
+		// http.sslCAInfo replaces the default bundle: append the private CA
+		// to the system bundle so other hosts (redirect-free) still verify.
+		system, _ := os.ReadFile("/etc/ssl/certs/ca-certificates.crt")
+		p, err := write("ca.pem", string(system)+"\n"+c.CABundle)
+		if err != nil {
+			cleanup()
+			return nil, noop, err
+		}
+		cfg = append(cfg, [2]string{"http.sslCAInfo", p})
+	}
+	if c.SSHPrivateKey != "" {
+		key, err := write("id", strings.TrimSpace(c.SSHPrivateKey)+"\n")
+		if err != nil {
+			cleanup()
+			return nil, noop, err
+		}
+		kh, err := write("known_hosts", c.SSHKnownHosts+"\n")
+		if err != nil {
+			cleanup()
+			return nil, noop, err
+		}
+		env = append(env, "GIT_SSH_COMMAND=ssh -F /dev/null -i "+key+" -o IdentitiesOnly=yes -o IdentityAgent=none"+
+			" -o UserKnownHostsFile="+kh+" -o GlobalKnownHostsFile=/dev/null -o StrictHostKeyChecking=yes"+
+			" -o BatchMode=yes -o PasswordAuthentication=no -o ConnectTimeout=15")
+	}
+	return withGitConfig(env, cfg), cleanup, nil
+}
+
+func withGitConfig(env []string, cfg [][2]string) []string {
+	if len(cfg) == 0 {
+		return env
+	}
+	env = append(env, fmt.Sprintf("GIT_CONFIG_COUNT=%d", len(cfg)))
+	for i, kv := range cfg {
+		env = append(env, fmt.Sprintf("GIT_CONFIG_KEY_%d=%s", i, kv[0]), fmt.Sprintf("GIT_CONFIG_VALUE_%d=%s", i, kv[1]))
 	}
 	return env
 }
@@ -126,12 +187,17 @@ func detectChanges(ctx context.Context, job Job, head, gitDir, dir string) *Chan
 		if job.CollectAuthors {
 			depth = fmt.Sprint(historyDepth)
 		}
-		if err := git(gitAuthEnv(job), "--git-dir", repo, "fetch", "--quiet", "--no-tags", "--depth", depth, "--", job.CloneURL, head); err != nil {
+		authEnv, cleanup, err := gitAuthEnv(job)
+		if err != nil {
+			return unavailable(out, "preparing the clone credential failed", err)
+		}
+		defer cleanup()
+		if err := git(authEnv, "--git-dir", repo, "fetch", "--quiet", "--no-tags", "--depth", depth, "--", job.CloneURL, head); err != nil {
 			return unavailable(out, "fetching the scanned commit for comparison failed", err)
 		}
 		baseInWindow = has(repo, prev)
 		if !baseInWindow {
-			if err := git(gitAuthEnv(job), "--git-dir", repo, "fetch", "--quiet", "--no-tags", "--depth", "1", "--", job.CloneURL, prev); err != nil {
+			if err := git(authEnv, "--git-dir", repo, "fetch", "--quiet", "--no-tags", "--depth", "1", "--", job.CloneURL, prev); err != nil {
 				return unavailable(out, "the previously scanned commit could not be fetched (rewritten history or the server does not serve commits by ID)", err)
 			}
 		}

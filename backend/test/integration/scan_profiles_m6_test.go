@@ -3,7 +3,6 @@
 package integration
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"testing"
@@ -104,14 +103,7 @@ func TestScanProfileTiersSeedingIsIdempotent(t *testing.T) {
 	}
 }
 
-func setFlag(t *testing.T, name string, on bool) {
-	t.Helper()
-	// Background: also called from t.Cleanup, after t.Context() is done.
-	if _, err := ownerPool.Exec(context.Background(), `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, $3, $4)
-		ON CONFLICT (organization_id, name) DO UPDATE SET enabled = EXCLUDED.enabled`, uuid.Must(uuid.NewV7()), orgID, name, on); err != nil {
-		t.Fatal(err)
-	}
-}
+// setFlag is defined in onboarding_m3_test.go.
 
 func TestScanProfileTiersAndKindsAPI(t *testing.T) {
 	ctx := t.Context()

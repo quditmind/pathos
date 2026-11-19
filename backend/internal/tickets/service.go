@@ -164,6 +164,20 @@ func (in *input) validate(update bool) error {
 			return httpx.BadRequest("config.project_key is required for Jira")
 		}
 		in.Config.Table, in.Config.AssignmentGroup, in.Config.CallerID = "", "", ""
+		in.Config.CloudID = strings.ToLower(strings.TrimSpace(in.Config.CloudID))
+		switch in.Config.TokenType {
+		case "", TokenUnscoped:
+			in.Config.TokenType, in.Config.CloudID = "", ""
+		case TokenScoped:
+			if in.AuthType != "basic" {
+				return httpx.BadRequest("a scoped Jira API token uses basic authentication (e-mail and token)")
+			}
+			if in.Config.CloudID != "" && !cloudIDRe.MatchString(in.Config.CloudID) {
+				return httpx.BadRequest("config.cloud_id must be the site's cloud ID (a UUID); leave it empty to look it up")
+			}
+		default:
+			return httpx.BadRequest("config.token_type must be unscoped or scoped")
+		}
 	case "servicenow":
 		if in.Config.Table == "" {
 			in.Config.Table = "incident"
@@ -174,6 +188,7 @@ func (in *input) validate(update bool) error {
 			}
 		}
 		in.Config.ProjectKey, in.Config.IssueType, in.Config.Labels = "", "", nil
+		in.Config.TokenType, in.Config.CloudID = "", ""
 	}
 	if len(in.Config.Labels) > 10 {
 		return httpx.BadRequest("at most 10 labels")
@@ -337,6 +352,17 @@ func (s *Service) conn(ctx context.Context, q db.Querier, orgID, id uuid.UUID) (
 		c.HTTP = scm.NetPolicy{AllowPrivate: allowPrivate}.Client()
 	}
 	return c, name, enabled, nil
+}
+
+// CheckConnection runs the connection's read-only check (the Test button:
+// who PATHOS acts as, and the configured project or table) for the
+// Connectors health check. It returns the identity.
+func (s *Service) CheckConnection(ctx context.Context, orgID, id uuid.UUID) (string, error) {
+	c, _, _, err := s.conn(ctx, s.DB, orgID, id)
+	if err != nil {
+		return "", err
+	}
+	return c.Check(ctx)
 }
 
 func (s *Service) test(w http.ResponseWriter, r *http.Request) {

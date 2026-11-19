@@ -408,8 +408,41 @@ Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside
 
 The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.
 
+## Connectors (migration 00044)
+
+| Table | Purpose |
+|---|---|
+| `connectors` | The Connectors registry. For an existing connection: `kind`, `source_table` and `source_key` (the legacy row's id, the feed name, or `''` for the per-organization singletons `smtp_settings`, `secret_validation_settings`, `installation_object_store`, `installation_egress_proxy`), unique per `(organization_id, source_table, source_key)`; rows are added and removed by reconciliation in the connectors service (no triggers, the legacy tables stay the source of truth and keep their settings and credentials). For a kind stored here: `name` (unique per organization, case-insensitive), `config` (non-secret, at most 64 KiB) and `secret_id` (credential in `secrets`, composite key to the same organization). Health: `status` (`unknown`, `healthy`, `degraded`, `failing`, `disabled`), `last_check_at`, `last_ok_at`, `last_error_code` (a catalogue code or `''`). `check_requested_at`/`check_requested_by`: a "Check now" waiting for the jobs service |
+| `connector_health_checks` | One row per check: `status`, `trigger` (`schedule`, `user`, `verify`), `triggered_by`, `checked_at`, `duration_ms`, `error_code`, `message` (redacted, at most 2,000 characters), `steps` (JSON array of `{check, status, error_code, detail}`), `observed` (non-secret facts). Composite key to `connectors` with `ON DELETE CASCADE`. The jobs service keeps 30 days and at least the last 200 checks of each connector |
+
+Both are tenant tables with the standard row-level security policy from `pathos_apply_app_grants()`. The migration also adds `scm_connections.webhook_signing_secret_id` (GitLab signing token, kind `webhook`) and `outbound_webhooks.trigger_auth` (`{tenant_id, client_id, audience}`) with `trigger_auth_secret_id` (Teams trigger client secret, kind `integration`), each secret with a composite key to the same organization.
+
 ## Feature flags (migration 00043)
 
 | Table | Purpose |
 |---|---|
 | `feature_flags` | One row per organization and flag that an administrator has set: `name` (lower-case, `^[a-z][a-z0-9_]{1,62}$`), `enabled`, `updated_by`, `updated_at`; unique per `(organization_id, name)`. A flag without a row is off. The known flags are defined in code (`internal/featureflags`). Tenant table: it gets the standard row-level security policy from `pathos_apply_app_grants()` (docs/MULTI_TENANCY.md). Changes are audited (`feature_flag.update`) |
+
+## Application onboarding and classification (migration 00046)
+
+PATHOS 3.0 M3 (flag `onboarding`). Additive.
+
+| Table / column | Purpose |
+|---|---|
+| `applications.onboarding_status` | `draft` (incomplete, shown as *Onboarding: N of M fields*) or `complete` (default; existing rows) |
+| `applications.application_type`, `languages`, `frameworks`, `runtimes`, `data_classification`, `internet_exposure`, `compliance_scopes`, `authentication_model`, `hosting_region`, `data_residency_region_id` | Application classification. Catalogue keys refer to `asset_classifications`; `data_residency_region_id` is a composite foreign key to `regions` |
+| `applications.detected_fields` | JSON map field → `{source, detail}` of values filled from repository metadata, the SBOM or the provider |
+| `asset_classifications.kind` | Adds `authentication_model` (seeded by `repos.EnsureAssetDefaults`) |
+| `asset_settings.application_required_fields` | Mandatory application fields (default nine) |
+| `asset_onboardings` | One row per repository being onboarded: `application_id`, `source_key` (normalised host/path), connection and external ID, `repository_id` once it exists, `decision` (`linked_existing`, `registered_new`), `status` (`draft`, `saved`, `discovery_started`, `kept`: left in another application), `move_requested` (the person asked to move it from another application; the move itself needs the explicit list at completion), `import_job_id`, `hints`. **Unique** on `(organization_id, source_key)`, on `(scm_connection_id, external_id)` and on `repository_id`: the database refuses a second onboarding of a repository, also under concurrency. Composite foreign keys with `ON DELETE SET NULL (column)` keep `organization_id` |
+
+## Tag framework (migration 00047)
+
+| Table / column | Purpose |
+|---|---|
+| `tag_categories.color`, `mandatory_asset_types` | Category colour (`#rrggbb` or `''`); application types (keys of the `application_type` catalogue, or `all`) whose applications need a tag of the category. Repository mandatory categories stay `is_mandatory` |
+| `application_tags` | Tags on applications, with `source` (`manual`, `rule`, `bulk`, `onboarding`), `rule_id`, `created_by` |
+| `tag_rules` | Automatic tagging: `tag_id`, `target_type` (`application`, `repository`), `condition` (`classification` with `field`, `repository_topic`, `path_pattern`), `value`, `enabled`. Unique name per organization |
+| `tag_assignment_history` | One row per changed category per tag change: target, category, `old_tags`, `new_tags` (names), `source`, `rule_id`, actor, time. Indexed by target and by time. No foreign key to the target, so history outlives it |
+
+All four are tenant tables with the standard row-level security policy (`pathos_apply_app_grants()`), covered by the cross-tenant isolation suite.

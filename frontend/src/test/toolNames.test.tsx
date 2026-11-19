@@ -10,6 +10,11 @@
  * (CATALOG_TOOLS, generated from backend/internal/scanners) reaches the
  * page text, titles or accessible labels. A positive control renders the
  * Scan profiles page, where the names must appear.
+ *
+ * PATHOS 3.0 M2/M3 pages are covered too: the Connectors hub (with the real
+ * connector kinds catalogue, frontend/src/test/fixtures/connectorKinds.json,
+ * kept current by a Go test in backend/internal/connectors), the application
+ * profile hub tabs, the lifecycle overview and the onboarding flow.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
@@ -29,6 +34,12 @@ import { Workspace } from "@/features/review/workspace/WorkspacePage";
 import { ReportsPage as ReviewReportsPage } from "@/features/review/ReportsPage";
 import { ProfilesPage } from "@/features/scans/ProfilesPage";
 import type { Catalog, ReviewDetail } from "@/features/review/types";
+import { ConnectorsPage } from "@/features/connectors/ConnectorsPage";
+import { ApplicationProfile } from "@/features/inventory/ApplicationProfilePage";
+import { LifecyclePage } from "@/features/inventory/LifecyclePage";
+import { OnboardingFlowPage } from "@/features/inventory/OnboardingFlowPage";
+import type { ApplicationProfile as AppProfile, AppLifecycle, Phase } from "@/features/inventory/api";
+import connectorKinds from "@/test/fixtures/connectorKinds.json";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -236,6 +247,110 @@ describe("rule 3: tool names only on the configuration pages", () => {
     renderApp(<ProfilesPage />, { permissions: ["scans.read"] });
     await screen.findByText("Gitleaks");
     expect(toolNamesIn(document.body)).toEqual(expect.arrayContaining(["Checkov", "Gitleaks"]));
+  });
+});
+
+// --- PATHOS 3.0 M2/M3 pages (example fixture data, test only) --------------------
+
+const flagsOn = () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { connectors: true, onboarding: true, lifecycle_overview: true } });
+
+type KindRow = { kind: string; category: string; label: string };
+const kindRows = (connectorKinds as { items: KindRow[] }).items;
+// The feed names of backend/internal/connectors/sources.go (feedNames).
+const feedNames = ["EPSS (FIRST)", "CISA KEV", "OSV.dev records", "End-of-life dates"];
+const connectorRows = [
+  ...kindRows.map((k, i) => ({
+    id: `c${i}`, kind: k.kind, category: k.category, name: k.label, status: i % 3 === 0 ? "failing" : "healthy",
+    last_check_at: "2026-11-01T10:00:00Z", last_error_code: i % 3 === 0 ? "PTH-CONN-1004" : "", last_sync_at: null, source: { table: "x", id: `s${i}` },
+  })),
+  ...feedNames.map((n, i) => ({ id: `feed${i}`, kind: "vulnerability_feed", category: "security", name: n, status: "healthy", last_check_at: "2026-11-01T10:00:00Z", last_error_code: "", last_sync_at: null, source: { table: "intel_feeds", id: n } })),
+];
+const jiraIndex = connectorRows.findIndex((c) => c.kind === "jira");
+
+const appProfile: AppProfile = {
+  id: "a1", application_key: "QD-APP-000142", name: "Payments Platform", description: "Example application (test fixture).", external_ref: "",
+  business_unit: null, owner: null, security_owner: null, technical_owner: null, criticality: "high", lifecycle: "active", environment: "production",
+  application_type: "api", languages: ["Go"], frameworks: ["chi"], runtimes: [], data_classification: "", internet_exposure: "", compliance_scopes: [],
+  authentication_model: "", hosting_region: "", data_residency_region: null, onboarding_status: "complete", detected: {},
+  progress: { filled: 9, required: 9, missing: [], missing_tag_categories: [], label: "Complete" },
+  tags: [], repository_count: 1, can_manage: true, archived_at: null, created_at: "2026-11-01T10:00:00Z", updated_at: "2026-11-01T10:00:00Z",
+} as unknown as AppProfile;
+
+const phase = (number: number, key: string, title: string, has: boolean): Phase =>
+  ({ number, key, title, available: true, has_data: has, restricted: false, metrics: {}, summary: has ? `${title} data` : `No ${title.toLowerCase()} data yet` }) as Phase;
+const phases = ["Connect", "Inventory", "Discover", "Threat model", "Reverse engineering", "Assess", "Validate & intelligence", "Remediate & gate", "Report & monitor"]
+  .map((t, i) => phase(i + 1, t.toLowerCase().replace(/[^a-z]+/g, "_"), t, i < 3 || i === 5));
+const lifecycle: AppLifecycle = { id: "a1", application_key: "QD-APP-000142", name: "Payments Platform", onboarding_status: "complete", criticality: "high", last_scan_at: "2026-11-01T10:00:00Z", phases, phases_with_data: 4 } as AppLifecycle;
+
+const m3Routes = {
+  ...routes,
+  "GET /api/v1/meta": flagsOn,
+  "GET /api/v1/connectors/kinds": () => connectorKinds,
+  "GET /api/v1/connectors": () => ({ items: connectorRows }),
+  [`GET /api/v1/connectors/c${jiraIndex}`]: () => ({ ...connectorRows[jiraIndex], auth_method: "bearer", metadata: { auth_method: "bearer", host: "jira.example.com" }, config: {}, credential: { set: true } }),
+  [`GET /api/v1/connectors/c${jiraIndex}/checks`]: () => ({ items: [] }),
+  "GET /api/v1/applications/a1": () => appProfile,
+  "GET /api/v1/applications/a1/lifecycle": () => lifecycle,
+  "GET /api/v1/applications/a1/onboarding": () => ({ application: appProfile, sources: [] }),
+  "GET /api/v1/applications/a1/activity": () => ({
+    audit_visible: true,
+    items: ENGINE_KEYS.slice(0, 8).map((k, i) => ({ at: "2026-11-01T10:00:00Z", kind: i % 2 ? "audit" : "tags", action: "scan_profile.update", actor: "ada@example.com", target: `${k} profile`, summary: `scan_profile.update: enabled ${k}; ${NOISY}` })),
+  }),
+  "GET /api/v1/repositories": () => ({ items: [{ id: "r1", name: "payments-api", full_name: "example/payments-api", repository_key: "QD-REPO-000042", default_branch: "main", provider: "github", last_scan_at: null }], next_cursor: null }),
+  "GET /api/v1/sbom/components": () => ({ items: [{ name: "lodash", version: "4.17.21", purl: "pkg:npm/lodash@4.17.21", type: "library", licenses: ["MIT"], license_policy: "", repositories: ["example/payments-api"], open_vulnerabilities: 1 }], next_cursor: null }),
+  "GET /api/v1/posture/applications": () => ({ items: [] }),
+  "GET /api/v1/lifecycle/overview": () => ({ items: [lifecycle], phase_totals: [1, 1, 1, 0, 0, 1, 0, 0, 0], truncated: false }),
+  "GET /api/v1/asset-settings": () => ({ required_fields: [], always_required: [], scan_on_import: true, repository_key_prefix: "QD-REPO", suggested_colors: [], upload: { max_bytes: 1, chunk_size: 1, formats: ["zip"] }, classifications: {} }),
+  "GET /api/v1/application-settings": () => ({ required_fields: [], fields: [], labels: {} }),
+  "GET /api/v1/tag-categories": () => ({ items: [] }),
+  "GET /api/v1/business-units": () => ({ items: [] }),
+  "GET /api/v1/regions": () => ({ items: [] }),
+  "GET /api/v1/users": () => ({ items: [] }),
+  "GET /api/v1/scm-connections": () => ({ items: [] }),
+  "GET /api/v1/scm-providers": () => ({ items: [] }),
+  "GET /api/v1/onboarding": () => ({ items: [] }),
+};
+
+describe("rule 3 on the PATHOS 3.0 M2/M3 pages", () => {
+  it("Connectors hub with the whole kinds catalogue and a connector's details", async () => {
+    mockApi(m3Routes);
+    renderApp(<ConnectorsPage />, { path: `/connectors?connector=c${jiraIndex}`, permissions: ["settings.manage", "scm.manage", "integrations.manage", "runtime.manage", "ai.manage"] });
+    await screen.findByRole("navigation", { name: "Connector categories" });
+    await screen.findAllByText("CISA KEV");
+    await waitFor(() => expect(screen.getAllByText("Token in the Authorization header").length).toBeGreaterThan(0));
+    expectNoToolNames();
+  });
+
+  it.each(["overview", "repositories", "classification", "findings", "sbom", "activity"])("application profile: %s tab", async (tab) => {
+    mockApi(m3Routes);
+    renderApp(<ApplicationProfile id="a1" />, { path: `/?tab=${tab}`, permissions: ["repos.read", "repos.manage", "findings.read", "sbom.read", "audit.read"] });
+    expect(await screen.findByRole("heading", { name: "Payments Platform" })).toBeInTheDocument();
+    if (tab === "findings") await waitFor(() => expect(screen.getAllByText(/confirmed by 3 engines/).length).toBeGreaterThan(0));
+    if (tab === "sbom") await screen.findByText("lodash");
+    if (tab === "activity") await waitFor(() => expect(screen.getAllByText(/scan_profile\.update: enabled engine/).length).toBeGreaterThan(0));
+    expectNoToolNames();
+  });
+
+  it("lifecycle overview", async () => {
+    mockApi(m3Routes);
+    renderApp(<LifecyclePage />, { permissions: ["repos.read"] });
+    expect(await screen.findByRole("link", { name: "Payments Platform" })).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("onboarding flow", async () => {
+    mockApi(m3Routes);
+    renderApp(<OnboardingFlowPage />, { permissions: ["repos.read", "repos.manage"] });
+    await screen.findByRole("list", { name: "Onboarding steps" });
+    expectNoToolNames();
+  });
+
+  it("onboarding flow: resumed draft", async () => {
+    mockApi({ ...m3Routes, "GET /api/v1/applications/a1": () => ({ ...appProfile, onboarding_status: "draft" }) });
+    renderApp(<OnboardingFlowPage />, { path: "/onboarding?app=a1", permissions: ["repos.read", "repos.manage"] });
+    await screen.findByRole("list", { name: "Onboarding steps" });
+    await screen.findAllByText(/Payments Platform/);
+    expectNoToolNames();
   });
 });
 

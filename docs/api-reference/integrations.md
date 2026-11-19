@@ -125,6 +125,8 @@ Database entities: none (static catalog).
 | `account` | Identity reported by the last successful test. |
 | `organizations` | Organizations to discover (Azure DevOps). |
 | `oauth_app_id`, `token_expires_at` | Set for `oauth` connections. |
+| `has_ca_bundle`, `ca_certificates` | Whether a private CA bundle is set and, per certificate, `subject`, `issuer`, `not_after`, `sha256_fingerprint`, `is_ca`, `expired` (empty when none). The PEM itself is never returned; send `ca_bundle_pem` again to replace it, `""` to remove it. |
+| `ssh_known_hosts`, `ssh_host_keys` | Generic Git over SSH: the pinned `known_hosts` lines and, per key, `hosts`, `key_type`, `fingerprint` (`SHA256:…`). Empty otherwise. |
 
 Database entities: `scm_connections`, `secrets` (credential and webhook secret, encrypted).
 
@@ -196,6 +198,49 @@ Creates a connection with a PAT, GitHub App, Bitbucket API token or Azure DevOps
 | `username` | string | `api_token` | Atlassian account e-mail. |
 | `tenant_id`, `client_id`, `client_secret`, `certificate_pem`, `private_key_pem` | string | `service_principal` | Microsoft Entra ID app registration. |
 | `organizations` | string array | `service_principal` on `https://dev.azure.com` | Organization names, max 100, each `^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$`. |
+| `ca_bundle_pem` | string | no | **Connectors feature only.** PEM `CERTIFICATE` blocks (max 20 certificates, 64 KiB) added to the system trust store for this connection and its clones. Stored as configuration; the connection returns `has_ca_bundle` and the certificates' metadata (`ca_certificates`), not the PEM. Private keys are refused. |
+| `ssh_private_key`, `ssh_passphrase` | string | `ssh_key` (Generic Git) | OpenSSH or PEM private key (deploy key) and its optional passphrase. Write-only. |
+| `ssh_known_hosts` | string | `ssh_key` | `known_hosts` lines with the server's host key (plain host names; `[host]:port` for other ports). Configuration. |
+| `ssh_host_key_fingerprint` | string | `ssh_key` | `SHA256:…` fingerprint confirmed by the server administrator; must match a key in `ssh_known_hosts`. |
+
+Providers added with the Connectors feature (`connectors` flag on; otherwise `400 unknown provider`):
+
+| `provider` | `auth_type` | `base_url` | Credential fields |
+|---|---|---|---|
+| `bitbucket_data_center` (Bitbucket Data Center) | `pat` (project or repository HTTP access token, Bearer) or `api_token` (user token, Basic) | Instance root; a trailing `/rest/...` is removed | `token`; `username` for `api_token`. `owner` = optional project key |
+| `generic_git` | `api_token` (HTTPS) or `ssh_key` (SSH) | The repository URL: `https://…` for `api_token`, `ssh://user@host[:port]/path` or `user@host:path` for `ssh_key` (stored as `ssh://`) | `token` and optional `username` (default `git`); or the `ssh_*` fields |
+
+`base_url` of `github_enterprise` is normalized to end in `/api/v3`; for `gitlab` a trailing `/api/v4` is removed.
+
+Any single-value credential (`token`) may be a secret reference `vault:<mount>/<path>#<key>` resolved at use time ([Secret references](../user-guide/secret-references.md)).
+
+Example: Generic Git over SSH.
+
+```json
+{
+  "name": "Payments (git.example.com)",
+  "provider": "generic_git",
+  "auth_type": "ssh_key",
+  "base_url": "ssh://git@git.example.com/team/payments.git",
+  "ssh_private_key": "-----BEGIN OPENSSH PRIVATE KEY-----\n<deploy-key>\n-----END OPENSSH PRIVATE KEY-----\n",
+  "ssh_known_hosts": "git.example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA<host-key>",
+  "ssh_host_key_fingerprint": "SHA256:<fingerprint-from-the-server-administrator>"
+}
+```
+
+Example: Bitbucket Data Center with a private CA.
+
+```json
+{
+  "name": "Bitbucket DC",
+  "provider": "bitbucket_data_center",
+  "auth_type": "pat",
+  "base_url": "https://bitbucket.example.com",
+  "owner": "SEC",
+  "token": "<http-access-token>",
+  "ca_bundle_pem": "-----BEGIN CERTIFICATE-----\n<private-ca>\n-----END CERTIFICATE-----\n"
+}
+```
 
 Example: GitHub App.
 
@@ -243,7 +288,7 @@ Response `201 Created`: the [Connection object](#the-connection-object) after th
 | Status | Meaning |
 |---|---|
 | 201 | Created (check `status`). |
-| 400 `invalid_request` | "name is required (max 200 characters)", "unknown provider", "auth_type X is not available for ...", "base_url is required for this provider", invalid base URL, invalid organization name, "github_app_id and github_installation_id are required", "list the Azure DevOps organizations the service principal was added to", missing credential fields (for example "token is required", "tenant_id and client_id are required", "provide either client_secret or certificate_pem with private_key_pem"), an unparsable private key, or `auth_type: "oauth"` ("OAuth connections are created with POST /api/v1/scm-connections/oauth/start"). |
+| 400 `invalid_request` | "name is required (max 200 characters)", "unknown provider", "auth_type X is not available for ...", "base_url is required for this provider", invalid base URL, invalid organization name, "github_app_id and github_installation_id are required", "list the Azure DevOps organizations the service principal was added to", missing credential fields (for example "token is required", "tenant_id and client_id are required", "provide either client_secret or certificate_pem with private_key_pem"), an unparsable private key, or `auth_type: "oauth"` ("OAuth connections are created with POST /api/v1/scm-connections/oauth/start"). Connectors feature: `ca_bundle_pem` without the feature or not PEM certificates; unparsable SSH key or `known_hosts`; `ssh_host_key_fingerprint` not matching (`error_code` `PTH-CONN-1140`); `api_token` with an `ssh://` URL or `ssh_key` with an `https://` URL. |
 | 403 `forbidden` | No organization-wide `scm.manage`. |
 | 409 `conflict` | A connection with this name already exists. |
 | 415 `unsupported_media_type` | Wrong `Content-Type`. |
@@ -262,7 +307,7 @@ Renames a connection, changes `owner` or `organizations`, rotates its credential
 | Permission | Organization-wide `scm.manage` |
 | Request headers | `Cookie`, `X-CSRF-Token`, `Content-Type: application/json` |
 
-Body: any of `name`, `owner`, `organizations`, the credential fields of the connection's auth type (all required fields of that type must be sent together), `github_app_id`, `github_installation_id` (GitHub App connections only).
+Body: any of `name`, `owner`, `organizations`, the credential fields of the connection's auth type (all required fields of that type must be sent together), `github_app_id`, `github_installation_id` (GitHub App connections only), `ca_bundle_pem` (Connectors feature; `""` removes the bundle), `ssh_known_hosts` with `ssh_host_key_fingerprint` (Generic Git SSH; replaces the pinned keys). Changing the CA bundle or the pinned keys resets `status` to `untested`.
 
 ```json
 { "name": "GitHub Example Org (prod)", "token": "<personal-access-token>" }
@@ -833,6 +878,17 @@ Location: /admin/scm?oauth=success&connection=0190c0de-6666-7000-8000-0000000000
 
 Database entities: `scm_oauth_states` (consumed), `scm_connections`, `secrets`, `audit_logs` (`scm_connection.create`, `scm_connection.reconnect`, or a denied `scm_connection.oauth_callback`).
 
+## GitLab webhook signing token
+
+GitLab 19.0 and later sign deliveries when the webhook has a **signing token** (GitLab: *Generate signing token*; shown once, starts with `whsec_`; Standard Webhooks HMAC-SHA256). Store it on the connection:
+
+| Method | Path | Permission | Body | Response |
+|---|---|---|---|---|
+| `PUT` | `/api/v1/scm-connections/{id}/webhook-signing-token` | `scm.manage` (organization) | `{"token": "whsec_…"}` | `200 {"webhook_signed": true}` |
+| `DELETE` | `/api/v1/scm-connections/{id}/webhook-signing-token` | `scm.manage` (organization) | — | `200 {"webhook_signed": false}` |
+
+The token is stored encrypted (kind `webhook`) and never returned; the connection view shows `webhook_signed`. Errors: `400` for a connection that is not GitLab, `404`, `422 validation_failed` (`fields.token`) for a malformed token. Both are audited (`scm_connection.set_webhook_signing_token`, `scm_connection.remove_webhook_signing_token`). With the token set, only signed deliveries are accepted; remove it for GitLab versions before 19.0, which only send the secret token.
+
 ## Webhook receivers
 
 Webhook endpoints are **public** (no session, no CSRF token). Each delivery is authenticated with the connection's webhook secret (see [Rotate the webhook secret](#rotate-the-webhook-secret)). The connection's `webhook_url` already contains the right provider path and connection ID.
@@ -841,8 +897,9 @@ Webhook endpoints are **public** (no session, no CSRF token). Each delivery is a
 |---|---|---|---|---|
 | `POST /api/webhooks/github/{id}` | `github`, `github_enterprise` | `X-Hub-Signature-256: sha256=<hex HMAC-SHA256 of the raw body>` | `X-GitHub-Event` | `X-GitHub-Delivery` |
 | `POST /api/webhooks/azure-devops/{id}` | `azure_devops`, `azure_devops_server` | `Authorization: Basic ...`; any user name, the password is the webhook secret | from the payload | from the payload |
-| `POST /api/webhooks/gitlab/{id}` | `gitlab` | `X-Gitlab-Token: <webhook secret>` | `X-Gitlab-Event` | `X-Gitlab-Event-UUID` |
+| `POST /api/webhooks/gitlab/{id}` | `gitlab` | With a [signing token](#gitlab-webhook-signing-token): `webhook-signature: v1,<base64 HMAC-SHA256 of "<webhook-id>.<webhook-timestamp>.<raw body>">`, timestamp within 5 minutes (the legacy token alone is refused). Without one: `X-Gitlab-Token: <webhook secret>` | `X-Gitlab-Event` | `X-Gitlab-Event-UUID` |
 | `POST /api/webhooks/bitbucket/{id}` | `bitbucket` | `X-Hub-Signature: sha256=<hex HMAC-SHA256 of the raw body>` | `X-Event-Key` | `X-Request-UUID` |
+| `POST /api/webhooks/bitbucket-data-center/{id}` | `bitbucket_data_center` (Bitbucket Data Center) | `X-Hub-Signature: sha256=<hex HMAC-SHA256 of the raw body>` | `X-Event-Key` (`repo:refs_changed`, `pr:opened`, `pr:from_ref_updated`, `pr:merged`, `diagnostics:ping`) | `X-Request-Id` |
 
 Common behaviour of all four receivers:
 
@@ -852,7 +909,7 @@ Common behaviour of all four receivers:
 | Authentication | Public; signature or token verification as above |
 | Permission | None |
 | Path parameter `id` | Connection ID (UUID). An unknown or deleted connection, or a connection of another provider, returns `404 not_found`. |
-| Body | Provider JSON payload, max 5 MiB. |
+| Body | Provider JSON payload, max 25 MB (larger: `413 too_large`, `PTH-CONN-1106`). |
 
 Events are normalized to `push`, `pull_request`, `merge`, `ping` or `ignored`. For a verified delivery:
 

@@ -24,6 +24,9 @@ type Tab = (typeof tabs)[number]["key"];
 
 export function NotificationsPage() {
   const [tab, setTab] = useState<Tab>(() => {
+    // A deep link (?tab=webhooks, for example from Connectors) wins over the remembered tab.
+    const linked = new URLSearchParams(window.location.search).get("tab");
+    if (tabs.some((t) => t.key === linked)) return linked as Tab;
     try {
       return (localStorage.getItem("pathos.notify.tab") as Tab) || "rules";
     } catch {

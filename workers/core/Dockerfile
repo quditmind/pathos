@@ -106,7 +106,7 @@ ARG ZIZMOR=1.32.0  ZIZMOR_SHA=bb110cc765eca9cd7efb2e284a956be5974c60027b0970f163
 # attempts), fuzzing, iot, honeypot and technologies (fingerprinting).
 ARG NUCLEI_TEMPLATES=10.5.1 NUCLEI_TEMPLATES_SHA=30fe1cfaced4635f886e4a2673641bba86998dceec28e468274524e789aa56eb
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch opengrep "https://github.com/opengrep/opengrep/releases/download/v${OPENGREP}/opengrep_linux_x86" "$OPENGREP_SHA"; \
     fetch zizmor.tgz "https://github.com/zizmorcore/zizmor/releases/download/v${ZIZMOR}/zizmor-x86_64-unknown-linux-gnu.tar.gz" "$ZIZMOR_SHA"; \
     fetch templates.tgz "https://github.com/projectdiscovery/nuclei-templates/archive/refs/tags/v${NUCLEI_TEMPLATES}.tar.gz" "$NUCLEI_TEMPLATES_SHA"; \
@@ -121,7 +121,8 @@ RUN set -eux; \
     find /templates -type d -exec chmod 0755 {} +; find /templates -type f -exec chmod 0644 {} +
 
 FROM python:3.13-slim-trixie@sha256:e48f59cdba69a3cbd9ed2cf0f348d90d45a8d350d98134cf1070bc106ee9ed90
-RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends git ca-certificates \
+# openssh-client: Generic Git over SSH (pinned known_hosts, StrictHostKeyChecking=yes).
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends git openssh-client ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 ARG CHECKOV=3.4.5
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -142,7 +143,7 @@ COPY workers/rules/ /opt/pathos/rules/
 COPY --from=tools /templates/ /opt/pathos/nuclei-templates/
 RUN useradd --uid 10001 --create-home --home-dir /tmp/home --shell /usr/sbin/nologin pathos \
     && mkdir -p /work /cache /rules && chown pathos:pathos /work /cache \
-    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git zizmor nuclei actionlint cosign; do command -v "$t" >/dev/null; done
+    && for t in gitleaks trivy syft grype osv-scanner opengrep checkov git ssh zizmor nuclei actionlint cosign; do command -v "$t" >/dev/null; done
 USER 10001:10001
 ENV PATHOS_WORK_DIR=/work PATHOS_CACHE_DIR=/cache PATHOS_RULES_DIRS=/opt/pathos/rules:/rules \
     PYTHONDONTWRITEBYTECODE=1 HOME=/tmp/home

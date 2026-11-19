@@ -19,9 +19,9 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 |---|---|---|
 | `PLAT` | [Platform](plat.md) | 23 |
 | `AUTH` | [Authentication and access](auth.md) | 18 |
-| `CONN` | [Connections](conn.md) | 14 |
-| `SYNC` | [Synchronisation](sync.md) | 6 |
-| `ONB` | [Onboarding and imports](onb.md) | 7 |
+| `CONN` | [Connections](conn.md) | 60 |
+| `SYNC` | [Synchronisation](sync.md) | 7 |
+| `ONB` | [Onboarding and imports](onb.md) | 12 |
 | `SCAN` | [Scanning](scan.md) | 10 |
 | `WORK` | [Workers](work.md) | 6 |
 | `AI` | [AI](ai.md) | 11 |

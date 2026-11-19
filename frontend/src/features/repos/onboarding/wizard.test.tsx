@@ -9,7 +9,7 @@ const settings: AssetSettings = {
   always_required: [],
   scan_on_import: false,
   classifications: {
-    criticality: [], data_classification: [], environment: [], application_type: [], internet_exposure: [], compliance: [], hosting_region: [], lifecycle_status: [],
+    criticality: [], data_classification: [], environment: [], application_type: [], internet_exposure: [], compliance: [], hosting_region: [], lifecycle_status: [], authentication_model: [],
   },
   upload: { max_bytes: 1024 * 1024, chunk_size: 8 * 1024 * 1024, formats: ["zip", "tar", "tar.gz"] },
   suggested_colors: [],

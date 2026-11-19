@@ -44,20 +44,20 @@ ARG CAPA=10.0.0 CAPA_SHA=d3f6006ad61e6591896f524566c191eca89c6220611969e1bd485bd
 COPY workers/binary/yara/ /tmp/pathos-yara/
 RUN set -eux; \
     mkdir -p /out/yara /out/capa/rules /out/capa/sigs /tmp/rl; \
-    curl -fsSL --retry 3 -o yarax.tar.gz "https://github.com/VirusTotal/yara-x/releases/download/v${YARAX}/yara-x-v${YARAX}-x86_64-unknown-linux-gnu.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o yarax.tar.gz "https://github.com/VirusTotal/yara-x/releases/download/v${YARAX}/yara-x-v${YARAX}-x86_64-unknown-linux-gnu.tar.gz"; \
     echo "${YARAX_SHA}  yarax.tar.gz" | sha256sum -c -; \
     tar -xzf yarax.tar.gz -C /out/yara yr; \
     chmod 0755 /out/yara/yr; \
     /out/yara/yr --version | grep -q "${YARAX}"; \
-    curl -fsSL --retry 3 -o rl.tar.gz "https://github.com/reversinglabs/reversinglabs-yara-rules/archive/${RL_RULES}.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o rl.tar.gz "https://github.com/reversinglabs/reversinglabs-yara-rules/archive/${RL_RULES}.tar.gz"; \
     echo "${RL_RULES_SHA}  rl.tar.gz" | sha256sum -c -; \
     tar -xzf rl.tar.gz -C /tmp/rl --strip-components=1; \
     cp /tmp/rl/LICENSE /out/yara/LICENSE.reversinglabs; \
     /out/yara/yr compile -w -o /out/yara/rules.yarc rl:/tmp/rl/yara pathos:/tmp/pathos-yara; \
-    curl -fsSL --retry 3 -o capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/tags/v${CAPA}.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o capa-rules.tar.gz "https://github.com/mandiant/capa-rules/archive/refs/tags/v${CAPA}.tar.gz"; \
     echo "${CAPA_RULES_SHA}  capa-rules.tar.gz" | sha256sum -c -; \
     tar -xzf capa-rules.tar.gz -C /out/capa/rules --strip-components=1; \
-    curl -fsSL --retry 3 -o capa.tar.gz "https://github.com/mandiant/capa/archive/refs/tags/v${CAPA}.tar.gz"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o capa.tar.gz "https://github.com/mandiant/capa/archive/refs/tags/v${CAPA}.tar.gz"; \
     echo "${CAPA_SHA}  capa.tar.gz" | sha256sum -c -; \
     tar -xzf capa.tar.gz -C /out/capa/sigs --strip-components=2 "capa-${CAPA}/sigs"; \
     rm -rf /out/capa/rules/.github /out/capa/rules/.gitignore

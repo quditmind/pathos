@@ -17,6 +17,7 @@ const g = (slug: string, anchor?: string): RouteArticle => ({ section: "user-gui
 export const routeHelp: Record<string, RouteArticle> = {
   "/login": g("sign-in-and-sso"),
   "/": g("dashboards", "security-posture-dashboard"),
+  "/lifecycle": g("application-onboarding", "lifecycle-overview"),
   "/help": g("help-and-troubleshooting", "the-help-center"),
   "/help/troubleshooting": g("help-and-troubleshooting", "troubleshooting-centre"),
   "/help/$section/$slug": g("help-and-troubleshooting"),
@@ -27,11 +28,14 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/repositories/import/$source": g("repository-import"),
   "/repositories/imports": g("import-history"),
   "/repositories/imports/$id": g("import-history"),
+  "/connectors": g("connectors"),
   "/admin/scm": g("provider-integrations"),
   "/admin/integrations": g("reporting-and-integrations"),
+  "/onboarding": g("application-onboarding"),
 
   // Inventory
   "/applications": g("applications"),
+  "/applications/$id": g("application-onboarding", "application-profile"),
   "/applications/$id/versions": g("releases-and-vex"),
   "/repositories": g("repository-management"),
   "/scans/targets": g("scanning"),

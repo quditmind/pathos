@@ -25,6 +25,8 @@ A repository is linked to **at most one** application; an application can have *
 
 ## What the Applications page supports
 
+PATHOS 3.0: with the `onboarding` feature flag, the application name opens the [application profile](application-onboarding.md#application-profile), drafts show *Onboarding: N of M fields*, and **Onboard an application** starts the [onboarding flow](application-onboarding.md). Selecting elsewhere in a row still opens the edit dialog.
+
 Open **Assets → Applications** (`/applications`).
 
 ![Applications page](images/applications.png "Applications: name, criticality, business unit, owner, security owner and the number of linked repositories")

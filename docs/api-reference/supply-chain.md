@@ -18,6 +18,7 @@ Each repository has a component inventory, built from the latest scan's SBOM (Sy
 |---|---|
 | `q` | Case-insensitive search in name and purl |
 | `repository_id` | One repository |
+| `application_id` | The repositories of one application (PATHOS 3.0 M3; the application profile's SBOM tab). `400` when not a UUID |
 | `license` | `deny` or `review` (components whose licence has that policy decision) or `violations` (either) |
 
 Each item: `name`, `version`, `purl`, `type`, `licenses`, `license_policy` (`deny`, `review` or `""`; `deny` wins), `repositories` (full names) and `open_vulnerabilities` (open SCA findings for this package and version in those repositories).

@@ -65,6 +65,14 @@ type Credential struct {
 	// (Microsoft Entra ID access tokens for Azure DevOps).
 	Scheme    string     `json:"scheme,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
+	// SSH clone (Generic Git): the private key and the pinned known_hosts
+	// entries. The worker writes them to 0600 files in the job directory
+	// for the duration of the clone only.
+	SSHPrivateKey string `json:"ssh_private_key,omitempty"`
+	SSHKnownHosts string `json:"ssh_known_hosts,omitempty"`
+	// CABundle is the connection's private CA (PEM) added to the worker's
+	// trust store for the clone.
+	CABundle string `json:"ca_bundle,omitempty"`
 }
 
 // Config describes a connection.
@@ -86,6 +94,11 @@ type Config struct {
 	// cannot enumerate organizations).
 	Organizations []string
 	HTTP          *http.Client
+	// KnownHosts pins the SSH host key (Generic Git over SSH).
+	KnownHosts string
+	// Net applies the outbound network policy to SSH connections (HTTP
+	// requests use HTTP, built from the same policy).
+	Net NetPolicy
 }
 
 // ErrAuth means the SCM rejected the credentials.
@@ -98,7 +111,7 @@ const MaxRepositories = 5000
 // Discoverer; authentication is handled by a provider-independent
 // authorizer (see auth.go), so adapters do not depend on the auth type.
 func New(cfg Config) (FullClient, error) {
-	if cfg.HTTP == nil {
+	if cfg.HTTP == nil && !(cfg.Provider == GenericGit && cfg.AuthType == AuthSSHKey) {
 		return nil, errors.New("scm: HTTP client required")
 	}
 	cfg.BaseURL = strings.TrimRight(cfg.BaseURL, "/")
@@ -112,6 +125,10 @@ func New(cfg Config) (FullClient, error) {
 		return newGitLab(cfg)
 	case Bitbucket:
 		return newBitbucket(cfg)
+	case BitbucketDataCenter:
+		return newBitbucketDataCenter(cfg)
+	case GenericGit:
+		return newGenericGit(cfg)
 	case AzureDevOps, AzureDevOpsServer:
 		return newAzureDevOps(cfg)
 	}
