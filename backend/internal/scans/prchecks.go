@@ -506,8 +506,8 @@ func (s *Service) putPRSettings(w http.ResponseWriter, r *http.Request) {
 			RETURNING source_type`, p.OrganizationID, id, req.Enabled, req.GateSeverity).Scan(&source); err != nil {
 			return err
 		}
-		if req.Enabled && source == "upload" {
-			return httpx.BadRequest("uploaded repositories have no pull requests")
+		if req.Enabled && (source == "upload" || source == "git") {
+			return httpx.BadRequest("uploaded and anonymous repositories have no SCM connection for pull request checks")
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "repository.pr_checks", TargetType: "repository", TargetID: id.String(),

@@ -87,16 +87,16 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 	var enabled bool
 	var archived *time.Time
 	var profileVersion, snapshotID *uuid.UUID
-	var sourceType string
+	var sourceType, syncStatus string
 	err := q.QueryRow(ctx, `
-		SELECT r.source_type, r.current_snapshot_id, r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
+		SELECT r.source_type, r.sync_status, r.current_snapshot_id, r.scan_branch, r.default_branch, r.scan_enabled, r.archived_at,
 		       COALESCE(NULLIF(r.display_name, ''), r.full_name),
 		       CASE WHEN $3::uuid IS NOT NULL THEN
 		         (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND id = $3 AND archived_at IS NULL)
 		       ELSE COALESCE((SELECT current_version_id FROM scan_profiles WHERE id = r.scan_profile_id AND archived_at IS NULL),
 		                (SELECT current_version_id FROM scan_profiles WHERE organization_id = r.organization_id AND is_default AND archived_at IS NULL)) END
 		FROM repositories r WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID, opt.ProfileID).
-		Scan(&sourceType, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &repoName, &profileVersion)
+		Scan(&sourceType, &syncStatus, &snapshotID, &scanBranch, &defaultBranch, &enabled, &archived, &repoName, &profileVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return res, errNotFound
 	}
@@ -112,10 +112,15 @@ func EnqueueWith(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID, tri
 		}
 		return res, fmt.Errorf("%w: no scan profile available; create a default profile", ErrScanPrerequisite)
 	}
+	if sourceType == "git" && syncStatus == "permission_denied" {
+		// An anonymous repository that is no longer public is never cloned
+		// with a credential; it needs an SCM connection instead.
+		return res, fmt.Errorf("%w: PTH-ONB-1102: the anonymously imported repository is no longer public; import it through an SCM connection", ErrScanPrerequisite)
+	}
 	var pr *int
 	if opt.PullRequest > 0 {
-		if sourceType == "upload" {
-			return res, fmt.Errorf("%w: uploaded repositories have no pull requests", ErrScanPrerequisite)
+		if sourceType == "upload" || sourceType == "git" {
+			return res, fmt.Errorf("%w: uploaded and anonymous repositories have no pull requests", ErrScanPrerequisite)
 		}
 		pr = &opt.PullRequest
 	}

@@ -413,6 +413,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		rep.event("source", "", "started", fmt.Sprintf("cloning %s (%s, %s)", job.FullName, target, mode))
 		rep.logf("info", "cloning %s, ref %s (%s clone)", job.FullName, target, mode)
 		var err error
+		anonymous := job.Credential == nil
 		commit, err = clone(ctx, job, src, gitDir, a.cfg.MaxRepoBytes)
 		if err != nil && job.Public && job.Credential != nil && ctx.Err() == nil {
 			// An expired or wrong credential should not block scanning public
@@ -427,6 +428,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		if err != nil {
 			job.Credential = nil
 			log.Warn("clone failed", "err", err)
+			if anonymous {
+				err = anonymousCloneError(err)
+			}
 			sourceFailed("clone failed: " + err.Error())
 			return
 		}

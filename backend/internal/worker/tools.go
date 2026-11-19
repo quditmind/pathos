@@ -493,6 +493,21 @@ func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (st
 	return commit, nil
 }
 
+// anonymousCloneError explains a refused anonymous clone (a repository
+// imported by URL without a token that is no longer public). The worker
+// never retries with a credential.
+func anonymousCloneError(err error) error {
+	msg := strings.ToLower(err.Error())
+	for _, m := range []string{"could not read username", "authentication failed", "terminal prompts disabled",
+		"returned error: 401", "returned error: 403", "repository not found", "access denied"} {
+		if strings.Contains(msg, m) {
+			return fmt.Errorf("PTH-ONB-1102: the server refused an anonymous clone; the repository is private or no longer exists. "+
+				"Anonymous scans work only for public repositories; import it through an SCM connection with a token (%w)", err)
+		}
+	}
+	return err
+}
+
 // gitHead returns the full commit ID checked out in dir.
 func gitHead(ctx context.Context, dir string) (string, error) {
 	// #nosec G204 -- fixed binary and arguments; dir is the worker's own checkout directory

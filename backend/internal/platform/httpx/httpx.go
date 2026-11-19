@@ -26,11 +26,22 @@ type Error struct {
 	Details any    `json:"details,omitempty"`
 	// Fields carries per-field validation messages (code validation_failed).
 	Fields map[string]string `json:"fields,omitempty"`
+	// ErrorCode is the stable diagnostic code (PTH-<AREA>-<NNNN>) where one
+	// is assigned (the same member as the 3.0 error envelope).
+	ErrorCode string `json:"error_code,omitempty"`
 }
 
 func (e *Error) Error() string { return e.Code + ": " + e.Message }
 
 func E(status int, code, msg string) *Error { return &Error{Status: status, Code: code, Message: msg} }
+
+// WithErrorCode returns a copy of e carrying a diagnostic code (the shared
+// errors such as ErrNotFound are never modified).
+func (e *Error) WithErrorCode(code string) *Error {
+	c := *e
+	c.ErrorCode = code
+	return &c
+}
 
 var (
 	ErrUnauthenticated = E(http.StatusUnauthorized, "unauthenticated", "authentication required")
