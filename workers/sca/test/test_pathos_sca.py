@@ -179,24 +179,121 @@ print(json.dumps({"config": {"protocol_version": "v1.0.0"}}))
         self.assertEqual(code, 0, err)
         self.assertTrue(any("no Go packages to check" in e for e in err), err)
 
+    # Dependency-Check stand-in: --updateonly creates the H2 database (or
+    # stalls / fails as DC_MODE says); a scan records its arguments.
+    DC = r'''
+import json, os, sys, time
+args = sys.argv[1:]
+data = args[args.index("--data") + 1]
+mode = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mode")).read().strip()
+log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calls")
+with open(log, "a") as f:
+    f.write(json.dumps(args) + "\n")
+if "--updateonly" in args:
+    if mode == "stall":
+        open(os.path.join(data, "odc.update.lock"), "w").close()
+        time.sleep(60)
+    if mode == "fail":
+        sys.exit(13)
+    open(os.path.join(data, "odc.mv.db"), "w").write("db")
+    sys.exit(0)
+json.dump({"args": args, "dependencies": []}, open(args[args.index("--out") + 1], "w"))
+'''
+
+    def dc(self, mode):
+        dc = os.path.join(self.mod.SCA, "dependency-check", "bin")
+        os.makedirs(dc, exist_ok=True)
+        script(os.path.join(dc, "dependency-check.sh"), self.DC)
+        with open(os.path.join(dc, "mode"), "w") as f:
+            f.write(mode)
+        return os.path.join(dc, "calls")
+
+    def dc_calls(self, path):
+        with open(path) as f:
+            return [json.loads(l) for l in f]
+
     def test_dependency_check_uses_the_egress_proxy(self):
         # Java ignores HTTPS_PROXY; without --proxyserver the NVD download
         # failed with UnknownHostException on every repository.
-        dc = os.path.join(self.mod.SCA, "dependency-check", "bin")
-        os.makedirs(dc)
-        script(os.path.join(dc, "dependency-check.sh"), r'''
-import json, sys
-args = sys.argv[1:]
-json.dump({"args": args}, open(args[args.index("--out") + 1], "w"))
-''')
+        calls = self.dc("ok")
         os.environ["HTTPS_PROXY"] = "http://egress:3128"
         try:
             code, rep, err = self.call(self.mod.dependency_check)
         finally:
             del os.environ["HTTPS_PROXY"]
         self.assertEqual(code, 0, err)
-        a = " ".join(rep["args"])
-        self.assertIn("--proxyserver egress --proxyport 3128", a)
+        update, scan = self.dc_calls(calls)
+        self.assertIn("--updateonly", update)
+        self.assertIn("--proxyserver egress --proxyport 3128", " ".join(update))
+        # Stalled downloads end: connection and read timeouts.
+        self.assertIn("--readtimeout", update)
+        self.assertIn("--connectiontimeout", update)
+        # The scan never downloads.
+        self.assertIn("--noupdate", rep["args"])
+        self.assertNotIn("--proxyserver", rep["args"])
+
+    def test_dependency_check_recent_data_is_not_updated(self):
+        calls = self.dc("ok")
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        self.assertEqual(sum("--updateonly" in c for c in self.dc_calls(calls)), 1, "one update within NVD_MAX_AGE_HOURS")
+
+    def test_dependency_check_stalled_update_is_stopped(self):
+        # O17: the Java process sat at 0 % CPU for 30+ minutes after
+        # creating odc.update.lock. A stalled update is now stopped at its
+        # limit and the scan uses the cached data (partial result).
+        calls = self.dc("ok")
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        os.utime(os.path.join(self.cache, "pathos-nvd-updated"), (0, 0))  # data is old
+        self.dc("stall")
+        os.environ["DEPENDENCY_CHECK_UPDATE_TIMEOUT"] = "2"
+        try:
+            import time
+            t0 = time.monotonic()
+            code, rep, err = self.call(self.mod.dependency_check)
+            took = time.monotonic() - t0
+        finally:
+            del os.environ["DEPENDENCY_CHECK_UPDATE_TIMEOUT"]
+        self.assertLess(took, 30, "the stalled update must be stopped at its limit")
+        self.assertEqual(code, 3, "a stale database is a partial result")
+        self.assertIsNotNone(rep, "the report from the cached data is kept")
+        self.assertIn("did not finish within 2 s", err[-1])
+        self.assertIn("cached NVD data", err[-1])
+        self.assertIn("NVD_API_KEY", err[-1])
+        # A later run finds the stale odc.update.lock and removes it.
+        self.dc("ok")
+        code, _, err = self.call(self.mod.dependency_check)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(any("stale odc.update.lock" in e for e in err), err)
+
+    def test_dependency_check_without_nvd_data_names_the_prerequisite(self):
+        self.dc("fail")
+        code, rep, err = self.call_noreport(self.mod.dependency_check)
+        self.assertEqual(code, 3)
+        self.assertIn("no NVD data", err[-1])
+        self.assertIn("NVD_API_KEY", err[-1])
+
+    def test_dependency_check_waits_for_another_worker_at_most_the_lock_timeout(self):
+        import fcntl
+        self.dc("ok")
+        os.makedirs(self.cache, exist_ok=True)
+        held = open(os.path.join(self.cache, "pathos-dc.lock"), "a+")
+        fcntl.flock(held, fcntl.LOCK_EX)
+        os.environ["DEPENDENCY_CHECK_LOCK_TIMEOUT"] = "1"
+        try:
+            code, _, err = self.call_noreport(self.mod.dependency_check)
+        finally:
+            del os.environ["DEPENDENCY_CHECK_LOCK_TIMEOUT"]
+            held.close()
+        self.assertEqual(code, 3)
+        self.assertIn("no NVD data", err[-1])
+        self.assertIn("another worker", err[-1])
+
+    def call_noreport(self, fn):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = fn(self.src, self.out, self.cache)
+        return code, None, err.getvalue().strip().splitlines()
 
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")

@@ -57,7 +57,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
 	// pathos-reach reports are reachability evidence, not findings.
 	reachTool := scanners.IsReachabilityTool(up.Scanner)
-	if up.Status == "succeeded" && !sbomTool && !reachTool && len(raw) > 0 {
+	// A tool that failed or timed out may still have written a usable
+	// report (a stopped Nuclei run, Dependency-Check on cached NVD data, a
+	// wrapper where one of several runs failed): its findings are kept.
+	// The result stays failed / timed out, so the execution is partial and
+	// nothing the tool covers is auto-resolved.
+	partial := up.Status == "failed" || up.Status == "timed_out"
+	if (up.Status == "succeeded" || partial) && !sbomTool && !reachTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -68,12 +74,17 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		default:
 			fs, err = scanners.Parse(up.Scanner, raw)
 		}
-		if err != nil {
-			if len(fs) == 0 {
-				up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
-			} else {
-				parseErr = err.Error() // truncated, keep what was parsed
-			}
+		switch {
+		case err != nil && partial:
+			// The tool's own error explains the result; an unreadable
+			// partial report adds nothing.
+		case err != nil && len(fs) == 0:
+			up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
+		case err != nil:
+			parseErr = err.Error() // truncated, keep what was parsed
+		}
+		if partial && len(fs) > 0 {
+			up.Error = strings.TrimSpace(up.Error + fmt.Sprintf(" (%d findings from the partial report kept)", len(fs)))
 		}
 		for _, f := range fs {
 			if scanners.SeverityRank(f.Severity) < scanners.SeverityRank(threshold) || scanners.Excluded(f.FilePath, exclusions) {

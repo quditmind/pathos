@@ -40,7 +40,8 @@ import sys
 # from a file the operator mounts read-only: KEY=VALUE lines; only the keys
 # below are read, everything else is ignored.
 SETTINGS_FILE = "/etc/pathos/sca.env"
-SETTINGS_KEYS = {"NVD_API_KEY", "NVD_DATAFEED_URL", "GOPROXY", "GOVULNDB", "NPM_CONFIG_REGISTRY"}
+SETTINGS_KEYS = {"NVD_API_KEY", "NVD_DATAFEED_URL", "GOPROXY", "GOVULNDB", "NPM_CONFIG_REGISTRY",
+                 "DEPENDENCY_CHECK_UPDATE_TIMEOUT", "DEPENDENCY_CHECK_SCAN_TIMEOUT", "DEPENDENCY_CHECK_LOCK_TIMEOUT", "NVD_MAX_AGE_HOURS"}
 
 
 def load_settings(path=SETTINGS_FILE):
@@ -460,32 +461,177 @@ def composer_audit(src, out, cache):
 
 NVD_FEEDS = "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz"
 
+# Dependency-Check hard limits (VALIDATION_REPORT O17). In scans the Java
+# process sat at 0 % CPU for 30+ minutes after creating odc.update.lock: an
+# NVD download through the egress proxy stalled (Dependency-Check sets no
+# read timeout by default, and an egress restart leaves the connection
+# hanging), and every other worker then waited on that lock until the scan
+# timed out, taking the rest of the SCA family with it. Now:
+#   * the NVD update runs separately (--updateonly) with connection and read
+#     timeouts and a hard time limit, under a PATHOS lock in the shared
+#     cache, at most once per NVD_MAX_AGE_HOURS;
+#   * the scan itself never downloads (--noupdate) and has its own limit;
+#   * a stalled or failed update falls back to the cached NVD data: the
+#     report is kept and the tool reports a partial result (exit 3) naming
+#     the cause; without any NVD data it fails with the prerequisite.
+# Each limit can be changed in /etc/pathos/sca.env (seconds / hours).
+DC_DEFAULTS = {"DEPENDENCY_CHECK_UPDATE_TIMEOUT": 1200, "DEPENDENCY_CHECK_SCAN_TIMEOUT": 1800,
+               "DEPENDENCY_CHECK_LOCK_TIMEOUT": 900, "NVD_MAX_AGE_HOURS": 6}
+DC_HTTP_TIMEOUTS = ["--connectiontimeout", "30000", "--readtimeout", "120000"]
+NVD_KEY_HINT = ("set NVD_API_KEY in /etc/pathos/sca.env (free key: https://nvd.nist.gov/developers/request-an-api-key) "
+                "or NVD_DATAFEED_URL to a mirror; see docs/PRODUCTION_CHECKLIST.md")
+
+
+def dc_setting(key):
+    try:
+        v = int(os.environ.get(key, ""))
+        return v if v > 0 else DC_DEFAULTS[key]
+    except ValueError:
+        return DC_DEFAULTS[key]
+
+
+def run_limited(args, timeout, env=None):
+    """Runs a command with a hard time limit; returns (exit status,
+    timed_out). dependency-check.sh execs Java, so the process stopped on
+    timeout is the Java process itself. It stays in the worker's process
+    group, which the worker kills when the scan is cancelled or times out."""
+    e = dict(os.environ)
+    e.update(env or {})
+    try:
+        p = subprocess.Popen(args, env=e, stdin=subprocess.DEVNULL)
+    except OSError as err:
+        log("%s: %s" % (args[0], err))
+        return None, False
+    try:
+        return p.wait(timeout=timeout), False
+    except subprocess.TimeoutExpired:
+        p.terminate()
+        try:
+            p.wait(timeout=15)
+        except subprocess.TimeoutExpired:
+            p.kill()
+            p.wait()
+        return None, True
+
+
+def acquire_lock(path, timeout):
+    """Exclusive flock on path, waiting at most timeout seconds; returns the
+    open file (keep it open to hold the lock) or None."""
+    import fcntl
+    import time
+    f = open(path, "a+")
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return f
+        except OSError:
+            if time.monotonic() >= deadline:
+                f.close()
+                return None
+            time.sleep(2)
+
+
+def nvd_database(data):
+    """Path of the Dependency-Check H2 database in data, or None."""
+    try:
+        names = os.listdir(data)
+    except OSError:
+        return None
+    for n in sorted(names):
+        if n.endswith(".mv.db") and os.path.getsize(os.path.join(data, n)) > 0:
+            return os.path.join(data, n)
+    return None
+
 
 def dependency_check(src, out, cache):
-    """OWASP Dependency-Check. The NVD data is downloaded into the cache
-    (https://services.nvd.nist.gov); NVD_API_KEY (optional, from
-    /etc/pathos/sca.env) uses the NVD API instead of the yearly data feeds. Analyzers that run package
-    managers or contact other services are disabled."""
-    args = [SCA + "/dependency-check/bin/dependency-check.sh", "--scan", src, "--format", "JSON", "--out", out,
-            "--data", os.path.join(cache, "data"), "--project", "pathos",
-            "--disableOssIndex", "--disableCentral", "--disableRetireJs", "--disableNodeAudit", "--disableYarnAudit",
-            "--disablePnpmAudit", "--disableBundleAudit", "--disableGolangMod", "--disableMixAudit", "--disableAssembly",
-            "--disableHostedSuppressions", "--disableKnownExploited", "--disableVersionCheck",
-            "--exclude", "**/.git/**", "--exclude", "**/node_modules/**"]
-    # Java ignores HTTPS_PROXY, and the worker networks have no DNS for the
-    # internet: without the proxy flags every NVD download failed
-    # (UnknownHostException nvd.nist.gov, exit 13) on every repository.
-    args += proxy_args()
-    key = os.environ.get("NVD_API_KEY")
+    """OWASP Dependency-Check. The NVD data is kept in the cache and updated
+    at most every NVD_MAX_AGE_HOURS: through the NVD API with NVD_API_KEY
+    (from /etc/pathos/sca.env, recommended), else from the NVD's yearly
+    data feeds (https://nvd.nist.gov/feeds) or NVD_DATAFEED_URL. Analyzers
+    that run package managers or contact other services are disabled."""
+    import time
+    data = os.path.join(cache, "data")
+    os.makedirs(data, exist_ok=True)
+    tool = SCA + "/dependency-check/bin/dependency-check.sh"
     env = {"JAVA_HOME": SCA + "/jre"}
-    if key:
-        args += ["--nvdApiKey", key]
-    else:
-        # Without an API key: the NVD's yearly JSON 2.0 data feeds
-        # (https://nvd.nist.gov/feeds), or a mirror (NVD_DATAFEED_URL).
-        args += ["--nvdDatafeed", os.environ.get("NVD_DATAFEED_URL") or NVD_FEEDS]
-    os.makedirs(os.path.join(cache, "data"), exist_ok=True)
-    return 0 if run(args, env=env) is not None else 3
+    # Sources other than the NVD (OSS Index, Maven Central, RetireJS, hosted
+    # suppressions, CISA KEV) are off, for the update as for the scan.
+    common = ["--data", data, "--disableVersionCheck", "--disableOssIndex", "--disableCentral", "--disableRetireJs",
+              "--disableHostedSuppressions", "--disableKnownExploited"] + DC_HTTP_TIMEOUTS
+    stamp = os.path.join(cache, "pathos-nvd-updated")
+    problem = ""
+
+    # 1. NVD update, unless a recent one succeeded.
+    try:
+        age = time.time() - os.path.getmtime(stamp)
+    except OSError:
+        age = None
+    if age is None or age > dc_setting("NVD_MAX_AGE_HOURS") * 3600 or not nvd_database(data):
+        lock = acquire_lock(os.path.join(cache, "pathos-dc.lock"), dc_setting("DEPENDENCY_CHECK_LOCK_TIMEOUT"))
+        if lock is None:
+            problem = "another worker is updating the NVD data (waited %d s)" % dc_setting("DEPENDENCY_CHECK_LOCK_TIMEOUT")
+        else:
+            with lock:
+                # Holding the PATHOS lock, no other Dependency-Check runs on
+                # this cache: a leftover odc.update.lock is from a killed
+                # process and would make this one wait for nothing.
+                stale = os.path.join(data, "odc.update.lock")
+                if os.path.exists(stale):
+                    log("removing a stale odc.update.lock (left by an interrupted update)")
+                    try:
+                        os.remove(stale)
+                    except OSError:
+                        pass
+                upd = [tool, "--updateonly"] + common + proxy_args()
+                key = os.environ.get("NVD_API_KEY")
+                if key:
+                    upd += ["--nvdApiKey", key]
+                else:
+                    upd += ["--nvdDatafeed", os.environ.get("NVD_DATAFEED_URL") or NVD_FEEDS]
+                limit = dc_setting("DEPENDENCY_CHECK_UPDATE_TIMEOUT")
+                log("updating the NVD data (limit %d s, %s)" % (limit, "NVD API key" if key else "data feeds, no API key"))
+                code, timed_out = run_limited(upd, limit, env)
+                if timed_out:
+                    problem = "the NVD update did not finish within %d s and was stopped" % limit
+                elif code != 0:
+                    problem = "the NVD update failed (exit %s)" % code
+                else:
+                    with open(stamp, "w") as f:
+                        f.write(time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()) + "\n")
+                    os.utime(stamp)
+    if not nvd_database(data):
+        log("Dependency-Check has no NVD data: %s; %s" % (problem or "the NVD update produced no database", NVD_KEY_HINT))
+        return 3
+
+    # 2. Scan with the cached data only (no network). One Dependency-Check
+    # at a time per cache: its H2 database is a single-writer file.
+    lock = acquire_lock(os.path.join(cache, "pathos-dc.lock"), dc_setting("DEPENDENCY_CHECK_LOCK_TIMEOUT"))
+    if lock is None:
+        log("Dependency-Check: another worker held the NVD data for more than %d s" % dc_setting("DEPENDENCY_CHECK_LOCK_TIMEOUT"))
+        return 3
+    with lock:
+        args = [tool, "--scan", src, "--format", "JSON", "--out", out, "--project", "pathos", "--noupdate",
+                "--disableNodeAudit", "--disableYarnAudit", "--disablePnpmAudit", "--disableBundleAudit", "--disableGolangMod",
+                "--disableMixAudit", "--disableAssembly",
+                "--exclude", "**/.git/**", "--exclude", "**/node_modules/**"] + common
+        limit = dc_setting("DEPENDENCY_CHECK_SCAN_TIMEOUT")
+        code, timed_out = run_limited(args, limit, env)
+    if timed_out:
+        log("Dependency-Check: the scan did not finish within %d s and was stopped (DEPENDENCY_CHECK_SCAN_TIMEOUT)" % limit)
+        return 3
+    if code != 0:
+        log("Dependency-Check: the scan failed (exit %s)" % code)
+        return 3
+    if problem:
+        # The report is complete for the cached NVD data; say how old it is.
+        try:
+            when = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(os.path.getmtime(stamp)))
+        except OSError:
+            when = "an earlier update"
+        log("partial: %s; the results use the cached NVD data from %s. %s" % (problem, when, NVD_KEY_HINT))
+        return 3
+    return 0
 
 
 def proxy_args():

@@ -488,7 +488,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 					sbomPath = outFile
 				}
 			}
-			if res.Status == "succeeded" || res.Status == "failed" {
+			// A failed or timed-out tool's report is uploaded too: the API
+			// keeps the findings of a partial report (a stopped Nuclei run).
+			if res.Status == "succeeded" || res.Status == "failed" || res.Status == "timed_out" {
 				// #nosec G304 -- report path is created by the worker in its job directory
 				if data, err := os.ReadFile(outFile); err == nil && len(data) > 0 {
 					res.ContentType = "application/json"
