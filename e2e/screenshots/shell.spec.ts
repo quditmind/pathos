@@ -26,9 +26,9 @@ async function setTheme(page: Page, theme: (typeof themes)[number]) {
   }, theme);
 }
 
-async function shot(page: Page, name: string, theme: string) {
+async function shot(page: Page, name: string, theme: string, mask = true) {
   const email = page.locator("header [aria-label='User menu']");
-  await page.screenshot({ path: `${OUT}/${name}-${theme}.png`, mask: (await email.count()) ? [email] : [] });
+  await page.screenshot({ path: `${OUT}/${name}-${theme}.png`, mask: mask && (await email.count()) ? [email] : [] });
 }
 
 async function openHelpMenu(page: Page) {
@@ -54,7 +54,8 @@ for (const theme of themes) {
       await expect(page.getByRole("heading", { level: 1, name: "Scans" })).toBeVisible();
       await page.keyboard.press("F1");
       await expect(page.getByRole("dialog")).toBeVisible();
-      await shot(page, "03-help-drawer", theme);
+      // The drawer covers the user menu, so nothing personal is visible.
+      await shot(page, "03-help-drawer", theme, false);
       await page.keyboard.press("Escape");
 
       await page.getByTestId("version-chip").click();
@@ -86,7 +87,7 @@ for (const theme of themes) {
 
       // An error panel: a scan execution that does not exist.
       await page.goto("/scans/00000000-0000-7000-8000-000000000000");
-      await page.waitForTimeout(1500);
+      await expect(page.getByRole("alert").first()).toBeVisible({ timeout: 20_000 });
       await shot(page, "10-error-panel", theme);
 
       await page.goto("/");
