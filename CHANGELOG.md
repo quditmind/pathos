@@ -4,6 +4,36 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+2.2.2 hardening: the open issues of the end-to-end validation ([docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md) §9). Migrations **00043** (scan concurrency indexes) and **00044** (anonymous repositories, private CA bundles, secret exclusions) are additive. Rebuild the family worker images (sast, iac, sca, fuzz, ai) and the API and worker-core images.
+
+### Added
+- **Public repositories without a token** (O1). `POST /api/v1/repositories/import-url` imports a PUBLIC repository by URL: GitHub, GitLab.com, Bitbucket Cloud and Azure DevOps public projects are checked anonymously through their public APIs, any other HTTPS git URL through the git smart-HTTP protocol. The repository is registered without an SCM connection (`source_type` `git`, `anonymous: true`, labelled *anonymous* in the UI) and cloned without credentials. Private, internal or missing repositories are refused with `PTH-ONB-1102`; credentials in the URL with `PTH-ONB-1101`; provider rate limits with `PTH-ONB-1103` (HTTP 429, `retry_after_seconds`). A sync re-checks that the repository is still public; one that turned private is marked `permission_denied` and not scanned. *Import repositories → Public repository by URL*. The egress allowlist now includes GitLab.com and Bitbucket Cloud.
+- **Private CA bundles** (O3) for registry connections, outbound webhooks (Slack, Teams, JSON) and ticket connections (Jira, ServiceNow): `ca_bundle_pem` (PEM certificates, added to the system trust store for that connection only; verification never disabled; TLS 1.2 minimum). Responses list each certificate's subject, expiry and SHA-256 fingerprint (`ca_certificates`); a private key or other non-certificate input is refused with `PTH-CONN-1701`; an untrusted server certificate names the fix (`PTH-CONN-1702`). Same approach and code as the 3.0 SCM connections.
+- **Secret exclusions per profile** (O6): secret findings in vendored dependencies, test fixtures, lockfiles and minified or source-map files are dropped by default (`secret_default_exclusions`, on for every existing profile version), plus the profile's own `secret_exclusions` patterns. On gitlab-cli: Talisman 3,432 → 2,420 and detect-secrets 145 → 104 findings; a SAST profile without Talisman goes from 3,577 to 104 secret findings.
+- `POST /internal/worker/v1/jobs/{id}/release` (worker protocol): a stopping worker hands its job back to the queue.
+- Image scan targets: `config.built_from_repository` (*This image is built from the repository's code*).
+- API errors may carry `error.error_code` (`PTH-<AREA>-<NNNN>`), as in 3.0.
+
+### Changed
+- **Concurrent executions per repository** (O2): result imports and target scans (image, URL, API, artifact, SBOM) run next to a repository scan; CI imports no longer get 409 while a DAST or image scan runs. One running code scan per repository (and per pull request) and one running scan per target remain. Results and finalization of a repository are serialized with an advisory lock.
+- **Executions whose profile tools no worker has are partial**, not succeeded (O15): `PTH-SCAN-1101` names the tools (failed when nothing ran).
+- **Partial tool reports are kept** (O14, O17): the findings of a tool that failed or timed out but wrote a report are stored (the result stays failed/timed out and nothing it covers is auto-resolved), and the worker uploads a timed-out tool's output, so Nuclei's partial results are no longer discarded. URL and API target scans get at least 90 minutes.
+- **Runtime linking** (O10): an image target links its repository's code findings to running workloads only when marked `built_from_repository` (the OCI source label still links without it), and a tag match needs a successful scan of the target. *Behaviour change*: mark existing image targets whose image is built from their repository.
+- Talisman can never be part of the seeded default profile (`NotRecommended`).
+- OWASP Dependency-Check: an NVD API key is a documented prerequisite (`NVD_API_KEY` in `/etc/pathos/sca.env`).
+
+### Fixed
+- **Dependency-Check stalls** (O17): the NVD download inside the scan had no read timeout, so a connection stalled through the egress proxy (or broken by an egress restart) left Java at 0 % CPU holding `odc.update.lock` while the other workers waited on the lock. The NVD update now runs separately with connection/read timeouts and a hard limit (`DEPENDENCY_CHECK_UPDATE_TIMEOUT`, default 1200 s) at most every `NVD_MAX_AGE_HOURS` (6) under a lock in the cache; a stale `odc.update.lock` is removed; the scan runs offline with its own limit (`DEPENDENCY_CHECK_SCAN_TIMEOUT`, 1800 s). A failed update falls back to the cached data with a partial result naming the cause.
+- **Worker shutdown** (O9): a worker stopped with SIGTERM during a scan returns the job to the queue (or fails it on its last attempt) instead of leaving it running until the lease expires.
+- **Go tools** (O4): fuzz targets that do not build make go-fuzz/Atheris fail (partial execution) instead of a success with no findings; gosec is scanned per module and top-level directory with `GOMEMLIMIT` (it was OOM-killed at 4 GB; on go-toml the old helper was killed at 2 GB, the new one finished).
+- **detect-secrets hang** (O7): two processes instead of one per host core (a pool process killed for memory hung the scan), the default secret-exclusion files skipped, 20-minute limit.
+- **TFLint** (O8): module load errors are reported (they were inside the JSON on standard output, so the scan showed no message) and the other modules' issues are kept.
+- **Kubescape** (O16): a repository without Kubernetes manifests but with unparseable YAML/JSON (comments in `.vscode/launch.json`, duplicate keys, a UTF-8 BOM) is an empty result naming the skipped files, not a failure.
+- **garak** (O18): each probe runs separately, so one read timeout of a slow model no longer aborts the run; request timeout `GARAK_REQUEST_TIMEOUT` (180 s).
+- **Webhook signing** (O11): creating a Slack or Teams webhook with `sign: true` returns a warning (deliveries are not signed) instead of ignoring the flag; the UI says so.
+- **SBOM noise** (O12): workflow files (`$/.github/workflows/ci.yml`, version UNKNOWN) are no longer components; GitHub Actions get the type `github-action`.
+- **Stage of expired leases** (O13): no longer left at `scanning:<tool>`.
+
 ## [2.2.1] — 2026-11-20
 
 Fixes found by an end-to-end validation on 15 public open-source projects (Go, Java, Python, JavaScript/TypeScript, .NET, PHP, Ruby, Android, Terraform, Kubernetes/Helm and CI/CD repositories) with every worker image, plus open-source test services (kind, Jenkins, LocalStack, Mailpit). The report is in [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md); a deployment checklist is in [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md). **Upgrade if you run the family worker images**: in 2.2.0 most SAST, IaC and SCA family scans ended partial on real repositories.

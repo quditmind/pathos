@@ -20,6 +20,12 @@ CREATE UNIQUE INDEX scan_jobs_running_target_uq ON scan_jobs (target_id)
     WHERE status = 'running' AND target_id IS NOT NULL;
 
 -- +goose Down
+-- The old index allows one running execution per repository: executions
+-- running next to the oldest one of their repository are failed first.
+UPDATE scan_jobs j SET status = 'failed', finished_at = now(), lease_expires_at = NULL,
+       error = 'stopped by the downgrade of migration 00043 (one running execution per repository)'
+WHERE j.status = 'running' AND j.id <> (SELECT x.id FROM scan_jobs x WHERE x.repository_id = j.repository_id AND x.status = 'running'
+                                        ORDER BY x.started_at NULLS LAST, x.id LIMIT 1);
 DROP INDEX IF EXISTS scan_jobs_running_target_uq;
 DROP INDEX IF EXISTS scan_jobs_running_uq;
 CREATE UNIQUE INDEX scan_jobs_running_uq ON scan_jobs (repository_id) WHERE status = 'running';

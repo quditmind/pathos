@@ -107,7 +107,7 @@ erDiagram
 | `scan_profiles` / `scan_profile_versions` | Immutable versions: severity_threshold, branch_rule, exclusions, incremental, timeout, parallelism, sbom, license_check, fail_on_critical, ai_configuration_version_id, retention_days | Edits create a new version, which gives change history |
 | `profile_scanners` | profile_version_id, scanner_id, pinned_version, config jsonb | Gitleaks row enforced by trigger and service |
 | `workers` | name, family, version, token_sha256, scanners, last_seen_at, revoked_at | One row per registered worker; the token is stored as SHA-256 |
-| `scan_jobs` | repository_id, profile_version_id, trigger (`manual`, `schedule`, `push`, `pull_request`, `merge`, `onboarding`, `emergency`, `import`), priority, status (`queued`, `running`, `succeeded`, `partial`, `failed`, `cancelled`), commit_sha, attempts, leased_by, lease_expires_at | A partial unique index allows one queued execution per repository, profile version, target and pull request; leasing runs at most one execution per repository at a time. Later columns: see 00011, 00015 and 00020 below |
+| `scan_jobs` | repository_id, profile_version_id, trigger (`manual`, `schedule`, `push`, `pull_request`, `merge`, `onboarding`, `emergency`, `import`), priority, status (`queued`, `running`, `succeeded`, `partial`, `failed`, `cancelled`), commit_sha, attempts, leased_by, lease_expires_at | A partial unique index allows one queued execution per repository, profile version, target and pull request; leasing runs at most one repository (code) scan per repository and pull request, and one scan per target, at a time; result imports and target scans run next to a repository scan (00043: `scan_jobs_running_uq`, `scan_jobs_running_target_uq`). Later columns: see 00011, 00015 and 00020 below |
 | `scan_results` | scan_job_id, scanner_key, scanner_version, status (`succeeded`, `failed`, `skipped`, `timed_out`), duration_ms, findings_count, error | One engine job per scanner |
 | `scan_artifacts` | scan_result_id, kind (`raw`,`sbom`), content_type, sha256, size_bytes, data_gzip **or** object_key | Exactly one location (CHECK). `object_key` = `artifacts/<org>/<uuidv7>.gz` in S3-compatible storage |
 | `findings` | repository_id, fingerprint, scanner_key, rule_id, title, severity, cwe[], cve, cvss, file_path, snippet, status (`open`, `in_progress`, `needs_review`, `fixed`, `false_positive`, `accepted_risk`), assignee_id, first_seen_at, last_seen_at, sla_due_at, resolved_at, ai_status | Unique (repository_id, fingerprint) gives deduplication across scans. Many columns were added later; see the migration sections below |
@@ -407,3 +407,12 @@ Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside
 | `findings_open_sca_package_idx` | Open vulnerabilities per component in the SBOM inventory: `(package_name, package_version, repository_id)` for open SCA findings |
 
 The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.
+
+## 2.2.2 hardening (migrations 00043 and 00044)
+
+Additive. See [VALIDATION_REPORT.md §9](VALIDATION_REPORT.md#9-open-issues-and-their-status-222).
+
+| Migration | Change |
+|---|---|
+| 00043 | `scan_jobs_running_uq` is now `(repository_id, COALESCE(pull_request, 0))` for running repository scans only (not target scans, not imports); new `scan_jobs_running_target_uq (target_id)` for running target scans. Results and finalization of a repository are serialized with `pg_advisory_xact_lock(hashtext('pathos-repo-findings'), hashtext(repository_id))`. The downgrade fails all but the oldest running execution of each repository |
+| 00044 | `repositories.source_type` adds `git` (anonymous public repository imported by URL, no SCM connection) and `source_provider` (`github`, `gitlab`, `bitbucket`, `azure_devops`, `git`; required for `git`); one active anonymous repository per organization and clone URL (`repositories_git_url_uq`). `ca_bundle_pem` (≤ 64 KiB, default `''`) on `registry_connections`, `outbound_webhooks` and `ticket_connections`. `scan_profile_versions.secret_default_exclusions` (default true) and `secret_exclusions text[]`. The downgrade deletes anonymous repositories |

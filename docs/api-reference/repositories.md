@@ -944,6 +944,56 @@ Response (`GET` and `PUT`):
 
 `status` per endpoint: `verified` (answered over HTTPS or HTTP), `unreachable`, `dns_failed`, `blocked` (refused by the egress proxy: add the host to `deploy/egress/allowlist.txt`), `skipped` (not covered by the authorization statement, or a wildcard domain), `error` or `not_checked`. Errors: `400` without declared endpoints or without the authorization statement where it is required; `409` with `PATHOS_OFFLINE=true` (enabling or running) or when verification is not enabled (run). Changes are audited (`endpoint_verification.enable`, `endpoint_verification.update`, `scan.request`).
 
+## Public repositories without a token (2.2.2)
+
+### Import a public repository by URL
+
+| Property | Value |
+|---|---|
+| Method | `POST` |
+| Path | `/api/v1/repositories/import-url` |
+| Authentication | Session with `X-CSRF-Token`, or API token with `api:write` |
+| Permission | `repos.manage` at the placement (business unit, else region of the country, else organization) |
+
+Registers a **public** repository without an SCM connection or token. PATHOS checks the URL anonymously first:
+
+| Host | Check (no credentials sent) |
+|---|---|
+| `github.com` | `GET https://api.github.com/repos/{owner}/{repo}`: `private` must be false |
+| `gitlab.com` | `GET https://gitlab.com/api/v4/projects/{path}`: `visibility` must be `public` (groups and subgroups supported) |
+| `bitbucket.org` | `GET https://api.bitbucket.org/2.0/repositories/{workspace}/{slug}`: `is_private` must be false |
+| `dev.azure.com/{org}/{project}/_git/{repo}` | `GET .../_apis/git/repositories/{repo}`: the project's `visibility` must be `public` |
+| any other `https://` git server | `GET {url}/info/refs?service=git-upload-pack` (git smart HTTP) must answer without authentication; the advertised `HEAD` gives the default branch |
+
+Request body: `url` (required; `https://`, no credentials, query or fragment), `scan_branch`, `display_name`, `start_scan` (queue an onboarding scan), `dry_run` (check only), and the placement fields of [synchronous imports](#import-repositories-synchronously): `application_id`, `business_unit_id`, `country_id`, `environment`, `criticality`, `tag_ids`.
+
+```json
+{ "url": "https://github.com/juice-shop/juice-shop", "start_scan": true, "criticality": "high" }
+```
+
+Response `201` (`200` with `"status": "would_import"` for a dry run):
+
+```json
+{ "status": "imported", "repository_id": "0193…", "anonymous": true, "visibility": "public", "scan_queued": true,
+  "repository": { "provider": "github", "full_name": "juice-shop/juice-shop", "url": "https://github.com/juice-shop/juice-shop",
+                  "clone_url": "https://github.com/juice-shop/juice-shop.git", "default_branch": "master", "description": "…" } }
+```
+
+The repository has `source_type` `git`, `anonymous: true`, `provider` as detected (`github`, `gitlab`, `bitbucket`, `azure_devops` or `git`) and no `scm_connection_id`. Workers clone it **without credentials**, read-only. Pull request checks, fix pull requests, AI fixes, push protection and the source view need an SCM connection and are not available. `POST /api/v1/repositories/{id}/sync` checks again that it is public: a repository that turned private gets `sync_status` `permission_denied` and is not scanned (`PTH-ONB-1102`); the worker reports a refused anonymous clone with the same code.
+
+Errors (`error.error_code`):
+
+| HTTP | `error.code` | `error.error_code` | Meaning |
+|---|---|---|---|
+| 400 | `invalid_repository_url` | `PTH-ONB-1101` | Not an `https://` repository URL, credentials in the URL, query or fragment |
+| 422 | `repository_not_public` | `PTH-ONB-1102` | Private, internal or missing (the providers answer the same to an anonymous caller). Use an SCM connection with a token |
+| 429 | `provider_rate_limited` | `PTH-ONB-1103` | The provider's anonymous rate limit (GitHub: 60 requests per hour per IP); `error.details.retry_after_seconds` when known |
+| 502 | `provider_unreachable` | `PTH-ONB-1104` | The provider API or git server could not be reached |
+| 409 | `already_imported` | `PTH-ONB-1105` | Already imported anonymously; `error.details.repository_id` |
+| 400 | `blocked_address` | `PTH-ONB-1106` | The host is (or resolves to) a loopback, link-local or, without `PATHOS_SCM_ALLOW_PRIVATE`, private address |
+
+Workers clone through the egress proxy: GitHub, Azure DevOps, GitLab.com and Bitbucket Cloud are in the default allowlist; add any other git host to `deploy/egress/conf.d`. Audit action `repository.import` with `source: anonymous`.
+
 ## Legacy synchronous imports
 
 These endpoints register SCM repositories synchronously, without import jobs, upload support, idempotency or asset-policy validation. They only set placement (application, business unit, country), environment, criticality, scan branch and tags. New integrations should use [repository imports](imports.md#start-an-import).

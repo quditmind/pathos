@@ -40,6 +40,9 @@ ALTER TABLE scan_profile_versions DROP COLUMN IF EXISTS secret_exclusions, DROP 
 ALTER TABLE ticket_connections DROP COLUMN IF EXISTS ca_bundle_pem;
 ALTER TABLE outbound_webhooks DROP COLUMN IF EXISTS ca_bundle_pem;
 ALTER TABLE registry_connections DROP COLUMN IF EXISTS ca_bundle_pem;
+-- Anonymous repositories cannot exist before 00044; like the downgrade of
+-- 00009 for uploads, they are removed with their data.
+DELETE FROM repositories WHERE source_type = 'git';
 DROP INDEX IF EXISTS repositories_git_url_uq;
 ALTER TABLE repositories DROP CONSTRAINT IF EXISTS repositories_git_source_ck;
 ALTER TABLE repositories DROP COLUMN IF EXISTS source_provider;

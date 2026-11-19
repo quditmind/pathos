@@ -396,6 +396,8 @@ func intFor(name string) int {
 func stringFor(name string) string {
 	n := strings.ToLower(name)
 	switch {
+	case n == "ca_bundle_pem":
+		return "" // a PEM bundle or empty; the probe text is not one
 	case strings.Contains(n, "email"):
 		return "iso-probe@iso-a.test"
 	case strings.Contains(n, "url") || n == "endpoint" || n == "api_server" || n == "reference":
@@ -481,6 +483,7 @@ var writeFixtures = map[string]map[string]any{
 // archive; they are still probed with B's parents.
 var controlSkip = map[string]bool{
 	"POST /api/v1/repositories/import":         true,
+	"POST /api/v1/repositories/import-url":     true,
 	"POST /api/v1/scm-connections/oauth/start": true,
 	"POST /api/v1/repository-imports":          true,
 	"POST /api/v1/repository-imports/validate": true,

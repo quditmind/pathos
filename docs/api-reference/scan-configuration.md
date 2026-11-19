@@ -91,12 +91,15 @@ Audit actions: `scan_profile.create`, `scan_profile.update`, `scan_profile.set_d
 | `fail_on_critical` | `false` | Mark the execution `gate_failed` when it finds a new Critical finding |
 | `retention_days` | `90` | 7–3650 |
 | `scanners` | `[]` | `[{ "key", "config" }]`; `config` is a JSON object up to 4 KB |
+| `secret_default_exclusions` | `true` | 2.2.2. Drop secret findings (category `secrets`) in vendored dependencies (`**/node_modules/**`, `**/vendor/**`, `**/third_party/**`, …), test fixtures (`**/testdata/**`, `**/fixtures/**`, `**/__snapshots__/**`, `*.snap`), lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `go.sum`, `Cargo.lock`, `composer.lock`, `Gemfile.lock`, `poetry.lock`, …) and minified or source-map files (`*.min.js`, `*.min.css`, `*.map`). The full list is `DefaultSecretExclusions` in `backend/internal/scanners/normalize.go`. Other categories and target scans are not affected. Existing profile versions have it on |
+| `secret_exclusions` | `[]` | 2.2.2. Further glob patterns (same rules as `exclusions`) whose secret findings are dropped, for example `**/*_test.go` or `docs/**` |
 
 Scanner rules (`400 invalid_request` otherwise):
 
 - The key must be in the catalog (or a registered plugin), have an adapter, not be `target_only`, not contact or attack a running application (`network: target`, `intrusive`; those are selected on a [scan target](scan-targets.md)) and not be licence-restricted.
 - Mandatory scanners are added automatically; duplicates are ignored.
 - Grype scans the SBOM: it needs `sbom: true`, and Syft is then added automatically.
+- Talisman is never part of the seeded default profile (high noise: thousands of low-severity findings per repository); add it to a profile of your own only where its file-level checks are wanted.
 
 Built-in content scanners (no `config` options):
 
