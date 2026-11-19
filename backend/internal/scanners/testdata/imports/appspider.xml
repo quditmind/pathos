@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VulnSummary>
+    <AppVersion>7.5.022.4</AppVersion>
+    <ScanName>Bank</ScanName>
+    <Metadata></Metadata>
+    <ScanStarted>2026-11-12 14:05:42</ScanStarted>
+    <ScanDuration>00:24:01</ScanDuration>
+    <ScanEnded>2026-11-12 14:29:43</ScanEnded>
+    <UTCOffset>0</UTCOffset>
+    <ResourcesCrawled>26</ResourcesCrawled>
+    <NumberOfRequests>1150</NumberOfRequests>
+    <NumberOfFailedRequests>0</NumberOfFailedRequests>
+    <VulnList>
+        <Vuln>
+            <DbId>FB9AF4A1755E408BB0B40E69EA0F5A8A</DbId>
+            <ParentDbId>00000000000000000000000000000000</ParentDbId>
+            <ScanName>Bank</ScanName>
+            <WebSite>https://bank.example.test:443</WebSite>
+            <WebSiteIP>192.0.2.10</WebSiteIP>
+            <VulnType>Browser Cache directive (leaking sensitive information)</VulnType>
+            <VulnUrl>https://bank.example.test/search.aspx</VulnUrl>
+            <NormalizedUrl>https://bank.example.test/search.aspx</NormalizedUrl>
+            <MatchedString>Cache-Control: private</MatchedString>
+            <NormalizedPostParams></NormalizedPostParams>
+            <VulnParam></VulnParam>
+            <ParameterName>N/A</ParameterName>
+            <HtmlEntityAttacked>URL</HtmlEntityAttacked>
+            <ModuleId>E33B272027B844D5BBB8EDE541983474</ModuleId>
+            <AttackType>Browser Cache Directive</AttackType>
+            <AttackScore>2-Low</AttackScore>
+            <AttackValue>N/A</AttackValue>
+            <OriginalValue>N/A</OriginalValue>
+            <Method>N/A</Method>
+            <RootCauseId>B8121EFA52A155EECF6EFE0521D2766F</RootCauseId>
+            <FindingDbId>2DB933E5C03C4E58AB769B59C7C6080D</FindingDbId>
+            <Description><![CDATA[<p>The response browser cache headers allow response caching.</p>]]></Description>
+            <Recommendation><![CDATA[<p>Update the Cache-Control header to include no-store.</p>]]></Recommendation>
+            <Page>https://bank.example.test/search.aspx</Page>
+            <Url>https://bank.example.test/search.aspx</Url>
+            <VulnParamType>unknown</VulnParamType>
+            <CrawlTraffic>R0VUIC9zZWFyY2guYXNweD90eHRTZWFyY2g9d2F0ZXIgSFRUUC8xLjENCkhvc3Q6IGJhbmsuZXhhbXBsZS50ZXN0DQpDb29raWU6IEFTUC5ORVRfU2Vzc2lvbklkPWFwcHNwaWRlci1jb29raWUtc2VjcmV0OyBhbVNlc3Npb25JZD0xMDU4MTAxMjcxNjgNClVzZXItQWdlbnQ6IE1vemlsbGEvNS4wDQoNCg==</CrawlTraffic>
+            <CrawlTrafficTemplate>R0VUIC9zZWFyY2guYXNweD90eHRTZWFyY2g9d2F0ZXIgSFRUUC8xLjENCkhvc3Q6IGJhbmsuZXhhbXBsZS50ZXN0DQpDb29raWU6IEFTUC5ORVRfU2Vzc2lvbklkPWFwcHNwaWRlci1jb29raWUtc2VjcmV0OyBhbVNlc3Npb25JZD0xMDU4MTAxMjcxNjgNClVzZXItQWdlbnQ6IE1vemlsbGEvNS4wDQoNCg==</CrawlTrafficTemplate>
+            <CrawlTrafficResponse>SFRUUC8xLjEgMjAwIE9LDQpDYWNoZS1Db250cm9sOiBwcml2YXRlDQpTZXQtQ29va2llOiBhbVNlc3Npb25JZD1hcHBzcGlkZXItc2V0LWNvb2tpZS1zZWNyZXQNCkNvbnRlbnQtVHlwZTogdGV4dC9odG1sDQoNCjxodG1sPjwvaHRtbD4=</CrawlTrafficResponse>
+            <AttackClass>Application Developer</AttackClass>
+            <CweId>525</CweId>
+            <CAPEC>1</CAPEC>
+            <WASC>0</WASC>
+            <ScanDate>2026-11-12 14:05:42</ScanDate>
+            <Confidence>High</Confidence>
+            <AttackList>
+                <Attack>
+                    <AttackId>BROWSERCACHECHECK02</AttackId>
+                    <AttackValue></AttackValue>
+                    <AttackVulnUrl>https://bank.example.test/search.aspx</AttackVulnUrl>
+                    <AttackMatchedString>Cache-Control: private</AttackMatchedString>
+                    <OriginalResponseCode>200</OriginalResponseCode>
+                </Attack>
+            </AttackList>
+        </Vuln>
+        <Vuln>
+            <DbId>0A1B2C3D4E5F60718293A4B5C6D7E8F9</DbId>
+            <WebSite>https://bank.example.test:443</WebSite>
+            <VulnType>SQL Injection</VulnType>
+            <VulnUrl>https://bank.example.test/doLogin</VulnUrl>
+            <MatchedString>Syntax error in string in query expression</MatchedString>
+            <VulnParam>uid</VulnParam>
+            <ParameterName>uid</ParameterName>
+            <AttackType>SQL Injection</AttackType>
+            <AttackScore>4-High</AttackScore>
+            <AttackValue>admin'--</AttackValue>
+            <Method>POST</Method>
+            <Description><![CDATA[<p>SQL injection is possible through the uid parameter.</p>]]></Description>
+            <Recommendation><![CDATA[<p>Use parameterized queries.</p>]]></Recommendation>
+            <CrawlTraffic>UE9TVCAvZG9Mb2dpbiBIVFRQLzEuMQ0KSG9zdDogYmFuay5leGFtcGxlLnRlc3QNCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24veC13d3ctZm9ybS11cmxlbmNvZGVkDQpBdXRob3JpemF0aW9uOiBCYXNpYyBZWEJ3YzNCcFpHVnlPbUYxZEdndGMyVmpjbVYwDQoNCnVpZD1hZG1pbiUyNy0tJnBhc3N3b3JkPWFwcHNwaWRlci1mb3JtLXBhc3N3b3Jk</CrawlTraffic>
+            <CweId>89</CweId>
+            <Confidence>Medium</Confidence>
+        </Vuln>
+    </VulnList>
+</VulnSummary>

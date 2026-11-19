@@ -1,0 +1,74 @@
+{
+  "end": "1762935630",
+  "report": {
+    "index": [
+      "/components/securitySchemes/ApiKey",
+      "/paths/~1orders/get/security/0/ApiKey",
+      "/paths/~1orders/post/requestBody/content/application~1json/schema",
+      "/paths/~1orders~1{id}/get/responses/200"
+    ],
+    "assessmentVersion": "3.1.6",
+    "assessmentReportVersion": "1.0.1",
+    "oasVersion": "3.0.0",
+    "apiVersion": "1.0.0",
+    "fileId": "c65d4166-ddf7-11ee-a7f6-bf9763730afb",
+    "apiId": "",
+    "openapiState": "valid",
+    "score": 62.5,
+    "valid": true,
+    "criticality": 4,
+    "issueCounter": 4,
+    "minimalReport": false,
+    "security": {
+      "issueCounter": 2,
+      "score": 12.5,
+      "criticality": 4,
+      "issues": {
+        "v3-global-securityscheme-apikey-inheader": {
+          "description": "Transporting API keys in a header over network allowed",
+          "issues": [
+            {"score": 0, "pointer": 0, "tooManyImpacted": false, "criticality": 1, "request": true, "fingerprint": "teephei0aes4ohxur7Atie6zuiCh9weeshue0kai"}
+          ],
+          "issueCounter": 1,
+          "score": 0,
+          "criticality": 1
+        },
+        "v3-operation-securityrequirement-apikey-inheader": {
+          "description": "Operation accepts API keys transported in a header over network",
+          "issues": [
+            {"score": -2.14, "pointer": 1, "tooManyImpacted": false, "criticality": 3, "request": true, "fingerprint": "Iibooquavie0hah0quoh7thooghiith7utoow6th", "specificDescription": "GET /orders accepts an API key in a request header"}
+          ],
+          "issueCounter": 1,
+          "score": -2.14,
+          "criticality": 3
+        }
+      }
+    },
+    "data": {
+      "issueCounter": 2,
+      "score": 50,
+      "criticality": 4,
+      "issues": {
+        "v3-schema-object-additionalproperties-true": {
+          "description": "Schema allows additional properties",
+          "issues": [
+            {"score": -4.5, "pointer": 2, "tooManyImpacted": false, "criticality": 4, "request": true, "fingerprint": "Aeng5ohghai2Eeyeitaeghoo1Wah4ohyiechoo5o"}
+          ],
+          "issueCounter": 1,
+          "criticality": 4
+        },
+        "v3-response-schema-undefined": {
+          "description": "Response 200 does not define a schema",
+          "issues": [
+            {"score": -1.0, "pointer": 3, "tooManyImpacted": false, "criticality": 2, "response": true, "fingerprint": "ohShee3jai0Uthoh5eiTh6weiphoh0aeQuae9ie"}
+          ],
+          "issueCounter": 1,
+          "criticality": 2
+        }
+      }
+    },
+    "semanticErrors": {"issueCounter": 0, "issues": {}},
+    "validationErrors": {"issueCounter": 0, "issues": {}},
+    "warnings": {"issueCounter": 0, "issues": {}}
+  }
+}

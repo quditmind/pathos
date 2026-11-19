@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<w3af-run start="1763534400" start-long="Thu Nov 19 06:40:00 2026" version="2.8">
+
+    <w3af-version>Version: 2019.1.2
+Revision: 4ab2fab
+Branch: master
+Local changes: No</w3af-version>
+
+    <scan-info target="http://target:8080/">
+    <audit>
+            <plugin name="sqli">
+            </plugin>
+            <plugin name="xss">
+                        <config parameter="persistent_xss" value="True"/>
+            </plugin>
+    </audit>
+    <auth>
+            <plugin name="generic">
+                        <config parameter="username" value="tester"/>
+                        <config parameter="password" value="a3formpasswordsecret"/>
+                        <config parameter="check_url" value="http://target:8080/admin"/>
+            </plugin>
+    </auth>
+</scan-info>
+
+    <scan-status>
+    <status>Stopped</status>
+    <is-paused>False</is-paused>
+    <is-running>False</is-running>
+</scan-status>
+
+    <vulnerability id="[38, 39]" method="GET" name="SQL injection" plugin="sqli" severity="High" url="http://target:8080/user" var="id">
+    <description>SQL injection in a SQLite database was found at: "http://target:8080/user", using HTTP method GET. The sent data was: "id=a%27b%22c%27d%22" The modified parameter was "id". This vulnerability was found in the request with id 38.</description>
+
+    <long-description>Due to the requirement for dynamic content of today's web applications, many rely on a database backend to store data that will be called upon and processed by the web application (or other programs). [...]</long-description>
+    <fix-guidance>The only proven method to prevent against SQL injection attacks while still maintaining full application functionality is to use parameterized queries (also known as prepared statements).</fix-guidance>
+    <fix-effort>50</fix-effort>
+    <references>
+            <reference title="SecuriTeam" url="http://www.securiteam.com/securityreviews/5DP0N1P76E.html" />
+            <reference title="Wikipedia" url="http://en.wikipedia.org/wiki/SQL_injection" />
+            <reference title="CWE-89: Improper Neutralization of Special Elements used in an SQL Command" url="https://cwe.mitre.org/data/definitions/89.html" />
+    </references>
+
+    <http-transactions>
+            <http-transaction id="38">
+
+    <http-request>
+        <status>GET http://target:8080/user?id=a%27b%22c%27d%22 HTTP/1.1</status>
+        <headers>
+            <header field="Host" content="target:8080" />
+            <header field="Cookie" content="session=a3cookiesecret" />
+            <header field="Authorization" content="Bearer a3bearertokensecret123" />
+        </headers>
+        <body content-encoding="base64"></body>
+    </http-request>
+
+    <http-response>
+        <status>HTTP/1.1 500 Internal Server Error</status>
+        <headers>
+            <header field="Content-Type" content="text/html" />
+            <header field="Set-Cookie" content="session=a3sessionsecret; Path=/" />
+        </headers>
+        <body content-encoding="base64">PGh0bWw+PGJvZHk+c3FsaXRlMy5PcGVyYXRpb25hbEVycm9yOiB1bnJlY29nbml6ZWQgdG9rZW48L2JvZHk+PC9odG1sPg==</body>
+    </http-response>
+
+</http-transaction>
+    </http-transactions>
+</vulnerability>
+
+    <vulnerability id="[52]" method="POST" name="Cross site scripting vulnerability" plugin="xss" severity="Medium" url="http://target:8080/search" var="q">
+    <description>A Cross Site Scripting vulnerability was found at: "http://target:8080/search", using HTTP method POST. The sent post-data was: "q=&lt;ScRipT&gt;alert(1)&lt;/ScRipT&gt;&amp;password=a3formpasswordsecret" which modifies the "q" parameter. This vulnerability was found in the request with id 52.</description>
+
+    <http-transactions>
+            <http-transaction id="52">
+
+    <http-request>
+        <status>POST http://target:8080/search HTTP/1.1</status>
+        <headers>
+            <header field="Host" content="target:8080" />
+            <header field="Content-Type" content="application/x-www-form-urlencoded" />
+        </headers>
+        <body content-encoding="base64">cT0lM0NTY1JpcFQlM0VhbGVydCUyODElMjklM0MlMkZTY1JpcFQlM0UmcGFzc3dvcmQ9YTNmb3JtcGFzc3dvcmRzZWNyZXQ=</body>
+    </http-request>
+
+    <http-response>
+        <status>HTTP/1.1 200 OK</status>
+        <headers>
+            <header field="Content-Type" content="text/html" />
+        </headers>
+        <body content-encoding="base64">PGh0bWw+PGJvZHk+UmVzdWx0cyBmb3IgPFNjUmlwVD5hbGVydCgxKTwvU2NSaXBUPjwvYm9keT48L2h0bWw+</body>
+    </http-response>
+
+</http-transaction>
+    </http-transactions>
+</vulnerability>
+
+    <vulnerability id="[7]" method="GET" name="Server header" plugin="server_header" severity="Information" url="http://target:8080/" var="">
+    <description>The server header for the remote web server is: "Apache/2.2.8 Python/3.13.18". This information was found in the request with id 7.</description>
+
+    <http-transactions>
+    </http-transactions>
+</vulnerability>
+
+</w3af-run>

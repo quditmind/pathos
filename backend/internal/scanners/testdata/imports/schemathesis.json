@@ -1,0 +1,130 @@
+{
+  "schemathesis_version": "4.33.4",
+  "command": "st run http://target:8080/openapi.json -H Authorization: [Filtered] -H Cookie: [Filtered] --report junit,json --report-dir /out --max-examples 30",
+  "seed": 225383083121873789857897925399624544731,
+  "started_at": "2026-11-19T06:35:05.993313+00:00",
+  "running_time": 2.0000277950020973,
+  "stop_reason": "completed",
+  "complete": true,
+  "exit_code": 1,
+  "operations": {
+    "total": 2,
+    "selected": 2,
+    "tested": 2,
+    "errored": 0,
+    "skipped": 0,
+    "skip_reasons": []
+  },
+  "phases": {
+    "examples": {
+      "status": "skip",
+      "skip_reason": null
+    },
+    "coverage": {
+      "status": "failure",
+      "skip_reason": null
+    },
+    "fuzzing": {
+      "status": "failure",
+      "skip_reason": null
+    },
+    "stateful": {
+      "status": "skip",
+      "skip_reason": "not_applicable"
+    }
+  },
+  "test_cases": {
+    "generated": 10,
+    "with_failures": 4,
+    "unique_failures": 6,
+    "without_checks": 0,
+    "errored": 0
+  },
+  "failures": [
+    {
+      "type": "ServerError",
+      "code": "ST101",
+      "title": "Server error",
+      "severity": "critical",
+      "count": 2,
+      "operations": [
+        "GET /api/items",
+        "TRACE /api/users/{id}"
+      ]
+    },
+    {
+      "type": "AcceptedNegativeData",
+      "code": "ST201",
+      "title": "Schema-violating request accepted",
+      "severity": "medium",
+      "count": 2,
+      "operations": [
+        "GET /api/items",
+        "GET /api/users/{id}"
+      ]
+    },
+    {
+      "type": "UndefinedStatusCode",
+      "code": "ST103",
+      "title": "Undocumented status code",
+      "severity": "medium",
+      "count": 1,
+      "operations": [
+        "GET /api/items"
+      ]
+    },
+    {
+      "type": "UnsupportedMethodResponse",
+      "code": "ST204",
+      "title": "Wrong response to undeclared method",
+      "severity": "medium",
+      "count": 1,
+      "operations": [
+        "TRACE /api/users/{id}"
+      ]
+    }
+  ],
+  "errors": [],
+  "baseline": null,
+  "filtered": 0,
+  "warnings": {
+    "missing_auth": [],
+    "base_url_mismatch": [],
+    "missing_test_data": [],
+    "validation_mismatch": [],
+    "missing_deserializer": [],
+    "unused_openapi_auth": [],
+    "unsupported_regex": [],
+    "method_not_allowed": [],
+    "constants_extraction": [],
+    "unmatched_filter": [],
+    "unresolvable_reference": [],
+    "unsupported_field": [],
+    "low_valid_rate": [],
+    "rate_limited": [],
+    "not_served": [],
+    "dictionary_mismatch": []
+  },
+  "valid_rates": {
+    "GET /api/items": {
+      "fuzzing": {
+        "accepted": 1,
+        "unreachable": 0,
+        "conflicts": 0,
+        "rejected": 0
+      }
+    },
+    "GET /api/users/{id}": {
+      "fuzzing": {
+        "accepted": 5,
+        "unreachable": 0,
+        "conflicts": 0,
+        "rejected": 0
+      }
+    }
+  },
+  "auth": {
+    "reauth_count": 0,
+    "reauth_broke": false
+  }
+}

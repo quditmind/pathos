@@ -199,7 +199,7 @@ Declarative scanner adapters let operators add tools without changing PATHOS ([S
 
 ### Result imports and the CLI
 
-[Result imports](api-reference/result-imports.md) parse reports of 25 formats on the API server. Parsing is data only; nothing in a report is executed or fetched.
+[Result imports](api-reference/result-imports.md) parse reports of 153 formats on the API server. Parsing is data only; nothing in a report is executed or fetched. A Fortify FPR (a zip archive) is read in memory with bounded sizes; nothing is extracted to disk.
 
 - Uploads need `scans.run` on the repository and are limited to 64 MiB (gzip expanded to at most 256 MiB); at most 20 000 findings per report.
 - **XML** (ZAP, Burp, Nessus, OpenVAS, Checkmarx) is parsed with Go's `encoding/xml` in strict mode: DTDs and external entities are never processed or resolved (no XXE, no external fetches), only the five predefined entities are accepted (entity-expansion bombs fail), nesting depth is bounded by the standard library, and only UTF-8, US-ASCII and ISO-8859-1 / Windows-1252 are accepted.

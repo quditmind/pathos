@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites errors="0" failures="2" skipped="0" tests="2" time="1.846654">
+  <testsuite name="schemathesis" hostname="b81361adf546" errors="0" failures="2" skipped="0" tests="2" time="1.846654">
+    <testcase name="GET /api/items" time="1.739920">
+      <failure type="failure" message="ST201">1. Test Case ID: s3bpua
+
+- ST201 Schema-violating request accepted
+
+    Invalid data should have been rejected
+    Expected: 400, 401, 403, 404, 405, 406, 409, 415, 422, 428, 429, 5xx
+    Invalid component: Missing `limit` at query
+
+[200] OK:
+
+    `{"items": []}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'Cookie: [Filtered]' http://target:8080/api/items</failure>
+      <failure type="failure" message="ST101, ST103">1. Test Case ID: Hcr5Fb
+
+- ST101 Server error
+
+- ST103 Undocumented status code
+
+    Received: 500
+    Documented: 200
+
+[500] Internal Server Error:
+
+    `Internal Server Error`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'Cookie: [Filtered]' 'http://target:8080/api/items?limit=-8757947'</failure>
+    </testcase>
+    <testcase name="GET /api/users/{id}" time="0.106734">
+      <failure type="failure" message="ST101, ST204">1. Test Case ID: FjYFp9
+
+- ST101 Server error
+
+- ST204 Wrong response to undeclared method
+
+    Unsupported method TRACE returned 501, expected 405 Method Not Allowed
+
+    Return 405 for methods not listed in the OpenAPI spec
+
+[501] Not Implemented:
+
+    `&lt;!DOCTYPE HTML&gt;
+    &lt;html lang="en"&gt;
+        &lt;head&gt;
+            &lt;meta charset="utf-8"&gt;
+            &lt;title&gt;Error response&lt;/title&gt;
+        &lt;/head&gt;
+        &lt;body&gt;
+            &lt;h1&gt;Error response&lt;/h1&gt;
+            &lt;p&gt;Error code: 501&lt;/p&gt;
+            &lt;p&gt;Message: Unsupported method ('TRACE').&lt;/p&gt;
+            &lt;p&gt;Error code explanation: 501 - Server does not support this operation.&lt;/p&gt;
+        &lt;/body&gt;
+    &lt;/html&gt;`
+
+Reproduce with:
+
+    curl -X TRACE -H 'Authorization: [Filtered]' -H 'Cookie: [Filtered]' http://target:8080/api/users/0</failure>
+      <failure type="failure" message="ST201">1. Test Case ID: InqkPd
+
+- ST201 Schema-violating request accepted
+
+    Invalid data should have been rejected
+    Expected: 400, 401, 403, 404, 405, 406, 409, 415, 422, 428, 429, 5xx
+    Invalid component: parameter `id` in path - violates `type` at /properties/id (was integer, became number)
+
+[200] OK:
+
+    `{"id": "1.3443514371781544e-121"}`
+
+Reproduce with:
+
+    curl -X GET -H 'Authorization: [Filtered]' -H 'Cookie: [Filtered]' http://target:8080/api/users/1.3443514371781544e-121</failure>
+    </testcase>
+  </testsuite>
+</testsuites>

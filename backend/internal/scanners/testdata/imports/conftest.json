@@ -1,0 +1,28 @@
+[
+	{
+		"filename": "k8s/deployment.yaml",
+		"namespace": "main",
+		"successes": 0,
+		"warnings": [
+			{
+				"msg": "Container web uses the latest tag",
+				"metadata": {
+					"query": "data.main.warn"
+				}
+			}
+		],
+		"failures": [
+			{
+				"msg": "Container web must not run privileged",
+				"metadata": {
+					"query": "data.main.deny"
+				}
+			}
+		]
+	},
+	{
+		"filename": "infra/main.tf",
+		"namespace": "main",
+		"successes": 2
+	}
+]

@@ -1,0 +1,169 @@
+{
+  "version": "v2.8.0",
+  "id": "38fbc996-d733-474f-8d11-120c6cc4c784",
+  "repositoryID": "00000000-0000-0000-0000-000000000000",
+  "repositoryName": "",
+  "workspaceID": "00000000-0000-0000-0000-000000000000",
+  "workspaceName": "",
+  "status": "success",
+  "errors": "",
+  "createdAt": "2026-11-19T06:27:42.559199677Z",
+  "finishedAt": "2026-11-19T06:27:42.573697759Z",
+  "analysisVulnerabilities": [
+    {
+      "vulnerabilityID": "00000000-0000-0000-0000-000000000000",
+      "analysisID": "38fbc996-d733-474f-8d11-120c6cc4c784",
+      "createdAt": "2026-11-19T06:27:42.573701228Z",
+      "vulnerabilities": {
+        "vulnerabilityID": "9508e4cd-bff3-4d83-8625-5476bf016276",
+        "line": "2",
+        "column": "6",
+        "confidence": "MEDIUM",
+        "file": "config.js",
+        "code": "const password = \"Sup3rS3cretPassw0rd!\";",
+        "details": "(1/1) * Possible vulnerability detected: Hard-coded password\nThe software contains hard-coded credentials, such as a password or cryptographic key, which it uses for its own inbound authentication, outbound communication to external components, or encryption of internal data. For more information checkout the CWE-798 (https://cwe.mitre.org/data/definitions/798.html) advisory.",
+        "securityTool": "HorusecEngine",
+        "language": "Leaks",
+        "severity": "CRITICAL",
+        "type": "Vulnerability",
+        "commitAuthor": "-",
+        "commitEmail": "-",
+        "commitHash": "-",
+        "commitMessage": "-",
+        "commitDate": "-",
+        "rule_id": "HS-LEAKS-26",
+        "vulnHash": "a5ecc28ba8fe52be034e034d164ede0e99a685d5c03a9c2e2e7a31e45bd75633",
+        "deprecatedHashes": [
+          "52f28060ad3b8578f417825a06ef1a08d69b1988b6cebb71edeac4c8773b70cd",
+          "a9fe32428ed96956cc0146929dfefd7d12b3b2ccaf2c2c6f69998eb6029a342b"
+        ],
+        "securityToolVersion": "",
+        "securityToolInfoUri": ""
+      }
+    },
+    {
+      "vulnerabilityID": "00000000-0000-0000-0000-000000000000",
+      "analysisID": "38fbc996-d733-474f-8d11-120c6cc4c784",
+      "createdAt": "2026-11-19T06:27:42.573698627Z",
+      "vulnerabilities": {
+        "vulnerabilityID": "2a3739a6-2b05-43eb-be91-c4c18cc8c9c0",
+        "line": "5",
+        "column": "16",
+        "confidence": "MEDIUM",
+        "file": "config.js",
+        "code": "return crypto.createHash('md5').update(req.query.pw).digest('hex');",
+        "details": "(1/1) * Possible vulnerability detected: No use MD5 hashing\nThe MD5 hash algorithm that was used is considered weak. It can also cause hash collisions. It is always recommended to use some CHF (Cryptographic Hash Function), which is mathematically strong and not reversible. SHA512 would be the most recommended hash for storing the password and it is also important to adopt some type of Salt, so that the Hash is more secure. For more information checkout the CWE-327 (https://cwe.mitre.org/data/definitions/327.html) advisory.",
+        "securityTool": "HorusecEngine",
+        "language": "JavaScript",
+        "severity": "HIGH",
+        "type": "Vulnerability",
+        "commitAuthor": "-",
+        "commitEmail": "-",
+        "commitHash": "-",
+        "commitMessage": "-",
+        "commitDate": "-",
+        "rule_id": "HS-JAVASCRIPT-4",
+        "vulnHash": "f84cb01009c0e11f2229721cebbc8afa876a477da8d5d3a8ab3a815c62755f53",
+        "deprecatedHashes": [
+          "ad3eba4ad4c599839606153f8d7682750756f13c35d9c1d5a756ff7d1f9e34d2",
+          "a4e9aafa0b6a712efb6b7c78d615bcf332e5afb4b80cca00b1a19b4418bfc0fe"
+        ],
+        "securityToolVersion": "",
+        "securityToolInfoUri": ""
+      }
+    },
+    {
+      "vulnerabilityID": "00000000-0000-0000-0000-000000000000",
+      "analysisID": "38fbc996-d733-474f-8d11-120c6cc4c784",
+      "createdAt": "2026-11-19T06:27:42.573701693Z",
+      "vulnerabilities": {
+        "vulnerabilityID": "796548a1-3bfd-478c-b30d-67360d1d658b",
+        "line": "18",
+        "column": "27",
+        "confidence": "LOW",
+        "file": "OrderDao.java",
+        "code": "MessageDigest md = MessageDigest.getInstance(\"MD5\");",
+        "details": "(1/1) * Possible vulnerability detected: Weak Cryptographic Hash Function used\nUsing a weak CHF pose a threat to your application security since it can be vulnerable to a number of attacks that could lead to data leaking, improper access of features and resources of your infrastructure and even rogue sessions. For more information checkout the CWE-327 (https://cwe.mitre.org/data/definitions/327.html) advisory.",
+        "securityTool": "HorusecEngine",
+        "language": "Java",
+        "severity": "HIGH",
+        "type": "Vulnerability",
+        "commitAuthor": "-",
+        "commitEmail": "-",
+        "commitHash": "-",
+        "commitMessage": "-",
+        "commitDate": "-",
+        "rule_id": "HS-JAVA-111",
+        "vulnHash": "2f80f7784196a0920604f402ee531cc5e3f9b88b51bf3b53bde02387487f2e38",
+        "deprecatedHashes": [
+          "94632b4ab57f9c1bf4bd49137b460ab6df80c1013b8f0106d4b3d813c3916899",
+          "8b54d6d2bf1ab161f15b8fc7e1d91a7fe3a7234c9201cf5dce936299e054812e"
+        ],
+        "securityToolVersion": "",
+        "securityToolInfoUri": ""
+      }
+    },
+    {
+      "vulnerabilityID": "00000000-0000-0000-0000-000000000000",
+      "analysisID": "38fbc996-d733-474f-8d11-120c6cc4c784",
+      "createdAt": "2026-11-19T06:27:42.573702193Z",
+      "vulnerabilities": {
+        "vulnerabilityID": "929ecfc7-514d-4875-a167-4bd466b15910",
+        "line": "7",
+        "column": "7",
+        "confidence": "LOW",
+        "file": "OrderDao.java",
+        "code": "import java.util.Random;",
+        "details": "(1/1) * Possible vulnerability detected: Insecure Random Number Generator\nThe App uses an insecure Random Number Generator. For more information checkout the CWE-330 (https://cwe.mitre.org/data/definitions/330.html) advisory.",
+        "securityTool": "HorusecEngine",
+        "language": "Java",
+        "severity": "HIGH",
+        "type": "Vulnerability",
+        "commitAuthor": "-",
+        "commitEmail": "-",
+        "commitHash": "-",
+        "commitMessage": "-",
+        "commitDate": "-",
+        "rule_id": "HS-JAVA-114",
+        "vulnHash": "2b8b9563779f9f4e08f3b1576d81c4f8ddbf366c70fac0b344dd1f2ae8434c8b",
+        "deprecatedHashes": [
+          "51609b0baf6095dd76bbdb92b0f998f6a9b89a2d616d24c87fadd87043bb2003",
+          "bb2de5a57e7b9041a6092a944d3cb3b6b6203e3043984fb8186472559380c4f9"
+        ],
+        "securityToolVersion": "",
+        "securityToolInfoUri": ""
+      }
+    },
+    {
+      "vulnerabilityID": "00000000-0000-0000-0000-000000000000",
+      "analysisID": "38fbc996-d733-474f-8d11-120c6cc4c784",
+      "createdAt": "2026-11-19T06:27:42.57370263Z",
+      "vulnerabilities": {
+        "vulnerabilityID": "b985ab9c-5151-4497-9ff1-108418fd73b2",
+        "line": "14",
+        "column": "32",
+        "confidence": "LOW",
+        "file": "OrderDao.java",
+        "code": "return st.executeQuery(\"SELECT * FROM orders WHERE id = '\" + id + \"'\");",
+        "details": "(1/3) * Possible vulnerability detected: SQL Injection\nThe input values included in SQL queries need to be passed in safely. Bind variables in prepared statements can be used to easily mitigate the risk of SQL injection. Alternatively to prepare statements, each parameter can be escaped manually. For more information checkout the CWE-89 (https://cwe.mitre.org/data/definitions/89.html) advisory.\n         \n(2/3) * Possible vulnerability detected: SQL Injection With Turbine\nThe input values included in SQL queries need to be passed in safely. Bind variables in prepared statements can be used to easily mitigate the risk of SQL injection. Turbine API provide a DSL to build query with  code. Alternatively to prepare statements, each parameter can be escaped manually. For more information checkout the CWE-89 (https://cwe.mitre.org/data/definitions/89.html) advisory.\n         \n(3/3) * Possible vulnerability detected: SQL Injection JDBC\nThe input values included in SQL queries need to be passed in safely. Bind variables in prepared statements can be used to easily mitigate the risk of SQL injection. For more information checkout the CWE-89 (https://cwe.mitre.org/data/definitions/89.html) advisory.",
+        "securityTool": "HorusecEngine",
+        "language": "Java",
+        "severity": "HIGH",
+        "type": "Vulnerability",
+        "commitAuthor": "-",
+        "commitEmail": "-",
+        "commitHash": "-",
+        "commitMessage": "-",
+        "commitDate": "-",
+        "rule_id": "HS-JAVA-134",
+        "vulnHash": "10fa61909d5c60bcaff6d09730a993f92c4f3f899a726071f30488fe4554efb9",
+        "deprecatedHashes": [
+          "d9fb6f3c032429e9255845fe30a70efe1ed5e54c23765202332a10d498a75174",
+          "2ab46be3b4161f2e0c83245e661508db56e833604dd13c5597cee1daf4534fb5"
+        ],
+        "securityToolVersion": "",
+        "securityToolInfoUri": ""
+      }
+    }
+  ]
+}

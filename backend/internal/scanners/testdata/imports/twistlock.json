@@ -1,0 +1,85 @@
+{
+  "results": [
+    {
+      "id": "sha256:3f8a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a",
+      "name": "registry.example.test/shop/api:1.4.2",
+      "distro": "Debian GNU/Linux 12 (bookworm)",
+      "distroRelease": "bookworm",
+      "digest": "sha256:aa11",
+      "collections": [
+        "All"
+      ],
+      "packages": [
+        {
+          "type": "os",
+          "name": "openssl",
+          "version": "3.0.13-1~deb12u1",
+          "path": "",
+          "license": "Apache-2.0"
+        }
+      ],
+      "compliances": [
+        {
+          "id": 41,
+          "title": "(CIS_Docker_v1.5.0 - 4.1) Image should be created with a non-root user",
+          "severity": "high",
+          "description": "It is a good practice to run the container as a non-root user.",
+          "layerTime": "2025-11-01T10:00:00Z",
+          "category": "Docker"
+        }
+      ],
+      "complianceDistribution": {
+        "critical": 0,
+        "high": 1,
+        "medium": 0,
+        "low": 0,
+        "total": 1
+      },
+      "complianceScanPassed": false,
+      "vulnerabilities": [
+        {
+          "id": "CVE-2024-5535",
+          "status": "fixed in 3.0.14-1~deb12u1",
+          "cvss": 9.1,
+          "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:H",
+          "description": "Calling SSL_select_next_proto with an empty supported client protocols buffer may cause a crash or memory contents to be sent to the peer.",
+          "severity": "critical",
+          "packageName": "openssl",
+          "packageVersion": "3.0.13-1~deb12u1",
+          "link": "https://security-tracker.debian.org/tracker/CVE-2024-5535",
+          "riskFactors": {
+            "Critical severity": {},
+            "Has fix": {}
+          },
+          "impactedVersions": [
+            "<3.0.14-1~deb12u1"
+          ],
+          "publishedDate": "2024-06-27T11:15:00Z"
+        },
+        {
+          "id": "CVE-2013-7459",
+          "status": "",
+          "cvss": 9.8,
+          "vector": "CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H",
+          "description": "Heap-based buffer overflow in the ALGnew function in block_templace.c in Python Cryptography Toolkit (aka pycrypto).",
+          "severity": "critical",
+          "packageName": "pycrypto",
+          "packageVersion": "2.6.1",
+          "link": "https://nvd.nist.gov/vuln/detail/CVE-2013-7459",
+          "riskFactors": {
+            "Remote execution": {}
+          }
+        }
+      ],
+      "vulnerabilityDistribution": {
+        "critical": 2,
+        "high": 0,
+        "medium": 0,
+        "low": 0,
+        "total": 2
+      },
+      "vulnerabilityScanPassed": false
+    }
+  ],
+  "consoleURL": "https://console.example.test/#!/monitor/vulnerabilities/images/ci?search=sha256%3A3f8a"
+}

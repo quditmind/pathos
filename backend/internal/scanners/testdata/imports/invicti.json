@@ -1,0 +1,82 @@
+{
+  "Generated": "2026-11-12 02:33 PM",
+  "Target": {
+    "Duration": "00:38:38.3663144",
+    "Initiated": "2026-11-12 01:55 PM",
+    "ScanId": "93d4edbae56145ef001ab203020d164c",
+    "Url": "https://api.example.test/"
+  },
+  "Vulnerabilities": [
+    {
+      "Certainty": 100,
+      "Classification": {
+        "Iso27001": "A.14.2.5",
+        "Capec": "66",
+        "Cvss": null,
+        "Cvss31": {
+          "BaseScore": {"Severity": 4, "Type": "Base", "Value": "10.0"},
+          "EnvironmentalScore": {"Severity": 4, "Type": "Environmental", "Value": "10.0"},
+          "TemporalScore": {"Severity": 4, "Type": "Temporal", "Value": "10.0"},
+          "Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:C/C:H/I:H/A:H"
+        },
+        "Cvss40": null,
+        "Cwe": "89",
+        "Owasp": "A3",
+        "Wasc": "19",
+        "OwaspTopTen2021": "A03"
+      },
+      "Confirmed": true,
+      "Description": "<p>Invicti Enterprise identified a Boolean-Based SQL Injection.</p>",
+      "ExploitationSkills": "",
+      "ExternalReferences": "",
+      "ExtraInformation": [{"Name": "Proof URL", "Value": "https://api.example.test/artist.php?id=-1%20OR%2017-7%3d10"}],
+      "FirstSeenDate": "2026-07-23 05:32 PM",
+      "HttpRequest": {
+        "Content": "GET /artist.php?id=-1%20OR%2017-7%3d10 HTTP/1.1\r\nHost: api.example.test\r\nAuthorization: Basic aW52aWN0aTpzZWNyZXQtcGFzc3dvcmQ=\r\nCookie: ASP.NET_SessionId=invicti-session-cookie-1\r\nUser-Agent: Mozilla/5.0\r\nX-Scanner: Invicti Enterprise\r\n\r\n",
+        "Method": "GET",
+        "Parameters": [
+          {"Name": "id", "Type": "Querystring", "Value": "-1 OR 17-7=10", "Vulnerable": true},
+          {"Name": "session_token", "Type": "Querystring", "Value": "invicti-param-token-xyz", "Vulnerable": false}
+        ]
+      },
+      "HttpResponse": {
+        "Content": "HTTP/1.1 200 OK\r\nSet-Cookie: ASP.NET_SessionId=invicti-session-cookie-2; path=/; HttpOnly\r\nContent-Type: text/html\r\n\r\n<html>artist</html>",
+        "Duration": 141.2,
+        "StatusCode": 200
+      },
+      "LookupId": "c07e9b6d-2b0e-4c1d-9a37-6f8f3e1d2a44",
+      "Impact": "<div>Depending on the backend database, an attacker can read, modify or delete data.</div>",
+      "KnownVulnerabilities": [],
+      "LastSeenDate": "2026-11-12 02:10 PM",
+      "Name": "Boolean Based SQL Injection",
+      "ProofOfConcept": "",
+      "RemedialActions": "",
+      "RemedialProcedure": "<div>Use parameterized queries.</div>",
+      "RemedyReferences": "",
+      "Severity": "Critical",
+      "State": "Present",
+      "Type": "BooleanSqlInjection",
+      "Url": "https://api.example.test/artist.php?id=-1%20OR%2017-7%3d10"
+    },
+    {
+      "Certainty": 95,
+      "Classification": {"Cvss": null, "Cvss31": null, "Cwe": "1104", "Owasp": "A9", "Wasc": ""},
+      "Confirmed": false,
+      "Description": "<p>Invicti Enterprise identified an out-of-date version of Apache HTTP Server.</p>",
+      "ExtraInformation": [{"Name": "Identified Version", "Value": "2.4.49"}],
+      "HttpRequest": {"Content": "GET / HTTP/1.1\r\nHost: api.example.test\r\n\r\n", "Method": "GET", "Parameters": []},
+      "HttpResponse": {"Content": "HTTP/1.1 200 OK\r\nServer: Apache/2.4.49\r\n\r\n", "StatusCode": 200},
+      "LookupId": "4f1d6b0a-8a33-4b1d-8f60-0b6c9d2e7f31",
+      "Impact": "",
+      "KnownVulnerabilities": [
+        {"Title": "Apache HTTP Server Path Traversal (CVE-2021-41773)", "Severity": "Critical"}
+      ],
+      "Name": "Out-of-date Version (Apache)",
+      "RemedialProcedure": "<div>Upgrade Apache HTTP Server.</div>",
+      "Severity": "High",
+      "State": "Revived",
+      "Type": "ApacheOutOfDate",
+      "Url": "https://api.example.test/"
+    }
+  ]
+}

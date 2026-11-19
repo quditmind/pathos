@@ -1,0 +1,62 @@
+{
+  "vulnerabilities": [
+    {
+      "name": "CVE-2020-36518",
+      "type": "CVE",
+      "severity": "high",
+      "score": "7.5",
+      "cvss3_severity": "high",
+      "cvss3_score": "7.5",
+      "scoreMetadataVector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H",
+      "publishDate": "2022-03-11",
+      "url": "https://vuln.whitesourcesoftware.com/vulnerability/CVE-2020-36518",
+      "description": "jackson-databind before 2.13.0 allows a Java StackOverflow exception and denial of service via a large depth of nested objects.",
+      "topFix": {
+        "vulnerability": "CVE-2020-36518",
+        "type": "UPGRADE_VERSION",
+        "origin": "WHITESOURCE_EXPERT",
+        "url": "https://github.com/FasterXML/jackson-databind/issues/2816",
+        "fixResolution": "Upgrade to version 2.12.6.1",
+        "date": "2022-03-11 00:00:00",
+        "message": "Upgrade to version"
+      },
+      "allFixes": [],
+      "library": {
+        "keyUuid": "6c6e7a2c-0000-4000-8000-000000000001",
+        "keyId": 1234567,
+        "filename": "jackson-databind-2.9.6.jar",
+        "name": "jackson-databind",
+        "groupId": "com.fasterxml.jackson.core",
+        "artifactId": "jackson-databind",
+        "version": "2.9.6",
+        "sha1": "cfa4f316351a91bfd95cb0644c6a2c95f52db1fc",
+        "type": "MAVEN_ARTIFACT",
+        "licenses": [{"name": "Apache 2.0", "url": "http://apache.org/licenses/LICENSE-2.0"}]
+      },
+      "project": "shop-backend",
+      "product": "shop"
+    },
+    {
+      "name": "WS-2019-0379",
+      "type": "WS",
+      "severity": "medium",
+      "score": "6.5",
+      "description": "Apache commons-codec before version 1.13 may return an incorrect value when decoding invalid Base64 input.",
+      "topFix": {
+        "type": "CHANGE_FILES",
+        "fixResolution": "Replace or update the following file: Base64.java",
+        "url": "https://github.com/apache/commons-codec/commit/48b6157"
+      },
+      "library": {
+        "filename": "commons-codec-1.10.jar",
+        "name": "commons-codec",
+        "groupId": "commons-codec",
+        "artifactId": "commons-codec",
+        "version": "1.10",
+        "type": "MAVEN_ARTIFACT"
+      },
+      "project": "shop-backend",
+      "product": "shop"
+    }
+  ]
+}

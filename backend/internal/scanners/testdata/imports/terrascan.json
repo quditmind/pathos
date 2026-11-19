@@ -1,0 +1,64 @@
+{
+  "results": {
+    "scan_errors": [
+      {
+        "iac_type": "arm",
+        "directory": "/iac",
+        "errMsg": "ARM files not found in the directory /iac"
+      },
+      {
+        "iac_type": "terraform",
+        "directory": "/iac",
+        "errMsg": "directory '/iac' has no terraform config files"
+      }
+    ],
+    "violations": [
+      {
+        "rule_name": "imageVersionnotusinglatest",
+        "description": "Ensure :latest version is not used for Docker file",
+        "rule_id": "AC_DOCKER_0041",
+        "severity": "MEDIUM",
+        "category": "Infrastructure Security",
+        "resource_name": "Dockerfile",
+        "resource_type": "docker_FROM",
+        "file": "Dockerfile",
+        "line": 1
+      },
+      {
+        "rule_name": "runAsNonRootCheck",
+        "description": "Minimize Admission of Root Containers",
+        "rule_id": "AC_K8S_0087",
+        "severity": "HIGH",
+        "category": "Identity and Access Management",
+        "resource_name": "web",
+        "resource_type": "kubernetes_deployment",
+        "file": "k8s/deployment.yaml",
+        "line": 1
+      },
+      {
+        "rule_name": "port22OpenToInternet",
+        "description": "Security Groups - Unrestricted Specific Ports - (SSH,22)",
+        "rule_id": "AC_AWS_0227",
+        "severity": "HIGH",
+        "category": "Infrastructure Security",
+        "resource_name": "web",
+        "resource_type": "aws_security_group",
+        "module_name": "root",
+        "file": "infra/main.tf",
+        "plan_root": "infra",
+        "line": 6
+      }
+    ],
+    "skipped_violations": null,
+    "scan_summary": {
+      "file/folder": "/iac",
+      "iac_type": "docker,cft,k8s,terraform",
+      "scanned_at": "2026-11-19 06:30:56.63712374 +0000 UTC",
+      "policies_validated": 214,
+      "violated_policies": 23,
+      "low": 3,
+      "medium": 12,
+      "high": 8
+    }
+  }
+}

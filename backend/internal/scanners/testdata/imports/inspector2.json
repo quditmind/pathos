@@ -1,0 +1,191 @@
+[
+  {
+    "awsAccountId": "123456789012",
+    "description": "CVE-2021-3744 - linux.",
+    "findingArn": "arn:aws:inspector2:eu-west-1:123456789012:finding/00031f625ee77ac186869f906eb73366",
+    "firstObservedAt": "2025-11-01T10:00:00.000000+00:00",
+    "fixAvailable": "YES",
+    "inspectorScore": 5.5,
+    "lastObservedAt": "2025-11-19T10:00:00.000000+00:00",
+    "remediation": {
+      "recommendation": {
+        "text": "Update the affected component."
+      }
+    },
+    "resources": [
+      {
+        "details": {},
+        "id": "arn:aws:ecr:eu-west-1:123456789012:repository/shop-web/sha256:c667ad018b538adadb5bd1db75836c8561b23bc7d31d9cd8941fa74f5df93802",
+        "partition": "aws",
+        "region": "eu-west-1",
+        "tags": {},
+        "type": "AWS_ECR_CONTAINER_IMAGE"
+      }
+    ],
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "title": "CVE-2021-3744 - linux",
+    "type": "PACKAGE_VULNERABILITY",
+    "updatedAt": "2025-11-19T10:00:00.000000+00:00",
+    "inspectorScoreDetails": {
+      "adjustedCvss": {
+        "adjustments": [],
+        "cvssSource": "NVD",
+        "score": 5.5,
+        "scoreSource": "NVD",
+        "scoringVector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+        "version": "3.1"
+      }
+    },
+    "packageVulnerabilityDetails": {
+      "cvss": [
+        {
+          "baseScore": 5.5,
+          "scoringVector": "CVSS:3.1/AV:L/AC:L/PR:L/UI:N/S:U/C:N/I:N/A:H",
+          "source": "NVD",
+          "version": "3.1"
+        }
+      ],
+      "referenceUrls": [],
+      "relatedVulnerabilities": [],
+      "source": "DEBIAN_CVE",
+      "sourceUrl": "https://security-tracker.debian.org/tracker/CVE-2021-3744",
+      "vendorSeverity": "unimportant",
+      "vulnerabilityId": "CVE-2021-3744",
+      "vulnerablePackages": [
+        {
+          "arch": "AMD64",
+          "epoch": 0,
+          "fixedInVersion": "0:4.19.232-1",
+          "name": "linux",
+          "packageManager": "OS",
+          "release": "2",
+          "version": "4.19.118"
+        }
+      ]
+    }
+  },
+  {
+    "awsAccountId": "123456789012",
+    "description": "CWE-89 - SQL injection.",
+    "findingArn": "arn:aws:inspector2:eu-west-1:123456789012:finding/1a2b3c4d5e6f708192a3b4c5d6e7f801",
+    "firstObservedAt": "2025-11-01T10:00:00.000000+00:00",
+    "fixAvailable": "YES",
+    "inspectorScore": 0,
+    "lastObservedAt": "2025-11-19T10:00:00.000000+00:00",
+    "remediation": {
+      "recommendation": {
+        "text": "Update the affected component."
+      }
+    },
+    "resources": [
+      {
+        "details": {},
+        "id": "arn:aws:lambda:eu-west-1:123456789012:function:orders-handler:$LATEST",
+        "partition": "aws",
+        "region": "eu-west-1",
+        "tags": {},
+        "type": "AWS_LAMBDA_FUNCTION"
+      }
+    ],
+    "severity": "HIGH",
+    "status": "SUPPRESSED",
+    "title": "CWE-89 - SQL injection",
+    "type": "CODE_VULNERABILITY",
+    "updatedAt": "2025-11-19T10:00:00.000000+00:00",
+    "codeVulnerabilityDetails": {
+      "cwes": [
+        "CWE-89"
+      ],
+      "detectorId": "python/sql-injection@v1.0",
+      "detectorName": "SQL injection",
+      "detectorTags": [
+        "injection"
+      ],
+      "filePath": {
+        "endLine": 44,
+        "fileName": "handler.py",
+        "filePath": "orders/handler.py",
+        "startLine": 42
+      },
+      "ruleId": "python-sql-injection"
+    }
+  },
+  {
+    "awsAccountId": "123456789012",
+    "description": "Port range 22 - 22 open from internet.",
+    "findingArn": "arn:aws:inspector2:eu-west-1:123456789012:finding/9f8e7d6c5b4a39281706f5e4d3c2b1a0",
+    "firstObservedAt": "2025-11-01T10:00:00.000000+00:00",
+    "fixAvailable": "YES",
+    "inspectorScore": 0,
+    "lastObservedAt": "2025-11-19T10:00:00.000000+00:00",
+    "remediation": {
+      "recommendation": {
+        "text": "Update the affected component."
+      }
+    },
+    "resources": [
+      {
+        "details": {},
+        "id": "i-0123456789abcdef0",
+        "partition": "aws",
+        "region": "eu-west-1",
+        "tags": {},
+        "type": "AWS_EC2_INSTANCE"
+      }
+    ],
+    "severity": "MEDIUM",
+    "status": "ACTIVE",
+    "title": "Port range 22 - 22 open from internet",
+    "type": "NETWORK_REACHABILITY",
+    "updatedAt": "2025-11-19T10:00:00.000000+00:00",
+    "networkReachabilityDetails": {
+      "networkPath": {
+        "steps": []
+      },
+      "openPortRange": {
+        "begin": 22,
+        "end": 22
+      },
+      "protocol": "TCP"
+    }
+  },
+  {
+    "awsAccountId": "123456789012",
+    "description": "CVE-2022-0001 - kernel.",
+    "findingArn": "arn:aws:inspector2:eu-west-1:123456789012:finding/aaaabbbbccccddddeeeeffff00001111",
+    "firstObservedAt": "2025-11-01T10:00:00.000000+00:00",
+    "fixAvailable": "YES",
+    "inspectorScore": 0,
+    "lastObservedAt": "2025-11-19T10:00:00.000000+00:00",
+    "remediation": {
+      "recommendation": {
+        "text": "Update the affected component."
+      }
+    },
+    "resources": [
+      {
+        "details": {},
+        "id": "i-0123456789abcdef0",
+        "partition": "aws",
+        "region": "eu-west-1",
+        "tags": {},
+        "type": "AWS_EC2_INSTANCE"
+      }
+    ],
+    "severity": "HIGH",
+    "status": "CLOSED",
+    "title": "CVE-2022-0001 - kernel",
+    "type": "PACKAGE_VULNERABILITY",
+    "updatedAt": "2025-11-19T10:00:00.000000+00:00",
+    "packageVulnerabilityDetails": {
+      "vulnerabilityId": "CVE-2022-0001",
+      "vulnerablePackages": [
+        {
+          "name": "kernel",
+          "version": "5.10.1"
+        }
+      ]
+    }
+  }
+]

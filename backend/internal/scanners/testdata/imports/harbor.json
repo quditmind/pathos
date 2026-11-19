@@ -1,0 +1,39 @@
+{
+  "application/vnd.security.vulnerability.report; version=1.1": {
+    "generated_at": "2026-11-18T09:12:44.512Z",
+    "artifact": {
+      "repository": "library/shop-api",
+      "digest": "sha256:9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b",
+      "tag": "1.4.2",
+      "mime_type": "application/vnd.docker.distribution.manifest.v2+json"
+    },
+    "scanner": {"name": "Trivy", "vendor": "Aqua Security", "version": "v0.58.1"},
+    "severity": "Critical",
+    "vulnerabilities": [
+      {
+        "id": "CVE-2024-45337",
+        "package": "golang.org/x/crypto",
+        "version": "v0.21.0",
+        "fix_version": "0.31.0",
+        "severity": "Critical",
+        "description": "Applications and libraries which misuse the ServerConfig.PublicKeyCallback callback may be susceptible to an authorization bypass.",
+        "links": ["https://avd.aquasec.com/nvd/cve-2024-45337"],
+        "layer": {"digest": "sha256:1111", "diff_id": "sha256:2222"},
+        "preferred_cvss": {"score_v3": 9.1, "score_v2": null, "vector_v3": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N", "vector_v2": ""},
+        "cwe_ids": ["CWE-285"],
+        "vendor_attributes": {"CVSS": {"nvd": {"V3Score": 9.1, "V3Vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:N"}}}
+      },
+      {
+        "id": "CVE-2023-2650",
+        "package": "libssl3",
+        "version": "3.0.8-r0",
+        "fix_version": "3.0.9-r0",
+        "severity": "Medium",
+        "description": "Processing some specially crafted ASN.1 object identifiers or data containing them may be very slow.",
+        "links": ["https://avd.aquasec.com/nvd/cve-2023-2650"],
+        "preferred_cvss": {"score_v3": 6.5, "vector_v3": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"},
+        "cwe_ids": ["CWE-770"]
+      }
+    ]
+  }
+}

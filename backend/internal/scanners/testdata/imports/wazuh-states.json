@@ -1,0 +1,56 @@
+{
+  "took": 4,
+  "timed_out": false,
+  "_shards": {"total": 1, "successful": 1, "skipped": 0, "failed": 0},
+  "hits": {
+    "total": {"value": 2, "relation": "eq"},
+    "max_score": 1.0,
+    "hits": [
+      {
+        "_index": "wazuh-states-vulnerabilities-wazuh-manager",
+        "_id": "001_6f1c2d_CVE-2024-6387",
+        "_score": 1.0,
+        "_source": {
+          "agent": {"id": "001", "name": "bastion", "type": "Wazuh", "version": "v4.9.2"},
+          "host": {"os": {"full": "Ubuntu 22.04.4 LTS (Jammy Jellyfish)", "kernel": "5.15.0-105-generic", "name": "Ubuntu", "platform": "ubuntu", "type": "ubuntu", "version": "22.04.4"}},
+          "package": {"architecture": "amd64", "description": "secure shell (SSH) server", "name": "openssh-server", "size": 1458176, "type": "deb", "version": "1:8.9p1-3ubuntu0.7"},
+          "vulnerability": {
+            "category": "Packages",
+            "classification": "CVSS",
+            "description": "A signal handler race condition was found in sshd (regreSSHion).",
+            "detected_at": "2026-11-17T22:14:03.112Z",
+            "enumeration": "CVE",
+            "id": "CVE-2024-6387",
+            "published_at": "2024-07-01T13:15:01Z",
+            "reference": "https://ubuntu.com/security/CVE-2024-6387",
+            "scanner": {"source": "Canonical Security Tracker", "vendor": "Wazuh"},
+            "score": {"base": 8.1, "version": "3.1"},
+            "severity": "High",
+            "under_evaluation": false
+          },
+          "wazuh": {"cluster": {"name": "wazuh"}, "schema": {"version": "1.0.0"}}
+        }
+      },
+      {
+        "_index": "wazuh-states-vulnerabilities-wazuh-manager",
+        "_id": "001_77ab01_CVE-2025-0001",
+        "_score": 1.0,
+        "_source": {
+          "agent": {"id": "001", "name": "bastion", "type": "Wazuh", "version": "v4.9.2"},
+          "host": {"os": {"name": "Ubuntu", "version": "22.04.4"}},
+          "package": {"architecture": "amd64", "name": "libexpat1", "type": "deb", "version": "2.4.7-1ubuntu0.3"},
+          "vulnerability": {
+            "category": "Packages",
+            "description": "Pending analysis.",
+            "id": "CVE-2025-0001",
+            "reference": "https://ubuntu.com/security/CVE-2025-0001",
+            "score": {"base": 0, "version": ""},
+            "severity": "-",
+            "under_evaluation": true
+          },
+          "wazuh": {"cluster": {"name": "wazuh"}, "schema": {"version": "1.0.0"}}
+        }
+      }
+    ]
+  }
+}

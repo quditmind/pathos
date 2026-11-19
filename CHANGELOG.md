@@ -4,6 +4,21 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Added
+- **128 more result import formats (153 in total, from 145 tools)**, detected from the content or named explicitly:
+  - SAST and code quality: Fortify FVDL/FPR, Veracode detailed XML, Coverity, AppScan Source, Klocwork, Horusec, Bearer, Brakeman, SpotBugs/FindSecBugs, PMD, Cppcheck, Flawfinder, PHPStan, Psalm, njsscan, mobsfscan, Sobelow, ShellCheck, Ruff, Pylint, golangci-lint, Codacy and SonarQube Cloud.
+  - Secrets: detect-secrets, Kingfisher, Nosey Parker, ggshield, Whispers and Talisman. Secret values are removed before the report is stored.
+  - SCA: Mend, Black Duck, JFrog Xray, Nexus IQ, Dependency-Track FPF, Dependabot alerts, Retire.js, yarn and pnpm audit, Composer audit, govulncheck (with call-path reachability), Safety, `dotnet list package --vulnerable`, bundler-audit, cargo-audit and dep-scan.
+  - GitLab security reports (SAST, secret detection, dependency scanning, container scanning, DAST, coverage fuzzing) through one parser.
+  - IaC and CI/CD: KICS, tfsec, Terrascan, KubeLinter, Kubescape, cfn-lint, cfn_nag, Hadolint, TFLint, Conftest, Polaris, kube-bench, poutine, Legitify and OpenSSF Scorecard.
+  - Formats of commercial products, and a few that need an account or a deployed target, are built from the published format and marked as not yet verified against a real export.
+  - DAST, API, infrastructure, TLS, cloud posture, container, mobile, IAST, runtime, AI/LLM, pentest and fuzzing tools: Nikto, Wapiti, Arachni, sqlmap, Dalfox, ffuf, Wfuzz, w3af, Schemathesis, RESTler, Acunetix, Invicti/Netsparker, AppSpider, Qualys WAS, InsightAppSec, HCL AppScan, Burp Suite DAST/Enterprise, StackHawk, 42Crunch, Nmap, Qualys VM, Tenable CSV, Nexpose, testssl.sh, SSLyze, sslscan, Wazuh, Prowler, ScoutSuite, AWS Security Hub (ASFF), Amazon Inspector, Defender for Cloud, Security Command Center, CloudSploit, Dockle, Clair, Harbor, Trivy Kubernetes, Anchore, Prisma Cloud/Twistlock, Sysdig, Docker Scout, MobSF, APKLeaks, NowSecure, Contrast Assess, Falco, Tetragon, Tracee, garak, promptfoo, ModelScan, HackerOne, Bugcrowd, Intigriti, ClusterFuzzLite and libFuzzer/Jazzer. Formats built only from published documentation are marked as not yet verified against a real export.
+- Imported HTTP evidence is redacted: `Authorization`, `Cookie`, `Set-Cookie` and other credential headers, credential-like parameters and tokens are removed from stored reports and findings.
+
+### Changed
+- PATHOS findings JSON is detected only when a document has no fields other than `tool` and `findings`, which its parser already required (reports of Kingfisher, Sobelow, poutine and Dependency-Track also have `findings`). npm audit detection no longer accepts pnpm audit reports.
+- Import detection tries tool-specific formats before the generic CSV format, and `{"findings": [...]}` reports are taken as PATHOS findings JSON only when they have no other fields, so Amazon Inspector and Dalfox reports, which also have a `findings` array, are recognised.
+
 ## [1.1.1] — 2026-11-19
 
 First published 1.1 release; contains everything listed under 1.1.0. The v1.1.0 tag exists but no release was published from it, because its release gate found a new vulnerability.

@@ -1,0 +1,180 @@
+{
+    "report_meta": {
+        "scan_target": "files",
+        "scanned": [
+            "requirements.txt"
+        ],
+        "policy_file": null,
+        "policy_file_source": "local",
+        "api_key": false,
+        "local_database_path": null,
+        "safety_version": "2.3.5",
+        "timestamp": "2026-11-19 06:25:05",
+        "packages_found": 3,
+        "vulnerabilities_found": 19,
+        "vulnerabilities_ignored": 0,
+        "remediations_recommended": 0,
+        "telemetry": {
+            "os_type": "Linux",
+            "os_release": "7.0.0-42-generic",
+            "os_description": "Linux-7.0.0-42-generic-x86_64-with-glibc2.41",
+            "python_version": "3.12.16",
+            "safety_command": "check",
+            "safety_options": {
+                "files": {
+                    "-r": 1
+                },
+                "json": {
+                    "--json": 1
+                }
+            },
+            "safety_version": "2.3.5",
+            "safety_source": "cli"
+        },
+        "git": {
+            "error": "not-git-repo"
+        },
+        "project": null,
+        "json_version": 1
+    },
+    "scanned_packages": {
+        "jinja2": {
+            "name": "jinja2",
+            "version": "3.1.2"
+        },
+        "urllib3": {
+            "name": "urllib3",
+            "version": "1.26.5"
+        },
+        "requests": {
+            "name": "requests",
+            "version": "2.25.0"
+        }
+    },
+    "affected_packages": {
+        "jinja2": {
+            "name": "jinja2",
+            "version": "3.1.2",
+            "found": "requirements.txt",
+            "insecure_versions": [],
+            "secure_versions": [],
+            "latest_version_without_known_vulnerabilities": null,
+            "latest_version": null,
+            "more_info_url": "https://getsafety.com"
+        },
+        "urllib3": {
+            "name": "urllib3",
+            "version": "1.26.5",
+            "found": "requirements.txt",
+            "insecure_versions": [],
+            "secure_versions": [],
+            "latest_version_without_known_vulnerabilities": null,
+            "latest_version": null,
+            "more_info_url": "https://getsafety.com"
+        },
+        "requests": {
+            "name": "requests",
+            "version": "2.25.0",
+            "found": "requirements.txt",
+            "insecure_versions": [],
+            "secure_versions": [],
+            "latest_version_without_known_vulnerabilities": null,
+            "latest_version": null,
+            "more_info_url": "https://getsafety.com"
+        }
+    },
+    "announcements": [],
+    "vulnerabilities": [
+        {
+            "vulnerability_id": "64227",
+            "package_name": "jinja2",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": "<3.1.3",
+            "all_vulnerable_specs": [
+                "<3.1.3"
+            ],
+            "analyzed_version": "3.1.2",
+            "advisory": "Jinja is an extensible templating engine. Special placeholders in the template allow writing code similar to Python syntax. It is possible to inject arbitrary HTML attributes into the rendered HTML template, potentially leading to Cross-Site Scripting (XSS). The Jinja `xmlattr` filter can be abused to inject arbitrary HTML attribute keys and values, bypassing the auto escaping mechanism and potentially leading to XSS. It may also be possible to bypass attribute validation checks if they are blacklist-based.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2024-22195",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://getsafety.com/v/64227/f17"
+        },
+        {
+            "vulnerability_id": "61601",
+            "package_name": "urllib3",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": "<1.26.17",
+            "all_vulnerable_specs": [
+                "<1.26.17",
+                ">=2.0.0a1,<2.0.5"
+            ],
+            "analyzed_version": "1.26.5",
+            "advisory": "Urllib3 1.26.17 and 2.0.5 include a fix for CVE-2023-43804: Urllib3 doesn't treat the 'Cookie' HTTP header special or provide any helpers for managing cookies over HTTP, that is the responsibility of the user. However, it is possible for a user to specify a 'Cookie' header and unknowingly leak information via HTTP redirects to a different origin if that user doesn't disable redirects explicitly.\r\nhttps://github.com/urllib3/urllib3/security/advisories/GHSA-v845-jxx5-vc9f",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2023-43804",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://getsafety.com/v/61601/f17"
+        },
+        {
+            "vulnerability_id": "58755",
+            "package_name": "requests",
+            "ignored": {},
+            "ignored_reason": null,
+            "ignored_expires": null,
+            "vulnerable_spec": ">=2.3.0,<2.31.0",
+            "all_vulnerable_specs": [
+                ">=2.3.0,<2.31.0"
+            ],
+            "analyzed_version": "2.25.0",
+            "advisory": "Affected versions of Requests are vulnerable to proxy credential leakage. When redirected to an HTTPS endpoint, the Proxy-Authorization header is forwarded to the destination server due to the use of rebuild_proxies to reattach the header. This may allow a malicious actor to exfiltrate sensitive information.",
+            "is_transitive": false,
+            "published_date": null,
+            "fixed_versions": [],
+            "closest_versions_without_known_vulnerabilities": [],
+            "resources": [],
+            "CVE": "CVE-2023-32681",
+            "severity": null,
+            "affected_versions": [],
+            "more_info_url": "https://getsafety.com/v/58755/f17"
+        }
+    ],
+    "ignored_vulnerabilities": [],
+    "remediations": {
+        "jinja2": {
+            "current_version": "3.1.2",
+            "vulnerabilities_found": 5,
+            "recommended_version": null,
+            "other_recommended_versions": [],
+            "more_info_url": "https://getsafety.com/?from=3.1.2"
+        },
+        "urllib3": {
+            "current_version": "1.26.5",
+            "vulnerabilities_found": 10,
+            "recommended_version": null,
+            "other_recommended_versions": [],
+            "more_info_url": "https://getsafety.com/?from=1.26.5"
+        },
+        "requests": {
+            "current_version": "2.25.0",
+            "vulnerabilities_found": 4,
+            "recommended_version": null,
+            "other_recommended_versions": [],
+            "more_info_url": "https://getsafety.com/?from=2.25.0"
+        }
+    }
+}

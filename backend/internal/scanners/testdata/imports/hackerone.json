@@ -1,0 +1,206 @@
+{
+  "data": [
+    {
+      "id": "2900001",
+      "type": "report",
+      "attributes": {
+        "title": "IDOR on order details exposes other customers' addresses",
+        "state": "triaged",
+        "created_at": "2025-11-01T10:00:00.000Z",
+        "vulnerability_information": "Request:\n\nGET /api/orders/1002 HTTP/1.1\nHost: shop.example.test\nCookie: session=planted-session-cookie-1\nAuthorization: Bearer planted-bearer-token-abcdef\n\nThe response contains the address of another customer.",
+        "triaged_at": null,
+        "closed_at": null,
+        "disclosed_at": null,
+        "source": null
+      },
+      "relationships": {
+        "reporter": {
+          "data": {
+            "id": "1001",
+            "type": "user",
+            "attributes": {
+              "username": "researcher-example",
+              "name": "Researcher Example"
+            }
+          }
+        },
+        "program": {
+          "data": {
+            "id": "2001",
+            "type": "program",
+            "attributes": {
+              "handle": "example-shop"
+            }
+          }
+        },
+        "severity": {
+          "data": {
+            "id": "57",
+            "type": "severity",
+            "attributes": {
+              "rating": "high",
+              "score": 7.5,
+              "author_type": "User"
+            }
+          }
+        },
+        "weakness": {
+          "data": {
+            "id": "60",
+            "type": "weakness",
+            "attributes": {
+              "name": "Insecure Direct Object Reference (IDOR)",
+              "external_id": "cwe-639"
+            }
+          }
+        },
+        "structured_scope": {
+          "data": {
+            "id": "57",
+            "type": "structured-scope",
+            "attributes": {
+              "asset_identifier": "https://shop.example.test",
+              "asset_type": "URL",
+              "eligible_for_bounty": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "2900002",
+      "type": "report",
+      "attributes": {
+        "title": "Reflected XSS on search",
+        "state": "resolved",
+        "created_at": "2025-11-01T10:00:00.000Z",
+        "vulnerability_information": "Fixed.",
+        "triaged_at": null,
+        "closed_at": null,
+        "disclosed_at": null,
+        "source": null
+      },
+      "relationships": {
+        "reporter": {
+          "data": {
+            "id": "1001",
+            "type": "user",
+            "attributes": {
+              "username": "researcher-example",
+              "name": "Researcher Example"
+            }
+          }
+        },
+        "program": {
+          "data": {
+            "id": "2001",
+            "type": "program",
+            "attributes": {
+              "handle": "example-shop"
+            }
+          }
+        },
+        "severity": {
+          "data": {
+            "id": "57",
+            "type": "severity",
+            "attributes": {
+              "rating": "medium",
+              "score": 6.1,
+              "author_type": "User"
+            }
+          }
+        },
+        "weakness": {
+          "data": {
+            "id": "60",
+            "type": "weakness",
+            "attributes": {
+              "name": "Cross-site Scripting (XSS) - Reflected",
+              "external_id": "cwe-79"
+            }
+          }
+        },
+        "structured_scope": {
+          "data": {
+            "id": "57",
+            "type": "structured-scope",
+            "attributes": {
+              "asset_identifier": "https://shop.example.test",
+              "asset_type": "URL",
+              "eligible_for_bounty": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "2900003",
+      "type": "report",
+      "attributes": {
+        "title": "Missing rate limit on login",
+        "state": "duplicate",
+        "created_at": "2025-11-01T10:00:00.000Z",
+        "vulnerability_information": "No rate limit.",
+        "triaged_at": null,
+        "closed_at": null,
+        "disclosed_at": null,
+        "source": null
+      },
+      "relationships": {
+        "reporter": {
+          "data": {
+            "id": "1001",
+            "type": "user",
+            "attributes": {
+              "username": "researcher-example",
+              "name": "Researcher Example"
+            }
+          }
+        },
+        "program": {
+          "data": {
+            "id": "2001",
+            "type": "program",
+            "attributes": {
+              "handle": "example-shop"
+            }
+          }
+        },
+        "severity": {
+          "data": {
+            "id": "57",
+            "type": "severity",
+            "attributes": {
+              "rating": "low",
+              "score": 3.1,
+              "author_type": "User"
+            }
+          }
+        },
+        "weakness": {
+          "data": {
+            "id": "60",
+            "type": "weakness",
+            "attributes": {
+              "name": "Improper Restriction of Authentication Attempts",
+              "external_id": "cwe-307"
+            }
+          }
+        },
+        "structured_scope": {
+          "data": {
+            "id": "57",
+            "type": "structured-scope",
+            "attributes": {
+              "asset_identifier": "https://shop.example.test/login",
+              "asset_type": "URL",
+              "eligible_for_bounty": true
+            }
+          }
+        }
+      }
+    }
+  ],
+  "links": {}
+}

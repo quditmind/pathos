@@ -1,0 +1,90 @@
+{
+  "value": [
+    {
+      "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Storage/storageAccounts/shopdata/providers/Microsoft.Security/assessments/1c5de8e1-f68d-6a17-e0d2-ec259c42768c",
+      "name": "1c5de8e1-f68d-6a17-e0d2-ec259c42768c",
+      "type": "Microsoft.Security/assessments",
+      "properties": {
+        "resourceDetails": {
+          "source": "Azure",
+          "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Storage/storageAccounts/shopdata"
+        },
+        "displayName": "Storage accounts should restrict network access",
+        "status": {
+          "code": "Unhealthy"
+        },
+        "metadata": {
+          "displayName": "Storage accounts should restrict network access",
+          "assessmentType": "BuiltIn",
+          "description": "Network access to storage accounts should be restricted.",
+          "remediationDescription": "Configure firewall rules on the storage account.",
+          "severity": "High",
+          "categories": [
+            "Data"
+          ],
+          "threats": [
+            "dataExfiltration"
+          ],
+          "userImpact": "Low",
+          "implementationEffort": "Low"
+        },
+        "partnersData": {
+          "partnerName": "Example Partner",
+          "secret": "partner-secret-value-do-not-store"
+        },
+        "links": {
+          "azurePortalUri": "https://portal.azure.com/#blade/Microsoft_Azure_Security/RecommendationsBlade"
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm1/providers/Microsoft.Security/assessments/21300918-b2e3-0346-785f-c77ff57d243b",
+      "name": "21300918-b2e3-0346-785f-c77ff57d243b",
+      "type": "Microsoft.Security/assessments",
+      "properties": {
+        "resourceDetails": {
+          "source": "Azure",
+          "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm1"
+        },
+        "displayName": "Install endpoint protection solution on virtual machines",
+        "status": {
+          "code": "Healthy"
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm2/providers/Microsoft.Security/assessments/4fb67663-9ab9-475d-b026-8c544cced439",
+      "name": "4fb67663-9ab9-475d-b026-8c544cced439",
+      "type": "Microsoft.Security/assessments",
+      "properties": {
+        "resourceDetails": {
+          "source": "Azure",
+          "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm2"
+        },
+        "displayName": "Machines should have vulnerability findings resolved",
+        "status": {
+          "code": "Unhealthy",
+          "cause": "",
+          "description": ""
+        }
+      }
+    },
+    {
+      "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm3/providers/Microsoft.Security/assessments/21300918-b2e3-0346-785f-c77ff57d243b",
+      "name": "21300918-b2e3-0346-785f-c77ff57d243b",
+      "type": "Microsoft.Security/assessments",
+      "properties": {
+        "resourceDetails": {
+          "source": "Azure",
+          "id": "/subscriptions/20ff7fc3-e762-44dd-bd96-b71116dcdc23/resourceGroups/shop/providers/Microsoft.Compute/virtualMachines/vm3"
+        },
+        "displayName": "Install endpoint protection solution on virtual machines",
+        "status": {
+          "code": "NotApplicable",
+          "cause": "OffByPolicy",
+          "description": "The effective policy for the assessment was evaluated to off"
+        }
+      }
+    }
+  ]
+}

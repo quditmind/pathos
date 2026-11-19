@@ -1,0 +1,7 @@
+reference_number,bounty_code,source,username,title,caption,priority,amount,points,paid_at,vrt_lineage,substate,state,duplicate,bug_url,description,http_request,extra_info,submitted_at,validated_at,closed_at,target_name,target_category,remediation_advice,vulnerability_references
+a1b2c3d4e5f60718293a4b5c6d7e8f90,exampleshop,platform,researcher-example,SQL injection in product filter,SQL injection in product filter,1,2500,40,,Server-Side Injection > SQL Injection,unresolved,open,FALSE,https://shop.example.test/products?filter=1,The filter parameter is concatenated into SQL.,"GET /products?filter=1%27 HTTP/1.1
+Host: shop.example.test
+Cookie: PHPSESSID=planted-php-session-42
+X-Api-Key: planted-api-key-77",,2025-11-05 10:58:24 UTC,,,shop.example.test,website,Use parameterised queries.,https://cwe.mitre.org/data/definitions/89.html CWE-89
+b1b2c3d4e5f60718293a4b5c6d7e8f91,exampleshop,,,Clickjacking on the account page,,5,,,,Server Security Misconfiguration > Clickjacking,not_applicable,closed,,https://shop.example.test/account,The page can be framed.,,,,,,shop.example.test,,,
+c1b2c3d4e5f60718293a4b5c6d7e8f92,exampleshop,,,Session not invalidated on logout,,3,,,,Broken Authentication and Session Management,resolved,closed,,https://shop.example.test/logout,,,,,,,shop.example.test,,,

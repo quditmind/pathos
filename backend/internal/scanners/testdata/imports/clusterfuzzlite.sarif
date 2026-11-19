@@ -1,0 +1,50 @@
+{
+  "version": "2.1.0",
+  "$schema": "http://json.schemastore.org/sarif-2.1.0-rtm.4",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "ClusterFuzzLite/CIFuzz",
+          "informationUri": "https://google.github.io/clusterfuzzlite/",
+          "rules": [
+            {
+              "id": "no-crashes",
+              "shortDescription": {"text": "Don't crash"},
+              "helpUri": "https://cwe.mitre.org/data/definitions/416.html",
+              "properties": {"category": "Crashes"}
+            },
+            {
+              "id": "heap-use-after-free",
+              "shortDescription": {"text": "Use of a heap-object after it has been freed."},
+              "helpUri": "https://cwe.mitre.org/data/definitions/416.html",
+              "properties": {"category": "Crashes"}
+            },
+            {
+              "id": "heap-buffer-overflow",
+              "shortDescription": {"text": "A read or write past the end of a heap buffer."},
+              "helpUri": "https://cwe.mitre.org/data/definitions/122.html",
+              "properties": {"category": "Crashes"}
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "level": "error",
+          "message": {"text": "Heap-buffer-overflow\nREAD 1"},
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {"uri": "src/parse_header.c", "index": 0},
+                "region": {"startLine": 11, "startColumn": 1}
+              }
+            }
+          ],
+          "ruleId": "heap-buffer-overflow",
+          "ruleIndex": 2
+        }
+      ]
+    }
+  ]
+}

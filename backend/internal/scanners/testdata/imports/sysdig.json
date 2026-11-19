@@ -1,0 +1,121 @@
+{
+  "info": {
+    "scanTime": "2025-11-19T10:00:00Z",
+    "scanDuration": "15.5s",
+    "resultUrl": "https://eu1.app.sysdig.com/secure/#/vulnerabilities/results/x",
+    "resultId": "x"
+  },
+  "scanner": {
+    "name": "sysdig-cli-scanner",
+    "version": "1.20.0"
+  },
+  "result": {
+    "type": "dockerImage",
+    "metadata": {
+      "pullString": "registry.example.test/shop/worker:3.1",
+      "imageId": "sha256:b670c067178c876d17363baec279d483ae07384351d1a0be7646230442471ac6",
+      "digest": "sha256:bc86",
+      "baseOs": "debian 12.5",
+      "os": "linux",
+      "architecture": "amd64"
+    },
+    "vulnTotalBySeverity": {
+      "critical": 0,
+      "high": 2,
+      "medium": 1,
+      "low": 0,
+      "negligible": 0
+    },
+    "packages": [
+      {
+        "type": "python",
+        "name": "cryptography",
+        "version": "41.0.1",
+        "path": "/usr/lib/python3/dist-packages/cryptography-41.0.1.dist-info/METADATA",
+        "suggestedFix": "42.0.2",
+        "vulns": [
+          {
+            "name": "CVE-2023-50782",
+            "severity": {
+              "value": "High",
+              "sourceName": "nvd"
+            },
+            "cvssScore": {
+              "value": {
+                "version": "3.1",
+                "score": 7.5,
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N"
+              },
+              "sourceName": "nvd"
+            },
+            "disclosureDate": "2024-02-05",
+            "exploitable": false,
+            "fixedInVersion": "42.0.0"
+          },
+          {
+            "name": "CVE-2024-0727",
+            "severity": {
+              "value": "Medium",
+              "sourceName": "nvd"
+            },
+            "cvssScore": {
+              "value": {
+                "version": "3.1",
+                "score": 5.5,
+                "vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:N/I:N/A:H"
+              },
+              "sourceName": "nvd"
+            },
+            "disclosureDate": "2024-01-22",
+            "exploitable": false,
+            "fixedInVersion": "42.0.2",
+            "acceptedRisk": true
+          }
+        ],
+        "layerDigest": "sha256:4b92"
+      },
+      {
+        "type": "os",
+        "name": "libexpat1",
+        "version": "2.5.0-1",
+        "path": "/var/lib/dpkg/status",
+        "vulns": [
+          {
+            "name": "CVE-2024-45491",
+            "severity": {
+              "value": "High",
+              "sourceName": "debian"
+            },
+            "cvssScore": {
+              "value": {
+                "version": "3.1",
+                "score": 9.8,
+                "vector": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H"
+              },
+              "sourceName": "nvd"
+            },
+            "exploitable": true,
+            "fixedInVersion": "2.5.0-1+deb12u1"
+          }
+        ],
+        "layerDigest": "sha256:4e38"
+      },
+      {
+        "type": "os",
+        "name": "bash",
+        "version": "5.2.15-2",
+        "path": "/var/lib/dpkg/status",
+        "layerDigest": "sha256:4e38"
+      }
+    ],
+    "policyEvaluations": [
+      {
+        "name": "Sysdig Best Practices",
+        "identifier": "sysdig_best_practices",
+        "evaluationResult": "failed",
+        "bundles": []
+      }
+    ],
+    "policyEvaluationsResult": "failed"
+  }
+}

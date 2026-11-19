@@ -1,0 +1,50 @@
+{
+  "service": "StackHawk",
+  "scanCompleted": {
+    "scan": {
+      "id": "e2ff5651-7eef-47e9-b743-0c2f7d861e27",
+      "hawkscanVersion": "4.2.0",
+      "env": "Development",
+      "status": "COMPLETED",
+      "application": "Orders API",
+      "startedTimestamp": "2026-11-12T23:07:19.575Z",
+      "scanURL": "https://app.stackhawk.example.test/scans/e2ff5651-7eef-47e9-b743-0c2f7d861e27"
+    },
+    "scanDuration": "21",
+    "spiderDuration": "45",
+    "completedScanStats": {
+      "urlsCount": "31",
+      "duration": "66",
+      "scanResultsStats": {"totalCount": "3", "lowCount": "1", "mediumCount": "0", "highCount": "2", "lowTriagedCount": "1", "mediumTriagedCount": "0", "highTriagedCount": "0"}
+    },
+    "findings": [
+      {
+        "pluginId": "40018",
+        "pluginName": "SQL Injection",
+        "severity": "High",
+        "host": "https://orders.example.test",
+        "paths": [
+          {"path": "/api/orders?token=stackhawk-query-token", "method": "GET", "status": "NEW", "pathURL": "https://app.stackhawk.example.test/scans/e2ff5651/finding/40018/path/1/message/11"},
+          {"path": "/api/orders", "method": "POST", "status": "NEW", "pathURL": "https://app.stackhawk.example.test/scans/e2ff5651/finding/40018/path/2/message/12"}
+        ],
+        "pathStats": [{"status": "NEW", "count": 2}],
+        "totalCount": "2",
+        "category": "Injection",
+        "findingURL": "https://app.stackhawk.example.test/scans/e2ff5651/finding/40018"
+      },
+      {
+        "pluginId": "90027",
+        "pluginName": "Cookie Slack Detector",
+        "severity": "Low",
+        "host": "https://orders.example.test",
+        "paths": [
+          {"path": "/jwt-auth", "method": "GET", "status": "FALSE_POSITIVE", "pathURL": "https://app.stackhawk.example.test/scans/e2ff5651/finding/90027/path/3/message/20"}
+        ],
+        "pathStats": [{"status": "FALSE_POSITIVE", "count": 1}],
+        "totalCount": "1",
+        "category": "Information Leakage",
+        "findingURL": "https://app.stackhawk.example.test/scans/e2ff5651/finding/90027"
+      }
+    ]
+  }
+}

@@ -1,0 +1,518 @@
+{
+ "invalid_server_strings": [],
+ "server_scan_results": [
+  {
+   "uuid": "6f092f48-8017-4b76-abe0-382b723f0130",
+   "server_location": {
+    "hostname": "a3-g2-target",
+    "port": 443,
+    "connection_type": "DIRECT",
+    "ip_address": "172.24.0.2",
+    "http_proxy_settings": null
+   },
+   "network_configuration": {
+    "tls_server_name_indication": "a3-g2-target",
+    "tls_opportunistic_encryption": null,
+    "tls_client_auth_credentials": null,
+    "xmpp_to_hostname": null,
+    "network_timeout": 5,
+    "network_max_retries": 3
+   },
+   "connectivity_status": "COMPLETED",
+   "connectivity_error_trace": null,
+   "connectivity_result": {
+    "highest_tls_version_supported": "TLS_1_3",
+    "cipher_suite_supported": "TLS_AES_256_GCM_SHA384",
+    "client_auth_requirement": "DISABLED",
+    "supports_ecdh_key_exchange": true
+   },
+   "scan_status": "COMPLETED",
+   "scan_result": {
+    "certificate_info": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "hostname_used_for_server_name_indication": "a3-g2-target",
+      "certificate_deployments": [
+       {
+        "received_certificate_chain": [
+         {
+          "as_pem": "-----BEGIN CERTIFICATE-----\nMIIDDzCCAfegAwIBAgIUHwNSUV8ozdbyhlcSSguFLQ6Z9IwwDQYJKoZIhvcNAQEL\nBQAwFzEVMBMGA1UEAwwMYTMtZzItdGFyZ2V0MB4XDTI2MTExOTA2MjkwMVoXDTI2\nMTIxOTA2MjkwMVowFzEVMBMGA1UEAwwMYTMtZzItdGFyZ2V0MIIBIjANBgkqhkiG\n9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0QpBK5OjTrKVuK8u+kZDpyzZnDlySsn4TYz7\n7m2WgcCgFXphn/jTysvfDKJNlSDru9q9VHbNf8PsuiS5LnHvV9/IAR4OmhBXpDsJ\n5TuVIl0Sk64vLwFHypkwC74/RWsJ97ZFGvraRa7fH9ak8IGZTRFbWZueNuK3irKS\nXxDCVllvNN0kZ3RSkE789aoJvYQ0ieIh8IiXTjMijyeP/G029oG2x+GMyhbYmAbN\nuQSHLKVoiA/glkgQeaw2wDGKbML61BMVh0602TltJPBIX3cVaja7GhehB5G2tdQL\nvY+avHi3NKPeB2Jv9bFTIRoQEGEkfXTzBGF96SYIuqbNjrwS5wIDAQABo1MwUTAd\nBgNVHQ4EFgQUjmbSMcqgiEeRBIzBAM+puVEBnpwwHwYDVR0jBBgwFoAUjmbSMcqg\niEeRBIzBAM+puVEBnpwwDwYDVR0TAQH/BAUwAwEB/zANBgkqhkiG9w0BAQsFAAOC\nAQEAXI3fzaJrBgBMNl1F5OSQv6pJitSy6xq/gi79uBD0B0OTISRgn19C9urdLqHu\n67M5MbmGiAwwwfYvIh2VgX5s/nLHyLOdzahUwuMi+Y2jfH6DxYbGv5sUppWhnAh9\nae3vcQE+69aS7AkDwylcdlVY3WUqPiGumwCKO9atChKGfS1XEThv/VAsZTNJHZUq\nDq6hYlbpDuAO/PEud1Fq4kUxrO4q7zuYJQ9mu3uJmk1REsXcAXpriSHT2q3NjFrI\nc9BhPtyqz+8e7X4tF/QPz9snUz3g6F4gUgpXSREILbSl/n0coT7OU+4+TBkmm7fn\n3G0DGF7xNZuCjupY9Z9Qzr4XOQ==\n-----END CERTIFICATE-----\n",
+          "hpkp_pin": "zQ0tvKV7OGKf7vCpXD3ZjzbT4Wy0ZR/SK+guDx/IV9I=",
+          "fingerprint_sha1": "TH6f+f0DHO8NYe6m2I86QM05N5A=",
+          "fingerprint_sha256": "P1TjlVLA4hp0g/R0De5rs5HnaH/ikUWH5LgbYEgmZCA=",
+          "serial_number": 177052787027941268454654338355520570971047720076,
+          "not_valid_before": "2026-11-19T06:29:01Z",
+          "not_valid_after": "2026-12-19T06:29:01Z",
+          "subject_alternative_name": {
+           "dns_names": [],
+           "ip_addresses": []
+          },
+          "signature_hash_algorithm": {
+           "name": "sha256",
+           "digest_size": 32
+          },
+          "signature_algorithm_oid": {
+           "name": "sha256WithRSAEncryption",
+           "dotted_string": "1.2.840.113549.1.1.11"
+          },
+          "subject": {
+           "rfc4514_string": "CN=a3-g2-target",
+           "attributes": [
+            {
+             "oid": {
+              "name": "commonName",
+              "dotted_string": "2.5.4.3"
+             },
+             "value": "a3-g2-target",
+             "rfc4514_string": "CN=a3-g2-target"
+            }
+           ]
+          },
+          "issuer": {
+           "rfc4514_string": "CN=a3-g2-target",
+           "attributes": [
+            {
+             "oid": {
+              "name": "commonName",
+              "dotted_string": "2.5.4.3"
+             },
+             "value": "a3-g2-target",
+             "rfc4514_string": "CN=a3-g2-target"
+            }
+           ]
+          },
+          "public_key": {
+           "algorithm": "RSAPublicKey",
+           "key_size": 2048,
+           "rsa_e": 65537,
+           "rsa_n": 26388862455420485433672370341857250011010082934913782759407747928356345082963945601939568169531982351626361290050879332108766784907831890544594247116326124841458858331813385498138205726024637172446135836919703428711188948089946225289652464801876860421462711816546860441860422258407588349803542032722340051949749869936361207475677450035323403962747394838918606608738696014462226216332331225780768139727099969787853778669428383848671903794313398742048423091429631919784744067597909327751709005962883079064573024370802962790797121476942111701214162802941610499637640140436775089224545536469961573563150510572197417587431,
+           "ec_curve_name": null,
+           "ec_x": null,
+           "ec_y": null
+          }
+         }
+        ],
+        "leaf_certificate_has_must_staple_extension": false,
+        "leaf_certificate_is_ev": false,
+        "leaf_certificate_signed_certificate_timestamps_count": 0,
+        "received_chain_contains_anchor_certificate": null,
+        "received_chain_has_valid_order": true,
+        "path_validation_results": [
+         {
+          "trust_store": {
+           "path": "/opt/venv/lib/python3.12/site-packages/sslyze/plugins/certificate_info/trust_stores/pem_files/google_aosp.pem",
+           "name": "Android",
+           "version": "16.0.0_r4",
+           "ev_oids": null
+          },
+          "verified_certificate_chain": null,
+          "validation_error": "validation failed: missing required extension: leaf server certificate has no subjectAltName (encountered processing <Certificate(subject=<Name(CN=a3-g2-target)>, ...)>)",
+          "was_validation_successful": false
+         },
+         {
+          "trust_store": {
+           "path": "/opt/venv/lib/python3.12/site-packages/sslyze/plugins/certificate_info/trust_stores/pem_files/apple.pem",
+           "name": "Apple",
+           "version": "iOS 26, iPadOS 26, macOS 26, tvOS 26, visionOS 26 and watchOS 26",
+           "ev_oids": null
+          },
+          "verified_certificate_chain": null,
+          "validation_error": "validation failed: missing required extension: leaf server certificate has no subjectAltName (encountered processing <Certificate(subject=<Name(CN=a3-g2-target)>, ...)>)",
+          "was_validation_successful": false
+         }
+        ],
+        "verified_chain_has_sha1_signature": null,
+        "verified_chain_has_legacy_symantec_anchor": null,
+        "ocsp_response": null,
+        "ocsp_response_is_trusted": null,
+        "verified_certificate_chain": null
+       }
+      ],
+      "certificate_deployment_with_sni_disabled": null
+     }
+    },
+    "ssl_2_0_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "SSL_2_0",
+      "is_tls_version_supported": false,
+      "accepted_cipher_suites": [],
+      "rejected_cipher_suites": []
+     }
+    },
+    "ssl_3_0_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "SSL_3_0",
+      "is_tls_version_supported": false,
+      "accepted_cipher_suites": [],
+      "rejected_cipher_suites": []
+     }
+    },
+    "tls_1_0_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "TLS_1_0",
+      "is_tls_version_supported": true,
+      "accepted_cipher_suites": [
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "CAMELLIA256-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 128,
+         "openssl_name": "CAMELLIA128-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_AES_256_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "AES256-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_ECDH_anon_WITH_AES_256_CBC_SHA",
+         "is_anonymous": true,
+         "key_size": 256,
+         "openssl_name": "AECDH-AES256-SHA"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 256,
+         "public_bytes": "BDdZt/d++Og1IQZVof9TC96F4hJA0LNDmj1NQGSqBiGrffrlb8iuLOJtyQKyXw8Q91QoUfDABEjh+l0CFROpajM=",
+         "curve_name": "secp256r1",
+         "x": "N1m393746DUhBlWh/1ML3oXiEkDQs0OaPU1AZKoGIas=",
+         "y": "ffrlb8iuLOJtyQKyXw8Q91QoUfDABEjh+l0CFROpajM=",
+         "prime": null,
+         "generator": null
+        }
+       }
+      ],
+      "rejected_cipher_suites": []
+     }
+    },
+    "tls_1_1_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "TLS_1_1",
+      "is_tls_version_supported": true,
+      "accepted_cipher_suites": [
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "CAMELLIA256-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 128,
+         "openssl_name": "CAMELLIA128-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_AES_256_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "AES256-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_ECDH_anon_WITH_AES_256_CBC_SHA",
+         "is_anonymous": true,
+         "key_size": 256,
+         "openssl_name": "AECDH-AES256-SHA"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 256,
+         "public_bytes": "BOPiPCF8ljch3mgWRWTfb3Zgq/M5maY5dqaju4PzKW45V2JhEuVZFWxjEAZsiSJ6YCuDb7btRVSXu2XJHutlspQ=",
+         "curve_name": "secp256r1",
+         "x": "4+I8IXyWNyHeaBZFZN9vdmCr8zmZpjl2pqO7g/Mpbjk=",
+         "y": "V2JhEuVZFWxjEAZsiSJ6YCuDb7btRVSXu2XJHutlspQ=",
+         "prime": null,
+         "generator": null
+        }
+       }
+      ],
+      "rejected_cipher_suites": []
+     }
+    },
+    "tls_1_2_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "TLS_1_2",
+      "is_tls_version_supported": true,
+      "accepted_cipher_suites": [
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "CAMELLIA256-SHA256"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_256_CBC_SHA",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "CAMELLIA256-SHA"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256",
+         "is_anonymous": false,
+         "key_size": 128,
+         "openssl_name": "CAMELLIA128-SHA256"
+        },
+        "ephemeral_key": null
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_ECDH_anon_WITH_AES_256_CBC_SHA",
+         "is_anonymous": true,
+         "key_size": 256,
+         "openssl_name": "AECDH-AES256-SHA"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 256,
+         "public_bytes": "BM2vMzvcbvZiEZWBuP2pH832OxLhd/EwCx6M0GTCaIWgJwvQ42a2h2UxNs/XSwBQYOEUWUOuq5C0zdZ06kygVRQ=",
+         "curve_name": "secp256r1",
+         "x": "za8zO9xu9mIRlYG4/akfzfY7EuF38TALHozQZMJohaA=",
+         "y": "JwvQ42a2h2UxNs/XSwBQYOEUWUOuq5C0zdZ06kygVRQ=",
+         "prime": null,
+         "generator": null
+        }
+       }
+      ],
+      "rejected_cipher_suites": []
+     }
+    },
+    "tls_1_3_cipher_suites": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "tls_version_used": "TLS_1_3",
+      "is_tls_version_supported": true,
+      "accepted_cipher_suites": [
+       {
+        "cipher_suite": {
+         "name": "TLS_CHACHA20_POLY1305_SHA256",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "TLS_CHACHA20_POLY1305_SHA256"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 253,
+         "public_bytes": "94bCmBI5HRm1mvSWLOl4BqEOw7UFAIPUPwy+esx4tnU=",
+         "curve_name": "X25519",
+         "x": null,
+         "y": null,
+         "prime": null,
+         "generator": null
+        }
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_AES_256_GCM_SHA384",
+         "is_anonymous": false,
+         "key_size": 256,
+         "openssl_name": "TLS_AES_256_GCM_SHA384"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 253,
+         "public_bytes": "fChAdbuf+uv//2wyL2DaGxoJzKIkxZOdidLWrDnT800=",
+         "curve_name": "X25519",
+         "x": null,
+         "y": null,
+         "prime": null,
+         "generator": null
+        }
+       },
+       {
+        "cipher_suite": {
+         "name": "TLS_AES_128_GCM_SHA256",
+         "is_anonymous": false,
+         "key_size": 128,
+         "openssl_name": "TLS_AES_128_GCM_SHA256"
+        },
+        "ephemeral_key": {
+         "type_name": "ECDH",
+         "size": 253,
+         "public_bytes": "ZzgL19cF1JCx6b5bDZdK4dt6GVJJCfHa4TlPAN9IZ34=",
+         "curve_name": "X25519",
+         "x": null,
+         "y": null,
+         "prime": null,
+         "generator": null
+        }
+       }
+      ],
+      "rejected_cipher_suites": []
+     }
+    },
+    "tls_compression": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "supports_compression": false
+     }
+    },
+    "tls_1_3_early_data": {
+     "status": "NOT_SCHEDULED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": null
+    },
+    "openssl_ccs_injection": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "is_vulnerable_to_ccs_injection": false
+     }
+    },
+    "tls_fallback_scsv": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "supports_fallback_scsv": true
+     }
+    },
+    "heartbleed": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "is_vulnerable_to_heartbleed": false
+     }
+    },
+    "robot": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "robot_result": "NOT_VULNERABLE_NO_ORACLE"
+     }
+    },
+    "session_renegotiation": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "supports_secure_renegotiation": true,
+      "is_vulnerable_to_client_renegotiation_dos": false,
+      "client_renegotiations_success_count": 0
+     }
+    },
+    "session_resumption": {
+     "status": "NOT_SCHEDULED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": null
+    },
+    "elliptic_curves": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "supports_ecdh_key_exchange": true,
+      "supported_curves": [
+       {
+        "name": "X25519",
+        "openssl_nid": 1034
+       },
+       {
+        "name": "X448",
+        "openssl_nid": 1035
+       },
+       {
+        "name": "secp256r1",
+        "openssl_nid": 415
+       },
+       {
+        "name": "secp384r1",
+        "openssl_nid": 715
+       },
+       {
+        "name": "secp521r1",
+        "openssl_nid": 716
+       }
+      ],
+      "rejected_curves": [
+       {
+        "name": "brainpoolP256r1",
+        "openssl_nid": 927
+       },
+       {
+        "name": "brainpoolP384r1",
+        "openssl_nid": 931
+       }
+      ]
+     }
+    },
+    "http_headers": {
+     "status": "NOT_SCHEDULED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": null
+    },
+    "tls_extended_master_secret": {
+     "status": "COMPLETED",
+     "error_reason": null,
+     "error_trace": null,
+     "result": {
+      "supports_ems_extension": true
+     }
+    }
+   }
+  }
+ ],
+ "date_scans_started": "2026-11-19T06:32:39.762756Z",
+ "date_scans_completed": "2026-11-19T06:32:40.411612Z",
+ "sslyze_version": "6.3.1",
+ "sslyze_url": "https://github.com/nabla-c0d3/sslyze"
+}

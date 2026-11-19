@@ -1,0 +1,78 @@
+{
+  "Generated": "12/11/2026 10:15 AM",
+  "Target": {
+    "Duration": "00:12:41.3968969",
+    "Initiated": "12/11/2026 10:02 AM",
+    "ScanId": "6d3f0e2a9b1c4f5e8a7d6c5b4a392817",
+    "Url": "https://shop.example.test/"
+  },
+  "Vulnerabilities": [
+    {
+      "Certainty": 100,
+      "Classification": {
+        "Iso27001": "A.14.2.5",
+        "Capec": "107",
+        "Cvss": {
+          "BaseScore": {"Severity": 2, "Type": "Base", "Value": "5.7"},
+          "TemporalScore": {"Severity": 2, "Type": "Temporal", "Value": "5.5"},
+          "Vector": "CVSS:3.0/AV:N/AC:L/PR:L/UI:R/S:U/C:H/I:N/A:N/E:H/RL:O/RC:C"
+        },
+        "Cvss31": null,
+        "Cwe": "1004",
+        "Owasp": "A5",
+        "Pci32": "",
+        "Wasc": "15"
+      },
+      "Confirmed": true,
+      "Description": "<p>Acunetix360 identified a cookie not marked as HTTPOnly.</p>",
+      "ExploitationSkills": "",
+      "ExternalReferences": "",
+      "ExtraInformation": [
+        {"Name": "Identified Cookie(s)", "Value": "PHPSESSID"},
+        {"Name": "Cookie Source", "Value": "HTTP Header"}
+      ],
+      "FirstSeenDate": "01/11/2026 12:30 PM",
+      "HttpRequest": {
+        "Content": "GET /auth/login.php HTTP/1.1\r\nHost: shop.example.test\r\nCookie: PHPSESSID=a360-request-cookie-secret\r\nUser-Agent: Mozilla/5.0\r\nX-Scanner: Acunetix360\r\n\r\n",
+        "Method": "GET",
+        "Parameters": []
+      },
+      "HttpResponse": {
+        "Content": "HTTP/1.1 200 OK\r\nSet-Cookie: PHPSESSID=a360-response-cookie-secret; path=/\r\nServer: Apache/2.4.62\r\nContent-Length: 3061\r\n\r\n<html></html>",
+        "Duration": 41.4849,
+        "StatusCode": 200
+      },
+      "LookupId": "735f4503-e9eb-4b4c-4306-ad49020a4c4b",
+      "Impact": "<div>During a cross-site scripting attack, an attacker might easily access cookies and hijack the victim's session.</div>",
+      "KnownVulnerabilities": [],
+      "LastSeenDate": "12/11/2026 10:10 AM",
+      "Name": "Cookie Not Marked as HttpOnly",
+      "ProofOfConcept": "",
+      "RemedialActions": "",
+      "RemedialProcedure": "<div>Mark the cookie as HTTPOnly.</div>",
+      "RemedyReferences": "",
+      "Severity": "Medium",
+      "State": "Present",
+      "Type": "CookieNotMarkedAsHttpOnly",
+      "Url": "https://shop.example.test/auth/login.php"
+    },
+    {
+      "Certainty": 90,
+      "Classification": {"Capec": "", "Cvss": null, "Cvss31": null, "Cwe": "205", "Owasp": "A5", "Wasc": "13"},
+      "Confirmed": false,
+      "Description": "<p>Acunetix 360 identified a version disclosure (PHP) in the HTTP response.</p>",
+      "ExtraInformation": [{"Name": "Extracted Version", "Value": "8.1.2"}],
+      "HttpRequest": {"Content": "GET / HTTP/1.1\r\nHost: shop.example.test\r\n\r\n", "Method": "GET", "Parameters": []},
+      "HttpResponse": {"Content": "HTTP/1.1 200 OK\r\nX-Powered-By: PHP/8.1.2\r\n\r\n", "StatusCode": 200},
+      "LookupId": "11f4e9b2-0c2d-4b8e-9a4f-2d7d6c1e5b10",
+      "Impact": "",
+      "KnownVulnerabilities": [],
+      "Name": "Version Disclosure (PHP)",
+      "RemedialProcedure": "<div>Configure the web server to not disclose version information.</div>",
+      "Severity": "BestPractice",
+      "State": "Present, FalsePositive",
+      "Type": "PhpVersionDisclosure",
+      "Url": "https://shop.example.test/"
+    }
+  ]
+}

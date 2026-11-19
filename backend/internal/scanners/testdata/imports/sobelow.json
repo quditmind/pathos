@@ -1,0 +1,47 @@
+{
+  "findings": {
+    "high_confidence": [
+      {
+        "line": 5,
+        "type": "Traversal.SendFile: Directory Traversal in `send_file`",
+        "file": "lib/demo_web/controllers/page_controller.ex",
+        "variable": "file"
+      },
+      {
+        "line": 10,
+        "type": "XSS.HTML: XSS in `html`",
+        "file": "lib/demo_web/controllers/page_controller.ex",
+        "variable": "conn.params"
+      },
+      {
+        "line": 14,
+        "type": "Misc.BinToTerm: Unsafe `binary_to_term`",
+        "file": "lib/demo_web/controllers/page_controller.ex",
+        "variable": "data"
+      },
+      {
+        "line": 4,
+        "type": "Config.CSRF: Missing CSRF Protections",
+        "file": "lib/demo_web/router.ex",
+        "pipeline": "browser"
+      },
+      {
+        "line": 4,
+        "type": "Config.Headers: Missing Secure Browser Headers",
+        "file": "lib/demo_web/router.ex",
+        "pipeline": "browser"
+      }
+    ],
+    "low_confidence": [],
+    "medium_confidence": [
+      {
+        "line": 9,
+        "type": "CI.OS: Command Injection in `:os.cmd`",
+        "file": "lib/demo_web/controllers/page_controller.ex",
+        "variable": "Elixir.String"
+      }
+    ]
+  },
+  "sobelow_version": "0.19.0",
+  "total_findings": 6
+}

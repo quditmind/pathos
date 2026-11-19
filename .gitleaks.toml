@@ -13,4 +13,5 @@ paths = [
   '''^backend/test/integration/schedule_notify_test\.go$''',
   '''^backend/internal/platform/logging/logging_test\.go$''',
   '''^backend/test/integration/(analyst|tickets)_test\.go$''',
+  '''^backend/internal/scanners/import_[gr][1-5]_test\.go$''',
 ]

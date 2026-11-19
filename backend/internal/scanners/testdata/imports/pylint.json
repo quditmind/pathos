@@ -1,0 +1,54 @@
+[
+  {
+    "type": "convention",
+    "module": "app",
+    "obj": "",
+    "line": 1,
+    "column": 0,
+    "endLine": null,
+    "endColumn": null,
+    "path": "app.py",
+    "symbol": "missing-module-docstring",
+    "message": "Missing module docstring",
+    "message-id": "C0114"
+  },
+  {
+    "type": "convention",
+    "module": "app",
+    "obj": "run",
+    "line": 7,
+    "column": 0,
+    "endLine": 7,
+    "endColumn": 7,
+    "path": "app.py",
+    "symbol": "missing-function-docstring",
+    "message": "Missing function or method docstring",
+    "message-id": "C0116"
+  },
+  {
+    "type": "warning",
+    "module": "app",
+    "obj": "run",
+    "line": 13,
+    "column": 11,
+    "endLine": 13,
+    "endColumn": 20,
+    "path": "app.py",
+    "symbol": "eval-used",
+    "message": "Use of eval",
+    "message-id": "W0123"
+  },
+  {
+    "type": "warning",
+    "module": "app",
+    "obj": "run",
+    "line": 9,
+    "column": 4,
+    "endLine": 9,
+    "endColumn": 8,
+    "path": "app.py",
+    "symbol": "unused-variable",
+    "message": "Unused variable 'data'",
+    "message-id": "W0612"
+  }
+]

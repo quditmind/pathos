@@ -1,0 +1,85 @@
+{
+  "version": "0.9.3",
+  "created_at": "2026-11-19 06:32:06 +0000",
+  "results": [
+    {
+      "type": "unpatched_gem",
+      "gem": {
+        "name": "nokogiri",
+        "version": "1.13.3"
+      },
+      "advisory": {
+        "path": "ruby-advisory-db/gems/nokogiri/CVE-2018-25032.yml",
+        "id": "CVE-2018-25032",
+        "url": "https://github.com/sparklemotion/nokogiri/security/advisories/GHSA-v6gp-9mmm-c6p5",
+        "title": "Out-of-bounds Write in zlib affects Nokogiri",
+        "date": "2022-04-11",
+        "description": "## Summary\n\nNokogiri v1.13.4 updates the vendored zlib from 1.2.11\nto 1.2.12, which addresses [CVE-2018-25032](https://nvd.nist.gov/vuln/detail/CVE-2018-25032).\nThat CVE is scored as CVSS 7.4 \"High\" on the NVD record as of 2022-04-05.\n\nPlease note that this advisory only applies to the CRuby implementation of\nNokogiri `< 1.13.4`, and only if the packaged version of `zlib` is being used.\nPlease see [this document](https://nokogiri.org/LICENSE-DEPENDENCIES.html#default-platform-release-ruby)\nfor a complete description of which platform gems vendor `zlib`. If you've\noverridden defaults at installation time to use system libraries instead of\npackaged libraries, you should instead pay attention to your distro's `zlib`\nrelease announcements.\n\n## Mitigation\n\nUpgrade to Nokogiri `>= v1.13.4`.\n\n## Impact\n\n### [CVE-2018-25032](https://nvd.nist.gov/vuln/detail/CVE-2018-25032) in zlib\n\n- **Severity**: High\n- **Type**: [CWE-787](https://cwe.mitre.org/data/definitions/787.html)\n  Out of bounds write\n- **Description**: zlib before 1.2.12 allows memory corruption when\n  deflating (i.e., when compressing) if the input has many distant matches.\n",
+        "cvss_v2": null,
+        "cvss_v3": 7.5,
+        "cve": "2018-25032",
+        "osvdb": null,
+        "ghsa": "v6gp-9mmm-c6p5",
+        "unaffected_versions": [],
+        "patched_versions": [
+          ">= 1.13.4"
+        ],
+        "criticality": "high"
+      }
+    },
+    {
+      "type": "unpatched_gem",
+      "gem": {
+        "name": "nokogiri",
+        "version": "1.13.3"
+      },
+      "advisory": {
+        "path": "ruby-advisory-db/gems/nokogiri/CVE-2022-23437.yml",
+        "id": "CVE-2022-23437",
+        "url": "https://github.com/sparklemotion/nokogiri/security/advisories/GHSA-xxx9-3xcr-gjj3",
+        "title": "XML Injection in Xerces Java affects Nokogiri",
+        "date": "2022-04-11",
+        "description": "## Summary\n\nNokogiri v1.13.4 updates the vendored `xerces:xercesImpl` from 2.12.0 to\n2.12.2, which addresses [CVE-2022-23437](https://nvd.nist.gov/vuln/detail/CVE-2022-23437).\nThat CVE is scored as CVSS 6.5 \"Medium\" on the NVD record.\n\nPlease note that this advisory only applies to the **JRuby** implementation\nof Nokogiri `< 1.13.4`.\n\n## Mitigation\n\nUpgrade to Nokogiri `>= v1.13.4`.\n\n## Impact\n\n### [CVE-2022-23437](https://nvd.nist.gov/vuln/detail/CVE-2022-23437) in xerces-J\n\n- **Severity**: Medium\n- **Type**: [CWE-91](https://cwe.mitre.org/data/definitions/91.html) XML Injection (aka Blind XPath Injection)\n- **Description**: There's a vulnerability within the Apache Xerces Java\n  (XercesJ) XML parser when handling specially crafted XML document payloads.\n  This causes, the XercesJ XML parser to wait in an infinite loop, which may\n  sometimes consume system resources for prolonged duration. This vulnerability\n  is present within XercesJ version 2.12.1 and the previous versions.\n- **See also**: https://github.com/advisories/GHSA-h65f-jvqw-m9fj\n",
+        "cvss_v2": null,
+        "cvss_v3": 6.5,
+        "cve": "2022-23437",
+        "osvdb": null,
+        "ghsa": "xxx9-3xcr-gjj3",
+        "unaffected_versions": [],
+        "patched_versions": [
+          ">= 1.13.4"
+        ],
+        "criticality": "medium"
+      }
+    },
+    {
+      "type": "unpatched_gem",
+      "gem": {
+        "name": "rack",
+        "version": "2.2.3"
+      },
+      "advisory": {
+        "path": "ruby-advisory-db/gems/rack/CVE-2022-30122.yml",
+        "id": "CVE-2022-30122",
+        "url": "https://groups.google.com/g/ruby-security-ann/c/L2Axto442qk",
+        "title": "Denial of Service Vulnerability in Rack Multipart Parsing",
+        "date": "2022-06-27",
+        "description": "There is a possible denial of service vulnerability in the multipart parsing\ncomponent of Rack.  This vulnerability has been assigned the CVE identifier\nCVE-2022-30122.\n\nVersions Affected:  >= 1.2\nNot affected:       < 1.2\nFixed Versions:     2.0.9.1, 2.1.4.1, 2.2.3.1\n\n## Impact\nCarefully crafted multipart POST requests can cause Rack's multipart parser to\ntake much longer than expected, leading to a possible denial of service\nvulnerability.\n\nImpacted code will use Rack's multipart parser to parse multipart posts.  This\nincludes directly using the multipart parser like this:\n\n```\nparams = Rack::Multipart.parse_multipart(env)\n```\n\nBut it also includes reading POST data from a Rack request object like this:\n\n```\np request.POST # read POST data\np request.params # reads both query params and POST data\n```\n\nAll users running an affected release should either upgrade or use one of the\nworkarounds immediately.\n\n## Workarounds\nThere are no feasible workarounds for this issue.\n",
+        "cvss_v2": null,
+        "cvss_v3": 7.5,
+        "cve": "2022-30122",
+        "osvdb": null,
+        "ghsa": "hxqx-xwvh-44m2",
+        "unaffected_versions": [
+          "< 1.2"
+        ],
+        "patched_versions": [
+          "~> 2.0.9, >= 2.0.9.1",
+          "~> 2.1.4, >= 2.1.4.1",
+          ">= 2.2.3.1"
+        ],
+        "criticality": "high"
+      }
+    }
+  ]
+}

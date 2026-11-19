@@ -1,0 +1,164 @@
+{
+ "version": "v3.7.9 Beta",
+ "title": "Static Analysis",
+ "file_name": "bitbar-ios-sample.ipa",
+ "app_name": "BitbarIOSSample",
+ "app_type": "Objective C",
+ "size": "0.14MB",
+ "md5": "e1f08f17e868e9de32a87d0bdc522fac",
+ "sha1": "deca43e3dd1186d002dea64b4cef4c8b88142488",
+ "sha256": "07ff7a6608265fff57bd3369fb4e10321d939de5101bd966677cd9a210b820b1",
+ "build": "1.0",
+ "app_version": "1.0",
+ "sdk_name": "iphoneos9.1",
+ "platform": "9.1",
+ "min_os_version": "6.0",
+ "bundle_id": "com.bitbar.testdroid.BitbarIOSSample",
+ "bundle_supported_platforms": [
+  "iPhoneOS"
+ ],
+ "icon_path": "",
+ "binary_info": {
+  "endian": "<",
+  "bit": "32-bit",
+  "arch": "ARM",
+  "subarch": "CPU_SUBTYPE_ARM_V7"
+ },
+ "permissions": {},
+ "ats_analysis": {
+  "ats_findings": [],
+  "ats_summary": {}
+ },
+ "binary_analysis": {
+  "findings": {
+   "Binary makes use of insecure API(s)": {
+    "detailed_desc": "The binary may contain the following insecure API(s) _memcpy\n, _strlen\n",
+    "severity": "high",
+    "cvss": 6,
+    "cwe": "CWE-676: Use of Potentially Dangerous Function",
+    "owasp-mobile": "M7: Client Code Quality",
+    "masvs": "MSTG-CODE-8"
+   },
+   "Binary makes use of malloc function": {
+    "detailed_desc": "The binary may use _malloc\n function instead of calloc",
+    "severity": "high",
+    "cvss": 2,
+    "cwe": "CWE-789: Uncontrolled Memory Allocation",
+    "owasp-mobile": "M7: Client Code Quality",
+    "masvs": "MSTG-CODE-8"
+   }
+  },
+  "summary": {
+   "high": 2,
+   "warning": 0,
+   "info": 0,
+   "secure": 0,
+   "suppressed": 0
+  }
+ },
+ "macho_analysis": {
+  "name": "BitbarIOSSample",
+  "nx": {
+   "has_nx": true,
+   "severity": "info",
+   "description": "The binary has NX bit set. This marks a memory page non-executable making attacker injected shellcode non-executable."
+  },
+  "pie": {
+   "has_pie": true,
+   "severity": "info",
+   "description": "The binary is build with -fPIC flag which enables Position independent code. This makes Return Oriented Programming (ROP) attacks much more difficult to execute reliably."
+  },
+  "stack_canary": {
+   "has_canary": true,
+   "severity": "info",
+   "description": "This binary has a stack canary value added to the stack so that it will be overwritten by a stack buffer that overflows the return address. This allows detection of overflows by verifying the integrity of the canary before function return."
+  },
+  "arc": {
+   "has_arc": false,
+   "severity": "warning",
+   "description": "This binary has debug symbols stripped. We cannot identify whether ARC is enabled or not."
+  },
+  "rpath": {
+   "has_rpath": false,
+   "severity": "info",
+   "description": "The binary does not have Runpath Search Path (@rpath) set."
+  },
+  "code_signature": {
+   "has_code_signature": true,
+   "severity": "info",
+   "description": "This binary has a code signature."
+  },
+  "encrypted": {
+   "is_encrypted": false,
+   "severity": "warning",
+   "description": "This binary is not encrypted."
+  },
+  "symbol": {
+   "is_stripped": true,
+   "severity": "info",
+   "description": "Debug Symbols are stripped"
+  }
+ },
+ "code_analysis": {
+  "findings": {},
+  "summary": {}
+ },
+ "file_analysis": [
+  {
+   "issue": "Plist Files",
+   "files": [
+    {
+     "file_path": "BitbarIOSSample.app/Info.plist",
+     "type": "ipa",
+     "hash": "e1f08f17e868e9de32a87d0bdc522fac"
+    }
+   ]
+  }
+ ],
+ "firebase_urls": [],
+ "secrets": [],
+ "trackers": {
+  "detected_trackers": 0,
+  "total_trackers": 428,
+  "trackers": []
+ },
+ "virus_total": null,
+ "appsec": {
+  "high": [
+   {
+    "title": "Binary makes use of insecure API(s)",
+    "description": "The binary may contain the following insecure API(s) _memcpy\n, _strlen\n",
+    "section": "binary"
+   },
+   {
+    "title": "Binary makes use of malloc function",
+    "description": "The binary may use _malloc\n function instead of calloc",
+    "section": "binary"
+   }
+  ],
+  "warning": [
+   {
+    "title": "Application binary is not compiled with ARC flag",
+    "description": "This binary has debug symbols stripped. We cannot identify whether ARC is enabled or not.",
+    "section": "macho"
+   }
+  ],
+  "info": [],
+  "secure": [
+   {
+    "title": "This application has no privacy trackers",
+    "description": "This application does not include any user or device trackers. Unable to find trackers during static analysis.",
+    "section": "trackers"
+   }
+  ],
+  "hotspot": [],
+  "total_trackers": 428,
+  "trackers": 0,
+  "security_score": 42,
+  "app_name": "BitbarIOSSample",
+  "file_name": "bitbar-ios-sample.ipa",
+  "hash": "e1f08f17e868e9de32a87d0bdc522fac",
+  "version_name": "1.0"
+ },
+ "average_cvss": null
+}

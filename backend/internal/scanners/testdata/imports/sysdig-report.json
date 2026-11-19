@@ -1,0 +1,42 @@
+{
+  "name": "Kubernetes Workload Vulnerability Findings",
+  "description": "Vulnerability findings per Kubernetes workload.",
+  "id": "434",
+  "zones": [
+    "prod"
+  ],
+  "panels": [
+    {
+      "name": "Kubernetes Workload Vulnerability Findings",
+      "type": "table",
+      "filters": [],
+      "data": [
+        {
+          "container_image": "registry.example.test/shop/api:1.4.2",
+          "container_image_distro": "debian 12.9",
+          "container_image_id": "sha256:a520752f350909c191db45a598a88fcca2fa5db17a340dee6b3d0e36f4122e11",
+          "kubernetes_cluster_name": "prod-eu",
+          "kubernetes_namespace_name": "shop",
+          "kubernetes_pod_container_name": "api",
+          "kubernetes_workload_name": "shop-api",
+          "kubernetes_workload_type": "Deployment",
+          "scan_package_in_use": true,
+          "scan_package_name": "tar",
+          "scan_package_path": "/var/lib/dpkg/status",
+          "scan_package_type": "OS",
+          "scan_package_version": "1.34+dfsg-1.2+deb12u1",
+          "vuln_cvss_score": 7.8,
+          "vuln_cvss_vector": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:H",
+          "vuln_cvss_version": "3.1",
+          "vuln_disclosure_date": "2022-12-19T04:00:00Z",
+          "vuln_fix_available": false,
+          "vuln_fixed_in_version": "",
+          "vuln_has_exploit": false,
+          "vuln_id": "CVE-2022-48303",
+          "vuln_risk_accepted": false,
+          "vuln_severity": "High"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<invicti-enterprise generated="2026-11-12 02:33 PM">
+  <target>
+    <scan-id>93d4edbae56145ef001ab203020d164c</scan-id>
+    <url>https://api.example.test/</url>
+    <initiated>2026-11-12 01:55 PM</initiated>
+    <duration>00:38:38</duration>
+  </target>
+  <vulnerabilities>
+    <vulnerability>
+      <look-up-id>8d1a3c22-5d4e-4f3b-9c11-2a6b7c8d9e01</look-up-id>
+      <url>https://api.example.test/search.php?q=%3Cscript%3E</url>
+      <type>CrossSiteScripting</type>
+      <name>Cross-site Scripting</name>
+      <severity>High</severity>
+      <certainty>100</certainty>
+      <confirmed>true</confirmed>
+      <state>Present</state>
+      <classification>
+        <owasp>A3</owasp>
+        <wasc>8</wasc>
+        <cwe>79</cwe>
+        <capec>19</capec>
+        <vector>CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N</vector>
+        <score>
+          <type>Base</type>
+          <value>6.1</value>
+        </score>
+      </classification>
+      <http-request>
+        <method>GET</method>
+        <content><![CDATA[GET /search.php?q=%3Cscript%3E HTTP/1.1
+Host: api.example.test
+Cookie: sid=invicti-xml-cookie-secret
+User-Agent: Mozilla/5.0
+
+]]></content>
+        <parameters>
+          <parameter>
+            <name>q</name>
+            <type>Querystring</type>
+            <value>&lt;script&gt;</value>
+            <vulnerable>true</vulnerable>
+          </parameter>
+          <parameter>
+            <name>password</name>
+            <type>Post</type>
+            <value>invicti-xml-password-value</value>
+            <vulnerable>false</vulnerable>
+          </parameter>
+        </parameters>
+      </http-request>
+      <http-response>
+        <status-code>200</status-code>
+        <content><![CDATA[HTTP/1.1 200 OK
+Set-Cookie: sid=invicti-xml-set-cookie-secret
+Content-Type: text/html
+
+<html><script>alert(1)</script></html>]]></content>
+      </http-response>
+      <description><![CDATA[<p>Invicti Enterprise detected reflected cross-site scripting.</p>]]></description>
+      <impact><![CDATA[<div>An attacker can execute script in the victim's browser.</div>]]></impact>
+      <remedial-actions><![CDATA[]]></remedial-actions>
+      <remedial-procedure><![CDATA[<div>Encode output for its context.</div>]]></remedial-procedure>
+    </vulnerability>
+    <vulnerability>
+      <look-up-id>2b7e0c11-4a5b-4e6f-8d9a-0b1c2d3e4f50</look-up-id>
+      <url>https://api.example.test/</url>
+      <type>MissingXFrameOptionsHeader</type>
+      <name>Missing X-Frame-Options Header</name>
+      <severity>Low</severity>
+      <certainty>90</certainty>
+      <confirmed>false</confirmed>
+      <state>Present,AcceptedRisk</state>
+      <classification>
+        <cwe>693</cwe>
+      </classification>
+      <http-request>
+        <method>GET</method>
+        <content><![CDATA[GET / HTTP/1.1
+Host: api.example.test
+
+]]></content>
+      </http-request>
+      <http-response>
+        <status-code>200</status-code>
+        <content><![CDATA[HTTP/1.1 200 OK
+
+]]></content>
+      </http-response>
+      <description><![CDATA[<p>The X-Frame-Options header is not set.</p>]]></description>
+      <remedial-procedure><![CDATA[<div>Send X-Frame-Options: DENY.</div>]]></remedial-procedure>
+    </vulnerability>
+  </vulnerabilities>
+</invicti-enterprise>

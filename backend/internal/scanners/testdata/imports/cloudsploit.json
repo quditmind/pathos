@@ -1,0 +1,42 @@
+[
+  {
+    "plugin": "openSSH",
+    "category": "EC2",
+    "title": "Open SSH",
+    "description": "Determine if TCP port 22 for SSH is open to the public",
+    "resource": "arn:aws:ec2:eu-west-1:123456789012:security-group/sg-0123456789abcdef0",
+    "region": "eu-west-1",
+    "status": "FAIL",
+    "message": "Security group: sg-0123456789abcdef0 (default) has SSH TCP port 22 open to 0.0.0.0/0"
+  },
+  {
+    "plugin": "bucketVersioning",
+    "category": "S3",
+    "title": "S3 Bucket Versioning",
+    "description": "Ensures object versioning is enabled on S3 buckets",
+    "resource": "arn:aws:s3:::example-logs-bucket",
+    "region": "global",
+    "status": "WARN",
+    "message": "Bucket has versioning disabled"
+  },
+  {
+    "plugin": "rootMfaEnabled",
+    "category": "IAM",
+    "title": "Root Account MFA Enabled",
+    "description": "Ensures a multi-factor authentication device is enabled for the root account",
+    "resource": "arn:aws:iam::123456789012:root",
+    "region": "global",
+    "status": "OK",
+    "message": "An MFA device was found for the root account"
+  },
+  {
+    "plugin": "guardDutyEnabled",
+    "category": "GuardDuty",
+    "title": "GuardDuty is Enabled",
+    "description": "Ensures GuardDuty is enabled",
+    "resource": "N/A",
+    "region": "ap-south-1",
+    "status": "UNKNOWN",
+    "message": "Unable to query for GuardDuty detectors"
+  }
+]

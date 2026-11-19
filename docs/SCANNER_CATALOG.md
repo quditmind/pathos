@@ -118,6 +118,76 @@ The scanner catalog also lists three entries that are not third-party scanner in
 
 `GET /api/v1/scanners` returns the 52 integrations, Syft and these three entries.
 
+## Import-only integrations (2.0)
+
+These tools are integrated through their own report format: the report is produced outside PATHOS (in CI, or by a commercial product) and uploaded with `POST /api/v1/imports/results` or `pathos import` ([Result imports](api-reference/result-imports.md#supported-formats)). PATHOS does not ship or run them, so their licences place no condition on PATHOS; commercial tools are never required. "Real report" means the import was tested with a report produced by running the tool; "published format" means it was built from the vendor's schema or documentation and is not yet verified against a real export.
+
+| Tool | Format ID | Kind | Licence (SPDX) | Fixture |
+|---|---|---|---|---|
+| Fortify SCA | `fortify` | SAST | commercial | published format |
+| Veracode | `veracode` | SAST, DAST, SCA | commercial (service) | published format |
+| Coverity | `coverity` | SAST | commercial | published format |
+| HCL AppScan Source | `appscan-source` | SAST | commercial | published format |
+| Klocwork | `klocwork` | SAST | commercial | published format |
+| Horusec | `horusec` | SAST, secrets | Apache-2.0 | real report |
+| Bearer CLI | `bearer` | SAST | Elastic-2.0 | real report |
+| Brakeman | `brakeman` | SAST (Ruby) | NOASSERTION (Brakeman Public Use Licence) | real report |
+| SpotBugs + FindSecBugs | `spotbugs` | SAST (JVM) | LGPL-2.1 / LGPL-3.0 | real report |
+| PMD | `pmd` | SAST, code quality | BSD-4-Clause-style (NOASSERTION) | real report |
+| Cppcheck | `cppcheck` | SAST (C/C++) | GPL-3.0 | real report |
+| Flawfinder | `flawfinder` | SAST (C/C++) | GPL-2.0 | real report |
+| PHPStan | `phpstan` | code quality (PHP) | MIT | real report |
+| Psalm | `psalm` | SAST taint (PHP) | MIT | real report |
+| njsscan | `njsscan` | SAST (Node.js) | LGPL-3.0 | real report |
+| mobsfscan | `mobsfscan` | SAST (mobile) | LGPL-3.0 | real report |
+| Sobelow | `sobelow` | SAST (Phoenix) | Apache-2.0 | real report |
+| ShellCheck | `shellcheck` | code quality (shell) | GPL-3.0 | real report |
+| Ruff | `ruff` | SAST (S rules), code quality | MIT | real report |
+| Pylint | `pylint` | code quality | GPL-2.0 | real report |
+| golangci-lint | `golangci-lint` | SAST (gosec), code quality | GPL-3.0 | real report |
+| Codacy Analysis CLI | `codacy` | SAST, code quality | AGPL-3.0 | real report |
+| SonarQube Cloud | `sonarcloud` | SAST, code quality | commercial (service) | published format |
+| detect-secrets | `detect-secrets` | Secrets | Apache-2.0 | real report |
+| Kingfisher | `kingfisher` | Secrets | Apache-2.0 | real report |
+| Nosey Parker | `noseyparker` | Secrets | Apache-2.0 | real report |
+| GitGuardian ggshield | `ggshield` | Secrets | MIT (CLI; needs the GitGuardian service) | published format |
+| Whispers | `whispers` | Secrets | Apache-2.0 (archived) | real report |
+| Talisman | `talisman` | Secrets | MIT | real report |
+| Mend (WhiteSource) | `mend` | SCA | commercial | published format |
+| Black Duck | `blackduck` | SCA | commercial | published format |
+| JFrog Xray | `jfrog-xray` | SCA | commercial | published format |
+| Sonatype Nexus IQ | `nexus-iq` | SCA, licence | commercial | published format |
+| Dependency-Track | `dependency-track` | SCA | Apache-2.0 | published format |
+| GitHub Dependabot alerts | `dependabot` | SCA | GitHub service | published format |
+| Retire.js | `retire-js` | SCA (JS) | Apache-2.0 | real report |
+| yarn audit | `yarn-audit` | SCA (JS) | BSD-2-Clause | real report |
+| pnpm audit | `pnpm-audit` | SCA (JS) | MIT | real report |
+| Composer audit | `composer-audit` | SCA (PHP) | MIT | real report |
+| govulncheck | `govulncheck` | SCA with reachability (Go) | BSD-3-Clause | real report |
+| Safety | `safety` | SCA (Python) | MIT (CLI; database terms apply) | real report |
+| dotnet list package | `dotnet-vulnerable` | SCA (.NET) | MIT | real report |
+| bundler-audit | `bundler-audit` | SCA (Ruby) | GPL-3.0 | real report |
+| cargo-audit | `cargo-audit` | SCA (Rust) | Apache-2.0 OR MIT | real report |
+| OWASP dep-scan | `dep-scan` | SCA | MIT | published format |
+| GitLab security analyzers | `gl-sast`, `gl-secret-detection`, `gl-dependency-scanning`, `gl-container-scanning`, `gl-dast`, `gl-coverage-fuzzing`, `gitlab` | SAST, secrets, SCA, container, DAST, fuzzing | GitLab (Ultimate feature) | real report (SAST, secrets, dependency, container); published format (DAST, coverage fuzzing) |
+| KICS | `kics` | IaC | Apache-2.0 | real report |
+| tfsec | `tfsec` | IaC (Terraform) | MIT | real report |
+| Terrascan | `terrascan` | IaC | Apache-2.0 (archived) | real report |
+| KubeLinter | `kube-linter` | IaC (Kubernetes) | Apache-2.0 | real report |
+| Kubescape | `kubescape` | IaC (Kubernetes) | Apache-2.0 | real report |
+| cfn-lint | `cfn-lint` | IaC (CloudFormation) | MIT-0 | real report |
+| cfn_nag | `cfn-nag` | IaC (CloudFormation) | MIT | real report |
+| Hadolint | `hadolint` | IaC (Dockerfile) | GPL-3.0 | real report |
+| TFLint | `tflint` | IaC (Terraform) | MPL-2.0 | real report |
+| Conftest | `conftest` | Policy as code | Apache-2.0 | real report |
+| Polaris | `polaris` | IaC (Kubernetes) | Apache-2.0 | real report |
+| kube-bench | `kube-bench` | Kubernetes CIS (cluster) | Apache-2.0 | real report |
+| poutine | `poutine` | CI/CD pipelines | Apache-2.0 | real report |
+| Legitify | `legitify` | SCM / CI/CD posture | Apache-2.0 | published format |
+| OpenSSF Scorecard | `scorecard` | Supply-chain posture | Apache-2.0 | real report |
+
+DeepSource has no documented report export and is not importable. Whispers and Terrascan stay excluded as scanners (archived) but their existing reports can be imported.
+
 ## Excluded
 
 | Tool | Reason |
@@ -151,3 +221,69 @@ The tool must produce **SARIF 2.1.0**. When the worker registers, the plugin app
 Security: definitions are files on the worker host, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Plugins run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. They scan repository source only (not scan targets). The full trust model is in [SECURITY.md](SECURITY.md#scanner-plugins).
 
 
+
+## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
+
+These tools are not run by PATHOS workers; their reports are imported ([Result imports](api-reference/result-imports.md#dast-api-infrastructure-cloud-container-mobile-runtime-ai-pentest-and-fuzzing-formats)). Nothing of these tools is bundled, so their licences do not restrict redistribution of PATHOS; commercial tools are never required. Licences are listed as published by each project (not re-checked against the repositories for this change). "Test report" says whether the import format was checked against a report produced by running the tool against a local test service, or built from the published format only.
+
+| Tool | Import format | Category | License | Test report |
+|---|---|---|---|---|
+| Nikto | `nikto` | DAST | GPL-2.0 | real run |
+| Wapiti | `wapiti` | DAST | GPL-2.0 | real run |
+| Arachni | `arachni` | DAST | Arachni Public Source License (NOASSERTION); unmaintained since 2018 | real run |
+| sqlmap | `sqlmap` | DAST (intrusive) | GPL-2.0-or-later | real run |
+| Dalfox | `dalfox` | DAST (XSS) | MIT | real run |
+| ffuf | `ffuf` | DAST (content discovery) | MIT | real run |
+| Wfuzz | `wfuzz` | DAST (content discovery) | GPL-2.0 | real run |
+| w3af | `w3af` | DAST | GPL-2.0; unmaintained | published format |
+| Schemathesis | `schemathesis` | API | MIT | real run |
+| RESTler | `restler` | API fuzzing | MIT | published format |
+| 42Crunch API Security Audit | `42crunch` | API | Commercial | published format |
+| Acunetix, Acunetix 360 | `acunetix` | DAST | Commercial | published format |
+| Invicti / Netsparker | `invicti` | DAST | Commercial | published format |
+| Rapid7 AppSpider | `appspider` | DAST | Commercial | published format |
+| Rapid7 InsightAppSec | `insightappsec` | DAST | Commercial | published format |
+| Qualys WAS | `qualys-was` | DAST | Commercial | published format |
+| HCL AppScan (DAST) | `appscan-dast` | DAST | Commercial | published format |
+| Burp Suite DAST / Enterprise | `burp-enterprise` | DAST | Commercial | published format |
+| StackHawk | `stackhawk` | DAST | Commercial | published format |
+| Nmap | `nmap` | Network | Nmap Public Source License (LicenseRef-NPSL) | real run |
+| Qualys VMDR | `qualys-vm` | Network | Commercial | published format |
+| Tenable.io / Nessus / Tenable.sc (CSV) | `tenable-csv` | Network | Commercial | published format |
+| Rapid7 Nexpose / InsightVM | `nexpose` | Network | Commercial | published format |
+| testssl.sh | `testssl` | TLS | GPL-2.0 | real run |
+| SSLyze | `sslyze` | TLS | AGPL-3.0 | real run |
+| sslscan | `sslscan` | TLS | GPL-3.0 | real run |
+| Wazuh | `wazuh` | Host vulnerabilities | GPL-2.0 | published format |
+| Prowler | `prowler`, `prowler-csv` | Cloud posture | Apache-2.0 | published format (needs a cloud account) |
+| ScoutSuite | `scoutsuite` | Cloud posture | GPL-2.0 | published format (needs a cloud account) |
+| CloudSploit | `cloudsploit` | Cloud posture | GPL-3.0 | published format (needs a cloud account) |
+| AWS Security Hub (ASFF) | `asff` | Cloud posture | Cloud service | published format |
+| Amazon Inspector | `inspector2` | Cloud vulnerabilities | Cloud service | published format |
+| Microsoft Defender for Cloud | `defender-cloud` | Cloud posture | Cloud service | published format |
+| Google Cloud Security Command Center | `gcp-scc` | Cloud posture | Cloud service | published format |
+| Dockle | `dockle` | Container image | Apache-2.0 | real run |
+| Clair | `clair` | Container image | Apache-2.0 | published format |
+| Harbor | `harbor` | Container registry | Apache-2.0 | published format |
+| Trivy (Kubernetes) | `trivy-k8s` | Kubernetes | Apache-2.0 | published format |
+| Anchore Engine / Enterprise | `anchore` | Container image | Apache-2.0 (Engine) / Commercial | published format |
+| Prisma Cloud / Twistlock | `twistlock`, `twistlock-csv` | Container image | Commercial | published format |
+| Sysdig Secure | `sysdig`, `sysdig-csv` | Container image | Commercial | published format |
+| Docker Scout | `docker-scout` (SARIF) | Container image | Proprietary (Docker subscription) | published format |
+| MobSF | `mobsf` | Mobile | GPL-3.0 | exports from the DefectDojo test corpus |
+| APKLeaks | `apkleaks` | Mobile | Apache-2.0 | published format |
+| NowSecure | `nowsecure` (SARIF) | Mobile | Commercial | published format |
+| Contrast Assess | `contrast` | IAST | Commercial | published format |
+| Falco | `falco` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
+| Tetragon | `tetragon` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
+| Tracee | `tracee` | Runtime | Apache-2.0 | published format (needs kernel privileges) |
+| garak | `garak` | AI/LLM | Apache-2.0 | real run |
+| promptfoo | `promptfoo` | AI/LLM | MIT | real run |
+| ProtectAI ModelScan | `modelscan` | AI model files | Apache-2.0 | real run |
+| HackerOne | `hackerone`, `hackerone-csv` | Pentest / bug bounty | Commercial | published format |
+| Bugcrowd | `bugcrowd` | Pentest / bug bounty | Commercial | published format |
+| Intigriti | `intigriti` | Pentest / bug bounty | Commercial | published format |
+| ClusterFuzzLite / CIFuzz | `clusterfuzzlite` (SARIF) | Fuzzing | Apache-2.0 | published format |
+| libFuzzer, Jazzer | `libfuzzer` | Fuzzing | Apache-2.0 WITH LLVM-exception (libFuzzer), Apache-2.0 (Jazzer) | real run (libFuzzer); published format (Jazzer) |
+
+Not added: Oversecured (no published report format found), Akto (only HTML and PDF reports are documented), Black Duck Seeker and HCL AppScan IAST (no publicly documented export), Intigriti CSV (only the API JSON is documented).

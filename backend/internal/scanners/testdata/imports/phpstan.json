@@ -1,0 +1,51 @@
+{
+  "totals": {
+    "errors": 0,
+    "file_errors": 6
+  },
+  "files": {
+    "src/user.php": {
+      "errors": 6,
+      "messages": [
+        {
+          "message": "Function find_user() return type has no value type specified in iterable type array.",
+          "line": 2,
+          "ignorable": true,
+          "tip": "See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type",
+          "identifier": "missingType.iterableValue"
+        },
+        {
+          "message": "Binary operation \".\" between 'SELECT * FROM users\u2026' and mixed results in an error.",
+          "line": 4,
+          "ignorable": true,
+          "identifier": "binaryOp.invalid"
+        },
+        {
+          "message": "Parameter #1 (mixed) of echo cannot be converted to string.",
+          "line": 5,
+          "ignorable": true,
+          "identifier": "echo.nonString"
+        },
+        {
+          "message": "Cannot call method fetchAll() on PDOStatement|false.",
+          "line": 6,
+          "ignorable": true,
+          "identifier": "method.nonObject"
+        },
+        {
+          "message": "Undefined variable: $undefinedVar",
+          "line": 6,
+          "ignorable": true,
+          "identifier": "variable.undefined"
+        },
+        {
+          "message": "Function add() should return int but returns string.",
+          "line": 8,
+          "ignorable": true,
+          "identifier": "return.type"
+        }
+      ]
+    }
+  },
+  "errors": []
+}

@@ -1,0 +1,82 @@
+{
+  "Checks": [
+    {
+      "name": "latest-tag",
+      "description": "Indicates when a deployment-like object is running a container with an invalid container image",
+      "remediation": "Use a container image with a specific tag other than latest.",
+      "scope": {
+        "objectKinds": [
+          "DeploymentLike"
+        ]
+      },
+      "template": "latest-tag",
+      "params": {
+        "BlockList": [
+          ".*:(latest)$",
+          "^[^:]*$",
+          "(.*/[^:]+)$"
+        ]
+      }
+    },
+    {
+      "name": "privileged-container",
+      "description": "Indicates when deployments have containers running in privileged mode.",
+      "remediation": "Do not run your container as privileged unless it is required.",
+      "scope": {
+        "objectKinds": [
+          "DeploymentLike"
+        ]
+      },
+      "template": "privileged"
+    }
+  ],
+  "Reports": [
+    {
+      "Diagnostic": {
+        "Message": "The container \"web\" is using an invalid container image, \"nginx:latest\". Please use images that are not blocked by the `BlockList` criteria : [\".*:(latest)$\" \"^[^:]*$\" \"(.*/[^:]+)$\"]"
+      },
+      "Check": "latest-tag",
+      "Remediation": "Use a container image with a specific tag other than latest.",
+      "Object": {
+        "Metadata": {
+          "FilePath": "k8s/deployment.yaml"
+        },
+        "K8sObject": {
+          "Namespace": "",
+          "Name": "web",
+          "GroupVersionKind": {
+            "Group": "apps",
+            "Version": "v1",
+            "Kind": "Deployment"
+          }
+        }
+      }
+    },
+    {
+      "Diagnostic": {
+        "Message": "container \"web\" is privileged"
+      },
+      "Check": "privileged-container",
+      "Remediation": "Do not run your container as privileged unless it is required.",
+      "Object": {
+        "Metadata": {
+          "FilePath": "k8s/deployment.yaml"
+        },
+        "K8sObject": {
+          "Namespace": "",
+          "Name": "web",
+          "GroupVersionKind": {
+            "Group": "apps",
+            "Version": "v1",
+            "Kind": "Deployment"
+          }
+        }
+      }
+    }
+  ],
+  "Summary": {
+    "ChecksStatus": "Failed",
+    "CheckEndTime": "2026-11-19T06:29:15.93138523Z",
+    "KubeLinterVersion": "0.8.3"
+  }
+}

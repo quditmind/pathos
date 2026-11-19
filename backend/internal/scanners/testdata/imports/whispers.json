@@ -1,0 +1,74 @@
+[
+  {
+    "key": "file",
+    "value": "config/id_rsa",
+    "file": "config/id_rsa",
+    "line": 0,
+    "rule_id": "file-known",
+    "message": "Known file",
+    "severity": "Low"
+  },
+  {
+    "key": "file",
+    "value": "config/app.env",
+    "file": "config/app.env",
+    "line": 0,
+    "rule_id": "file-known",
+    "message": "Known file",
+    "severity": "Low"
+  },
+  {
+    "key": "STRIPE_KEY",
+    "value": "sk_live_FIXTURE_NOT_A_REAL_KEY_",
+    "file": "config/app.env",
+    "line": 2,
+    "rule_id": "apikey",
+    "message": "API key",
+    "severity": "High"
+  },
+  {
+    "key": "STRIPE_KEY",
+    "value": "sk_live_FIXTURE_NOT_A_REAL_KEY_",
+    "file": "config/app.env",
+    "line": 2,
+    "rule_id": "apikey-known",
+    "message": "API key",
+    "severity": "Critical"
+  },
+  {
+    "key": "AWS_ACCESS_KEY_ID",
+    "value": "AKIAI44QH8DHBEXAMPLE",
+    "file": "config/app.env",
+    "line": 3,
+    "rule_id": "aws-id",
+    "message": "AWS Access Key ID",
+    "severity": "Medium"
+  },
+  {
+    "key": "AWS_SECRET_ACCESS_KEY",
+    "value": "FIXTURE-not-a-real-aws-secret-key-000000",
+    "file": "config/app.env",
+    "line": 4,
+    "rule_id": "apikey",
+    "message": "API key",
+    "severity": "High"
+  },
+  {
+    "key": "AWS_SECRET_ACCESS_KEY",
+    "value": "FIXTURE-not-a-real-aws-secret-key-000000",
+    "file": "config/app.env",
+    "line": 4,
+    "rule_id": "aws-secret",
+    "message": "AWS Secret Access Key",
+    "severity": "Critical"
+  },
+  {
+    "key": "file",
+    "value": "config/settings.py",
+    "file": "config/settings.py",
+    "line": 0,
+    "rule_id": "file-known",
+    "message": "Known file",
+    "severity": "Low"
+  }
+]

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document title="SSLScan Results" version="2.1.6" web="http://github.com/rbsec/sslscan">
+ <ssltest host="a3-g2-target" sniname="a3-g2-target" port="443">
+  <protocol type="ssl" version="2" enabled="0" />
+  <protocol type="ssl" version="3" enabled="0" />
+  <protocol type="tls" version="1.0" enabled="1" />
+  <protocol type="tls" version="1.1" enabled="1" />
+  <protocol type="tls" version="1.2" enabled="1" />
+  <protocol type="tls" version="1.3" enabled="1" />
+  <fallback supported="1" />
+  <renegotiation supported="1" secure="1" />
+  <heartbleed sslversion="TLSv1.3" vulnerable="0" />
+  <heartbleed sslversion="TLSv1.2" vulnerable="0" />
+  <heartbleed sslversion="TLSv1.1" vulnerable="0" />
+  <heartbleed sslversion="TLSv1.0" vulnerable="0" />
+  <cipher status="preferred" sslversion="TLSv1.3" bits="256" cipher="TLS_AES_256_GCM_SHA384" id="0x1302" strength="strong" />
+  <cipher status="accepted" sslversion="TLSv1.3" bits="256" cipher="TLS_CHACHA20_POLY1305_SHA256" id="0x1303" strength="strong" />
+  <cipher status="accepted" sslversion="TLSv1.3" bits="128" cipher="TLS_AES_128_GCM_SHA256" id="0x1301" strength="strong" />
+  <cipher status="accepted" sslversion="TLSv1.2" bits="256" cipher="AECDH-AES256-SHA" id="0xC019" strength="anonymous" curve="25519" ecdhebits="253" />
+  <cipher status="accepted" sslversion="TLSv1.2" bits="128" cipher="AECDH-AES128-SHA" id="0xC018" strength="anonymous" curve="25519" ecdhebits="253" />
+  <cipher status="accepted" sslversion="TLSv1.2" bits="64" cipher="AES256-CCM8" id="0xC0A1" strength="medium" />
+  <cipher status="accepted" sslversion="TLSv1.2" bits="64" cipher="AES128-CCM8" id="0xC0A0" strength="medium" />
+  <cipher status="accepted" sslversion="TLSv1.1" bits="256" cipher="AECDH-AES256-SHA" id="0xC019" strength="anonymous" curve="25519" ecdhebits="253" />
+  <cipher status="accepted" sslversion="TLSv1.1" bits="128" cipher="AECDH-AES128-SHA" id="0xC018" strength="anonymous" curve="25519" ecdhebits="253" />
+  <cipher status="accepted" sslversion="TLSv1.0" bits="256" cipher="AECDH-AES256-SHA" id="0xC019" strength="anonymous" curve="25519" ecdhebits="253" />
+  <cipher status="accepted" sslversion="TLSv1.0" bits="128" cipher="AECDH-AES128-SHA" id="0xC018" strength="anonymous" curve="25519" ecdhebits="253" />
+ <certificates>
+  <certificate type="short">
+   <signature-algorithm>sha256WithRSAEncryption</signature-algorithm>
+   <pk error="false" type="RSA" bits="2048" />
+   <subject><![CDATA[a3-g2-target]]></subject>
+   <issuer><![CDATA[a3-g2-target]]></issuer>
+   <self-signed>true</self-signed>
+   <not-valid-before>Nov 19 06:29:01 2026 GMT</not-valid-before>
+   <not-yet-valid>false</not-yet-valid>
+   <not-valid-after>Dec 19 06:29:01 2026 GMT</not-valid-after>
+   <expired>false</expired>
+  </certificate>
+ </certificates>
+ </ssltest>
+</document>

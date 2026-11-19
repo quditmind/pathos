@@ -1,0 +1,59 @@
+[
+    {
+        "Filename": "template.yaml",
+        "Id": "484b0990-548b-0f41-6d90-d0bcc4b76aa2",
+        "Level": "Error",
+        "Location": {
+            "End": {
+                "ColumnNumber": 15,
+                "LineNumber": 5
+            },
+            "Path": [
+                "Resources",
+                "Bucket",
+                "Properties"
+            ],
+            "Start": {
+                "ColumnNumber": 5,
+                "LineNumber": 5
+            }
+        },
+        "Message": "A bucket with 'AccessControl' set should also have at least one 'OwnershipControl' configured",
+        "ParentId": null,
+        "Rule": {
+            "Description": "When using AccessControl other than private you must also configure OwnershipControls. The default is bucket owner enforced which disables ACLs.",
+            "Id": "E3045",
+            "ShortDescription": "Validate AccessControl are set with OwnershipControls",
+            "Source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html"
+        }
+    },
+    {
+        "Filename": "template.yaml",
+        "Id": "030bcef6-977e-2163-f549-5b1d4b9c2a8e",
+        "Level": "Warning",
+        "Location": {
+            "End": {
+                "ColumnNumber": 20,
+                "LineNumber": 6
+            },
+            "Path": [
+                "Resources",
+                "Bucket",
+                "Properties",
+                "AccessControl"
+            ],
+            "Start": {
+                "ColumnNumber": 7,
+                "LineNumber": 6
+            }
+        },
+        "Message": "'AccessControl' is a legacy property. Consider using 'AWS::S3::BucketPolicy' instead",
+        "ParentId": null,
+        "Rule": {
+            "Description": "Nearly all access control configurations can be more successfully achieved with bucket policies. Consider using bucket policies instead of access control.",
+            "Id": "W3045",
+            "ShortDescription": "Controlling access to an S3 bucket should be done with bucket policies",
+            "Source": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/about-object-ownership.html"
+        }
+    }
+]

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"mime"
+	"reflect"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -36,7 +37,7 @@ type ImportFormat struct {
 	// Category is the default import category ("" means each finding keeps
 	// its own: package vulnerabilities sca, misconfigurations iac, ...).
 	Category string `json:"category"`
-	// Media is json, jsonl, xml, csv or sarif.
+	// Media is json, jsonl, xml, csv, sarif or text.
 	Media string `json:"media"`
 	// Parser is the format that parses it (an alias like snyk-code names
 	// sarif); empty for itself.
@@ -151,6 +152,8 @@ func ImportContentType(format string) string {
 			ct = "application/x-ndjson"
 		case "csv":
 			ct = "text/csv"
+		case "text":
+			ct = "text/plain"
 		}
 	}
 	return mime.FormatMediaType(ct, map[string]string{"pathos-format": format})
@@ -178,6 +181,22 @@ type importProbe struct {
 	root       string
 	rootAttrs  map[string]string
 	header     []string
+	// head is the start of the report (at most probeHeadBytes), for
+	// formats whose distinctive markers are not top-level keys.
+	head []byte
+}
+
+// probeHeadBytes bounds importProbe.head.
+const probeHeadBytes = 64 << 10
+
+// headHas reports whether the start of the report contains every marker.
+func (p *importProbe) headHas(markers ...string) bool {
+	for _, m := range markers {
+		if !bytes.Contains(p.head, []byte(m)) {
+			return false
+		}
+	}
+	return true
 }
 
 func (p *importProbe) has(keys ...string) bool {
@@ -227,7 +246,7 @@ var utf8BOM = []byte{0xEF, 0xBB, 0xBF}
 
 func newImportProbe(raw []byte) *importProbe {
 	b := bytes.TrimSpace(bytes.TrimPrefix(raw, utf8BOM))
-	p := &importProbe{}
+	p := &importProbe{head: b[:min(len(b), probeHeadBytes)]}
 	if len(b) == 0 {
 		return p
 	}
@@ -240,6 +259,9 @@ func newImportProbe(raw []byte) *importProbe {
 		line, _, _ := bytes.Cut(b, []byte("\n"))
 		if json.Unmarshal(bytes.TrimSpace(line), &p.keys) == nil {
 			p.kind = "jsonl"
+		} else if json.NewDecoder(bytes.NewReader(b)).Decode(&p.keys) == nil {
+			// A stream of indented JSON objects (govulncheck -json).
+			p.kind = "stream"
 		}
 		return p
 	case '[':
@@ -289,6 +311,37 @@ func newImportProbe(raw []byte) *importProbe {
 	return p
 }
 
+// isPathosFindings reports whether a {"findings": ...} document is PATHOS
+// findings JSON rather than a tool's report with a "findings" array
+// (Amazon Inspector, Dalfox, ...): PATHOS JSON has no top-level keys but
+// tool and findings, and its findings only the GenericFinding fields (it
+// is decoded with unknown fields rejected, so nothing valid is lost).
+func isPathosFindings(p *importProbe) bool {
+	for k := range p.keys {
+		if k != "tool" && k != "findings" {
+			return false
+		}
+	}
+	var arr []map[string]json.RawMessage
+	if json.Unmarshal(p.keys["findings"], &arr) != nil {
+		return false
+	}
+	if len(arr) == 0 {
+		return true
+	}
+	known := map[string]bool{}
+	t := reflect.TypeFor[GenericFinding]()
+	for i := range t.NumField() {
+		known[strings.Split(t.Field(i).Tag.Get("json"), ",")[0]] = true
+	}
+	for k := range arr[0] {
+		if !known[k] {
+			return false
+		}
+	}
+	return true
+}
+
 // DetectImportFormat returns the format of an imported report ("" when it
 // is not recognised).
 func DetectImportFormat(raw []byte) string { return importFormat(raw) }
@@ -303,13 +356,21 @@ func importFormat(raw []byte) string {
 			return "sarif"
 		case p.has("matches"):
 			return "grype"
-		case p.has("findings"):
+		// PATHOS findings JSON has no fields but tool and findings, and its
+		// findings only GenericFinding fields (Kingfisher, Sobelow, poutine,
+		// Dependency-Track, Amazon Inspector and Dalfox reports also have
+		// "findings").
+		case p.has("findings") && isPathosFindings(p):
 			return "pathos"
 		}
 	}
-	for _, f := range ImportFormats() {
-		if f.match != nil && f.match(p) {
-			return f.ID
+	// Tool-specific formats first: a tool's CSV export must not be taken
+	// for the generic CSV format (whose header aliases it may share).
+	for _, generic := range []bool{false, true} {
+		for _, f := range ImportFormats() {
+			if (f.Tool == "") == generic && f.match != nil && f.match(p) {
+				return f.ID
+			}
 		}
 	}
 	return ""

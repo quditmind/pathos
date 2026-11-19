@@ -1,0 +1,135 @@
+[
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B301"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue."
+      },
+      "level": "Warning",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 9
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B307"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Use of possibly insecure function - consider using safer ast.literal_eval."
+      },
+      "level": "Warning",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 13
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B324"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Use of weak MD5 hash for security. Consider usedforsecurity=False"
+      },
+      "level": "High",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 10
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B403"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Consider possible security implications associated with pickle module."
+      },
+      "level": "Warning",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 2
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B105"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Possible hardcoded password: 'hunter2'"
+      },
+      "level": "High",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 11
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B404"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "Consider possible security implications associated with the subprocess module."
+      },
+      "level": "Info",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 3
+        }
+      },
+      "sourceId": null
+    }
+  },
+  {
+    "Issue": {
+      "patternId": {
+        "value": "Bandit_B602"
+      },
+      "filename": "app.py",
+      "message": {
+        "text": "subprocess call with shell=True identified, security issue."
+      },
+      "level": "High",
+      "category": null,
+      "location": {
+        "LineLocation": {
+          "line": 8
+        }
+      },
+      "sourceId": null
+    }
+  }
+]

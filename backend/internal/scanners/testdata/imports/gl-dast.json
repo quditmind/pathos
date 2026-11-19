@@ -1,0 +1,130 @@
+{
+  "version": "15.0.7",
+  "vulnerabilities": [
+    {
+      "id": "4b2f6c1e-6f0e-4e2c-9a43-0d1f6e7b9a11",
+      "category": "dast",
+      "name": "Cross Site Scripting (Reflected)",
+      "description": "Cross-site Scripting (XSS) is an attack technique that involves echoing attacker-supplied code into a user's browser instance.",
+      "cve": "40012",
+      "severity": "High",
+      "confidence": "Medium",
+      "solution": "Validate all input and encode output.",
+      "scanner": {
+        "id": "zaproxy",
+        "name": "ZAProxy"
+      },
+      "identifiers": [
+        {
+          "type": "ZAProxy_PluginId",
+          "name": "Cross Site Scripting (Reflected)",
+          "value": "40012",
+          "url": "https://github.com/zaproxy/zaproxy/blob/w2019-01-14/docs/scanners.md"
+        },
+        {
+          "type": "CWE",
+          "name": "CWE-79",
+          "value": "79",
+          "url": "https://cwe.mitre.org/data/definitions/79.html"
+        }
+      ],
+      "links": [
+        {
+          "url": "https://owasp.org/www-community/attacks/xss/"
+        }
+      ],
+      "evidence": {
+        "summary": "<script>alert(1);</script>",
+        "request": {
+          "method": "GET",
+          "url": "https://app.example/search?q=%3Cscript%3Ealert%281%29%3B%3C%2Fscript%3E",
+          "headers": [
+            {
+              "name": "Cookie",
+              "value": "session=0123456789abcdef"
+            }
+          ]
+        },
+        "response": {
+          "reason_phrase": "OK",
+          "status_code": 200,
+          "headers": [
+            {
+              "name": "Content-Type",
+              "value": "text/html"
+            }
+          ]
+        }
+      },
+      "location": {
+        "hostname": "https://app.example",
+        "method": "GET",
+        "param": "q",
+        "path": "/search"
+      }
+    },
+    {
+      "id": "8d3e1a52-2b6a-4f43-8f0e-91c7f2b3c4d5",
+      "category": "dast",
+      "name": "Strict-Transport-Security Header Not Set",
+      "description": "HTTP Strict Transport Security (HSTS) is not enforced.",
+      "cve": "10035",
+      "severity": "Low",
+      "confidence": "High",
+      "solution": "Enable HTTP Strict Transport Security.",
+      "scanner": {
+        "id": "zaproxy",
+        "name": "ZAProxy"
+      },
+      "identifiers": [
+        {
+          "type": "ZAProxy_PluginId",
+          "name": "Strict-Transport-Security Header Not Set",
+          "value": "10035"
+        },
+        {
+          "type": "CWE",
+          "name": "CWE-319",
+          "value": "319",
+          "url": "https://cwe.mitre.org/data/definitions/319.html"
+        }
+      ],
+      "location": {
+        "hostname": "https://app.example",
+        "method": "GET",
+        "param": "",
+        "path": "/"
+      }
+    }
+  ],
+  "scan": {
+    "analyzer": {
+      "id": "gitlab-dast",
+      "name": "GitLab DAST",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "4.0.0"
+    },
+    "scanner": {
+      "id": "zaproxy",
+      "name": "OWASP Zed Attack Proxy (ZAP) and GitLab DAST",
+      "url": "https://www.zaproxy.org",
+      "vendor": {
+        "name": "GitLab"
+      },
+      "version": "D-2023-01-30"
+    },
+    "scanned_resources": [
+      {
+        "method": "GET",
+        "type": "url",
+        "url": "https://app.example/"
+      }
+    ],
+    "type": "dast",
+    "start_time": "2026-11-19T06:00:00",
+    "end_time": "2026-11-19T06:05:00",
+    "status": "success"
+  }
+}

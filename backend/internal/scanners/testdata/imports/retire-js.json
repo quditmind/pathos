@@ -1,0 +1,66 @@
+{
+  "version": "5.7.0",
+  "start": "2026-11-19T06:23:57.451Z",
+  "data": [
+    {
+      "file": "static/jquery-3.4.1.min.js",
+      "results": [
+        {
+          "version": "3.4.1",
+          "component": "jquery",
+          "npmname": "jquery",
+          "detection": "filename",
+          "vulnerabilities": [
+            {
+              "info": [
+                "https://blog.jquery.com/2020/04/10/jquery-3-5-0-released/"
+              ],
+              "below": "3.5.0",
+              "atOrAbove": "1.0.3",
+              "severity": "medium",
+              "identifiers": {
+                "summary": "passing HTML containing <option> elements from untrusted sources - even after sanitizing it - to one of jQuery's DOM manipulation methods (i.e. .html(), .append(), and others) may execute untrusted code.",
+                "CVE": [
+                  "CVE-2020-11023"
+                ],
+                "issue": "4647",
+                "githubID": "GHSA-jpcq-cgw6-v4j6"
+              },
+              "cwe": [
+                "CWE-79"
+              ]
+            },
+            {
+              "info": [
+                "https://blog.jquery.com/2020/04/10/jquery-3-5-0-released/"
+              ],
+              "below": "3.5.0",
+              "atOrAbove": "1.12.0",
+              "severity": "medium",
+              "identifiers": {
+                "summary": "Regex in its jQuery.htmlPrefilter sometimes may introduce XSS",
+                "CVE": [
+                  "CVE-2020-11022"
+                ],
+                "issue": "4642",
+                "githubID": "GHSA-gxr4-xjj5-5px2"
+              },
+              "cwe": [
+                "CWE-79"
+              ]
+            }
+          ],
+          "licenses": [
+            "MIT"
+          ]
+        }
+      ]
+    }
+  ],
+  "messages": [],
+  "errors": [],
+  "time": 0.987,
+  "vulnerabilityRepositories": [
+    "https://raw.githubusercontent.com/RetireJS/retire.js/master/repository/jsrepository-v5.json"
+  ]
+}

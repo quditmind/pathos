@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<AssessmentRun name="shop-api" version="10.4.0">
+  <AssessmentStats date="1762077000" filesscanned="2" linesscanned="58" total_findings="3" total_high_finding="1" total_med_finding="1" total_low_finding="1"/>
+  <Messages/>
+  <StringPool>
+    <String id="1" value="Validation.Required.SQL"/>
+    <String id="2" value="SQL Injection"/>
+    <String id="3" value="java.sql.Statement.executeQuery(java.lang.String):java.sql.ResultSet"/>
+    <String id="4" value="com.acme.OrderDao.find(java.lang.String):java.sql.ResultSet"/>
+    <String id="5" value="return st.executeQuery(&quot;SELECT * FROM orders WHERE id = '&quot; + id + &quot;'&quot;);"/>
+    <String id="6" value="Cryptography.InsecureAlgorithm"/>
+    <String id="7" value="java.security.MessageDigest.getInstance(java.lang.String):java.security.MessageDigest"/>
+    <String id="8" value="com.acme.OrderDao.hash(java.lang.String):byte[]"/>
+    <String id="9" value="MessageDigest md = MessageDigest.getInstance(&quot;MD5&quot;);"/>
+    <String id="10" value="Cryptography.PoorEntropy"/>
+    <String id="11" value="java.util.Random.nextInt():int"/>
+    <String id="12" value="com.acme.OrderDao.token():int"/>
+    <String id="13" value="return r.nextInt();"/>
+    <String id="14" value="Use parameterized queries."/>
+  </StringPool>
+  <FilePool>
+    <File id="1" value="src/main/java/com/acme/OrderDao.java"/>
+  </FilePool>
+  <SitePool>
+    <Site id="1" caller="4" cxt="5" file_id="1" ln="14" method="3" ord="0" sig="3"/>
+    <Site id="2" caller="8" cxt="9" file_id="1" ln="18" method="7" ord="0" sig="7"/>
+    <Site id="3" caller="12" cxt="13" file_id="1" ln="24" method="11" ord="0" sig="11"/>
+  </SitePool>
+  <TaintPool/>
+  <FindingDataPool>
+    <FindingData id="1" vtype="1" sev="0" conf="0" site_id="1" rec="14" cwe="89" prop_ids="" trace_id=""/>
+    <FindingData id="2" vtype="6" sev="1" conf="0" site_id="2" cwe="327"/>
+    <FindingData id="3" vtype="10" sev="2" conf="1" site_id="3" cwe="338"/>
+  </FindingDataPool>
+  <Assessment assessee_name="shop-api">
+    <Assessment assessee_name="shop-api-project">
+      <AsmntFile file_id="1">
+        <Finding data_id="1" id="1"/>
+        <Finding data_id="2" id="2"/>
+        <Finding data_id="3" id="3"/>
+      </AsmntFile>
+    </Assessment>
+  </Assessment>
+</AssessmentRun>

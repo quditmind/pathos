@@ -1,0 +1,74 @@
+{
+  "results": [
+    {
+      "rule_id": "AVD-AWS-0107",
+      "long_id": "aws-ec2-no-public-ingress-sgr",
+      "rule_description": "An ingress security group rule allows traffic from /0.",
+      "rule_provider": "aws",
+      "rule_service": "ec2",
+      "impact": "Your port exposed to the internet",
+      "resolution": "Set a more restrictive cidr range",
+      "links": [
+        "https://aquasecurity.github.io/tfsec/v1.28.14/checks/aws/ec2/no-public-ingress-sgr/",
+        "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule#cidr_blocks"
+      ],
+      "description": "Security group rule allows ingress from public internet.",
+      "severity": "CRITICAL",
+      "warning": false,
+      "status": 0,
+      "resource": "aws_security_group.web",
+      "location": {
+        "filename": "infra/main.tf",
+        "start_line": 12,
+        "end_line": 12
+      }
+    },
+    {
+      "rule_id": "AVD-AWS-0092",
+      "long_id": "aws-s3-no-public-access-with-acl",
+      "rule_description": "S3 Buckets not publicly accessible through ACL.",
+      "rule_provider": "aws",
+      "rule_service": "s3",
+      "impact": "Public access to the bucket can lead to data leakage",
+      "resolution": "Don't use canned ACLs or switch to private acl",
+      "links": [
+        "https://aquasecurity.github.io/tfsec/v1.28.14/checks/aws/s3/no-public-access-with-acl/",
+        "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3_bucket"
+      ],
+      "description": "Bucket has a public ACL: 'public-read'.",
+      "severity": "HIGH",
+      "warning": false,
+      "status": 0,
+      "resource": "aws_s3_bucket.logs",
+      "location": {
+        "filename": "infra/main.tf",
+        "start_line": 3,
+        "end_line": 3
+      }
+    },
+    {
+      "rule_id": "AVD-AWS-0099",
+      "long_id": "aws-ec2-add-description-to-security-group",
+      "rule_description": "Missing description for security group.",
+      "rule_provider": "aws",
+      "rule_service": "ec2",
+      "impact": "Descriptions provide context for the firewall rule reasons",
+      "resolution": "Add descriptions for all security groups",
+      "links": [
+        "https://aquasecurity.github.io/tfsec/v1.28.14/checks/aws/ec2/add-description-to-security-group/",
+        "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group",
+        "https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/security_group_rule"
+      ],
+      "description": "Security group explicitly uses the default description.",
+      "severity": "LOW",
+      "warning": false,
+      "status": 0,
+      "resource": "aws_security_group.web",
+      "location": {
+        "filename": "infra/main.tf",
+        "start_line": 6,
+        "end_line": 14
+      }
+    }
+  ]
+}

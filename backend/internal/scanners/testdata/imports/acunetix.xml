@@ -1,0 +1,94 @@
+<?xml version="1.0"?>
+<ScanGroup ExportedOn="12/11/2026, 10:12:41">
+    <Scan>
+        <Name><![CDATA[shop]]></Name>
+        <ShortName><![CDATA[shop]]></ShortName>
+        <StartURL><![CDATA[https://shop.example.test]]></StartURL>
+        <StartTime><![CDATA[12/11/2026, 09:01:02]]></StartTime>
+        <FinishTime><![CDATA[12/11/2026, 10:11:59]]></FinishTime>
+        <Aborted><![CDATA[False]]></Aborted>
+        <WebServer><![CDATA[nginx/1.27.0]]></WebServer>
+        <Crawler StartUrl="https://shop.example.test/">
+            <Cookies>
+                <Cookie><Name>session</Name><Value>acu-cookie-secret-123</Value></Cookie>
+            </Cookies>
+        </Crawler>
+        <ReportItems>
+            <ReportItem id="1" color="red">
+                <Name><![CDATA[SQL injection]]></Name>
+                <ModuleName><![CDATA[/Scripts/PerScheme/Sql_Injection.script]]></ModuleName>
+                <Details><![CDATA[URL encoded GET input <b>id</b> was set to <b>1'"</b><br/>Error message found: <pre>You have an error in your SQL syntax</pre>]]></Details>
+                <Affects><![CDATA[/product.php]]></Affects>
+                <Parameter><![CDATA[id]]></Parameter>
+                <AOP_SourceFile><![CDATA[]]></AOP_SourceFile>
+                <AOP_SourceLine></AOP_SourceLine>
+                <AOP_Additional><![CDATA[]]></AOP_Additional>
+                <IsFalsePositive><![CDATA[]]></IsFalsePositive>
+                <Severity><![CDATA[high]]></Severity>
+                <Type><![CDATA[sqlinjection]]></Type>
+                <Impact><![CDATA[An attacker can read the database.]]></Impact>
+                <Description><![CDATA[SQL injection (SQLi) refers to an injection attack wherein an attacker can execute malicious SQL statements.]]></Description>
+                <DetailedInformation><![CDATA[]]></DetailedInformation>
+                <Recommendation><![CDATA[Use parameterized queries.]]></Recommendation>
+                <TechnicalDetails>
+                    <Request><![CDATA[GET /product.php?id=1'%22 HTTP/1.1
+Host: shop.example.test
+Cookie: session=acu-cookie-secret-123
+Authorization: Bearer acu-bearer-token-abcdef
+User-Agent: Mozilla/5.0
+
+]]></Request>
+                </TechnicalDetails>
+                <CWEList>
+                    <CWE id="89"><![CDATA[CWE-89]]></CWE>
+                </CWEList>
+                <CVEList></CVEList>
+                <CVSS>
+                    <Descriptor><![CDATA[AV:N/AC:L/Au:N/C:P/I:P/A:P]]></Descriptor>
+                    <Score><![CDATA[7.5]]></Score>
+                </CVSS>
+                <CVSS3>
+                    <Descriptor><![CDATA[CVSS:3.0/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H]]></Descriptor>
+                    <Score><![CDATA[9.8]]></Score>
+                </CVSS3>
+                <References>
+                    <Reference><Database><![CDATA[OWASP SQL injection]]></Database><URL><![CDATA[https://owasp.org/www-community/attacks/SQL_Injection]]></URL></Reference>
+                </References>
+            </ReportItem>
+            <ReportItem id="2" color="orange">
+                <Name><![CDATA[Vulnerable JavaScript libraries]]></Name>
+                <ModuleName><![CDATA[/Scripts/PerFile/Javascript_Libraries_Audit.script]]></ModuleName>
+                <Details><![CDATA[Detected jQuery 1.12.4.]]></Details>
+                <Affects><![CDATA[/js/jquery.min.js]]></Affects>
+                <Parameter><![CDATA[]]></Parameter>
+                <IsFalsePositive><![CDATA[]]></IsFalsePositive>
+                <Severity><![CDATA[medium]]></Severity>
+                <Type><![CDATA[outdated]]></Type>
+                <Impact><![CDATA[Cross-site scripting through vulnerable library functions.]]></Impact>
+                <Description><![CDATA[You are using one or more vulnerable JavaScript libraries.]]></Description>
+                <Recommendation><![CDATA[Upgrade to the latest version.]]></Recommendation>
+                <TechnicalDetails><Request><![CDATA[]]></Request></TechnicalDetails>
+                <CWEList><CWE id="1104"><![CDATA[CWE-1104]]></CWE></CWEList>
+                <CVEList><CVE><![CDATA[CVE-2020-11022]]></CVE><CVE><![CDATA[CVE-2020-11023]]></CVE></CVEList>
+                <CVSS3>
+                    <Descriptor><![CDATA[CVSS:3.1/AV:N/AC:H/PR:N/UI:R/S:U/C:L/I:L/A:N]]></Descriptor>
+                    <Score><![CDATA[4.2]]></Score>
+                </CVSS3>
+            </ReportItem>
+            <ReportItem id="3" color="blue">
+                <Name><![CDATA[Clickjacking: X-Frame-Options header]]></Name>
+                <ModuleName><![CDATA[Clickjacking_X_Frame_Options]]></ModuleName>
+                <Details><![CDATA[]]></Details>
+                <Affects><![CDATA[Web Server]]></Affects>
+                <Parameter><![CDATA[]]></Parameter>
+                <IsFalsePositive><![CDATA[True]]></IsFalsePositive>
+                <Severity><![CDATA[low]]></Severity>
+                <Type><![CDATA[configuration]]></Type>
+                <Impact><![CDATA[]]></Impact>
+                <Description><![CDATA[The server did not return an X-Frame-Options header.]]></Description>
+                <Recommendation><![CDATA[Configure X-Frame-Options or a CSP frame-ancestors directive.]]></Recommendation>
+                <CWEList><CWE id="693"><![CDATA[CWE-693]]></CWE></CWEList>
+            </ReportItem>
+        </ReportItems>
+    </Scan>
+</ScanGroup>

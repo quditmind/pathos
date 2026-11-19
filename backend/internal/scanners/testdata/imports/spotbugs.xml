@@ -1,0 +1,608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<BugCollection version="4.8.6" sequence="0" timestamp="1795070167593" analysisTimestamp="1795070219106" release="">
+  <Project projectName="">
+    <Jar>/tmp/classes</Jar>
+    <SrcDir>/w/java/src/main/java</SrcDir>
+    <Plugin id="com.h3xstream.findsecbugs" enabled="true"/>
+  </Project>
+  <BugInstance type="DMI_RANDOM_USED_ONLY_ONCE" priority="1" rank="14" abbrev="DMI" category="BAD_PRACTICE" instanceHash="9ee79ff3ea465e9962cf18e498ea36ad" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="440">
+    <ShortMessage>Random object created and used only once</ShortMessage>
+    <LongMessage>Random object created and used only once in com.acme.OrderDao.token()</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="token" signature="()I" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="23" end="24" startBytecode="0" endBytecode="68" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.token()</Message>
+    </Method>
+    <Method classname="java.util.Random" name="nextInt" signature="()I" isStatic="false" role="METHOD_CALLED" classAnnotationNames="jdk.internal.util.random.RandomSupport$RandomGeneratorProperties">
+      <SourceLine classname="java.util.Random" start="495" end="495" startBytecode="0" endBytecode="48" sourcefile="Random.java" sourcepath="java/util/Random.java"/>
+      <Message>Called method java.util.Random.nextInt()</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="24" end="24" startBytecode="9" endBytecode="9" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 24]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="DM_DEFAULT_ENCODING" priority="1" rank="19" abbrev="Dm" category="I18N" instanceHash="f354ad2bade90b353b3665a65622dd97" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+    <ShortMessage>Reliance on default encoding</ShortMessage>
+    <LongMessage>Found reliance on default encoding in com.acme.OrderDao.hash(String): String.getBytes()</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="hash" signature="(Ljava/lang/String;)[B" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="18" end="19" startBytecode="0" endBytecode="80" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.hash(String)</Message>
+    </Method>
+    <Method classname="java.lang.String" name="getBytes" signature="()[B" isStatic="false" role="METHOD_CALLED">
+      <SourceLine classname="java.lang.String" start="1825" end="1825" startBytecode="0" endBytecode="56" sourcefile="String.java" sourcepath="java/lang/String.java"/>
+      <Message>Called method String.getBytes()</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="19" end="19" startBytecode="8" endBytecode="8" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 19]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="ES_COMPARING_PARAMETER_STRING_WITH_EQ" priority="1" rank="14" abbrev="ES" category="BAD_PRACTICE" instanceHash="a1015ca3df28a3141e5a9cdddc7930a8" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="597">
+    <ShortMessage>Comparison of String parameter using == or !=</ShortMessage>
+    <LongMessage>Comparison of String parameter using == or != in com.acme.OrderDao.unused(String)</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="unused" signature="(Ljava/lang/String;)V" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="28" end="32" startBytecode="0" endBytecode="8" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.unused(String)</Message>
+    </Method>
+    <Type descriptor="Ljava/lang/String;" role="TYPE_FOUND">
+      <SourceLine classname="java.lang.String" start="142" end="4904" sourcefile="String.java" sourcepath="java/lang/String.java">
+        <Message>At String.java:[lines 142-4904]</Message>
+      </SourceLine>
+      <Message>Actual type String</Message>
+    </Type>
+    <String value="a" role="STRING_CONSTANT">
+      <Message>String constant &quot;a&quot;</Message>
+    </String>
+    <LocalVariable name="x" register="1" pc="3" role="LOCAL_VARIABLE_VALUE_OF">
+      <Message>Value loaded from x</Message>
+    </LocalVariable>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="29" end="29" startBytecode="5" endBytecode="5" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 29]</Message>
+    </SourceLine>
+    <Property name="edu.umd.cs.findbugs.detect.RefComparisonWarningProperty.STATIC_AND_PARAMETER_IN_PUBLIC_METHOD" value="true"/>
+  </BugInstance>
+  <BugInstance type="NP_UNWRITTEN_FIELD" priority="2" rank="8" abbrev="NP" category="CORRECTNESS" instanceHash="45f1d8a05121239f1145e50e0bac3ed2" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="476">
+    <ShortMessage>Read of unwritten field</ShortMessage>
+    <LongMessage>Read of unwritten field conn in com.acme.OrderDao.find(String)</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="find" signature="(Ljava/lang/String;)Ljava/sql/ResultSet;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="13" end="14" startBytecode="0" endBytecode="88" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.find(String)</Message>
+    </Method>
+    <Field classname="com.acme.OrderDao" name="conn" signature="Ljava/sql/Connection;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>In OrderDao.java</Message>
+      </SourceLine>
+      <Message>Field com.acme.OrderDao.conn</Message>
+    </Field>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="13" end="13" startBytecode="4" endBytecode="4" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 13]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" priority="2" rank="20" abbrev="OBL" category="EXPERIMENTAL" instanceHash="810b76a906f060694a08c0c246eeb1ea" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+    <ShortMessage>Method may fail to clean up stream or resource on checked exception</ShortMessage>
+    <LongMessage>com.acme.OrderDao.find(String) may fail to clean up java.sql.Statement on checked exception</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="find" signature="(Ljava/lang/String;)Ljava/sql/ResultSet;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="13" end="14" startBytecode="0" endBytecode="88" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.find(String)</Message>
+    </Method>
+    <Class classname="java.sql.Statement" role="CLASS_REFTYPE">
+      <SourceLine classname="java.sql.Statement" start="1096" end="1647" sourcefile="Statement.java" sourcepath="java/sql/Statement.java">
+        <Message>At Statement.java:[lines 1096-1647]</Message>
+      </SourceLine>
+      <Message>Reference type java.sql.Statement</Message>
+    </Class>
+    <Int value="1" role="INT_OBLIGATIONS_REMAINING">
+      <Message>1 instances of obligation remaining</Message>
+    </Int>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="13" end="13" startBytecode="4" endBytecode="4" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java" role="SOURCE_LINE_OBLIGATION_CREATED">
+      <Message>Obligation to clean up resource created at OrderDao.java:[line 13] is not discharged</Message>
+    </SourceLine>
+    <SourceLine classname="com.acme.OrderDao" start="14" end="14" startBytecode="10" endBytecode="10" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java" role="SOURCE_LINE_PATH_CONTINUES">
+      <Message>Path continues at OrderDao.java:[line 14]</Message>
+    </SourceLine>
+    <String value="{Statement x 1}" role="STRING_REMAINING_OBLIGATIONS">
+      <Message>Remaining obligations: {Statement x 1}</Message>
+    </String>
+  </BugInstance>
+  <BugInstance type="ODR_OPEN_DATABASE_RESOURCE" priority="2" rank="16" abbrev="ODR" category="BAD_PRACTICE" instanceHash="e33e52cf032ba3bdea3b7cab859c3325" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+    <ShortMessage>Method may fail to close database resource</ShortMessage>
+    <LongMessage>com.acme.OrderDao.find(String) may fail to close Statement</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="find" signature="(Ljava/lang/String;)Ljava/sql/ResultSet;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="13" end="14" startBytecode="0" endBytecode="8" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.find(String)</Message>
+    </Method>
+    <Type descriptor="Ljava/sql/Statement;" role="TYPE_CLOSEIT">
+      <SourceLine classname="java.sql.Statement" start="1096" end="1647" sourcefile="Statement.java" sourcepath="java/sql/Statement.java">
+        <Message>At Statement.java:[lines 1096-1647]</Message>
+      </SourceLine>
+      <Message>Need to close java.sql.Statement </Message>
+    </Type>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="13" end="13" startBytecode="4" endBytecode="4" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 13]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="PREDICTABLE_RANDOM" priority="2" rank="12" abbrev="SECPR" category="SECURITY" instanceHash="4350267e2fde92af61e93ada8c3039a2" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="330">
+    <ShortMessage>Predictable pseudorandom number generator</ShortMessage>
+    <LongMessage>This random generator (java.util.Random) is predictable</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="token" signature="()I" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="23" end="24" startBytecode="0" endBytecode="68" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.token()</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="23" end="23" startBytecode="4" endBytecode="4" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 23]</Message>
+    </SourceLine>
+    <String value="java.util.Random">
+      <Message>Value java.util.Random</Message>
+    </String>
+  </BugInstance>
+  <BugInstance type="SQL_INJECTION_JDBC" priority="2" rank="12" abbrev="SECSQLIJDBC" category="SECURITY" instanceHash="dae8bc47928f4d080274699bfd486c44" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="89">
+    <ShortMessage>Potential JDBC Injection</ShortMessage>
+    <LongMessage>This use of java/sql/Statement.executeQuery(Ljava/lang/String;)Ljava/sql/ResultSet; can be vulnerable to SQL injection (with JDBC)</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="find" signature="(Ljava/lang/String;)Ljava/sql/ResultSet;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="13" end="14" startBytecode="0" endBytecode="88" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.find(String)</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="14" end="14" startBytecode="17" endBytecode="17" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 14]</Message>
+    </SourceLine>
+    <String value="java/sql/Statement.executeQuery(Ljava/lang/String;)Ljava/sql/ResultSet;" role="Sink method">
+      <Message>Sink method java/sql/Statement.executeQuery(Ljava/lang/String;)Ljava/sql/ResultSet;</Message>
+    </String>
+    <String value="0" role="Sink parameter">
+      <Message>Sink parameter 0</Message>
+    </String>
+  </BugInstance>
+  <BugInstance type="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE" priority="1" rank="10" abbrev="SQL" category="SECURITY" instanceHash="d9c3ff80809967f94948ab29a6db5ac5" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="89">
+    <ShortMessage>Nonconstant string passed to execute or addBatch method on an SQL statement</ShortMessage>
+    <LongMessage>com.acme.OrderDao.find(String) passes a nonconstant String to an execute or addBatch method on an SQL statement</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="find" signature="(Ljava/lang/String;)Ljava/sql/ResultSet;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="13" end="14" startBytecode="0" endBytecode="8" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.find(String)</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="14" end="14" startBytecode="17" endBytecode="17" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 14]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="UWF_UNWRITTEN_FIELD" priority="2" rank="12" abbrev="UwF" category="CORRECTNESS" instanceHash="ce06d13f62635f733bca28c5fe42987f" instanceOccurrenceNum="0" instanceOccurrenceMax="0">
+    <ShortMessage>Unwritten field</ShortMessage>
+    <LongMessage>Unwritten field: com.acme.OrderDao.conn</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Field classname="com.acme.OrderDao" name="conn" signature="Ljava/sql/Connection;" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>In OrderDao.java</Message>
+      </SourceLine>
+      <Message>Field com.acme.OrderDao.conn</Message>
+    </Field>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="13" end="13" startBytecode="1" endBytecode="1" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 13]</Message>
+    </SourceLine>
+  </BugInstance>
+  <BugInstance type="WEAK_MESSAGE_DIGEST_MD5" priority="1" rank="10" abbrev="SECMD5" category="SECURITY" instanceHash="64c8f1e81c52c35237be0f4bf0bec7ce" instanceOccurrenceNum="0" instanceOccurrenceMax="0" cweid="328">
+    <ShortMessage>MD2, MD4 and MD5 are weak hash functions</ShortMessage>
+    <LongMessage>This API MD5 (MDX) is not a recommended cryptographic hash function</LongMessage>
+    <Class classname="com.acme.OrderDao" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="9" end="32" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+        <Message>At OrderDao.java:[lines 9-32]</Message>
+      </SourceLine>
+      <Message>In class com.acme.OrderDao</Message>
+    </Class>
+    <Method classname="com.acme.OrderDao" name="hash" signature="(Ljava/lang/String;)[B" isStatic="false" primary="true">
+      <SourceLine classname="com.acme.OrderDao" start="18" end="19" startBytecode="0" endBytecode="80" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java"/>
+      <Message>In method com.acme.OrderDao.hash(String)</Message>
+    </Method>
+    <SourceLine classname="com.acme.OrderDao" primary="true" start="18" end="18" startBytecode="2" endBytecode="2" sourcefile="OrderDao.java" sourcepath="com/acme/OrderDao.java" relSourcepath="com/acme/OrderDao.java">
+      <Message>At OrderDao.java:[line 18]</Message>
+    </SourceLine>
+    <String value="MD5">
+      <Message>Value MD5</Message>
+    </String>
+  </BugInstance>
+  <BugCategory category="BAD_PRACTICE">
+    <Description>Bad practice</Description>
+  </BugCategory>
+  <BugCategory category="CORRECTNESS">
+    <Description>Correctness</Description>
+  </BugCategory>
+  <BugCategory category="SECURITY">
+    <Description>Security</Description>
+  </BugCategory>
+  <BugCategory category="EXPERIMENTAL">
+    <Description>Experimental</Description>
+  </BugCategory>
+  <BugCategory category="I18N">
+    <Description>Internationalization</Description>
+  </BugCategory>
+  <BugPattern type="SQL_INJECTION_JDBC" abbrev="SECSQLIJDBC" category="SECURITY" cweid="89">
+    <ShortDescription>Potential JDBC Injection</ShortDescription>
+    <Details><![CDATA[
+            
+<p>
+The input values included in SQL queries need to be passed in safely.
+Bind variables in prepared statements can be used to easily mitigate the risk of SQL injection.
+</p>
+
+<p>
+    <b>Vulnerable Code:</b><br/>
+    <pre>Connection conn = [...];
+Statement stmt = con.createStatement();
+ResultSet rs = stmt.executeQuery("update COFFEES set SALES = "+nbSales+" where COF_NAME = '"+coffeeName+"'");</pre>
+</p>
+<p>
+    <b>Solution:</b><br/>
+    <pre>Connection conn = [...];
+conn.prepareStatement("update COFFEES set SALES = ? where COF_NAME = ?");
+updateSales.setInt(1, nbSales);
+updateSales.setString(2, coffeeName);</pre>
+</p>
+<br/>
+
+<b>References (JDBC)</b><br/>
+<a href="https://docs.oracle.com/javase/tutorial/jdbc/basics/prepared.html">Oracle Documentation: The Java Tutorials &gt; Prepared Statements</a><br/>
+<b>References (SQL injection)</b><br/>
+<a href="http://projects.webappsec.org/w/page/13246963/SQL%20Injection">WASC-19: SQL Injection</a><br/>
+<a href="https://capec.mitre.org/data/definitions/66.html">CAPEC-66: SQL Injection</a><br/>
+<a href="https://cwe.mitre.org/data/definitions/89.html">CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')</a><br/>
+<a href="https://www.owasp.org/index.php/Top_10_2013-A1-Injection">OWASP: Top 10 2013-A1-Injection</a><br/>
+<a href="https://www.owasp.org/index.php/SQL_Injection_Prevention_Cheat_Sheet">OWASP: SQL Injection Prevention Cheat Sheet</a><br/>
+<a href="https://www.owasp.org/index.php/Query_Parameterization_Cheat_Sheet">OWASP: Query Parameterization Cheat Sheet</a><br/>
+</p>
+
+        ]]></Details>
+  </BugPattern>
+  <BugPattern type="DMI_RANDOM_USED_ONLY_ONCE" abbrev="DMI" category="BAD_PRACTICE">
+    <ShortDescription>Random object created and used only once</ShortDescription>
+    <Details><![CDATA[
+
+<p> This code creates a java.util.Random object, uses it to generate one random number, and then discards
+the Random object. This produces mediocre quality random numbers and is inefficient.
+If possible, rewrite the code so that the Random object is created once and saved, and each time a new random number
+is required invoke a method on the existing Random object to obtain it.
+</p>
+
+<p>If it is important that the generated Random numbers not be guessable, you <em>must</em> not create a new Random for each random
+number; the values are too easily guessable. You should strongly consider using a java.security.SecureRandom instead
+(and avoid allocating a new SecureRandom for each random number needed).
+</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="ODR_OPEN_DATABASE_RESOURCE" abbrev="ODR" category="BAD_PRACTICE">
+    <ShortDescription>Method may fail to close database resource</ShortDescription>
+    <Details><![CDATA[
+
+<p> The method creates a database resource (such as a database connection
+or row set), does not assign it to any
+fields, pass it to other methods, or return it, and does not appear to close
+the object on all paths out of the method.&nbsp; Failure to
+close database resources on all paths out of a method may
+result in poor performance, and could cause the application to
+have problems communicating with the database.
+</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="UWF_UNWRITTEN_FIELD" abbrev="UwF" category="CORRECTNESS">
+    <ShortDescription>Unwritten field</ShortDescription>
+    <Details><![CDATA[
+
+  <p> This field is never written.&nbsp; All reads of it will return the default
+value. Check for errors (should it have been initialized?), or remove it if it is useless.</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="SQL_NONCONSTANT_STRING_PASSED_TO_EXECUTE" abbrev="SQL" category="SECURITY" cweid="89">
+    <ShortDescription>Nonconstant string passed to execute or addBatch method on an SQL statement</ShortDescription>
+    <Details><![CDATA[
+
+  <p>The method invokes the execute or addBatch method on an SQL statement with a String that seems
+to be dynamically generated. Consider using
+a prepared statement instead. It is more efficient and less vulnerable to
+SQL injection attacks.
+</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="NP_UNWRITTEN_FIELD" abbrev="NP" category="CORRECTNESS">
+    <ShortDescription>Read of unwritten field</ShortDescription>
+    <Details><![CDATA[
+
+  <p> The program is dereferencing a field that does not seem to ever have a non-null value written to it.
+Unless the field is initialized via some mechanism not seen by the analysis,
+dereferencing this value will generate a null pointer exception.
+</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="WEAK_MESSAGE_DIGEST_MD5" abbrev="SECMD5" category="SECURITY" cweid="328">
+    <ShortDescription>MD2, MD4 and MD5 are weak hash functions</ShortDescription>
+    <Details><![CDATA[
+            
+<p>The algorithms MD2, MD4 and MD5 are not a recommended MessageDigest. <b>PBKDF2</b> should be used to hash password for example.</p>
+
+<blockquote>
+    "The security of the MD5 hash function is severely compromised. A collision attack exists that can find collisions
+    within seconds on a computer with a 2.6 GHz Pentium 4 processor (complexity of 2<sup>24.1</sup>).[1] Further, there is also a
+    chosen-prefix collision attack that can produce a collision for two inputs with specified prefixes within hours, using
+    off-the-shelf computing hardware (complexity 2<sup>39</sup>).[2]"<br/>
+    - <a href="https://en.wikipedia.org/wiki/MD5#Security">Wikipedia: MD5 - Security</a>
+</blockquote>
+
+<blockquote>
+    "<b>SHA-224, SHA-256, SHA-384, SHA-512, SHA-512/224, and SHA-512/256</b>:<br/>
+    The use of these hash functions is acceptable for all hash function applications."<br/>
+    - <a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf">NIST: Transitioning the Use of Cryptographic Algorithms and Key Lengths p.15</a>
+</blockquote>
+<blockquote>
+    "The main idea of a PBKDF is to slow dictionary or brute force attacks on the passwords by increasing the time
+    needed to test each password. An attacker with a list of likely passwords can evaluate the PBKDF using the known
+    iteration counter and the salt. Since an attacker has to spend a significant amount of computing time for each try,
+    it becomes harder to apply the dictionary or brute force attacks."<br/>
+- <a href="https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf">NIST: Recommendation for Password-Based Key Derivation  p.12</a>
+</blockquote>
+<br/>
+<p>
+    <b>Vulnerable Code:</b><br/>
+    <pre>MessageDigest md5Digest = MessageDigest.getInstance("MD5");
+    md5Digest.update(password.getBytes());
+    byte[] hashValue = md5Digest.digest();</pre>
+    <br/>
+    <pre>byte[] hashValue = DigestUtils.getMd5Digest().digest(password.getBytes());</pre>
+</p>
+<br/>
+<p>
+    <b>Solution (Using bouncy castle):</b><br/>
+    <pre>public static byte[] getEncryptedPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    PKCS5S2ParametersGenerator gen = new PKCS5S2ParametersGenerator(new SHA256Digest());
+    gen.init(password.getBytes("UTF-8"), salt.getBytes(), 4096);
+    return ((KeyParameter) gen.generateDerivedParameters(256)).getKey();
+}</pre>
+    <br/>
+    <b>Solution (Java 8 and later):</b><br/>
+    <pre>public static byte[] getEncryptedPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+    KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 4096, 256 * 8);
+    SecretKeyFactory f = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+    return f.generateSecret(spec).getEncoded();
+}</pre>
+</p>
+<br/>
+<p>
+<b>References</b><br/>
+[1] <a href="https://www.win.tue.nl/hashclash/On%20Collisions%20for%20MD5%20-%20M.M.J.%20Stevens.pdf">On Collisions for MD5</a>: Master Thesis by M.M.J. Stevens<br/>
+[2] <a href="https://homepages.cwi.nl/~stevens/papers/stJOC%20-%20Chosen-Prefix%20Collisions%20for%20MD5%20and%20Applications.pdf">Chosen-prefix collisions for MD5 and applications</a>: Paper written by Marc Stevens<br/>
+<a href="https://en.wikipedia.org/wiki/MD5">Wikipedia: MD5</a><br/>
+<a href="https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-131Ar2.pdf">NIST: Transitioning the Use of Cryptographic Algorithms and Key Lengths</a><br/>
+<a href="https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-132.pdf">NIST: Recommendation for Password-Based Key Derivation</a><br/>
+<a href="https://stackoverflow.com/q/22580853/89769">Stackoverflow: Reliable implementation of PBKDF2-HMAC-SHA256 for Java</a><br/>
+<a href="https://cwe.mitre.org/data/definitions/327.html">CWE-327: Use of a Broken or Risky Cryptographic Algorithm</a>
+</p>
+
+        ]]></Details>
+  </BugPattern>
+  <BugPattern type="DM_DEFAULT_ENCODING" abbrev="Dm" category="I18N">
+    <ShortDescription>Reliance on default encoding</ShortDescription>
+    <Details><![CDATA[
+
+<p> Found a call to a method which will perform a byte to String (or String to byte) conversion,
+and will assume that the default platform encoding is suitable. This will cause the application
+behavior to vary between platforms. Use an alternative API and specify a charset name or Charset
+object explicitly.</p>
+
+      ]]></Details>
+  </BugPattern>
+  <BugPattern type="PREDICTABLE_RANDOM" abbrev="SECPR" category="SECURITY" cweid="330">
+    <ShortDescription>Predictable pseudorandom number generator</ShortDescription>
+    <Details><![CDATA[
+            
+<p>The use of a predictable random value can lead to vulnerabilities when used in certain security critical contexts. For example, when the value is used as:</p>
+<ul>
+<li>a CSRF token: a predictable token can lead to a CSRF attack as an attacker will know the value of the token</li>
+<li>a password reset token (sent by email): a predictable password token can lead to an account takeover, since an attacker will guess the URL of the "change password" form</li>
+<li>any other secret value</li>
+</ul>
+<p>
+A quick fix could be to replace the use of <code>java.util.Random</code> with something stronger, such as <code>java.security.SecureRandom</code>.
+</p>
+<p>
+<b>Vulnerable Code:</b><br/>
+<pre>String generateSecretToken() {
+    Random r = new Random();
+    return Long.toHexString(r.nextLong());
+}</pre>
+</p>
+<p>
+<b>Solution:</b>
+<pre>import org.apache.commons.codec.binary.Hex;
+
+String generateSecretToken() {
+    SecureRandom secRandom = new SecureRandom();
+
+    byte[] result = new byte[32];
+    secRandom.nextBytes(result);
+    return Hex.encodeHexString(result);
+}</pre>
+</p>
+<br/>
+<p>
+<b>References</b><br/>
+<a href="https://jazzy.id.au/2010/09/20/cracking_random_number_generators_part_1.html">Cracking Random Number Generators - Part 1 (https://jazzy.id.au)</a><br/>
+<a href="https://www.securecoding.cert.org/confluence/display/java/MSC02-J.+Generate+strong+random+numbers">CERT: MSC02-J. Generate strong random numbers</a><br/>
+<a href="https://cwe.mitre.org/data/definitions/330.html">CWE-330: Use of Insufficiently Random Values</a><br/>
+<a href="https://blog.h3xstream.com/2014/12/predicting-struts-csrf-token-cve-2014.html">Predicting Struts CSRF Token (Example of real-life vulnerability and exploitation)</a>
+</p>
+
+        ]]></Details>
+  </BugPattern>
+  <BugPattern type="ES_COMPARING_PARAMETER_STRING_WITH_EQ" abbrev="ES" category="BAD_PRACTICE">
+    <ShortDescription>Comparison of String parameter using == or !=</ShortDescription>
+    <Details><![CDATA[
+
+  <p>This code compares a <code>java.lang.String</code> parameter for reference
+equality using the == or != operators. Requiring callers to
+pass only String constants or interned strings to a method is unnecessarily
+fragile, and rarely leads to measurable performance gains. Consider
+using the <code>equals(Object)</code> method instead.</p>
+
+    ]]></Details>
+  </BugPattern>
+  <BugPattern type="OBL_UNSATISFIED_OBLIGATION_EXCEPTION_EDGE" abbrev="OBL" category="EXPERIMENTAL">
+    <ShortDescription>Method may fail to clean up stream or resource on checked exception</ShortDescription>
+    <Details><![CDATA[
+          
+          <p>
+          This method may fail to clean up (close, dispose of) a stream,
+          database object, or other
+          resource requiring an explicit cleanup operation.
+          </p>
+
+          <p>
+          In general, if a method opens a stream or other resource,
+          the method should use a try/finally block to ensure that
+          the stream or resource is cleaned up before the method
+          returns.
+          </p>
+
+          <p>
+          This bug pattern is essentially the same as the
+          OS_OPEN_STREAM and ODR_OPEN_DATABASE_RESOURCE
+          bug patterns, but is based on a different
+          (and hopefully better) static analysis technique.
+          We are interested is getting feedback about the
+          usefulness of this bug pattern.
+          For sending feedback, check:
+          </p>
+          <ul>
+            <li><a href="https://github.com/spotbugs/spotbugs/blob/master/.github/CONTRIBUTING.md">contributing guideline</a></li>
+            <li><a href="https://github.com/spotbugs/discuss/issues?q=">mailinglist</a></li>
+          </ul>
+
+          <p>
+          In particular,
+          the false-positive suppression heuristics for this
+          bug pattern have not been extensively tuned, so
+          reports about false positives are helpful to us.
+          </p>
+
+          <p>
+          See Weimer and Necula, <i>Finding and Preventing Run-Time Error Handling Mistakes</i>
+          (<a href="https://people.eecs.berkeley.edu/~necula/Papers/rte_oopsla04.pdf">PDF</a>),
+          for a description of the analysis technique.
+          </p>
+          
+      ]]></Details>
+  </BugPattern>
+  <BugCode abbrev="DMI" cweid="440">
+    <Description>Dubious method invocation</Description>
+  </BugCode>
+  <BugCode abbrev="SECPR">
+    <Description>Predictable Pseudo Random Generator</Description>
+  </BugCode>
+  <BugCode abbrev="NP" cweid="476">
+    <Description>Null pointer dereference</Description>
+  </BugCode>
+  <BugCode abbrev="SECMD5">
+    <Description>MD2, MD4 and MD5 are weak hash functions</Description>
+  </BugCode>
+  <BugCode abbrev="UwF">
+    <Description>Unwritten field</Description>
+  </BugCode>
+  <BugCode abbrev="OBL">
+    <Description>Unsatisfied obligation to clean up stream or resource</Description>
+  </BugCode>
+  <BugCode abbrev="Dm">
+    <Description>Dubious method used</Description>
+  </BugCode>
+  <BugCode abbrev="SECSQLIJDBC">
+    <Description>SQL Injection (JDBC)</Description>
+  </BugCode>
+  <BugCode abbrev="ODR">
+    <Description>Database resource not closed on all paths</Description>
+  </BugCode>
+  <BugCode abbrev="ES" cweid="597">
+    <Description>Checking String equality using == or !=</Description>
+  </BugCode>
+  <BugCode abbrev="SQL">
+    <Description>Potential SQL Problem</Description>
+  </BugCode>
+  <Errors errors="0" missingClasses="1">
+    <MissingClass>makeConcatWithConstants</MissingClass>
+  </Errors>
+  <FindBugsSummary timestamp="Thu, 19 Nov 2026 06:36:07 +0000" total_classes="1" referenced_classes="28" total_bugs="11" total_size="18" num_packages="1" java_version="21.0.13" vm_version="21.0.13+9-LTS" cpu_seconds="9.97" clock_seconds="1.24" peak_mbytes="329.56" alloc_mbytes="7800.00" gc_seconds="0.01" priority_2="6" priority_1="5">
+    <FileStats path="com/acme/OrderDao.java" bugCount="11" size="18" bugHash="07a993f9ceb57f2c902b2d3193dde61c"/>
+    <PackageStats package="com.acme" total_bugs="11" total_types="1" total_size="18" priority_2="6" priority_1="5">
+      <ClassStats class="com.acme.OrderDao" sourceFile="OrderDao.java" interface="false" size="18" bugs="11" priority_2="6" priority_1="5"/>
+    </PackageStats>
+    <FindBugsProfile>
+      <ClassProfile name="edu.umd.cs.findbugs.classfile.engine.ClassInfoAnalysisEngine" totalMilliseconds="284" invocations="559" avgMicrosecondsPerInvocation="509" maxMicrosecondsPerInvocation="8390" standardDeviationMicrosecondsPerInvocation="955"/>
+      <ClassProfile name="edu.umd.cs.findbugs.classfile.engine.ClassDataAnalysisEngine" totalMilliseconds="78" invocations="561" avgMicrosecondsPerInvocation="140" maxMicrosecondsPerInvocation="2588" standardDeviationMicrosecondsPerInvocation="281"/>
+      <ClassProfile name="edu.umd.cs.findbugs.detect.FieldItemSummary" totalMilliseconds="76" invocations="28" avgMicrosecondsPerInvocation="2747" maxMicrosecondsPerInvocation="13008" standardDeviationMicrosecondsPerInvocation="3333"/>
+      <ClassProfile name="edu.umd.cs.findbugs.detect.FindNoSideEffectMethods" totalMilliseconds="60" invocations="28" avgMicrosecondsPerInvocation="2148" maxMicrosecondsPerInvocation="16636" standardDeviationMicrosecondsPerInvocation="3359"/>
+      <ClassProfile name="edu.umd.cs.findbugs.OpcodeStack$JumpInfoFactory" totalMilliseconds="48" invocations="117" avgMicrosecondsPerInvocation="418" maxMicrosecondsPerInvocation="2675" standardDeviationMicrosecondsPerInvocation="492"/>
+      <ClassProfile name="edu.umd.cs.findbugs.classfile.engine.bcel.JavaClassAnalysisEngine" totalMilliseconds="42" invocations="77" avgMicrosecondsPerInvocation="552" maxMicrosecondsPerInvocation="15492" standardDeviationMicrosecondsPerInvocation="1858"/>
+      <ClassProfile name="edu.umd.cs.findbugs.classfile.engine.bcel.MethodGenFactory" totalMilliseconds="34" invocations="5" avgMicrosecondsPerInvocation="6879" maxMicrosecondsPerInvocation="33386" standardDeviationMicrosecondsPerInvocation="13254"/>
+      <ClassProfile name="edu.umd.cs.findbugs.detect.NoteDirectlyRelevantTypeQualifiers" totalMilliseconds="27" invocations="28" avgMicrosecondsPerInvocation="980" maxMicrosecondsPerInvocation="4124" standardDeviationMicrosecondsPerInvocation="1201"/>
+      <ClassProfile name="edu.umd.cs.findbugs.detect.FunctionsThatMightBeMistakenForProcedures" totalMilliseconds="25" invocations="28" avgMicrosecondsPerInvocation="921" maxMicrosecondsPerInvocation="6580" standardDeviationMicrosecondsPerInvocation="1436"/>
+      <ClassProfile name="edu.umd.cs.findbugs.util.TopologicalSort" totalMilliseconds="23" invocations="517" avgMicrosecondsPerInvocation="45" maxMicrosecondsPerInvocation="740" standardDeviationMicrosecondsPerInvocation="78"/>
+      <ClassProfile name="edu.umd.cs.findbugs.detect.BuildObligationPolicyDatabase" totalMilliseconds="19" invocations="28" avgMicrosecondsPerInvocation="701" maxMicrosecondsPerInvocation="5063" standardDeviationMicrosecondsPerInvocation="1001"/>
+    </FindBugsProfile>
+  </FindBugsSummary>
+  <ClassFeatures></ClassFeatures>
+  <History></History>
+</BugCollection>

@@ -1,0 +1,86 @@
+<?xml version="1.0" ?>
+<!DOCTYPE niktoscans SYSTEM "docs/nikto.dtd">
+<niktoscans>
+<niktoscan hoststest="0" options="-h http://target:8080/ -nointeractive -ask no -maxtime 120s -Tuning 123b -o /out/nikto.xml -Format xml" version="2.5.0" scanstart="Thu Nov 19 06:33:51 2026" scanend="Thu Jan  1 00:00:00 1970" scanelapsed=" seconds" nxmlversion="1.2">
+
+<scandetails targetip="172.23.0.2" targethostname="target" targetport="8080" targetbanner="" starttime="2026-11-19 06:33:51" sitename="http://target:8080/" siteip="http://172.23.0.2:8080/" hostheader="target" errors="0" checks="3323">
+
+
+<item id="95" method="GET">
+<description><![CDATA[/: Cookie session created without the httponly flag.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/Cookies]]></references>
+</item>
+
+<item id="999103" method="GET">
+<description><![CDATA[/: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/]]></references>
+</item>
+
+<item id="013587" method="GET">
+<description><![CDATA[/: Suggested security header missing: strict-transport-security.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security]]></references>
+</item>
+
+<item id="013587" method="GET">
+<description><![CDATA[/: Suggested security header missing: content-security-policy.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP]]></references>
+</item>
+
+<item id="013587" method="GET">
+<description><![CDATA[/: Suggested security header missing: referrer-policy.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy]]></references>
+</item>
+
+<item id="013587" method="GET">
+<description><![CDATA[/: Suggested security header missing: x-content-type-options.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options]]></references>
+</item>
+
+<item id="013587" method="GET">
+<description><![CDATA[/: Suggested security header missing: permissions-policy.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Permissions-Policy]]></references>
+</item>
+
+<item id="600050" method="HEAD">
+<description><![CDATA[Apache/2.2.8 appears to be outdated (current is at least 2.4.63). Apache 2.2.34 is the EOL for the 2.x branch.]]></description>
+<uri><![CDATA[/]]></uri>
+<namelink><![CDATA[http://target:8080/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/]]></iplink>
+<references><![CDATA[]]></references>
+</item>
+
+<item id="001551" method="GET">
+<description><![CDATA[/admin/: This might be interesting.]]></description>
+<uri><![CDATA[/admin/]]></uri>
+<namelink><![CDATA[http://target:8080/admin/]]></namelink>
+<iplink><![CDATA[http://172.23.0.2:8080/admin/]]></iplink>
+<references><![CDATA[]]></references>
+</item>
+
+<statistics elapsed="9" itemsfound="9" itemstested="3323" endtime="2026-11-19 06:34:00" />
+</scandetails>
+</niktoscan>
+
+
+</niktoscans>

@@ -1,0 +1,69 @@
+{
+  "id": "/home/runner/work/app",
+  "type": "path_scan",
+  "entities_with_incidents": [
+    {
+      "mode": "FILE",
+      "filename": "config/app.env",
+      "incidents": [
+        {
+          "policy": "Secrets detection",
+          "occurrences": [
+            {
+              "match": "sk_live_FIXTURE_NOT_A_REAL_KEY_",
+              "match_type": "apikey",
+              "line_start": 2,
+              "line_end": 2,
+              "index_start": 11,
+              "index_end": 42,
+              "pre_line_start": 2,
+              "pre_line_end": 2
+            }
+          ],
+          "type": "Stripe Keys",
+          "detector_documentation": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/stripe_apikey",
+          "validity": "valid",
+          "ignore_sha": "2d5b6f0bd0bfa7c4b8c8e0f5cdad7a1d1c5f6b1e8f0b4f7f36b2a1c0e9d8c7b6",
+          "total_occurrences": 1,
+          "incident_url": "",
+          "known_secret": false,
+          "secret_vaulted": false
+        },
+        {
+          "policy": "Secrets detection",
+          "occurrences": [
+            {
+              "match": "AKIAI44QH8DHBEXAMPLE",
+              "match_type": "client_id",
+              "line_start": 3,
+              "line_end": 3,
+              "index_start": 18,
+              "index_end": 37
+            },
+            {
+              "match": "FIXTURE-not-a-real-aws-secret-key-000000",
+              "match_type": "client_secret",
+              "line_start": 4,
+              "line_end": 4,
+              "index_start": 22,
+              "index_end": 61
+            }
+          ],
+          "type": "AWS Keys",
+          "detector_documentation": "https://docs.gitguardian.com/secrets-detection/secrets-detection-engine/detectors/specifics/aws_iam",
+          "validity": "no_checker",
+          "ignore_sha": "8f1c0e9b7a6d5c4b3a2f1e0d9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b",
+          "total_occurrences": 2,
+          "incident_url": "https://dashboard.gitguardian.com/workspace/1/incidents/42",
+          "known_secret": true,
+          "secret_vaulted": false
+        }
+      ],
+      "total_incidents": 2,
+      "total_occurrences": 3
+    }
+  ],
+  "total_incidents": 2,
+  "total_occurrences": 3,
+  "secrets_engine_version": "2.120.0"
+}
