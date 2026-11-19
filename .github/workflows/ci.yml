@@ -161,6 +161,8 @@ jobs:
         # Family worker images are opt-in profiles; build them too so the
         # image scan covers them.
         run: docker compose --profile sast --profile iac --profile sca --profile dast --profile mobile --profile binary --profile ai --profile fuzz build
+      - name: Fuzz sandbox isolation (malicious harness in the built image)
+        run: workers/fuzz/test/sandbox-e2e.sh pathos-worker-fuzz:dev
       - name: Start the stack
         run: docker compose up -d --wait --wait-timeout 600
       - name: Smoke test

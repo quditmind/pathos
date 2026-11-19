@@ -10,12 +10,14 @@
   atheris  every Python file that imports atheris and calls atheris.Fuzz(),
            run with the Atheris (libFuzzer) options -max_total_time=<N>
 
-This builds and runs repository code. It runs only in the worker sandbox
-(never on the API server), only when a scan profile selects the tool, with
-no network access (the egress proxy is removed from the environment and Go
-module downloads are off: GOPROXY=off, so only modules in vendor/ or none
-are available), on a copy of the checkout (the fuzzers write their corpus
-next to the code), and under limits: nice 10, CPU time, file size and
+This builds and runs repository code. The manifests set `sandbox: true`,
+so the worker never runs it itself: it runs in the sandbox runner container
+(network_mode: none, so no network interface but loopback; no worker token
+or proxy settings; its own UID, PID namespace and cgroup limits; see
+docs/SECURITY.md), only when a scan profile selects the tool. Go module
+downloads are off (GOPROXY=off, so only modules in vendor/ or none are
+available). It works on a copy of the checkout (the fuzzers write their
+corpus next to the code), under limits: nice 10, CPU time, file size and
 address space (rlimits), per-target wall time, a total time budget and at
 most FUZZ_MAX_TARGETS targets.
 

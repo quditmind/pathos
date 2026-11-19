@@ -306,6 +306,14 @@ Licence findings (`category = 'license'`, `scanner_keys` `license-policy` for SB
 | `push_secret_scans` | One per verified push (repository, ref, before and after SHA, unique): status (`queued`, `running`, `done`, `failed`, `not_supported`), files scanned, alerts, attempts |
 | `pushed_secrets` | An alert: commit, file, line, rule and a 16-hex digest of the match for de-duplication. The secret value is never stored |
 
+## Verified AI fixes (migration 00033)
+
+| Object | Purpose |
+|---|---|
+| `repositories.ai_fix_test_runner` | `''` (off, default), `go` or `python`: the tests AI fix verification may run in the sandbox runner |
+| `ai_fix_proposals` | One AI-proposed fix: finding, scanner key and profile configuration, rule, file, scanned commit, test runner, provider, model, configuration version, request SHA-256 and tokens, summary, diff, changed files, status (`generating`, `rejected`, `queued`, `running`, `tests_queued`, `testing`, `verified`, `failed`), failure reason, steps, scanner evidence and raw reports (gzip), test log, verified base commit, fixed file contents, linked fix pull request, worker lease and attempts. One proposal in flight per finding (partial unique index) |
+| `fix_pull_requests.kind`, `ai_fix_id` | `dependency` (default) or `ai_code`; an AI fix pull request points to its proposal (one per proposal) |
+
 ## Application versions, VEX and component policies (migration 00027)
 
 | Table | Purpose |
@@ -332,6 +340,43 @@ Licence findings (`category = 'license'`, `scanner_keys` `license-policy` for SB
 | `developer_identities` | Administrator links from a git author name (unique per organization, case-insensitive) to a user |
 
 Turning attribution off deletes the rows of `scan_commits`, `finding_attribution` and `developer_identities` and clears `material_changes.author_name`. No table stores author e-mail addresses.
+
+## Live secret validation (migration 00034)
+
+| Object | Purpose |
+|---|---|
+| `secret_validation_settings` | Per organization: enabled `providers` (empty = off, the default), `rate_per_second` (1–10, default 1), `max_checks_per_scan` (1–500, default 50), who changed them and when |
+| `findings` (extended) | `secret_validation_status` (`active`, `inactive`, `error`, `not_checked`; default `not_checked`), `secret_validation_provider`, `secret_validation_identity` (non-secret identity of an active credential), `secret_validation_checked_at`, `secret_validation_evidence` (request, HTTP status, explanation, scan job, worker, severity raised from or restored to, last inconclusive attempt, re-check job; at most 8 KiB), `secret_validation_severity_before` (severity before an active verdict raised it to critical) |
+
+No table stores a secret value. The down migration restores raised severities.
+
+## Runtime context (migration 00035)
+
+| Object | Purpose |
+|---|---|
+| `runtime_clusters` | Kubernetes connections: API server, `token` or `kubeconfig` credential (`secret_id`, kind `integration`), CA certificate, namespaces, `allow_private`, interval, sync request and last status |
+| `registry_connections` | OCI registry connections: base URL, repositories, `none`/`basic`/`bearer` credential, `max_tags`, interval and status |
+| `runtime_sync_runs` | One row per synchronisation of a cluster or a registry: status, counts and warnings, error |
+| `runtime_namespaces`, `runtime_network_objects` | Namespaces with labels; Services, Ingresses and NetworkPolicies (the fields PATHOS uses) |
+| `runtime_workloads` | Workloads (Deployment, StatefulSet, DaemonSet, CronJob, Job, bare Pod): labels, replicas, current pod names, security context, `internet_exposed` and the exposure evidence, matching NetworkPolicies, mapped application |
+| `runtime_workload_images` | Container images per workload: reference, normalised registry/repository/tag and the running digest |
+| `runtime_app_mappings` | Workload → application rules (cluster, namespace, label) |
+| `registry_images` | Tags, digests and OCI source/revision labels of the configured repositories |
+| `image_scan_digests` | Digests an image scan target's Trivy scans resolved to |
+| `runtime_deployments` | Links from a running image to an image scan target and/or a repository, with the basis (`digest`, `tag`, `oci_source`) |
+| `runtime_alert_matches` | Imported runtime alerts (Falco, Tetragon, Tracee) matched to workloads |
+| `findings.runtime_*` | `runtime_status` (`''`, `deployed`, `not_deployed`), `runtime_exposed`, `runtime_privileged`, `runtime_alert` and the evidence in `runtime_context`, maintained by the linker; changes mark the finding for re-scoring |
+
+## Function-level reachability (migration 00032)
+
+| Object | Purpose |
+|---|---|
+| `findings.reachability_method` | How reachability was decided: `''` (no analysis), `import` (package level), `call_graph` (govulncheck), `symbol_calls` (pathos-reach) |
+| `findings.reachability_evidence` | JSON evidence of a function-level answer (tool, scan job, vulnerable functions, call paths, dynamic constructs, limits); NULL otherwise; at most 64 KiB |
+| `repository_reach_reports` | The latest reachability report of a repository per tool (`pathos-reach`, `govulncheck`), with the scan job; replaced by each branch scan or import that produces one |
+| `pathos_finding_risk_dirty` | Also re-scores a finding when `reachability_method` changes |
+
+Vulnerable functions named by OSV records are kept in `intel_vulns.affected[].symbols` (JSON, no schema change).
 
 ## Finding lifecycle trigger
 

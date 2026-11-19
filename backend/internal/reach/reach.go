@@ -12,12 +12,15 @@
 //	               from distribution names, other ecosystems)
 //
 // It is a package-level signal: a reachable package does not mean the
-// vulnerable function is called. It only weights the risk score; findings
-// are never hidden or closed because of it.
+// vulnerable function is called. Where an analysis of calls exists (see
+// function.go), the function-level answer replaces it. Either only weights
+// the risk score; findings are never hidden or closed because of it.
 package reach
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"strings"
 	"time"
 
@@ -84,10 +87,16 @@ func (inv Inventory) used(c component) bool {
 	return false
 }
 
-// Decision is the reachability of one package.
+// Decision is the reachability of one package (or, with a function-level
+// method, of one vulnerability of it).
 type Decision struct {
 	Reachability string
 	Basis        string
+	// Method is "", import, call_graph or symbol_calls.
+	Method   string
+	Evidence *Evidence
+	// soft: an unknown that does not override a package-level reachable.
+	soft bool
 }
 
 // Decide computes the reachability of every component. edges are
@@ -130,13 +139,13 @@ func Decide(comps []component, edges map[string][]string, inv Inventory, haveInv
 		origin, reachable := via[c.ref]
 		switch {
 		case c.ref == "" && inv.used(c):
-			d = Decision{"reachable", "the code imports or names the package"}
+			d = Decision{Reachability: "reachable", Basis: "the code imports or names the package", Method: MethodImport}
 		case reachable && origin == c.ref:
-			d = Decision{"reachable", "the code imports or names the package"}
+			d = Decision{Reachability: "reachable", Basis: "the code imports or names the package", Method: MethodImport}
 		case reachable:
-			d = Decision{"reachable", "a dependency of " + byRef[origin].name + ", which the code uses"}
+			d = Decision{Reachability: "reachable", Basis: "a dependency of " + byRef[origin].name + ", which the code uses", Method: MethodImport}
 		case hasGraph && c.ref != "" && (c.eco == "npm" || c.eco == "go"):
-			d = Decision{"not_reachable", "neither the code nor any package it uses depends on it"}
+			d = Decision{Reachability: "not_reachable", Basis: "neither the code nor any package it uses depends on it", Method: MethodImport}
 		}
 		// Duplicate name@version entries: reachable wins.
 		if prev, ok := out[key]; ok && prev.Reachability == "reachable" {
@@ -210,43 +219,101 @@ func Update(ctx context.Context, tx pgx.Tx, repoID uuid.UUID) (int, error) {
 	}
 	erows.Close()
 	decisions := Decide(comps, edges, inv, scanned != nil)
+	reports, err := LoadReports(ctx, tx, repoID)
+	if err != nil {
+		return 0, err
+	}
 
 	// Dependency findings of the repository's code (not scan targets).
-	frows, err := tx.Query(ctx, `SELECT id, lower(package_name) || '@' || package_version, reachability, reachability_basis FROM findings
+	frows, err := tx.Query(ctx, `SELECT id, lower(package_name) || '@' || package_version, package_name, cve, rule_id,
+		reachability, reachability_basis, reachability_method, reachability_evidence FROM findings
 		WHERE repository_id = $1 AND scan_target_id IS NULL AND category = 'sca' AND package_name <> ''`, repoID)
 	if err != nil {
 		return 0, err
 	}
-	type change struct {
-		id           uuid.UUID
-		reach, basis string
+	type finding struct {
+		id                       uuid.UUID
+		key, pkg, cve, rule      string
+		cur, curBasis, curMethod string
+		curEvidence              []byte
 	}
-	var changes []change
+	var fs []finding
+	var ids []string
 	for frows.Next() {
-		var id uuid.UUID
-		var key, cur, curBasis string
-		if err := frows.Scan(&id, &key, &cur, &curBasis); err != nil {
+		var f finding
+		if err := frows.Scan(&f.id, &f.key, &f.pkg, &f.cve, &f.rule, &f.cur, &f.curBasis, &f.curMethod, &f.curEvidence); err != nil {
 			frows.Close()
 			return 0, err
 		}
-		d, ok := decisions[key]
-		if !ok {
-			d = Decision{Reachability: "unknown"}
-			if scanned != nil {
-				d.Basis = "the package is not in the repository's latest SBOM"
+		fs = append(fs, f)
+		for _, id := range []string{f.cve, f.rule} {
+			if id != "" {
+				ids = append(ids, id)
 			}
-		}
-		if d.Reachability != cur || d.Basis != curBasis {
-			changes = append(changes, change{id, d.Reachability, d.Basis})
 		}
 	}
 	frows.Close()
 	if err := frows.Err(); err != nil {
 		return 0, err
 	}
+	// Vulnerable functions named by the advisories (vulnerability
+	// intelligence), only needed when there is a report to apply them to.
+	advisories := map[string]advisoryRecord{}
+	if !reports.empty() && len(ids) > 0 {
+		if advisories, err = loadAdvisories(ctx, tx, ids); err != nil {
+			return 0, err
+		}
+	}
+	type change struct {
+		id                   uuid.UUID
+		reach, basis, method string
+		evidence             []byte
+	}
+	var changes []change
+	for _, f := range fs {
+		d, ok := decisions[f.key]
+		if !ok {
+			d = Decision{Reachability: "unknown"}
+			if scanned != nil {
+				d.Basis = "the package is not in the repository's latest SBOM"
+			}
+		}
+		if !reports.empty() {
+			adv := Advisory{IDs: nonEmpty(f.cve, f.rule)}
+			for _, id := range []string{f.cve, f.rule} {
+				if rec, ok := advisories[id]; ok {
+					adv.IDs = append(adv.IDs, rec.ids...)
+					adv.Ecosystem, adv.Symbols = symbolsFor(f.pkg, rec.affected)
+					break
+				}
+			}
+			if fd, ok := DecideFunction(f.pkg, adv, reports); ok && !(fd.soft && d.Reachability == "reachable") {
+				d = fd
+			}
+		}
+		if len(d.Basis) > 500 {
+			d.Basis = d.Basis[:497] + "..."
+		}
+		var ev []byte
+		if d.Evidence != nil {
+			ev, _ = json.Marshal(d.Evidence)
+			if len(ev) > 60000 {
+				d.Evidence.Paths = d.Evidence.Paths[:min(1, len(d.Evidence.Paths))]
+				ev, _ = json.Marshal(d.Evidence)
+			}
+		}
+		if d.Reachability != f.cur || d.Basis != f.curBasis || d.Method != f.curMethod || !sameJSON(ev, f.curEvidence) {
+			changes = append(changes, change{f.id, d.Reachability, d.Basis, d.Method, ev})
+		}
+	}
 	b := &pgx.Batch{}
 	for _, c := range changes {
-		b.Queue(`UPDATE findings SET reachability = $2, reachability_basis = $3 WHERE id = $1`, c.id, c.reach, c.basis)
+		var ev any
+		if c.evidence != nil {
+			ev = c.evidence
+		}
+		b.Queue(`UPDATE findings SET reachability = $2, reachability_basis = $3, reachability_method = $4, reachability_evidence = $5 WHERE id = $1`,
+			c.id, c.reach, c.basis, c.method, ev)
 	}
 	if len(changes) > 0 {
 		if err := tx.SendBatch(ctx, b).Close(); err != nil {
@@ -254,6 +321,62 @@ func Update(ctx context.Context, tx pgx.Tx, repoID uuid.UUID) (int, error) {
 		}
 	}
 	return len(changes), nil
+}
+
+func nonEmpty(vs ...string) []string {
+	var out []string
+	for _, v := range vs {
+		if v != "" {
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+// sameJSON compares stored and computed evidence (jsonb normalizes keys).
+func sameJSON(a, b []byte) bool {
+	if len(a) == 0 || len(b) == 0 {
+		return len(a) == len(b)
+	}
+	var x, y any
+	if json.Unmarshal(a, &x) != nil || json.Unmarshal(b, &y) != nil {
+		return bytes.Equal(a, b)
+	}
+	xa, _ := json.Marshal(x)
+	ya, _ := json.Marshal(y)
+	return bytes.Equal(xa, ya)
+}
+
+type advisoryRecord struct {
+	ids      []string
+	affected []affectedEntry
+}
+
+// loadAdvisories reads the stored OSV records of identifiers (directly or
+// by alias).
+func loadAdvisories(ctx context.Context, tx pgx.Tx, ids []string) (map[string]advisoryRecord, error) {
+	rows, err := tx.Query(ctx, `SELECT id, aliases, affected FROM intel_vulns WHERE found AND (id = ANY($1) OR aliases && $1)`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]advisoryRecord{}
+	for rows.Next() {
+		var id string
+		var aliases []string
+		var raw []byte
+		if err := rows.Scan(&id, &aliases, &raw); err != nil {
+			return nil, err
+		}
+		rec := advisoryRecord{ids: append([]string{id}, aliases...)}
+		_ = json.Unmarshal(raw, &rec.affected)
+		for _, k := range rec.ids {
+			if prev, ok := out[k]; !ok || k == id && prev.ids[0] != k {
+				out[k] = rec
+			}
+		}
+	}
+	return out, rows.Err()
 }
 
 // StoreInventory replaces a repository's code inventory.

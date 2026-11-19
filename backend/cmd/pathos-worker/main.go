@@ -6,6 +6,13 @@
 //	PATHOS_WORKER_FAMILY            worker family (default: core)
 //	PATHOS_WORK_DIR / PATHOS_CACHE_DIR / PATHOS_RULES_DIRS
 //	PATHOS_CLAMAV_ADDRESS           clamd host:port for the clamav scanner (optional)
+//	PATHOS_SANDBOX_DIR              volume shared with the sandbox runner (optional;
+//	                                tools that run repository code need it)
+//
+// `pathos-worker sandbox-runner` runs the sandbox runner instead: the
+// process of the network-less sibling container that executes repository
+// code for the worker (PATHOS_SANDBOX_DIR, default /sandbox). It needs no
+// token. See internal/worker/sandbox.go.
 package main
 
 import (
@@ -30,6 +37,16 @@ func env(k, def string) string {
 }
 
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "sandbox-runner" {
+		log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-sandbox-runner")
+		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+		defer stop()
+		if err := worker.RunSandboxRunner(ctx, env(worker.SandboxDirEnv, "/sandbox"), log); err != nil {
+			log.Error("sandbox runner stopped", "err", err)
+			os.Exit(1)
+		}
+		return
+	}
 	log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-worker")
 	token := os.Getenv("PATHOS_WORKER_BOOTSTRAP_TOKEN")
 	if token == "" {
@@ -50,6 +67,7 @@ func main() {
 		PluginsDir:     env("PATHOS_SCANNER_PLUGINS_DIR", "/etc/pathos/scanners.d"),
 		ToolsDir:       env("PATHOS_TOOLS_DIR", "/opt/pathos/tools.d"),
 		ClamAVAddress:  strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
+		SandboxDir:     strings.TrimSpace(os.Getenv(worker.SandboxDirEnv)),
 		RulesDirs:      strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
 		Version:        version,
 	}

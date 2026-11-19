@@ -2,12 +2,16 @@ import { RelatedFindings } from "@/features/vuln/RelatedFindings";
 import { categoryLabel } from "@/lib/findingCategories";
 import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { IntroducedBy } from "./IntroducedBy";
+import { SecretStatusBadge, SecretValidationPanel, secretStatusLabel } from "./SecretValidation";
+import { FindingRuntime } from "@/features/runtime/FindingRuntime";
+import { ReachabilitySection } from "./Reachability";
 import { useDeferredValue, useEffect, useState } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { Bot, Search, ShieldCheck, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { FindingTickets } from "@/features/integrations/IntegrationsPage";
 import { FindingFixPR } from "@/features/fixprs/FixPRPanel";
+import { FindingAIFix } from "@/features/aifix/AIFixPanel";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session";
@@ -40,10 +44,10 @@ function HumanReviewCell({ f }: { f: Finding }) {
   );
 }
 
-type FindingSearch = { control?: string; malicious?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string };
+type FindingSearch = { control?: string; malicious?: string; deployed?: string; internet_exposed?: string; status?: string; severity?: string; category?: string; scanner?: string; repository_id?: string; assignee?: string; sla?: string; human_review?: string; lifecycle?: string; kev?: string; risk_min?: string; sort?: string; q?: string; finding?: string; target_kind?: string; scan_target_id?: string; secret_validation?: string; reachability?: string; reachability_method?: string };
 export const validateFindingSearch = (s: Record<string, unknown>): FindingSearch => {
   const out: FindingSearch = {};
-  for (const k of ["control", "malicious", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
+  for (const k of ["control", "malicious", "deployed", "internet_exposed", "status", "severity", "category", "scanner", "repository_id", "assignee", "sla", "human_review", "lifecycle", "kev", "risk_min", "sort", "q", "finding", "target_kind", "scan_target_id", "secret_validation", "reachability", "reachability_method"] as const) if (typeof s[k] === "string") out[k] = s[k] as string;
   return out;
 };
 
@@ -56,7 +60,8 @@ function location(f: Finding) {
 
 const columns: Column<Finding>[] = [
   { id: "severity", header: "Severity", required: true, cell: (f) => <SeverityBadge value={f.severity} />, csv: (f) => f.severity },
-  { id: "risk", header: "Risk", cell: (f) => <span className="flex items-center gap-1"><RiskBadge score={f.risk_score} />{f.malicious && <MaliciousBadge />}{f.kev && <KevBadge />}</span>, csv: (f) => f.risk_score ?? "" },
+  { id: "risk", header: "Risk", cell: (f) => <span className="flex items-center gap-1"><RiskBadge score={f.risk_score} />{f.malicious && <MaliciousBadge />}{f.kev && <KevBadge />}{f.secret_validation?.status === "active" && <SecretStatusBadge status="active" />}</span>, csv: (f) => f.risk_score ?? "" },
+  { id: "runtime", header: "Runtime", defaultHidden: true, exportAlways: true, className: "whitespace-nowrap text-[12px]", cell: (f) => f.runtime_status === "deployed" ? (f.runtime_exposed ? "Deployed · exposed" : "Deployed") : f.runtime_status === "not_deployed" ? "Not deployed" : "—", csv: (f) => f.runtime_status ? `${f.runtime_status}${f.runtime_exposed ? ";internet_exposed" : ""}` : "" },
   {
     id: "title",
     header: "Finding",
@@ -81,6 +86,8 @@ const columns: Column<Finding>[] = [
   { id: "status", header: "Status", cell: (f) => f.lifecycle_status ? <LifecycleBadge value={f.lifecycle_status} /> : <span className="whitespace-nowrap text-[12px]">{statusLabel[f.status] ?? f.status}</span>, csv: (f) => f.lifecycle_status ?? f.status },
   { id: "epss", header: "EPSS", defaultHidden: true, exportAlways: true, className: "tabular text-[12px]", cell: (f) => (f.epss != null ? <span title={`percentile ${pct(f.epss_percentile)}`}>{pct(f.epss)}</span> : "—"), csv: (f) => f.epss ?? "" },
   { id: "kev", header: "KEV", defaultHidden: true, exportAlways: true, cell: (f) => (f.kev ? "Yes" : "—"), csv: (f) => (f.kev ? "yes" : "no") },
+  { id: "secret_validation", header: "Secret check", defaultHidden: true, exportAlways: true, className: "text-[12px]",
+    cell: (f) => (f.secret_validation ? secretStatusLabel[f.secret_validation.status] : "—"), csv: (f) => f.secret_validation?.status ?? "" },
   { id: "confidence", header: "Confidence", defaultHidden: true, exportAlways: true, className: "text-[12px] capitalize", cell: (f) => f.confidence ?? "—", csv: (f) => f.confidence },
   { id: "application", header: "Application", defaultHidden: true, exportAlways: true, className: "text-[12px]", cell: (f) => f.application_name ?? "—", csv: (f) => f.application_name },
   {
@@ -115,11 +122,16 @@ export function FindingsPage() {
     { key: "assignee", label: "Assignee", allLabel: "Anyone", options: [{ value: "me", label: "Assigned to me" }, { value: "none", label: "Unassigned" }] },
     { key: "lifecycle", label: "Lifecycle", allLabel: "Any lifecycle", options: Object.entries(lifecycleLabel).map(([value, label]) => ({ value, label })) },
     { key: "kev", label: "Exploited (KEV)", allLabel: "Any exploit status", options: [{ value: "true", label: "In CISA KEV" }] },
+    { key: "secret_validation", label: "Secret check", allLabel: "Any secret check", options: (["active", "inactive", "error", "not_checked"] as const).map((value) => ({ value, label: `Secrets: ${secretStatusLabel[value].toLowerCase()}` })) },
     { key: "malicious", label: "Malicious packages", allLabel: "Any package", options: [{ value: "true", label: "Malicious packages only" }] },
+    { key: "deployed", label: "Deployed", allLabel: "Any deployment", options: [{ value: "true", label: "Deployed (running in a cluster)" }, { value: "false", label: "Not deployed" }] },
+    { key: "internet_exposed", label: "Internet-exposed", allLabel: "Any exposure", options: [{ value: "true", label: "Internet-exposed in a cluster" }] },
     { key: "risk_min", label: "Risk", allLabel: "Any risk", options: [{ value: "75", label: "Critical risk (≥ 75)" }, { value: "50", label: "High risk or more (≥ 50)" }, { value: "25", label: "Medium risk or more (≥ 25)" }] },
     { key: "sort", label: "Order", options: [{ value: "", label: "Order by severity" }, { value: "risk", label: "Order by contextual risk" }] },
     { key: "human_review", label: "Human Eye", allLabel: "Any review state", options: [{ value: "none", label: "Not reviewed" }, { value: "open", label: "Review in progress" }, ...Object.entries(dispositionLabel).filter(([k]) => k !== "needs_more_information").map(([value, label]) => ({ value, label: `Reviewed: ${label}` }))] },
     { key: "sla", label: "SLA", allLabel: "Any SLA", options: [{ value: "breached", label: "Breached" }, { value: "due_soon", label: "Due within 7 days" }] },
+    { key: "reachability", label: "Reachability", allLabel: "Any reachability", options: [{ value: "reachable", label: "Reachable" }, { value: "not_reachable", label: "Not reachable" }, { value: "unknown", label: "Unknown" }] },
+    { key: "reachability_method", label: "Reachability method", allLabel: "Any method", options: [{ value: "call_graph", label: "Function level: call graph" }, { value: "symbol_calls", label: "Function level: calls in the code" }, { value: "import", label: "Package level: imports" }, { value: "none", label: "Not analysed" }] },
     { key: "target_kind", label: "Asset", allLabel: "All assets", options: [{ value: "repository", label: "Source code" }, { value: "image", label: "Container images" }, { value: "url", label: "Web applications" }, { value: "api", label: "APIs" }, { value: "sbom", label: "Imported SBOMs" }, { value: "artifact", label: "Build artifacts" }, { value: "endpoints", label: "Declared public endpoints" }, { value: "mobile-app", label: "Mobile apps" }, { value: "llm-endpoint", label: "LLM endpoints" }] },
     { key: "category", label: "Type", allLabel: "All types", options: Object.entries(categoryLabel).map(([value, label]) => ({ value, label })) },
     { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).filter((s) => s.adapter_available && s.key !== "syft").map((s) => ({ value: s.key, label: s.name })) },
@@ -209,7 +221,9 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             {d.cvss != null && <span className="tabular text-[12px] text-muted-foreground">CVSS {d.cvss.toFixed(1)}</span>}
           </div>
           <LifecyclePanel f={d} />
+          <SecretValidationPanel f={d} />
           <RiskPanel findingId={d.id} />
+          <FindingRuntime findingId={d.id} />
           {(d.category === "sca" || d.category === "container") && d.package_name && !d.scan_target_id && (
             <div className="rounded-md border border-border p-3">
               <h3 className="mb-1 text-[12px] font-semibold">How the package gets in</h3>
@@ -255,15 +269,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             <IntroducedBy f={d} />
             <div><dt className="text-[12px] text-muted-foreground">Last seen</dt><dd className="tabular">{formatDateTime(d.last_seen_at)}</dd></div>
             {d.resolved_at && <div><dt className="text-[12px] text-muted-foreground">Resolved</dt><dd className="tabular">{formatDateTime(d.resolved_at)}</dd></div>}
-            {d.category === "sca" && d.reachability && (
-              <div className="col-span-2">
-                <dt className="text-[12px] text-muted-foreground">Reachability</dt>
-                <dd>
-                  {{ reachable: "Reachable", not_reachable: "Not reachable", unknown: "Unknown" }[d.reachability]}
-                  {d.reachability_basis && <span className="text-muted-foreground"> — {d.reachability_basis}</span>}
-                </dd>
-              </div>
-            )}
+            {d.category === "sca" && <ReachabilitySection f={d} />}
             {d.suppression_rule_id && (
               <div className="col-span-2">
                 <dt className="text-[12px] text-muted-foreground">Decided by</dt>
@@ -274,6 +280,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
           <FindingPolicies findingId={d.id} />
           <FindingTickets findingId={d.id} />
           {!d.scan_target_id && <FindingFixPR findingId={d.id} category={d.category} />}
+          {!d.scan_target_id && <FindingAIFix findingId={d.id} category={d.category} />}
           <RelatedFindings findingId={d.id} />
           {d.snippet && (
             <div>

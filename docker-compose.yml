@@ -509,12 +509,13 @@ services:
       PATHOS_WORKER_FAMILY: ai
 
   #   COMPOSE_PROFILES=fuzz  ->  Go native fuzzing, Atheris. These build and
-  #   run repository code: the container gets a CPU limit, and /work allows
-  #   execution (the Go test binaries run from it).
+  #   run repository code, which never runs in worker-fuzz itself (it is on
+  #   the scan and worker-api networks and holds the worker token): the
+  #   worker hands it to worker-fuzz-sandbox through the fuzz_sandbox volume.
   worker-fuzz:
     <<: *worker
     profiles: [fuzz]
-    build:
+    build: &fuzz-build
       context: .
       dockerfile: workers/fuzz/Dockerfile
       additional_contexts:
@@ -524,11 +525,47 @@ services:
     environment:
       <<: *worker-env
       PATHOS_WORKER_FAMILY: fuzz
-    tmpfs:
-      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001,exec
-      - /tmp:size=1g,mode=1777
+      PATHOS_SANDBOX_DIR: /sandbox
+    volumes:
+      - scanner_cache:/cache
+      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+      - ./workers/rules-extra:/rules:ro
+      - fuzz_sandbox:/sandbox
+
+  # The sandbox runner for worker-fuzz: same image, `pathos-worker
+  # sandbox-runner`. It runs the repository code the worker hands it, with
+  # no network at all (network_mode: none: only a loopback interface, no
+  # DNS), its own UID (10002; group 10001 to share the job directories),
+  # PID and IPC namespaces (it cannot see or signal the worker's processes
+  # or read their environment), no worker token or proxy settings, a
+  # read-only root filesystem, no capabilities, and its own cgroup limits.
+  # It shares only the fuzz_sandbox volume with worker-fuzz, where it can
+  # write only in the directory of the run in progress. It must be the
+  # container's PID 1 (no `init: true`). Run one worker-fuzz replica per
+  # runner (the worker locks the volume). See docs/SECURITY.md.
+  worker-fuzz-sandbox:
+    profiles: [fuzz]
+    build: *fuzz-build
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-fuzz:${PATHOS_VERSION:-dev}
+    command: ["sandbox-runner"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "10002:10001"
+    network_mode: none
+    ipc: none
+    environment:
+      PATHOS_SANDBOX_DIR: /sandbox
+      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+    volumes:
+      - fuzz_sandbox:/sandbox
+    mem_limit: ${PATHOS_FUZZ_MEMORY:-4g}
+    memswap_limit: ${PATHOS_FUZZ_MEMORY:-4g}
     cpus: ${PATHOS_FUZZ_CPUS:-2}
-    pids_limit: 512
+    pids_limit: ${PATHOS_FUZZ_PIDS:-256}
+    ulimits:
+      nofile: { soft: 4096, hard: 4096 }
 
   mailpit:
     profiles: [dev]
@@ -647,6 +684,13 @@ networks:
 
 volumes:
   sources:
+  # Shared by worker-fuzz (owner) and worker-fuzz-sandbox: a size-limited
+  # tmpfs, so a run cannot fill a disk and nothing survives a restart.
+  fuzz_sandbox:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=${PATHOS_FUZZ_SANDBOX_TMPFS:-4g},uid=10001,gid=10001,mode=0750
   import_work:
   clamav_db:
   ollama_models:

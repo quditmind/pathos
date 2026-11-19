@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"pathos/internal/reach"
 	"pathos/internal/review"
 )
 
@@ -64,11 +65,66 @@ type Reference struct {
 	URL  string `json:"url"`
 }
 
-// Affected is an affected package with its fixed versions.
+// Affected is an affected package with its fixed versions and, when the
+// advisory names them, its vulnerable functions (for function-level
+// reachability).
 type Affected struct {
 	Ecosystem string   `json:"ecosystem"`
 	Package   string   `json:"package"`
 	Fixed     []string `json:"fixed"`
+	// Symbols are qualified as the advisory names them: Go
+	// "<import path>.<symbol>" (ecosystem_specific.imports), RustSec
+	// "crate::path::function" (ecosystem_specific.affects.functions),
+	// otherwise the vulnerable_functions or affected_functions lists of
+	// ecosystem_specific or database_specific as written.
+	Symbols []string `json:"symbols,omitempty"`
+}
+
+// maxSymbols bounds the vulnerable functions kept per affected package.
+const maxSymbols = 200
+
+// affectedSymbols reads the vulnerable functions an advisory names for one
+// affected package. Only the record itself is read: nothing is looked up.
+func affectedSymbols(raws ...json.RawMessage) []string {
+	var out []string
+	add := func(s string) {
+		s = strings.TrimSpace(s)
+		if s != "" && len(s) <= 300 && len(out) < maxSymbols && !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	for _, raw := range raws {
+		if len(raw) == 0 {
+			continue
+		}
+		var x struct {
+			Imports []struct {
+				Path    string   `json:"path"`
+				Symbols []string `json:"symbols"`
+			} `json:"imports"`
+			Affects struct {
+				Functions []string `json:"functions"`
+			} `json:"affects"`
+			VulnerableFunctions []string `json:"vulnerable_functions"`
+			AffectedFunctions   []string `json:"affected_functions"`
+		}
+		if json.Unmarshal(raw, &x) != nil {
+			continue
+		}
+		for _, imp := range x.Imports {
+			for _, sym := range imp.Symbols {
+				if imp.Path != "" && len(imp.Path) <= 200 {
+					add(imp.Path + "." + sym)
+				}
+			}
+		}
+		for _, list := range [][]string{x.Affects.Functions, x.VulnerableFunctions, x.AffectedFunctions} {
+			for _, sym := range list {
+				add(sym)
+			}
+		}
+	}
+	return out
 }
 
 type osvDoc struct {
@@ -92,6 +148,8 @@ type osvDoc struct {
 		Ranges []struct {
 			Events []map[string]string `json:"events"`
 		} `json:"ranges"`
+		EcosystemSpecific json.RawMessage `json:"ecosystem_specific"`
+		DatabaseSpecific  json.RawMessage `json:"database_specific"`
 	} `json:"affected"`
 	DatabaseSpecific struct {
 		CWEIDs []string `json:"cwe_ids"`
@@ -155,6 +213,7 @@ func (d osvDoc) toVuln(source string) (Vuln, bool) {
 				}
 			}
 		}
+		af.Symbols = affectedSymbols(a.EcosystemSpecific, a.DatabaseSpecific)
 		v.Affected = append(v.Affected, af)
 	}
 	return v, true
@@ -291,8 +350,28 @@ func applyOSV(ctx context.Context, tx pgx.Tx, ids []string) error {
 	if err := tx.SendBatch(ctx, fb).Close(); err != nil {
 		return err
 	}
-	_, err = tx.Exec(ctx, `UPDATE findings SET risk_dirty = true WHERE NOT risk_dirty AND (cve = ANY($1) OR rule_id = ANY($1))`, ids)
-	return err
+	if _, err = tx.Exec(ctx, `UPDATE findings SET risk_dirty = true WHERE NOT risk_dirty AND (cve = ANY($1) OR rule_id = ANY($1))`, ids); err != nil {
+		return err
+	}
+	// The vulnerable functions a record names decide function-level
+	// reachability: repositories with a reachability report re-decide the
+	// findings of these advisories (from stored data only).
+	rows, err = tx.Query(ctx, `SELECT DISTINCT f.repository_id FROM findings f
+		WHERE f.category = 'sca' AND f.scan_target_id IS NULL AND (f.cve = ANY($1) OR f.rule_id = ANY($1))
+		  AND EXISTS (SELECT 1 FROM repository_reach_reports rr WHERE rr.repository_id = f.repository_id)`, ids)
+	if err != nil {
+		return err
+	}
+	repos, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
+	if err != nil {
+		return err
+	}
+	for _, repo := range repos {
+		if _, err := reach.Update(ctx, tx, repo); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 type vectorFill struct {

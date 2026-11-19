@@ -45,10 +45,13 @@ type Config struct {
 	// ClamAVAddress is clamd's host:port for malware scanning of
 	// repository content ("" = the clamav scanner is skipped).
 	ClamAVAddress string
-	RulesDirs     []string
-	PollInterval  time.Duration
-	MaxRepoBytes  int64
-	Version       string
+	// SandboxDir is the volume shared with the sandbox runner ("" = no
+	// runner: tools that run repository code are skipped).
+	SandboxDir   string
+	RulesDirs    []string
+	PollInterval time.Duration
+	MaxRepoBytes int64
+	Version      string
 }
 
 // Agent runs jobs.
@@ -60,6 +63,8 @@ type Agent struct {
 	tools map[string]Tool
 	// plugins are the declarative adapters among tools.
 	plugins []PluginDef
+	// sandbox runs repository code (nil without a runner).
+	sandbox *Sandbox
 	// reportInterval is how often execution events and logs are flushed
 	// (default 3s).
 	reportInterval time.Duration
@@ -77,6 +82,15 @@ func New(cfg Config, log *slog.Logger) *Agent {
 	// containers, so the directory is created at start.
 	_ = os.MkdirAll("/tmp/home", 0o700)
 	tools := Tools(cfg)
+	var sandbox *Sandbox
+	if cfg.SandboxDir != "" {
+		s, err := OpenSandbox(cfg.SandboxDir)
+		if err != nil {
+			log.Error("sandbox unavailable: tools that run repository code are skipped", "err", err)
+		} else {
+			sandbox = s
+		}
+	}
 	// First-party manifests first. Neither kind can replace a built-in
 	// tool, and operator plugin keys (plugin-<category>-<name>) never
 	// collide with first-party ones (catalog keys).
@@ -86,10 +100,10 @@ func New(cfg Config, log *slog.Logger) *Agent {
 			log.Warn("tool manifest ignored: the key is already provided", "key", p.Key())
 			continue
 		}
-		tools[p.Key()] = pluginTool{def: p, cacheDir: cfg.CacheDir}
+		tools[p.Key()] = pluginTool{def: p, cacheDir: cfg.CacheDir, sandbox: sandbox}
 		plugins = append(plugins, p)
 	}
-	return &Agent{cfg: cfg, log: log, http: &http.Client{Timeout: 5 * time.Minute}, tools: tools, plugins: plugins}
+	return &Agent{cfg: cfg, log: log, http: &http.Client{Timeout: 5 * time.Minute}, tools: tools, plugins: plugins, sandbox: sandbox}
 }
 
 // apiError carries the HTTP status of a failed API call.
@@ -212,6 +226,10 @@ func (a *Agent) Run(ctx context.Context) error {
 			if a.tryFix(ctx) {
 				continue
 			}
+			// Then AI fix verification (apply, re-scan, sandboxed tests).
+			if a.tryAIFix(ctx) {
+				continue
+			}
 		}
 		select {
 		case <-ctx.Done():
@@ -250,6 +268,9 @@ type Job struct {
 	// lists commit author names for developer attribution.
 	PreviousCommitSHA string `json:"previous_commit_sha"`
 	CollectAuthors    bool   `json:"collect_authors"`
+	// SecretValidation lists the providers an administrator enabled for
+	// live secret validation (nil: off, the default).
+	SecretValidation *SecretValidationConfig `json:"secret_validation,omitempty"`
 }
 
 // JobSource identifies a non-Git source for a job.
@@ -509,6 +530,8 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		} else {
 			rep.logf("info", "runtime inventory: %d runtimes and base images declared", len(rt.Runtimes))
 		}
+		// Live validation of the secrets found (only when enabled).
+		a.validateSecrets(ctx, parent, job, src, out, keys, rep)
 		// Introducing commits of code findings (Git sources only).
 		if job.Source == nil {
 			a.uploadBlame(ctx, parent, job, src, out, keys, rep)

@@ -1,0 +1,82 @@
+[
+  {
+    "id": "GHSA-35jh-r3h4-6jhm",
+    "aliases": ["CVE-2021-23337"],
+    "summary": "Command injection in lodash (template)",
+    "affected": [{
+      "package": {"ecosystem": "npm", "name": "lodash"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "0"}, {"fixed": "4.17.21"}]}],
+      "database_specific": {"vulnerable_functions": ["lodash.template"]}
+    }]
+  },
+  {
+    "id": "GHSA-p6mc-m468-83gw",
+    "aliases": ["CVE-2020-8203"],
+    "summary": "Prototype pollution in lodash (zipObjectDeep)",
+    "affected": [{
+      "package": {"ecosystem": "npm", "name": "lodash"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "3.7.0"}, {"fixed": "4.17.19"}]}],
+      "database_specific": {"vulnerable_functions": ["lodash.zipObjectDeep"]}
+    }]
+  },
+  {
+    "id": "GHSA-cf4h-3jhx-xvhq",
+    "aliases": ["CVE-2021-23358"],
+    "summary": "Arbitrary code execution in underscore (template)",
+    "affected": [{
+      "package": {"ecosystem": "npm", "name": "underscore"},
+      "ranges": [{"type": "SEMVER", "events": [{"introduced": "1.3.2"}, {"fixed": "1.12.1"}]}],
+      "database_specific": {"vulnerable_functions": ["underscore.template"]}
+    }]
+  },
+  {
+    "id": "GHSA-8q59-q68h-6hv4",
+    "aliases": ["CVE-2020-14343"],
+    "summary": "Improper input validation in PyYAML (full_load, FullLoader)",
+    "affected": [{
+      "package": {"ecosystem": "PyPI", "name": "PyYAML"},
+      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "5.4"}]}],
+      "ecosystem_specific": {"affected_functions": ["yaml.load", "yaml.full_load", "yaml.unsafe_load"]}
+    }]
+  },
+  {
+    "id": "GHSA-g3rq-g295-4j3m",
+    "aliases": ["CVE-2020-28493"],
+    "summary": "Regular expression denial of service in Jinja2 (urlize)",
+    "affected": [{
+      "package": {"ecosystem": "PyPI", "name": "Jinja2"},
+      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "2.11.3"}]}],
+      "ecosystem_specific": {"affected_functions": ["jinja2.utils.urlize"]}
+    }]
+  },
+  {
+    "id": "GHSA-j8r2-6x86-q33q",
+    "aliases": ["CVE-2023-32681"],
+    "summary": "Unintended leak of Proxy-Authorization header in requests",
+    "affected": [{
+      "package": {"ecosystem": "PyPI", "name": "requests"},
+      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "2.3.0"}, {"fixed": "2.31.0"}]}],
+      "ecosystem_specific": {"affected_functions": ["requests.sessions.SessionRedirectMixin.rebuild_proxies"]}
+    }]
+  },
+  {
+    "id": "GHSA-599f-7c49-w659",
+    "aliases": ["CVE-2022-42889"],
+    "summary": "Arbitrary code execution in Apache Commons Text (StringSubstitutor interpolation)",
+    "affected": [{
+      "package": {"ecosystem": "Maven", "name": "org.apache.commons:commons-text"},
+      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "1.5"}, {"fixed": "1.10.0"}]}],
+      "database_specific": {"vulnerable_functions": ["org.apache.commons.text.StringSubstitutor#replace"]}
+    }]
+  },
+  {
+    "id": "GHSA-fjq5-5j5f-mvxh",
+    "aliases": ["CVE-2015-7501"],
+    "summary": "Deserialization of untrusted data in Apache Commons Collections (InvokerTransformer)",
+    "affected": [{
+      "package": {"ecosystem": "Maven", "name": "commons-collections:commons-collections"},
+      "ranges": [{"type": "ECOSYSTEM", "events": [{"introduced": "0"}, {"fixed": "3.2.2"}]}],
+      "database_specific": {"vulnerable_functions": ["org.apache.commons.collections.functors.InvokerTransformer.transform"]}
+    }]
+  }
+]

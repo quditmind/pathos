@@ -18,8 +18,8 @@ Open **Vulnerabilities → Findings** (permission `findings.read`). You see the 
 
 - **Severity cards** (Critical, High, Medium, Low, Info) count the findings that match the other filters. Select a card to filter by that severity.
 - **Search findings** matches the title, rule, CVE, file or package.
-- **Filters**: Status (default *Open*), Assignee (*Assigned to me*, *Unassigned*), Lifecycle, Exploited (KEV), Malicious packages, Risk, Order (*Order by severity* or *Order by contextual risk*), Human Eye (review state or outcome), SLA (*Breached*, *Due within 7 days*), Asset (source code, container images, web applications, APIs, imported SBOMs, build artifacts), Type, Scanner and Repository.
-- **Columns** shows or hides columns. Hidden by default: Repository, Repository ID, Detected by, EPSS, KEV, Confidence, Application, Fixed version and Location. Repository, Repository ID, EPSS, KEV, Confidence and Application are always included in **Export** (CSV of the loaded rows).
+- **Filters**: Status (default *Open*), Assignee (*Assigned to me*, *Unassigned*), Lifecycle, Exploited (KEV), Malicious packages, Deployed and Internet-exposed ([runtime context](runtime.md#in-the-findings-list-and-the-finding-drawer)), Risk, Order (*Order by severity* or *Order by contextual risk*), Human Eye (review state or outcome), SLA (*Breached*, *Due within 7 days*), Reachability (*Reachable*, *Not reachable*, *Unknown*, and by how it was decided: *function level (call graph)*, *function level (calls in the code)*, *package imports*), Asset (source code, container images, web applications, APIs, imported SBOMs, build artifacts), Type, Scanner and Repository.
+- **Columns** shows or hides columns. Hidden by default: Repository, Repository ID, Runtime, Detected by, EPSS, KEV, Confidence, Application, Fixed version and Location. Repository, Repository ID, Runtime, EPSS, KEV, Confidence and Application are always included in **Export** (CSV of the loaded rows).
 
 Filters are kept in the page address, so a filtered view can be bookmarked or shared.
 
@@ -36,16 +36,40 @@ Select a finding to open its details panel:
 - severity, lifecycle, CVSS, the SLA badge, *reappeared n×* when it came back after being fixed, and *risk accepted until …*
 - the **Status** and **Assignee** controls, **Risk acceptance** and the **History** of every status change (who or what changed it, when and why)
 - **Contextual risk** with every factor ([explained here](vulnerability-intelligence.md#contextual-risk))
+- **Where it runs**: the clusters, namespaces and workloads that run the finding, with the evidence of the link, exposure and matched runtime alerts ([runtime context](runtime.md))
 - **How the package gets in** for dependency findings ([dependency paths](posture.md#dependencies-of-a-repository))
 - the Human Eye review and its outcome, if there is one
-- type, rule, CVE (links to the [vulnerability page](vulnerability-intelligence.md#vulnerability-details)), CWE, package, **Fixed in**, location, **Detected by**, first and last seen, **First detected at commit**, reachability, and whether a suppression rule decided it
-- the security policies it violates, linked tickets, related findings, the code snippet, **AI review** and **Sightings** (every scan that saw it)
+- type, rule, CVE (links to the [vulnerability page](vulnerability-intelligence.md#vulnerability-details)), CWE, package, **Fixed in**, location, **Detected by**, first and last seen, **First detected at commit**, and whether a suppression rule decided it
+- **Reachability** for dependency findings: reachable, not reachable or unknown, why, and how it was decided. For a function-level answer it also shows the vulnerable functions checked, the **call paths** (each a chain of `file:line` frames, outermost caller first, ending at the call of the vulnerable function), the dynamic uses or untyped calls that made it unknown, the tool and scan behind it and what the method cannot see ([reachability](vulnerability-intelligence.md#function-level))
+- the security policies it violates, linked tickets, **Fix pull request** (dependency findings), **AI-proposed fix** (SAST, secrets and IaC findings, see [below](#ai-proposed-fixes)), related findings, the code snippet, **AI review** and **Sightings** (every scan that saw it)
 
 ### Where a finding came from
 
 - **First detected at commit**: the commit of the first scan that found the finding.
+- **Live secret validation** (secret findings): whether the credential is still active at its provider, with the request, HTTP status and identity as evidence, and **Re-check**. Off unless an administrator enables providers; see [Live secret validation](secret-validation.md).
 - **Introduced by** (code, secret and IaC findings): the commit that introduced the line, with the author's name and date, from `git blame` of the scanned commit. Repositories cloned without history show **Unknown (shallow clone)**; enable full history to record it. See [Commit-based tracking](security-scanning.md#commit-based-tracking).
 - Two further types exist besides scanner results: **End of life** (a runtime, framework or image no longer supported, see [End of life](supply-chain.md#end-of-life)) and **Supply chain (signatures)** (a required signature that could not be verified, see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification)).
+
+## AI-proposed fixes
+
+For SAST, secrets and IaC findings, **Propose fix** in the finding's details asks the organization's AI provider for a code change. Nothing an AI model writes is offered as ready until PATHOS has checked it.
+
+**Before you start.** An administrator must add an AI provider and a default AI configuration that allows sending code (**AI settings**; a self-hosted model such as Ollama works). Without one, the panel says that AI fixes are off. You need the `ai.fix` permission on the repository ([RBAC](https://github.com/quditmind/pathos/blob/main/docs/RBAC_MATRIX.md#ai-proposed-fixes-aifix)).
+
+**What happens:**
+
+1. PATHOS reads the finding's file at the scanned commit and sends the finding and the code around it to the provider. Secrets are redacted first (built-in and organization patterns; for secrets findings, the value itself and every copy of it). The hash of what was sent is stored.
+2. The provider returns a unified diff. PATHOS **rejects** it when it changes anything but the finding's file and at most two files next to it, touches a CI pipeline, build script, dependency manifest or lockfile (unless the finding is in that file), creates, deletes or renames files, is larger than the limits, or writes the redaction marker into the code.
+3. A worker **applies** the diff to a fresh checkout of the scanned commit and **re-runs the scanner** that reported the finding on the changed file, once without and once with the change. The finding must have been reported before and be gone after, and no new result may appear in the changed files.
+4. If an administrator chose a **test runner** for the repository (repository details, Security tab, **AI fix verification**: `go test ./...` or `python -m unittest discover`), the repository's tests run without and with the change in the sandboxed fuzz worker, with no network access and CPU, memory and time limits. They must pass both times. This runs the repository's code, which is why it is off by default. Go modules must vendor their dependencies, and Python tests run with the standard library only.
+
+The panel shows the diff, each step with its status and detail, the scanner's results before and after (with the raw reports to download) and the test log. A fix that fails shows the reason, for example *the scanner still reports rule … after the fix* or *the tests pass without the fix and fail with it*.
+
+**Open pull request** appears only on a **verified** fix, for people who also have `findings.triage` and `repos.manage` on the repository, and only when the repository allows [fix pull requests](supply-chain.md#fix-pull-requests). PATHOS creates a `pathos/fix/ai-…` branch from the verified commit, commits the verified files and opens the pull request; it never merges. The finding stays open until a later scan no longer detects it.
+
+Limits: 10 requests per person per hour and 200 per organization per day. Every request, proposal, verdict and pull request is in the audit log (`ai_fix.*`).
+
+Verification shows that the scanner no longer reports the finding in the changed file and that the tests still pass. It does not prove that the change is correct in every case: review it like any other contribution.
 
 ## Status and lifecycle
 

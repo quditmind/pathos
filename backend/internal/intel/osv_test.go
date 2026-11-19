@@ -3,6 +3,7 @@ package intel
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"os"
 	"strings"
 	"testing"
@@ -87,5 +88,59 @@ func TestPURLs(t *testing.T) {
 	}
 	if _, _, ok := PURLPackage("pkg:deb/debian/openssl@3"); ok {
 		t.Error("unsupported ecosystems are skipped")
+	}
+}
+
+// Vulnerable functions are read from the record only: Go's
+// ecosystem_specific.imports (a real record, as govulncheck 1.10.0 printed
+// it for the reachability benchmark), RustSec's affects.functions and
+// vulnerable_functions/affected_functions lists.
+func TestOSVSymbols(t *testing.T) {
+	raw, err := os.ReadFile("../reachscan/testdata/bench/go/govulncheck-app.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := json.NewDecoder(bytes.NewReader(raw))
+	var goRec json.RawMessage
+	for {
+		var msg struct {
+			OSV json.RawMessage `json:"osv"`
+		}
+		if err := d.Decode(&msg); err != nil {
+			break
+		}
+		if bytes.Contains(msg.OSV, []byte(`"id": "GO-2022-1059"`)) {
+			goRec = msg.OSV
+		}
+	}
+	if goRec == nil {
+		t.Fatal("GO-2022-1059 not in the fixture")
+	}
+	vs, err := ParseOSV(goRec, "osv-file")
+	if err != nil || len(vs) != 1 {
+		t.Fatalf("%v %d", err, len(vs))
+	}
+	if a := vs[0].Affected; len(a) != 1 || a[0].Package != "golang.org/x/text" ||
+		strings.Join(a[0].Symbols, ",") != "golang.org/x/text/language.MatchStrings,golang.org/x/text/language.ParseAcceptLanguage" {
+		t.Errorf("go symbols: %+v", a)
+	}
+	other := `[{"id": "RUSTSEC-2021-0003", "affected": [{"package": {"ecosystem": "crates.io", "name": "smallvec"},
+		  "ecosystem_specific": {"affects": {"functions": ["smallvec::SmallVec::insert_many"]}}}]},
+		{"id": "GHSA-35jh-r3h4-6jhm", "affected": [{"package": {"ecosystem": "npm", "name": "lodash"},
+		  "database_specific": {"vulnerable_functions": ["lodash.template", "lodash.template"]},
+		  "ecosystem_specific": {"affected_functions": ["lodash.templateSettings"]}}]},
+		{"id": "GHSA-none-none-none", "affected": [{"package": {"ecosystem": "npm", "name": "x"}, "ecosystem_specific": {"imports": "bad"}}]}]`
+	vs, err = ParseOSV([]byte(other), "osv-file")
+	if err != nil || len(vs) != 3 {
+		t.Fatalf("%v %d", err, len(vs))
+	}
+	if s := vs[0].Affected[0].Symbols; strings.Join(s, ",") != "smallvec::SmallVec::insert_many" {
+		t.Errorf("rustsec: %v", s)
+	}
+	if s := vs[1].Affected[0].Symbols; strings.Join(s, ",") != "lodash.templateSettings,lodash.template" {
+		t.Errorf("vulnerable_functions: %v", s)
+	}
+	if s := vs[2].Affected[0].Symbols; len(s) != 0 {
+		t.Errorf("malformed: %v", s)
 	}
 }

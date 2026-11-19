@@ -43,9 +43,9 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 Use them instead of building locally:
 
 ```bash
-git clone --branch v2.0.0 https://github.com/quditmind/pathos.git && cd pathos
+git clone --branch v2.1.0 https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh                 # new installs only
-# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.0.0
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.1.0
 deploy/scripts/upgrade.sh --pull
 ```
 
@@ -54,8 +54,8 @@ Upgrading to a later release works the same way: check out the new tag, set `PAT
 **Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
 
 ```bash
-cosign verify ghcr.io/quditmind/pathos:2.0.0 \
-  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.0.0" \
+cosign verify ghcr.io/quditmind/pathos:2.1.0 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.1.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -192,7 +192,7 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 |---|---|---|---|
 | SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck, gosec, Flawfinder, cppcheck, PHPStan, Psalm, Ruff, ESLint + eslint-plugin-security, Semgrep CE, Bearer CLI (optional, Elastic-2.0), TruffleHog, detect-secrets, Kingfisher, Talisman, Pylint, golangci-lint |
 | IaC and CI/CD | `iac` | `worker-iac` | KICS, KubeLinter, Kubescape, TFLint, Conftest (PATHOS policies), Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config), OpenSSF Scorecard (`--local`) |
-| SCA, malicious packages and SBOM | `sca` | `worker-sca` | govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, OWASP Dependency-Check, GuardDog, pathos-depcheck, cdxgen |
+| SCA, malicious packages and SBOM | `sca` | `worker-sca` | govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, OWASP Dependency-Check, GuardDog, pathos-depcheck, cdxgen, pathos-reach |
 | DAST | `dast` | `worker-dast` | OWASP ZAP (baseline, full and API scans), Wapiti, Dalfox, ffuf, testssl.sh, SSLyze, Schemathesis, Arjun; sqlmap and Nikto only in an opt-in build ([DAST tools](user-guide/dast.md)) |
 | Mobile | `mobile` | `worker-mobile` | mobsfscan, APKLeaks, Quark-Engine, mobile app checks (mobile app targets) |
 | Binary | `binary` | `worker-binary` | CVE Binary Tool, capa, YARA-X (build artifacts; YARA-X also mobile apps and repositories) |
@@ -208,7 +208,7 @@ To enable one:
 
 Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
 
-The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck and cdxgen are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). The family tools of `worker-mobile`, `worker-binary` and `worker-fuzz`, and ModelScan, also declare `network: none`. garak and promptfoo (`worker-ai`) send requests to an LLM endpoint target through the egress proxy: add the endpoint's host to `deploy/egress/allowlist.txt`. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck, cdxgen and pathos-reach are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). The family tools of `worker-mobile`, `worker-binary` and `worker-fuzz`, and ModelScan, also declare `network: none`. garak and promptfoo (`worker-ai`) send requests to an LLM endpoint target through the egress proxy: add the endpoint's host to `deploy/egress/allowlist.txt`. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
 
 Mobile app and artifact tools are selected on the scan target (**Scan targets → Additional tools**); repository tools (YARA-X, ModelScan, the fuzzers, the AI-BOM) in a scan profile.
 
@@ -234,7 +234,12 @@ Air-gapped installation: run the same command on a connected machine with a scra
 
 ### Fuzzing worker
 
-`worker-fuzz` builds and runs code from the repositories it scans (Go fuzz targets, Atheris harnesses). Enable it only for repositories whose code you are willing to run in the worker sandbox. Besides the isolation of every worker, the fuzzers run without the egress proxy variables (and with `GOPROXY=off`), on a copy of the checkout, under CPU-time, file-size and memory limits and a time budget (`FUZZ_SECONDS`, `FUZZ_TOTAL_SECONDS`, `FUZZ_MAX_TARGETS` in `workers/fuzz/tools.d`). The service has a CPU limit (`PATHOS_FUZZ_CPUS`, default 2), and its `/work` tmpfs allows execution, which Go test binaries need. Because the worker also runs core jobs it keeps the `scan` network; repository code can therefore reach the egress proxy, which forwards only to the allowlisted hosts.
+`worker-fuzz` builds and runs code from the repositories it scans (Go fuzz targets, Atheris harnesses). The worker never runs that code itself. The `fuzz` profile also starts `worker-fuzz-sandbox`, the sandbox runner: the same image with `network_mode: none`, UID 10002, no worker token, and its own memory, CPU and process limits (`PATHOS_FUZZ_MEMORY`, default 4g; `PATHOS_FUZZ_CPUS`, default 2; `PATHOS_FUZZ_PIDS`, default 256). The worker hands it each run through the `fuzz_sandbox` volume, a tmpfs of `PATHOS_FUZZ_SANDBOX_TMPFS` (default 4g). Repository code therefore has no network at all and cannot reach the egress proxy, the API or the worker's credentials ([SECURITY.md](SECURITY.md#scanning)). The fuzzers also run with `GOPROXY=off`, on a copy of the checkout, under per-target CPU-time, file-size and memory limits and a time budget (`FUZZ_SECONDS`, `FUZZ_TOTAL_SECONDS`, `FUZZ_MAX_TARGETS` in `workers/fuzz/tools.d`).
+
+- If `worker-fuzz-sandbox` is not running, fuzzing runs fail after 60 s with "the sandbox runner did not pick the run up". If the worker has no `PATHOS_SANDBOX_DIR`, the fuzzers are skipped with a reason. Other tools of the worker are not affected.
+- Run one `worker-fuzz` replica per runner. The worker locks the volume, and a second replica on the same volume skips the fuzzers. Do not set `init: true` on the runner: it must be PID 1 of its container.
+- No host or Docker daemon change is needed: no privileged mode, capability, custom seccomp or AppArmor profile, and no Docker socket. Rootless Docker has not been tested.
+- `workers/fuzz/test/sandbox-e2e.sh [image]` checks the isolation of a built image: a malicious fuzz harness must fail to reach the network, the worker's environment and anything outside its job directory.
 
 ## Endpoint verification, end-of-life data and signatures
 
@@ -242,6 +247,40 @@ Air-gapped installation: run the same command on a connected machine with a scra
 - **End-of-life data**: enable the `endoflife` feed in **Risk & intelligence** (daily download of about 3 MB from `endoflife.date` by the `jobs` service through `PATHOS_HTTPS_PROXY` when set), or import the file offline. The `jobs` service also recomputes end-of-life statuses daily.
 - **Signature verification** uses the `cosign` binary in `worker-core`. Keyless verification needs `tuf-repo-cdn.sigstore.dev`, `rekor.sigstore.dev` and `fulcio.sigstore.dev`, which the default egress allowlist contains; remove them to allow key-based verification only. Signatures in private registries use the target's registry credentials.
 - **Introducing commits** need full history: set **Clone full history** on the repository (larger clones, slower scans). Shallow clones record the introducing commit as unknown.
+
+## Secret validation egress
+
+[Live secret validation](user-guide/secret-validation.md) is off until an administrator enables providers in **Administration → Secret validation**. The worker contacts a provider only through the egress proxy, so each enabled provider also needs its host in `deploy/egress/allowlist.txt` (then `docker compose restart egress`):
+
+```text
+# Live secret validation (add only the providers you enable)
+sts.amazonaws.com
+gitlab.com
+slack.com
+api.stripe.com
+api.openai.com
+api.anthropic.com
+api.sendgrid.com
+api.twilio.com
+registry.npmjs.org
+generativelanguage.googleapis.com
+.blob.core.windows.net
+```
+
+GitHub needs no line: `api.github.com` is covered by the default `.github.com` entry (do not add it again; Squid warns about overlapping entries). A provider that is enabled but not allowed fails closed: its findings show *Check failed* with the proxy's refusal, and the secret is not sent. The proxy's access log shows host names only (the requests are HTTPS `CONNECT` tunnels); credentials are never in a URL. There is no configuration to change the provider hosts.
+
+## Kubernetes runtime inventory
+
+The runtime connectors ([user guide](user-guide/runtime.md)) are optional; nothing is contacted until an administrator adds a cluster or a registry under **Assets → Runtime**.
+
+- **Who connects.** Only the `jobs` service synchronises clusters and registries (every minute it picks the connections that are due or whose **Sync now** was requested). The API server stores the request and never calls a cluster or a registry. `jobs` is on the `edge` network: the cluster API server and the registries must be reachable from it. Requests go through `PATHOS_HTTPS_PROXY` when it is set; add private API servers to `NO_PROXY` in that case.
+- **Address checks.** The resolved address is checked at connect time: loopback, link-local, cloud metadata, CGNAT and multicast addresses are always refused; RFC 1918 and ULA addresses need **The API server is on a private network address** (per connection). Only `https` is accepted (registries also `http` with `PATHOS_SCM_ALLOW_HTTP=true`, for development). Redirects are followed only to the same host, except blob downloads of registries, which may redirect to an `https` storage host.
+- **The ClusterRole.** Apply `deploy/kubernetes/pathos-reader-clusterrole.yaml` in each cluster. It creates the `pathos-reader` namespace, the `pathos-reader` service account (token not mounted in any pod), a `kubernetes.io/service-account-token` Secret for it and a ClusterRole with `get`, `list` and `watch` on `namespaces`, `pods`, `services`, `deployments`, `replicasets`, `statefulsets`, `daemonsets`, `jobs`, `cronjobs`, `ingresses` and `networkpolicies`, and nothing else (no Secrets, ConfigMaps, `pods/log`, `pods/exec` or write verbs). A unit test checks that the role grants exactly what the inventory lists. To restrict PATHOS to some namespaces, replace the ClusterRoleBinding with a RoleBinding to the same ClusterRole in each namespace and list the namespaces in the cluster's settings (namespace objects are then not listed).
+- **Rotation.** Delete and re-create the `pathos-reader-token` Secret, then paste the new token into the cluster's settings (**Edit**, Token). Deleting the cluster in PATHOS deletes its encrypted credential and its inventory.
+- **Load.** One synchronisation issues one paginated `GET` list per resource kind (500 objects per page, at most 20,000 per kind), per namespace when namespaces are configured, with a 10-minute timeout. Registries: one request per tag list page, manifest and configuration blob, spaced 200 ms apart, at most `max_tags` tags per repository.
+- **Air-gapped installations** can connect clusters and registries on the internal network; `PATHOS_OFFLINE` does not disable them.
+- **Retention.** Workloads, namespaces and network objects that a complete synchronisation no longer sees are deleted; a partial synchronisation (a resource the role does not grant) removes nothing. Synchronisation runs are kept with their connection.
+- **Integration tests** use a fake Kubernetes API server (`httptest`) and, when `PATHOS_TEST_REGISTRY_URL` is set, a `registry:2` container; they never contact a real cluster.
 
 ## Configuration reference
 

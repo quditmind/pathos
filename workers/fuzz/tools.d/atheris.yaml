@@ -1,9 +1,11 @@
 # Atheris: the repository's Python fuzz harnesses (files that import
 # atheris and call atheris.Fuzz()), FUZZ_SECONDS each through libFuzzer's
-# -max_total_time. Runs repository code in the worker sandbox, on a copy of
-# the checkout, without network access and under CPU, memory (address
-# space and libFuzzer's RSS limit), file size and time limits. Only the
-# Python standard library and the repository's own modules are importable.
+# -max_total_time. Runs repository code, so it runs in the sandbox runner
+# (sandbox: true; the worker-fuzz-sandbox container: no network interface,
+# no worker credentials, its own UID and cgroup limits), on a copy of the
+# checkout, under CPU, memory (address space and libFuzzer's RSS limit),
+# file size and time limits. Only the Python standard library and the
+# repository's own modules are importable.
 # Crashes are findings with the reproducer input (base64, at most 4 KiB)
 # in the report as evidence.
 name: atheris
@@ -27,6 +29,7 @@ output: file
 network: none
 intrusive: false
 requires_build: true
+sandbox: true
 default_enabled: false
 parser: jsonmap
 jsonmap:

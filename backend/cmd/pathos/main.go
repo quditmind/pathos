@@ -310,6 +310,10 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	// scores.
 	go server.NewIntelService(server.Deps{DB: pool, Log: log, Offline: cfg.Offline}).RunBackground(ctx)
 	go risk.RunBackground(ctx, pool, log)
+	// Kubernetes and registry inventories (only connections an
+	// administrator added) and the runtime links of findings.
+	go server.NewRuntimeService(server.Deps{DB: pool, Log: log, Secrets: store,
+		SCMNet: scm.NetPolicy{AllowHTTP: cfg.SCMAllowHTTP}}, repoAz).RunBackground(ctx)
 	go releases.RunBackground(ctx, pool, log) // component (SBOM) policies, hourly
 	// Fix pull requests: record merged/closed state (findings are resolved by scans only).
 	go scans.RunFixPRTracker(ctx, pool, log, server.FixPRTarget(reposSvc), 15*time.Minute)

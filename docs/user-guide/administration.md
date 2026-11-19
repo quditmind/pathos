@@ -19,6 +19,7 @@ The **Administration** and **Configurations** groups of the navigation hold the 
 | **Administration → Asset settings** | `assets.configure` | [Asset registration](asset-registration.md#step-by-step-configure-required-fields-and-the-repository-id-prefix) |
 | **Administration → Policies** (SLAs, license policy, security policies) | `settings.manage` | [Security policies and compliance](policies-and-compliance.md) |
 | **Administration → Integrations** (Jira, ServiceNow) | `settings.manage` | [Integrations and API tokens](reporting-and-integrations.md#jira-and-servicenow) |
+| **Assets → Runtime** (Kubernetes clusters, container registries, application mappings) | `findings.read` organization-wide (view), `settings.manage` organization-wide | [Runtime context](runtime.md#connect-a-cluster) |
 | **Administration → Risk & intelligence** | `settings.manage` | [Contextual risk and vulnerability intelligence](vulnerability-intelligence.md#for-administrators-feeds-and-the-risk-model) |
 | **Administration → Notifications** | `notifications.manage` | [Notifications](#notifications) |
 | **Administration → Audit log** | `audit.read` | [Audit log](#audit-log) |
@@ -111,6 +112,32 @@ In the user's details:
 ## Developer attribution
 
 **Administration → Developer attribution** turns the opt-in attribution of findings to git authors on or off (`settings.manage`) and links git author names to users (`users.manage`). It is off by default, and turning it off erases all stored author data. See [Material changes and developer insights](developer-insights.md#developer-insights-attribution).
+
+## Secret validation
+
+**Administration → Secret validation** (`settings.manage`, organization-wide) enables [live secret validation](secret-validation.md) provider by provider. It is off by default: nothing is sent to any provider until you enable one.
+
+1. Tick the providers whose credentials workers may check. PyPI is listed but cannot be enabled (no read-only check exists).
+2. Add each enabled provider's host to `deploy/egress/allowlist.txt` and restart the `egress` service; the page lists the lines to add. Until a host is allowed, its checks fail closed with *Check failed: the egress proxy denied …* and the secret is not sent anywhere.
+3. Optionally change **Checks per second** (1–10, default 1) and **Checks per scan** (1–500, default 50; further secrets are reported as not checked).
+4. **Save**. The next repository scans validate; to validate existing findings, rescan or use **Re-check** on a finding.
+
+| Provider | Allowlist line |
+|---|---|
+| AWS access key | `sts.amazonaws.com` |
+| GitHub token | none: `api.github.com` is covered by the default `.github.com` |
+| GitLab token | `gitlab.com` |
+| Slack token | `slack.com` |
+| Stripe key | `api.stripe.com` |
+| OpenAI API key | `api.openai.com` |
+| Anthropic API key | `api.anthropic.com` |
+| SendGrid API key | `api.sendgrid.com` |
+| Twilio credentials | `api.twilio.com` |
+| npm token | `registry.npmjs.org` |
+| Google API key | `generativelanguage.googleapis.com` |
+| Azure Storage key | `.blob.core.windows.net` |
+
+Every change of these settings (`secret_validation.settings.update`), every validation batch uploaded by a worker (`secret_validation.batch`, with the number of verdicts per provider and status, never a secret or identity) and every re-check (`secret_validation.recheck`) is in the audit log. With `PATHOS_OFFLINE=true` the page says so and nothing is validated.
 
 ## Scanners and workers
 

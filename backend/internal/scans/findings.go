@@ -1,6 +1,7 @@
 package scans
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -79,6 +80,13 @@ type FindingView struct {
 	Reachability     string     `json:"reachability"`
 	// ReachabilityBasis explains the reachability (empty when unknown).
 	ReachabilityBasis string `json:"reachability_basis"`
+	// ReachabilityMethod is how it was decided: import (package level),
+	// call_graph or symbol_calls (function level), "" (no analysis).
+	ReachabilityMethod string `json:"reachability_method"`
+	// ReachabilityEvidence backs a function-level answer (finding detail
+	// only): tool, scan job, vulnerable symbols, call paths, dynamic
+	// constructs.
+	ReachabilityEvidence json.RawMessage `json:"reachability_evidence,omitempty"`
 	// SuppressionRuleID is the approved rule that decided the status.
 	SuppressionRuleID *uuid.UUID `json:"suppression_rule_id"`
 	// Malicious: the package itself is malware (OSV MAL-*).
@@ -92,8 +100,13 @@ type FindingView struct {
 	IntroducedAuthor    string     `json:"introduced_author"`
 	IntroducedAt        *time.Time `json:"introduced_at"`
 	RiskScore           *float64   `json:"risk_score"`
-	ApplicationID       *uuid.UUID `json:"application_id"`
-	ApplicationName     *string    `json:"application_name"`
+	// Runtime context: "", deployed or not_deployed, and whether a
+	// workload that runs it is internet-exposed (evidence:
+	// GET /api/v1/findings/{id}/runtime).
+	RuntimeStatus   string     `json:"runtime_status"`
+	RuntimeExposed  bool       `json:"runtime_exposed"`
+	ApplicationID   *uuid.UUID `json:"application_id"`
+	ApplicationName *string    `json:"application_name"`
 	// Scan target the finding belongs to (nil: the repository's code).
 	TargetID     *uuid.UUID   `json:"scan_target_id"`
 	TargetKind   *string      `json:"scan_target_kind"`
@@ -101,6 +114,8 @@ type FindingView struct {
 	Snippet      string       `json:"snippet,omitempty"`
 	SnippetStart *int         `json:"snippet_start_line,omitempty"`
 	Occurrences  []Occurrence `json:"occurrences,omitempty"`
+	// SecretValidation is the live validation verdict (secret findings).
+	SecretValidation *SecretValidationView `json:"secret_validation,omitempty"`
 }
 
 // Occurrence is one sighting of a finding.
@@ -120,9 +135,11 @@ const findingSelect = `
 	       COALESCE(NULLIF(au.display_name, ''), au.email), f.sla_due_at, f.recurrence_count, f.accepted_until, f.ai_status,
 	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity, ` + LifecycleExpr + `,
 	       f.cvss_version, f.cvss_vector, f.confidence, f.epss_score::float8, f.epss_percentile::float8, f.kev, f.kev_due_date,
-	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name, f.reachability_basis, f.suppression_rule_id, f.malicious,
+	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name, f.reachability_basis, f.reachability_method, f.suppression_rule_id, f.malicious,
 	       COALESCE((SELECT fj.commit_sha FROM scan_jobs fj WHERE fj.id = f.first_scan_job_id), ''),
-	       f.introduced_status, f.introduced_commit_sha, f.introduced_author, f.introduced_at
+	       f.introduced_status, f.introduced_commit_sha, f.introduced_author, f.introduced_at,
+	       f.secret_validation_status, f.secret_validation_provider, f.secret_validation_identity, f.secret_validation_checked_at,
+	       f.secret_validation_evidence, f.runtime_status, f.runtime_exposed
 	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
 	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id
 	LEFT JOIN scan_targets stg ON stg.id = f.scan_target_id`
@@ -157,15 +174,22 @@ var LifecycleStatuses = []string{"new", "open", "in_progress", "under_review", "
 
 func scanFinding(row pgx.Row) (FindingView, error) {
 	var f FindingView
+	var svStatus, svProvider, svIdentity string
+	var svAt *time.Time
+	var svEvidence []byte
 	err := row.Scan(&f.ID, &f.RepositoryID, &f.RepositoryName, &f.RepositoryKey, &f.Category, &f.ScannerKeys, &f.RuleID, &f.Title, &f.Description,
 		&f.Severity, &f.CWE, &f.CVE, &f.CVSS, &f.PackageName, &f.PackageVersion, &f.FixedVersion, &f.FilePath, &f.StartLine,
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
 		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity,
 		&f.Lifecycle, &f.CVSSVersion, &f.CVSSVector, &f.Confidence, &f.EPSS, &f.EPSSPercentile, &f.KEV, &f.KEVDueDate, &f.ExploitAvailable,
-		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.SuppressionRuleID, &f.Malicious, &f.IntroducedCommit,
-		&f.IntroducedStatus, &f.IntroducedCommitSHA, &f.IntroducedAuthor, &f.IntroducedAt)
+		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.ReachabilityMethod, &f.SuppressionRuleID, &f.Malicious, &f.IntroducedCommit,
+		&f.IntroducedStatus, &f.IntroducedCommitSHA, &f.IntroducedAuthor, &f.IntroducedAt,
+		&svStatus, &svProvider, &svIdentity, &svAt, &svEvidence, &f.RuntimeStatus, &f.RuntimeExposed)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
+	}
+	if err == nil && f.Category == "secrets" {
+		f.SecretValidation = newSecretValidationView(svStatus, svProvider, svIdentity, svAt, svEvidence)
 	}
 	return f, err
 }
@@ -294,10 +318,14 @@ func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 	for _, x := range []struct {
 		param, col string
 		allowed    []string
-	}{{"confidence", "f.confidence", []string{"high", "medium", "low", "unknown"}}, {"reachability", "f.reachability", []string{"reachable", "not_reachable", "unknown"}}} {
+	}{{"confidence", "f.confidence", []string{"high", "medium", "low", "unknown"}}, {"reachability", "f.reachability", []string{"reachable", "not_reachable", "unknown"}},
+		{"reachability_method", "f.reachability_method", []string{"import", "call_graph", "symbol_calls", "none"}}} {
 		if v := q.Get(x.param); v != "" {
 			if !slices.Contains(x.allowed, v) {
 				return nil, nil, httpx.BadRequest("invalid " + x.param)
+			}
+			if v == "none" {
+				v = ""
 			}
 			add(x.col+" = ?", v)
 		}
@@ -316,8 +344,33 @@ func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 		}
 		add("f.scan_target_id = ?", id)
 	}
+	if v := q.Get("secret_validation"); v != "" {
+		if !slices.Contains(scanners.SecretValidationStatuses, v) {
+			return nil, nil, httpx.BadRequest("secret_validation must be active, inactive, error or not_checked")
+		}
+		add("f.category = 'secrets' AND f.secret_validation_status = ?", v)
+	}
 	if q.Get("malicious") == "true" {
 		where = append(where, "f.malicious")
+	}
+	// Runtime context (Kubernetes inventory): deployed=true runs in a
+	// connected cluster, deployed=false is known not to run in any;
+	// internet_exposed=true has an Ingress or public LoadBalancer path.
+	switch q.Get("deployed") {
+	case "":
+	case "true":
+		where = append(where, "f.runtime_status = 'deployed'")
+	case "false":
+		where = append(where, "f.runtime_status = 'not_deployed'")
+	default:
+		return nil, nil, httpx.BadRequest("deployed must be true or false")
+	}
+	switch q.Get("internet_exposed") {
+	case "":
+	case "true":
+		where = append(where, "f.runtime_exposed")
+	default:
+		return nil, nil, httpx.BadRequest("internet_exposed must be true")
 	}
 	if v := q.Get("control"); v != "" {
 		fw, ctl, ok := compliance.LookupControl(v)
@@ -471,7 +524,8 @@ func (s *Service) getFinding(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	_ = s.DB.QueryRow(ctx, `SELECT snippet, snippet_start_line FROM findings WHERE id = $1`, f.ID).Scan(&f.Snippet, &f.SnippetStart)
+	_ = s.DB.QueryRow(ctx, `SELECT snippet, snippet_start_line, reachability_evidence FROM findings WHERE id = $1`, f.ID).
+		Scan(&f.Snippet, &f.SnippetStart, &f.ReachabilityEvidence)
 	rows, err := s.DB.Query(ctx, `SELECT sr.scan_job_id, sr.scanner_key, o.commit_sha, o.file_path, o.start_line, o.created_at
 		FROM finding_occurrences o JOIN scan_results sr ON sr.id = o.scan_result_id
 		WHERE o.finding_id = $1 ORDER BY o.created_at DESC LIMIT 50`, f.ID)

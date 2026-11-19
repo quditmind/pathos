@@ -190,3 +190,125 @@ func parseGovulncheck(raw []byte) ([]importRecord, error) {
 	}
 	return out, nil
 }
+
+// GovulnResult is how deep one vulnerability of one module reaches in a
+// govulncheck run, for function-level reachability of findings.
+type GovulnResult struct {
+	OSV     string   `json:"osv"`
+	Aliases []string `json:"aliases"`
+	Module  string   `json:"module"`
+	Version string   `json:"version"`
+	// Level: 1 the module is required, 2 a vulnerable package is
+	// imported, 3 a vulnerable symbol is called.
+	Level int `json:"level"`
+	// Packages are the vulnerable packages imported (level 2 and 3).
+	Packages []string `json:"packages"`
+	// Symbols are the module's vulnerable symbols named by the OSV entry
+	// govulncheck used ("<import path>.<symbol>").
+	Symbols []string `json:"symbols"`
+	// Traces are call paths to a vulnerable symbol (level 3), outermost
+	// caller first, the vulnerable symbol last.
+	Traces [][]GovulnFrame `json:"traces"`
+}
+
+// GovulnFrame is one frame of a govulncheck trace: a call at file:line in
+// function (for the vulnerable symbol: its definition in the module).
+type GovulnFrame struct {
+	File     string `json:"file"`
+	Line     int    `json:"line"`
+	Function string `json:"function"`
+}
+
+// GovulncheckResults reads the depth of every vulnerability of a
+// govulncheck JSON stream (several runs may be concatenated).
+func GovulncheckResults(raw []byte) ([]GovulnResult, error) {
+	type osvEntry struct {
+		ID       string   `json:"id"`
+		Aliases  []string `json:"aliases"`
+		Affected []struct {
+			Package struct {
+				Name string `json:"name"`
+			} `json:"package"`
+			EcosystemSpecific struct {
+				Imports []struct {
+					Path    string   `json:"path"`
+					Symbols []string `json:"symbols"`
+				} `json:"imports"`
+			} `json:"ecosystem_specific"`
+		} `json:"affected"`
+	}
+	osvs := map[string]osvEntry{}
+	byKey := map[string]*GovulnResult{}
+	var order []string
+	d := json.NewDecoder(bytes.NewReader(bytes.TrimPrefix(raw, utf8BOM)))
+	for n := 1; ; n++ {
+		var msg struct {
+			OSV     json.RawMessage `json:"osv"`
+			Finding json.RawMessage `json:"finding"`
+		}
+		if err := d.Decode(&msg); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("govulncheck: message %d: invalid JSON: %w", n, err)
+		}
+		if msg.OSV != nil {
+			var o osvEntry
+			if json.Unmarshal(msg.OSV, &o) == nil && o.ID != "" {
+				osvs[o.ID] = o
+			}
+		}
+		if msg.Finding == nil {
+			continue
+		}
+		var f govulnFinding
+		if err := json.Unmarshal(msg.Finding, &f); err != nil || f.OSV == "" || len(f.Trace) == 0 || f.Trace[0].Module == "" {
+			continue
+		}
+		top := f.Trace[0]
+		key := f.OSV + "|" + top.Module + "@" + top.Version
+		r := byKey[key]
+		if r == nil {
+			r = &GovulnResult{OSV: f.OSV, Module: top.Module, Version: top.Version, Packages: []string{}, Symbols: []string{}, Traces: [][]GovulnFrame{}}
+			byKey[key] = r
+			order = append(order, key)
+		}
+		level := govulnLevel(f)
+		r.Level = max(r.Level, level)
+		if top.Package != "" && !slices.Contains(r.Packages, top.Package) && len(r.Packages) < 50 {
+			r.Packages = append(r.Packages, top.Package)
+		}
+		if level == 3 && len(r.Traces) < 10 {
+			var tr []GovulnFrame
+			for i := len(f.Trace) - 1; i >= 0 && len(tr) < 20; i-- {
+				fr := f.Trace[i]
+				gf := GovulnFrame{Function: govulnSymbol(govulnFrame{Package: fr.Package, Function: fr.Function, Receiver: fr.Receiver})}
+				if fr.Position != nil {
+					gf.File, gf.Line = fr.Position.Filename, fr.Position.Line
+				}
+				tr = append(tr, gf)
+			}
+			r.Traces = append(r.Traces, tr)
+		}
+	}
+	out := make([]GovulnResult, 0, len(order))
+	for _, k := range order {
+		r := *byKey[k]
+		o := osvs[r.OSV]
+		r.Aliases = append([]string{}, o.Aliases...)
+		for _, a := range o.Affected {
+			if a.Package.Name != r.Module {
+				continue
+			}
+			for _, imp := range a.EcosystemSpecific.Imports {
+				for _, s := range imp.Symbols {
+					if q := imp.Path + "." + s; len(r.Symbols) < 200 && !slices.Contains(r.Symbols, q) {
+						r.Symbols = append(r.Symbols, q)
+					}
+				}
+			}
+		}
+		out = append(out, r)
+	}
+	return out, nil
+}

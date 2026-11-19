@@ -16,7 +16,7 @@ PATHOS is a **modular monolith** (Go) with **separately deployed scanner workers
 |---|---|---|
 | Web UI | Static React build, served by the `proxy` (Caddy) | Proxy replicas |
 | REST API, authentication, RBAC, MCP server, ingestion of scan results | `pathos --role=api` | Replicas (stateless; sessions and rate limits in Valkey) |
-| Background work: AI reviews, notifications and outbound webhooks, repository imports and sync, intelligence feeds, risk scoring, policies, ticket sync, retention | `pathos --role=jobs` (same binary) | Replicas, independent from the API |
+| Background work: AI reviews, notifications and outbound webhooks, repository imports and sync, intelligence feeds, risk scoring, policies, ticket sync, Kubernetes and registry inventories, retention | `pathos --role=jobs` (same binary) | Replicas, independent from the API |
 | Scan scheduling, missed-run and offline-worker detection, lease recovery, platform metrics | `pathos --role=scheduler` (same binary, leader-elected) | Standby replicas |
 | Scanner execution | `pathos-worker` agent inside the `worker-core` image and the opt-in family images (`worker-sast`, `worker-iac`, `worker-sca`, `worker-dast`, built on `worker-core`) | Replicas |
 | Identity | Keycloak | Single instance in Compose |
@@ -114,7 +114,7 @@ Backend packages (`backend/internal`):
 | Identity and access | `auth` (OIDC, sessions, CSRF, API tokens), `authz` (permissions, roles, scopes), `identity` (users, teams, MFA), `org` |
 | Assets | `repos` (repositories, imports, uploads, sync, inventory), `scm` (provider clients, SSRF-safe HTTP), `ingest` (archive normalisation, ClamAV) |
 | Scanning | `scanners` (catalog, parsers, plugins), `scans` (profiles, executions, ingestion, targets, PR checks), `schedule`, `worker` (agent) |
-| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture` |
+| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture`, `runtimectx` (Kubernetes and registry inventories, linking findings to running workloads) |
 | Review and AI | `review` (Human Eye), `ai`, `analyst`, `mcp` |
 | Governance and reporting | `policy`, `compliance`, `reporting`, `dashboard`, `search` |
 | Integrations | `notify` (notifications, SMTP, outbound webhooks), `tickets` (Jira, ServiceNow) |
@@ -135,12 +135,26 @@ Each scan job is processed in stages inside a worker container:
 
 1. **Lease.** The worker leases a job over the internal API. The response includes the repository URL and ref (or the scan target), the profile's scanners and configuration, and a **short-lived** clone credential: a GitHub App installation token (≤ 1 hour) or the connection's stored credential. Uploaded repositories are fetched instead as a source snapshot through the worker API, which decrypts it; the worker verifies its SHA-256.
 2. **Fetch.** A shallow `git clone` with hooks disabled, no `file://` or `ext::` transports, no symlinks, fsck on, no redirects and a size cap. The credential travels in environment variables, never in the URL or `.git/config`. `.git` is removed before the scanners run.
-3. **Scan.** Each tool runs as a non-root process in its own process group, in a per-job `tmpfs` workspace, with a timeout that kills the whole group. **Repository code is never built or executed,** except by the opt-in fuzzers of the `worker-fuzz` family image (Go native fuzzing, Atheris), which build and run the repository's own fuzz harnesses in that worker's sandbox under CPU, memory, file size and time limits, without network access. Other catalogue entries that need a build (CodeQL for compiled languages, SpotBugs, Infer) are flagged `requires_build` and have no adapter.
+3. **Scan.** Each tool runs as a non-root process in its own process group, in a per-job `tmpfs` workspace, with a timeout that kills the whole group. **Repository code is never built or executed in a worker container.** The opt-in fuzzers of the `worker-fuzz` family image (Go native fuzzing, Atheris) build and run the repository's own fuzz harnesses in the sandbox runner (see [Running repository code](#running-repository-code)). Other catalogue entries that need a build (CodeQL for compiled languages, SpotBugs, Infer) are flagged `requires_build` and have no adapter.
 4. **Report.** The worker uploads the raw reports (and its code inventory for reachability), the API parses and normalises them, and the workspace is destroyed.
 
 Container hardening: read-only root filesystem, `cap_drop: [ALL]`, `no-new-privileges`, non-root UID, PID and memory limits, **no Docker socket**.
 
 **Decision (versus a dispatcher that starts a container per scan):** starting containers needs Docker API access, which is root-equivalent on the host. That conflicts with the rule that nothing scan-facing touches the Docker socket. Long-running hardened worker pools are the safer default for Compose.
+
+### Running repository code
+
+Code from the scanned repository (fuzz harnesses, and a repository's own test suite when an administrator enabled it for [AI fix verification](api-reference/ai-and-mcp.md#ai-proposed-fixes)) runs only through `Sandbox.RunUntrusted` (`backend/internal/worker/sandbox.go`). It runs in a sibling **sandbox runner** container, never in the worker that holds the token and sits on the `scan` and `worker-api` networks. The runner is the same image started as `pathos-worker sandbox-runner`. It has `network_mode: none`, its own UID (10002), PID and IPC namespaces, a read-only root filesystem, no capabilities, no token and its own cgroup limits. The two containers share only a tmpfs volume (`PATHOS_SANDBOX_DIR`): the worker writes a request and the job's files, the runner writes a result. No Docker socket is involved. The controls are listed in [SECURITY.md](SECURITY.md#scanning).
+
+**Decision (versus a namespace sandbox such as bubblewrap, nsjail or `unshare -n` inside the worker):** creating user or network namespaces needs `unshare`/`clone` flags that Docker's default seccomp profile allows only with `CAP_SYS_ADMIN`. Without a custom seccomp profile, `unshare -n` and `unshare -Urn` fail with `EPERM` in a default container (tested on Docker 29.9 with cgroup v2, AppArmor and the builtin seccomp profile). With `seccomp=unconfined` it works only under the `docker-default` AppArmor profile. Unconfined AppArmor fails on hosts that restrict unprivileged user namespaces (Ubuntu's `kernel.apparmor_restrict_unprivileged_userns=1`). So that option would need a per-host seccomp profile, would depend on host AppArmor policy, and would open user namespaces, a large kernel attack surface, to repository code. The sibling container needs no host change and no privilege. Its network isolation is Docker's `none` mode.
+
+**Contract of `RunUntrusted`** (for every feature that runs repository code):
+
+- `(*Sandbox).RunUntrusted(ctx, UntrustedJob) (UntrustedResult, error)`. A nil `*Sandbox` (the worker has no runner) returns `ErrNoSandbox`, and the caller must report the step as skipped, never run the code elsewhere. The agent's sandbox is `Agent.sandbox`; manifest tools get it when they set `sandbox: true`.
+- `UntrustedJob`: `Source` is a directory copied into the job. Directories, regular files (made group-writable) and symbolic links are copied as links, never followed, and `.git` is skipped. The copy is at most `MaxSourceBytes` (default 2 GiB). `Command` is an absolute path in the runner image, run without a shell with `Args`. `Env` is `KEY=value` entries; `PATH`, `HOME`, `TMPDIR`, `LD_*`, `*_PROXY` and `PATHOS_*` are refused. `Dir` is `source` (default), `tmp` or `home`. `Timeout` is required (at most 6 h). `Output` is a local path that `{output}` is copied to (at most `MaxOutputBytes`, default 256 MiB). Placeholders `{source}`, `{output}`, `{tmp}` and `{home}` in `Args` and `Env` become paths in the job directory.
+- `UntrustedResult`: `ExitCode` (-1 when killed by a signal), `Signal`, `TimedOut`, `Canceled`, `Log` (stdout and stderr combined, the first 64 KiB), `Duration` and `OutputWritten`. A non-zero exit is a result, not an error. An error means the run did not happen or did not finish: no runner, the runner did not pick the run up within 60 s, the output file is not a regular file or is too large, or ctx is done.
+- Runs are serialized per worker. When `RunUntrusted` returns a result, every process the run started has been killed. Everything the run produced is untrusted data.
+- Guarantees for the code it runs: no network interface but loopback, and no DNS; none of the worker's environment, token, processes or files except the job's copy; writes only in its job directory; the runner container's memory, CPU and pids limits; the run's wall time.
 
 ### Adapters
 
@@ -216,7 +230,7 @@ What each service does is listed in [INSTALLATION.md](INSTALLATION.md#what-runs)
 | D6 | **CodeQL** is free only for open-source and academic use. | Catalogued as `restricted`; no adapter. |
 | D7 | Archived or abandoned tools: Whispers, Dredd, Terrascan (archived); Tern (inactive). | Excluded (see [SCANNER_CATALOG.md](SCANNER_CATALOG.md#excluded)). |
 | D8 | Non-scanners: Cosign, in-toto, SLSA verifier, GUAC, CycloneDX CLI, SPDX tools. | Catalogued as supply-chain and SBOM utilities, not counted as scanners. |
-| D9 | Repositories are untrusted input; build-requiring analysers execute code. | Never build; `requires_build` tools have no adapter. |
+| D9 | Repositories are untrusted input; build-requiring analysers execute code. | Never build in a worker; `requires_build` tools have no adapter. The fuzzers, which run repository code, run only in the network-less sandbox runner. |
 | D10 | Azure DevOps has no GitHub-App-style short-lived tokens. | Entra ID OAuth or a service principal (client secret or certificate), or a narrowly scoped PAT (*Code: Read*), all encrypted at rest. |
 | R1 | Around 50 catalogued scanners would mean large worker images. | One `worker-core` image with the core tools; opt-in family images (core plus a family of manifest tools) for the rest; operators add tools as plugins in derived images. Jobs that use family tools are routed to the workers that advertise them. |
 | R2 | Vulnerability databases (Trivy, Grype, OSV) are large and rate-limited. | Shared `scanner_cache` volume; offline bundles for air-gapped installs ([AIRGAP.md](AIRGAP.md)). |

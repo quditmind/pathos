@@ -18,6 +18,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/runtimectx"
 )
 
 // Service recomputes scores and exposes the risk model.
@@ -189,8 +190,10 @@ type FindingRisk struct {
 	KEVDueDate     *time.Time      `json:"kev_due_date"`
 	Confidence     string          `json:"confidence"`
 	Reachability   string          `json:"reachability"`
-	CVSSVersion    string          `json:"cvss_version"`
-	CVSSVector     string          `json:"cvss_vector"`
+	// ReachabilityMethod: import, call_graph, symbol_calls or "".
+	ReachabilityMethod string `json:"reachability_method"`
+	CVSSVersion        string `json:"cvss_version"`
+	CVSSVector         string `json:"cvss_vector"`
 }
 
 func (s *Service) findingRisk(w http.ResponseWriter, r *http.Request) {
@@ -205,10 +208,10 @@ func (s *Service) findingRisk(w http.ResponseWriter, r *http.Request) {
 	var out FindingRisk
 	var factors []byte
 	err = s.DB.QueryRow(ctx, `SELECT repository_id, risk_score::float8, risk_factors, risk_scored_at, risk_dirty, cve, epss_score::float8,
-		epss_percentile::float8, kev, kev_due_date, confidence, reachability, cvss_version, cvss_vector
+		epss_percentile::float8, kev, kev_due_date, confidence, reachability, reachability_method, cvss_version, cvss_vector
 		FROM findings WHERE organization_id = $1 AND id = $2`, p.OrganizationID, id).
 		Scan(&repo, &out.Score, &factors, &out.ScoredAt, &out.Pending, &out.CVE, &out.EPSS, &out.EPSSPercentile, &out.KEV, &out.KEVDueDate,
-			&out.Confidence, &out.Reachability, &out.CVSSVersion, &out.CVSSVector)
+			&out.Confidence, &out.Reachability, &out.ReachabilityMethod, &out.CVSSVersion, &out.CVSSVector)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -251,13 +254,15 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 		rows, err := tx.Query(ctx, `
 			SELECT f.id, f.status, f.severity, COALESCE(f.human_severity, ''), f.cvss::float8, e.score::float8, e.percentile::float8,
 			       k.cve_id IS NOT NULL, k.due_date, f.exploit_available, r.criticality, COALESCE(a.criticality, ''), r.public_exposure,
-			       f.reachability, f.confidence, COALESCE(f.human_disposition, ''), f.fixed_version <> '',
+			       f.reachability, f.reachability_method, f.confidence, COALESCE(f.human_disposition, ''), f.fixed_version <> '',
 			       EXISTS (SELECT 1 FROM human_reviews h JOIN human_review_assessments ha ON ha.review_id = h.id AND ha.round = h.round
 			               WHERE h.finding_id = f.id AND ha.answers->>'compensating_controls_present' = 'yes'),
 			       -- public exploit or proof of concept referenced by the OSV record
 			       f.cve <> '' AND EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND v.exploit_refs > 0
 			               AND (v.id = f.cve OR f.cve = ANY(v.aliases))),
-			       `+MaliciousExpr+`
+			       `+MaliciousExpr+`,
+			       f.category = 'secrets' AND f.secret_validation_status = 'active',
+			       f.runtime_status, f.runtime_exposed, f.runtime_privileged, f.runtime_alert, f.runtime_context
 			FROM findings f
 			JOIN repositories r ON r.id = f.repository_id
 			LEFT JOIN applications a ON a.id = r.application_id
@@ -283,13 +288,22 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			var u upd
 			var in Input
 			var repoCrit, appCrit string
+			var rtCtx []byte
 			if err := rows.Scan(&u.id, &in.Status, &in.Severity, &in.HumanSeverity, &in.CVSS, &u.epss, &u.epssPct, &u.kev, &u.kevDue,
-				&in.ExploitAvailable, &repoCrit, &appCrit, &in.Exposure, &in.Reachability, &in.Confidence, &in.HumanDisposition,
-				&in.FixAvailable, &in.Compensating, &u.osvExploit, &in.Malicious); err != nil {
+				&in.ExploitAvailable, &repoCrit, &appCrit, &in.Exposure, &in.Reachability, &in.ReachabilityMethod, &in.Confidence, &in.HumanDisposition,
+				&in.FixAvailable, &in.Compensating, &u.osvExploit, &in.Malicious, &in.SecretActive,
+				&in.RuntimeStatus, &in.RuntimeExposed, &in.RuntimePrivileged, &in.RuntimeAlert, &rtCtx); err != nil {
 				rows.Close()
 				return err
 			}
 			in.Criticality = higher(repoCrit, appCrit)
+			if len(rtCtx) > 0 {
+				var rc runtimectx.RuntimeContext
+				if json.Unmarshal(rtCtx, &rc) == nil {
+					e := &in.RuntimeEvidence
+					e.Deployed, e.Exposed, e.Privileged, e.Alerts = runtimectx.FactorEvidence(&rc)
+				}
+			}
 			in.EPSSPercentile, in.KEV = u.epssPct, u.kev
 			// KEV entries are exploited in the wild.
 			in.ExploitAvailable = in.ExploitAvailable || u.kev || u.osvExploit

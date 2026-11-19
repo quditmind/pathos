@@ -1068,6 +1068,13 @@ export interface Finding {
   reachability?: "reachable" | "not_reachable" | "unknown";
   /** Why: e.g. "a dependency of express, which the code uses". */
   reachability_basis?: string;
+  /**
+   * How reachability was decided: import (package level), call_graph
+   * (govulncheck) or symbol_calls (pathos-reach), "" when not analysed.
+   */
+  reachability_method?: ReachabilityMethod;
+  /** Evidence of a function-level answer (finding detail only). */
+  reachability_evidence?: ReachabilityEvidence | null;
   /** The approved suppression rule that decided the status. */
   suppression_rule_id?: string | null;
   /** Contextual risk score 0-100 (null until scored). */
@@ -1078,9 +1085,84 @@ export interface Finding {
   scan_target_id?: string | null;
   scan_target_kind?: "image" | "url" | "api" | "sbom" | "artifact" | "endpoints" | "mobile-app" | "llm-endpoint" | null;
   scan_target_name?: string | null;
+  /** Runtime context: "" (unknown), deployed or not_deployed. */
+  runtime_status?: "" | "deployed" | "not_deployed";
+  runtime_exposed?: boolean;
   snippet?: string;
   snippet_start_line?: number | null;
   occurrences?: { scan_job_id: string; scanner_key: string; commit_sha: string; file_path: string; start_line: number | null; seen_at: string }[];
+  /** Live secret validation verdict (secret findings only). */
+  secret_validation?: SecretValidation;
+}
+
+export type SecretValidationStatus = "active" | "inactive" | "error" | "not_checked";
+
+/** Whether a detected secret is still active, checked by a worker against its provider. Never contains the secret. */
+export interface SecretValidation {
+  status: SecretValidationStatus;
+  provider: string;
+  provider_name: string;
+  /** Non-secret identity of an active credential (account ID, user name). */
+  identity: string;
+  checked_at: string | null;
+  evidence: {
+    status?: SecretValidationStatus;
+    endpoint?: string;
+    http_status?: number;
+    detail?: string;
+    checked_at?: string;
+    scan_job_id?: string;
+    worker?: string;
+    severity_raised_from?: Severity;
+    severity_restored_to?: Severity;
+    recheck_job_id?: string;
+    recheck_requested_at?: string;
+    last_attempt?: { status: SecretValidationStatus; detail?: string; endpoint?: string; http_status?: number; checked_at?: string };
+  } | null;
+}
+
+export interface SecretProviderSetting {
+  id: string;
+  name: string;
+  hosts: string[] | null;
+  endpoint: string;
+  checkable: boolean;
+  note?: string;
+  enabled: boolean;
+}
+
+export interface SecretValidationSettings {
+  providers: SecretProviderSetting[];
+  rate_per_second: number;
+  max_checks_per_scan: number;
+  updated_at: string | null;
+  can_manage: boolean;
+  offline: boolean;
+}
+
+export type ReachabilityMethod = "" | "import" | "call_graph" | "symbol_calls";
+
+/** One step of a call path: a call at file:line inside function. */
+export interface ReachFrame {
+  file: string;
+  line: number;
+  function: string;
+}
+
+export interface ReachabilityEvidence {
+  tool: "pathos-reach" | "govulncheck";
+  scan_job_id?: string;
+  analysed_at?: string;
+  /** The vulnerable functions checked, as the advisory names them. */
+  symbols: string[];
+  /** Call chains, outermost caller first, ending at the vulnerable call. */
+  paths: ReachFrame[][];
+  /** Calls of a vulnerable method's name on values of unknown type. */
+  unresolved?: ReachFrame[];
+  /** Constructs the analysis cannot follow (module "" = any module). */
+  dynamic?: { ecosystem: string; module: string; reason: string; file: string; line: number; test: boolean }[];
+  /** What the method does not see. */
+  limits: string;
 }
 
 export type LifecycleStatus = "new" | "open" | "in_progress" | "under_review" | "confirmed" | "false_positive" | "accepted_risk" | "resolved" | "reopened";
@@ -1090,6 +1172,8 @@ export interface RiskFactor {
   label: string;
   value: string;
   weight: number;
+  /** Evidence of runtime factors (cluster, namespace, workload, ingress host, alert). */
+  evidence?: string[];
 }
 
 export interface FindingRisk {
@@ -1105,6 +1189,7 @@ export interface FindingRisk {
   kev_due_date: string | null;
   confidence: string;
   reachability: string;
+  reachability_method?: ReachabilityMethod;
   cvss_version: string;
   cvss_vector: string;
 }
@@ -1119,10 +1204,17 @@ export interface RiskWeights {
   criticality: Record<string, number>;
   exposure: Record<string, number>;
   reachability: Record<string, number>;
+  /** Replaces reachability when the answer is function level. */
+  function_reachability?: Record<string, number>;
   confidence: Record<string, number>;
   human_confirmed: number;
   compensating_controls: number;
   fix_available: number;
+  /** Runtime context (Kubernetes inventory). */
+  deployment: Record<string, number>;
+  runtime_exposed: number;
+  privileged_workload: number;
+  runtime_alert: number;
 }
 
 export interface RiskModel {

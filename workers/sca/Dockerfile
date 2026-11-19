@@ -2,10 +2,11 @@
 # PATHOS worker-sca: the core worker image plus the SCA family tools
 # govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm audit,
 # yarn audit, pnpm audit, Composer audit, OWASP Dependency-Check, GuardDog,
-# pathos-depcheck (dependency confusion and typosquatting) and cdxgen
-# (CycloneDX SBOM). The tools are defined only by manifests
-# (workers/sca/tools.d, installed read-only at /opt/pathos/tools.d) and run
-# through the pathos-sca helper (workers/sca/bin/pathos-sca).
+# pathos-depcheck (dependency confusion and typosquatting), cdxgen
+# (CycloneDX SBOM) and pathos-reach (function-level reachability). The
+# tools are defined only by manifests (workers/sca/tools.d, installed
+# read-only at /opt/pathos/tools.d) and run through the pathos-sca helper
+# (workers/sca/bin/pathos-sca).
 # Build context: repository root.
 #
 # A family image extends the core image instead of replacing it (see
@@ -47,19 +48,24 @@ RUN --mount=type=cache,target=/root/.cache/pip set -eux; \
     ls /opt/pathos/sca/guarddog-top/top_pypi_packages.json /opt/pathos/sca/guarddog-top/top_npm_packages.json; \
     find /opt/pathos/sca -name '__pycache__' -prune -exec rm -rf {} +
 
-# govulncheck and pathos-depcheck, built with Go 1.27.4 (integrity: Go
-# checksum database; pathos-depcheck is this repository's code).
+# govulncheck, pathos-depcheck and pathos-reach, built with Go 1.27.4
+# (integrity: Go checksum database; pathos-depcheck and pathos-reach are
+# this repository's code and use the standard library only).
 FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gotools
 ARG GOVULNCHECK=1.10.0
 WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 COPY backend/internal/depcheck/ ./internal/depcheck/
 COPY backend/cmd/pathos-depcheck/ ./cmd/pathos-depcheck/
+COPY backend/internal/reachscan/ ./internal/reachscan/
+COPY backend/cmd/pathos-reach/ ./cmd/pathos-reach/
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build set -eux; \
     GOBIN=/out CGO_ENABLED=0 go install -trimpath -ldflags "-s -w" "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK}"; \
     /out/govulncheck -version | grep -q "v${GOVULNCHECK}"; \
     CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=1.0.0" -o /out/pathos-depcheck ./cmd/pathos-depcheck; \
-    /out/pathos-depcheck --version
+    /out/pathos-depcheck --version; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=1.0.0" -o /out/pathos-reach ./cmd/pathos-reach; \
+    /out/pathos-reach --version
 
 # Downloads (hashes computed when the versions were pinned).
 FROM debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2 AS downloads
@@ -164,7 +170,7 @@ RUN set -eux; \
     rm -rf /opt/pathos/sca/go/test /opt/pathos/sca/go/doc /opt/pathos/sca/go/api; \
     chown -R root:root /opt/pathos/sca; \
     chmod -R go-w /opt/pathos/sca /opt/pathos/tools.d; \
-    for t in govulncheck pip-audit cargo-audit bundler-audit retire npm-audit yarn-audit pnpm-audit composer-audit dependency-check guarddog depcheck cdxgen; do \
+    for t in govulncheck pip-audit cargo-audit bundler-audit retire npm-audit yarn-audit pnpm-audit composer-audit dependency-check guarddog depcheck cdxgen reach; do \
       /opt/pathos/sca/bin/pathos-sca "$t" --version; \
     done
 USER 10001:10001

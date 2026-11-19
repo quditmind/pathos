@@ -55,10 +55,14 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `kev`, `kev_due_date` | Listed in the CISA KEV catalog, with its due date |
 | `exploit_available` | Known exploitation |
 | `reachability`, `reachability_basis` | `reachable`, `not_reachable`, `unknown`, and why ([reachability](vulnerability-intelligence.md#reachability)) |
+| `reachability_method` | How reachability was decided: `import` (package level), `call_graph` (govulncheck), `symbol_calls` (pathos-reach) or `""` |
+| `reachability_evidence` | Finding detail only, function-level answers only: tool, scan job, vulnerable functions checked, call paths (`file:line` frames, outermost caller first), dynamic constructs and untyped calls, limits ([function-level reachability](vulnerability-intelligence.md#function-level-reachability)) |
 | `malicious` | The package itself is malware ([malicious packages](supply-chain.md#malicious-packages)) |
+| `runtime_status`, `runtime_exposed` | Runtime context from connected Kubernetes clusters: `""` (unknown), `deployed` or `not_deployed`, and whether a workload that runs it is internet-exposed. Evidence: [where a finding runs](runtime.md#where-a-finding-runs) |
 | `introduced_commit` | Commit of the scan that first detected it |
 | `introduced_status`, `introduced_commit_sha`, `introduced_author`, `introduced_at` | The commit that introduced the code (git blame of the scanned commit; `sast`, `secrets` and `iac` findings with a file and line). `introduced_status`: `known`, `shallow_clone` (unknown: the repository is cloned without history), `not_found` (the line is not in the scanned commit) or `""` (not determined). `introduced_author` is filled only while developer attribution is on ([settings](developer-context.md)) and is erased when it is turned off; e-mail addresses are never stored. Once known it does not change |
 | `suppression_rule_id` | The [suppression rule](#suppression-rules) that decided the status |
+| `secret_validation` | `secrets` findings only: the [live validation](#live-secret-validation) verdict |
 
 `GET /api/v1/findings/{id}` adds `snippet` and `snippet_start_line` (code captured by the scanner, when available) and `occurrences[]` (the 50 latest sightings: `scan_job_id`, `scanner_key`, `commit_sha`, `file_path`, `start_line`, `seen_at`).
 
@@ -96,9 +100,13 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `risk_min` | Minimum risk score (0–100) |
 | `confidence` | `high`, `medium`, `low`, `unknown` |
 | `reachability` | `reachable`, `not_reachable`, `unknown` |
+| `reachability_method` | `import`, `call_graph`, `symbol_calls`, `none` (not analysed) |
 | `scan_target_id` | Findings of one scan target |
 | `target_kind` | `repository` (source code only), `image`, `url`, `api`, `sbom`, `artifact`, `endpoints` |
 | `malicious` | `true`: malicious packages only |
+| `secret_validation` | `active`, `inactive`, `error` or `not_checked`: secret findings with this [live validation](#live-secret-validation) verdict |
+| `deployed` | `true`: running in a connected cluster; `false`: known not to run in any connected cluster ([runtime context](runtime.md)) |
+| `internet_exposed` | `true`: a workload that runs it is internet-exposed (Ingress or public LoadBalancer) |
 | `human_review` | `none` (no review), `open` (review not completed) or a disposition (`confirmed`, `false_positive`, `duplicate`, `not_exploitable`, `accepted_risk`, `mitigated`, `out_of_scope`) |
 | `control` | `<framework>:<control>`: findings mapped to a compliance control ([compliance](governance.md#compliance)) |
 | `q` | Case-insensitive search in title, rule ID, file path, package name and CVE |
@@ -289,6 +297,46 @@ A transitive dependency (not declared in an editable manifest) ends as `not_supp
 
 State changes are audited: `fix_pr.request`, `fix_pr.opened`, `fix_pr.failed`, `fix_pr.not_supported`, `fix_pr.merged`, `fix_pr.closed`.
 
+## Live secret validation
+
+Optional and off by default ([user guide](../user-guide/secret-validation.md)): workers check whether a detected credential is still active at its provider and report only the verdict. Settings are under [Administration](administration.md#secret-validation-settings); the worker upload is in the [worker protocol](worker-protocol.md#secret-validation).
+
+`secret_validation` on a `secrets` finding:
+
+```json
+{
+  "status": "active",
+  "provider": "github",
+  "provider_name": "GitHub token",
+  "identity": "user octo-test",
+  "checked_at": "2026-11-19T10:00:00Z",
+  "evidence": {
+    "status": "active",
+    "endpoint": "GET https://api.github.com/user",
+    "http_status": 200,
+    "detail": "the provider accepted the credential (HTTP 200)",
+    "checked_at": "2026-11-19T10:00:00Z",
+    "scan_job_id": "0190c0de-7777-7000-8000-000000000001",
+    "worker": "worker-core-1",
+    "severity_raised_from": "high"
+  }
+}
+```
+
+| Field | Description |
+|---|---|
+| `status` | `active` (accepted by the provider), `inactive` (rejected: revoked, expired or invalid), `error` (no conclusive answer), `not_checked` (default; the reason is in `evidence.detail` once a scan looked at it) |
+| `provider`, `provider_name` | Provider ID (`aws`, `github`, `gitlab`, `slack`, `stripe`, `openai`, `anthropic`, `sendgrid`, `twilio`, `npm`, `google`, `azure-storage`, `pypi`) and name; empty when no credential was recognized |
+| `identity` | Active credentials only: a non-secret identity (account ID and ARN, user login, team and user IDs, organization ID, storage account) |
+| `checked_at` | When the provider answered (`null` for `not_checked`) |
+| `evidence` | The request made (`endpoint`), `http_status`, `detail`, the scan job and worker, `severity_raised_from` (an active verdict raised the severity to critical) or `severity_restored_to` (an inactive verdict restored it), `last_attempt` (an `error` or `not_checked` result that did not replace an earlier `active` or `inactive` verdict), and `recheck_job_id`, `recheck_requested_at` |
+
+An `active` verdict sets `severity` to `critical` and the risk score's exploit likelihood to the maximum. The secret value is never part of any response.
+
+### Re-check
+
+`POST /api/v1/findings/{id}/secret-validation/recheck` — permission `scans.run` on the finding's repository (and `findings.read`). PATHOS does not keep secrets, so this queues a scan of the repository (`manual` trigger, coalesced with a queued one); the verdict is updated when it finishes. Response `202 { "job_id": "…", "coalesced": false }`. `400` for findings that are not `secrets`; `409` for scan target findings, while validation is off (no provider enabled), offline, or when the repository cannot be scanned. Audited as `secret_validation.recheck`.
+
 ## Other finding endpoints
 
 These endpoints belong to other features and are described on their pages:
@@ -296,6 +344,7 @@ These endpoints belong to other features and are described on their pages:
 | Method | Path | Described in |
 |---|---|---|
 | `GET` | `/api/v1/findings/{id}/risk` | [Risk explanation](risk-intelligence.md#risk-explanation) |
+| `GET` | `/api/v1/findings/{id}/runtime` | [Where a finding runs](runtime.md#where-a-finding-runs) |
 | `GET` | `/api/v1/findings/{id}/related` | [Related findings](vulnerability-intelligence.md#related-findings) |
 | `GET` | `/api/v1/findings/{id}/dependency-paths` | [Posture](posture.md#endpoints) |
 | `GET` | `/api/v1/findings/{id}/policies` | [Security policies](governance.md#security-policies) |

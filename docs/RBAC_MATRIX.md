@@ -80,7 +80,12 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `reviews.configure` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |  |
 | `ai.review` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
+| `ai.fix` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
+
+### AI-proposed fixes (`ai.fix`)
+
+`ai.fix` lets a user ask the configured AI provider for a code fix of a SAST, secrets or IaC finding on a repository in scope (**Propose fix** in the finding drawer). It is granted to `super_admin`, `security_manager`, `security_analyst` and `appsec_engineer` by default. The fix is only a proposal until a worker verifies it, and the feature is off until an administrator with `ai.configure` adds a provider and a default AI configuration that allows sending code. Opening a pull request from a **verified** fix additionally needs `findings.triage` and `repos.manage` on the repository (the same rights as a dependency fix pull request), and the repository must allow fix pull requests. Choosing a test runner that executes the repository's tests during verification needs `repos.manage`. See [Findings: AI-proposed fixes](user-guide/findings.md#ai-proposed-fixes).
 
 ### Developer attribution (`insights.people`)
 
