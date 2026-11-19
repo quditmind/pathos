@@ -382,6 +382,8 @@ By default, raw scanner reports and SBOMs are stored compressed in PostgreSQL. F
 
    The move is resumable. Each row switches to its object only after the object is written.
 
+   Uploads, source snapshots and Human Eye evidence written before object storage was enabled are not moved: they stay in the `sources` volume, and the API and jobs read them from there when the bucket does not have them (new objects go to the bucket only). Keep the `sources` volume mounted and in your backups as long as it holds data.
+
 Retention deletes the database row first, then the object. A failure leaves an unreferenced object, never a dangling reference.
 
 ## AI review options
