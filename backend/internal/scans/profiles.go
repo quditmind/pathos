@@ -82,12 +82,16 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 	out := []scanners.Scanner{}
 	for _, sc := range append(append(append([]scanners.Scanner{}, scanners.Catalog...), scanners.SyftUtility), scanners.Builtins...) {
 		sc = scanners.WithScanTypes(sc)
+		sc.Targets = scanners.TargetsOf(sc)
 		if o := online[sc.Key]; o != nil {
 			// Runnable: an online worker advertises it (built-in tools and
 			// first-party manifests of family images).
 			sc.Runnable = true
 			if o.Manifest != nil {
 				sc.AdapterAvailable = true
+				if len(o.Manifest.Targets) > 0 {
+					sc.Targets = o.Manifest.Targets
+				}
 				sc.Intrusive = sc.Intrusive || o.Manifest.Intrusive
 				if o.Manifest.Network == "target" {
 					sc.Network = "target"
@@ -99,7 +103,7 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 	// Declarative adapters registered by workers.
 	// Only plugins an online, non-revoked worker currently provides.
 	rows, err := s.DB.Query(r.Context(), `SELECT c.key, c.name, COALESCE(c.homepage, ''), COALESCE(c.notes, ''), c.license_spdx,
-		c.output_format, c.scan_types, c.network, c.intrusive FROM scanner_catalog c
+		c.output_format, c.scan_types, c.network, c.intrusive, c.targets FROM scanner_catalog c
 		WHERE c.worker_family = 'plugin' AND EXISTS (SELECT 1 FROM workers w WHERE w.revoked_at IS NULL AND w.scanners ? c.key
 		  AND w.last_seen_at > now() - $1::interval)
 		ORDER BY c.key`, WorkerOnlineWindow.String())
@@ -110,16 +114,16 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	for rows.Next() {
 		var key, name, home, notes, lic, format, network string
-		var types []string
+		var types, targets []string
 		var intrusive bool
-		if err := rows.Scan(&key, &name, &home, &notes, &lic, &format, &types, &network, &intrusive); err != nil {
+		if err := rows.Scan(&key, &name, &home, &notes, &lic, &format, &types, &network, &intrusive, &targets); err != nil {
 			s.fail(w, r, err)
 			return
 		}
 		if sc, ok := scanners.ResolvePlugin(key); ok {
 			sc.Name, sc.Homepage, sc.Notes, sc.License, sc.OutputFormat = name, home, notes, lic, format
-			sc.ScanTypes, sc.Network, sc.Intrusive, sc.Runnable = types, network, intrusive, true
-			sc.TargetOnly = !targetsInclude(online[key], "repository")
+			sc.ScanTypes, sc.Network, sc.Intrusive, sc.Runnable, sc.Targets = types, network, intrusive, true, targets
+			sc.TargetOnly = len(targets) > 0 && !slices.Contains(targets, "repository")
 			out = append(out, sc)
 		}
 	}

@@ -118,15 +118,6 @@ type ScanTypeCoverage struct {
 	Importable bool `json:"importable"`
 }
 
-// targetsInclude reports whether an online tool's manifest lists target t
-// (tools without a manifest scan repositories).
-func targetsInclude(o *onlineTool, t string) bool {
-	if o == nil || o.Manifest == nil || len(o.Manifest.Targets) == 0 {
-		return t == "repository"
-	}
-	return slices.Contains(o.Manifest.Targets, t)
-}
-
 func formatsOut(fs []scanners.ImportFormat) []ScanTypeFormat {
 	out := make([]ScanTypeFormat, 0, len(fs))
 	for _, f := range fs {

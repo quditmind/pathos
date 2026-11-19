@@ -1183,6 +1183,8 @@ export interface CatalogScanner {
   scan_types?: string[];
   /** An online worker advertises the tool. */
   runnable?: boolean;
+  /** What the tool scans: repository, image, url, api, mobile-app, binary, model. */
+  targets?: string[];
 }
 
 /** A tool of a scan type (GET /api/v1/scan-types). */

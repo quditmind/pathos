@@ -47,6 +47,10 @@ type Scanner struct {
 	// ScanTypes are the scan types (ScanTypes) the tool covers; filled from
 	// the scan-type registry.
 	ScanTypes []string `json:"scan_types"`
+	// Targets are what the tool scans (repository, image, url, api,
+	// mobile-app, binary, model); filled by the API (TargetsOf or the
+	// manifest).
+	Targets []string `json:"targets"`
 	// Runnable is set by the API: an online worker advertises the tool.
 	Runnable bool `json:"runnable"`
 }

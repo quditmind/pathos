@@ -109,7 +109,7 @@ function ScanTypeRows({ t, expanded, st, toggle }: { t: ScanTypeCoverage; expand
       </tr>
       {expanded && (
         <tr>
-          <Td className="bg-muted/30" colSpan={5}>
+          <td colSpan={5} className="border-b border-border bg-surface-muted/40 px-3 py-2.5">
             {t.note && <p className="mb-2 text-[12px] text-muted-foreground">{t.note}</p>}
             {t.tools.length === 0 ? (
               <p className="text-[12px] text-muted-foreground">No tool is integrated for this scan type yet; import results from other tools.</p>
@@ -134,7 +134,7 @@ function ScanTypeRows({ t, expanded, st, toggle }: { t: ScanTypeCoverage; expand
                 ))}
               </ul>
             )}
-          </Td>
+          </td>
         </tr>
       )}
     </>
