@@ -3,11 +3,13 @@
 # lines you need) and restart the egress service to let the selected tools
 # reach them. The tools run only when a scan profile selects them.
 #
-#   govulncheck        proxy.golang.org sum.golang.org vuln.go.dev
+#   govulncheck        proxy.golang.org sum.golang.org vuln.go.dev storage.googleapis.com
+#                      (proxy.golang.org redirects module downloads to Google Cloud
+#                      Storage; without it modules fail with "Forbidden")
 #   pip-audit          pypi.org
 #   npm/yarn/pnpm audit registry.npmjs.org
 #   Composer audit     packagist.org repo.packagist.org
 #   Dependency-Check   nvd.nist.gov (data feeds) or services.nvd.nist.gov (NVD API key)
 #   GuardDog           pypi.org files.pythonhosted.org registry.npmjs.org
-acl sca_registries dstdomain proxy.golang.org sum.golang.org vuln.go.dev pypi.org files.pythonhosted.org registry.npmjs.org packagist.org repo.packagist.org nvd.nist.gov services.nvd.nist.gov
+acl sca_registries dstdomain proxy.golang.org sum.golang.org vuln.go.dev storage.googleapis.com pypi.org files.pythonhosted.org registry.npmjs.org packagist.org repo.packagist.org nvd.nist.gov services.nvd.nist.gov
 http_access allow sca_registries
