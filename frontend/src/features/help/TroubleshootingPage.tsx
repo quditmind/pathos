@@ -82,7 +82,8 @@ export function TroubleshootingPage() {
   const [text, setText] = useState(q);
   const api = useDiagnosticCodes();
   const offline = useMemo(() => codesFromDocs(), []);
-  const all = api.data && api.data.length ? api.data : offline;
+  const all = api.data && api.data.codes.length ? api.data.codes : offline;
+  const areaNames = api.data?.areas ?? diagAreas;
   const hits = useMemo(() => searchCodes(all, q), [all, q]);
   const byArea = useMemo(() => {
     const m = new Map<string, DiagCode[]>();
@@ -144,7 +145,7 @@ export function TroubleshootingPage() {
                 <Card key={area}>
                   <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
                     <h2 className="flex-1 text-[14px] font-semibold">
-                      {diagAreas[area] ?? area} <span className="font-normal text-muted-foreground">· PTH-{area}</span>
+                      {areaNames[area] ?? area} <span className="font-normal text-muted-foreground">· PTH-{area}</span>
                     </h2>
                     {doc && (
                       <Link to="/help/$section/$slug" params={{ section: "troubleshooting", slug: doc.slug }} className="text-[12px] text-primary hover:underline">

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { mockApi, renderApp } from "@/test/harness";
-import { buildDoc, helpDocs, helpGroups, resolveAnchor } from "./content";
+import { buildDoc, helpDocs, helpGroups, renderDoc, resolveAnchor } from "./content";
 import { TroubleshootingPage } from "./TroubleshootingPage";
 import { codesFromDocs, normaliseCode, parseCodes, searchCodes } from "./troubleshooting";
 
@@ -48,7 +48,10 @@ describe("catalogue parsing", () => {
   });
 
   it("reads codes from bundled troubleshooting docs (offline)", () => {
-    const doc = buildDoc("x/docs/troubleshooting/conn.md", "---\ntitle: Connections\n---\n# Connections\n\n## PTH-CONN-1004 Connection uses an untrusted certificate\n\nText.\n\n## Other\n")!;
+    const doc = buildDoc("x/docs/troubleshooting/conn.md", "---\ntitle: Connections\n---\n# Connections\n\n<a id=\"PTH-CONN-1004\"></a>\n\n## PTH-CONN-1004 Connection uses an untrusted certificate\n\nText. <a href=x>bad</a>\n\n## Other\n")!;
+    const html = renderDoc(doc);
+    expect(html).toContain('<span id="PTH-CONN-1004"></span>');
+    expect(html).toContain("&lt;a href=x&gt;");
     expect(doc.section).toBe("troubleshooting");
     const list = codesFromDocs([doc]);
     expect(list).toEqual([expect.objectContaining({ code: "PTH-CONN-1004", title: "Connection uses an untrusted certificate", docs_url: "/help/troubleshooting/conn#pth-conn-1004-connection-uses-an-untrusted-certificate" })]);
@@ -58,10 +61,10 @@ describe("catalogue parsing", () => {
 
 describe("Troubleshooting centre", () => {
   it("lists the live catalogue by area and searches it", async () => {
-    mockApi({ "GET /api/v1/diagnostics/codes": () => ({ items: codes }) });
+    mockApi({ "GET /api/v1/diagnostics/codes": () => ({ areas: [{ key: "CONN", slug: "conn", title: "Connections and webhooks" }], items: codes }) });
     renderApp(<TroubleshootingPage />, { path: "/help/troubleshooting" });
     expect(await screen.findByRole("heading", { level: 1, name: "Troubleshooting centre" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: /Connections · PTH-CONN/ })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Connections and webhooks · PTH-CONN/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Scan execution · PTH-SCAN/ })).toBeInTheDocument();
     const entry = document.getElementById("PTH-CONN-1004")!;
     await userEvent.click(within(entry).getByText("Connection uses an untrusted certificate"));

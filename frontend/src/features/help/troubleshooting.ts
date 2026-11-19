@@ -73,10 +73,20 @@ export function parseCodes(resp: unknown): DiagCode[] {
   return (Array.isArray(list) ? list : []).map(normaliseCode).filter((c): c is DiagCode => c !== null).sort((a, b) => a.code.localeCompare(b.code));
 }
 
+/** Area titles sent with the catalogue ({areas: [{key, title}]}), over the built-in names. */
+export function parseAreas(resp: unknown): Record<string, string> {
+  const list = resp && typeof resp === "object" ? (resp as { areas?: unknown }).areas : undefined;
+  const out: Record<string, string> = {};
+  if (Array.isArray(list))
+    for (const a of list) if (a && typeof a === "object" && typeof a.key === "string" && typeof a.title === "string" && a.title) out[a.key] = a.title;
+  return out;
+}
+
 export function useDiagnosticCodes() {
   return useQuery({
     queryKey: ["diagnostics", "codes"],
-    queryFn: () => api<unknown>("/api/v1/diagnostics/codes").then(parseCodes),
+    queryFn: () =>
+      api<unknown>("/api/v1/diagnostics/codes").then((r) => ({ codes: parseCodes(r), areas: { ...diagAreas, ...parseAreas(r) } })),
     staleTime: 10 * 60_000,
     retry: 1,
   });

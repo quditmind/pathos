@@ -95,17 +95,19 @@ describe("ErrorPanel", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Troubleshoot with AI/ }));
     expect(await screen.findByText("AI-inferred: check before acting")).toBeInTheDocument();
     expect(screen.getByText("AI thinks the CA expired.")).toBeInTheDocument();
-    const body = api.calls.find((c) => c.method === "POST")!.body as { code: string; request_id: string; context: { message: string } };
+    const body = api.calls.find((c) => c.method === "POST")!.body as { code: string; request_id: string; message: string; context: Record<string, string> };
     expect(body.code).toBe("PTH-CONN-1004");
     expect(body.request_id).toBe("reqabc");
-    expect(body.context.message).not.toContain("abc123secret");
+    expect(body.message).not.toContain("abc123secret");
+    expect(Object.values(body.context).every((v) => typeof v === "string")).toBe(true);
   });
 
   it("shows the catalogue answer when AI is off", async () => {
-    mockApi({ "POST /api/v1/diagnostics/troubleshoot": () => ({ error: { ...envelope }, source: "catalogue" }) });
+    mockApi({ "POST /api/v1/diagnostics/troubleshoot": () => ({ error: { ...envelope }, source: "catalogue", ai_unavailable: "AI is turned off for troubleshooting" }) });
     renderApp(<ErrorPanel error={apiErr()} />);
     await userEvent.click(await screen.findByRole("button", { name: /Troubleshoot with AI/ }));
     expect(await screen.findByText("From the error catalogue (AI not used)")).toBeInTheDocument();
+    expect(screen.getByText(/AI was not used: AI is turned off/)).toBeInTheDocument();
   });
 
   it("keeps the catalogue steps when troubleshooting fails", async () => {

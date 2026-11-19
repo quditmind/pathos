@@ -8,7 +8,7 @@ import { Button } from "./button";
 import { Alert, Badge } from "./primitives";
 
 /** POST /api/v1/diagnostics/troubleshoot: the envelope plus where the answer came from. */
-export type TroubleshootAnswer = ErrorEnvelope & { source: "ai" | "catalogue" };
+export type TroubleshootAnswer = ErrorEnvelope & { source: "ai" | "catalogue"; model?: string; ai_unavailable?: string };
 
 /** Reads a troubleshoot response (flat or wrapped in "error"). */
 export function parseTroubleshoot(resp: unknown, requested: string): TroubleshootAnswer | undefined {
@@ -19,7 +19,8 @@ export function parseTroubleshoot(resp: unknown, requested: string): Troubleshoo
   const env = parseEnvelope({ ...body, error_code: errorCode });
   if (!env) return undefined;
   const source = (r.source ?? body.source) === "ai" ? "ai" : "catalogue";
-  return { ...env, source };
+  const opt = (k: string) => (typeof r[k] === "string" && r[k] ? (r[k] as string) : undefined);
+  return { ...env, source, model: opt("model"), ai_unavailable: opt("ai_unavailable") };
 }
 
 function errorMessage(error: unknown): string {
@@ -152,7 +153,8 @@ export function ErrorPanel({ error, title, onVerify }: { error: unknown; title?:
         body: {
           code: env!.error_code,
           ...(env!.request_id ? { request_id: env!.request_id } : {}),
-          context: { route: maskPath(window.location.pathname), message: redactText(env!.message) },
+          message: redactText(env!.message),
+          context: { route: maskPath(window.location.pathname) },
         },
       });
       const parsed = parseTroubleshoot(resp, env!.error_code);
@@ -227,7 +229,11 @@ export function ErrorPanel({ error, title, onVerify }: { error: unknown; title?:
               ) : (
                 <Badge tone="neutral">From the error catalogue (AI not used)</Badge>
               )}
+              {ai.data.source === "ai" && ai.data.model && <span className="text-[11px] text-muted-foreground">Model: {ai.data.model}</span>}
             </div>
+            {ai.data.source === "catalogue" && ai.data.ai_unavailable && (
+              <p className="mb-2 text-[12px] text-muted-foreground">AI was not used: {ai.data.ai_unavailable}</p>
+            )}
             <EnvelopeBody env={ai.data} />
           </div>
         )}

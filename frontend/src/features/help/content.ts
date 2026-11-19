@@ -163,6 +163,10 @@ export function renderDoc(doc: Pick<HelpDoc, "section" | "body" | "headings">): 
   md.use({
     renderer: {
       html(t: Tokens.HTML | Tokens.Tag) {
+        // Generated troubleshooting docs mark each code with <a id="PTH-…"></a>;
+        // keep the anchor (as a span), escape everything else.
+        const anchor = /^\s*<div data-help-anchor="([\w-]{1,64})"><\/div>\s*$/.exec(t.text);
+        if (anchor) return `<span id="${escapeHtml(anchor[1]!)}"></span>`;
         return escapeHtml(t.text);
       },
       heading(t: Tokens.Heading) {
@@ -202,7 +206,9 @@ export function renderDoc(doc: Pick<HelpDoc, "section" | "body" | "headings">): 
       },
     },
   });
-  return md.parse(doc.body, { async: false }) as string;
+  // An anchor line is inline HTML to Markdown; as a <div> it becomes one HTML block.
+  const body = doc.body.replace(/^<a id="([\w-]{1,64})"><\/a>[ \t]*$/gm, '<div data-help-anchor="$1"></div>');
+  return md.parse(body, { async: false }) as string;
 }
 
 export interface SearchHit {
