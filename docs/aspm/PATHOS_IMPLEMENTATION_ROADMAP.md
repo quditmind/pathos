@@ -1,6 +1,10 @@
+Quditmind PATHOS · applies to v2.2.0 · status: Proposed
+
 # PATHOS ASPM implementation roadmap
 
-**Status: complete.** All ASPM phases (1 to 10) are merged: phase 1 in #31, 2a in #32, 2b in #33, 3 to 10 in #35 to #42. The register in [PATHOS_FEATURE_GAP_ANALYSIS.md](PATHOS_FEATURE_GAP_ANALYSIS.md) stands at 91 completed, 9 in progress, 0 not started.
+Sections 1 to 16 are the completed ASPM programme (status: Existing). Section 17 is the proposed plan for the lifecycle release (status: Proposed; nothing in it is built).
+
+**Status of the ASPM programme: complete.** All ASPM phases (1 to 10) are merged: phase 1 in #31, 2a in #32, 2b in #33, 3 to 10 in #35 to #42. The register in [PATHOS_FEATURE_GAP_ANALYSIS.md](PATHOS_FEATURE_GAP_ANALYSIS.md) stands at 91 completed, 9 in progress, 0 not started.
 
 **Phase numbers.** "Phase N" in this document and in the `docs/aspm/` folder means an **ASPM phase**. The platform was first built in eight earlier phases (foundation to enterprise hardening), which [DEVELOPMENT_ROADMAP.md](../DEVELOPMENT_ROADMAP.md) calls *platform phases P1 to P8*. The two numberings are unrelated: ASPM phase 7 (supply chain) is not platform phase P7 (scheduling and notifications).
 
@@ -378,3 +382,137 @@ bands       = critical ≥ 75, high ≥ 50, medium ≥ 25, low > 0
 **Tests:** unit (offline flags and database checks, plugin validation: placeholders, environment, relative or writable commands, unknown fields, duplicates; a plugin run end to end); integration (plugin registration, catalog, profile, unregistered keys refused, results as findings; the registration function refuses non-plugin keys and mismatched categories; artifact malware scan with a fake clamd: infected, clean, scanner required or optional).
 
 **Register:** 91 completed, 9 in progress, 0 not started.
+
+## 17. Lifecycle release plan (M0–M11, proposed)
+
+**Status: Proposed.** This section plans the work in the owner's build prompt (milestones M0 to M11), adjusted for what PATHOS 2.2.0 already contains. Nothing here is built. The version that ships it is not decided ([ADR-013](PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-013-naming-and-versioning-of-the-lifecycle-release)); this document calls it "the lifecycle release". Data model: [PATHOS_DATABASE_DESIGN.md](PATHOS_DATABASE_DESIGN.md#lifecycle-release-data-model-m0-proposed). Endpoints: [PATHOS_API_DESIGN.md](PATHOS_API_DESIGN.md#lifecycle-release-endpoints-m0-proposed). Decisions: [PATHOS_ARCHITECTURE_DECISION_RECORDS.md](PATHOS_ARCHITECTURE_DECISION_RECORDS.md).
+
+### 17.1 Starting point (verified on `main`, commit `f3c5efd`, 2.2.0)
+
+| Prompt assumption | Code today | Effect on the plan |
+|---|---|---|
+| PATHOS is at 1.1.1 | 2.2.0 is released (2.0.0, 2.1.0 and 2.2.0 on 2026-11-19, `CHANGELOG.md`) | Plan from 2.2.0; never assign a version (ADR-013) |
+| Multi-tenant is out of scope (rule 8) | Optional multi-tenancy ships in 2.2.0, off by default ([MULTI_TENANCY.md](../MULTI_TENANCY.md)) | Keep it (rule 1). New tables still follow its isolation rules, because `pathos_apply_app_grants()` adds a policy to every table with `organization_id` and the isolation test probes every route. No new multi-tenant features |
+| `make e2e` exists | It does: `Makefile:45` runs `scripts/e2e.sh` (Playwright `v1.65.1` container against the running stack; `e2e/tests/*.spec.ts`). Only `e2e` is missing from the `.PHONY` line (`Makefile:2`) | No new target needed; the M0 brief's note that the target is missing is not correct |
+| `e2e/screenshots.config.ts` captures pages | It captures light theme only, 1440×900 (`e2e/screenshots.config.ts:19-20`), into `e2e/screenshots/out/` | Add a dark-theme project (test plan 17.6.7) |
+| Tool catalogue to be built (M6) | 25 scan types (`backend/internal/scanners/scantypes.go:30`), catalogue split over `catalog.go` and `catalog_<family>.go`, 9 worker images (core plus `sast`, `iac`, `sca`, `dast`, `mobile`, `binary`, `ai`, `fuzz`), 232 import formats, "confirmed by N engines" data in `findings.scanner_keys` | M6 is mostly mapping and UI; size reduced |
+| Connectors are new (M2) | SCM connections (GitHub, GitHub Enterprise, GitLab, Bitbucket, Azure DevOps), Jira and ServiceNow, outbound webhooks (JSON, Slack, Teams), Kubernetes clusters and container registries (2.1), AI providers, SMTP, CLI, VS Code and JetBrains plugins, CI templates (GitHub Action, GitLab, Azure Pipelines, Jenkins, pre-commit, pre-receive) | M2 is a registry and health layer over existing connections plus new kinds |
+| Help exists in `features/help` | Yes, bundled offline at build time (`frontend/src/features/help/content.ts:37`) | M1 adds the drawer, the route map and troubleshooting docs |
+| Design page lists connector status | The connectors design marks JetBrains IDEs and Kubernetes as "new" and result import as "25 formats". In the code, the JetBrains plugin shipped in 2.2.0, a Kubernetes inventory in 2.1.0, and imports cover 232 formats | The code wins; the connector catalogue must use the code's status |
+
+Partly existing items mapped to milestones:
+
+| Item | Exists today | Milestone that builds on it |
+|---|---|---|
+| Version on `/healthz`, CLI `--version`, worker version at registration | Yes (ADR-001) | M1 |
+| Configurations group (scan profiles, scanners & workers) with old URLs redirecting | Yes (`frontend/src/app/router.tsx:172-177`) | M1 sidebar regroup |
+| Context graph, attack paths, blast radius | Yes (`backend/internal/posture`) | M4, M5 |
+| Function-level reachability with call paths | Yes, 2.1 (`pathos-reach`, govulncheck) | M4 (call edges), M7 |
+| Endpoints declared and verified per repository | Yes (`repository_public_endpoints`, `endpoint_verifications`) | M4 API & endpoints view |
+| Runtime context (clusters, registries, workloads) | Yes, 2.1 | M2 (as connectors), M4 (observed edges), M9 |
+| Live secret validation | Yes, 2.1, off by default | M2 health, M7 |
+| Verified AI fixes, dependency fix pull requests | Yes (2.1, 1.1) | M8 |
+| PR checks, scan security gate, CI gate endpoint, security policies with block | Yes | M8 (ADR-010) |
+| Material change detection | Yes, 1.1 | M9 drift and feed |
+| Application versions, VEX | Yes, 1.1 | M3 hub, M8 release gate |
+| Drafts in repository imports, required asset fields, mandatory tag categories | Yes (`00009`) | M3 |
+| AI review records with model, configuration version and request hash | Yes | M7 (ADR-008) |
+| Binary family worker, artifact targets, signature verification, sandbox runner | Yes | M10 (ADR-009) |
+
+### 17.2 Milestones
+
+Sizes: S ≈ up to 1 week, M ≈ 1–3 weeks, L ≈ 3–6 weeks, XL ≈ more than 6 weeks of one engineer with AI assistance. They are rough and assume the owner's approval turnaround is not on the critical path. Each milestone follows the prompt's sequence: design note → wireframe or screenshot → **owner approval** → implementation → tests → docs → PR, on its own branch, with every new module behind a flag that is off by default.
+
+| # | Scope (adjusted) | Depends on | Size | Main risks | Approval gate (in addition to §9 outputs) |
+|---|---|---|---|---|---|
+| **M0** | Approval pack: audit, capability gap matrix, ADRs, integration and protocol matrix, DB and API design (this set of documents) | — | M | Documents drift from code if M1 starts late | Owner approves the pack, ADR-001 to ADR-012, and decides or defers ADR-013 and the open questions in 17.5 |
+| **M1** | Brand header with live version and pre-release tag; About; Help menu and drawer with the route map; Troubleshooting centre; diagnostic catalogue, `make docs-errors`, extended error envelope (`error_code`), `<ErrorPanel>` and the shared page states; `/api/v1/meta`; Commit and BuildDate ldflags for API, `pathosctl`, worker, CLI and helpers; bundle-version mismatch banner; version-stamped exports; sidebar regroup into the prompt's groups (URLs unchanged, new items with `phase`); feature-flag framework; system status | M0 | L | The regroup touches every page's navigation; envelope change must not break the CLI and IDE plugins; mapping 56 legacy codes; export stamping may break CSV consumers | Every route has help; every API error carries a catalogue code; all existing e2e tests pass unchanged; screenshots in light and dark; CLI and both IDE plugins pass their tests against the new envelope |
+| **M2** | `/connectors` (tabs Connectors, Authentication, Configuration, Health; nine categories); registry over existing connections; health checks with catalogue codes and AI troubleshooting; parity for SCM connections and Integrations, then redirects; vendor facts cited in `PATHOS_INTEGRATION_TECHNICAL_SPEC.md`; new kinds in priority order set by the owner (cloud, SIEM, Vault are larger than they look) | M1 | L (plus M per new connector kind) | Parity of the old pages (rule 1); vendor API facts change; new cloud connectors need egress and credentials design; health checks must not call vendors from the API process where the current design avoids it | Parity e2e tests pass for `/admin/scm` and `/admin/integrations`; every connector shows only real status (no fake health, rule 4) |
+| **M3** | Connect → find existing asset → register → tag and classify → inventory flow with drafts; application classification fields; tag `applies_to`, application tags and tag history; application profile hub with the prompt's tabs | M1 (M2 for "connect" step from Connectors) | L | Duplicate detection across repositories, applications and targets; hub tabs that depend on later milestones must show the disabled state, not empty data | No duplicate assets in tests; incomplete assets save with a status; hub tabs for M4/M5/M8 show "feature disabled" until those flags are on |
+| **M4** | Discovery worker family (`worker-graph`) with tier 1 engines; CodeGraph store, aggregation, expansion, path search, diffs; shared graph component (React Flow + ELK unless measurement says otherwise); the 15 views; snapshots and compare; API & endpoints view; context graph becomes the ownership layer | M1; M3 hub for placement | XL | Graph size and load time; 2 s render budget unproven; engine coverage per language; Joern memory; evidence on every edge | Graph for the PATHOS repository renders and every edge has evidence (test); measurement results for ADR-005 in the PR |
+| **M5** | STRIDE (and LINDDUN) engine on CodeGraph; attack-path integration filtered by application; ATT&CK, CAPEC, CWE, D3FEND mappings with notices; editable, versioned, approvable model; Threat Dragon, pytm, Threagile import and export | M4 | L | Threat quality depends on graph coverage; licence of LINDDUN material unclear; imported threats and rule 5 | Each threat has evidence, method, severity, confidence and mitigation (test); approver differs from author (test) |
+| **M6** | Map the existing 25 scan types to the prompt's 20 kinds of check; Quick / Standard / Comprehensive / Custom tiers over existing profiles; category-only UI with "confirmed by N engines"; add missing tools per §7 only after licence and maintenance evidence; worker pack updates | M1 (flag, tool-name rule) | M (catalogue mapping and UI); each new tool batch S–M | Prompt's 20 kinds do not match the 25 scan types one-to-one; tool-name hiding conflicts with help, imports and exports (ADR-011); image size growth | Tool names appear only on the two configuration pages (test); every added tool has licence evidence in the PR |
+| **M7** | Cross-phase correlation (findings, graph, threats, runtime); AI evidence records with replay; model per task with local default for code; reviewer decisions; no silent suppression | M4 (evidence table), M5 | L | Storage and retention of redacted prompts; hosted-model drift makes replays differ; cost of replays | Every AI decision is reproducible from its record (replay test with a local model fixture) |
+| **M8** | Remediation workspace (items, owners, due dates, links to findings and threats); gates at IDE, pre-commit, PR, CI, release, deploy with block / warn / exception / approval; legacy thresholds per ADR-010; fix verification with before-and-after evidence | M5 (threat links), M7 (AI fixes evidence); can start in parallel with M7 for gates | L | Changing gate behaviour that customers rely on; IDE and pre-commit clients need updates (VS Code, JetBrains, hooks) | No gate blocks without a policy (test); legacy thresholds behave identically after migration (parity test) |
+| **M9** | Technical and compliance report upgrades; continuous monitoring feed; architecture drift from graph diffs; all exports version-stamped; feedback loops 1–7 of the flow design wired | M4, M5, M8 | M–L | Feed volume and noise; the flow design's loops must be listed precisely in the M9 design note | Loops 1–7 each have an integration test |
+| **M10** | `workers/rea` static tier (agent on `worker-api` only, tools in a network-less sandbox runner); own-build artifacts by default; source-versus-binary diff; workspace UI on the shared graph component | M4 (graph component), existing artifact targets | L | Image size (Ghidra JVM, .NET); parser exploits (mitigated by the runner); licences of RE tools | Runs only on artifacts from own builds by default (test); no network in the analysis runner (test) |
+| **M11** | Sandbox tier on a throwaway VM, never on the PATHOS host | M10 | XL (not estimated) | Host isolation; VM lifecycle; legal limits on dynamic analysis | Separate approval and its own ADR |
+
+Critical path: M0 → M1 → M4 → M5 → M7/M8 → M9. M2, M3 and M6 can run after M1 in parallel with M4 if more than one engineer works on the release; M10 needs only M4's graph component.
+
+### 17.3 Feature flags per milestone
+
+Proposed keys (ADR-003): `shell.v2` and `diagnostics` (M1), `connectors` (M2), `onboarding.v2` (M3), `codegraph` (M4), `threat_models` (M5), `scan_profiles.v2` (M6), `ai.evidence` (M7), `remediation` and `gates` (M8), `monitoring` (M9), `reverse_engineering` (M10). The flag framework itself and the error envelope are not flagged: the envelope is additive and the framework must exist before any flag. Whether the M1 sidebar regroup is flagged is an owner question (17.5).
+
+### 17.4 Documents per milestone
+
+Every milestone updates in the same PR: [DATABASE.md](../DATABASE.md), [ARCHITECTURE.md](../ARCHITECTURE.md), the matching `docs/aspm/*` file, `docs/user-guide/*` (with a Troubleshooting section listing its error codes), `docs/api-reference/*` (request, response, errors, permission), the generated `docs/troubleshooting/*`, and `CHANGELOG.md` under `## [Unreleased]`. New `docs/aspm` files only where prompt §8 lists them and none exists (for example `PATHOS_CODEGRAPH_ARCHITECTURE.md` in M4).
+
+### 17.5 Open questions for the owner
+
+1. ADR-013: naming and versioning of the lifecycle release.
+2. ADR-002: accept `error.error_code` (backward-compatible) instead of replacing `error.code` as written in prompt §3.2.
+3. ADR-010: how existing non-policy thresholds (`fail_on_critical`, `pr_gate_severity`, signature-required targets) relate to rule 7.
+4. ADR-011: whether help articles, import format selection and exports are exempt from tool-name hiding.
+5. ADR-008: retention and default for storing redacted AI prompts and responses.
+6. ADR-007: LINDDUN material licence; until confirmed, only category names are used.
+7. ADR-005: the reference client hardware for the 2 s graph budget.
+8. Whether the M1 sidebar regroup ships behind a flag (safer) or directly (simpler; URLs do not change either way).
+9. M2: which new connector kinds come first (cloud, SIEM, Vault, cloud secret managers, API specs), since each is a separate integration with its own credentials and egress.
+10. M3: the list of "security" classification fields.
+11. Whether imported threats without evidence may exist in a model (stored as "not yet linked", blocked from approval).
+
+### 17.6 Test plans for the new quality gates (prompt §9)
+
+Each plan names where the test lives, what it checks, how it fails, and how it runs today. All run in the existing containers (`scripts/go.sh`, `scripts/npm.sh`, `scripts/e2e.sh`).
+
+#### 17.6.1 Route ↔ help mapping (M1)
+
+- **Unit (Vitest, `make test-web`).** Import the router tree from `frontend/src/app/router.tsx` and collect every route path (including parameterised ones such as `/scans/$id`; redirect-only routes are excluded and listed). Import the `routeHelp` map. Fail when: a route has no entry; an entry's article (`section/slug`) is not in the bundled help (`content.ts`); an entry's anchor is not among the article's headings; an entry names a route that does not exist.
+- **E2E (`make e2e`).** For each top-level menu route, press F1 and assert the drawer opens with the mapped article title. One test per group to keep run time low.
+- **Negative check:** a fixture route without a mapping makes the unit test fail (meta-test).
+
+#### 17.6.2 Error code ↔ docs mapping (M1)
+
+- **Go unit test (`make test-go`)** in `internal/platform/diag`: every entry has the required fields (title, at least one action and one verification step, docs slug) and a unique, well-formed code `^PTH-(PLAT|AUTH|CONN|SYNC|ONB|DISC|GRAPH|TM|REA|SCAN|WORK|AI|GATE|REM|REP|MON)-[0-9]{4}$`.
+- **Generated-docs check (CI job, also run in `make test-go`):** run `make docs-errors` into a temporary directory and compare with `docs/troubleshooting/`; any difference fails ("run make docs-errors"). Then parse the docs: every `PTH-…` anchor exists in the catalogue and every catalogue code has exactly one anchor.
+- **Legacy mapping test:** an AST scan of `backend/` collects every `httpx.E(…, "<code>", …)` and helper call; each legacy code must have a default catalogue entry.
+- **Help test (Vitest):** every code listed in a user-guide page's Troubleshooting section exists in the bundled catalogue.
+
+#### 17.6.3 Tool names hidden outside the two configuration pages (M1 helper, enforced from M6)
+
+- **Source check (Vitest or ESLint rule):** only files under the scan-profiles and scanners configuration features may import `<ToolName>` or the raw `scanner_catalog.name`; other files must use the check-label helper.
+- **E2E crawl (`make e2e`):** with seeded data that includes findings from several engines, visit every non-configuration route reachable from the menu (and detail pages such as `/scans/$id` and a finding drawer) in light and dark themes; extract visible text (`innerText`); fail if it matches any catalogue tool name with word boundaries. Names that are ordinary words are checked by asserting no element carries `data-tool` instead of by text. The two configuration routes and any owner-approved exemptions (ADR-011: help, imports) are allowed and listed in the test.
+- **API contract test (Go integration):** finding and scan responses still contain `scanner_key` / `scanner_keys` (rule 3 keeps them for audit).
+
+#### 17.6.4 Old URLs still resolve (every milestone, starting M1)
+
+- **Fixture:** `e2e/fixtures/routes-2.2.0.json`, generated once from the 2.2.0 router (every path, with sample ids for parameterised routes) and the 2.2.0 menu (`AppShell.tsx` `groups`), committed and never edited except by an approved redirect.
+- **E2E:** for each URL, navigate and assert: HTTP 200 from the proxy, no error boundary, the page heading expected for that route (as `e2e/tests/navigation.spec.ts` already does for its list), or, for an approved redirect, the final URL and that the replacement page shows the same records (parity check named in the redirect's PR).
+- **Unit:** a router test fails if a 2.2.0 path is missing from the route tree and has no approved redirect entry.
+
+#### 17.6.5 Version shown matches `/api/v1/meta` (M1)
+
+- **Go integration:** with the binary built with `-X …Version=9.9.9-test -X …Commit=abc -X …BuildDate=…`, `GET /api/v1/meta` without credentials returns exactly `{product, vendor, version}`, and with a session or token returns the extra fields; an invalid token gets the unauthenticated form; `/healthz` and `/api/v1/meta` report the same version.
+- **E2E:** read `/api/v1/meta` with the test session; assert the header chip, the login page, the collapsed sidebar tooltip and the About dialog show the same `version` (and `commit` in About). Mock a different bundle version (Vite `define` in a test build or a route intercept of `/api/v1/meta`) and assert the reload banner appears; with equal versions it does not.
+- **CLI unit:** `pathos --version` and `pathosctl version` print the injected values.
+- **Export check:** one CSV, one JSON and one SARIF export contain the stamp with the same version.
+
+#### 17.6.6 No gate blocks without a policy (M8)
+
+- **Database (Go integration):** inserting `gate_decisions` with `outcome = 'block'` and empty `policy_ids` fails with a check violation; inserting `security_gates` without `policy_id` fails.
+- **Service (Go integration):** with no gates configured, `POST /api/v1/gates/evaluate` returns `pass` for a scan with critical findings at every stage; with a disabled gate, `pass`; with a `warn` gate, `warn`; only a `block` gate whose policy matches returns `block`, and the response names the policy and version.
+- **Property test:** randomised combinations of gates, policies and findings; assert `outcome = block ⇒ policies non-empty and each matched`.
+- **Legacy parity (depends on ADR-010):** existing scan gate and PR check tests (`backend/internal/scans`) pass unchanged; after migration of legacy thresholds, the same inputs give the same `gate_failed` and PR status, now with a policy reference.
+- **Static check:** the only code path that sets a blocking outcome is the evaluator (AST scan for assignments of `gate_failed = true` / `OutcomeBlock` outside allowed functions).
+
+#### 17.6.7 Screenshots in both themes (every milestone with UI)
+
+- **Config:** extend `e2e/screenshots.config.ts` with two Playwright projects, `light` and `dark` (`colorScheme` plus the app's theme setting, so a stored preference cannot override it), 1440×900, plus a 1024×768 project for the "usable down to 1024 px" rule.
+- **Spec:** `e2e/screenshots/lifecycle.spec.ts` lists every new page of the milestone, waits for skeletons to disappear, and captures each page state that can be produced with test data (loading, empty, error with `<ErrorPanel>`, permission denied, feature disabled, populated). Example data is created through the API in test setup and labelled as test data (rule 4); no real customer names, hosts or secrets (public repository).
+- **Check:** the run fails if any listed page lacks either theme's file; an accessibility pass (axe-core in Playwright) runs on the same pages in both themes and fails on serious or critical violations (WCAG 2.2 AA goal).
+- **Run:** `scripts/e2e.sh --reporter=line --config=screenshots.config.ts`, output in `e2e/screenshots/out/`; the PR attaches them.
+
+### 17.7 Completion reports
+
+Each milestone adds a completion report to this document (sections 18 onwards), in the format of sections 6 to 16 and the order of prompt §9: what was built, existing versus new, test output, docs changed, error codes added, known limitations and blockers, proposed next milestone.
