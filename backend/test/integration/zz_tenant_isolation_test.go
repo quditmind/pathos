@@ -158,6 +158,8 @@ var paramTables = map[string]string{
 	"reports": "saved_reports",
 	// CodeGraph (M4).
 	"snapshots": "codegraph_snapshots", "nodes": "codegraph_nodes",
+	// Threat models (M5).
+	"threat-models": "threat_models", "threats": "threats",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -177,6 +179,8 @@ var literalParams = map[string]string{
 	"cve":  "CVE-2021-44228",
 	"feed": "epss", "event": "findings.new", "key": "owasp_top10_2021", "scanner": "semgrep", "which": "before",
 	"n": "1", "action": "approve",
+	// Threat-model framework catalogue (bundled reference data).
+	"framework": "attack",
 }
 
 type isoUser struct {
@@ -229,7 +233,7 @@ func TestTenantIsolation(t *testing.T) {
 	// Feature-flagged modules are on in both organizations, so their
 	// routes reach authorization instead of answering "feature disabled".
 	for _, o := range []uuid.UUID{orgA.ID, orgB} {
-		for _, f := range []string{"codegraph"} {
+		for _, f := range []string{"codegraph", "threat_models"} {
 			if _, err := ownerPool.Exec(ctx, `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, $3, true)
 				ON CONFLICT (organization_id, name) DO UPDATE SET enabled = true`, uuid.Must(uuid.NewV7()), o, f); err != nil {
 				t.Fatal(err)

@@ -115,7 +115,7 @@ Backend packages (`backend/internal`):
 | Identity and access | `auth` (OIDC, sessions, CSRF, API tokens), `authz` (permissions, roles, scopes), `identity` (users, teams, MFA), `org` |
 | Assets | `repos` (repositories, imports, uploads, sync, inventory), `scm` (provider clients, SSRF-safe HTTP), `ingest` (archive normalisation, ClamAV) |
 | Scanning | `scanners` (catalog, parsers, plugins), `scans` (profiles, executions, ingestion, targets, PR checks), `schedule`, `worker` (agent) |
-| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture`, `runtimectx` (Kubernetes and registry inventories, linking findings to running workloads), `codegraph` (CodeGraph store, views, paths, diffs, rediscovery; M4) |
+| Findings and intelligence | `vuln` (lifecycle, SLA, risk acceptance, SBOM, suppression), `intel` (EPSS, KEV, OSV, deps.dev), `risk`, `reach`, `posture`, `runtimectx` (Kubernetes and registry inventories, linking findings to running workloads), `codegraph` (CodeGraph store, views, paths, diffs, rediscovery; M4), `threatmodel` (STRIDE rules on CodeGraph, attack paths, framework mappings, versioned and approvable threat models, import and export; M5) |
 | Review and AI | `review` (Human Eye), `ai`, `analyst`, `mcp` |
 | Governance and reporting | `policy`, `compliance`, `reporting`, `dashboard`, `search` |
 | Integrations | `notify` (notifications, SMTP, outbound webhooks), `tickets` (Jira, ServiceNow) |
@@ -171,6 +171,10 @@ The same workers scan container images, web applications and APIs (Nuclei), uplo
 ### CodeGraph discovery (M4, feature flag `codegraph`)
 
 CodeGraph builds use the same job and lease system. A build is a scan execution with trigger `codegraph` and a per-organization system profile (stored archived, never selectable) whose only routed tool is `pathos-graph`; the lease's routing condition sends it to a `worker-graph` worker (family image on `worker-core`, Compose profile `graph`) and marks it `kind: codegraph`, so the agent clones, runs only the graph tool and skips change detection and the source inventories. `pathos-graph` reads the checkout without network access (no proxy settings), never builds or runs repository code, and uploads a `pathos.codegraph/v1` document as its result. The API (`internal/codegraph`) validates it, adds ownership (application → repository), observed runtime edges and the open findings, and stores one snapshot per application, repository and commit in PostgreSQL ([ADR-004](aspm/PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-004-graph-store-postgresql-versus-a-graph-database)); every edge carries evidence (`verified`, `observed`, `ai_inferred`), enforced by a deferred constraint trigger. Successful scans trigger rate-limited rediscovery. Design, views and measurements: [PATHOS_CODEGRAPH_ARCHITECTURE.md](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md).
+
+### Threat models (M5, feature flag `threat_models`)
+
+`internal/threatmodel` builds threat models from the newest ready CodeGraph snapshot of each repository of an application: deterministic STRIDE rules (no AI) produce threats that carry the CodeGraph nodes and edges with their evidence references, the rule and its version, a severity and a confidence with reasons, and a mitigation; the application's attack paths (`posture.QueryAttackPaths`) become threats too. Mappings to ATT&CK, CAPEC, CWE and D3FEND come from data embedded in the binary (pinned, checksum-verified releases, `make threat-frameworks`). When CodeGraph stores a new snapshot, a hook regenerates the application's models in a draft, keeping human edits. Design and rule catalogue: [PATHOS_THREAT_MODELLING.md](aspm/PATHOS_THREAT_MODELLING.md).
 
 ## 6. AI review architecture
 

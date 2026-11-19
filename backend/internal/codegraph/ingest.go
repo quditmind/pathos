@@ -80,6 +80,10 @@ func (s *Service) OnGraphResult(ctx context.Context, orgID, jobID uuid.UUID, res
 		log.Error("CodeGraph store failed", "err", err, "error_code", CodeStoreFailed)
 	default:
 		log.Info("CodeGraph snapshot stored", "snapshot_id", ref.ID, "nodes", n, "edges", e, "duration_ms", time.Since(start).Milliseconds())
+		// Architecture feedback loop (threat models, M5).
+		if s.OnSnapshotReady != nil {
+			s.OnSnapshotReady(ctx, ref.OrgID, ref.AppID, ref.ID)
+		}
 	}
 }
 

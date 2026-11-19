@@ -4,6 +4,25 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### PATHOS 3.0 M5 — Threat modelling
+
+Behind the `threat_models` feature flag (off by default). Migrations 00052–00054 are additive (nine new tables). Needs CodeGraph (M4) snapshots.
+
+#### Added
+- **STRIDE rule engine** on CodeGraph snapshots (`backend/internal/threatmodel`), deterministic and without AI: nine rules over processes, data stores, data flows and trust boundaries (unauthenticated entry point, state change without authorization, data store written from an entry point, state change without audit, cross-boundary flow without TLS, literal credential, unbounded queue publishing, internet ingress without filtering, container running as root). Every threat records its evidence (CodeGraph nodes and edges with their evidence references, what was looked for and not found, exposure, linked findings, runtime facts), its rule and version, a severity and a confidence with their reasons, its affected elements, a mitigation and a status (open, mitigated, accepted, not applicable). Rule catalogue: [PATHOS_THREAT_MODELLING.md](docs/aspm/PATHOS_THREAT_MODELLING.md#3-rule-catalogue).
+- **Attack paths as threats** (rule TM-AP-001) with links to the finding, the attack paths page and the blast radius of its CVE. `GET /api/v1/posture/attack-paths` gains an optional `application_id` filter and the finding's title, category, CVE, CWE and location (additive).
+- **Framework mappings**: MITRE ATT&CK 20.1, CAPEC 3.9, CWE 5.0 and D3FEND 1.6.0, embedded from pinned, SHA-256-verified releases (`make threat-frameworks`, `backend/cmd/pathos-frameworks`), with the MITRE notices in `NOTICE` and in exports; CWE from linked findings; LINDDUN category names only (no licence stated, no LINDDUN text bundled).
+- **Editable, approvable models**: versions, manual threats (STRIDE or LINDDUN, "manual, unverified" until linked to CodeGraph elements or findings), severity and status changes with a mandatory reason, mitigations, owners, mapping edits, history per threat across versions; draft → in review → approved, the approver never the author or submitter, append-only approvals, audit entries.
+- **Regeneration** keeps every human edit and marks threats new, changed, unchanged or resolved. **Feedback loop**: a new CodeGraph snapshot regenerates the application's models in a draft (setting `auto_update`, default on).
+- **Import and export**: OWASP Threat Dragon v2 JSON (import and export), PATHOS JSON (import and export; threats whose CodeGraph elements exist are linked at once), pytm model description and Markdown (export). Imported threats are "imported, unverified" until linked.
+- API under `/api/v1/threat-models`, `/api/v1/threats` and `/api/v1/threat-frameworks` ([API reference](docs/api-reference/threat-models.md)); permissions `threats.read`, `threats.manage` and `threats.approve` ([RBAC matrix](docs/RBAC_MATRIX.md)); error codes `PTH-TM-1001`…`1011` and `PTH-TM-1101`…`1103` ([troubleshooting](docs/troubleshooting/tm.md)).
+- Web app: **Threat models** in the sidebar (4 · Threat model) while the flag is on; list page with create and import; model page with the data-flow diagram (shared graph component, open threats overlaid), the threat table and detail (evidence links into CodeGraph and findings), versions and the approval panel, export; `ThreatModelPanel` for the application hub. Help: [user guide](docs/user-guide/threat-models.md) with Troubleshooting, mapped to both routes.
+- Tests: a unit test per rule on fixture graphs, the engine on the real worker's fixture graph (every threat complete, deterministic), Threat Dragon and PATHOS round trips, pytm and Markdown output, framework data integrity and extractors, an integration test that builds a model from a fixture snapshot and checks evidence, method, severity, confidence and mitigation on every threat, edits with reasons, the approval rules, regeneration keeping edits, the feedback loop, import and export; the tenant isolation suite covers the new routes; frontend unit tests.
+
+#### Changed
+- CodeGraph discovery records the scheme of outbound HTTP calls (`technology` and `scheme` `http`, `https`, `ws` or `wss`) so that cleartext connections are visible; it used to record `https` for every outbound call.
+- The shared graph component accepts a `countsNoun` (default "findings"), so the threat-model diagram says "threats".
+
 ### PATHOS 3.0 M4 — CodeGraph engine (backend and discovery worker)
 
 Behind the `codegraph` feature flag (off by default). Migrations 00049–00051 are additive (five new tables; `scan_jobs.trigger` accepts `codegraph`).
