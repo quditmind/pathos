@@ -155,7 +155,7 @@ func TestToolFramework(t *testing.T) {
 	for id, typ := range types25 {
 		fmts, _ := typ["import_formats"].([]any)
 		switch id {
-		case "license", "sbom", "malware", "binary", "license-policy", "database":
+		case "license", "sbom", "binary", "license-policy", "database":
 		default:
 			if len(fmts) == 0 {
 				t.Errorf("%s: no import formats", id)
