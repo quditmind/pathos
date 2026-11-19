@@ -56,7 +56,7 @@ export function engineOf(key: string): string {
   for (const fam of data.engine_families) {
     if (k === fam || k.startsWith(fam + "-")) return fam;
   }
-  return k;
+  return (data.engine_aliases as Record<string, string>)[k] ?? k;
 }
 
 export function enginesCount(keys: string[] = []): number {

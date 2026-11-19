@@ -34,6 +34,7 @@ describe("kinds of check", () => {
     [["zap", "zap-baseline", "import-dast-zap"], 1],
     [["import-supply-chain-scorecard", "scorecard"], 1],
     [["gitleaks", "trufflehog", "import-secrets-trufflehog-v2"], 2],
+    [["retirejs", "import-sca-retire-js"], 1],
   ])("enginesCount(%j) = %d", (keys, want) => {
     expect(enginesCount(keys)).toBe(want);
   });

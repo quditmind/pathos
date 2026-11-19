@@ -104,6 +104,7 @@ func TestEngines(t *testing.T) {
 		{[]string{"zap", "zap-baseline", "import-dast-zap"}, 1},
 		{[]string{"import-supply-chain-scorecard", "scorecard"}, 1},
 		{[]string{"gitleaks", "trufflehog", "import-secrets-trufflehog-v2"}, 2},
+		{[]string{"retirejs", "import-sca-retire-js"}, 1},
 	}
 	for _, c := range cases {
 		if got := EnginesCount(c.keys); got != c.want {

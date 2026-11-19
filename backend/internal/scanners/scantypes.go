@@ -552,8 +552,15 @@ func Engine(key string) string {
 			return fam
 		}
 	}
+	if a, ok := engineAliases[key]; ok {
+		return a
+	}
 	return key
 }
+
+// engineAliases are catalog keys spelled differently from their import
+// format ("retirejs" runs the tool whose reports import as "retire-js").
+var engineAliases = map[string]string{"retirejs": "retire"}
 
 // engineFamilies are tools whose keys share a prefix across modes.
 var engineFamilies = []string{"trivy", "zap", "trufflehog", "nuclei", "prowler", "hackerone", "twistlock", "sysdig", "kiuwan", "retire"}
@@ -583,8 +590,15 @@ func KindNameSQL(alias string) string {
 
 // EnginesSQL is EnginesCount over the scanner_keys column of alias.
 func EnginesSQL(alias string) string {
-	return fmt.Sprintf(`(SELECT count(DISTINCT regexp_replace(regexp_replace(regexp_replace(k, '^import-(%s)-', ''), '^sarif-', ''), '^(%s)(-.*)?$', '\1'))
-		FROM unnest(%s.scanner_keys) k WHERE k <> '')`, strings.Join(ImportCategories, "|"), strings.Join(engineFamilies, "|"), alias)
+	norm := fmt.Sprintf(`regexp_replace(regexp_replace(regexp_replace(k, '^import-(%s)-', ''), '^sarif-', ''), '^(%s)(-.*)?$', '\1')`,
+		strings.Join(ImportCategories, "|"), strings.Join(engineFamilies, "|"))
+	var b strings.Builder
+	b.WriteString("CASE " + norm)
+	for _, k := range slices.Sorted(maps.Keys(engineAliases)) {
+		fmt.Fprintf(&b, " WHEN '%s' THEN '%s'", k, engineAliases[k])
+	}
+	b.WriteString(" ELSE " + norm + " END")
+	return fmt.Sprintf(`(SELECT count(DISTINCT %s) FROM unnest(%s.scanner_keys) k WHERE k <> '')`, b.String(), alias)
 }
 
 // ToolKeysOfKind are the catalogued tools whose results belong to kind

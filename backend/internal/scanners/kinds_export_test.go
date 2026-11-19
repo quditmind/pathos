@@ -21,6 +21,7 @@ type kindsExport struct {
 	CategoryKinds  map[string]string `json:"category_kinds"`
 	Overrides      []kindOverride    `json:"overrides"`
 	EngineFamilies []string          `json:"engine_families"`
+	EngineAliases  map[string]string `json:"engine_aliases"`
 	ImportCategory []string          `json:"import_categories"`
 	ScanTypeKinds  map[string]string `json:"scan_type_kinds"`
 	ToolKinds      map[string]string `json:"tool_kinds"`
@@ -51,7 +52,7 @@ func firstParty(sc Scanner) bool {
 
 func buildKindsExport() kindsExport {
 	e := kindsExport{Note: "Generated from backend/internal/scanners (scantypes.go, catalog*.go): UPDATE_KINDS=1 go test ./internal/scanners -run TestKindsExport",
-		CategoryKinds: categoryKinds, Overrides: kindOverrides, EngineFamilies: engineFamilies, ImportCategory: ImportCategories,
+		CategoryKinds: categoryKinds, Overrides: kindOverrides, EngineFamilies: engineFamilies, EngineAliases: engineAliases, ImportCategory: ImportCategories,
 		ScanTypeKinds: map[string]string{}, ToolKinds: map[string]string{}}
 	for _, k := range CheckKinds {
 		e.Kinds = append(e.Kinds, exportKind{ID: k.ID, Name: k.Name})

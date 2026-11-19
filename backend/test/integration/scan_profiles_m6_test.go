@@ -245,7 +245,7 @@ func TestFindingKindsAndEngines(t *testing.T) {
 	// KindSQL and EnginesSQL agree with the Go functions for every
 	// category and representative engine sets.
 	keySets := [][]string{{}, {"opengrep"}, {"bandit"}, {"bandit", "opengrep"}, {"import-sast-gosec"}, {"pmd"}, {"testssl"}, {"testssl", "opengrep"},
-		{"trivy-fs", "import-sca-trivy", "sarif-trivy", "grype"}, {"zap", "zap-baseline"}, {"import-code-quality-ruff"}, {"import-supply-chain-scorecard", "scorecard"}}
+		{"trivy-fs", "import-sca-trivy", "sarif-trivy", "grype"}, {"zap", "zap-baseline"}, {"import-code-quality-ruff"}, {"import-supply-chain-scorecard", "scorecard"}, {"retirejs", "import-sca-retire-js", "npm-audit"}}
 	for _, cat := range scanners.FindingCategories {
 		for _, keys := range keySets {
 			var kind string

@@ -223,6 +223,9 @@
     "kiuwan",
     "retire"
   ],
+  "engine_aliases": {
+    "retirejs": "retire"
+  },
   "import_categories": [
     "secrets",
     "sast",
