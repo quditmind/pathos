@@ -1,0 +1,23 @@
+# KICS: queries for Terraform, CloudFormation, Kubernetes, Helm, Docker,
+# Ansible, OpenAPI and more. The kics-scan helper runs KICS with the queries
+# bundled in the image (no telemetry, no progress bar) and copies its JSON
+# report; parsed with the PATHOS kics import parser.
+name: kics
+display_name: KICS
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/Checkmarx/kics
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/kics-scan
+version_args: ["--version"]
+args: ["{source}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:kics

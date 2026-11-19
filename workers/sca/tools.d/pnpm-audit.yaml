@@ -1,0 +1,22 @@
+# pnpm audit of the repository root's pnpm-lock.yaml, without installing
+# anything and without switching to the pnpm version a package.json names.
+# The dependency tree is sent to the npm audit endpoint
+# (https://registry.npmjs.org, or NPM_CONFIG_REGISTRY of the worker).
+name: pnpm-audit
+display_name: pnpm audit
+category: sca
+scan_types: [sca]
+license_spdx: MIT
+homepage: https://pnpm.io/cli/audit
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["pnpm-audit", "--version"]
+args: ["pnpm-audit", "{source}", "{output}", "{cache}"]
+timeout: 20m
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:pnpm-audit

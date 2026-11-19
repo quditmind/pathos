@@ -189,6 +189,8 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 | Family | Profile | Service | Tools |
 |---|---|---|---|
 | SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck, gosec, Flawfinder, cppcheck, PHPStan, Psalm, Ruff, ESLint + eslint-plugin-security, Semgrep CE, Bearer CLI (optional, Elastic-2.0), TruffleHog, detect-secrets, Kingfisher, Talisman, Pylint, golangci-lint |
+| IaC and CI/CD | `iac` | `worker-iac` | KICS, KubeLinter, Kubescape, TFLint, Conftest (PATHOS policies), Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config), OpenSSF Scorecard (`--local`) |
+| SCA, malicious packages and SBOM | `sca` | `worker-sca` | govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, OWASP Dependency-Check, GuardDog, pathos-depcheck, cdxgen |
 
 To enable one:
 
@@ -199,7 +201,7 @@ To enable one:
 
 Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
 
-The family tools of `worker-sast` declare `network: none`: they run without the egress proxy variables and need no allowlist entry. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck and cdxgen are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
 
 ## Endpoint verification, end-of-life data and signatures
 

@@ -1,0 +1,5 @@
+# cfn_nag for the worker-iac image. Gemfile.lock pins every gem by version and
+# SHA-256 (CHECKSUMS, verified by Bundler on install); regenerate it with
+# `bundle lock --add-checksums` in debian:trixie-slim (Ruby 3.3, Bundler 2.6).
+source "https://rubygems.org"
+gem "cfn-nag", "0.8.10"

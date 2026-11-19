@@ -18,7 +18,7 @@ PATHOS is a **modular monolith** (Go) with **separately deployed scanner workers
 | REST API, authentication, RBAC, MCP server, ingestion of scan results | `pathos --role=api` | Replicas (stateless; sessions and rate limits in Valkey) |
 | Background work: AI reviews, notifications and outbound webhooks, repository imports and sync, intelligence feeds, risk scoring, policies, ticket sync, retention | `pathos --role=jobs` (same binary) | Replicas, independent from the API |
 | Scan scheduling, missed-run and offline-worker detection, lease recovery, platform metrics | `pathos --role=scheduler` (same binary, leader-elected) | Standby replicas |
-| Scanner execution | `pathos-worker` agent inside the `worker-core` image and the opt-in family images (`worker-sast`, built on `worker-core`) | Replicas |
+| Scanner execution | `pathos-worker` agent inside the `worker-core` image and the opt-in family images (`worker-sast`, `worker-iac`, `worker-sca`, built on `worker-core`) | Replicas |
 | Identity | Keycloak | Single instance in Compose |
 | Relational data and job queues | PostgreSQL (`FOR UPDATE SKIP LOCKED` queues) | Vertical |
 | Sessions, OIDC state, rate limits | Valkey | Vertical |
@@ -183,7 +183,7 @@ What each service does is listed in [INSTALLATION.md](INSTALLATION.md#what-runs)
 | `keycloak` | app, data, edge | — | — |
 | `keycloak-setup` (one-shot) | app | — | — |
 | `egress` | scan, edge | — | `egress_logs` |
-| `worker-core`, family workers (`worker-sast`, profile `sast`) | scan, worker-api, malware | — | `scanner_cache` (vulnerability databases) |
+| `worker-core`, family workers (`worker-sast`, `worker-iac`, `worker-sca`; profiles `sast`, `iac`, `sca`) | scan, worker-api, malware | — | `scanner_cache` (vulnerability databases) |
 | `mailpit` (profile `dev`) | app, edge | 127.0.0.1:8025 | — |
 | `objectstore` (profile `objectstore`) | data | — | `s3_data` |
 | `clamav` (profile `clamav`) | data, edge, malware | — | `clamav_db` |

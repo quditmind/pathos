@@ -1,0 +1,24 @@
+# TFLint: Terraform lint with the Terraform ruleset bundled in TFLint
+# (recommended preset). The image's configuration (/opt/pathos/iac/tflint.hcl)
+# replaces a repository's .tflint.hcl, so no plugin is downloaded; local
+# modules are evaluated, remote modules never fetched. --force: issues do
+# not fail the run.
+name: tflint
+display_name: TFLint
+category: iac
+scan_types: [iac]
+license_spdx: MPL-2.0
+homepage: https://github.com/terraform-linters/tflint
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/tflint
+version_args: ["--version"]
+args: ["--chdir={source}", "--recursive", "--config=/opt/pathos/iac/tflint.hcl", "--format=json", "--force", "--no-color"]
+ok_exit_codes: [0]
+timeout: 20m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:tflint

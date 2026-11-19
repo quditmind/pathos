@@ -1,0 +1,208 @@
+{
+  "PolarisOutputVersion": "1.0",
+  "AuditTime": "2026-11-19T07:58:18Z",
+  "SourceType": "Path",
+  "SourceName": "/work/fixture/src",
+  "DisplayName": "/work/fixture/src",
+  "ClusterInfo": {
+    "Version": "unknown",
+    "Nodes": 0,
+    "Pods": 1,
+    "Namespaces": 0,
+    "Controllers": 2
+  },
+  "Results": [
+    {
+      "Name": "web",
+      "Namespace": "shop",
+      "Kind": "Deployment",
+      "Results": {},
+      "PodResult": {
+        "Name": "",
+        "Results": {
+          "automountServiceAccountToken": {
+            "ID": "automountServiceAccountToken",
+            "Message": "The ServiceAccount will be automounted",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          },
+          "hostNetworkSet": {
+            "ID": "hostNetworkSet",
+            "Message": "Host network should not be configured",
+            "Details": null,
+            "Success": false,
+            "Severity": "danger",
+            "Category": "Security",
+            "Mutations": null
+          },
+          "hostPathSet": {
+            "ID": "hostPathSet",
+            "Message": "HostPath volumes must be forbidden",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          },
+          "missingNetworkPolicy": {
+            "ID": "missingNetworkPolicy",
+            "Message": "A NetworkPolicy should match pod labels and contain applied egress and ingress rules",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          }
+        },
+        "ContainerResults": [
+          {
+            "Name": "web",
+            "Results": {
+              "insecureCapabilities": {
+                "ID": "insecureCapabilities",
+                "Message": "Container should not have insecure capabilities",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "linuxHardening": {
+                "ID": "linuxHardening",
+                "Message": "Use one of AppArmor, Seccomp, SELinux, or dropping Linux Capabilities to restrict containers using unwanted privileges",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "notReadOnlyRootFilesystem": {
+                "ID": "notReadOnlyRootFilesystem",
+                "Message": "Filesystem should be read only",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "privilegeEscalationAllowed": {
+                "ID": "privilegeEscalationAllowed",
+                "Message": "Privilege escalation should not be allowed",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "runAsPrivileged": {
+                "ID": "runAsPrivileged",
+                "Message": "Should not be running as privileged",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "runAsRootAllowed": {
+                "ID": "runAsRootAllowed",
+                "Message": "Should not be allowed to run as root",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              }
+            }
+          }
+        ]
+      },
+      "CreatedTime": "0001-01-01T00:00:00Z"
+    },
+    {
+      "Name": "debug",
+      "Namespace": "",
+      "Kind": "Pod",
+      "Results": {},
+      "PodResult": {
+        "Name": "",
+        "Results": {
+          "automountServiceAccountToken": {
+            "ID": "automountServiceAccountToken",
+            "Message": "The ServiceAccount will be automounted",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          },
+          "missingNetworkPolicy": {
+            "ID": "missingNetworkPolicy",
+            "Message": "A NetworkPolicy should match pod labels and contain applied egress and ingress rules",
+            "Details": null,
+            "Success": false,
+            "Severity": "warning",
+            "Category": "Security",
+            "Mutations": null
+          }
+        },
+        "ContainerResults": [
+          {
+            "Name": "shell",
+            "Results": {
+              "insecureCapabilities": {
+                "ID": "insecureCapabilities",
+                "Message": "Container should not have insecure capabilities",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "linuxHardening": {
+                "ID": "linuxHardening",
+                "Message": "Use one of AppArmor, Seccomp, SELinux, or dropping Linux Capabilities to restrict containers using unwanted privileges",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "notReadOnlyRootFilesystem": {
+                "ID": "notReadOnlyRootFilesystem",
+                "Message": "Filesystem should be read only",
+                "Details": null,
+                "Success": false,
+                "Severity": "warning",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "privilegeEscalationAllowed": {
+                "ID": "privilegeEscalationAllowed",
+                "Message": "Privilege escalation should not be allowed",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              },
+              "runAsRootAllowed": {
+                "ID": "runAsRootAllowed",
+                "Message": "Should not be allowed to run as root",
+                "Details": null,
+                "Success": false,
+                "Severity": "danger",
+                "Category": "Security",
+                "Mutations": null
+              }
+            }
+          }
+        ]
+      },
+      "CreatedTime": "0001-01-01T00:00:00Z"
+    }
+  ],
+  "Score": 59
+}

@@ -1,0 +1,26 @@
+# Kubescape: Kubernetes manifests, Helm charts and Kustomize files against
+# the frameworks downloaded when the image was built (NSA, MITRE, CIS and
+# the others of `kubescape download artifacts`), offline: the
+# kubescape-scan helper passes --use-artifacts-from, disables the update
+# check and keeps the results local (never submitted). A repository without
+# Kubernetes files gives an empty report; a manifest Kubescape cannot parse
+# fails the run.
+name: kubescape
+display_name: Kubescape
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/kubescape/kubescape
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/kubescape-scan
+version_args: ["--version"]
+args: ["{source}", "{output}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:kubescape

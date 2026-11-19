@@ -395,6 +395,39 @@ services:
       <<: *worker-env
       PATHOS_WORKER_FAMILY: sast
 
+  #   COMPOSE_PROFILES=iac  ->  KICS, KubeLinter, Kubescape, TFLint, Conftest,
+  #   Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config),
+  #   OpenSSF Scorecard (--local)
+  worker-iac:
+    <<: *worker
+    profiles: [iac]
+    build:
+      context: .
+      dockerfile: workers/iac/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-iac:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: iac
+
+  #   COMPOSE_PROFILES=sca  ->  language-specific dependency auditors,
+  #   GuardDog, dependency confusion checks, cdxgen (docs/OPERATIONS.md)
+  worker-sca:
+    <<: *worker
+    profiles: [sca]
+    build:
+      context: .
+      dockerfile: workers/sca/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-sca:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: sca
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce

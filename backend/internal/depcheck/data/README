@@ -1,0 +1,5 @@
+top-npm.txt and top-pypi.txt: the most downloaded npm and PyPI package names,
+most popular first, copied from Datadog GuardDog 3.2.0
+(guarddog/analyzer/metadata/resources/top_npm_packages.json and
+top_pypi_packages.json, https://github.com/DataDog/guarddog).
+GuardDog is licensed under the Apache License 2.0.

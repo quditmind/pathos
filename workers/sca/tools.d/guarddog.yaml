@@ -1,0 +1,24 @@
+# GuardDog: malware heuristics on the dependencies of every requirements*.txt
+# and package.json. Each declared package is downloaded from PyPI
+# (https://pypi.org, https://files.pythonhosted.org) or npm
+# (https://registry.npmjs.org) through the egress proxy and analysed
+# statically (source code and metadata rules, including typosquatting);
+# nothing is installed or executed. SARIF output, one run per file.
+name: guarddog
+display_name: GuardDog
+category: malware
+scan_types: [malware, supply-chain]
+license_spdx: Apache-2.0
+homepage: https://github.com/DataDog/guarddog
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["guarddog", "--version"]
+args: ["guarddog", "{source}", "{output}", "{cache}"]
+timeout: 2h
+output: file
+network: registry
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

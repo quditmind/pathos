@@ -1,0 +1,10 @@
+{
+  "name": "web",
+  "private": true,
+  "dependencies": {
+    "expresss": "^4.19.0",
+    "lodash": "^4.17.21",
+    "@acme/ui": "1.2.3",
+    "@acme-internal/auth": "2.0.0"
+  }
+}

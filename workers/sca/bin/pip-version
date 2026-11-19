@@ -1,0 +1,11 @@
+#!/bin/sh
+# pip is not installed in the worker-sca image. pip-audit (through pip-api)
+# asks "python -m pip --version" when it starts, although it runs with
+# --disable-pip and never calls pip otherwise; this answers that question
+# (PIPAPI_PYTHON_LOCATION) and refuses everything else.
+if [ "$1 $2 $3" = "-m pip --version" ]; then
+  echo "pip 26.3 from /opt/pathos/sca (python 3.13)"
+  exit 0
+fi
+echo "pip is not installed in this image" >&2
+exit 1

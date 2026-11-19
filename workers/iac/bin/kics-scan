@@ -1,0 +1,32 @@
+#!/usr/local/bin/python3 -I
+"""Runs KICS on a directory with the queries bundled in the image and copies
+its JSON report to the output file (KICS writes <dir>/<name>.json).
+
+Usage: kics-scan <directory> <output file> <work directory>
+Exit status 0 when KICS ran (its own status encodes the severities found),
+other values on errors.
+"""
+import os
+import shutil
+import subprocess
+import sys
+
+KICS = "/opt/pathos/iac/bin/kics"
+ASSETS = "/opt/pathos/iac/kics/assets"
+
+if sys.argv[1:] == ["--version"]:
+    os.execv(KICS, [KICS, "version"])
+if len(sys.argv) != 4 or not os.path.isdir(sys.argv[1]) or not os.path.isdir(sys.argv[3]):
+    sys.stderr.write("usage: kics-scan <directory> <output file> <work directory>\n")
+    sys.exit(2)
+src, out, work = sys.argv[1:]
+run = subprocess.run([KICS, "scan", "--path", src, "--output-path", work, "--output-name", "kics", "--report-formats", "json",
+                      "--queries-path", os.path.join(ASSETS, "queries"), "--libraries-path", os.path.join(ASSETS, "libraries"),
+                      # No progress bar, logs to the work directory.
+                      "--no-progress", "--ci", "--ignore-on-exit", "results",
+                      "--log-path", os.path.join(work, "kics.log")], check=False)
+if run.returncode != 0:
+    sys.exit(run.returncode)
+report = os.path.join(work, "kics.json")
+if os.path.abspath(report) != os.path.abspath(out):
+    shutil.copyfile(report, out)

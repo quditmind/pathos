@@ -1,0 +1,38 @@
+# pathos-depcheck: dependency confusion and typosquatting risks in the
+# repository's dependency declarations (package.json with .npmrc,
+# requirements*.txt, pyproject.toml), offline: dependencies one edit away
+# from a popular npm or PyPI package, pip --extra-index-url, and npm scopes
+# that are not mapped to the private registry other scopes use. Written for
+# PATHOS (backend/internal/depcheck); its JSON report is mapped with jsonmap.
+name: pathos-depcheck
+display_name: PATHOS dependency confusion and typosquatting check
+category: supply-chain
+scan_types: [supply-chain]
+license_spdx: Apache-2.0
+homepage: https://github.com/quditmind/pathos
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["depcheck", "--version"]
+args: ["depcheck", "{source}", "{output}", "{tmp}"]
+timeout: 10m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: findings
+  rule_id: rule_id
+  title: title
+  message: message
+  severity: severity
+  file: file
+  line: line
+  package: package
+  version: version
+  cwe: cwe
+  # One finding per rule, file and package; several pip index lines in one
+  # file (no package) are told apart by their order.
+  identity: "{rule_id} {package} {similar_to}"

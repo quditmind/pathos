@@ -1,0 +1,21 @@
+# KubeLinter: Kubernetes YAML and Helm charts (default checks). Exit 1 means
+# lint errors were found.
+name: kube-linter
+display_name: KubeLinter
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/stackrox/kube-linter
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/kube-linter
+version_args: ["version"]
+args: ["lint", "--format", "json", "{source}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:kube-linter

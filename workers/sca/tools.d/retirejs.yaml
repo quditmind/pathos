@@ -1,0 +1,21 @@
+# Retire.js: JavaScript libraries with known vulnerabilities among the
+# repository's JavaScript files (vendored and bundled copies), with the
+# Retire.js repository snapshot bundled in the image (offline).
+name: retirejs
+display_name: Retire.js
+category: sca
+scan_types: [sca]
+license_spdx: Apache-2.0
+homepage: https://github.com/RetireJS/retire.js
+family: sca
+targets: [repository]
+command: /opt/pathos/sca/bin/pathos-sca
+version_args: ["retire", "--version"]
+args: ["retire", "{source}", "{output}", "{tmp}"]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:retire-js

@@ -31,6 +31,45 @@ The opt-in `worker-sast` family image adds 18 tools defined only by [tool manife
 | njsscan 1.0.2 | Repositories (Node.js) | SARIF |
 | ShellCheck 0.11.0 | Repositories (shell scripts; findings in the `code-quality` category) | json1 (`jsonmap`) |
 
+The opt-in `worker-iac` family image (Compose profile `iac`) adds twelve infrastructure-as-code and CI/CD tools, defined by manifests in `workers/iac/tools.d`. All of them run offline (`network: none`), never build or execute repository code, and are off by default (selected in scan profiles):
+
+| Tool | Runs on | Output (parser) |
+|---|---|---|
+| KICS 2.2.1 | Terraform, CloudFormation, Kubernetes, Helm, Dockerfiles, Ansible, OpenAPI and more, with the queries of the release | KICS JSON (`import:kics`) |
+| KubeLinter 0.8.3 | Kubernetes YAML and Helm charts | KubeLinter JSON (`import:kube-linter`) |
+| Kubescape 4.0.21 | Kubernetes manifests, Helm charts, Kustomize; frameworks bundled in the image (`--use-artifacts-from`), no update check, results never submitted | Kubescape JSON (`import:kubescape`) |
+| TFLint 0.66.0 | Terraform, bundled Terraform ruleset (`recommended` preset); the image's configuration replaces a repository's `.tflint.hcl`, so no plugin is downloaded | TFLint JSON (`import:tflint`) |
+| Conftest 0.71.1 | Kubernetes manifests, Dockerfiles and Terraform, with the PATHOS policy bundle (`workers/iac/policy`, ids `PATHOS-K8S-*`, `PATHOS-DOCKER-*`, `PATHOS-TF-*`; its Rego unit tests run when the image is built) | Conftest JSON (`import:conftest`) |
+| Hadolint 2.15.1 | Dockerfiles and Containerfiles | Hadolint JSON (`import:hadolint`) |
+| cfn-lint 1.60.1 | CloudFormation templates | cfn-lint JSON (`import:cfn-lint`) |
+| cfn_nag 0.8.10 | CloudFormation templates | cfn_nag JSON (`import:cfn-nag`) |
+| Polaris 10.2.6 | Kubernetes manifests (`polaris audit --audit-path`), security checks of Polaris' default configuration only | Polaris JSON (`import:polaris`; no file or line in Polaris' output) |
+| kube-score 1.20.0 | Kubernetes manifests, the checks with security impact (security context, image tag and pull policy, resources, network policies, NodePort services, seccomp) | kube-score JSON (`import:kube-score`, new) |
+| Trivy 0.76.2, config mode (`trivy-config`) | Terraform, CloudFormation, Kubernetes, Helm, Dockerfiles, with the checks embedded in the core image's Trivy binary (`--skip-check-update`); the core `trivy-fs` scanner runs Trivy for vulnerabilities only | SARIF |
+| OpenSSF Scorecard 5.7.0 (`--local`) | The checks that read only the checkout: Binary-Artifacts, Dangerous-Workflow, Dependency-Update-Tool, License, Packaging, Pinned-Dependencies, SAST, Security-Policy, Token-Permissions (findings in `supply-chain`; also listed under CI/CD) | Scorecard JSON (`import:scorecard`) |
+
+Tools that take file names only run through small helpers in `workers/iac/bin` (`hadolint-tree`, `cfn-lint-tree`, `cfn-nag-tree`, `kube-score-tree`, `conftest-tree`) that find the relevant files (Dockerfiles; CloudFormation templates, recognised by `AWSTemplateFormatVersion` or `AWS::` resource types; Kubernetes YAML with `apiVersion` and `kind`, Helm templates excluded) and print one JSON report. Not shipped: **Terrascan** (archived by Tenable in 2025-11; its last release needs dependencies with fixable HIGH and CRITICAL CVEs, so it cannot pass the image gate) and **poutine** 1.1.6 (it requires go-git and go-billy v6 pre-releases with fixable HIGH CVEs, and the fixed versions change the API poutine uses, so it cannot be rebuilt). Reports of both can still be imported (`terrascan`, `poutine` import formats). The Go tools are built from source with Go 1.27.4; KubeLinter, Conftest, kube-score and Polaris with patched dependency versions (listed in `workers/iac/Dockerfile`).
+
+The opt-in `worker-sca` family image (Compose profile `sca`) adds language-specific dependency auditors, malicious-package and dependency-confusion checks and an SBOM generator, each a tool manifest in `workers/sca/tools.d` run by the image's `pathos-sca` helper. The helper finds the files each tool reads, merges several runs into one report, and keeps the tools from running repository code: no package-manager plugins, scripts or version switching, and cdxgen runs under the Node.js permission model without child processes. All tools are off by default; a scan profile selects them.
+
+| Tool | Version | Licence | Network | Runs on (parser) |
+|---|---|---|---|---|
+| govulncheck | 1.10.0 | BSD-3-Clause | registry: proxy.golang.org, sum.golang.org, vuln.go.dev | Every `go.mod`, with call-graph reachability (Go 1.27.4 toolchain in the image, no cgo) (`import:govulncheck`) |
+| pip-audit | 2.10.1 | Apache-2.0 | registry: pypi.org | The pinned requirements of every `requirements*.txt`; pip is not run (`import:pip-audit`) |
+| cargo-audit | 0.23.0 | Apache-2.0 OR MIT | none | Every `Cargo.lock`, against the RustSec advisory database snapshot in the image (`import:cargo-audit`) |
+| bundler-audit | 0.9.3 | GPL-3.0-or-later | none | Every `Gemfile.lock`, against the Ruby advisory database snapshot in the image (`import:bundler-audit`) |
+| Retire.js | 6.1.1 | Apache-2.0 | none | JavaScript files, against the Retire.js repository snapshot in the image (`import:retire-js`) |
+| npm audit | npm 12.2.3 | Artistic-2.0 | registry: registry.npmjs.org | The root `package-lock.json` (`import:npm-audit`) |
+| yarn audit | 1.22.22 | BSD-2-Clause | registry: registry.npmjs.org | The root `yarn.lock` (Yarn 1 lockfiles) (`import:yarn-audit`) |
+| pnpm audit | 11.28.12 | MIT | registry: registry.npmjs.org | The root `pnpm-lock.yaml` (`import:pnpm-audit`) |
+| Composer audit | 2.11.2 | MIT | registry: packagist.org, repo.packagist.org | The root `composer.lock`, plugins and scripts off (`import:composer-audit`) |
+| OWASP Dependency-Check | 13.0.0 | Apache-2.0 | registry: nvd.nist.gov (data feeds) or services.nvd.nist.gov (with an NVD API key) | NVD data kept in the worker cache; analyzers that run package managers or call other services are off; the API key is optional and off by default (`import:dependency-check`) |
+| GuardDog | 3.2.0 | Apache-2.0 | registry: pypi.org, files.pythonhosted.org, registry.npmjs.org | Malware heuristics on the dependencies declared in `requirements*.txt` and `package.json` (downloaded and analysed statically, never installed); findings in `malware`, `capability-*` rules reported as low (SARIF) |
+| pathos-depcheck | 1.0.0 (PATHOS) | Apache-2.0 | none | Typosquatting (one edit from the 1000 most popular npm or PyPI names), pip `--extra-index-url` and npm scopes not mapped to a private registry, in `package.json`, `.npmrc`, `requirements*.txt` and `pyproject.toml`; findings in `supply-chain` (`jsonmap`) |
+| cdxgen | 12.9.2 | Apache-2.0 | none | CycloneDX 1.6 SBOM (with `--include-crypto`) from manifests and lockfiles; it replaces the repository's component inventory like Syft and produces no findings |
+
+Not shipped: `dotnet list package --vulnerable` (it needs the .NET SDK, about 700 MB, and an MSBuild restore, which evaluates the repository's project files, that is repository code; OSV-Scanner and Trivy in `worker-core` cover NuGet lockfiles) and OWASP dep-scan (its smallest vulnerability database is 395 MB compressed, too large to bundle; dep-scan reports can be imported with the `dep-scan` format). npm, yarn, pnpm and Composer audit read the lockfile in the repository root only. The advisory snapshots of cargo-audit, bundler-audit and Retire.js are as recent as the image. The registry hosts are not in the default egress allowlist: `deploy/egress/conf.d/sca-registries.conf.disabled` lists them for the operator to enable ([OPERATIONS.md](OPERATIONS.md#family-worker-images)).
+
 Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#adding-a-tool-tool-manifests). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
 Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. The rule packs for cryptography, database security, AI/LLM applications and non-GitHub CI/CD pipelines (`workers/rules/pathos-{crypto,database,ai,cicd}.yml`, [below](#opengrep-rule-packs)) use the `crypto`, `database`, `ai` and `cicd` categories. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
@@ -78,17 +117,17 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 33 | bundler-audit | SCA (Ruby) | GPL-3.0 | active | Use | |
 | 34 | OWASP dep-scan | SCA + reachability | MIT | active | Use | |
 | 35 | Checkov | IaC | Apache-2.0 | active | Use | **Implemented** |
-| 36 | KICS | IaC | Apache-2.0 | active | Use | |
-| 37 | KubeLinter | K8s manifests | Apache-2.0 | active | Use | |
-| 38 | Kubescape | K8s posture (manifests/Helm) | Apache-2.0 | active | Use | |
-| 39 | TFLint | Terraform | MPL-2.0 (*unverified*) | *unverified* | Use (verify) | |
-| 40 | Conftest | Policy-as-code (OPA) | Apache-2.0 (*unverified*) | *unverified* | Use (verify) | Org-defined policies |
-| 41 | Hadolint | Dockerfile | GPL-3.0 | active | Use | |
+| 36 | KICS | IaC | Apache-2.0 | active | Use | **Implemented** (`worker-iac` manifest) |
+| 37 | KubeLinter | K8s manifests | Apache-2.0 | active | Use | **Implemented** (`worker-iac` manifest) |
+| 38 | Kubescape | K8s posture (manifests/Helm) | Apache-2.0 | active | Use | **Implemented** (`worker-iac` manifest, offline frameworks) |
+| 39 | TFLint | Terraform | MPL-2.0 | active | Use | **Implemented** (`worker-iac` manifest, bundled Terraform ruleset) |
+| 40 | Conftest | Policy-as-code (OPA) | Apache-2.0 | active | Use | **Implemented** (`worker-iac` manifest, PATHOS policy bundle) |
+| 41 | Hadolint | Dockerfile | GPL-3.0 | active | Use | **Implemented** (`worker-iac` manifest) |
 | 42 | Dockle | Container image | Apache-2.0 | active (2026-08) | Use | Image targets |
 | 43 | Trivy (image) | Container image vulns | Apache-2.0 | active | Use | **Implemented** (image targets) |
 | 44 | actionlint | CI/CD (GitHub Actions) | MIT | active (1.7.12, 2026-03-30) | Use | **Implemented**: built from source; runs on `.github/workflows` without shellcheck or pyflakes, so no repository script is run |
 | 45 | zizmor | CI/CD security (GitHub Actions) | MIT | *unverified* | Use | **Implemented**; runs offline |
-| 46 | OpenSSF Scorecard | Supply-chain posture | Apache-2.0 | active | Use | Uses SCM API |
+| 46 | OpenSSF Scorecard | Supply-chain posture | Apache-2.0 | active | Use | **Implemented** (`worker-iac` manifest, `--local` file-based checks only; the SCM API checks are not run) |
 | 47 | ScanCode Toolkit | License compliance | Apache-2.0 + CC-BY (data) | active | Use | Replaces FOSSology for repo scanning |
 | 48 | Trivy (license) | License compliance | Apache-2.0 | active | Use | |
 | 48a | File licences (licensecheck) | License compliance (file level) | BSD-3-Clause (library) | active | Use | **Implemented** (built into the worker); violations of the licence policy become findings |
@@ -263,19 +302,19 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 |---|---|---|
 | SAST (`sast`) | sast | Opengrep, Bandit, njsscan, gosec, Psalm, Bearer, Semgrep CE, CodeQL, … |
 | DAST (`dast`) | dast | Nuclei, OWASP ZAP, PATHOS endpoint verification |
-| SCA (`sca`) | sca, eol | Trivy, Grype, OSV-Scanner, Dependency-Check, …, endoflife.date |
+| SCA (`sca`) | sca, eol | Trivy, Grype, OSV-Scanner, Dependency-Check, govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, …, endoflife.date |
 | Secrets (`secrets`) | secrets | Gitleaks, TruffleHog, detect-secrets, Kingfisher, Talisman |
-| IaC (`iac`) | iac | Checkov, KICS, KubeLinter, Kubescape, TFLint, Conftest, Hadolint |
+| IaC (`iac`) | iac | Checkov, KICS, KubeLinter, Kubescape, TFLint, Conftest, Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config) |
 | Container (`container`) | container | Trivy (image), Dockle |
 | API security (`api`) | api, dast | Nuclei (API targets), Schemathesis |
 | IAST (`iast`) | iast | (imports only) |
 | Mobile (`mobile`) | mobile | mobsfscan |
 | Fuzzing (`fuzzing`) | fuzz | (imports and plugins) |
 | Licence (`license`) | license | licensecheck, ScanCode, Trivy (license) |
-| SBOM (`sbom`) | (inventory, no findings) | Syft |
-| Malware (`malware`) | malware | ClamAV |
+| SBOM (`sbom`) | (inventory, no findings) | Syft, cdxgen |
+| Malware (`malware`) | malware | ClamAV, GuardDog |
 | Code-quality security (`code-quality`) | code-quality | ShellCheck, Pylint, golangci-lint, PHPStan, PMD, Ruff |
-| Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard |
+| Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard, GuardDog, pathos-depcheck |
 | Cryptography (`crypto`) | crypto | Opengrep (PATHOS cryptography rules) |
 | Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules) |
 | CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac), Opengrep (PATHOS GitLab CI, Azure Pipelines, Bitbucket and Jenkins rules) |

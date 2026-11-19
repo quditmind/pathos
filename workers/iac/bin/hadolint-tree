@@ -1,0 +1,29 @@
+#!/usr/local/bin/python3 -I
+"""Runs Hadolint on the Dockerfiles and Containerfiles of a directory tree
+(Hadolint takes file names only) and prints one JSON array of results.
+Exit status 0 (issues do not fail the run), other values on errors.
+"""
+import json
+import os
+import subprocess
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+import iacfiles  # noqa: E402
+
+HADOLINT = "/opt/pathos/iac/bin/hadolint"
+
+if sys.argv[1:] == ["--version"]:
+    os.execv(HADOLINT, [HADOLINT, "--version"])
+if len(sys.argv) != 2 or not os.path.isdir(sys.argv[1]):
+    iacfiles.usage("hadolint-tree")
+results = []
+found = iacfiles.dockerfiles(sys.argv[1])
+# Batches keep the argument list short; each run prints one JSON array.
+for i in range(0, len(found), 200):
+    run = subprocess.run([HADOLINT, "--no-fail", "--no-color", "-f", "json", "--", *found[i:i + 200]],
+                         stdout=subprocess.PIPE, check=False)
+    if run.returncode != 0:
+        sys.exit(run.returncode)
+    results.extend(json.loads(run.stdout or b"[]"))
+json.dump(results, sys.stdout)

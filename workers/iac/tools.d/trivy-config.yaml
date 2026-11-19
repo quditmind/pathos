@@ -1,0 +1,24 @@
+# Trivy in config mode: misconfigurations in Terraform, CloudFormation,
+# Kubernetes, Helm, Dockerfiles and Azure ARM templates, with the checks
+# embedded in the core image's Trivy binary (no check bundle download).
+# The core trivy-fs scanner runs Trivy for vulnerabilities only.
+name: trivy-config
+display_name: Trivy (config)
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/aquasecurity/trivy
+family: iac
+targets: [repository]
+command: /usr/local/bin/trivy
+version_args: ["--version"]
+args: ["config", "--format", "sarif", "--output", "{output}", "--cache-dir", "{tmp}", "--skip-check-update",
+       "--skip-version-check", "--quiet", "--timeout", "20m", "{source}"]
+ok_exit_codes: [0]
+timeout: 30m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

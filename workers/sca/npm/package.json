@@ -1,0 +1,13 @@
+{
+  "name": "pathos-worker-sca-tools",
+  "private": true,
+  "description": "Node.js tools of the PATHOS worker-sca image (installed with npm ci --ignore-scripts from package-lock.json); npm replaces the copy bundled with Node.js",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@cyclonedx/cdxgen": "12.9.2",
+    "npm": "12.2.3",
+    "pnpm": "11.28.12",
+    "retire": "6.1.1",
+    "yarn": "1.22.22"
+  }
+}

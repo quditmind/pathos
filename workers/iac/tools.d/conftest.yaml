@@ -1,0 +1,24 @@
+# Conftest with the PATHOS policy bundle (/opt/pathos/iac/policy:
+# Kubernetes workloads, Dockerfiles, Terraform on AWS). Each result has a
+# PATHOS-* id and a severity. The conftest-tree helper tests each
+# Kubernetes manifest, Dockerfile and .tf file on its own, so a file
+# Conftest cannot parse is skipped (and logged) instead of failing the run.
+name: conftest
+display_name: Conftest (PATHOS policies)
+category: iac
+scan_types: [iac]
+license_spdx: Apache-2.0
+homepage: https://github.com/open-policy-agent/conftest
+family: iac
+targets: [repository]
+command: /opt/pathos/iac/bin/conftest-tree
+version_args: ["--version"]
+args: ["{source}"]
+ok_exit_codes: [0]
+timeout: 20m
+output: stdout
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:conftest
