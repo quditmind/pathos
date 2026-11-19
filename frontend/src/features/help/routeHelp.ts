@@ -27,6 +27,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/repositories/import/$source": g("repository-import"),
   "/repositories/imports": g("import-history"),
   "/repositories/imports/$id": g("import-history"),
+  "/connectors": g("connectors"),
   "/admin/scm": g("provider-integrations"),
   "/admin/integrations": g("reporting-and-integrations"),
 

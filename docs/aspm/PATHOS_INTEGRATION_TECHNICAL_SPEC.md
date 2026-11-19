@@ -1,4 +1,4 @@
-Quditmind PATHOS · applies to v2.2.0 · status: Planned
+Quditmind PATHOS · applies to v2.2.0 and the lifecycle release (M2 Connectors) · status: M2 statuses updated
 
 # PATHOS integration technical specification
 
@@ -10,6 +10,8 @@ Status values used in this document:
 - **Partial**: exists today, but part of what the design asks for is missing.
 - **Planned**: in scope for the lifecycle release (mostly M2). Not built.
 - **After lifecycle release**: listed in the design, out of scope for this release.
+
+**M2 update.** Rows built in M2 (Connectors) are now marked **Existing** with an "(M2)" note and a code reference. Everything else still describes PATHOS 2.2.0. The `PTH-CONN`/`PTH-SYNC` codes listed under M2 below exist in the catalogue (`backend/internal/platform/diag`, pages in `docs/troubleshooting/`); the others are still Planned.
 
 Nothing marked Planned exists in the code. Every `PTH-CONN-*` and `PTH-SYNC-*` code in this document is **Planned**: PATHOS 2.2.0 has no `PTH-` error codes yet (the API error today is `{code, message, details, fields}` with short string codes, `backend/internal/platform/httpx/httpx.go:22`).
 
@@ -78,10 +80,10 @@ One `/connectors` page with tabs Connectors · Authentication · Configuration �
 | 2 | GitLab | SCM & IDE | today | **Existing** | `scm/gitlab.go`, `repos/webhooks.go:97` | Yes |
 | 3 | Bitbucket Cloud | SCM & IDE | today | **Existing** | `scm/bitbucket.go`, `repos/webhooks.go:126` | Yes |
 | 4 | Azure DevOps | SCM & IDE | today | **Existing** | `scm/azure.go`, `repos/webhooks.go:73` | Yes |
-| 5 | GitHub Enterprise Server | SCM & IDE | new | **Partial** (provider exists; no per-connection CA) | `scm/contract.go` `GitHubEnterprise`, `scm/providers.go` | Yes |
-| 6 | GitLab Self-Managed | SCM & IDE | extend | **Partial** (same provider as gitlab.com; no per-connection CA) | `scm/contract.go:12` | Yes |
-| 7 | Bitbucket Data Center | SCM & IDE | new | **Planned** | `scm/bitbucket.go:17` says "Bitbucket Data Center is not supported" | Yes |
-| 8 | Generic Git (HTTPS/SSH) | SCM & IDE | new | **Planned** (upload and archive import exist; no generic clone connector) | none | No |
+| 5 | GitHub Enterprise Server | SCM & IDE | new | **Existing** (M2: per-connection CA, version check) | `scm/contract.go` `GitHubEnterprise`, `scm/tlsca.go`, `scm/version.go` | Yes |
+| 6 | GitLab Self-Managed | SCM & IDE | extend | **Existing** (M2: per-connection CA, version report, HMAC webhook signing) | `scm/contract.go:12`, `scm/tlsca.go`, `scm/webhook.go` | Yes |
+| 7 | Bitbucket Data Center | SCM & IDE | new | **Existing** (M2) | `scm/bitbucketdc.go`, webhooks `repos/webhooks.go` | Yes |
+| 8 | Generic Git (HTTPS/SSH) | SCM & IDE | new | **Existing** (M2) | `scm/genericgit.go`, `scm/gitremote.go` | No |
 | 9 | PATHOS CLI | SCM & IDE | today | **Existing** | `backend/cmd/pathos-cli`, `integrations/install-cli.sh` | Inbound |
 | 10 | VS Code | SCM & IDE | today | **Existing** (0.1.0) | `ide/vscode` | Inbound |
 | 11 | JetBrains IDEs | SCM & IDE | new | **Existing** (0.1.0) | `ide/jetbrains` | Inbound |
@@ -91,7 +93,7 @@ One `/connectors` page with tabs Connectors · Authentication · Configuration �
 | 15 | Azure Pipelines | CI/CD | today | **Existing** | `integrations/azure-pipelines/pathos.yml` | Inbound |
 | 16 | Jenkins | CI/CD | today | **Existing** | `integrations/jenkins/Jenkinsfile` | Inbound |
 | 17 | pre-commit / pre-receive | CI/CD | today | **Existing** | `integrations/pre-commit`, `integrations/pre-receive`, `backend/internal/pushprotect` | Inbound |
-| 18 | Bitbucket Pipelines | CI/CD | new | **Planned** | none | No |
+| 18 | Bitbucket Pipelines | CI/CD | new | **Existing** (M2, inbound template) | `integrations/bitbucket-pipelines/bitbucket-pipelines.yml` | No |
 | 19 | Argo CD / deploy gate | CI/CD | later | **After lifecycle release** | none | No |
 | 20 | AWS | Cloud | new | **Planned** | none (only live validation of AWS keys: `worker/secretcheck.go:970`) | Yes |
 | 21 | Microsoft Azure | Cloud | new | **Planned** | none (only live validation of storage keys) | Yes |
@@ -105,7 +107,7 @@ One `/connectors` page with tabs Connectors · Authentication · Configuration �
 | 29 | SIEM (Splunk, Sentinel, Elastic) | Security | new | **Planned** (generic signed JSON webhook exists) | `notify/webhooks.go` | Yes |
 | 30 | Keycloak (built in) | IAM & Secrets | today | **Existing** | `backend/internal/identity/keycloak.go`, `docs/SECURITY.md:19` | No |
 | 31 | SAML / OIDC SSO | IAM & Secrets | today | **Existing** (brokered by Keycloak) | `docs/user-guide/sign-in-and-sso.md:28` | No |
-| 32 | HashiCorp Vault | IAM & Secrets | new | **Planned** | none | Yes |
+| 32 | HashiCorp Vault | IAM & Secrets | new | **Existing** (M2: Vault/OpenBao secret references; tested against OpenBao) | `backend/internal/vault`, `connectors/kinds_m2k.go` | Yes |
 | 33 | Cloud secret managers | IAM & Secrets | new | **Planned** | none | No (follows Vault) |
 | 34 | OpenAPI / Swagger | APIs | extend | **Partial** (file upload for API scan targets) | `scans/targets.go:237` `ValidateAPISpec` | No |
 | 35 | Postman collections | APIs | new | **Planned** | none | No |
@@ -116,7 +118,7 @@ One `/connectors` page with tabs Connectors · Authentication · Configuration �
 | 40 | MongoDB / Oracle | Databases | later | **After lifecycle release** | none | No |
 | 41 | OpenTelemetry | Monitoring | today | **Existing** | `platform/telemetry/telemetry.go` | No |
 | 42 | Prometheus | Monitoring | new | **Planned** (no `/metrics` endpoint) | none | No |
-| 43 | Slack · Microsoft Teams | Monitoring | today | **Partial** (Slack Existing; Teams works only with an unauthenticated Workflows URL since connectors were retired) | `notify/webhooks.go:38,470-493` | Yes |
+| 43 | Slack · Microsoft Teams | Monitoring | today | **Existing** (Slack; Teams Workflows triggers with Microsoft Entra token authentication since M2) | `notify/webhooks.go`, `notify/teamsauth.go` | Yes |
 | 44 | Email (SMTP) | Monitoring | today | **Existing** | `notify/smtp.go` | No |
 | 45 | Webhooks | Monitoring | today | **Existing** | `notify/webhooks.go` | No |
 | 46 | Jira · ServiceNow | Monitoring | today | **Existing** | `tickets/connectors.go` | Yes |
@@ -129,7 +131,7 @@ One `/connectors` page with tabs Connectors · Authentication · Configuration �
 | E7 | MCP registry (outbound MCP servers, approval) | not listed (APIs) | not listed | **Existing** | `mcp/registry.go:75` | No |
 | E8 | Egress proxy (Squid allowlist) | not listed (platform) | not listed | **Existing** | `deploy/egress/allowlist.txt` | No |
 
-Counts (54 rows): Existing 31, Partial 6, Planned 12, After lifecycle release 5. The design's 46 entries: Existing 23, Partial 6, Planned 12, After lifecycle release 5. The 8 extra rows are all Existing.
+Counts after M2 (54 rows): Existing 38, Partial 3, Planned 8, After lifecycle release 5 (2.2.0: Existing 31, Partial 6, Planned 12). The design's 46 entries: Existing 30, Partial 3, Planned 8, After lifecycle release 5. The 8 extra rows are all Existing. Still Planned: AWS, Azure, GCP (cloud accounts), SIEM, cloud secret managers, Postman, GraphQL, Prometheus.
 
 ### Connector records
 
@@ -161,16 +163,16 @@ Each record uses the same fields. "Sources" are official vendor pages checked on
 
 Sources (checked 2026-11-20): [1] https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-an-installation-access-token-for-a-github-app · [2] https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens · [3] https://docs.github.com/en/rest/authentication/permissions-required-for-fine-grained-personal-access-tokens · [4] https://docs.github.com/en/rest/authentication/permissions-required-for-github-apps · [5] https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps · [6] https://docs.github.com/en/rest/about-the-rest-api/api-versions · [7] https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries · [8] https://docs.github.com/en/webhooks/webhook-events-and-payloads · [9] https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks · [10] https://docs.github.com/en/webhooks/testing-and-troubleshooting-webhooks/redelivering-webhooks · [11] https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api · [12] https://docs.github.com/en/rest/using-the-rest-api/using-pagination-in-the-rest-api. Not verified: GitHub App JWT maximum lifetime.
 
-##### GitHub Enterprise Server — Partial
+##### GitHub Enterprise Server — Existing (M2)
 
 | Field | Value |
 |---|---|
 | Evidence | Provider `github_enterprise` (`scm/contract.go`), same client and auth as GitHub, base URL required (`scm/providers.go:52-56`) |
-| Missing | Per-connection CA bundle; a version check |
+| M2 | Per-connection CA bundle (`scm/tlsca.go`) and a version check (`GET /api/v3/meta`, warning `PTH-CONN-1105`, `scm/version.go`); base URLs are normalized to `/api/v3` |
 | Auth, scopes, webhooks, pagination | As GitHub. REST base `https://HOST/api/v3`, GraphQL `https://HOST/api/graphql`. Source [1][2] |
 | Supported versions | 3.19 (end of support 2026-12-09), 3.20 (2027-03-17), 3.21 (2027-06-11), 3.22 (2027-09-08). 3.18 is out of support. M2: read the server version (`GET /meta` returns `installed_version` — not verified) and warn below the oldest supported release. Source [3] |
 | Rate limits | Disabled by default on GHES; a site administrator can enable them, including secondary limits. PATHOS still applies its own per-connection bucket. Source [4] |
-| Proxy and CA | Usually on a private network: `allow_private` per connection, `NO_PROXY` for the host. Private CA: **gap** (see Known limitations); vendor guidance for API clients behind a private CA: not verified |
+| Proxy and CA | Usually on a private network: `allow_private` per connection, `NO_PROXY` for the host. Private CA: per-connection PEM bundle (M2), added to the system pool for that connection and its clones; vendor guidance for API clients behind a private CA: not verified |
 | Offline | Works (internal server) |
 | Credential storage | As GitHub |
 | Health check | As GitHub, plus the version check |
@@ -178,21 +180,21 @@ Sources (checked 2026-11-20): [1] https://docs.github.com/en/apps/creating-githu
 
 Sources (checked 2026-11-20): [1] https://docs.github.com/en/enterprise-server@latest/rest/quickstart · [2] https://docs.github.com/en/enterprise-server@latest/graphql/guides/forming-calls-with-graphql · [3] https://docs.github.com/en/enterprise-server@latest/admin/all-releases · [4] https://docs.github.com/en/enterprise-server@latest/rest/using-the-rest-api/rate-limits-for-the-rest-api
 
-##### GitLab (gitlab.com) and GitLab Self-Managed — Existing / Partial
+##### GitLab (gitlab.com) and GitLab Self-Managed — Existing
 
 | Field | Value |
 |---|---|
 | Evidence | `scm/gitlab.go` (one provider for both, `scm/contract.go:12`), webhooks `repos/webhooks.go:97`, statuses `scm/status.go:88`, MRs `scm/pullrequest.go:309-391` |
-| Missing (self-managed) | Per-connection CA bundle; version check |
+| M2 (self-managed) | Per-connection CA bundle and version report (`GET /api/v4/version`); HMAC webhook signing token (below) |
 | Auth (PATHOS) | Personal, group or project access token; OAuth application |
 | Auth (vendor) | PAT, project and group tokens: default and maximum lifetime 365 days (admins can change the maximum on 17.6+). Project and group access tokens on gitlab.com need Premium or Ultimate; on self-managed any licence. OAuth 2.0: authorization code (with PKCE) and device grant; refresh rotates both tokens. Source [1][2][3][4] |
 | Least privilege, read | `read_api` + `read_repository` (as the wizard says). Reporter role for group and project tokens |
 | Least privilege, write | `api` with Developer role for commit statuses, MR notes and fix MRs. `write_repository` does not work for API calls. That `api` is the minimum for these writes is inferred from the scope list (not verified as a direct statement). Source [1] |
 | API style and version | REST v4, `https://HOST/api/v4`. Source [5] |
-| Webhooks | **Change since PATHOS was written:** GitLab now signs webhooks with HMAC-SHA256 per the Standard Webhooks spec (GA in 19.1): headers `webhook-id`, `webhook-timestamp`, `webhook-signature: v1,<base64>`, signed string `{id}.{timestamp}.{body}`, secret prefixed `whsec_`. `X-Gitlab-Token` is now called legacy. PATHOS verifies only `X-Gitlab-Token` today (`scm/webhook.go:172`). M2: support the signing token and prefer it; keep the token for older self-managed versions. Auto-disable: after 4 consecutive failures temporarily (1 min, backing off to 24 h), permanently after 40. gitlab.com timeout 10 s, payload 25 MB. Source [6][7] |
+| Webhooks | **Change since PATHOS was written:** GitLab now signs webhooks with HMAC-SHA256 per the Standard Webhooks spec (GA in 19.1): headers `webhook-id`, `webhook-timestamp`, `webhook-signature: v1,<base64>`, signed string `{id}.{timestamp}.{body}`, secret prefixed `whsec_`. `X-Gitlab-Token` is now called legacy. **M2 (Existing):** PATHOS verifies the signing token (`webhook-signature`, 5-minute timestamp window, `PUT`/`DELETE /api/v1/scm-connections/{id}/webhook-signing-token`, `scm/webhook.go`); with a signing token set, the legacy `X-Gitlab-Token` alone is refused. Connections without one keep the legacy token (warning `PTH-CONN-1112`). Auto-disable: after 4 consecutive failures temporarily (1 min, backing off to 24 h), permanently after 40. gitlab.com timeout 10 s, payload 25 MB. Source [6][7] |
 | Rate limits | gitlab.com: authenticated API 2,000 requests/min per user; unauthenticated 500/min per IP. Headers `RateLimit-Limit`, `RateLimit-Remaining`; on 429 `Retry-After` and `RateLimit-ResetTime` (Projects, Groups and Users APIs omit the headers). Self-managed: off by default; when enabled, the authenticated API default is 7,200 per hour. Source [8][9] |
 | Pagination | Offset: `page`, `per_page` (max 100), `X-Next-Page`, `Link`; above 10,000 records `X-Total` and `rel="last"` are omitted. Keyset (`pagination=keyset`) on some endpoints. PATHOS follows `Link` (`scm/gitlab.go:58`). Source [5] |
-| Proxy and CA | gitlab.com: proxy only. Self-managed: `allow_private`, `NO_PROXY`; private CA is a gap |
+| Proxy and CA | gitlab.com: proxy only. Self-managed: `allow_private`, `NO_PROXY`; per-connection private CA bundle (M2) |
 | Offline | gitlab.com not available; self-managed works |
 | Credential storage | Kind `scm`; webhook secret kind `webhook` (M2: the signing token is stored the same way) |
 | Health check | `GET /api/v4/personal_access_tokens/self` (returns scopes and expiry — endpoint name not verified in this pass; fall back to `GET /api/v4/user`), then `GET /api/v4/version` for self-managed. Warning when expiry is within 14 days or a needed scope is missing |
@@ -221,18 +223,18 @@ Sources (checked 2026-11-20): [1] https://docs.gitlab.com/security/tokens/access
 
 Sources (checked 2026-11-20): [1] https://developer.atlassian.com/cloud/bitbucket/rest/intro/ · [2] https://support.atlassian.com/bitbucket-cloud/docs/revoke-an-app-password/ · [3] https://support.atlassian.com/bitbucket-cloud/docs/manage-webhooks/ · [4] https://support.atlassian.com/bitbucket-cloud/docs/api-request-limits/. Not verified: API token maximum expiry; webhook headers, timeout and retries.
 
-##### Bitbucket Data Center — Planned (M2)
+##### Bitbucket Data Center — Existing (M2)
 
 | Field | Value |
 |---|---|
-| Evidence | None. `scm/bitbucket.go:17`: "Bitbucket Data Center is not supported" |
+| Evidence | M2: provider `bitbucket_data_center` (`scm/bitbucketdc.go`): REST 1.0 discovery with `start`/`limit` paging, project/repository HTTP access tokens (Bearer) and user tokens (Basic), signed webhooks at `POST /api/webhooks/bitbucket-data-center/{id}`; created on SCM connections or with **Add connector** |
 | Auth | HTTP access tokens: personal, project, repository (project and repository tokens need a Data Center licence). Permissions read / write / admin. Project and repository tokens: `Bearer` (or Basic with user `x-token-auth`); personal tokens: Basic. Expiry optional unless an admin requires it. Tokens cannot merge PRs. Source [1] |
 | Least privilege | Project or repository token with **read** for inventory; **write** only for statuses and fix PRs. Repository-level permission must be at least the project-level one. Source [1] |
 | API style and version | REST `/rest/api/1.0/…` (`/rest/api/latest/…` in examples). Supported releases: 9.4 LTS (end of support 2026-12-03) to 10.4 (2028-07-21); 2 years each. M2 minimum: 9.4, warn before its end date. Source [2][3] |
 | Webhooks | `X-Hub-Signature: sha256=<hex>` HMAC-SHA256 (same verifier as Bitbucket Cloud). Circuit breaker: after 5 failures the hook is skipped, skip time grows from 10 s to 10 h; at most 250 deliveries in flight. Source [4] |
 | Rate limits | Token bucket per user, default size 60, refill 5/s, 429 when exceeded; per cluster node. Whether it is on by default: not verified. Source [5] |
 | Pagination | `start`, `limit` (often 25 by default; admin cap), `isLastPage`, `nextPageStart`. Source [2] |
-| Proxy and CA | Private network, `allow_private`, private CA likely: needs the CA field |
+| Proxy and CA | Private network, `allow_private`, per-connection private CA bundle (M2) |
 | Offline | Works |
 | Credential storage | Kind `scm` |
 | Health check | `GET /rest/api/1.0/application-properties` (version) and a 1-item repository list |
@@ -253,7 +255,7 @@ Sources (checked 2026-11-20): [1] https://confluence.atlassian.com/bitbucketserv
 | Webhooks | Service hooks, consumer `webHooks`, action `httpRequest`. No HMAC signing option documented. PATHOS verifies the basic-auth password (constant time) — HTTPS is required for basic auth. Custom headers are visible to anyone who can read the subscription, so the secret must go in basic auth, not a header. Retry and timeout: not verified. Source [5][6] |
 | Rate limits | 200 TSTU per sliding 5 minutes per user and per pipeline; requests are delayed up to 30 s, then blocked with 429 (TF400733). Headers `Retry-After`, `X-RateLimit-Resource/-Delay/-Limit/-Remaining/-Reset`. Source [7] |
 | Pagination | Per endpoint: `continuationToken` query parameter and `$top` (e.g. Git refs max 1,000). PATHOS paginates repositories client-side with an offset cursor (`scm/pagetoken.go`). `x-ms-continuationtoken` response header: not verified. Source [8] |
-| Proxy and CA | Services: proxy only. Server: private network, private CA gap |
+| Proxy and CA | Services: proxy only. Server: private network, per-connection private CA bundle (M2) |
 | Offline | Services not available; Server works |
 | Credential storage | Kind `scm` (PAT, client secret, certificate private key); webhook secret kind `webhook` |
 | Health check | `GET https://dev.azure.com/{org}/_apis/projects?$top=1&api-version=7.1`; for service principals also token acquisition. Warning when `X-RateLimit-Delay` is present or a PAT expires within 14 days |
@@ -261,9 +263,9 @@ Sources (checked 2026-11-20): [1] https://confluence.atlassian.com/bitbucketserv
 
 Sources (checked 2026-11-20): [1] https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/authentication-guidance · [2] https://learn.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth · [3] https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate and https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/manage-pats-with-policies-for-administrators · [4] https://learn.microsoft.com/en-us/rest/api/azure/devops/?view=azure-devops-rest-7.1 · [5] https://learn.microsoft.com/en-us/azure/devops/service-hooks/consumers · [6] https://learn.microsoft.com/en-us/azure/devops/service-hooks/services/webhooks · [7] https://learn.microsoft.com/en-us/azure/devops/integrate/concepts/rate-limits · [8] https://learn.microsoft.com/en-us/rest/api/azure/devops/git/refs/list?view=azure-devops-rest-7.1. Not verified: global PAT end date (vendor page conflicts), service hook retry and timeout, PAT default maximum lifetime.
 
-##### Generic Git (HTTPS/SSH) — Planned (owner to confirm M2 or later)
+##### Generic Git (HTTPS/SSH) — Existing (M2)
 
-Read-only clone of any Git server with an SSH deploy key or HTTPS token. No API, no webhooks, no rate-limit headers: sync is a scheduled `git ls-remote` per repository. SSH needs a pinned host key (known_hosts) stored with the connection. Credential kind `scm`. Codes: PTH-CONN-1140 SSH host key mismatch · PTH-CONN-1141 Git authentication failed. Vendor facts: not applicable.
+Read-only clone of any Git server with an SSH deploy key or HTTPS token. No API, no webhooks, no rate-limit headers: sync is a scheduled `git ls-remote` per repository (M2: pure-Go smart HTTP / `git-upload-pack` over SSH, `scm/gitremote.go`, because the api and jobs images have no git binary). SSH needs a pinned host key (known_hosts) stored with the connection; the administrator's `SHA256:` fingerprint must match it and unknown keys are never accepted. Credential kind `scm`. Codes: PTH-CONN-1140 SSH host key mismatch · PTH-CONN-1141 Git authentication failed. Vendor facts: not applicable.
 
 ##### PATHOS CLI, VS Code, JetBrains IDEs — Existing (inbound); Visual Studio — After lifecycle release
 
@@ -286,13 +288,13 @@ Read-only clone of any Git server with an SSH deploy key or HTTPS token. No API,
 
 Templates: `integrations/github-action/action.yml`, `integrations/gitlab/pathos.gitlab-ci.yml`, `integrations/azure-pipelines/pathos.yml`, `integrations/jenkins/Jenkinsfile`, `integrations/pre-commit`, `integrations/pre-receive`. All authenticate with a PATHOS API token (`api:write`) kept in the CI system's own secret store (GitHub secret, GitLab masked variable, Azure variable group, Jenkins credentials). PATHOS never stores the CI system's credentials. No webhooks, no vendor rate limits (PATHOS limits apply). Offline: works with an internal PATHOS and the CLI installed from `integrations/install-cli.sh`. Health (Planned): last upload per pipeline and the template version in use. Codes: the inbound 18xx codes, plus PTH-CONN-1810 CI upload rejected (format or size). Vendor facts: not needed (PATHOS is called by the pipeline).
 
-##### Bitbucket Pipelines — Planned · Argo CD / deploy gate — After lifecycle release
+##### Bitbucket Pipelines — Existing (M2) · Argo CD / deploy gate — After lifecycle release
 
-Bitbucket Pipelines: a template like the others, token in a secured repository variable. To verify in M2. Argo CD: after the lifecycle release.
+Bitbucket Pipelines: a template like the others (`integrations/bitbucket-pipelines/bitbucket-pipelines.yml`, import, scan and gate steps), token in a secured repository variable; the `pathos` CLI reads `BITBUCKET_COMMIT` and `BITBUCKET_BRANCH`. Argo CD: after the lifecycle release.
 
 #### Cloud
 
-##### AWS — Planned (M2)
+##### AWS — Planned (not built in M2)
 
 | Field | Value |
 |---|---|
@@ -311,7 +313,7 @@ Bitbucket Pipelines: a template like the others, token in a secured repository v
 
 Sources (checked 2026-11-20): [1] https://docs.aws.amazon.com/IAM/latest/UserGuide/confused-deputy.html · [2] https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html · [3] https://docs.aws.amazon.com/aws-managed-policy/latest/reference/SecurityAudit.html · [4] https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_job-functions.html · [5] https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html · [6] https://docs.aws.amazon.com/sdkref/latest/guide/feature-retry-behavior.html · [7] https://docs.aws.amazon.com/IAM/latest/APIReference/API_ListRoles.html and https://docs.aws.amazon.com/cli/latest/userguide/cli-usage-pagination.html · [8] https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-proxy.html · [9] https://docs.aws.amazon.com/sdkref/latest/guide/feature-gen-config.html · [10] https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_sts_vpce.html. Not verified: `HTTPS_PROXY` in every SDK.
 
-##### Microsoft Azure — Planned (M2)
+##### Microsoft Azure — Planned (not built in M2)
 
 | Field | Value |
 |---|---|
@@ -330,7 +332,7 @@ Sources (checked 2026-11-20): [1] https://docs.aws.amazon.com/IAM/latest/UserGui
 
 Sources (checked 2026-11-20): [1] https://learn.microsoft.com/en-us/entra/identity-platform/how-to-add-credentials · [2] https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation · [3] https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation-considerations · [4] https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/general · [5] https://learn.microsoft.com/en-us/azure/role-based-access-control/built-in-roles/security · [6] https://learn.microsoft.com/en-us/rest/api/azure/ · [7] https://learn.microsoft.com/en-us/azure/azure-resource-manager/management/request-limits-and-throttling. Not verified: SDK default retry policy for ARM 429.
 
-##### Google Cloud — Planned (M2)
+##### Google Cloud — Planned (not built in M2)
 
 | Field | Value |
 |---|---|
@@ -442,23 +444,23 @@ Sources (checked 2026-11-20): [1] https://help.splunk.com/en/splunk-enterprise/g
 
 Keycloak handles local sign-in, TOTP MFA and recovery codes, and brokers external OIDC or SAML 2.0 identity providers (`docs/user-guide/sign-in-and-sso.md:28`, `docs/SECURITY.md:19`, `backend/internal/identity/keycloak.go`). PATHOS validates Keycloak's OIDC tokens (`backend/internal/auth/oidc.go`). IdP credentials (client secrets, signing certificates) live in Keycloak's database, not in PATHOS's secret store. Offline: works with an internal IdP. Health (Planned): Keycloak discovery document reachable, per-IdP last successful broker sign-in. Codes: PTH-CONN-1805 Identity provider unreachable from Keycloak · PTH-CONN-1806 SAML signing certificate expired or changed. IdP vendor facts: to verify in M2.
 
-##### HashiCorp Vault — Planned (M2)
+##### HashiCorp Vault — Existing (M2; OpenBao tested)
 
 | Field | Value |
 |---|---|
-| Purpose | Keep connector credentials outside PATHOS: PATHOS stores a reference (mount, path, key) and reads the value at use time |
+| Purpose | Keep connector credentials outside PATHOS: PATHOS stores a reference (`vault:<mount>/<path>#<key>`) and reads the value at use time. M2: `backend/internal/vault` (KV v2, AppRole or Kubernetes auth, optional allowed path prefix; nothing cached but the Vault token), the `vault` connector kind, integration tests against an OpenBao dev server |
 | Auth | AppRole (`auth/approle/login`, `role_id` + `secret_id`; set `secret_id_ttl`, `secret_id_num_uses`, `secret_id_bound_cidrs`/`token_bound_cidrs`; deliver `secret_id` with response wrapping) or Kubernetes auth (`auth/kubernetes/login` with the pod's service-account JWT; role bound by `bound_service_account_names` and `_namespaces`). Prefer Kubernetes auth when PATHOS runs in Kubernetes. Source [1][2][3] |
 | Least privilege | Policy with `read` on `<mount>/data/<pathos-prefix>/*` only (KV v2 reads go to `data/`; `list` would need `metadata/`, which PATHOS does not need). Source [4][5] |
 | API | Vault HTTP API v1, KV v2. Namespaces via `X-Vault-Namespace` (Enterprise or HCP only). Source [4][6] |
-| Licence note | Vault is under the Business Source License 1.1. OpenBao is an OpenSSF fork. PATHOS speaks the HTTP API only and bundles neither; the licence affects customers' own deployment, not PATHOS (owner to confirm whether OpenBao is listed as compatible). Source [7][8] |
+| Licence note | Vault is under the Business Source License 1.1. OpenBao is an OpenSSF fork. PATHOS speaks the HTTP API only and bundles neither; the licence affects customers' own deployment, not PATHOS. M2 tests run against OpenBao. Source [7][8] |
 | Webhooks | None |
 | Rate limits | Vault has configurable rate-limit quotas; defaults: not verified (to verify in M2) |
 | Pagination | Not needed (single reads) |
-| Proxy and CA | Usually internal: `allow_private`, private CA field required |
+| Proxy and CA | Usually internal: `allow_private`, per-connection private CA bundle (M2) |
 | Offline | Works |
 | Credential storage | The AppRole `secret_id` is the one secret PATHOS keeps (kind `integration`); Kubernetes auth needs none |
 | Health check | Login, then `GET /v1/sys/health` (sealed/standby) and a `read` of a configured canary path |
-| Error codes | PTH-CONN-1601 AppRole secret ID expired or used up · PTH-CONN-1602 Vault policy denies the path · PTH-CONN-1603 Vault namespace not found · PTH-CONN-1604 Vault is sealed · PTH-CONN-1605 Kubernetes auth role does not match the service account |
+| Error codes | PTH-CONN-1601 AppRole secret ID expired or used up · PTH-CONN-1602 Vault policy denies the path · PTH-CONN-1603 Vault namespace not found · PTH-CONN-1604 Vault is sealed · PTH-CONN-1605 Kubernetes auth role does not match the service account · added in M2: PTH-CONN-1606 Referenced secret or key not found · PTH-CONN-1607 Reference outside the allowed Vault path prefix · PTH-CONN-1608 No Vault/OpenBao connection for secret references |
 
 Sources (checked 2026-11-20): [1] https://developer.hashicorp.com/vault/docs/auth/approle · [2] https://developer.hashicorp.com/vault/api-docs/auth/approle · [3] https://developer.hashicorp.com/vault/docs/auth/kubernetes · [4] https://developer.hashicorp.com/vault/api-docs/secret/kv/kv-v2 · [5] https://developer.hashicorp.com/vault/docs/concepts/policies · [6] https://developer.hashicorp.com/vault/docs/enterprise/namespaces · [7] https://github.com/hashicorp/vault/blob/main/LICENSE · [8] https://openbao.org/. Not verified: an official plain `secret/data/... read` policy example; `/v1/sys/health` response codes; rate-limit quota defaults.
 
@@ -506,7 +508,7 @@ See Protocols → Webhook verification (outbound). Formats `json`, `slack`, `tea
 |---|---|---|---|
 | Evidence | `tickets/connectors.go` (`jira`, REST API v2: `/rest/api/2/myself`, `/rest/api/2/issue`, lines 218-302) | Same code (v2 works on both) | `tickets/connectors.go` (`/api/now/table/{table}`, lines 233-315) |
 | Auth (PATHOS) | Basic (e-mail + API token) or bearer (`connectors.go:148-152`) | Bearer (personal access token) or basic | Basic (integration user) or bearer |
-| Auth (vendor) | Basic auth with `email:api_token`. Scoped API tokens are recommended over unscoped ones, expire in 1–365 days, and must call `https://api.atlassian.com/ex/jira/{cloudId}` instead of the site URL — **PATHOS calls the site URL, so scoped tokens do not work today** (M2). OAuth 2.0 (3LO) is authorization code only; refresh tokens rotate and expire after 90 days unused. [1][2][3] | Personal access tokens (`Bearer`, Jira 8.14+), optional expiry up to 365 days by default; admins can disable them. [6] | Basic or OAuth by default; certificate-based (mutual TLS) supported. OAuth client credentials need `glide.oauth.inbound.client.credential.grant_type.enabled=true`. Current release family: Brazil. [9][10][11] |
+| Auth (vendor) | Basic auth with `email:api_token`. Scoped API tokens are recommended over unscoped ones, expire in 1–365 days, and must call `https://api.atlassian.com/ex/jira/{cloudId}` instead of the site URL — **M2 (Existing):** `config.token_type: scoped` calls the gateway, with the cloud ID from the site's `/_edge/tenant_info` or `config.cloud_id` (`tickets/connectors.go`). OAuth 2.0 (3LO) is authorization code only; refresh tokens rotate and expire after 90 days unused. [1][2][3] | Personal access tokens (`Bearer`, Jira 8.14+), optional expiry up to 365 days by default; admins can disable them. [6] | Basic or OAuth by default; certificate-based (mutual TLS) supported. OAuth client credentials need `glide.oauth.inbound.client.credential.grant_type.enabled=true`. Current release family: Brazil. [9][10][11] |
 | Least privilege | Classic `read:jira-work` + `write:jira-work`; granular (beta) `read:issue:jira`, `write:issue:jira`, `write:comment:jira`. Plus Jira project permissions Browse and Create issues. [4] | Project permissions Browse projects, Create issues | Incident: role `sn_incident_write` (Incident Management plugin) on a dedicated integration user. Security incidents (`sn_si_incident`): `sn_si.integration_user`, documented for external tools that create and update security incidents. Whether `itil` alone is enough: not verified. [12][13] |
 | API style and version | REST v2 used by PATHOS. Cloud v3 is the latest; v2 and v3 have the same operations, v3 uses Atlassian Document Format for rich text. [5] | REST v2 | Table API (`POST` inserts one record) [9] |
 | Webhooks | Not used by PATHOS (status is polled). Admin webhooks can carry a secret: `X-Hub-Signature: sha256=<hex>`; up to 5 retries; dedupe on `X-Atlassian-Webhook-Identifier`. [7] | Optional secret, `X-Hub-Signature: sha256=…` (default HMAC-SHA256). [8] | Not used |
@@ -515,7 +517,7 @@ See Protocols → Webhook verification (outbound). Formats `json`, `slack`, `tea
 | Proxy and CA | Proxy; public CA | `allow_private`; private CA gap | Proxy; public CA (on-premises instances: CA gap) |
 | Offline | Not available | Works | Not available (cloud instances) |
 | Credential storage | Kind `integration` | Kind `integration` | Kind `integration` |
-| Health check | Existing **Test** button: `GET /rest/api/2/myself` and the configured project (`connectors.go:212-222`). M2: run it on a schedule and on **Verify** | Same | Existing: `GET /api/now/table/{table}?sysparm_limit=1` (`connectors.go:229-233`) |
+| Health check | Existing **Test** button: `GET /rest/api/2/myself` and the configured project (`connectors.go:212-222`). M2 (Existing): run on a schedule by the jobs service and on **Check now** in Connectors | Same | Existing: `GET /api/now/table/{table}?sysparm_limit=1` (`connectors.go:229-233`) |
 | Status sync | Every 10 min, each open ticket at most every 15 min (`tickets/service.go:561-567`) | Same | Same |
 | Error codes | PTH-CONN-1201 Jira project or issue type not found · PTH-CONN-1202 Jira requires a field PATHOS does not send · PTH-CONN-1203 Scoped Jira token used with the site URL | PTH-CONN-1204 Personal access tokens are disabled on this Jira | PTH-CONN-1210 ServiceNow user lacks the role for this table · PTH-CONN-1211 ServiceNow rate limit rule reached |
 
@@ -540,13 +542,13 @@ Sources (checked 2026-11-20): [1] https://developer.atlassian.com/cloud/jira/pla
 
 Sources (checked 2026-11-20): [1] https://docs.slack.dev/messaging/sending-messages-using-incoming-webhooks/ · [2] https://docs.slack.dev/apis/web-api/rate-limits/ · [3] https://docs.slack.dev/reference/methods/chat.postMessage/ · [4] https://docs.slack.dev/authentication/verifying-requests-from-slack/
 
-##### Microsoft Teams — Partial
+##### Microsoft Teams — Existing (Workflows; Microsoft Entra token since M2)
 
 | Field | Value |
 |---|---|
 | Evidence | Format `teams`: Adaptive Card 1.4 inside `{"type":"message","attachments":[{"contentType":"application/vnd.microsoft.card.adaptive",…}]}` (`notify/webhooks.go:482-493`) |
 | Vendor change | Office 365 Connectors, including connector-based Incoming Webhooks, **were retired in May 2026** (final rollout 18–22 May 2026); they no longer work. The replacement is a Workflows (Power Automate) flow with the trigger "When a Teams webhook request is received", whose documented body is the same `message` + Adaptive Card envelope PATHOS sends. So PATHOS's payload fits; only Workflows URLs work. [1][2][3] |
-| Why Partial | PATHOS sends no auth header, so only a Workflows trigger set to **Anyone** works. Tenant-restricted triggers ("Any user in my tenant", "Specific users") need an Entra OAuth token: Planned. The UI and docs must say that old `webhook.office.com` connector URLs no longer work (how they now respond is not documented) |
+| Trigger authentication | M2 (Existing): `trigger_auth` on a Teams webhook (Entra tenant, client ID, write-only client secret, flow-service audience); PATHOS sends a client-credentials bearer token, so triggers restricted to the tenant or to specific users work (`notify/teamsauth.go`). Triggers set to **Anyone** keep working without it. Retired `webhook.office.com` connector URLs are refused (`PTH-CONN-1310`) |
 | Least privilege | A dedicated flow that only posts to one channel, with co-owners so it is not orphaned when its owner leaves [1][3] |
 | Rate limits | Trigger: about 1,000 concurrent calls; 4,500 or 45,000 invokes per 5 min depending on the plan profile. Posting actions: about 28 KB per message. [3] |
 | Alternative | Microsoft Graph `POST /teams/{id}/channels/{id}/messages` needs delegated `ChannelMessage.Send`; application permission exists only for migration, so a background service cannot post this way. Not recommended. [4] |
@@ -584,7 +586,7 @@ Outbound pull (SCM listing and re-sync, tickets status, Kubernetes, registries, 
 
 Inbound push (SCM webhooks):
 
-1. `POST /api/webhooks/{provider}/{connection_id}` (`backend/internal/repos/service.go:76-79`). The body is read up to 5 MiB (`repos/webhooks.go:18`).
+1. `POST /api/webhooks/{provider}/{connection_id}` (`backend/internal/repos/service.go:76-79`). The body is read up to 25 MB (`repos/webhooks.go`, `maxWebhookBody`; 5 MiB before M2).
 2. The connection's webhook secret is revealed and the request is verified (see Protocols → Webhook verification). Failures are rejected and audited (`rejectWebhook`).
 3. The event is normalized and stored once per delivery ID (`recordDelivery`, `repos/webhooks.go:144`; replays are ignored).
 4. Scans are queued from the stored delivery, not from the HTTP request.
@@ -638,14 +640,14 @@ Inbound (vendor → PATHOS):
 | Provider | 2.2.0 (Existing) | Header | Method | Code |
 |---|---|---|---|---|
 | GitHub, GHES | Yes | `X-Hub-Signature-256` | HMAC-SHA256 of the raw body, constant-time compare | `scm/webhook.go:19` |
-| GitLab | Yes (token only) | `X-Gitlab-Token` | Shared secret token, constant-time compare (not a signature). GitLab now also signs with HMAC-SHA256 (Standard Webhooks, `webhook-signature`, GA in 19.1) and calls the token legacy: Planned for M2 (see the GitLab record) | `scm/webhook.go:172` |
+| GitLab | Yes (HMAC signing token since M2; legacy token) | `webhook-signature` / `X-Gitlab-Token` | HMAC-SHA256 per Standard Webhooks (`webhook-id`, `webhook-timestamp`, 5-minute window) when a signing token is set (then the legacy token alone is refused); otherwise the shared secret token, constant-time compare | `scm/webhook.go` |
 | Bitbucket Cloud | Yes | `X-Hub-Signature` | HMAC-SHA256 (`sha256=<hex>`) | `scm/webhook.go:235` |
 | Azure DevOps | Yes | `Authorization: Basic` | Service hook basic-auth password = PATHOS secret, constant-time compare | `scm/webhook.go:39` |
-| Bitbucket Data Center | Planned | `X-Hub-Signature` | HMAC-SHA256 | — |
+| Bitbucket Data Center | Yes (M2) | `X-Hub-Signature` | HMAC-SHA256 | `scm/webhook.go`, `repos/webhooks.go` |
 
 Rules (Existing for the four providers above; M2 applies them to every new inbound webhook):
 
-1. Read at most 5 MiB of raw body before verifying (`repos/webhooks.go:18`).
+1. Read at most 25 MB of raw body before verifying (`repos/webhooks.go`, `maxWebhookBody`; M2, was 5 MiB); larger deliveries answer 413 with `PTH-CONN-1106`.
 2. Verify before parsing. Use constant-time comparison.
 3. A failed check returns the same response as an unknown connection and is audited. It never says which part failed.
 4. Store each delivery once, keyed by the vendor's delivery ID (`X-GitHub-Delivery`, `X-Gitlab-Event-UUID`, `X-Request-UUID`, Azure DevOps event ID). Replays are ignored (`repos/webhooks.go:63,87,111,135`).
@@ -692,7 +694,7 @@ Existing:
 
 Planned rules for every connector (M2):
 
-1. Honour `Retry-After` (seconds or HTTP date) and vendor reset headers when present; never retry sooner.
+1. Honour `Retry-After` (seconds or HTTP date) and vendor reset headers when present; never retry sooner. **Existing for SCM read calls since M2** (`scm/http.go`: listing, discovery and re-sync wait up to 60 s, at most twice, within the caller's deadline; writes are not retried).
 2. Otherwise exponential backoff with full jitter: base 1 s for interactive calls (max 3 tries), base 15 s for background jobs (max 6 tries, cap 6 h).
 3. Never retry 400, 401, 403 (except rate-limit 403), 404, 422, certificate errors or blocked addresses. Report them with a `PTH-CONN` code at once.
 4. One token bucket per connection, set below the vendor's documented limit (see each record), so PATHOS does not trip secondary limits.
@@ -760,7 +762,7 @@ Summary of what PATHOS accepts and recommends. Details and least-privilege scope
 
 ## Error handling (with error codes)
 
-All codes below are **Planned**. Format `PTH-<AREA>-<NNNN>` (prompt §3.1). M1 builds the catalogue; M2 adds these entries. Ranges:
+The codes below were planned in M0; those added to the catalogue in M1 and M2 now exist (`backend/internal/platform/diag`, `docs/troubleshooting/conn.md` and `sync.md` list them), the rest are still Planned. Format `PTH-<AREA>-<NNNN>` (prompt §3.1). M1 builds the catalogue; M2 adds these entries. Ranges:
 
 | Range | Use |
 |---|---|
@@ -839,20 +841,22 @@ Connector-specific codes are listed in each connector record.
 | Commit statuses and fix PRs on all four SCM families | Existing (`scm/status.go`, `scm/pullrequest.go`) |
 | Jira, ServiceNow | Existing (REST API v2 for Jira) |
 | Outbound signed webhooks, Slack, SMTP | Existing |
-| Microsoft Teams | Partial (unauthenticated Workflows URLs only) |
+| Microsoft Teams | Existing (Workflows URLs; Microsoft Entra token for restricted triggers, M2) |
 | Kubernetes and generic OCI registries | Existing |
 | Feeds, deps.dev, endoflife.date, OSV | Existing |
 | Live secret validation | Existing |
 | CLI, VS Code, JetBrains, CI templates, pre-commit, pre-receive, MCP | Existing |
 | Keycloak SSO (OIDC, SAML) | Existing |
 | S3 object store | Partial (static keys) |
-| GHES / GitLab self-managed with private CA | Partial |
+| GHES / GitLab self-managed with private CA | Existing (M2: per-connection CA bundle, version checks) |
 | Container registries (cloud vendor token exchange) | Partial |
 | OpenAPI | Partial (file upload) |
-| `/connectors` page, connector registry, Health tab | Planned (M2) |
-| `PTH-CONN` / `PTH-SYNC` codes | Planned (M1 engine, M2 entries) |
-| Bitbucket Data Center, AWS, Azure, GCP, Vault, cloud secret managers, SIEMs, Prometheus | Planned (M2) |
-| Generic Git, Bitbucket Pipelines, Postman, GraphQL | Planned (M2 or later; owner to confirm) |
+| `/connectors` page, connector registry, health checks, Health tab | Existing (M2, behind the `connectors` feature flag; `backend/internal/connectors`, migration 00044) |
+| `PTH-CONN` / `PTH-SYNC` codes | Existing for the codes in the catalogue (M1 engine, M2 entries incl. `PTH-CONN-1105`, `1123`, `1124`, `1140`, `1141`, `1601`–`1608`); the others Planned |
+| GitLab webhook HMAC signing, `Retry-After` on SCM reads, Jira scoped API tokens, inbound webhooks up to 25 MB | Existing (M2) |
+| Bitbucket Data Center, Generic Git, Vault/OpenBao secret references, Bitbucket Pipelines template | Existing (M2) |
+| Cloud accounts (AWS, Azure, GCP), cloud secret managers, SIEMs, Prometheus | Planned |
+| Postman, GraphQL | Planned (M2 or later; owner to confirm) |
 | Visual Studio, Argo CD, API gateways, databases | After lifecycle release |
 
 ## Known limitations
@@ -873,15 +877,15 @@ Connector-specific codes are listed in each connector record.
 
 ### Gaps in 2.2.0 that M2 must close
 
-1. **No per-connection private CA.** Only Kubernetes (`certificate-authority-data`, `runtimectx/kubeconfig.go:34`) and the CLI (`--ca-cert`, `cmd/pathos-cli/client.go:103`) accept a CA. Every other connector uses the system trust store of a distroless image (`backend/Dockerfile:14`). Go reads `SSL_CERT_FILE` on Linux, so mounting a bundle and setting that variable would work, but it is not documented or passed through by `docker-compose.yml`. Planned: a per-connection PEM CA bundle field (stored as configuration, not a secret) appended to the system pool.
-2. **No connector health model** across families; status fields differ per table.
+1. **Resolved for SCM connections (M2):** GitHub Enterprise Server, GitLab self-managed, Bitbucket Data Center, Azure DevOps Server and Generic Git connections take a per-connection PEM CA bundle (configuration, not a secret; subject, expiry and fingerprint shown; editable on the connection card), also used by the scan worker for clones. Still open for the other connectors (ticketing, webhooks, AI providers, registries). Original gap: **no per-connection private CA.** Only Kubernetes (`certificate-authority-data`, `runtimectx/kubeconfig.go:34`) and the CLI (`--ca-cert`, `cmd/pathos-cli/client.go:103`) accept a CA. Every other connector uses the system trust store of a distroless image (`backend/Dockerfile:14`). Go reads `SSL_CERT_FILE` on Linux, so mounting a bundle and setting that variable would work, but it is not documented or passed through by `docker-compose.yml`. Planned: a per-connection PEM CA bundle field (stored as configuration, not a secret) appended to the system pool.
+2. **Resolved (M2):** the connector registry and its health checks (`backend/internal/connectors`) give every family one health model. Original gap: no connector health model across families; status fields differ per table.
 3. **No automatic webhook registration**: administrators copy the URL and secret.
-4. **No retry with `Retry-After`** for SCM listing calls; rate limits are classified but the wizard and re-sync do not wait and retry.
-5. **Jira scoped API tokens do not work.** Atlassian recommends scoped tokens, which must call `https://api.atlassian.com/ex/jira/{cloudId}`; PATHOS calls the site URL with REST v2 (`tickets/connectors.go:218,260`). v2 itself is still offered on Jira Cloud with the same operations as v3.
+4. **Resolved (M2):** SCM read calls honour `Retry-After`. Original gap: no retry with `Retry-After` for SCM listing calls.
+5. **Resolved (M2):** `token_type: scoped` calls the Atlassian gateway. Original gap: **Jira scoped API tokens did not work.** Atlassian recommends scoped tokens, which must call `https://api.atlassian.com/ex/jira/{cloudId}`; PATHOS calls the site URL with REST v2 (`tickets/connectors.go:218,260`). v2 itself is still offered on Jira Cloud with the same operations as v3.
 6. **SCM pagination limit**: at most 5,000 repositories per listing (`scm/scm.go:95`).
-7. **GitLab webhook signing.** PATHOS verifies only `X-Gitlab-Token`, which GitLab now calls legacy; the HMAC signing token (GitLab 19.1+) is not supported yet.
-8. **Microsoft Teams.** Office 365 connector webhooks were retired in May 2026. PATHOS's Adaptive Card payload matches the Workflows trigger, but PATHOS sends no auth header, so only triggers open to "Anyone" work. Tenant-restricted triggers need Entra OAuth (Planned).
-9. **Webhook body limit.** PATHOS reads at most 5 MiB per inbound delivery (`repos/webhooks.go:18`); GitHub and gitlab.com send up to 25 MB. Large push events are rejected today.
+7. **Resolved (M2):** GitLab webhook signing tokens (HMAC) are verified. Original gap: PATHOS verified only `X-Gitlab-Token`, which GitLab now calls legacy.
+8. **Resolved (M2):** Teams Workflows triggers can require a Microsoft Entra token, which PATHOS sends. Original gap: only triggers open to "Anyone" worked after the Office 365 connector retirement (May 2026).
+9. **Resolved (M2):** the inbound webhook limit is 25 MB. Original gap: PATHOS read at most 5 MiB per inbound delivery while GitHub and gitlab.com send up to 25 MB.
 10. **Kubernetes token.** The shipped manifest creates a long-lived `kubernetes.io/service-account-token` Secret; Kubernetes recommends bound, expiring tokens for external clients.
 11. **Bitbucket API-token scope text.** The wizard lists `read:user`, `read:workspace`, `read:project`, `read:repository` (`scm/providers.go:86`); the current scope names in Atlassian's reference end in `:bitbucket` (e.g. `read:repository:bitbucket`). Check and correct in M2.
 12. **Azure DevOps global PATs** are being retired (Microsoft gives both 2026-12-01 and 2027-01-27 on the same page). PATHOS should warn on global PATs.

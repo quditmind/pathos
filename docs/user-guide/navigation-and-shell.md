@@ -36,7 +36,7 @@ The sidebar follows the application security lifecycle. Groups appear only when 
 | Group | Pages |
 |---|---|
 | Home | Dashboard · Lifecycle overview *(roadmap)* |
-| 1 · Connect | Connectors *(roadmap)* · Add repositories · Import history · SCM connections · Integrations |
+| 1 · Connect | Connectors *(flag `connectors`)* · Add repositories · Import history · SCM connections · Integrations |
 | 2 · Inventory | Applications · Repositories · Scan targets · Unmanaged assets · Coverage · Tags |
 | 3 · Discover | CodeGraph *(roadmap)* · Context graph · Runtime · API & endpoints *(roadmap)* · SBOM inventory · Component portfolio |
 | 4 · Threat model | Threat models *(roadmap)* · Attack paths · Blast radius |
@@ -48,7 +48,7 @@ The sidebar follows the application security lifecycle. Groups appear only when 
 | Configurations | Scan profiles · Scanners & workers · Scan coverage · Custom rules · Asset settings · Risk & intelligence · Secret validation · Review configurations · AI settings · Reverse engineering tools *(roadmap)* |
 | Administration | Organizations *(multi-tenant installations, installation administrators only)* · Users · Organization · Developer attribution · Notifications · AI usage · MCP registry · Audit log · Feature flags |
 
-Every page keeps its address from earlier versions; bookmarks and links keep working. Only the place in the menu changed.
+Every page keeps its address from earlier versions; bookmarks and links keep working. Only the place in the menu changed. With the `connectors` flag on, **SCM connections** (`/admin/scm`) and **Integrations** (`/admin/integrations`) open inside [Connectors](connectors.md), which contains the same pages with every action; with the flag off they open as before.
 
 ### Roadmap items
 
@@ -58,7 +58,7 @@ Items marked *(roadmap)* are modules that are not built yet. They are shown dimm
 
 New modules are switched on per organization with **feature flags**, which are off by default. The web app reads the flags of your organization from `GET /api/v1/meta`. A page behind a flag that is off says so, names the flag and who can turn it on (an administrator with the `settings.manage` permission).
 
-Administrators with `settings.manage` switch flags under **Administration › Feature flags**: each flag shows the module it gates, the roadmap milestone that delivers it and its last change. Every change is recorded in the audit log. A flag opens a module only once that module is built; until then its menu item stays disabled.
+Administrators with `settings.manage` switch flags under **Administration › Feature flags**: each flag shows the module it gates, the roadmap milestone that delivers it and its last change. Every change is recorded in the audit log. A flag opens a module only once that module is built; until then its menu item stays disabled. **Connectors** (`connectors`, milestone M2) is built: its menu item opens [Connectors](connectors.md) while the flag is on and stays disabled with its phase while it is off.
 
 ## Page states
 

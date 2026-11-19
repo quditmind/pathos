@@ -170,6 +170,8 @@ services:
       # Self-hosted GitHub Enterprise / Azure DevOps Server on a private network.
       PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
       PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
+      # Connectors hub: the egress proxy shown (and checked by jobs).
+      PATHOS_EGRESS_PROXY_URL: ${PATHOS_EGRESS_PROXY_URL:-http://egress:3128}
       # Outbound proxy for SCM API calls (optional).
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: keycloak,clamav,localhost
@@ -211,6 +213,9 @@ services:
       PATHOS_PUBLIC_URL: ${PATHOS_PUBLIC_URL:-https://localhost}
       PATHOS_SCM_ALLOW_PRIVATE_NETWORKS: ${PATHOS_SCM_ALLOW_PRIVATE_NETWORKS:-false}
       PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
+      # Connectors hub: scheduled health checks and the egress proxy check.
+      PATHOS_EGRESS_PROXY_URL: ${PATHOS_EGRESS_PROXY_URL:-http://egress:3128}
+      PATHOS_CONNECTOR_CHECK_INTERVAL: ${PATHOS_CONNECTOR_CHECK_INTERVAL:-1h}
       HTTPS_PROXY: ${PATHOS_HTTPS_PROXY:-}
       NO_PROXY: clamav,localhost
       # Repository import workers (archive processing, SCM imports).

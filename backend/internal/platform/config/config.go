@@ -55,6 +55,12 @@ type Config struct {
 	Offline      bool
 	SCMAllowHTTP bool
 
+	// Connectors hub (M2): the egress proxy the hub checks
+	// (PATHOS_EGRESS_PROXY_URL, e.g. http://egress:3128; empty: none) and
+	// how often the jobs service checks every connector.
+	EgressProxyURL         string
+	ConnectorCheckInterval time.Duration
+
 	// S3 object storage for scan artifacts; empty bucket keeps them in
 	// PostgreSQL.
 	S3Endpoint, S3Region, S3Bucket, S3AccessKey, S3SecretKey string
@@ -178,6 +184,8 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 		SCMAllowPrivate:        get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
 		Offline:                get("PATHOS_OFFLINE", "false") == "true",
 		SCMAllowHTTP:           get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
+		EgressProxyURL:         get("PATHOS_EGRESS_PROXY_URL", ""),
+		ConnectorCheckInterval: dur("PATHOS_CONNECTOR_CHECK_INTERVAL", "1h"),
 		OTLPEndpoint:           get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
 		RequireMFA:             get("PATHOS_REQUIRE_MFA", "false") == "true",
 		S3Endpoint:             get("PATHOS_S3_ENDPOINT", ""),
@@ -221,6 +229,9 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	c.ImportMaxFileBytes = num("PATHOS_IMPORT_MAX_FILE_BYTES", "1073741824", 1<<10, 1<<40)
 	c.ImportConcurrency = int(num("PATHOS_IMPORT_CONCURRENCY", "2", 1, 64))
 	c.ImportTimeout = dur("PATHOS_IMPORT_TIMEOUT", "30m")
+	if c.ConnectorCheckInterval < 5*time.Minute || c.ConnectorCheckInterval > 7*24*time.Hour {
+		errs = append(errs, fmt.Errorf("PATHOS_CONNECTOR_CHECK_INTERVAL must be between 5m and 168h"))
+	}
 	c.ImportWorkDir = get("PATHOS_IMPORT_WORK_DIR", "/tmp/pathos-import")
 	c.ScanLogRetentionDays = int(num("PATHOS_SCAN_LOG_RETENTION_DAYS", "400", 360, 3650))
 	c.ClamAVAddress = get("PATHOS_CLAMAV_ADDRESS", "")

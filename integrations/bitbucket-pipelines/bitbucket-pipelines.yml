@@ -1,0 +1,97 @@
+# PATHOS Bitbucket Pipelines template: import results, start a scan and
+# enforce the security gate with the PATHOS CLI. Documented in
+# docs/user-guide/ci-cd-integration.md ("Bitbucket Pipelines").
+#
+# Works with Bitbucket Cloud Pipelines. Copy the `definitions` block into
+# your bitbucket-pipelines.yml (Bitbucket has no remote include for plain
+# repositories) and reuse the steps with YAML anchors
+# (https://support.atlassian.com/bitbucket-cloud/docs/yaml-anchors/).
+#
+# Set these repository or deployment variables
+# (https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/):
+#   PATHOS_URL          https://pathos.example.com
+#   PATHOS_REPOSITORY   acme/payments-api (name, Repository ID or UUID in PATHOS)
+#   PATHOS_CLI_VERSION  2.2.0             (pin the CLI release)
+#   PATHOS_TOKEN        SECURED variable: a PATHOS REST API token
+#                       (read and write for import/scan, read for the gate)
+# Optional: PATHOS_FAIL_ON (none|low|medium|high|critical, default none),
+#           PATHOS_SCOPE (new|all, default new), PATHOS_CA_CERT_PEM (secured
+#           or plain variable with the PEM of a private CA for PATHOS).
+#
+# The CLI reads the commit and branch from BITBUCKET_COMMIT and
+# BITBUCKET_BRANCH. PATHOS never stores Bitbucket credentials for this
+# integration: the pipeline calls PATHOS.
+
+definitions:
+  steps:
+    # Import a results file produced by an earlier step (pass it as an
+    # artifact). Override PATHOS_IMPORT_FILE in the step that uses it.
+    - step: &pathos-import
+        name: PATHOS import
+        image: alpine:3.22
+        script:
+          - &pathos-install |
+            set -eu
+            apk add --no-cache curl ca-certificates >/dev/null
+            test -n "${PATHOS_CLI_VERSION:-}" || { echo "set PATHOS_CLI_VERSION"; exit 2; }
+            v="${PATHOS_CLI_VERSION#v}"
+            case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) echo "unsupported architecture"; exit 2 ;; esac
+            asset="pathos_${v}_linux_${arch}"
+            base="https://github.com/${PATHOS_CLI_REPO:-quditmind/pathos}/releases/download/v${v}"
+            curl -fsSL --proto '=https' -o "$asset" "$base/$asset"
+            curl -fsSL --proto '=https' -o checksums.txt "$base/checksums.txt"
+            grep " ${asset}\$" checksums.txt | sha256sum -c -
+            install -m 0755 "$asset" /usr/local/bin/pathos
+            rm -f "$asset" checksums.txt
+            if [ -n "${PATHOS_CA_CERT_PEM:-}" ]; then
+              printf '%s\n' "$PATHOS_CA_CERT_PEM" > /tmp/pathos-ca.pem
+              export PATHOS_CA_CERT=/tmp/pathos-ca.pem
+            fi
+          - |
+            set -eu
+            test -n "${PATHOS_IMPORT_FILE:-}" || { echo "set PATHOS_IMPORT_FILE"; exit 2; }
+            set -- import --repo "$PATHOS_REPOSITORY" --file "$PATHOS_IMPORT_FILE"
+            [ -n "${PATHOS_IMPORT_FORMAT:-}" ] && set -- "$@" --format "$PATHOS_IMPORT_FORMAT"
+            [ -n "${PATHOS_IMPORT_TOOL:-}" ] && set -- "$@" --tool "$PATHOS_IMPORT_TOOL"
+            [ -n "${PATHOS_IMPORT_CATEGORY:-}" ] && set -- "$@" --category "$PATHOS_IMPORT_CATEGORY"
+            [ "${PATHOS_COMPLETE:-false}" = "true" ] && set -- "$@" --complete
+            pathos "$@"
+
+    # Start a PATHOS scan of the repository and wait for it.
+    - step: &pathos-scan
+        name: PATHOS scan
+        image: alpine:3.22
+        script:
+          - *pathos-install
+          - pathos scan --repo "$PATHOS_REPOSITORY"
+
+    # Fail the pipeline when the security gate fails or findings at or above
+    # PATHOS_FAIL_ON exist (exit code 1).
+    - step: &pathos-gate
+        name: PATHOS gate
+        image: alpine:3.22
+        script:
+          - *pathos-install
+          - pathos gate --repo "$PATHOS_REPOSITORY" --fail-on "${PATHOS_FAIL_ON:-none}" --scope "${PATHOS_SCOPE:-new}"
+
+# Example: Semgrep results imported on every push, gate on pull requests.
+pipelines:
+  default:
+    - step:
+        name: Semgrep
+        image: semgrep/semgrep  # pin a version or digest
+        script:
+          - semgrep scan --config auto --json --output semgrep.json || true
+        artifacts:
+          - semgrep.json
+    - step:
+        <<: *pathos-import
+        script:
+          - export PATHOS_IMPORT_FILE=semgrep.json
+          - *pathos-install
+          - |
+            set -eu
+            pathos import --repo "$PATHOS_REPOSITORY" --file "$PATHOS_IMPORT_FILE"
+  pull-requests:
+    '**':
+      - step: *pathos-gate

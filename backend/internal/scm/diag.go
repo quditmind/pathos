@@ -26,10 +26,18 @@ func DiagCode(err error) string {
 		return "PTH-CONN-1003"
 	case errors.Is(err, ErrTokenExpired):
 		return "PTH-CONN-1008"
+	case errors.Is(err, ErrHostKeyMismatch):
+		return "PTH-CONN-1140"
+	case errors.Is(err, ErrGitAuth):
+		return "PTH-CONN-1141"
 	case errors.Is(err, ErrAuth):
 		return "PTH-CONN-1007"
 	case errors.Is(err, ErrRateLimited):
 		return "PTH-CONN-1010"
+	case errors.Is(err, ErrTokenPermission):
+		return "PTH-CONN-1124"
+	case errors.Is(err, ErrVersionUnsupported):
+		return versionCode(err)
 	case errors.Is(err, ErrForbidden):
 		return "PTH-CONN-1009"
 	case errors.Is(err, ErrNotFound):

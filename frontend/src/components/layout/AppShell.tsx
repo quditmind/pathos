@@ -71,7 +71,7 @@ import {
   Microscope,
   ToggleRight,
 } from "lucide-react";
-import type { FeatureFlag } from "@/features/shell/meta";
+import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
 import { HelpMenu } from "@/features/shell/HelpMenu";
 import { ShellProvider } from "@/features/shell/ShellProvider";
@@ -90,7 +90,11 @@ export type NavItem = {
   perm?: string;
   /** Roadmap milestone of a not-yet-built item: shown disabled with "arrives in roadmap phase N". */
   phase?: number;
-  /** Feature flag that will gate the module once it exists (server-side, default off). */
+  /**
+   * Feature flag of the module (server-side, default off). An item with a
+   * route and a flag is a link only while the flag is on; otherwise it shows
+   * disabled with its phase.
+   */
   flag?: FeatureFlag;
   /** Sub-heading shown above the item when it changes within a group. */
   section?: string;
@@ -113,7 +117,7 @@ export const groups: NavGroup[] = [
   {
     label: "1 · Connect",
     items: [
-      { label: "Connectors", icon: <Cable />, phase: 2, flag: "connectors" },
+      { label: "Connectors", to: "/connectors", icon: <Cable />, phase: 2, flag: "connectors" },
       { label: "Add repositories", to: "/repositories/import", icon: <FolderPlus />, perm: "repos.manage" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
@@ -269,6 +273,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   useCommandPaletteHotkey(setPaletteOpen);
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const path = useRouterState({ select: (s) => s.location.pathname });
+  const { flags } = useFeatureFlags();
+  // A flagged module is a link only while its flag is on for this organization.
+  const live = (it: NavItem) => !!it.to && (!it.flag || flags[it.flag] === true);
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
   const scopedPerms = new Set(["org.read", "repos.read", "repos.manage", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
@@ -300,13 +307,15 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
                 {items.map((it, idx) => {
+                  const isLive = live(it);
                   const active =
+                    isLive &&
                     it.to &&
                     (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));
                   const cls = cn(
                     "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] [&_svg]:size-4 [&_svg]:shrink-0",
                     active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",
-                    it.to ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
+                    isLive ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
                   );
                   const sectionHead =
                     !collapsed && it.section && it.section !== items[idx - 1]?.section ? (
@@ -316,7 +325,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <>
                       {it.icon}
                       {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
-                      {!collapsed && it.phase && (
+                      {!collapsed && it.phase && !isLive && (
                         <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground" aria-hidden>
                           Phase {it.phase}
                         </span>
@@ -326,8 +335,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   return (
                     <div key={it.label}>
                       {sectionHead}
-                      {it.to ? (
-                        <Link to={it.to} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
+                      {isLive ? (
+                        <Link to={it.to!} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
                           {content}
                         </Link>
                       ) : (

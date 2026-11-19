@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"io"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -15,7 +16,9 @@ import (
 	"pathos/internal/secrets"
 )
 
-const maxWebhookBody = 5 << 20
+// maxWebhookBody is the largest inbound delivery read (GitHub and gitlab.com
+// send up to 25 MB; docs/aspm/PATHOS_INTEGRATION_TECHNICAL_SPEC.md).
+const maxWebhookBody = 25 << 20
 
 // webhookConn loads a connection by ID without an organization context
 // (webhooks are unauthenticated until the signature is verified).
@@ -48,7 +51,7 @@ func (s *Service) githubWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
 	if err != nil {
-		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large"))
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large").WithDiag("PTH-CONN-1106"))
 		return
 	}
 	if err := scm.VerifyGitHubSignature(secret, body, r.Header.Get("X-Hub-Signature-256")); err != nil {
@@ -76,7 +79,7 @@ func (s *Service) azureWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
 	if err != nil {
-		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large"))
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large").WithDiag("PTH-CONN-1106"))
 		return
 	}
 	ev, deliveryID, err := scm.ParseAzureEvent(body)
@@ -94,14 +97,32 @@ func (s *Service) gitlabWebhook(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
-	if err := scm.VerifyGitLabToken(secret, r.Header.Get("X-Gitlab-Token")); err != nil {
-		s.rejectWebhook(ctx, w, r, c)
+	// With a signing token configured the delivery must be signed (the
+	// legacy X-Gitlab-Token alone is refused); without one the legacy
+	// token is checked as before. The token check runs before the body is
+	// read; the signature covers the body.
+	signing, err := s.gitlabSigningToken(ctx, c)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
 		return
+	}
+	if signing == nil {
+		if err := scm.VerifyGitLabToken(secret, r.Header.Get("X-Gitlab-Token")); err != nil {
+			s.rejectWebhook(ctx, w, r, c)
+			return
+		}
 	}
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
 	if err != nil {
-		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large"))
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large").WithDiag("PTH-CONN-1106"))
 		return
+	}
+	if signing != nil {
+		if err := scm.VerifyGitLabSignature(signing, r.Header.Get("webhook-id"), r.Header.Get("webhook-timestamp"),
+			r.Header.Get("webhook-signature"), body, time.Now()); err != nil {
+			s.rejectWebhook(ctx, w, r, c)
+			return
+		}
 	}
 	ev, _, err := scm.ParseGitLabEvent(r.Header.Get("X-Gitlab-Event"), body)
 	if err != nil {
@@ -111,9 +132,49 @@ func (s *Service) gitlabWebhook(w http.ResponseWriter, r *http.Request) {
 	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Gitlab-Event-UUID"), ev, body)
 }
 
+// gitlabSigningToken reveals the connection's webhook signing token (nil
+// when none is configured).
+func (s *Service) gitlabSigningToken(ctx context.Context, c Connection) ([]byte, error) {
+	var sid *uuid.UUID
+	if err := s.DB.QueryRow(ctx, `SELECT webhook_signing_secret_id FROM scm_connections WHERE organization_id = $1 AND id = $2`,
+		c.orgID, c.ID).Scan(&sid); err != nil {
+		return nil, err
+	}
+	if sid == nil {
+		return nil, nil
+	}
+	return s.Secrets.Reveal(ctx, s.DB, c.orgID, *sid, secrets.KindWebhook)
+}
+
 func (s *Service) bitbucketWebhook(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	c, secret, err := s.webhookConn(ctx, r, scm.Bitbucket)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBody))
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusRequestEntityTooLarge, "too_large", "payload too large").WithDiag("PTH-CONN-1106"))
+		return
+	}
+	if err := scm.VerifyBitbucketSignature(secret, body, r.Header.Get("X-Hub-Signature")); err != nil {
+		s.rejectWebhook(ctx, w, r, c)
+		return
+	}
+	ev, _, err := scm.ParseBitbucketEvent(r.Header.Get("X-Event-Key"), body)
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest(err.Error()))
+		return
+	}
+	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Request-UUID"), ev, body)
+}
+
+// bitbucketDataCenterWebhook receives Bitbucket Data Center deliveries
+// (X-Hub-Signature HMAC-SHA256, X-Event-Key, X-Request-Id).
+func (s *Service) bitbucketDataCenterWebhook(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	c, secret, err := s.webhookConn(ctx, r, scm.BitbucketDataCenter)
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, err)
 		return
@@ -127,12 +188,12 @@ func (s *Service) bitbucketWebhook(w http.ResponseWriter, r *http.Request) {
 		s.rejectWebhook(ctx, w, r, c)
 		return
 	}
-	ev, _, err := scm.ParseBitbucketEvent(r.Header.Get("X-Event-Key"), body)
+	ev, _, err := scm.ParseBitbucketDataCenterEvent(r.Header.Get("X-Event-Key"), body)
 	if err != nil {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest(err.Error()))
 		return
 	}
-	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Request-UUID"), ev, body)
+	s.recordDelivery(ctx, w, r, c, r.Header.Get("X-Request-Id"), ev, body)
 }
 
 func (s *Service) rejectWebhook(ctx context.Context, w http.ResponseWriter, r *http.Request, c Connection) {

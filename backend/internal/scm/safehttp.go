@@ -1,6 +1,8 @@
 package scm
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -13,6 +15,9 @@ import (
 
 // ErrBlockedAddress is returned when an SCM URL resolves to a forbidden IP.
 var ErrBlockedAddress = errors.New("scm: destination address is not allowed")
+
+// ErrPlainHTTP is an http:// URL while plain HTTP is not allowed.
+var ErrPlainHTTP = errors.New("base URL must use https")
 
 // NetPolicy controls which destinations SCM requests may reach. Base URLs
 // are administrator input, so outbound requests are checked at connect time
@@ -72,7 +77,7 @@ func (p NetPolicy) ValidateBaseURL(raw string) (*url.URL, error) {
 		return nil, errors.New("base URL must be an absolute URL without credentials, query or fragment")
 	}
 	if u.Scheme != "https" && !(p.AllowHTTP && u.Scheme == "http") {
-		return nil, errors.New("base URL must use https")
+		return nil, ErrPlainHTTP
 	}
 	if ip, err := netip.ParseAddr(u.Hostname()); err == nil && !p.Allowed(ip) {
 		return nil, ErrBlockedAddress
@@ -81,9 +86,14 @@ func (p NetPolicy) ValidateBaseURL(raw string) (*url.URL, error) {
 }
 
 // Client returns an HTTP client that refuses blocked destinations, does not
-// follow redirects to other hosts, and has sane timeouts.
-func (p NetPolicy) Client() *http.Client {
-	dialer := &net.Dialer{
+// follow redirects to other hosts, and has sane timeouts. It trusts the
+// system certificate pool.
+func (p NetPolicy) Client() *http.Client { return p.client(nil) }
+
+// Dialer returns a dialer that refuses blocked destinations at connect time
+// (after DNS resolution). SSH connections (Generic Git) use it too.
+func (p NetPolicy) Dialer() *net.Dialer {
+	return &net.Dialer{
 		Timeout: 10 * time.Second,
 		Control: func(_, address string, _ syscall.RawConn) error {
 			host, _, err := net.SplitHostPort(address)
@@ -97,6 +107,11 @@ func (p NetPolicy) Client() *http.Client {
 			return nil
 		},
 	}
+}
+
+// client builds the client; roots == nil means the system pool.
+func (p NetPolicy) client(roots *x509.CertPool) *http.Client {
+	dialer := p.Dialer()
 	tr := &http.Transport{
 		DialContext:           dialer.DialContext,
 		Proxy:                 http.ProxyFromEnvironment,
@@ -105,6 +120,9 @@ func (p NetPolicy) Client() *http.Client {
 		MaxIdleConnsPerHost:   4,
 		IdleConnTimeout:       60 * time.Second,
 		ForceAttemptHTTP2:     true,
+	}
+	if roots != nil {
+		tr.TLSClientConfig = &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12}
 	}
 	return &http.Client{
 		Transport: tr,

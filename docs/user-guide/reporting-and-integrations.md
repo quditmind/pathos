@@ -18,13 +18,16 @@ Dashboards, the executive overview and saved reports are described in [Dashboard
 For JSON webhooks, keep the signing secret shown at creation and check the `X-PATHOS-Signature` header on every request (see [Notifications API](../api-reference/notifications.md)). Internal addresses (for example an on-premises SIEM) need **Allow an internal address**.
 
 - Slack: create an *Incoming Webhook* for the channel and use its URL.
-- Teams: create a *Workflows* webhook (“Post to a channel when a webhook request is received”) and use its URL.
+- Teams: create a *Workflows* webhook (“Post to a channel when a webhook request is received”) and use its URL. Old Office 365 connector URLs (`webhook.office.com`) were retired in May 2026 and are refused. If the flow's **Who can trigger the flow** is *Any user in my tenant* or *Specific users in my tenant*, set **Trigger authentication** with a Microsoft Entra app (tenant ID, client ID, client secret); PATHOS then sends a bearer token with each message (see the [user guide](connectors.md#microsoft-teams-workflows)).
 
 ## Jira and ServiceNow
 
-An administrator (permission `settings.manage`) adds a connection under **Administration → Integrations**: the server URL, a technical user's credentials (Jira Cloud: e-mail + API token; Jira Data Center: a personal access token; ServiceNow: user + password or an OAuth token) and the Jira project or ServiceNow table. **Test** checks the credentials.
+An administrator (permission `settings.manage`) adds a connection under **Administration → Integrations**: the server URL, a technical user's credentials (Jira Cloud: e-mail + API token; Jira Data Center: a personal access token; ServiceNow: user + password or an OAuth token) and the Jira project or ServiceNow table. **Test** checks the credentials. A Jira Cloud API token created **with scopes** only works through the Atlassian API gateway: set **Token type** to *scoped* (see [Jira scoped API tokens](connectors.md#jira-scoped-api-tokens)).
 
 Then anyone who triages findings can open a finding and choose **Open a ticket in… → Create ticket**. The ticket contains the finding's facts and a link back to PATHOS, never code or secret values. The finding shows the ticket's key and status, refreshed every few minutes. Closing the ticket does not close the finding: the next scan does, once the issue is gone.
+
+
+With the PATHOS 3.0 feature flag `connectors` on, **Integrations** opens inside [Connectors](connectors.md) (**Monitoring › Manage in Integrations**) with the same actions (add, test, edit, delete); `/admin/integrations` then leads there.
 
 ## REST API tokens
 

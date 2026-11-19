@@ -4,7 +4,7 @@ section: troubleshooting
 order: 104
 version: "1.0"
 updated: 2026-11-20
-summary: Repository inventory, metadata re-sync, intelligence feeds and outbound deliveries (6 codes, PTH-SYNC-*)
+summary: Repository inventory, metadata re-sync, intelligence feeds and outbound deliveries (7 codes, PTH-SYNC-*)
 ---
 
 # Troubleshooting: Synchronisation
@@ -23,6 +23,7 @@ Repository inventory, metadata re-sync, intelligence feeds and outbound deliveri
 | [PTH-SYNC-1011](#PTH-SYNC-1011) | Repository inventory refresh failed | error |
 | [PTH-SYNC-1020](#PTH-SYNC-1020) | Intelligence feed download failed | warning |
 | [PTH-SYNC-1021](#PTH-SYNC-1021) | Feed file format not recognised | warning |
+| [PTH-SYNC-1022](#PTH-SYNC-1022) | Feed data older than twice its interval | warning |
 
 <a id="PTH-SYNC-1002"></a>
 
@@ -223,4 +224,37 @@ Repository inventory, metadata re-sync, intelligence feeds and outbound deliveri
 **Verify**
 
 1. The import run shows succeeded.
+
+
+<a id="PTH-SYNC-1022"></a>
+
+## PTH-SYNC-1022: Feed data older than twice its interval
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | data |
+| HTTP status | none (background work and logs) |
+| AI help | offered |
+| Raised in | internal/connectors/existing.go (checkFeed) |
+
+**What it means.** The last successful run of an intelligence or end-of-life feed is older than twice the feed's interval.
+
+**Confirmed cause.** The feed's newest data is older than twice its interval. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. Recent runs failed (see PTH-SYNC-1020)
+2. The installation is offline and no file was imported recently
+3. The jobs service was stopped
+
+**Impact.** Risk scores and end-of-life states use old data.
+
+**How to fix**
+
+1. Run the feed now on Configurations → Risk & intelligence, or import the current file (docs/AIRGAP.md).
+
+**Verify**
+
+1. The feed's last run succeeded within its interval.
 
