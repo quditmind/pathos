@@ -9,6 +9,7 @@ import { FormField } from "@/features/repos/metadata/fields";
 import { cn } from "@/lib/utils";
 import { AuthFields, authFieldBody, missingAuthFields } from "./AuthFields";
 import { startOAuth, useCreateConnection, useOAuthApps } from "./scmApi";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Step = "provider" | "method" | "details";
 
@@ -194,7 +195,7 @@ export function ConnectProviderDialog({
 
       {step === "details" && provider && method && (
         <div className="space-y-3">
-          {create.isError && !fieldErrors && <Alert>{create.error.message}</Alert>}
+          {create.isError && !fieldErrors && <ErrorPanel error={create.error} />}
           {missing.length > 0 && <Alert>Required: {missing.join(", ")}</Alert>}
           {oauthError && <Alert>{oauthError}</Alert>}
           <div className="grid gap-3 sm:grid-cols-2">

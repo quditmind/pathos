@@ -4,13 +4,14 @@ import { ApiError } from "@/api/client";
 import type { TagCategory, TagColor } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
-import { Alert, Badge, Input, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Input, Select, Skeleton } from "@/components/ui/primitives";
 import { paletteSwatch, TagChip, tagColorNames } from "@/components/data/TagChip";
 import { useCreateTag } from "@/features/assets/api";
 import { useSession } from "@/features/auth/session";
 import { cn } from "@/lib/utils";
 import { useTagCategories } from "../api";
 import { FormField } from "./fields";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Selects tag ids; keeps single-choice categories to one tag. */
 export function toggleTag(categories: TagCategory[], value: string[], tagId: string): string[] {
@@ -85,7 +86,7 @@ export function TagPicker({
       {cats.isPending ? (
         <Skeleton className="h-20" />
       ) : cats.isError ? (
-        <Alert>Could not load tags: {cats.error.message}</Alert>
+        <ErrorPanel error={cats.error} title="Could not load tags" />
       ) : !all.length ? (
         <p className="text-[12px] text-muted-foreground">No tag categories exist yet.</p>
       ) : (
@@ -131,7 +132,7 @@ function CreateTagInline({ categories, onCancel, onCreated }: { categories: TagC
   const fieldErr = create.error instanceof ApiError ? create.error.fields : undefined;
   return (
     <div className="space-y-3 rounded-md border border-primary/30 bg-primary/5 p-3">
-      {create.isError && !fieldErr && <Alert>{create.error.message}</Alert>}
+      {create.isError && !fieldErr && <ErrorPanel error={create.error} />}
       <div className="grid gap-3 sm:grid-cols-2">
         <FormField label="Category" required>
           <Select className="w-full" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>

@@ -1,9 +1,11 @@
 import { HelpDocPage, HelpHomePage, validateHelpSearch } from "@/features/help/HelpPages";
+import { TroubleshootingPage, validateTroubleshootingSearch } from "@/features/help/TroubleshootingPage";
 import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
 import { ApiError, loginUrl } from "@/api/client";
 import type { AuditRecord, UserStatus } from "@/api/types";
 import { AppShell } from "@/components/layout/AppShell";
 import { Alert, Spinner } from "@/components/ui/primitives";
+import { ErrorPanel } from "@/components/ui/error-panel";
 import { SessionProvider, useMe } from "@/features/auth/session";
 import { LoginPage } from "@/features/auth/LoginPage";
 import { DashboardPage, validateDashboardSearch } from "@/features/dashboard/DashboardPage";
@@ -76,6 +78,7 @@ import { AttributionSettingsPage } from "@/features/insights/AttributionSettings
 import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
 import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPage";
 import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
+import { FeatureFlagsPage } from "@/features/flags/FeatureFlagsPage";
 
 function Authenticated() {
   const me = useMe();
@@ -93,6 +96,16 @@ function Authenticated() {
     }
     if (me.error instanceof ApiError && me.error.code === "organization_suspended") {
       return <SuspendedOrganization />;
+    }
+    if (me.error instanceof ApiError && me.error.envelope) {
+      return (
+        <div className="mx-auto mt-20 max-w-xl space-y-3 px-4">
+          <ErrorPanel error={me.error} title="PATHOS is unavailable" onVerify={() => me.refetch()} />
+          <a className="text-[13px] underline" href={loginUrl()}>
+            Try signing in again
+          </a>
+        </div>
+      );
     }
     return (
       <div className="mx-auto mt-20 max-w-md px-4">
@@ -220,6 +233,7 @@ const executiveRoute = createRoute({ getParentRoute: () => appRoute, path: "/exe
 const reportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/reports", component: ReportsPage });
 const integrationsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/integrations", component: IntegrationsPage });
 const complianceRoute = createRoute({ getParentRoute: () => appRoute, path: "/compliance", component: CompliancePage });
+const featureFlagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/feature-flags", component: FeatureFlagsPage });
 const securitySettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/security", component: SecuritySettingsPage });
 const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
 const installationOrgsRoute = createRoute({ getParentRoute: () => appRoute, path: "/installation/organizations", component: OrganizationsAdminPage });
@@ -234,16 +248,26 @@ const hrConfigRoute = createRoute({ getParentRoute: () => appRoute, path: "/huma
 const hrWorkspaceRoute = createRoute({ getParentRoute: () => appRoute, path: "/human-review/reviews/$id", component: WorkspacePage, validateSearch: validateWorkspaceSearch });
 
 const helpRoute = createRoute({ getParentRoute: () => appRoute, path: "/help", component: HelpHomePage, validateSearch: validateHelpSearch });
+const troubleshootingRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/troubleshooting", component: TroubleshootingPage, validateSearch: validateTroubleshootingSearch });
 const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/$section/$slug", component: HelpDocPage });
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([helpRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+  appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 
-export const router = createRouter({ routeTree, defaultPreload: "intent" });
+/** Errors thrown while rendering or loading a route: the shared ErrorPanel (old error JSON still shows its message). */
+function RouteError({ error, reset }: { error: unknown; reset: () => void }) {
+  return (
+    <div className="mx-auto max-w-3xl py-6">
+      <ErrorPanel error={error} title="Something went wrong" onVerify={reset} />
+    </div>
+  );
+}
+
+export const router = createRouter({ routeTree, defaultPreload: "intent", defaultErrorComponent: RouteError });
 
 declare module "@tanstack/react-router" {
   interface Register {

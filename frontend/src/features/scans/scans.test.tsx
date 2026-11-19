@@ -30,19 +30,19 @@ const baseRoutes = {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("navigation", () => {
-  it("Scanning and Configurations have their entries", () => {
-    const scanning = groups.find((g) => g.label === "Scanning")!;
-    expect(scanning.items.map((i) => [i.label, i.to])).toEqual([
-      ["Scan Overview", "/scans/overview"],
+  // 3.0 sidebar (prompt §5): scanning lives in "6 · Assess"; scan targets and pull request checks moved to Inventory and Remediate.
+  it("Assess and Configurations have their entries", () => {
+    const assess = groups.find((g) => g.label === "6 · Assess")!;
+    expect(assess.items.map((i) => [i.label, i.to])).toEqual([
+      ["Scan overview", "/scans/overview"],
       ["Scans", "/scans"],
-      ["Scan Schedules", "/scans/schedules"],
-      ["Scan Comparison", "/scans/compare"],
-      ["Scan targets", "/scans/targets"],
-      ["Pull request checks", "/pull-requests"],
-      ["Import Results", "/scans/imports"],
+      ["Scan schedules", "/scans/schedules"],
+      ["Scan comparison", "/scans/compare"],
+      ["Import results", "/scans/imports"],
+      ["Findings", "/findings"],
     ]);
     const conf = groups.find((g) => g.label === "Configurations")!;
-    expect(conf.items.map((i) => [i.label, i.to])).toEqual([
+    expect(conf.items.slice(0, 4).map((i) => [i.label, i.to])).toEqual([
       ["Scan profiles", "/configurations/scan-profiles"],
       ["Scanners & workers", "/configurations/scanners"],
       ["Scan coverage", "/configurations/scan-coverage"],
@@ -55,7 +55,7 @@ describe("navigation", () => {
     mockApi({});
     renderApp(<AppShell><div /></AppShell>, { permissions: ["scans.read", "scans.compare", "scanners.read"] });
     const nav = await screen.findByRole("navigation", { name: "Main" });
-    for (const l of ["Scan Overview", "Scans", "Scan Schedules", "Scan Comparison", "Scan profiles", "Scanners & workers"]) {
+    for (const l of ["Scan overview", "Scans", "Scan schedules", "Scan comparison", "Scan profiles", "Scanners & workers"]) {
       expect(within(nav).getByRole("link", { name: l })).toBeInTheDocument();
     }
     expect(within(nav).getByText("Configurations")).toBeInTheDocument();

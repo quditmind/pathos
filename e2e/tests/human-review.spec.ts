@@ -20,14 +20,16 @@ for (const [path, heading] of pages) {
   });
 }
 
-test("Human Eye is a standalone navigation section", async ({ page }) => {
+test("Human Eye is a section of Validate & intelligence", async ({ page }) => {
   await page.goto("/human-review");
   const nav = page.getByRole("navigation", { name: "Main" });
+  // 3.0 sidebar: "Human Eye" is a sub-heading of "7 · Validate & intelligence"; labels follow §5.
+  await expect(nav.getByText("7 · Validate & intelligence", { exact: true })).toBeVisible();
   await expect(nav.getByText("Human Eye", { exact: true })).toBeVisible();
-  for (const label of ["Review Queue", "Assessments", "Assignments", "Review Reports", "Review Configurations"]) {
+  for (const label of ["Review queue", "Assessments", "Assignments", "Review reports", "Review configurations"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  await nav.getByRole("link", { name: "Review Queue" }).click();
+  await nav.getByRole("link", { name: "Review queue" }).click();
   await expect(page).toHaveURL(/\/human-review\/queue/);
 });
 

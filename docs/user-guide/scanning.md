@@ -1,6 +1,7 @@
 ---
 title: "Running scans: executions, schedules, targets and imports"
 section: user-guide
+group: assess
 order: 11
 version: "2.0"
 updated: 2026-11-19

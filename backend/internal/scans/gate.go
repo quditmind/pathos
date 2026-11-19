@@ -35,6 +35,9 @@ type Gate struct {
 	ThresholdCount   int            `json:"threshold_count"`
 	Passed           bool           `json:"passed"`
 	Reasons          []string       `json:"reasons"`
+	// ErrorCode is the error catalogue code when the gate does not pass:
+	// PTH-GATE-1002 when the scan did not succeed, else PTH-GATE-1001.
+	ErrorCode string `json:"error_code,omitempty"`
 }
 
 // openStatuses are the stored finding statuses that count as open.
@@ -134,10 +137,12 @@ func (s *Service) evaluateGate(ctx context.Context, j Job, failOn, scope string,
 	switch {
 	case !g.Finished:
 		g.Reasons = append(g.Reasons, "scan has not finished")
+		g.ErrorCode = "PTH-GATE-1002"
 	case j.Status == "succeeded":
 	case j.Status == "partial" && allowPartial:
 	default:
 		g.Reasons = append(g.Reasons, "scan status is "+j.Status)
+		g.ErrorCode = "PTH-GATE-1002"
 	}
 	if g.GateFailed {
 		g.Reasons = append(g.Reasons, "the execution's security gate failed")
@@ -153,5 +158,8 @@ func (s *Service) evaluateGate(ctx context.Context, j Job, failOn, scope string,
 		g.Reasons = append(g.Reasons, fmt.Sprintf("%d %s finding(s) at or above %s", g.ThresholdCount, what, failOn))
 	}
 	g.Passed = len(g.Reasons) == 0
+	if !g.Passed && g.ErrorCode == "" {
+		g.ErrorCode = "PTH-GATE-1001"
+	}
 	return g, nil
 }

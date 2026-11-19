@@ -4,9 +4,10 @@ import { api } from "@/api/client";
 import type { ApiToken } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { useAIMutation, useTokens } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function TokensPage() {
   const tokens = useTokens();
@@ -29,7 +30,7 @@ export function TokensPage() {
       <PageHeader title="API tokens" description="Personal tokens for the PATHOS MCP server (review findings from your own AI assistant) and for the REST API (scripts, CI, integrations). Tokens act with your current permissions, never more, and stop working when you are deactivated." />
       <Card className="mb-4 p-4">
         <form onSubmit={submit} className="flex flex-wrap items-end gap-3">
-          {create.isError && <div className="w-full"><Alert>{create.error.message}</Alert></div>}
+          {create.isError && <div className="w-full"><ErrorPanel error={create.error} /></div>}
           <div><Label htmlFor="t-name">Name</Label><Input id="t-name" required maxLength={100} placeholder="Claude Code on laptop" value={name} onChange={(e) => setName(e.target.value)} className="w-64" /></div>
           <div><Label htmlFor="t-days">Expires in</Label>
             <Select id="t-days" value={days} onChange={(e) => setDays(e.target.value)}>{["7", "30", "90"].map((d) => <option key={d} value={d}>{d} days</option>)}</Select></div>

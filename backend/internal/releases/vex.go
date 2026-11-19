@@ -9,6 +9,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"pathos/internal/platform/buildinfo"
 )
 
 // VEX (Vulnerability Exploitability eXchange) documents: OpenVEX v0.2.0
@@ -172,7 +174,7 @@ func OpenVEXDocument(author, docID string, stmts []Statement, now time.Time) ([]
 		Version   int    `json:"version"`
 		Tooling   string `json:"tooling"`
 		Stmts     []stmt `json:"statements"`
-	}{Context: "https://openvex.dev/ns/v0.2.0", ID: docID, Author: author, Timestamp: ts, Version: 1, Tooling: "PATHOS", Stmts: []stmt{}}
+	}{Context: "https://openvex.dev/ns/v0.2.0", ID: docID, Author: author, Timestamp: ts, Version: 1, Tooling: buildinfo.Stamp(now), Stmts: []stmt{}}
 	for _, s := range stmts {
 		x := stmt{Vulnerability: vuln{Name: s.Vulnerability}, Status: s.Status, Justification: s.Justification,
 			ImpactStatement: s.ImpactStatement, ActionStatement: s.ActionStatement}
@@ -280,8 +282,10 @@ func CycloneDXVEXDocument(subject, subjectVersion string, stmts []Statement, now
 		"version":      1,
 		"metadata": map[string]any{
 			"timestamp": now.UTC().Format(time.RFC3339),
-			"tools":     map[string]any{"components": []map[string]string{{"type": "application", "name": "PATHOS"}}},
-			"component": subj,
+			"tools": map[string]any{"components": []map[string]string{{"type": "application", "publisher": buildinfo.Vendor,
+				"name": buildinfo.Product, "version": buildinfo.Version}}},
+			"component":  subj,
+			"properties": []map[string]string{{"name": "pathos:generated-by", "value": buildinfo.Stamp(now)}, {"name": "pathos:build", "value": buildinfo.Commit}},
 		},
 		"components":      comps,
 		"vulnerabilities": vulns,

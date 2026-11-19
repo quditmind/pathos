@@ -407,3 +407,9 @@ Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside
 | `findings_open_sca_package_idx` | Open vulnerabilities per component in the SBOM inventory: `(package_name, package_version, repository_id)` for open SCA findings |
 
 The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.
+
+## Feature flags (migration 00043)
+
+| Table | Purpose |
+|---|---|
+| `feature_flags` | One row per organization and flag that an administrator has set: `name` (lower-case, `^[a-z][a-z0-9_]{1,62}$`), `enabled`, `updated_by`, `updated_at`; unique per `(organization_id, name)`. A flag without a row is off. The known flags are defined in code (`internal/featureflags`). Tenant table: it gets the standard row-level security policy from `pathos_apply_app_grants()` (docs/MULTI_TENANCY.md). Changes are audited (`feature_flag.update`) |

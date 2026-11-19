@@ -89,7 +89,7 @@ func New(cfg Config, log *slog.Logger) *Agent {
 	if cfg.SandboxDir != "" {
 		s, err := OpenSandbox(cfg.SandboxDir)
 		if err != nil {
-			log.Error("sandbox unavailable: tools that run repository code are skipped", "err", err)
+			log.Error("sandbox unavailable: tools that run repository code are skipped", "err", err, "error_code", "PTH-WORK-1004")
 		} else {
 			sandbox = s
 		}
@@ -512,7 +512,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 			rep.logf("info", "%s succeeded in %s", js.Key, took)
 		}
 		if _, err := a.call(parent, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/results", a.token, res, nil); err != nil {
-			log.Error("result upload failed", "scanner", js.Key, "err", err)
+			log.Error("result upload failed", "scanner", js.Key, "err", err, "error_code", "PTH-WORK-1005")
 			rep.logf("error", "uploading %s results failed: %v", js.Key, err)
 		}
 		log.Info("scanner finished", "scanner", js.Key, "status", res.Status, "duration_ms", res.DurationMS)
@@ -605,7 +605,7 @@ func (a *Agent) complete(ctx context.Context, job Job, failure, commitSHA string
 		body["commit_sha"] = commitSHA
 	}
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/complete", a.token, body, nil); err != nil {
-		a.log.Error("complete failed", "job_id", job.JobID, "err", err)
+		a.log.Error("complete failed", "job_id", job.JobID, "err", err, "error_code", "PTH-WORK-1005")
 	}
 }
 

@@ -232,9 +232,10 @@ func TestNoOrganizationFromClientInput(t *testing.T) {
 // (RequireAuth): health, sign-in, inbound SCM webhooks (signature-checked
 // per connection), the MCP endpoint (its own token authentication) and the
 // organization switcher (session-checked, usable while the session's
-// organization is suspended).
+// organization is suspended) and the product metadata (product, vendor and
+// version without authentication; the rest only with a principal).
 var publicRoutes = []string{
-	"GET /healthz", "GET /readyz", "GET /api/auth/login", "GET /api/auth/callback",
+	"GET /healthz", "GET /readyz", "GET /api/auth/login", "GET /api/auth/callback", "GET /api/v1/meta",
 	"GET /api/v1/me/organizations", "POST /api/v1/me/organization", "/mcp", "/api/", "/api",
 	"POST /api/webhooks/github/{id}", "POST /api/webhooks/azure-devops/{id}", "POST /api/webhooks/gitlab/{id}", "POST /api/webhooks/bitbucket/{id}",
 }

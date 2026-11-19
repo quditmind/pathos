@@ -228,7 +228,7 @@ type pluginMeta struct {
 func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	if s.BootstrapToken == "" || subtle.ConstantTimeCompare([]byte(bearer(r)), []byte(s.BootstrapToken)) != 1 {
-		httpx.WriteError(w, r, s.Log, httpx.ErrUnauthenticated)
+		httpx.WriteError(w, r, s.Log, httpx.ErrUnauthenticated.WithDiag("PTH-WORK-1003"))
 		return
 	}
 	var req registerRequest
@@ -237,7 +237,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !workerNameRe.MatchString(req.Name) || req.Family == "" || len(req.Family) > 40 || len(req.Version) > 100 || len(req.Scanners) > 700 || len(req.Organization) > 63 {
-		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid worker registration"))
+		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid worker registration").WithDiag("PTH-WORK-1003"))
 		return
 	}
 	orgID := s.OrgID
@@ -247,7 +247,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		var status string
 		err := s.DB.QueryRow(tenant.WithSystem(ctx), `SELECT id, status FROM organizations WHERE slug = $1`, req.Organization).Scan(&orgID, &status)
 		if err != nil || status != "active" {
-			httpx.WriteError(w, r, s.Log, httpx.BadRequest("unknown or suspended organization"))
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("unknown or suspended organization").WithDiag("PTH-WORK-1003"))
 			return
 		}
 	}
@@ -505,6 +505,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 	if s.CloneCredential != nil && connID != nil && job.Source == nil {
 		cred, err := s.CloneCredential(ctx, wk.orgID, *connID)
 		if err != nil {
+			s.Log.Warn("scan failed: no clone credential", "job_id", job.JobID, "request_id", httpx.RequestID(r), "error_code", "PTH-SCAN-1001", "err", err)
 			s.failJob(ctx, job.JobID, "could not obtain clone credential: "+safeErr(err))
 			w.WriteHeader(http.StatusNoContent)
 			return
@@ -663,7 +664,9 @@ func (s *Service) uploadResult(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		var he *httpx.Error
 		if !errors.As(err, &he) {
-			s.Log.Error("result ingestion failed", "job_id", id, "scanner", up.Scanner, "err", err)
+			s.Log.Error("result ingestion failed", "job_id", id, "scanner", up.Scanner, "err", err,
+				"request_id", httpx.RequestID(r), "error_code", "PTH-SCAN-1003")
+			err = httpx.E(http.StatusInternalServerError, "internal", "internal server error").WithDiag("PTH-SCAN-1003")
 		}
 		httpx.WriteError(w, r, s.Log, err)
 		return

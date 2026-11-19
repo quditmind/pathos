@@ -176,7 +176,7 @@ func (s *Service) refreshInventory(w http.ResponseWriter, r *http.Request) {
 		Action: "scm.inventory_refresh", TargetType: "scm_connection", TargetID: id.String(),
 		Metadata: map[string]any{"status": run.Status, "repositories": run.Repositories}})
 	if run.Status == "failed" {
-		httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"error": map[string]any{"code": "inventory_failed", "message": run.Error}, "run": run})
+		httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"error": httpx.ErrorObject(r, httpx.E(http.StatusBadGateway, "inventory_failed", run.Error)), "request_id": httpx.RequestID(r), "run": run})
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, run)

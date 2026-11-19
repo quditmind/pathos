@@ -458,7 +458,7 @@ func (s *Service) requestAIFix(w http.ResponseWriter, r *http.Request) {
 		}
 		_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "ai_fix.rate_limited", TargetType: "finding", TargetID: f.ID.String(), Metadata: map[string]any{"user_last_hour": mine, "org_last_day": org}})
-		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", msg))
+		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", msg).WithDiag("PTH-AI-1008"))
 		return
 	}
 	src, err := s.ReadSource(ctx, p.OrganizationID, f.RepoID, f.Commit, f.File)

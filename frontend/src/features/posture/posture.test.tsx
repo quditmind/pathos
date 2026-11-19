@@ -19,9 +19,13 @@ const group = (over: Partial<PostureGroup>): PostureGroup => ({
 });
 
 describe("posture navigation", () => {
-  it("has a Posture section", () => {
-    const g = groups.find((x) => x.label === "Posture")!;
-    expect(g.items.map((i) => i.to)).toEqual(["/posture", "/posture/coverage", "/posture/unmanaged", "/posture/benchmark", "/posture/attack-paths", "/compliance", "/posture/blast-radius", "/posture/graph"]);
+  // 3.0 sidebar (prompt §5): the posture pages moved into the lifecycle phases.
+  it("places the posture pages in their lifecycle phases", () => {
+    const to = (label: string) => groups.find((x) => x.label === label)!.items.map((i) => i.to).filter(Boolean);
+    expect(to("2 · Inventory")).toEqual(expect.arrayContaining(["/posture/unmanaged", "/posture/coverage"]));
+    expect(to("3 · Discover")).toContain("/posture/graph");
+    expect(to("4 · Threat model")).toEqual(["/posture/attack-paths", "/posture/blast-radius"]);
+    expect(to("9 · Report & monitor")).toEqual(expect.arrayContaining(["/posture", "/posture/benchmark", "/compliance"]));
   });
 });
 

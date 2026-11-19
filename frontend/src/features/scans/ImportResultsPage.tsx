@@ -9,6 +9,7 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { formatDateTime } from "@/lib/utils";
 import { TOOL_CATEGORIES, categoryName } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface ImportJob {
   id: string;
@@ -113,7 +114,7 @@ function ImportForm({ kind, formats }: { kind: "results" | "sbom"; formats?: Imp
         if (ok) m.mutate();
       }}
     >
-      {m.error && <Alert>{m.error.message}</Alert>}
+      {m.error && <ErrorPanel error={m.error} />}
       {m.data && (
         <Alert tone="success">
           Imported {m.data.records} {kind === "results" ? "findings" : "components"} ({formats?.find((f) => f.id === m.data.format)?.label ?? formatLabel[m.data.format] ?? m.data.format}).{" "}
@@ -229,7 +230,7 @@ export function ImportResultsPage() {
       <Card>
         <h2 className="border-b border-border px-4 py-2.5 text-[13px] font-semibold">Import history</h2>
         {hist.isError ? (
-          <div className="p-4"><Alert>{hist.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={hist.error} /></div>
         ) : hist.isPending ? (
           <Skeleton className="m-4 h-24" />
         ) : !hist.data?.length ? (

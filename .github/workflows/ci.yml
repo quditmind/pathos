@@ -203,6 +203,8 @@ jobs:
       - name: Build images
         # Family worker images are opt-in profiles; build them too so the
         # image scan covers them.
+        env:
+          PATHOS_COMMIT: ${{ github.sha }}
         run: docker compose --profile sast --profile iac --profile sca --profile dast --profile mobile --profile binary --profile ai --profile fuzz build
       - name: Fuzz sandbox isolation (malicious harness in the built image)
         run: workers/fuzz/test/sandbox-e2e.sh pathos-worker-fuzz:dev

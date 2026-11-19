@@ -1,6 +1,7 @@
 ---
 title: Security policies and compliance
 section: user-guide
+group: remediate
 order: 21
 version: "1.0"
 updated: 2026-11-19

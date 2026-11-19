@@ -51,7 +51,7 @@ func (s *Service) Generate(ctx context.Context, orgID uuid.UUID, system, task st
 	}
 	data := Redact(string(body), extra)
 	if len(data) > maxGeneratePayload {
-		return GenerateResult{}, fmt.Errorf("ai: the request is too large (%d bytes after redaction)", len(data))
+		return GenerateResult{}, ErrTooLarge{Bytes: len(data)}
 	}
 	id := nonce()
 	user := fmt.Sprintf("Task: %s\n\n<untrusted_evidence id=%q>\n%s\n</untrusted_evidence id=%q>", task, id, data, id)

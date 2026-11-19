@@ -69,7 +69,7 @@ func (a *Agent) tryFix(ctx context.Context) bool {
 	}
 	res := a.runFix(ctx, job)
 	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/fix-jobs/"+job.FixID+"/result", a.token, res, nil); err != nil {
-		a.log.Error("fix result upload failed", "fix_id", job.FixID, "err", err)
+		a.log.Error("fix result upload failed", "fix_id", job.FixID, "err", err, "error_code", "PTH-WORK-1005")
 	}
 	return true
 }

@@ -1,6 +1,7 @@
 ---
 title: Sign-in, MFA and single sign-on
 section: user-guide
+group: administration
 order: 2
 version: "1.0"
 updated: 2026-11-19
@@ -71,3 +72,7 @@ To send everyone straight to your provider, set it as the default in **Authentic
 | *Invalid redirect URI* at the provider | The redirect / ACS URL must be exactly `<PATHOS URL>/auth/realms/pathos/broker/<alias>/endpoint` |
 | PATHOS shows *sign-in failed* after Keycloak | The provider sent no e-mail address: map the `email` claim or attribute |
 | User signed in but sees nothing | Expected: grant a role in **Users**, or invite the e-mail address beforehand with **Trust email** on |
+
+## Troubleshooting
+
+When sign-in fails, the sign-in page says why and shows the error code (`PTH-AUTH-…`) with its title. Select **Causes and fixes** to read the catalogue entry; it is bundled with PATHOS, so it shows even when you cannot sign in. Give the code to your administrator; all sign-in codes are listed in the Troubleshooting centre (`/help/troubleshooting/auth`).

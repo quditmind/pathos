@@ -9,6 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Input, Label, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export type EndpointStatus = "verified" | "unreachable" | "dns_failed" | "blocked" | "skipped" | "error" | "not_checked";
 
@@ -109,7 +110,7 @@ export function EndpointVerificationSection({ r }: { r: Repository }) {
   const canManage = (r.can_manage ?? can("repos.manage")) && !r.archived_at;
   const canRun = can("scans.run") && !r.archived_at;
   if (q.isPending) return <Skeleton className="h-16" />;
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   const v = q.data;
   const declared = v.endpoints.length > 0;
   return (
@@ -138,8 +139,8 @@ export function EndpointVerificationSection({ r }: { r: Repository }) {
         </div>
       </div>
       {v.offline && <Alert tone="warning">PATHOS runs offline (PATHOS_OFFLINE=true): declared endpoints are not contacted, so verification is disabled.</Alert>}
-      {run.error && <Alert>{run.error.message}</Alert>}
-      {toggle.error && <Alert>{toggle.error.message}</Alert>}
+      {run.error && <ErrorPanel error={run.error} />}
+      {toggle.error && <ErrorPanel error={toggle.error} />}
       {run.data && (
         <Alert tone="success">
           Verification {run.data.coalesced ? "already queued" : "queued"}.{" "}
@@ -258,7 +259,7 @@ function EndpointVerificationDialog({ open, onClose, repoId, v }: { open: boolea
       }
     >
       <div className="space-y-3">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div>
           <span className="mb-1 block text-[12px] font-medium">Endpoints covered</span>
           <ul className="max-h-32 overflow-auto rounded-md border border-border p-2 font-mono text-[12px]">

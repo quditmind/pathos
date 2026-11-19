@@ -17,13 +17,16 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/compliance"
 	"pathos/internal/dashboard"
+	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
+	"pathos/internal/featureflags"
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
 	"pathos/internal/org"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/objstore"
@@ -47,9 +50,6 @@ import (
 	"pathos/internal/tickets"
 	"pathos/internal/vuln"
 )
-
-// Version is set at build time with -ldflags.
-var Version = "dev"
 
 type Deps struct {
 	DB          *pgxpool.Pool
@@ -102,7 +102,7 @@ func Build(d Deps) Handlers {
 
 	public := http.NewServeMux()
 	public.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": Version})
+		httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ok", "version": buildinfo.Version})
 	})
 	public.HandleFunc("GET /readyz", readiness(d))
 	public.HandleFunc("GET /api/auth/login", d.Auth.HandleLogin)
@@ -124,6 +124,10 @@ func Build(d Deps) Handlers {
 	}
 	repoSvc.RegisterPublic(public)
 	aiSvc := NewAIService(d, az)
+	// Product metadata (GET /api/v1/meta answers without authentication
+	// with product, vendor and version only) and the diagnostic engine.
+	diagSvc := &diagnostics.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, WorkerOnlineWindow: scans.WorkerOnlineWindow}
+	diagSvc.RegisterPublic(public)
 	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
 	// After a scan: AI auto-review first, then the Human Eye queue picks
 	// up findings that need a person.
@@ -226,6 +230,8 @@ func Build(d Deps) Handlers {
 	mcpSvc.Register(protected)
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
+	diagSvc.Register(protected)
+	(&featureflags.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)
 	})

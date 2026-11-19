@@ -30,11 +30,10 @@ import (
 	"syscall"
 	"time"
 
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/logging"
 	"pathos/internal/worker"
 )
-
-var version = "dev"
 
 func env(k, def string) string {
 	if v := os.Getenv(k); v != "" {
@@ -57,7 +56,7 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == "run-local" {
 		os.Exit(runLocal(os.Args[2:]))
 	}
-	log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-worker")
+	log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-worker", "version", buildinfo.Version, "commit", buildinfo.ShortCommit())
 	token := os.Getenv("PATHOS_WORKER_BOOTSTRAP_TOKEN")
 	if token == "" {
 		fmt.Fprintln(os.Stderr, "PATHOS_WORKER_BOOTSTRAP_TOKEN is required")
@@ -80,7 +79,7 @@ func main() {
 		ClamAVAddress:  strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
 		SandboxDir:     strings.TrimSpace(os.Getenv(worker.SandboxDirEnv)),
 		RulesDirs:      strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
-		Version:        version,
+		Version:        buildinfo.Version,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -117,7 +116,7 @@ func runLocal(args []string) int {
 		ClamAVAddress: strings.TrimSpace(os.Getenv("PATHOS_CLAMAV_ADDRESS")),
 		SandboxDir:    strings.TrimSpace(os.Getenv(worker.SandboxDirEnv)),
 		RulesDirs:     strings.Split(env("PATHOS_RULES_DIRS", "/opt/pathos/rules:/rules"), ":"),
-		Version:       version,
+		Version:       buildinfo.Version,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

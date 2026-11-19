@@ -17,6 +17,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/platform/db"
+	"pathos/internal/platform/diag"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/scm"
 )
@@ -429,23 +430,26 @@ func (s *Service) createImport(w http.ResponseWriter, r *http.Request) {
 
 // ImportItemView is the API form of an item (frontend ImportItem).
 type ImportItemView struct {
-	ID              uuid.UUID  `json:"id"`
-	Position        int        `json:"position"`
-	DisplayName     string     `json:"display_name"`
-	Status          string     `json:"status"`
-	Stage           string     `json:"stage"`
-	Result          string     `json:"result"`
-	Progress        int        `json:"progress"`
-	ProgressMessage string     `json:"progress_message"`
-	ErrorCode       string     `json:"error_code"`
-	ErrorMessage    string     `json:"error_message"`
-	Attempts        int        `json:"attempts"`
-	MaxAttempts     int        `json:"max_attempts"`
-	RepositoryID    *uuid.UUID `json:"repository_id"`
-	SnapshotID      *uuid.UUID `json:"snapshot_id"`
-	StartedAt       *time.Time `json:"started_at"`
-	CompletedAt     *time.Time `json:"completed_at"`
-	CanRetry        bool       `json:"can_retry"`
+	ID              uuid.UUID `json:"id"`
+	Position        int       `json:"position"`
+	DisplayName     string    `json:"display_name"`
+	Status          string    `json:"status"`
+	Stage           string    `json:"stage"`
+	Result          string    `json:"result"`
+	Progress        int       `json:"progress"`
+	ProgressMessage string    `json:"progress_message"`
+	ErrorCode       string    `json:"error_code"`
+	// ErrorDiagCode is the error catalogue code of ErrorCode
+	// (backend/internal/platform/diag; "import:<error_code>").
+	ErrorDiagCode string     `json:"error_diag_code,omitempty"`
+	ErrorMessage  string     `json:"error_message"`
+	Attempts      int        `json:"attempts"`
+	MaxAttempts   int        `json:"max_attempts"`
+	RepositoryID  *uuid.UUID `json:"repository_id"`
+	SnapshotID    *uuid.UUID `json:"snapshot_id"`
+	StartedAt     *time.Time `json:"started_at"`
+	CompletedAt   *time.Time `json:"completed_at"`
+	CanRetry      bool       `json:"can_retry"`
 }
 
 // ImportJobView is the API form of a job (frontend ImportJob).
@@ -528,8 +532,12 @@ func (s *Service) loadImport(ctx context.Context, p *authz.Principal, id uuid.UU
 		}
 		j.Items, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (ImportItemView, error) {
 			var it ImportItemView
-			return it, row.Scan(&it.ID, &it.Position, &it.DisplayName, &it.Status, &it.Stage, &it.Result, &it.Progress, &it.ProgressMessage,
+			err := row.Scan(&it.ID, &it.Position, &it.DisplayName, &it.Status, &it.Stage, &it.Result, &it.Progress, &it.ProgressMessage,
 				&it.ErrorCode, &it.ErrorMessage, &it.Attempts, &it.MaxAttempts, &it.RepositoryID, &it.SnapshotID, &it.StartedAt, &it.CompletedAt)
+			if it.ErrorCode != "" {
+				it.ErrorDiagCode = diag.ForLegacy("import:" + it.ErrorCode)
+			}
+			return it, err
 		})
 		if err != nil {
 			return j, err

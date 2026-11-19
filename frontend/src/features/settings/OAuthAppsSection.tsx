@@ -9,6 +9,7 @@ import { Alert, Card, EmptyState, Input, Select, Skeleton } from "@/components/u
 import { FormField } from "@/features/repos/metadata/fields";
 import { formatDateTime } from "@/lib/utils";
 import { oauthHints, providerLabels, useDeleteOAuthApp, useOAuthApps, useSaveOAuthApp } from "./scmApi";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const oauthProviders = Object.keys(oauthHints) as OAuthApp["provider"][];
 
@@ -191,7 +192,7 @@ function OAuthAppDialog({ app, initialProvider, onClose }: { app: OAuthApp | nul
       }
     >
       <div className="space-y-3">
-        {save.isError && !fields && <Alert>{save.error.message}</Alert>}
+        {save.isError && !fields && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 sm:grid-cols-2">
           <FormField label="Provider" required>
             <Select

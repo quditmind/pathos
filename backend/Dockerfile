@@ -5,10 +5,16 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY . .
+# Build metadata (docs/OPERATIONS.md, "Build metadata"): served by
+# GET /api/v1/meta and printed by `pathosctl version`.
 ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X pathos/internal/server.Version=${VERSION}" -o /out/pathos ./cmd/pathos && \
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /out/pathosctl ./cmd/pathosctl && \
+    BI=pathos/internal/platform/buildinfo; \
+    LDFLAGS="-s -w -X ${BI}.Version=${VERSION} -X ${BI}.Commit=${COMMIT} -X ${BI}.BuildDate=${BUILD_DATE}"; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "${LDFLAGS}" -o /out/pathos ./cmd/pathos && \
+    CGO_ENABLED=0 go build -trimpath -ldflags "${LDFLAGS}" -o /out/pathosctl ./cmd/pathosctl && \
     mkdir -p /out/state/sources /out/state/work
 
 FROM gcr.io/distroless/static-debian13:nonroot@sha256:aafe993665bf6200db38a02c11a9351e782a84b6a45e7f33b6695638c88e3931

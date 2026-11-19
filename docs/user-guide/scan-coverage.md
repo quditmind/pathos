@@ -1,6 +1,7 @@
 ---
 title: Scan coverage
 section: user-guide
+group: configurations
 order: 10
 version: "2.0"
 updated: 2026-11-19

@@ -7,6 +7,7 @@ import type { Severity } from "@/api/types";
 import { Alert, Badge, EmptyState, Input, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { type DepComponent, type PathNode, relationLabel, useDependencyGraph } from "./api";
 import { EOLBadge } from "./EndOfLifePanel";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function relationOf(depth: number | null) {
   return depth == null ? "unknown" : depth === 0 ? "root" : depth === 1 ? "direct" : "transitive";
@@ -78,7 +79,7 @@ export function DependencyPanel({ repoId }: { repoId: string }) {
         (!health || (health === "outdated" ? c.outdated : health === "eol" ? c.eol_status === "eol" || c.eol_status === "approaching" : c.deprecated)),
     );
   }, [g.data, q, rel, vulnOnly, health]);
-  if (g.isError) return <Alert>{g.error.message}</Alert>;
+  if (g.isError) return <ErrorPanel error={g.error} />;
   if (g.isPending) return <Skeleton className="h-40" />;
   const st = g.data.stats;
   if (!st.components) return <EmptyState icon={<Package />} title="No SBOM yet">Run a scan with SBOM generation or import an SBOM.</EmptyState>;

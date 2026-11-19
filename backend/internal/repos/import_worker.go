@@ -17,6 +17,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/identity"
 	"pathos/internal/platform/db"
+	"pathos/internal/platform/diag"
 	"pathos/internal/platform/tenant"
 	"pathos/internal/scm"
 )
@@ -326,17 +327,17 @@ func (s *Service) runImportItem(parent context.Context, it importItem, owner str
 			progress_message = 'Retrying after a temporary error', updated_at = now()
 			WHERE id = $1 AND lease_owner = $2`, it.ID, owner, delay.String(), ie.Code, truncate(ie.Msg, 1000))
 		_ = refreshJobStatus(bg, s.DB, it.JobID)
-		log.Warn("import item will be retried", "code", ie.Code, "in", delay)
+		log.Warn("import item will be retried", "code", ie.Code, "in", delay, "error_code", diag.ForLegacy("import:"+ie.Code))
 	case errors.As(err, &ie):
 		status := StatusFailed
 		if ie.Attention {
 			status = StatusNeedsAttention
 		}
 		s.finishItem(bg, it, owner, status, res, ie.Code, ie.Msg)
-		log.Warn("import item stopped", "status", status, "code", ie.Code, "msg", ie.Msg)
+		log.Warn("import item stopped", "status", status, "code", ie.Code, "msg", ie.Msg, "error_code", diag.ForLegacy("import:"+ie.Code))
 	default:
 		s.finishItem(bg, it, owner, StatusFailed, res, "internal_error", "an internal error occurred; see the server log")
-		log.Error("import item failed", "err", err)
+		log.Error("import item failed", "err", err, "error_code", "PTH-ONB-1005")
 	}
 }
 

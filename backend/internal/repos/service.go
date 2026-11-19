@@ -111,9 +111,12 @@ func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {
 		err = httpx.BadRequest("a referenced item (application, business unit, country, user or tag) does not exist")
 	case errors.Is(err, scm.ErrAuth), errors.Is(err, scm.ErrBlockedAddress), errors.Is(err, scm.ErrNotFound),
 		errors.Is(err, scm.ErrForbidden), errors.Is(err, scm.ErrRateLimited), errors.Is(err, scm.ErrTokenExpired):
-		err = httpx.E(http.StatusBadGateway, "scm_error", err.Error())
+		err = httpx.E(http.StatusBadGateway, "scm_error", err.Error()).WithDiag(scm.DiagCode(err))
 	case errors.Is(err, scm.ErrNotSupported):
-		err = httpx.BadRequest("not supported by this provider")
+		err = httpx.BadRequest("not supported by this provider").WithDiag(scm.DiagCode(err))
+	case scm.DiagCode(err) != "" && !isHTTPError(err):
+		// Transport, certificate and timeout errors name only the host.
+		err = httpx.E(http.StatusBadGateway, "scm_error", err.Error()).WithDiag(scm.DiagCode(err))
 	}
 	httpx.WriteError(w, r, s.Log, err)
 }
@@ -293,4 +296,10 @@ func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.
 		cred.Scheme = "bearer"
 	}
 	return cred, err
+}
+
+// isHTTPError reports whether err already is an API error.
+func isHTTPError(err error) bool {
+	var he *httpx.Error
+	return errors.As(err, &he)
 }

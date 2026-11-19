@@ -61,7 +61,7 @@ func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, ai.ErrNotConfigured):
 		err = httpx.E(http.StatusConflict, "ai_not_configured", "No AI provider is configured: an administrator must add one under AI settings")
 	case errors.Is(err, ai.ErrRateLimited):
-		err = httpx.E(http.StatusTooManyRequests, "rate_limited", "the AI provider rate limit was reached; try again later")
+		err = httpx.E(http.StatusTooManyRequests, "rate_limited", "the AI provider rate limit was reached; try again later").WithDiag("PTH-AI-1004")
 	case errors.Is(err, ai.ErrRefused):
 		err = httpx.E(http.StatusUnprocessableEntity, "ai_refused", "the AI provider declined this request")
 	}
@@ -306,7 +306,7 @@ func (s *Service) ask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if used >= dailyQuestions {
-		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", "the limit of 200 questions per day was reached"))
+		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", "the limit of 200 questions per day was reached").WithDiag("PTH-AI-1008"))
 		return
 	}
 	cctx, err := s.buildContext(ctx, p, q)

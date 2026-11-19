@@ -1,12 +1,13 @@
 import { Download, FileText, Printer } from "lucide-react";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { exportUrl, useReport } from "./api";
 import { useFilterNav } from "./QueuePage";
 import { dispositionLabel, fmtHours, humanize, remediationLabel, ReviewFilterBar, ReviewKeyLink } from "./shared";
 import type { Count, Disposition } from "./types";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function Stat({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
@@ -74,7 +75,7 @@ export function ReportsPage() {
           show={["date", "repository", "application", "scanner", "reviewer", "severity", "disposition"]}
         />
       </Card>
-      {rep.isError && <Alert>Could not load the report: {rep.error.message}</Alert>}
+      {rep.isError && <ErrorPanel error={rep.error} title="Could not load the report" />}
       {rep.isPending ? (
         <Skeleton className="h-96" />
       ) : r ? (

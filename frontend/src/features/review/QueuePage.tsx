@@ -20,6 +20,7 @@ import {
   StatusBadge,
 } from "./shared";
 import type { Priority, ReviewFilters, ReviewItem } from "./types";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const validateReviewSearch = (s: Record<string, unknown>): ReviewFilters => filtersFromSearch(s, allFilterKeys);
 
@@ -129,7 +130,7 @@ export function ReviewsTable({
   return (
     <>
       {q.isError ? (
-        <div className="p-4"><Alert>Could not load reviews: {q.error.message}</Alert></div>
+        <div className="p-4"><ErrorPanel error={q.error} title="Could not load reviews" /></div>
       ) : q.isPending ? (
         <div className="space-y-2 p-4">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="h-9" />)}</div>
       ) : rows.length === 0 ? (
@@ -250,7 +251,7 @@ export function BulkDialog({ ids, open, onOpenChange, onDone }: { ids: string[];
       }
     >
       <div className="space-y-3">
-        {m.error && <Alert>{m.error.message}</Alert>}
+        {m.error && <ErrorPanel error={m.error} />}
         <div>
           <Label htmlFor="bulk-action">Action</Label>
           <Select id="bulk-action" value={action} onChange={(e) => setAction(e.target.value as typeof action)} className="w-full">
@@ -332,7 +333,7 @@ export function QueuePage() {
           <Alert tone="success">{sync.data.created ? `${sync.data.created} finding(s) added to the queue.` : "The queue is up to date."}</Alert>
         </div>
       )}
-      {sync.error && <div className="mb-3"><Alert>{sync.error.message}</Alert></div>}
+      {sync.error && <div className="mb-3"><ErrorPanel error={sync.error} /></div>}
       <Card>
         <div className="space-y-2 border-b border-border p-3">
           <ReviewFilterBar

@@ -131,7 +131,7 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if used >= aiDailyLimitPerUser {
-		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", fmt.Sprintf("the limit of %d AI suggestions per day was reached", aiDailyLimitPerUser)))
+		s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", fmt.Sprintf("the limit of %d AI suggestions per day was reached", aiDailyLimitPerUser)).WithDiag("PTH-AI-1008"))
 		return
 	}
 	ev, _, err := ai.LoadEvidence(ctx, s.DB, p.OrganizationID, v.FindingID, st.AISendCode)
@@ -204,7 +204,7 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 		case errors.Is(err, ai.ErrNotConfigured):
 			s.fail(w, r, httpx.E(http.StatusConflict, "ai_not_configured", "No AI provider is configured: an administrator must add one under AI settings"))
 		case errors.Is(err, ai.ErrRateLimited):
-			s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", "the AI provider rate limit was reached; try again later"))
+			s.fail(w, r, httpx.E(http.StatusTooManyRequests, "rate_limited", "the AI provider rate limit was reached; try again later").WithDiag("PTH-AI-1004"))
 		case errors.Is(err, ai.ErrRefused):
 			s.fail(w, r, httpx.E(http.StatusUnprocessableEntity, "ai_refused", "the AI provider declined this request"))
 		default:

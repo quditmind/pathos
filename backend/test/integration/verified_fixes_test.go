@@ -244,7 +244,9 @@ func TestVerifiedAIFixes(t *testing.T) {
 		t.Fatalf("enable fix PRs: %d", code)
 	}
 	code, opened := h.user(admin, "POST", pr, nil)
-	if code != 202 || opened["kind"] != "ai_code" || opened["status"] != "creating" {
+	// The pull request is created in the background; on a fast machine it
+	// may already be open when the response is built.
+	if st := opened["status"]; code != 202 || opened["kind"] != "ai_code" || (st != "creating" && st != "open") {
 		t.Fatalf("open PR: %d %v", code, opened)
 	}
 	waitFixStatus(t, opened["id"].(string), "open")

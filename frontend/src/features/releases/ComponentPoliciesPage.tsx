@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { usePolicies, useReleasesMutation, useViolations, type ComponentPolicy } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const kindLabel: Record<ComponentPolicy["condition_kind"], string> = {
   component_age: "Package age",
@@ -47,10 +48,10 @@ export function ComponentPoliciesPage() {
             <Button onClick={() => setEditing("new")}><Plus /> New policy</Button>
           </div>
         )} />
-      {evaluate.isError && <Alert>{evaluate.error.message}</Alert>}
+      {evaluate.isError && <ErrorPanel error={evaluate.error} />}
       {evaluate.data && <div className="mb-3"><Alert tone="success">Evaluated: {evaluate.data.violations} violation(s); {evaluate.data.not_evaluated} check(s) skipped for missing package health.</Alert></div>}
       <Card className="mb-4">
-        {pols.isError ? <Alert>{pols.error.message}</Alert> : pols.isPending ? <Skeleton className="h-24" /> : !pols.data.items.length ? (
+        {pols.isError ? <ErrorPanel error={pols.error} /> : pols.isPending ? <Skeleton className="h-24" /> : !pols.data.items.length ? (
           <EmptyState icon={<Scale />} title="No component policies">Define conditions such as "no GPL-3.0 licences" or "no component with a critical vulnerability".</EmptyState>
         ) : (
           <Table>
@@ -88,7 +89,7 @@ export function ComponentPoliciesPage() {
             </Select>
           </div>
         </div>
-        {viol.isError ? <Alert>{viol.error.message}</Alert> : viol.isPending ? <Skeleton className="h-16" /> : !viol.data.length ? (
+        {viol.isError ? <ErrorPanel error={viol.error} /> : viol.isPending ? <Skeleton className="h-16" /> : !viol.data.length ? (
           <p className="text-[13px] text-muted-foreground">No {state} violations.</p>
         ) : (
           <Table>
@@ -182,7 +183,7 @@ function PolicyDialog({ policy, onClose }: { policy: ComponentPolicy | "new" | n
             </Select></div>
         )}
         <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" checked={f.enabled} onChange={(e) => setF({ ...f, enabled: e.target.checked })} /> Enabled</label>
-        {save.isError && <Alert>{save.error.message}</Alert>}
+        {save.isError && <ErrorPanel error={save.error} />}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
           <Button type="submit" disabled={!f.name.trim() || save.isPending}>{save.isPending ? "Saving…" : "Save"}</Button>

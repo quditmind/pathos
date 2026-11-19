@@ -1,6 +1,7 @@
 ---
 title: "Human Eye: manual security assessment"
 section: user-guide
+group: validate
 order: 14
 version: "1.0"
 updated: 2026-11-19

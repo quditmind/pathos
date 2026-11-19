@@ -1,9 +1,10 @@
 ---
 title: Administration
 section: user-guide
+group: administration
 order: 26
 version: "1.0"
-updated: 2026-11-19
+updated: 2026-11-20
 summary: Users and roles, organization structure, notifications (rules, e-mail, templates, in-app), scanners and workers, the audit log, and where every other administration page is described.
 ---
 # Administration
@@ -177,3 +178,15 @@ The default organization (the first one) can be neither suspended nor deleted. B
 **Workers.** Each organization needs its own scan workers; the operator starts them for the organization's slug. **Configurations → Scanners & workers** lists only your organization's workers.
 
 **Related APIs.** [Administration](../api-reference/administration.md), [Notifications](../api-reference/notifications.md), [Scan configuration](../api-reference/scan-configuration.md), [Worker protocol](../api-reference/worker-protocol.md).
+
+## Feature flags
+
+New PATHOS 3.0 modules (connectors, onboarding, CodeGraph, threat models, reverse engineering, remediation workspace, continuous monitoring, lifecycle overview) are switched on per organization and are **off by default** until their release is approved. Administrators with `settings.manage` list and change them with `GET`/`PUT /api/v1/admin/feature-flags` ([API reference](../api-reference/diagnostics.md#feature-flags)); every change is recorded in the audit log as `feature_flag.update`. A module whose flag is off answers as not available (`PTH-PLAT-1007`).
+
+### Troubleshooting
+
+| Code | Meaning | Fix |
+|---|---|---|
+| `PTH-PLAT-1007` | The module's feature flag is off for this organization | An administrator with `settings.manage` enables the flag |
+| `PTH-AUTH-1002` | You lack `settings.manage` | Ask an administrator for the permission |
+

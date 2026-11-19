@@ -6,8 +6,9 @@ import { api } from "@/api/client";
 import type { Severity } from "@/api/types";
 import { SeverityBadge, severityColor } from "@/components/data/Severity";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface GroupRisk { id: string | null; name: string; critical: number; high: number; open: number; kev: number; max_risk: number | null }
 interface Executive {
@@ -88,7 +89,7 @@ export function ExecutivePage() {
         </Select>
         {e && <span className="text-[12px] text-muted-foreground">{e.scope} · computed {formatDateTime(e.generated_at)}</span>}
       </div>
-      {q.isError ? <Alert>{q.error.message}</Alert> : q.isPending || !e ? <Skeleton className="h-96" /> : (
+      {q.isError ? <ErrorPanel error={q.error} /> : q.isPending || !e ? <Skeleton className="h-96" /> : (
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <Tile label="Open critical and high" value={fmt((e.open_by_severity.critical ?? 0) + (e.open_by_severity.high ?? 0))}

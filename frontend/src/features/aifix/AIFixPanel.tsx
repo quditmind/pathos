@@ -8,6 +8,7 @@ import { Alert, Badge, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import type { FixPR } from "@/features/fixprs/FixPRPanel";
 import { cn, formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export type AIFixStatus = "generating" | "rejected" | "queued" | "running" | "tests_queued" | "testing" | "verified" | "failed";
 
@@ -130,7 +131,7 @@ export function FindingAIFix({ findingId, category }: { findingId: string; categ
             : "Proposing a fix needs the ai.fix permission on this repository."}
         </p>
       ) : null}
-      {propose.error && <div className="mt-2"><Alert>{propose.error.message}</Alert></div>}
+      {propose.error && <div className="mt-2"><ErrorPanel error={propose.error} /></div>}
       {latest && <ProposalCard fix={latest} elig={d} />}
       {older.length > 0 && (
         <details className="mt-2">
@@ -252,7 +253,7 @@ function ProposalCard({ fix, elig }: { fix: AIFix; elig: AIFixEligibility }) {
       {fix.test_runner && fix.steps.some((s) => s.key === "tests" && (s.status === "passed" || s.status === "failed")) && (
         <div>
           <Button size="sm" variant="ghost" onClick={() => setShowLog((x) => !x)}>{showLog ? "Hide test log" : "Show test log"}</Button>
-          {showLog && (detail.isPending ? <Skeleton className="h-16" /> : detail.isError ? <Alert>{detail.error.message}</Alert> : (
+          {showLog && (detail.isPending ? <Skeleton className="h-16" /> : detail.isError ? <ErrorPanel error={detail.error} /> : (
             <pre className="max-h-72 overflow-auto rounded-md border border-border bg-muted/40 p-2 font-mono text-[11px] leading-4" aria-label="Test log">
               {detail.data.test_log || "No output."}
             </pre>
@@ -285,7 +286,7 @@ function ProposalCard({ fix, elig }: { fix: AIFix; elig: AIFixEligibility }) {
           </Button>
         )
       )}
-      {openPR.error && <Alert>{openPR.error.message}</Alert>}
+      {openPR.error && <ErrorPanel error={openPR.error} />}
     </div>
   );
 }
@@ -323,7 +324,7 @@ export function AIFixSettingsPanel({ r }: { r: Repository }) {
       {q.isPending ? (
         <Skeleton className="h-6 w-56" />
       ) : q.isError ? (
-        <Alert>{q.error.message}</Alert>
+        <ErrorPanel error={q.error} />
       ) : (
         <div className="flex flex-wrap items-center gap-3">
           <Select aria-label="Test runner" value={runner} disabled={!manage} onChange={(e) => setRunner(e.target.value as AIFixSettings["test_runner"])}>
@@ -338,7 +339,7 @@ export function AIFixSettingsPanel({ r }: { r: Repository }) {
           )}
         </div>
       )}
-      {save.error && <div className="mt-2"><Alert>{save.error.message}</Alert></div>}
+      {save.error && <div className="mt-2"><ErrorPanel error={save.error} /></div>}
     </section>
   );
 }

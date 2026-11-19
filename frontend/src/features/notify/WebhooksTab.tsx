@@ -7,6 +7,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { Alert, Badge, Card, EmptyState, Input, Label, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { useEvents } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface WebhookEndpoint {
   id: string;
@@ -85,7 +86,7 @@ function WebhookDialog({ open, onClose, hook, onCreated }: { open: boolean; onCl
       }
     >
       <div className="space-y-3 text-[13px]">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 md:grid-cols-2">
           <div><Label htmlFor="wh-name">Name</Label><Input id="wh-name" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} placeholder="e.g. Security channel" /></div>
           <div>
@@ -134,7 +135,7 @@ function WebhookDialog({ open, onClose, hook, onCreated }: { open: boolean; onCl
 
 function Deliveries({ hook }: { hook: WebhookEndpoint }) {
   const q = useQuery({ queryKey: ["webhook-deliveries", hook.id], queryFn: () => api<{ items: Delivery[] }>(`/api/v1/notifications/webhooks/${hook.id}/deliveries`).then((r) => r.items) });
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   if (q.isPending) return <Skeleton className="h-16" />;
   if (!q.data.length) return <p className="text-[12px] text-muted-foreground">No deliveries yet.</p>;
   return (
@@ -185,7 +186,7 @@ export function WebhooksTab() {
         <Button className="ml-auto" onClick={() => setDialog({ hook: null })}><Webhook /> New webhook</Button>
       </div>
       {(test.error ?? toggle.error ?? remove.error) && <div className="mb-2"><Alert>{(test.error ?? toggle.error ?? remove.error)!.message}</Alert></div>}
-      {list.isError ? <Alert>{list.error.message}</Alert> : list.isPending ? <Skeleton className="h-20" /> : !list.data.length ? (
+      {list.isError ? <ErrorPanel error={list.error} /> : list.isPending ? <Skeleton className="h-20" /> : !list.data.length ? (
         <EmptyState icon={<Webhook />} title="No webhooks">Nothing is sent outside PATHOS until you add one.</EmptyState>
       ) : (
         <Table>

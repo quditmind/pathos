@@ -8,6 +8,7 @@ import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { useApplications } from "@/features/repos/api";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface Report {
   id: string;
@@ -81,11 +82,11 @@ export function AIReportsPage() {
           </label>
           <Button onClick={() => create.mutate()} disabled={!ok || create.isPending}><Sparkles /> {create.isPending ? "Generating…" : "Generate"}</Button>
         </div>
-        {create.error && <div className="mt-3"><Alert>{create.error.message}</Alert></div>}
+        {create.error && <div className="mt-3"><ErrorPanel error={create.error} /></div>}
       </Card>
       <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
         <Card>
-          {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.length ? (
+          {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.length ? (
             <EmptyState icon={<FileText />} title="No reports yet" />
           ) : (
             <Table>

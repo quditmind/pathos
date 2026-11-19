@@ -1,6 +1,7 @@
 ---
 title: Introduction to PATHOS
 section: user-guide
+group: home
 order: 1
 version: "1.0"
 updated: 2026-11-19
@@ -64,6 +65,8 @@ A repository belongs to at most one application; an application can have many re
 4. **Prioritisation and reporting** combine both: dashboards and the repository insights can be filtered by business unit, region, criticality, exposure and application, and the KPI strip highlights gaps such as repositories without an owner, without a production URL or with unknown exposure.
 
 ## How this Help Center is organised
+
+The Help Center home and its left navigation group these guides like the sidebar: **Home**, the nine lifecycle phases (**1 · Connect** to **9 · Report & monitor**), **Configurations** and **Administration**, followed by the troubleshooting articles and the API reference. A guide that covers several phases appears in each of them. [The PATHOS shell](navigation-and-shell.md) explains the sidebar and the top bar, and [Help and troubleshooting](help-and-troubleshooting.md) explains the Help menu, the help drawer and the Troubleshooting centre. The numbered list below is the reading order.
 
 **Getting started**
 

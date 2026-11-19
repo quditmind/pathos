@@ -1,6 +1,7 @@
 ---
 title: Secret push protection
 section: user-guide
+group: remediate
 order: 20
 version: "1.1"
 updated: 2026-11-19

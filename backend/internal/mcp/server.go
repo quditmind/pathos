@@ -16,6 +16,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/org"
+	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/tenant"
 	"pathos/internal/scanners"
 )
@@ -52,25 +53,25 @@ func (s *Service) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			w.Header().Set("Allow", "POST")
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			httpx.WriteError(w, r, s.Log, httpx.E(http.StatusMethodNotAllowed, "method_not_allowed", "method not allowed"))
 			return
 		}
 		ctx := r.Context()
 		p, tokenID, err := s.authenticate(ctx, r.Header.Get("Authorization"))
 		if err != nil {
 			w.Header().Set("WWW-Authenticate", `Bearer realm="pathos-mcp"`)
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			httpx.WriteError(w, r, s.Log, httpx.E(http.StatusUnauthorized, "invalid_token", err.Error()))
 			return
 		}
 		// Every query of the request is scoped to the token's organization.
 		ctx = tenant.WithOrg(ctx, p.OrganizationID)
 		if !s.serverEnabled(ctx, p.OrganizationID) {
-			http.Error(w, "the PATHOS MCP server is disabled in the MCP registry", http.StatusForbidden)
+			httpx.WriteError(w, r, s.Log, httpx.E(http.StatusForbidden, "forbidden", "the PATHOS MCP server is disabled in the MCP registry"))
 			return
 		}
 		body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if err != nil {
-			http.Error(w, "bad request", http.StatusBadRequest)
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("bad request"))
 			return
 		}
 		var req rpcRequest

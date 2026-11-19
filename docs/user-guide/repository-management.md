@@ -1,6 +1,7 @@
 ---
 title: Repository management
 section: user-guide
+group: inventory
 order: 8
 version: "1.0"
 updated: 2026-11-19

@@ -16,6 +16,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/scans"
@@ -234,7 +235,7 @@ func (s *Service) validateInput(ctx context.Context, p *authz.Principal, in *rep
 			return httpx.BadRequest("schedule must be daily, weekly or monthly")
 		}
 		if !p.HasAnywhere(authz.PermFindingsExport) {
-			return httpx.E(http.StatusForbidden, "forbidden", "scheduling reports needs the findings.export permission")
+			return httpx.E(http.StatusForbidden, "forbidden", "scheduling reports needs the findings.export permission").WithDiag("PTH-REP-1001")
 		}
 		if len(in.Recipients) == 0 {
 			in.Recipients = []uuid.UUID{p.UserID}
@@ -419,10 +420,14 @@ type Result struct {
 	Total     int        `json:"total"`
 	Truncated bool       `json:"truncated"`
 	RunAt     time.Time  `json:"run_at"`
+	// GeneratedBy is the version stamp of the export
+	// ("Quditmind PATHOS v… · build … · generated …").
+	GeneratedBy string `json:"generated_by"`
 }
 
 func (s *Service) run(ctx context.Context, p *authz.Principal, d Definition) (Result, error) {
-	res := Result{RunAt: time.Now().UTC(), Rows: [][]string{}}
+	now := time.Now().UTC()
+	res := Result{RunAt: now, Rows: [][]string{}, GeneratedBy: buildinfo.Stamp(now)}
 	where, args, err := s.where(p, d)
 	if err != nil {
 		return res, err
@@ -558,7 +563,7 @@ func (s *Service) runReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !p.HasAnywhere(authz.PermFindingsExport) {
-		s.fail(w, r, authz.ErrForbidden)
+		s.fail(w, r, httpx.ErrForbidden.WithDiag("PTH-REP-1001"))
 		return
 	}
 	_ = audit.Write(r.Context(), s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -571,6 +576,9 @@ func (s *Service) runReport(w http.ResponseWriter, r *http.Request) {
 	}, rp.Name)
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.csv"`)
+	// CSV consumers (spreadsheets, scripts) expect the header row first, so
+	// the version stamp travels in a response header, not in the file.
+	w.Header().Set("X-PATHOS-Generated-By", res.GeneratedBy)
 	cw := csv.NewWriter(w)
 	_ = cw.Write(res.Columns)
 	for _, row := range res.Rows {

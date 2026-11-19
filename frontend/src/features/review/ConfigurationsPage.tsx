@@ -8,6 +8,7 @@ import { reviewApi, useCatalog, useReviewers, useReviewMutation, useSettings } f
 import { dispositionLabel, humanize, priorityLabel, severities } from "./shared";
 import type { Disposition, Priority, Settings } from "./types";
 import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
@@ -75,7 +76,7 @@ export function ConfigurationsPage() {
   useEffect(() => {
     if (settings.data) setS(settings.data);
   }, [settings.data]);
-  if (settings.isError) return <Alert>Could not load the configuration: {settings.error.message}</Alert>;
+  if (settings.isError) return <ErrorPanel error={settings.error} title="Could not load the configuration" />;
   if (!s || !catalog.data) return <Skeleton className="h-96" />;
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setS({ ...s, [k]: v });
   const requiredKeys = [...catalog.data.questions.map((q) => ({ key: q.key, label: q.label })), ...catalog.data.assessment_fields.map((f) => ({ key: f.key, label: f.label }))];
@@ -94,7 +95,7 @@ export function ConfigurationsPage() {
         }
       />
       <div className="mb-3 space-y-2">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         {save.isSuccess && <Alert tone="success">Configuration saved.</Alert>}
       </div>
       <div className="grid gap-4 lg:grid-cols-2">

@@ -2,9 +2,10 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Grid3x3 } from "lucide-react";
 import type { ScanTypeCoverage } from "@/api/types";
-import { Alert, Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { categoryName } from "@/lib/findingCategories";
 import { useScanTypes } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Filter = "" | "runnable" | "import-only" | "none";
 
@@ -46,7 +47,7 @@ export function ScanCoveragePage() {
         title="Scan coverage"
         description="The scan types PATHOS reports on, the tools that cover each, which of them an online worker can run in this deployment, and the formats you can import results in."
       />
-      {q.error && <div className="mb-3"><Alert>{q.error.message}</Alert></div>}
+      {q.error && <div className="mb-3"><ErrorPanel error={q.error} /></div>}
       {q.isPending ? <Skeleton className="h-64" /> : !items.length ? (
         <Card><EmptyState icon={<Grid3x3 />} title="No scan types" /></Card>
       ) : (

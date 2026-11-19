@@ -650,6 +650,7 @@ func (d *Dispatcher) sendOneWebhook(ctx context.Context) (done, ok bool, err err
 		}
 		if attempts > len(webhookBackoff) || (status >= 400 && status < 500 && status != 408 && status != 429) {
 			// Exhausted, or a client error retrying will not fix.
+			d.Log.Warn("outbound webhook delivery failed", "delivery_id", id, "response_status", status, "err", msg, "error_code", "PTH-SYNC-1005")
 			_, err = tx.Exec(ctx, `UPDATE outbound_webhook_deliveries SET status = 'failed', attempts = $2, response_status = $3, error = $4 WHERE id = $1`,
 				id, attempts, st, msg)
 			return err

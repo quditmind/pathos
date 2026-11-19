@@ -89,23 +89,23 @@ func (d *Dispatcher) Run(ctx context.Context) {
 func (d *Dispatcher) step(ctx context.Context, detect bool) {
 	if detect {
 		if n, err := DetectSLABreaches(ctx, d.Pool); err != nil {
-			d.Log.Error("SLA breach detection failed", "err", err)
+			d.Log.Error("SLA breach detection failed", "err", err, "error_code", "PTH-MON-1002")
 		} else if n > 0 {
 			d.Log.Info("SLA breaches detected", "events", n)
 		}
 	}
 	if n, err := d.DispatchEvents(ctx); err != nil {
-		d.Log.Error("notification dispatch failed", "err", err)
+		d.Log.Error("notification dispatch failed", "err", err, "error_code", "PTH-MON-1003")
 	} else if n > 0 {
 		d.Log.Debug("notification events dispatched", "count", n)
 	}
 	if sent, failed, err := d.SendWebhooks(ctx); err != nil {
-		d.Log.Error("webhook delivery failed", "err", err)
+		d.Log.Error("webhook delivery failed", "err", err, "error_code", "PTH-SYNC-1005")
 	} else if sent+failed > 0 {
 		d.Log.Info("webhook delivery", "sent", sent, "failed", failed)
 	}
 	if sent, failed, err := d.SendPending(ctx); err != nil {
-		d.Log.Error("email delivery failed", "err", err)
+		d.Log.Error("email delivery failed", "err", err, "error_code", "PTH-CONN-1325")
 	} else if sent+failed > 0 {
 		d.Log.Info("email delivery", "sent", sent, "failed", failed)
 	}
@@ -485,6 +485,7 @@ func (d *Dispatcher) SendPending(ctx context.Context) (sent, failed int, err err
 			failed++
 			msg := redactErr(serr, cfg.Password)
 			if p.Attempts >= MaxAttempts {
+				d.Log.Warn("notification e-mail failed after all attempts", "notification_id", p.ID, "err", msg, "error_code", "PTH-CONN-1325")
 				_, err = d.Pool.Exec(ctx, `UPDATE notifications SET status = 'failed', last_error = $2 WHERE id = $1`, p.ID, msg)
 			} else {
 				wait := backoff[min(p.Attempts-1, len(backoff)-1)]

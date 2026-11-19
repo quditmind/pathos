@@ -6,6 +6,7 @@ import { SeverityBadge } from "@/components/data/Severity";
 import type { Severity } from "@/api/types";
 import { useLicensePolicy, useSLA, useVulnMutation } from "./api";
 import { SecurityPolicies } from "@/features/policies/SecurityPolicies";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
 
@@ -26,7 +27,7 @@ export function PoliciesPage() {
         <Card className="p-4">
           <h2 className="mb-1 text-[13px] font-semibold">Remediation SLAs</h2>
           <p className="mb-3 text-[12px] text-muted-foreground">Days from first detection. Leave empty for no SLA. Changes recompute deadlines of existing findings.</p>
-          {saveSLA.isError && <Alert>{saveSLA.error.message}</Alert>}
+          {saveSLA.isError && <ErrorPanel error={saveSLA.error} />}
           {saveSLA.isSuccess && <Alert tone="success">Saved.</Alert>}
           {!sla.data ? <Skeleton className="h-40" /> : (
             <div className="space-y-2">
@@ -45,7 +46,7 @@ export function PoliciesPage() {
         <Card className="p-4">
           <h2 className="mb-1 text-[13px] font-semibold">License policy</h2>
           <p className="mb-3 text-[12px] text-muted-foreground">One SPDX identifier per line followed by <code>deny</code> or <code>review</code>. Components with a denied license count as violations.</p>
-          {saveLic.isError && <Alert>{saveLic.error.message}</Alert>}
+          {saveLic.isError && <ErrorPanel error={saveLic.error} />}
           {saveLic.isSuccess && <Alert tone="success">Saved.</Alert>}
           <Label htmlFor="lic">Rules</Label>
           <textarea id="lic" rows={12} value={licText} onChange={(e) => setLicText(e.target.value)} className="w-full rounded-md border border-border bg-surface p-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-ring" />

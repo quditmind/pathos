@@ -498,7 +498,7 @@ func (s *Service) runDue(ctx context.Context) {
 			}
 			status, err := x.sync(ctx, id)
 			if err != nil {
-				s.Log.Warn("runtime sync failed", "table", x.table, "id", id, "err", err)
+				s.Log.Warn("runtime sync failed", "table", x.table, "id", id, "err", err, "error_code", "PTH-MON-1001")
 			} else if status != "" {
 				s.Log.Info("runtime sync finished", "table", x.table, "id", id, "status", status)
 			}

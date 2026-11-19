@@ -8,6 +8,7 @@ import { priorityLabel, remediationLabel } from "../shared";
 import type { Priority, RemediationStatus, ReviewDetail } from "../types";
 import { textareaCls } from "./actions";
 import { KV, Panel, SaveBar, useSections } from "./section";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function Tracking({ d }: { d: ReviewDetail }) {
   const reviewers = useReviewers(undefined, d.can.remediate);
@@ -42,7 +43,7 @@ function Tracking({ d }: { d: ReviewDetail }) {
   }
   return (
     <div className="space-y-3">
-      {m.error && <Alert>{m.error.message}</Alert>}
+      {m.error && <ErrorPanel error={m.error} />}
       <div className="grid gap-3 md:grid-cols-4">
         <div>
           <Label htmlFor="rem-status">Remediation status</Label>

@@ -12,9 +12,14 @@ WORKDIR /src
 COPY backend/go.mod backend/go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod go mod download
 COPY backend/ ./
+# Build metadata (docs/OPERATIONS.md, "Build metadata"); the family images
+# reuse this binary, so they report the same version and commit.
 ARG VERSION=dev
+ARG COMMIT=unknown
+ARG BUILD_DATE=unknown
 RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=${VERSION}" -o /out/pathos-worker ./cmd/pathos-worker
+    BI=pathos/internal/platform/buildinfo; \
+    CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X ${BI}.Version=${VERSION} -X ${BI}.Commit=${COMMIT} -X ${BI}.BuildDate=${BUILD_DATE}" -o /out/pathos-worker ./cmd/pathos-worker
 
 # Gitleaks is built from its Go module (integrity: Go checksum database) with
 # the current toolchain and patched dependencies, because the upstream

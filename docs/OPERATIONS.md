@@ -61,6 +61,26 @@ cosign verify ghcr.io/quditmind/pathos:2.2.0 \
 
 The images also carry an SBOM and SLSA provenance attestations. Inspect them with `docker buildx imagetools inspect <image> --format '{{json .SBOM}}'` (or `.Provenance`). The images are built for `linux/amd64`.
 
+## Build metadata
+
+Every PATHOS binary (the API image's `pathos` and `pathosctl`, the worker in `pathos-worker-core` and the family images built on it, and the `pathos` CLI) carries three values set at build time in `pathos/internal/platform/buildinfo`:
+
+| Value | Build argument | Release workflow | Local build (`make build`, `make up`) | Default |
+|---|---|---|---|---|
+| `Version` | `VERSION` | the tag without `v` | `PATHOS_VERSION` from `.env` | `dev` |
+| `Commit` | `COMMIT` | `github.sha` | `git rev-parse HEAD` (`PATHOS_COMMIT`) | `unknown` |
+| `BuildDate` | `BUILD_DATE` | the commit date, UTC (reproducible) | the commit date, UTC (`PATHOS_BUILD_DATE`) | `unknown` |
+
+`backend/Dockerfile` and `workers/core/Dockerfile` pass them as `-ldflags "-X pathos/internal/platform/buildinfo.Version=… -X ….Commit=… -X ….BuildDate=…"`; `docker-compose.yml` forwards `PATHOS_VERSION`, `PATHOS_COMMIT` and `PATHOS_BUILD_DATE` as build arguments, and the Makefile exports the last two from git. A plain `docker compose build` without them builds `unknown`. (Up to 2.2 the API version was set with `-X pathos/internal/server.Version`, and the CLI and worker with `-X main.version`; custom build scripts must switch to the `buildinfo` variables.)
+
+Where to read them:
+
+- `GET /healthz` → `{"status":"ok","version":"…"}` (unchanged).
+- `GET /api/v1/meta` → product, vendor and version without authentication; with a session or token also `commit`, `build_date`, `api_version`, feature flags and the versions of the registered workers and their families (docs/api-reference/diagnostics.md).
+- `pathos --version` / `pathos version` (CLI) and `docker compose exec api pathosctl version` → `Quditmind PATHOS v2.2.0 (build 0123456789ab, 2026-11-20T10:00:00Z)`.
+- The API and worker log every line with `version`; the startup line also has `commit`.
+- Exports carry the stamp `Quditmind PATHOS v{version} · build {commit} · generated {UTC timestamp}`: CycloneDX SBOM and VEX (`metadata.tools` and the `pathos:generated-by` property), SPDX (`creationInfo.creators` and `creationInfo.comment`), OpenVEX (`tooling`), AI analyst Markdown reports (last line), notification e-mails (footer), the JSON of saved reports (`generated_by`), and CSV exports as the `X-PATHOS-Generated-By` response header (the file itself still starts with its header row, so spreadsheets and scripts read it unchanged).
+
 ## Air-gapped operation
 
 See [AIRGAP.md](AIRGAP.md): images and vulnerability data as offline bundles (`scripts/offline-bundle.sh`), `PATHOS_OFFLINE=true`, and what changes without internet access.
@@ -177,7 +197,7 @@ One installation can host several isolated organizations ([MULTI_TENANCY.md](MUL
   - **Metrics:** HTTP server duration and size by route and status, Go runtime metrics, and platform gauges from the scheduler leader: `pathos.scan.jobs{status}`, `pathos.workers.online`, `pathos.notifications.pending`, `pathos.notification_events.backlog`, `pathos.findings.open{severity}` and `pathos.scheduler.leader`.
 
   The standard `OTEL_*` variables (headers, sampler) apply. For evaluation, `COMPOSE_PROFILES=observability` starts Grafana LGTM on http://127.0.0.1:3001 with `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318`.
-- **Logs:** JSON on stdout, with secrets redacted and a request ID (`X-Request-Id`) on every API response.
+- **Logs:** JSON on stdout, with secrets redacted and a request ID (`X-Request-Id`) on every API response. Every log line of a failed request carries `request_id` and `error_code` (`PTH-<AREA>-<NNNN>`, the same code the API returns in `error.error_code`); background failures (scan failures, feed downloads, deliveries, worker uploads, runtime sync) log their `error_code` too. Look a code up in `docs/troubleshooting/` or with `GET /api/v1/diagnostics/codes`.
 
 Suggested alerts:
 - `pathos.scheduler.leader` summed to 0 for 2 minutes.

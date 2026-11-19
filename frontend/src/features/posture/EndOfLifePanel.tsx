@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { CalendarX } from "lucide-react";
 import { api } from "@/api/client";
-import { Alert, Badge, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface EOLItem {
   source: "sbom" | "runtime" | "image";
@@ -50,7 +51,7 @@ export function EOLBadge({ status, date }: { status: string; date?: string | nul
 export function EndOfLifePanel({ repoId }: { repoId: string }) {
   const q = useRepositoryEOL(repoId);
   if (q.isPending) return <Skeleton className="h-16" />;
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   const d = q.data;
   const relevant = d.items.filter((i) => i.status !== "supported");
   return (

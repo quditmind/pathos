@@ -3,11 +3,12 @@ import { Bot, Check, UserRound, X } from "lucide-react";
 import { api } from "@/api/client";
 import type { AIReview } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Input } from "@/components/ui/primitives";
+import { Badge, Input } from "@/components/ui/primitives";
 import { SeverityBadge } from "@/components/data/Severity";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useAIMutation } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const verdictTone = { true_positive: "danger", false_positive: "success", needs_review: "warning" } as const;
 const verdictLabel = { true_positive: "True positive", false_positive: "False positive", needs_review: "Needs human review" };
@@ -54,7 +55,7 @@ export function ReviewCard({ review, showFinding = false }: { review: AIReview; 
       </div>
       {pending && can("ai.review") && can("findings.triage") && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
-          {decide.isError && <Alert>{decide.error.message}</Alert>}
+          {decide.isError && <ErrorPanel error={decide.error} />}
           {needsNote && <p className="text-[12px] text-warning">Closing a Critical finding as a false positive requires a justification.</p>}
           <div className="flex flex-wrap items-center gap-2">
             <Input aria-label="Decision note" placeholder={needsNote ? "Justification (required)" : "Note (optional)"} value={note} onChange={(e) => setNote(e.target.value)} className="max-w-sm" />

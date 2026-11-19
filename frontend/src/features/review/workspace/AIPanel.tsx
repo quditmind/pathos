@@ -7,6 +7,7 @@ import { formatDateTime } from "@/lib/utils";
 import { reviewApi, useRecommendations, useReviewMutation } from "../api";
 import { aiKindLabel } from "../shared";
 import type { Recommendation, ReviewDetail } from "../types";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Where a suggestion of each kind can be copied into the assessment. */
 const target: Record<string, { section: string; key: string; label: string }> = {
@@ -63,7 +64,7 @@ function PatchDecision({ d, r }: { d: ReviewDetail; r: Recommendation }) {
         <Button size="sm" onClick={() => decide.mutate("approved")} disabled={decide.isPending}><Check /> Approve patch</Button>
         <Button size="sm" variant="secondary" onClick={() => decide.mutate("rejected")} disabled={decide.isPending || note.trim().length < 5}><X /> Reject</Button>
       </div>
-      {decide.error && <Alert>{decide.error.message}</Alert>}
+      {decide.error && <ErrorPanel error={decide.error} />}
     </div>
   );
 }
@@ -112,7 +113,7 @@ function Suggestion({ d, r }: { d: ReviewDetail; r: Recommendation }) {
           </Button>
         )}
       </div>
-      {apply.error && <div className="mt-2"><Alert>{apply.error.message}</Alert></div>}
+      {apply.error && <div className="mt-2"><ErrorPanel error={apply.error} /></div>}
     </Card>
   );
 }
@@ -138,7 +139,7 @@ export function AIPanel({ d }: { d: ReviewDetail }) {
       ) : (
         <Alert tone="warning">{d.can.ai_unavailable_reason || "AI assistance requires reviews.assess or reviews.approve."}</Alert>
       )}
-      {ask.error && <Alert>{ask.error.message}</Alert>}
+      {ask.error && <ErrorPanel error={ask.error} />}
       {recs.isPending ? (
         <Skeleton className="h-24" />
       ) : (

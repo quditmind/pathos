@@ -29,8 +29,9 @@ const workload: Workload = {
 };
 
 describe("runtime navigation", () => {
-  it("lists Runtime under Assets", () => {
-    const g = groups.find((x) => x.label === "Assets")!;
+  it("lists Runtime under 3 · Discover, after Context graph", () => {
+    const g = groups.find((x) => x.label === "3 · Discover")!;
+    expect(g.items.findIndex((i) => i.to === "/runtime")).toBe(g.items.findIndex((i) => i.to === "/posture/graph") + 1);
     expect(g.items.map((i) => i.to)).toContain("/runtime");
   });
 });

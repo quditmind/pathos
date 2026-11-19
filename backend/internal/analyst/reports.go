@@ -16,6 +16,7 @@ import (
 	"pathos/internal/audit"
 	"pathos/internal/authz"
 	"pathos/internal/org"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/httpx"
 )
 
@@ -268,7 +269,7 @@ func (s *Service) createReport(w http.ResponseWriter, r *http.Request) {
 			if errors.Is(err, ai.ErrNotConfigured) {
 				rep.NarrativeError = "no AI provider is configured; the report has the figures only"
 			} else {
-				s.Log.Warn("report narrative failed", "err", err)
+				s.Log.Warn("report narrative failed", "err", err, "error_code", "PTH-REP-1002", "ai_error_code", ai.DiagCode(err))
 				rep.NarrativeError = "the AI narrative could not be generated; the report has the figures only"
 			}
 			res = ai.GenerateResult{}
@@ -438,6 +439,7 @@ func Markdown(rep Report) string {
 	if rep.NarrativeError != "" {
 		fmt.Fprintf(&b, "_%s_\n", rep.NarrativeError)
 	}
+	fmt.Fprintf(&b, "\n---\n\n_%s_\n", buildinfo.Stamp(time.Now()))
 	return b.String()
 }
 

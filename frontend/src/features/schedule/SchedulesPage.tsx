@@ -4,7 +4,7 @@ import { CalendarClock, History, Pause, Play, Plus, Trash2, Zap } from "lucide-r
 import type { Schedule } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm";
-import { Alert, Badge, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
@@ -24,6 +24,7 @@ import {
 import { emptyForm, formFromSchedule, type ScheduleForm } from "./form";
 import { ScheduleDialog } from "./ScheduleDialog";
 import { RunHistory } from "./RunHistory";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function runSummary(r: RunResult) {
   const parts = [`queued ${r.queued}`];
@@ -154,7 +155,7 @@ export function SchedulesPage() {
       <PageHeader title="Scan schedules" description="One-time, recurring and interval scans with execution plans (assets × scan profiles), approved scan windows, retries and concurrency limits. A leader-elected scheduler queues them; missed runs are caught up once and reported."
         actions={can("schedules.manage") && <Button onClick={() => setForm(emptyForm())}><Plus /> New schedule</Button>} />
       <StatusCard />
-      {error && <div className="mb-3"><Alert>{error.message}</Alert></div>}
+      {error && <div className="mb-3"><ErrorPanel error={error} /></div>}
       <Card>
         <DataTable tableId="schedules-v2" exportName="pathos-schedules" columns={columns} rows={list.data ?? []} rowKey={(s) => s.id}
           isPending={list.isPending} error={list.error}
