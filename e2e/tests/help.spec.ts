@@ -1,14 +1,16 @@
 import { test, expect } from "./fixtures";
 
-test("Help button beside Notifications opens the Help Center", async ({ page }) => {
+test("Help (?) menu beside Notifications opens the Help Center", async ({ page }) => {
   await page.goto("/");
-  const help = page.getByRole("link", { name: "Help" });
+  // 3.0: Help is the (?) menu (a button), no longer a link.
+  const help = page.getByRole("button", { name: "Help", exact: true });
   await expect(help).toBeVisible();
   // Directly after the notifications control in the top bar.
   const order = await page.locator("header a, header button").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label") ?? e.textContent ?? ""));
   const i = order.findIndex((l) => /^Notifications/.test(l));
   expect(order[i + 1]).toBe("Help");
   await help.click();
+  await page.getByRole("menuitem", { name: "Help centre" }).click();
   await expect(page.getByRole("heading", { name: "Help Center" })).toBeVisible();
   await expect(page.getByText(/Documentation version 1\.0/)).toBeVisible();
 });

@@ -8,6 +8,8 @@ RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
 # Help Center content (docs/user-guide, docs/api-reference) is bundled at build time.
 COPY docs/ /docs/
+# Shell: "What's new" (CHANGELOG.md) and third-party notices (NOTICE) in About.
+COPY CHANGELOG.md NOTICE /
 RUN npm run build
 
 # Caddy rebuilt from the v2.11.9 release with golang.org/x/net v0.62.0

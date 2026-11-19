@@ -4,6 +4,28 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+PATHOS 3.0, milestone M1 (enterprise shell), web app part.
+
+### Added
+- **Brand header and live version**: the top left reads *Quditmind | PATHOS* with a version chip showing the **server** version from `GET /api/v1/meta` (never hard-coded); the chip opens **About PATHOS**. Development and release-candidate builds show their real version and a *Pre-release* tag. The collapsed sidebar shows the logo with the version in its tooltip, and the sign-in page shows the brand and version. The web app carries its own version (Vite `define` from `frontend/package.json`); when it differs from the server's, a non-blocking banner offers a reload.
+- **Help (?) menu**: Help for this page, Help centre, Troubleshooting centre, Keyboard shortcuts, What's new in v…, API reference, System status, Report a problem, About PATHOS. Everything is bundled and works offline.
+  - **Help for this page** (F1 or ?): a right-hand drawer with the guide mapped to the current route. Every route has a mapped article; a unit test fails when one is missing or points to a missing page or heading.
+  - **Help Center** grouped like the sidebar (Home, the nine lifecycle phases, Configurations, Administration; front-matter key `group`), plus troubleshooting articles (`docs/troubleshooting/*.md`, bundled when present) and the API reference.
+  - **Troubleshooting centre** (`/help/troubleshooting`): every error code from `GET /api/v1/diagnostics/codes`, grouped by area and searchable; falls back to the bundled troubleshooting docs when the server cannot be reached.
+  - **What's new** renders the running version's section of `CHANGELOG.md` (bundled at build time; the proxy image now copies `CHANGELOG.md` and `NOTICE`).
+  - **System status** from endpoints the browser can reach: API, worker packs (online workers, last seen) and AI providers (last connection test); database, queue, object storage and connectors say *Not available* instead of guessing.
+  - **Report a problem** downloads a redacted diagnostic bundle (versions, build, browser, route with identifiers masked, the last 50 request IDs and error codes captured by the API client, feature flags). It never holds tokens, secrets, cookies, query strings, source code or finding contents; a unit test checks the redaction.
+  - **About PATHOS**: product, vendor, version, commit, build date, API version, web app version, Apache-2.0 licence, the `NOTICE` file, scanner pack versions and their workers (scanner tool names stay on *Scanners & workers*).
+- **`<ErrorPanel>`** for API errors with a diagnostic envelope (`error.error_code` = `PTH-<AREA>-<NNNN>`): copyable code and request ID, confirmed versus probable cause, impact, numbered fixes with links, **Verify** (re-runs the failed check), docs and Troubleshooting centre links, and **Troubleshoot with AI** (`POST /api/v1/diagnostics/troubleshoot`; the answer is labelled *AI-inferred* or *From the error catalogue*). All 178 generic error alerts across the pages and the router's error boundary use it; errors without an envelope keep their one-line message.
+- Shared page states: loading skeleton, empty, partial data, permission denied (names the permission), feature disabled (names the flag and who can enable it) and a success toast.
+- Feature-flag reader (`useFeatureFlag`) over the flags in `GET /api/v1/meta`; unknown or missing flags are off.
+- User guide: [The PATHOS shell](docs/user-guide/navigation-and-shell.md) and [Help and troubleshooting](docs/user-guide/help-and-troubleshooting.md).
+
+### Changed
+- **Sidebar regrouped by the application security lifecycle**: Home, 1 · Connect, 2 · Inventory, 3 · Discover, 4 · Threat model, 5 · Reverse engineering, 6 · Assess, 7 · Validate & intelligence (with a *Human Eye* sub-section), 8 · Remediate & gate, 9 · Report & monitor, Configurations, Administration. All 58 previous items keep their URLs (a test enforces it); Runtime sits in Discover, Scan coverage and Secret validation in Configurations, and Installation › Organizations is the first Administration item on multi-tenant installs. Labels use sentence case (for example *Scan overview*, *Review queue*). New modules (Lifecycle overview, Connectors, CodeGraph, API & endpoints, Threat models, Binary analysis, Remediation workspace, Continuous monitoring, Reverse engineering tools) are listed disabled with "arrives in roadmap phase N". SCM connections and Integrations do not redirect.
+- The Help top-bar link is now the Help (?) menu.
+- Animations and transitions are turned off when the system asks for reduced motion.
+
 ## [2.2.0] — 2026-11-19
 
 Proof and scale: optional multi-tenancy, benchmarks, performance fixes and a JetBrains IDE plugin. Migrations 00038 and 00040–00042 are additive; 00038 builds indexes concurrently, which can take minutes on large installations. Single-organization installations are unchanged until `pathosctl multi-tenancy enable`. Dependency findings get fingerprint version 2 and are re-keyed in place on the next scan, keeping their status and history.

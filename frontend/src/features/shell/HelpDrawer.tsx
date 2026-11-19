@@ -3,12 +3,14 @@ import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { ExternalLink } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog";
 import { findDoc, renderDoc, resolveAnchor } from "@/features/help/content";
-import { articleForRoute } from "@/features/help/routeHelp";
+import { articleForRoute, routeHelp } from "@/features/help/routeHelp";
 
 /** Right-hand drawer with the help article mapped to the current route (F1 or ?). */
 export function HelpDrawer({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const fullPath = useRouterState({ select: (s) => s.matches[s.matches.length - 1]?.fullPath ?? s.location.pathname });
-  const article = articleForRoute(fullPath);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // A static path is its own key; parameterised paths use the matched route pattern.
+  const article = routeHelp[pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname] ?? articleForRoute(fullPath);
   const doc = findDoc(article.section, article.slug);
   const html = useMemo(() => (doc ? renderDoc(doc) : ""), [doc]);
   const anchor = doc && article.anchor ? resolveAnchor(doc.headings, article.anchor) : undefined;

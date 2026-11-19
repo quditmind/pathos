@@ -66,6 +66,8 @@ A repository belongs to at most one application; an application can have many re
 
 ## How this Help Center is organised
 
+The Help Center home and its left navigation group these guides like the sidebar: **Home**, the nine lifecycle phases (**1 · Connect** to **9 · Report & monitor**), **Configurations** and **Administration**, followed by the troubleshooting articles and the API reference. A guide that covers several phases appears in each of them. [The PATHOS shell](navigation-and-shell.md) explains the sidebar and the top bar, and [Help and troubleshooting](help-and-troubleshooting.md) explains the Help menu, the help drawer and the Troubleshooting centre. The numbered list below is the reading order.
+
 **Getting started**
 
 1. [Introduction to PATHOS](introduction.md) (this page)

@@ -17,7 +17,7 @@ const g = (slug: string, anchor?: string): RouteArticle => ({ section: "user-gui
 export const routeHelp: Record<string, RouteArticle> = {
   "/login": g("sign-in-and-sso"),
   "/": g("dashboards", "security-posture-dashboard"),
-  "/help": g("help-and-troubleshooting"),
+  "/help": g("help-and-troubleshooting", "the-help-center"),
   "/help/troubleshooting": g("help-and-troubleshooting", "troubleshooting-centre"),
   "/help/$section/$slug": g("help-and-troubleshooting"),
 

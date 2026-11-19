@@ -24,7 +24,7 @@ export function VersionChip() {
       type="button"
       onClick={() => open("about")}
       className="inline-flex h-6 items-center gap-0.5 rounded-full border border-border bg-surface-muted/60 px-2 text-[11px] font-medium text-muted-foreground hover:bg-surface-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-      aria-label={v ? `PATHOS version ${v}. About PATHOS` : "About PATHOS"}
+      aria-label={v ? `PATHOS version ${displayVersion(v)}, about PATHOS` : "About PATHOS"}
       aria-haspopup="dialog"
       data-testid="version-chip"
     >
