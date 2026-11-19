@@ -215,12 +215,13 @@ function ClustersTab() {
 function RegistryDialog({ open, onClose, reg }: { open: boolean; onClose: () => void; reg: RegistryConnection | null }) {
   const qc = useQueryClient();
   const blank = { name: "", base_url: "", repositories: "", auth_type: "none" as RegistryConnection["auth_type"], username: "", secret: "", max_tags: 50,
-    allow_private: false, enabled: true, sync_interval_minutes: 360 };
+    allow_private: false, enabled: true, sync_interval_minutes: 360, ca_bundle_pem: "" };
   const [f, setF] = useState(blank);
   useEffect(() => {
     if (!open) return;
     setF(reg ? { ...blank, name: reg.name, base_url: reg.base_url, repositories: reg.repositories.join("\n"), auth_type: reg.auth_type, username: reg.username,
-      max_tags: reg.max_tags, allow_private: reg.allow_private, enabled: reg.enabled, sync_interval_minutes: reg.sync_interval_minutes } : blank);
+      max_tags: reg.max_tags, allow_private: reg.allow_private, enabled: reg.enabled, sync_interval_minutes: reg.sync_interval_minutes,
+      ca_bundle_pem: reg.ca_bundle_pem ?? "" } : blank);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, reg]);
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
@@ -259,6 +260,8 @@ function RegistryDialog({ open, onClose, reg }: { open: boolean; onClose: () => 
           <div><Label htmlFor="rg-tags" hint="(per repository, 1–500)">Tags to read</Label><Input id="rg-tags" type="number" min={1} max={500} value={f.max_tags} onChange={(e) => set({ max_tags: Number(e.target.value) })} /></div>
           <div><Label htmlFor="rg-int" hint="(15–10080)">Sync every (minutes)</Label><Input id="rg-int" type="number" min={15} max={10080} value={f.sync_interval_minutes} onChange={(e) => set({ sync_interval_minutes: Number(e.target.value) })} /></div>
         </div>
+        <div><Label htmlFor="rg-ca" hint="(optional; PEM certificates of a private CA, added to the system trust store for this registry only)">Private CA bundle</Label>
+          <textarea id="rg-ca" className={textareaClass} value={f.ca_bundle_pem} onChange={(e) => set({ ca_bundle_pem: e.target.value })} placeholder="-----BEGIN CERTIFICATE-----" /></div>
         <label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[var(--primary)]" checked={f.allow_private} onChange={(e) => set({ allow_private: e.target.checked })} /> The registry is on a private network address</label>
         <label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[var(--primary)]" checked={f.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Enabled</label>
       </div>

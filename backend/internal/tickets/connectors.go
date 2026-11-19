@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"pathos/internal/scm"
 )
 
 // Conn is a configured connection with its credential.
@@ -156,7 +158,7 @@ func (c Conn) do(ctx context.Context, method, path string, body any, out any) er
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return fmt.Errorf("%s unreachable: %w", c.Kind, err)
+		return fmt.Errorf("%s unreachable: %w", c.Kind, scm.WithCAHint(err))
 	}
 	defer resp.Body.Close()
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))

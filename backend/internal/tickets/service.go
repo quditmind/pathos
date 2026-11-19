@@ -58,18 +58,26 @@ type Connection struct {
 	Config       Config    `json:"config"`
 	AllowPrivate bool      `json:"allow_private"`
 	Enabled      bool      `json:"enabled"`
-	Tickets      int       `json:"tickets"`
-	CreatedAt    time.Time `json:"created_at"`
+	// CABundlePEM is the private CA bundle added to the system trust store
+	// for this connection ("" = system trust store only).
+	CABundlePEM    string       `json:"ca_bundle_pem"`
+	CACertificates []scm.CACert `json:"ca_certificates"`
+	Tickets        int          `json:"tickets"`
+	CreatedAt      time.Time    `json:"created_at"`
 }
 
-const connSelect = `SELECT c.id, c.kind, c.name, c.base_url, c.auth_type, c.username, c.config, c.allow_private, c.enabled,
+const connSelect = `SELECT c.id, c.kind, c.name, c.base_url, c.auth_type, c.username, c.config, c.allow_private, c.enabled, c.ca_bundle_pem,
 	(SELECT count(*) FROM finding_tickets t WHERE t.connection_id = c.id), c.created_at FROM ticket_connections c`
 
 func scanConn(r pgx.Row) (Connection, error) {
 	var c Connection
 	var cfg []byte
-	if err := r.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.AuthType, &c.Username, &cfg, &c.AllowPrivate, &c.Enabled, &c.Tickets, &c.CreatedAt); err != nil {
+	if err := r.Scan(&c.ID, &c.Kind, &c.Name, &c.BaseURL, &c.AuthType, &c.Username, &cfg, &c.AllowPrivate, &c.Enabled, &c.CABundlePEM, &c.Tickets, &c.CreatedAt); err != nil {
 		return c, err
+	}
+	_, c.CACertificates, _ = scm.ParseCABundle(c.CABundlePEM, time.Now())
+	if c.CACertificates == nil {
+		c.CACertificates = []scm.CACert{}
 	}
 	return c, json.Unmarshal(cfg, &c.Config)
 }
@@ -132,6 +140,9 @@ type input struct {
 	Config       Config `json:"config"`
 	AllowPrivate bool   `json:"allow_private"`
 	Enabled      *bool  `json:"enabled"`
+	// CABundlePEM: private CA bundle (PEM certificates). On update, absent
+	// keeps the stored bundle and "" removes it.
+	CABundlePEM *string `json:"ca_bundle_pem"`
 }
 
 func (in *input) validate(update bool) error {
@@ -178,7 +189,21 @@ func (in *input) validate(update bool) error {
 	if len(in.Config.Labels) > 10 {
 		return httpx.BadRequest("at most 10 labels")
 	}
+	if in.CABundlePEM != nil {
+		b := strings.TrimSpace(*in.CABundlePEM)
+		if _, _, err := scm.ParseCABundle(b, time.Now()); err != nil {
+			return httpx.BadRequest("ca_bundle_pem: " + err.Error()).WithErrorCode(scm.DiagCABundleInvalid)
+		}
+		in.CABundlePEM = &b
+	}
 	return nil
+}
+
+func (in *input) caBundle() string {
+	if in.CABundlePEM == nil {
+		return ""
+	}
+	return *in.CABundlePEM
 }
 
 func (s *Service) create(w http.ResponseWriter, r *http.Request) {
@@ -205,8 +230,8 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `INSERT INTO ticket_connections (id, organization_id, kind, name, base_url, auth_type, username, secret_id, config,
-			allow_private, enabled, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, p.OrganizationID, in.Kind, in.Name, in.BaseURL, in.AuthType, in.Username, sid, cfg, in.AllowPrivate, enabled, p.UserID); err != nil {
+			allow_private, enabled, created_by, ca_bundle_pem) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+			id, p.OrganizationID, in.Kind, in.Name, in.BaseURL, in.AuthType, in.Username, sid, cfg, in.AllowPrivate, enabled, p.UserID, in.caBundle()); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -263,8 +288,9 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE ticket_connections SET name = $3, base_url = $4, auth_type = $5, username = $6, config = $7,
-			allow_private = $8, enabled = $9, updated_at = now() WHERE organization_id = $1 AND id = $2`,
-			p.OrganizationID, id, in.Name, in.BaseURL, in.AuthType, in.Username, cfg, in.AllowPrivate, enabled); err != nil {
+			allow_private = $8, enabled = $9, ca_bundle_pem = CASE WHEN $10 THEN $11 ELSE ca_bundle_pem END, updated_at = now()
+			WHERE organization_id = $1 AND id = $2`,
+			p.OrganizationID, id, in.Name, in.BaseURL, in.AuthType, in.Username, cfg, in.AllowPrivate, enabled, in.CABundlePEM != nil, in.caBundle()); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -321,9 +347,10 @@ func (s *Service) conn(ctx context.Context, q db.Querier, orgID, id uuid.UUID) (
 	var cfg []byte
 	var name string
 	var allowPrivate, enabled bool
-	if err := q.QueryRow(ctx, `SELECT kind, name, base_url, auth_type, username, secret_id, config, allow_private, enabled
+	var caBundle string
+	if err := q.QueryRow(ctx, `SELECT kind, name, base_url, auth_type, username, secret_id, config, allow_private, enabled, ca_bundle_pem
 		FROM ticket_connections WHERE organization_id = $1 AND id = $2`, orgID, id).
-		Scan(&c.Kind, &name, &c.BaseURL, &c.AuthType, &c.Username, &sid, &cfg, &allowPrivate, &enabled); err != nil {
+		Scan(&c.Kind, &name, &c.BaseURL, &c.AuthType, &c.Username, &sid, &cfg, &allowPrivate, &enabled, &caBundle); err != nil {
 		return c, "", false, err
 	}
 	_ = json.Unmarshal(cfg, &c.Config)
@@ -334,7 +361,7 @@ func (s *Service) conn(ctx context.Context, q db.Querier, orgID, id uuid.UUID) (
 	c.Secret = string(sec)
 	c.HTTP = s.HTTP
 	if c.HTTP == nil {
-		c.HTTP = scm.NetPolicy{AllowPrivate: allowPrivate}.Client()
+		c.HTTP = connClient(allowPrivate, caBundle)
 	}
 	return c, name, enabled, nil
 }
@@ -605,4 +632,17 @@ func (s *Service) Sync(ctx context.Context) (int, error) {
 		n++
 	}
 	return n, nil
+}
+
+// connClient applies the network policy and the connection's private CA
+// bundle (added to the system trust store; verification stays on, TLS 1.2
+// minimum). A stored bundle was validated on save; if it no longer parses,
+// the system trust store is used, never an unverified connection.
+func connClient(allowPrivate bool, caBundle string) *http.Client {
+	pol := scm.NetPolicy{AllowPrivate: allowPrivate}
+	c, err := pol.ClientWithCA(caBundle)
+	if err != nil {
+		return pol.Client()
+	}
+	return c
 }

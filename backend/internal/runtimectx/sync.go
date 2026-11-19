@@ -53,6 +53,17 @@ func (s *Service) client(allowPrivate bool, tlsCfg *tls.Config) *http.Client {
 	return c
 }
 
+// registryTLS is the TLS configuration of a registry with a private CA
+// bundle: the system trust store plus the bundle, verification on, TLS 1.2
+// minimum (nil without a bundle: the default client, also TLS 1.2+).
+func registryTLS(bundle string) (*tls.Config, error) {
+	pool, err := scm.CAPool(bundle)
+	if err != nil || pool == nil {
+		return nil, err
+	}
+	return &tls.Config{RootCAs: pool, MinVersion: tls.VersionTLS12}, nil
+}
+
 const (
 	syncTimeout  = 10 * time.Minute
 	staleRunning = 30 * time.Minute
@@ -293,13 +304,15 @@ type registryConn struct {
 	Secret       string
 	MaxTags      int
 	AllowPrivate bool
+	CABundle     string
 }
 
 func (s *Service) loadRegistry(ctx context.Context, id uuid.UUID) (registryConn, error) {
 	var c registryConn
 	var sid *uuid.UUID
-	if err := s.DB.QueryRow(ctx, `SELECT organization_id, id, base_url, repositories, auth_type, username, secret_id, max_tags, allow_private
-		FROM registry_connections WHERE id = $1`, id).Scan(&c.OrgID, &c.ID, &c.BaseURL, &c.Repositories, &c.Auth, &c.User, &sid, &c.MaxTags, &c.AllowPrivate); err != nil {
+	if err := s.DB.QueryRow(ctx, `SELECT organization_id, id, base_url, repositories, auth_type, username, secret_id, max_tags, allow_private, ca_bundle_pem
+		FROM registry_connections WHERE id = $1`, id).Scan(&c.OrgID, &c.ID, &c.BaseURL, &c.Repositories, &c.Auth, &c.User, &sid, &c.MaxTags, &c.AllowPrivate,
+		&c.CABundle); err != nil {
 		return c, err
 	}
 	if sid != nil {
@@ -365,7 +378,11 @@ func (s *Service) syncRegistry(ctx context.Context, id uuid.UUID, st *SyncStats)
 			return err
 		}
 	}
-	hc := s.client(c.AllowPrivate, nil)
+	tlsCfg, err := registryTLS(c.CABundle)
+	if err != nil {
+		return fmt.Errorf("ca_bundle_pem: %w", err)
+	}
+	hc := s.client(c.AllowPrivate, tlsCfg)
 	// Blobs are often served from a CDN or object store: follow https
 	// redirects (the dialer still applies the network policy).
 	hc.CheckRedirect = func(req *http.Request, via []*http.Request) error {
@@ -393,7 +410,7 @@ func (s *Service) syncRegistry(ctx context.Context, id uuid.UUID, st *SyncStats)
 			if errors.As(err, &re) && re.Status == http.StatusUnauthorized && len(c.Repositories) == 1 {
 				return err
 			}
-			st.warn(repo + ": " + err.Error())
+			st.warn(repo + ": " + scm.WithCAHint(err).Error())
 			failedRepos++
 			continue
 		}

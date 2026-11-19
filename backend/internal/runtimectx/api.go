@@ -524,27 +524,31 @@ func (s *Service) runs(column string) http.HandlerFunc {
 
 // Registry as returned by the API (never the credential).
 type Registry struct {
-	ID              uuid.UUID  `json:"id"`
-	Name            string     `json:"name"`
-	BaseURL         string     `json:"base_url"`
-	Repositories    []string   `json:"repositories"`
-	AuthType        string     `json:"auth_type"`
-	Username        string     `json:"username"`
-	MaxTags         int        `json:"max_tags"`
-	AllowPrivate    bool       `json:"allow_private"`
-	Enabled         bool       `json:"enabled"`
-	IntervalMinutes int        `json:"sync_interval_minutes"`
-	SyncRequestedAt *time.Time `json:"sync_requested_at"`
-	LastSyncAt      *time.Time `json:"last_sync_at"`
-	LastStatus      string     `json:"last_status"`
-	LastError       string     `json:"last_error"`
-	Images          int        `json:"images"`
-	WithSource      int        `json:"images_with_source"`
-	CreatedAt       time.Time  `json:"created_at"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	BaseURL      string    `json:"base_url"`
+	Repositories []string  `json:"repositories"`
+	AuthType     string    `json:"auth_type"`
+	Username     string    `json:"username"`
+	MaxTags      int       `json:"max_tags"`
+	AllowPrivate bool      `json:"allow_private"`
+	Enabled      bool      `json:"enabled"`
+	// CABundlePEM is the private CA bundle added to the system trust store
+	// for this registry ("" = system trust store only).
+	CABundlePEM     string       `json:"ca_bundle_pem"`
+	CACertificates  []scm.CACert `json:"ca_certificates"`
+	IntervalMinutes int          `json:"sync_interval_minutes"`
+	SyncRequestedAt *time.Time   `json:"sync_requested_at"`
+	LastSyncAt      *time.Time   `json:"last_sync_at"`
+	LastStatus      string       `json:"last_status"`
+	LastError       string       `json:"last_error"`
+	Images          int          `json:"images"`
+	WithSource      int          `json:"images_with_source"`
+	CreatedAt       time.Time    `json:"created_at"`
 }
 
 const registrySelect = `SELECT c.id, c.name, c.base_url, c.repositories, c.auth_type, c.username, c.max_tags, c.allow_private, c.enabled,
-	c.sync_interval_minutes, c.sync_requested_at, c.last_sync_at, c.last_status, c.last_error,
+	c.ca_bundle_pem, c.sync_interval_minutes, c.sync_requested_at, c.last_sync_at, c.last_status, c.last_error,
 	(SELECT count(*) FROM registry_images i WHERE i.registry_id = c.id),
 	(SELECT count(*) FROM registry_images i WHERE i.registry_id = c.id AND i.source_url <> ''), c.created_at
 	FROM registry_connections c`
@@ -552,7 +556,11 @@ const registrySelect = `SELECT c.id, c.name, c.base_url, c.repositories, c.auth_
 func scanRegistry(r pgx.Row) (Registry, error) {
 	var c Registry
 	err := r.Scan(&c.ID, &c.Name, &c.BaseURL, &c.Repositories, &c.AuthType, &c.Username, &c.MaxTags, &c.AllowPrivate, &c.Enabled,
-		&c.IntervalMinutes, &c.SyncRequestedAt, &c.LastSyncAt, &c.LastStatus, &c.LastError, &c.Images, &c.WithSource, &c.CreatedAt)
+		&c.CABundlePEM, &c.IntervalMinutes, &c.SyncRequestedAt, &c.LastSyncAt, &c.LastStatus, &c.LastError, &c.Images, &c.WithSource, &c.CreatedAt)
+	_, c.CACertificates, _ = scm.ParseCABundle(c.CABundlePEM, time.Now())
+	if c.CACertificates == nil {
+		c.CACertificates = []scm.CACert{}
+	}
 	return c, err
 }
 
@@ -594,6 +602,16 @@ type registryInput struct {
 	AllowPrivate    bool     `json:"allow_private"`
 	Enabled         *bool    `json:"enabled"`
 	IntervalMinutes int      `json:"sync_interval_minutes"`
+	// CABundlePEM: private CA bundle (PEM certificates). On update, absent
+	// keeps the stored bundle and "" removes it.
+	CABundlePEM *string `json:"ca_bundle_pem"`
+}
+
+func (in *registryInput) caBundle() string {
+	if in.CABundlePEM == nil {
+		return ""
+	}
+	return *in.CABundlePEM
 }
 
 func (s *Service) validateRegistry(in *registryInput, update, hadSecret bool) error {
@@ -604,6 +622,13 @@ func (s *Service) validateRegistry(in *registryInput, update, hadSecret bool) er
 	}
 	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, AllowHTTP: s.AllowHTTP}).ValidateBaseURL(in.BaseURL); err != nil {
 		return httpx.BadRequest("base_url: " + err.Error())
+	}
+	if in.CABundlePEM != nil {
+		b := strings.TrimSpace(*in.CABundlePEM)
+		if _, _, err := scm.ParseCABundle(b, time.Now()); err != nil {
+			return httpx.BadRequest("ca_bundle_pem: " + err.Error()).WithErrorCode(scm.DiagCABundleInvalid)
+		}
+		in.CABundlePEM = &b
 	}
 	var repos []string
 	for _, x := range in.Repositories {
@@ -692,10 +717,10 @@ func (s *Service) createRegistry(w http.ResponseWriter, r *http.Request) {
 			sid = &x
 		}
 		if _, err := tx.Exec(r.Context(), `INSERT INTO registry_connections (id, organization_id, name, base_url, repositories, auth_type, username,
-			secret_id, max_tags, allow_private, enabled, sync_interval_minutes, sync_requested_at, created_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), $13)`,
+			secret_id, max_tags, allow_private, enabled, sync_interval_minutes, sync_requested_at, created_by, ca_bundle_pem)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, now(), $13, $14)`,
 			id, p.OrganizationID, in.Name, in.BaseURL, in.Repositories, in.AuthType, in.Username, sid, in.MaxTags, in.AllowPrivate, enabled,
-			in.IntervalMinutes, p.UserID); err != nil {
+			in.IntervalMinutes, p.UserID, in.caBundle()); err != nil {
 			return err
 		}
 		return audit.Write(r.Context(), tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -758,9 +783,10 @@ func (s *Service) updateRegistry(w http.ResponseWriter, r *http.Request) {
 			newSID = &x
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE registry_connections SET name = $3, base_url = $4, repositories = $5, auth_type = $6, username = $7,
-			secret_id = $8, max_tags = $9, allow_private = $10, enabled = $11, sync_interval_minutes = $12, updated_at = now()
+			secret_id = $8, max_tags = $9, allow_private = $10, enabled = $11, sync_interval_minutes = $12,
+			ca_bundle_pem = CASE WHEN $13 THEN $14 ELSE ca_bundle_pem END, updated_at = now()
 			WHERE organization_id = $1 AND id = $2`, p.OrganizationID, id, in.Name, in.BaseURL, in.Repositories, in.AuthType, in.Username, newSID,
-			in.MaxTags, in.AllowPrivate, enabled, in.IntervalMinutes); err != nil {
+			in.MaxTags, in.AllowPrivate, enabled, in.IntervalMinutes, in.CABundlePEM != nil, in.caBundle()); err != nil {
 			return err
 		}
 		if newSID == nil && sid != nil {
