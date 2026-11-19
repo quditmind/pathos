@@ -56,7 +56,7 @@ var (
 
 // ciCommit and ciBranch read the commit and branch of common CI systems.
 func (a *app) ciCommit() string {
-	for _, k := range []string{"GITHUB_SHA", "CI_COMMIT_SHA", "BUILD_SOURCEVERSION", "GIT_COMMIT"} {
+	for _, k := range []string{"GITHUB_SHA", "CI_COMMIT_SHA", "BUILD_SOURCEVERSION", "BITBUCKET_COMMIT", "GIT_COMMIT"} {
 		if v := strings.TrimSpace(a.getenv(k)); commitRe.MatchString(v) {
 			return v
 		}
@@ -65,7 +65,7 @@ func (a *app) ciCommit() string {
 }
 
 func (a *app) ciBranch() string {
-	for _, k := range []string{"GITHUB_HEAD_REF", "GITHUB_REF_NAME", "CI_COMMIT_REF_NAME", "BUILD_SOURCEBRANCHNAME", "GIT_BRANCH"} {
+	for _, k := range []string{"GITHUB_HEAD_REF", "GITHUB_REF_NAME", "CI_COMMIT_REF_NAME", "BUILD_SOURCEBRANCHNAME", "BITBUCKET_BRANCH", "GIT_BRANCH"} {
 		v := strings.TrimSpace(a.getenv(k))
 		v = strings.TrimPrefix(strings.TrimPrefix(v, "refs/heads/"), "origin/")
 		if branchRe.MatchString(v) && !strings.Contains(v, "..") {

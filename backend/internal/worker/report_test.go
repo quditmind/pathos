@@ -107,11 +107,7 @@ func noisyScript() string {
 func credentialSnapshotJob(t *testing.T, snap []byte) Job {
 	job := snapshotJob(sum(snap), int64(len(snap)))
 	job.Scanners = []JobScanner{{Key: "noisy"}, {Key: "fake"}}
-	job.Credential = &struct {
-		Username string `json:"username"`
-		Token    string `json:"token"`
-		Scheme   string `json:"scheme"`
-	}{Username: "x-access-token", Token: secretToken}
+	job.Credential = &JobCredential{Username: "x-access-token", Token: secretToken}
 	return job
 }
 

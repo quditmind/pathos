@@ -139,22 +139,30 @@ func (s SMTPSender) dial(ctx context.Context, addr string) (net.Conn, error) {
 	return d.DialContext(ctx, "tcp", addr)
 }
 
-// Send delivers one message. TLS modes are strict: "starttls" fails when the
-// server does not offer STARTTLS (no silent downgrade).
-func (s SMTPSender) Send(ctx context.Context, cfg SMTPConfig, m Message) error {
-	raw, err := Build(cfg, m, time.Now())
-	if err != nil {
-		return err
-	}
+// SMTPError is a failure at one stage of an SMTP session: connect,
+// greeting, hello, starttls, auth, mail, rcpt or data.
+type SMTPError struct {
+	Stage string
+	Err   error
+}
+
+func (e *SMTPError) Error() string { return e.Err.Error() }
+func (e *SMTPError) Unwrap() error { return e.Err }
+
+// ErrNoSTARTTLS: the server does not offer STARTTLS in starttls mode.
+var ErrNoSTARTTLS = errors.New("server does not offer STARTTLS (refusing to send in clear text)")
+
+// session opens an SMTP session up to and including AUTH. TLS modes are
+// strict: "starttls" fails when the server does not offer STARTTLS (no
+// silent downgrade).
+func (s SMTPSender) session(ctx context.Context, cfg SMTPConfig) (*smtp.Client, error) {
 	if err := ValidateHost(cfg.Host); err != nil {
-		return err
+		return nil, &SMTPError{"connect", err}
 	}
-	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
-	defer cancel()
 	addr := net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port))
 	conn, err := s.dial(ctx, addr)
 	if err != nil {
-		return fmt.Errorf("connect %s: %w", addr, err)
+		return nil, &SMTPError{"connect", fmt.Errorf("connect %s: %w", addr, err)}
 	}
 	if dl, ok := ctx.Deadline(); ok {
 		_ = conn.SetDeadline(dl)
@@ -166,33 +174,67 @@ func (s SMTPSender) Send(ctx context.Context, cfg SMTPConfig, m Message) error {
 	c, err := smtp.NewClient(conn, cfg.Host)
 	if err != nil {
 		_ = conn.Close()
-		return fmt.Errorf("smtp greeting: %w", err)
+		return nil, &SMTPError{"greeting", fmt.Errorf("smtp greeting: %w", err)}
 	}
-	defer c.Close()
 	if err := c.Hello("pathos.local"); err != nil {
-		return fmt.Errorf("smtp hello: %w", err)
+		_ = c.Close()
+		return nil, &SMTPError{"hello", fmt.Errorf("smtp hello: %w", err)}
 	}
 	if cfg.TLSMode == "starttls" {
 		if ok, _ := c.Extension("STARTTLS"); !ok {
-			return errors.New("server does not offer STARTTLS (refusing to send in clear text)")
+			_ = c.Close()
+			return nil, &SMTPError{"starttls", ErrNoSTARTTLS}
 		}
 		if err := c.StartTLS(tlsCfg); err != nil {
-			return fmt.Errorf("starttls: %w", err)
+			_ = c.Close()
+			return nil, &SMTPError{"starttls", fmt.Errorf("starttls: %w", err)}
 		}
 	}
 	if cfg.Username != "" {
 		if cfg.TLSMode == "none" {
-			return errors.New("refusing to send SMTP credentials without TLS")
+			_ = c.Close()
+			return nil, &SMTPError{"auth", errors.New("refusing to send SMTP credentials without TLS")}
 		}
 		if err := c.Auth(smtp.PlainAuth("", cfg.Username, cfg.Password, cfg.Host)); err != nil {
-			return fmt.Errorf("smtp auth: %w", err)
+			_ = c.Close()
+			return nil, &SMTPError{"auth", fmt.Errorf("smtp auth: %w", err)}
 		}
 	}
+	return c, nil
+}
+
+// Probe checks the relay without sending a message: connect, EHLO,
+// STARTTLS or implicit TLS, AUTH when credentials are set, then QUIT.
+func (s SMTPSender) Probe(ctx context.Context, cfg SMTPConfig) error {
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	c, err := s.session(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
+	_ = c.Quit()
+	return nil
+}
+
+// Send delivers one message.
+func (s SMTPSender) Send(ctx context.Context, cfg SMTPConfig, m Message) error {
+	raw, err := Build(cfg, m, time.Now())
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 45*time.Second)
+	defer cancel()
+	c, err := s.session(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer c.Close()
 	if err := c.Mail(cfg.FromAddress); err != nil {
-		return fmt.Errorf("smtp MAIL FROM: %w", err)
+		return &SMTPError{"mail", fmt.Errorf("smtp MAIL FROM: %w", err)}
 	}
 	if err := c.Rcpt(m.To); err != nil {
-		return fmt.Errorf("smtp RCPT TO: %w", err)
+		return &SMTPError{"rcpt", fmt.Errorf("smtp RCPT TO: %w", err)}
 	}
 	w, err := c.Data()
 	if err != nil {

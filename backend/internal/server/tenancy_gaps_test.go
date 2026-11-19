@@ -237,7 +237,7 @@ func TestNoOrganizationFromClientInput(t *testing.T) {
 var publicRoutes = []string{
 	"GET /healthz", "GET /readyz", "GET /api/auth/login", "GET /api/auth/callback", "GET /api/v1/meta",
 	"GET /api/v1/me/organizations", "POST /api/v1/me/organization", "/mcp", "/api/", "/api",
-	"POST /api/webhooks/github/{id}", "POST /api/webhooks/azure-devops/{id}", "POST /api/webhooks/gitlab/{id}", "POST /api/webhooks/bitbucket/{id}",
+	"POST /api/webhooks/github/{id}", "POST /api/webhooks/azure-devops/{id}", "POST /api/webhooks/gitlab/{id}", "POST /api/webhooks/bitbucket/{id}", "POST /api/webhooks/bitbucket-data-center/{id}",
 }
 
 func TestOnlyReviewedRoutesBypassAuthentication(t *testing.T) {

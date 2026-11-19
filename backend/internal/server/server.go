@@ -16,6 +16,7 @@ import (
 	"pathos/internal/auth"
 	"pathos/internal/authz"
 	"pathos/internal/compliance"
+	"pathos/internal/connectors"
 	"pathos/internal/dashboard"
 	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
@@ -78,6 +79,11 @@ type Deps struct {
 	RateLimitPolicy ratelimit.Policy
 	// Offline disables online intelligence downloads (air-gapped).
 	Offline bool
+	// Connectors hub: the egress proxy URL to check, the check interval and
+	// a non-secret description of the object store.
+	EgressProxyURL         string
+	ConnectorCheckInterval time.Duration
+	ObjectStoreMeta        map[string]string
 }
 
 // Handlers bundles the public handler and the internal worker handler.
@@ -126,7 +132,13 @@ func Build(d Deps) Handlers {
 	aiSvc := NewAIService(d, az)
 	// Product metadata (GET /api/v1/meta answers without authentication
 	// with product, vendor and version only) and the diagnostic engine.
-	diagSvc := &diagnostics.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, WorkerOnlineWindow: scans.WorkerOnlineWindow}
+	// Connectors hub (flag "connectors"). The API runs the checks of kinds
+	// it already calls for their test buttons; Kubernetes, registries and
+	// the egress proxy are checked by the jobs service only (no runtime
+	// checker here).
+	connSvc := &connectors.Service{Env: ConnectorEnv(d, "api", repoSvc, aiSvc, nil), Log: d.Log, Principal: auth.PrincipalFrom}
+	diagSvc := &diagnostics.Service{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, WorkerOnlineWindow: scans.WorkerOnlineWindow,
+		Subjects: map[string]diagnostics.SubjectContext{"connector": connSvc.TroubleshootContext}}
 	diagSvc.RegisterPublic(public)
 	reviewSvc := NewReviewService(d, az, repoSvc, aiSvc)
 	// After a scan: AI auto-review first, then the Human Eye queue picks
@@ -231,6 +243,7 @@ func Build(d Deps) Handlers {
 	(&schedule.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&notify.Service{DB: d.DB, Authz: az, Secrets: d.Secrets, Log: d.Log, Principal: auth.PrincipalFrom, BaseURL: d.PublicURL}).Register(protected)
 	diagSvc.Register(protected)
+	connSvc.Register(protected)
 	(&featureflags.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)

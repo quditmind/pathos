@@ -11,8 +11,10 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // StatusError is an unexpected HTTP status from a provider. It wraps one of
@@ -159,6 +161,7 @@ type api struct {
 // request is retried at most once. A 401 on an OAuth connection that could
 // not be fixed by a refresh also matches ErrTokenExpired.
 func (a *api) do(ctx context.Context, method, rawURL string, body []byte, contentType string, out any) (*http.Response, error) {
+	waits := 0
 	for attempt := 0; ; attempt++ {
 		var rd io.Reader
 		if body != nil {
@@ -178,6 +181,24 @@ func (a *api) do(ctx context.Context, method, rawURL string, body []byte, conten
 			return nil, err
 		}
 		resp, err := doJSON(ctx, a.hc, req, out)
+		// Listing and other read calls honour the provider's Retry-After
+		// on a rate limit (seconds or an HTTP date), never retrying sooner,
+		// at most twice and only while the wait fits MaxRetryAfter and the
+		// caller's deadline. Writes are not retried here.
+		if method == http.MethodGet && errors.Is(err, ErrRateLimited) && resp != nil && waits < 2 {
+			if d, ok := RetryAfter(resp.Header, time.Now()); ok && d <= MaxRetryAfter && fitsDeadline(ctx, d) {
+				waits++
+				attempt--
+				t := time.NewTimer(d)
+				select {
+				case <-ctx.Done():
+					t.Stop()
+					return resp, err
+				case <-t.C:
+				}
+				continue
+			}
+		}
 		if resp == nil || resp.StatusCode != http.StatusUnauthorized {
 			return resp, err
 		}
@@ -195,6 +216,38 @@ func (a *api) do(ctx context.Context, method, rawURL string, body []byte, conten
 		}
 		return resp, err
 	}
+}
+
+// MaxRetryAfter is the longest Retry-After a read call waits for before
+// giving up with ErrRateLimited (background jobs retry later anyway).
+var MaxRetryAfter = 60 * time.Second
+
+// RetryAfter parses a Retry-After header: delay-seconds or an HTTP date
+// (RFC 9110 §10.2.3). A date in the past means "now" (0).
+func RetryAfter(h http.Header, now time.Time) (time.Duration, bool) {
+	v := strings.TrimSpace(h.Get("Retry-After"))
+	if v == "" {
+		return 0, false
+	}
+	if n, err := strconv.Atoi(v); err == nil {
+		if n < 0 {
+			return 0, false
+		}
+		return time.Duration(n) * time.Second, true
+	}
+	t, err := http.ParseTime(v)
+	if err != nil {
+		return 0, false
+	}
+	if d := t.Sub(now); d > 0 {
+		return d, true
+	}
+	return 0, true
+}
+
+func fitsDeadline(ctx context.Context, d time.Duration) bool {
+	dl, ok := ctx.Deadline()
+	return !ok || time.Until(dl) > d+2*time.Second
 }
 
 func (a *api) get(ctx context.Context, rawURL string, out any) (*http.Response, error) {

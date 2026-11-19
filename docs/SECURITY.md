@@ -80,6 +80,13 @@ Residual risks (row-level security query plans, installation-wide sequence numbe
   3. Run `docker compose run --rm --entrypoint pathosctl migrate rotate-master-key`. Only the data keys are rewrapped, in one transaction.
   4. Remove the old key from `PATHOS_MASTER_KEYS_PREVIOUS` and run `docker compose up -d`.
 
+### Secret references (Vault / OpenBao)
+
+- A connector credential may be stored as `vault:<mount>/<path>#<key>`. `secrets.Store.Reveal` resolves it at use time (credential kinds `scm`, `ai`, `mcp`, `smtp`, `integration`, `scan_target`; never `webhook` or `worker`). The value is returned to the caller in memory only: never written to disk or the database, never cached, never logged, never sent to AI. Only the Vault client token is cached, in memory, until 30 s before its lease ends (max 1 h).
+- PATHOS authenticates with AppRole (the secret ID is the one secret it stores, encrypted) or Kubernetes auth (no stored secret). Anyone who can manage a connector can type a reference, so PATHOS can be made to read anything its Vault role may read: keep the role's policy to `read` on `<mount>/data/<prefix>/*` and set the same allowed path prefix on the connector; PATHOS refuses other paths before contacting Vault (`PTH-CONN-1607`).
+- A compromise of the PATHOS server (master key and database, or code execution in api/jobs) still yields everything the PATHOS role can read. References centralise rotation and revocation; they are not a defence against a compromised server. Bind the AppRole to the PATHOS addresses (`secret_id_bound_cidrs`, `token_bound_cidrs`) and limit `secret_id_ttl`.
+- Vault errors are reported with Vault's own error strings (truncated); the secret ID, tokens and values never appear in errors or logs. See [Secret references](user-guide/secret-references.md).
+
 ## Database privileges
 
 - `pathos_owner` owns the schema and runs migrations. The API, jobs and scheduler connect as **`pathos_app`**, which:
@@ -129,6 +136,9 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - GitHub: HMAC-SHA256 `X-Hub-Signature-256` over the raw body, compared in constant time. GitLab and Bitbucket use their own secret mechanisms; Azure DevOps uses a basic-auth password equal to the webhook secret.
   - Secrets are per connection, random 256-bit, rotatable and shown once.
   - Bodies are capped at 5 MB. Deliveries are de-duplicated by delivery ID, so replays are ignored, and rejected deliveries are audited (`webhook.rejected`).
+- **Private CA per connection** (Connectors feature): a PEM bundle is *added* to the system pool for that connection and its clones; verification is never disabled; TLS 1.2 minimum. Stored as configuration because CA certificates are public and the trust decision must stay reviewable; private keys are refused.
+- **Generic Git over SSH:** the host key is pinned. Creating the connection requires the administrator's `SHA256:` fingerprint to match the pasted `known_hosts` line; the health check (pure Go, `golang.org/x/crypto/ssh`) and the worker's clone (`StrictHostKeyChecking=yes`, only the pinned file, no agent, `BatchMode=yes`) refuse any other key. There is no trust-on-first-use. The deploy key is encrypted (kind `scm`) and reaches a worker only for one job; it is written to a 0600 file in a private temporary directory for the duration of one git command and then deleted. The SSH dial uses the same connect-time address policy as HTTP.
+- **Bitbucket Data Center webhooks** are verified like Bitbucket Cloud (`X-Hub-Signature`, HMAC-SHA256, constant time) and de-duplicated on `X-Request-Id`.
 - **Repository access** follows the scope hierarchy (repository → business unit chain → region of its country → organization). Moving a repository needs `repos.manage` at both the source and the destination.
 - **Input hygiene:** scan branches are validated as git ref names and cannot start with `-` (option injection). CSV exports prefix formula-leading cells (`= + - @`) to prevent spreadsheet formula injection.
 - **Commit statuses** for pull request checks are written with the connection's own credential (opt-in per repository).
@@ -316,6 +326,7 @@ Imported VEX statements (OpenVEX, CycloneDX) never change a finding on import: m
 
 ## Notifications and scheduling
 
+- **Connectors hub:** the registry stores no copy of a legacy connection's settings or credentials (only its table and key). Health checks are read-only and never post a message, send an e-mail or create a ticket; stored check messages are redacted (URLs reduced to scheme and host, e-mail addresses and token-shaped strings removed). AI troubleshooting of a connector receives only server-built, non-secret metadata. The GitLab webhook signing token (kind `webhook`) and the Teams trigger client secret (kind `integration`) are write-only.
 - **E-mail transport:** `starttls` mode refuses to send if the server does not offer STARTTLS; there is no silent clear-text fallback. Credentials are never sent without TLS, and the relay password is encrypted (kind `smtp`) and write-only. The SMTP dialer refuses loopback, link-local and metadata addresses. Private relays are allowed.
 - **Header injection:** recipient and sender addresses are validated as bare addresses. Subjects are collapsed to one sanitized line and MIME-encoded, and bodies are quoted-printable. Untrusted text (finding titles, scanner errors) can reach only the body. Messages carry `Auto-Submitted: auto-generated`.
 - **Templates:** administrators edit Go `text/template` (no code execution, no file or network access). Templates are validated against sample data on save, rendering is capped at 64 KiB, and a broken template falls back to the default rather than dropping the notification.

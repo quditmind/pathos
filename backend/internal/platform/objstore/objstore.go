@@ -88,6 +88,40 @@ func (s *S3) EnsureBucket(ctx context.Context) error {
 	return nil
 }
 
+// AccessError is an object store answer that refuses the credential
+// (HTTP 401 or 403).
+type AccessError struct {
+	Status int
+	Err    error
+}
+
+func (e *AccessError) Error() string {
+	return fmt.Sprintf("object store denied access (HTTP %d)", e.Status)
+}
+func (e *AccessError) Unwrap() error { return e.Err }
+
+// Ping checks the bucket is reachable and readable with the configured
+// credentials (HeadBucket; nothing is created or written).
+func (s *S3) Ping(ctx context.Context) error {
+	_, err := s.c.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: &s.bucket})
+	if err == nil {
+		return nil
+	}
+	var re interface{ HTTPStatusCode() int }
+	if errors.As(err, &re) {
+		switch code := re.HTTPStatusCode(); code {
+		case http.StatusUnauthorized, http.StatusForbidden:
+			return &AccessError{Status: code, Err: err}
+		case http.StatusNotFound:
+			return fmt.Errorf("bucket %s: %w", s.bucket, ErrBucketNotFound)
+		}
+	}
+	return err
+}
+
+// ErrBucketNotFound means the configured bucket does not exist.
+var ErrBucketNotFound = errors.New("bucket not found")
+
 // Put implements Store.
 func (s *S3) Put(ctx context.Context, key string, body []byte, contentType string) error {
 	_, err := s.c.PutObject(ctx, &s3.PutObjectInput{

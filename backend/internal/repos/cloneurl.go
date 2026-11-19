@@ -18,6 +18,14 @@ func normalizeCloneURL(provider, baseURL, raw string) (string, error) {
 	if raw == "" {
 		return "", nil
 	}
+	if provider == "generic_git" {
+		// The clone URL is the connection's own repository URL (ssh:// keeps
+		// its user name, which SSH needs).
+		if raw != baseURL {
+			return "", errUntrustedCloneURL
+		}
+		return raw, nil
+	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || u.RawQuery != "" || u.Fragment != "" {
 		return "", errUntrustedCloneURL

@@ -402,24 +402,31 @@ var fullSHARe = regexp.MustCompile(`^[0-9a-f]{40}([0-9a-f]{24})?$`)
 // ext:: transports and symlinks are disabled.
 func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (string, error) {
 	u, err := url.Parse(job.CloneURL)
-	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
+	sshClone := err == nil && u.Scheme == "ssh" && job.Credential != nil && job.Credential.SSHPrivateKey != ""
+	if sshClone {
+		// Generic Git over SSH: ssh://user@host[:port]/path, user name
+		// only, pinned host key required.
+		if _, hasPass := u.User.Password(); u.User == nil || hasPass || u.Host == "" || strings.ContainsAny(u.Path, "'\\") || job.Credential.SSHKnownHosts == "" {
+			return "", errors.New("SSH clone URL must be ssh://user@host/path with a pinned host key")
+		}
+	} else if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.User != nil {
 		return "", errors.New("clone URL must be http(s) without embedded credentials")
 	}
 	if !refRe.MatchString(job.Ref) || strings.HasPrefix(job.Ref, "-") || strings.Contains(job.Ref, "..") {
 		return "", errors.New("invalid ref")
 	}
-	env := []string{"GIT_TERMINAL_PROMPT=0", "GIT_ASKPASS=/bin/false", "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL=/dev/null"}
-	if job.Credential != nil && job.Credential.Token != "" {
-		header := "Authorization: Basic " + basicAuth(job.Credential.Username, job.Credential.Token)
-		if job.Credential.Scheme == "bearer" {
-			header = "Authorization: Bearer " + job.Credential.Token
-		}
-		env = append(env, "GIT_CONFIG_COUNT=1", "GIT_CONFIG_KEY_0=http.extraHeader", "GIT_CONFIG_VALUE_0="+header)
+	env, cleanup, err := gitAuthEnv(job)
+	if err != nil {
+		return "", err
 	}
+	defer cleanup()
 	hardening := []string{
 		"-c", "core.hooksPath=/dev/null", "-c", "protocol.file.allow=never", "-c", "protocol.ext.allow=never",
 		"-c", "core.fsmonitor=false", "-c", "core.symlinks=false", "-c", "submodule.recurse=false",
 		"-c", "transfer.fsckObjects=true", "-c", "http.followRedirects=false",
+	}
+	if sshClone {
+		hardening = append(hardening, "-c", "protocol.ssh.allow=always")
 	}
 	args := append(append([]string{}, hardening...), "clone")
 	if job.FullHistory {

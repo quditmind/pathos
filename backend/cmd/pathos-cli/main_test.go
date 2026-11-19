@@ -373,4 +373,10 @@ func TestCIEnvironmentDefaults(t *testing.T) {
 	if a.ciCommit() != "abcdef1" || a.ciBranch() != "feature/x" {
 		t.Errorf("jenkins: %q %q", a.ciCommit(), a.ciBranch())
 	}
+	b := &app{getenv: func(k string) string {
+		return map[string]string{"BITBUCKET_COMMIT": "0123456789abcdef0123456789abcdef01234567", "BITBUCKET_BRANCH": "feature/y"}[k]
+	}}
+	if b.ciCommit() != "0123456789abcdef0123456789abcdef01234567" || b.ciBranch() != "feature/y" {
+		t.Errorf("bitbucket pipelines: %q %q", b.ciCommit(), b.ciBranch())
+	}
 }

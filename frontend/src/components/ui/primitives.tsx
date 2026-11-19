@@ -87,11 +87,13 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded bg-surface-muted", className)} />;
 }
 
-export function PageHeader({ title, description, actions }: { title: string; description?: string; actions?: ReactNode }) {
+/** Page title row. `level={2}` when a page is embedded in another page (for example the Connectors hub). */
+export function PageHeader({ title, description, actions, level = 1 }: { title: string; description?: string; actions?: ReactNode; level?: 1 | 2 }) {
+  const H = level === 2 ? "h2" : "h1";
   return (
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+    <div className={cn("flex flex-wrap items-end justify-between gap-3", level === 2 ? "mb-3" : "mb-5")}>
       <div>
-        <h1 className="text-lg font-semibold tracking-tight">{title}</h1>
+        <H className={cn("font-semibold tracking-tight", level === 2 ? "text-[15px]" : "text-lg")}>{title}</H>
         {description && <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex items-center gap-2">{actions}</div>}

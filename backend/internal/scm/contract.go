@@ -20,6 +20,7 @@ const (
 	AuthOAuth            = "oauth"
 	AuthAPIToken         = "api_token"         // Bitbucket Cloud: Atlassian e-mail + API token
 	AuthServicePrincipal = "service_principal" // Azure DevOps: Microsoft Entra ID client credentials
+	AuthSSHKey           = "ssh_key"           // Generic Git: SSH private key + pinned known_hosts
 )
 
 // Errors shared by all providers. Adapters wrap them so callers can use

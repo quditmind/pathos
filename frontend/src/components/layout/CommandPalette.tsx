@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Boxes, Building2, Radar, ShieldAlert, FileClock, GitBranch, Globe2, LayoutDashboard, LogOut, MapPin, Moon, Plug, Search, Tags, UserRound, Users } from "lucide-react";
 import { api } from "@/api/client";
+import { useFeatureFlags } from "@/features/shell/meta";
 import { splitHref } from "@/lib/utils";
 import type { SearchResult } from "@/api/types";
 import { useSession } from "@/features/auth/session";
@@ -70,6 +71,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
     void navigate(splitHref(to) as { to: string });
   };
 
+  const connectorsOn = useFeatureFlags().flags.connectors === true;
   const pages = [
     { label: "Dashboard", to: "/", icon: <LayoutDashboard />, show: true },
     { label: "Repositories", to: "/repositories", icon: <GitBranch />, show: can("repos.read") },
@@ -100,6 +102,7 @@ export function CommandPalette({ open, onOpenChange, onToggleTheme }: { open: bo
     { label: "Sign-in security (recovery codes)", to: "/settings/security", icon: <Radar />, show: true },
     { label: "Users", to: "/admin/users", icon: <Users />, show: canOrgWide("users.read") },
     { label: "SCM connections", to: "/admin/scm", icon: <Plug />, show: canOrgWide("scm.manage") },
+    { label: "Connectors (connections, authentication, health)", to: "/connectors", icon: <Plug />, show: connectorsOn },
     { label: "Tags", to: "/admin/tags", icon: <Tags />, show: can("repos.read") },
     { label: "Asset settings", to: "/admin/assets", icon: <Tags />, show: canOrgWide("assets.configure") },
     { label: "Organization", to: "/admin/organization", icon: <Building2 />, show: can("org.read") },

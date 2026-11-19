@@ -15,7 +15,7 @@ import { AuditPage } from "@/features/audit/AuditPage";
 import { RepositoriesPage, validateRepoSearch } from "@/features/repos/RepositoriesPage";
 import { ImportPage } from "@/features/repos/ImportPage";
 import { ApplicationsPage } from "@/features/repos/ApplicationsPage";
-import { ScmConnectionsPage, validateScmSearch } from "@/features/settings/ScmConnectionsPage";
+import { validateScmSearch } from "@/features/settings/ScmConnectionsPage";
 import { ImportLandingPage } from "@/features/repos/onboarding/ImportLandingPage";
 import { OnboardingPage, validateOnboardingSearch } from "@/features/repos/onboarding/OnboardingPage";
 import { ImportsPage, validateImportsSearch } from "@/features/repos/onboarding/ImportsPage";
@@ -33,7 +33,6 @@ import { ImportResultsPage } from "@/features/scans/ImportResultsPage";
 import { ScanTargetsPage } from "@/features/scans/ScanTargetsPage";
 import { ExecutivePage } from "@/features/reporting/ExecutivePage";
 import { ReportsPage } from "@/features/reporting/ReportsPage";
-import { IntegrationsPage } from "@/features/integrations/IntegrationsPage";
 import { CompliancePage } from "@/features/compliance/CompliancePage";
 import { SecuritySettingsPage } from "@/features/account/SecuritySettingsPage";
 import { PullRequestChecksPage } from "@/features/prchecks/PullRequestChecksPage";
@@ -79,6 +78,9 @@ import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
 import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPage";
 import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
 import { FeatureFlagsPage } from "@/features/flags/FeatureFlagsPage";
+import { ConnectorsPage } from "@/features/connectors/ConnectorsPage";
+import { validateConnectorsSearch } from "@/features/connectors/model";
+import { IntegrationsRoute, ScmConnectionsRoute } from "@/features/connectors/redirects";
 
 function Authenticated() {
   const me = useMe();
@@ -175,7 +177,9 @@ const appsRoute = createRoute({
   component: ApplicationsPage,
   validateSearch: (s: Record<string, unknown>): { app?: string } => ({ app: typeof s.app === "string" ? s.app : undefined }),
 });
-const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsPage, validateSearch: validateScmSearch });
+// SCM connections and Integrations redirect into Connectors only when the `connectors` flag is on (parity: e2e connectors-parity.spec.ts).
+const scmRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/scm", component: ScmConnectionsRoute, validateSearch: validateScmSearch });
+const connectorsRoute = createRoute({ getParentRoute: () => appRoute, path: "/connectors", component: ConnectorsPage, validateSearch: validateConnectorsSearch });
 const tagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/tags", component: TagsPage });
 
 const scansRoute = createRoute({ getParentRoute: () => appRoute, path: "/scans", component: ScansPage, validateSearch: validateScanSearch });
@@ -231,7 +235,7 @@ const aiSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ad
 const mcpRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/mcp", component: McpRegistryPage });
 const executiveRoute = createRoute({ getParentRoute: () => appRoute, path: "/executive", component: ExecutivePage });
 const reportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/reports", component: ReportsPage });
-const integrationsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/integrations", component: IntegrationsPage });
+const integrationsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/integrations", component: IntegrationsRoute });
 const complianceRoute = createRoute({ getParentRoute: () => appRoute, path: "/compliance", component: CompliancePage });
 const featureFlagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/feature-flags", component: FeatureFlagsPage });
 const securitySettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/security", component: SecuritySettingsPage });
@@ -253,7 +257,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 
 const routeTree = rootRoute.addChildren([
   loginRoute,
-  appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
+  appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
     scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);

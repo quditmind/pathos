@@ -152,10 +152,10 @@ var paramTables = map[string]string{
 	"role-assignments": "role_assignments", "risk-acceptances": "risk_acceptances", "mappings": "runtime_app_mappings",
 	"identities": "developer_identities", "fix-prs": "fix_pull_requests", "configurations": "ai_configurations",
 	"asset-classifications": "asset_classifications", "github": "scm_connections", "gitlab": "scm_connections",
-	"bitbucket": "scm_connections", "azure-devops": "scm_connections", "evidence": "human_review_evidence",
+	"bitbucket": "scm_connections", "bitbucket-data-center": "scm_connections", "azure-devops": "scm_connections", "evidence": "human_review_evidence",
 	"organizations": "organizations", "providers": "ai_providers", "reviews": "ai_reviews",
 	"ai": "human_review_recommendations", "rules": "notification_rules", "deliveries": "notifications",
-	"reports": "saved_reports",
+	"reports": "saved_reports", "connectors": "connectors",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -223,6 +223,11 @@ func TestTenantIsolation(t *testing.T) {
 	orgA, _, err := tenancy.CreateOrganization(ctx, iso, "Isolation A", slugA, "", seed)
 	if err != nil {
 		t.Fatal("create organization A:", err)
+	}
+	// Flagged modules are on in A too, so their routes are probed.
+	if _, err := ownerPool.Exec(ctx, `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, 'connectors', true)`,
+		uuid.Must(uuid.NewV7()), orgA.ID); err != nil {
+		t.Fatal(err)
 	}
 	// B must be seeded the same way (it is the suite's main organization).
 	if err := mcp.EnsureBuiltIn(tenant.WithOrg(ctx, orgB), iso, orgB, "https://pathos.example"); err != nil {
@@ -491,7 +496,7 @@ func TestTenantIsolation(t *testing.T) {
 		}
 		// Unauthenticated: inbound SCM webhooks addressed to B's connections
 		// (the signature check uses B's secret; a forged delivery is rejected).
-		for _, prov := range []string{"github", "gitlab", "bitbucket", "azure-devops"} {
+		for _, prov := range []string{"github", "gitlab", "bitbucket", "bitbucket-data-center", "azure-devops"} {
 			for _, c := range bByTable["scm_connections"] {
 				code, out := do("", "POST", "/api/webhooks/"+prov+"/"+c, []byte(`{"zen":"x"}`))
 				requests++
@@ -1249,6 +1254,13 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	n := func() string { return uuid.NewString()[:8] }
 	cluster := uuid.Must(uuid.NewV7())
 	vexImport := uuid.Must(uuid.NewV7())
+	connector := uuid.Must(uuid.NewV7())
+	// The Connectors hub is behind its flag: on for B so its routes reach
+	// the organization checks.
+	if _, err := ownerPool.Exec(ctx, `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, 'connectors', true)
+		ON CONFLICT (organization_id, name) DO UPDATE SET enabled = true`, uuid.Must(uuid.NewV7()), org); err != nil {
+		t.Fatal(err)
+	}
 	stmts := []struct {
 		table, sql string
 		args       []any
@@ -1269,6 +1281,8 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 		{"scm_oauth_apps", `INSERT INTO scm_oauth_apps (id, organization_id, provider, name, client_id, secret_id) VALUES ($1, $2, 'github', $3, 'b-client', $4)`, []any{uuid.Must(uuid.NewV7()), org, "iso-b-" + n(), secret}},
 		{"vex_imports", `INSERT INTO vex_imports (id, organization_id, format, document_sha256, imported_by, repository_id) VALUES ($1, $2, 'openvex', $3, $4, $5)`, []any{vexImport, org, strings.Repeat("b", 64), user, repo}},
 		{"vex_suggestions", `INSERT INTO vex_suggestions (id, organization_id, import_id, finding_id, repository_id, vulnerability, vex_status, requested_by) VALUES ($1, $2, $3, $4, $5, 'CVE-2099-0001', 'not_affected', $6)`, []any{uuid.Must(uuid.NewV7()), org, vexImport, finding, repo, user}},
+		{"connectors", `INSERT INTO connectors (id, organization_id, kind, name, config, status, last_check_at, last_error_code) VALUES ($1, $2, 'vault', $3, '{"address":"https://vault.b.example"}', 'failing', now(), 'PTH-CONN-1007')`, []any{connector, org, "iso-b-" + n()}},
+		{"connector_health_checks", `INSERT INTO connector_health_checks (id, organization_id, connector_id, status, trigger, error_code, message) VALUES ($1, $2, $3, 'failing', 'user', 'PTH-CONN-1007', 'B check')`, []any{uuid.Must(uuid.NewV7()), org, connector}},
 		{"application_versions", `INSERT INTO application_versions (id, organization_id, application_id, version) VALUES ($1, $2, $3, $4)`, []any{uuid.Must(uuid.NewV7()), org, app, "b-" + n()}},
 	}
 	for _, st := range stmts {
