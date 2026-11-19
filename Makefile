@@ -33,7 +33,7 @@ test-web:
 test-integration: ## Go integration tests against a throwaway PostgreSQL
 	scripts/test-integration.sh
 
-test-rules: ## Run the Opengrep framework configuration rules against their fixtures (worker-core image)
+test-rules: ## Run the PATHOS Opengrep rules (framework configuration, crypto, database, AI, CI/CD) against their fixtures (worker-core image)
 	scripts/test-opengrep-rules.py
 
 security: ## Security self-tests: gosec, govulncheck, npm audit, Trivy (images), ZAP baseline

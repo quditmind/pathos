@@ -1,0 +1,6 @@
+# Deliberately vulnerable sample for the worker-sast fixture tests.
+# Fake credentials, made up for the tests.
+service:
+  name: reports
+  smtp_password: "Fixture-Smtp-Pass-5520"
+  ldap_url: "ldap://cn=admin,dc=example,dc=org:Fixture-Ldap-Pass-3307@ldap.internal.example:389"

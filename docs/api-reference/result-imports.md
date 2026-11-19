@@ -144,7 +144,7 @@ What is mapped, where the tool reports it: severity (each tool's scale mapped to
 - **Nessus** severity 0 items are imported as `info`.
 - **Burp** and **ZAP**: the request and response bodies are never kept (they can contain credentials); only their presence is recorded.
 
-**Secrets in reports.** Gitleaks, TruffleHog and Trivy report the secrets they find in plain text. PATHOS removes these values (`Secret`, `Match`, `Line`; `Raw`, `RawV2`, `Redacted`; Trivy's secret `Match` and `Code`) **before** the report is parsed or stored. Finding identity never depends on them. The import's `sha256` is that of the uploaded file.
+**Secrets in reports.** Gitleaks, TruffleHog and Trivy report the secrets they find in plain text. PATHOS removes these values (`Secret`, `Match`, `Line`; `Raw`, `RawV2`, `Redacted`, `SecretParts`; Trivy's secret `Match` and `Code`) **before** the report is parsed or stored. Finding identity never depends on them. The import's `sha256` is that of the uploaded file.
 
 **XML.** XML reports are parsed without DTD processing: external entities and external DTDs are never resolved, only the five predefined XML entities are known (documents using other entities are rejected), nesting depth is bounded, and only UTF-8, US-ASCII and ISO-8859-1 / Windows-1252 encodings are accepted.
 

@@ -1,0 +1,39 @@
+# Test fixture for workers/rules/pathos-cicd.yml (Azure Pipelines). Not run.
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: platform/pipeline-templates
+      # ruleid: pathos.cicd.azure.unpinned-template-repository
+      ref: refs/heads/main
+    - repository: pinned
+      type: git
+      name: platform/pipeline-templates
+      # ok: pathos.cicd.azure.unpinned-template-repository
+      ref: refs/tags/v3.1.0
+  containers:
+    - container: build
+      # ruleid: pathos.cicd.unpinned-container-image
+      image: ubuntu:latest
+    - container: test
+      # ok: pathos.cicd.unpinned-container-image
+      image: ubuntu:24.04@sha256:0e5e4a57c2499249aafc3b40fcd541e9a456aab7296681a3994d631587203f97
+
+steps:
+  # ruleid: pathos.cicd.azure.script-injection
+  - script: echo "Commit $(Build.SourceVersionMessage)"
+    # ok: pathos.cicd.azure.script-injection
+    displayName: Build $(Build.SourceBranchName)
+  - script: echo "Commit $COMMIT_MESSAGE"
+    env:
+      # ok: pathos.cicd.azure.script-injection
+      COMMIT_MESSAGE: $(Build.SourceVersionMessage)
+  - bash: |
+      # ruleid: pathos.cicd.azure.script-injection
+      git push origin HEAD:$(System.PullRequest.SourceBranch)
+      # ruleid: pathos.cicd.curl-pipe-shell
+      wget -qO- https://example.com/setup.sh | sh
+      # ruleid: pathos.cicd.secret-echoed
+      echo "using $(apiKey)"
+  # ruleid: pathos.cicd.curl-pipe-shell
+  - powershell: iwr https://example.com/install.ps1 | iex

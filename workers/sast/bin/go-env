@@ -1,0 +1,12 @@
+# Sourced by gosec-tree and golangci-lint-tree (after setting go_tmp): the Go toolchain of the
+# image, offline. $go_tmp is the job's temporary directory (build and module
+# caches). GOPROXY=off: modules that are not vendored are not downloaded
+# (their packages are reported as type-check errors); GOTOOLCHAIN=local: a
+# go.mod "toolchain" line never downloads a toolchain; GOENV=off: no user
+# go.env; CGO_ENABLED=0: cgo files are not preprocessed (no C compiler).
+: "${go_tmp:?go_tmp is not set}"
+export GOROOT=/opt/pathos/sast/go
+export PATH="/opt/pathos/sast/go/bin:$PATH"
+export GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOENV=off GOTELEMETRY=off CGO_ENABLED=0 GOFLAGS=-buildvcs=false
+export GOCACHE="$go_tmp/go-build" GOPATH="$go_tmp/gopath" GOMODCACHE="$go_tmp/gopath/pkg/mod" GOLANGCI_LINT_CACHE="$go_tmp/golangci-lint"
+mkdir -p "$GOCACHE" "$GOMODCACHE" "$GOLANGCI_LINT_CACHE"

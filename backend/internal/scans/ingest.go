@@ -81,6 +81,16 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			findings = append(findings, f)
 		}
 	}
+	if up.Parser != nil && up.Parser.Kind == "import" && len(raw) > 0 {
+		// A manifest tool parsed with an import parser (TruffleHog,
+		// Kingfisher, detect-secrets, Talisman, ...): its report is stored
+		// like an imported one, without the secret values the format
+		// carries. Identities do not depend on them, so findings are
+		// located in the stored copy as well.
+		if clean := scanners.SanitizeImport(up.Parser.Format, raw); !bytes.Equal(clean, raw) {
+			raw, gz = clean, nil
+		}
+	}
 	errText := logging.RedactString(firstNonEmpty(parseErr, up.Error))
 	if len(errText) > 2000 {
 		errText = errText[:2000]

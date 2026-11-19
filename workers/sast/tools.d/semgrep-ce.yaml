@@ -1,0 +1,26 @@
+# Semgrep CE (Community Edition) with the PATHOS rules only (the rule
+# files of the core image at /opt/pathos/rules). No Semgrep Registry rules
+# are used (their licence restricts use in a product) and nothing is sent to
+# Semgrep: metrics and the version check are off. SARIF output.
+name: semgrep-ce
+display_name: Semgrep CE
+category: sast
+scan_types: [sast]
+license_spdx: LGPL-2.1-or-later
+homepage: https://github.com/semgrep/semgrep
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/semgrep
+version_args: ["--version"]
+args: ["scan", "--config", "/opt/pathos/rules", "--metrics", "off", "--disable-version-check", "--no-git-ignore", "--quiet", "--sarif", "--output", "{output}", "{source}"]
+ok_exit_codes: [0, 1]
+timeout: 30m
+env:
+  SEMGREP_SEND_METRICS: "off"
+  SEMGREP_ENABLE_VERSION_CHECK: "0"
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

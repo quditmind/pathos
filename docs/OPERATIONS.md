@@ -188,7 +188,7 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 
 | Family | Profile | Service | Tools |
 |---|---|---|---|
-| SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck |
+| SAST | `sast` | `worker-sast` | Bandit, njsscan, ShellCheck, gosec, Flawfinder, cppcheck, PHPStan, Psalm, Ruff, ESLint + eslint-plugin-security, Semgrep CE, Bearer CLI (optional, Elastic-2.0), TruffleHog, detect-secrets, Kingfisher, Talisman, Pylint, golangci-lint |
 
 To enable one:
 

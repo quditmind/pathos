@@ -1,0 +1,17 @@
+#!/bin/sh
+# Runs ESLint with the image's configuration (eslint-plugin-security on
+# JavaScript and TypeScript files) on a directory tree and writes its JSON
+# report. A repository's own ESLint configuration and its inline
+# "eslint-disable" comments are ignored: the configuration is fixed, and
+# repository code (plugins, config files) is never loaded.
+#   eslint-tree <directory> <report>
+# Exit status: 0 no problems, 1 problems found, 2 errors.
+set -eu
+node=/opt/pathos/sast/node/bin/node
+eslint=/opt/pathos/sast/eslint/node_modules/eslint/bin/eslint.js
+if [ "${1:-}" = "--version" ]; then exec "$node" "$eslint" --version; fi
+[ "$#" -eq 2 ] && [ -d "$1" ] || { echo "usage: eslint-tree <directory> <report>" >&2; exit 2; }
+# ESLint lints the files under its working directory.
+cd "$1"
+exec "$node" --max-old-space-size=4096 "$eslint" --config /opt/pathos/sast/eslint/eslint.config.mjs --no-inline-config \
+  --no-warn-ignored --format json --output-file "$2" .

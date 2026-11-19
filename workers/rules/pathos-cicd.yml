@@ -1,0 +1,383 @@
+# PATHOS CI/CD pipeline rules for GitLab CI, Azure Pipelines, Bitbucket
+# Pipelines and Jenkins (Jenkinsfile): script injection from
+# attacker-controlled variables, downloads piped into a shell, unpinned
+# images, includes, templates, pipes and shared libraries, secrets written
+# to the job log, and privileged Docker.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from these rules (ids
+# pathos.cicd.*, metadata category "cicd") are reported in the "cicd"
+# finding category. GitHub Actions workflows are covered by zizmor and
+# actionlint. Test fixtures: workers/rules-tests/cicd/.
+# The rules match the pipeline files by name (paths.include). Pipeline
+# files are YAML, except Jenkinsfiles (Groovy), which are matched as text.
+rules:
+  # ------------------------------------------------------- Script injection
+  - id: pathos.cicd.gitlab.script-injection
+    languages: [yaml]
+    severity: ERROR
+    message: >-
+      A GitLab CI script uses a variable that the author of a commit, branch, tag or merge request controls (commit
+      message, branch or tag name, merge request title or description) in eval, sh -c / bash -c, or unquoted.
+      Shell metacharacters in that value then run as commands, or the value splits into extra arguments
+      (argument injection). Quote the variable ("$CI_COMMIT_BRANCH") and never pass it to eval or a nested shell.
+    metadata:
+      category: cicd
+      platform: gitlab
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')", "CWE-88: Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')"]
+      confidence: MEDIUM
+      references:
+        - https://docs.gitlab.com/ci/variables/predefined_variables/
+        - https://docs.gitlab.com/ci/pipeline_security/
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml"]
+    pattern-either:
+      - pattern-regex: >-
+          (?m)^[ \t]*-?[ \t]*[^\n#]*\b(eval|(?:ba|z|da)?sh[ \t]+-c|bash[ \t]+-c)\b[^\n#]*\$\{?(CI_COMMIT_MESSAGE|CI_COMMIT_TITLE|CI_COMMIT_DESCRIPTION|CI_COMMIT_TAG_MESSAGE|CI_COMMIT_BRANCH|CI_COMMIT_REF_NAME|CI_COMMIT_TAG|CI_COMMIT_AUTHOR|CI_MERGE_REQUEST_TITLE|CI_MERGE_REQUEST_DESCRIPTION|CI_MERGE_REQUEST_SOURCE_BRANCH_NAME|CI_EXTERNAL_PULL_REQUEST_SOURCE_BRANCH_NAME)\b
+      - pattern-regex: >-
+          (?m)^[ \t]*-[ \t]+[^\n"'#]*\$\{?(CI_COMMIT_MESSAGE|CI_COMMIT_TITLE|CI_COMMIT_DESCRIPTION|CI_COMMIT_TAG_MESSAGE|CI_COMMIT_BRANCH|CI_COMMIT_REF_NAME|CI_COMMIT_TAG|CI_COMMIT_AUTHOR|CI_MERGE_REQUEST_TITLE|CI_MERGE_REQUEST_DESCRIPTION|CI_MERGE_REQUEST_SOURCE_BRANCH_NAME|CI_EXTERNAL_PULL_REQUEST_SOURCE_BRANCH_NAME)\b
+
+  - id: pathos.cicd.bitbucket.script-injection
+    languages: [yaml]
+    severity: ERROR
+    message: >-
+      A Bitbucket Pipelines script uses a branch, tag or bookmark name ($BITBUCKET_BRANCH, $BITBUCKET_TAG) in eval,
+      sh -c / bash -c, or unquoted. Whoever can push a branch chooses that name, so shell metacharacters or extra
+      arguments in it are executed (command or argument injection). Quote the variable and never pass it to eval
+      or a nested shell.
+    metadata:
+      category: cicd
+      platform: bitbucket
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')", "CWE-88: Improper Neutralization of Argument Delimiters in a Command ('Argument Injection')"]
+      confidence: MEDIUM
+      references:
+        - https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/
+      license: Apache-2.0
+    paths:
+      include: ["bitbucket-pipelines.yml"]
+    pattern-either:
+      - pattern-regex: >-
+          (?m)^[ \t]*-?[ \t]*[^\n#]*\b(eval|(?:ba|z|da)?sh[ \t]+-c|bash[ \t]+-c)\b[^\n#]*\$\{?(BITBUCKET_BRANCH|BITBUCKET_TAG|BITBUCKET_BOOKMARK|BITBUCKET_PR_DESTINATION_BRANCH)\b
+      - pattern-regex: >-
+          (?m)^[ \t]*-[ \t]+[^\n"'#]*\$\{?(BITBUCKET_BRANCH|BITBUCKET_TAG|BITBUCKET_BOOKMARK)\b
+
+  - id: pathos.cicd.azure.script-injection
+    languages: [yaml]
+    severity: ERROR
+    message: >-
+      An Azure Pipelines step uses a macro of a value that the author of a commit, branch or pull request controls
+      ($(Build.SourceVersionMessage), $(Build.SourceBranch), $(System.PullRequest.SourceBranch), ...). Macros are
+      replaced in the script text before it runs, so quotes or shell metacharacters in the value become part of
+      the script (script injection). Map the value to an environment variable (env:) and use "$VAR" in the
+      script. A value mapped to a variable on its own (env: or a task input, NAME: $(Build.SourceBranch)) is
+      not reported.
+    metadata:
+      category: cicd
+      platform: azure-pipelines
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')", "CWE-94: Improper Control of Generation of Code ('Code Injection')"]
+      confidence: HIGH
+      references:
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/security/inputs
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/build/variables
+      license: Apache-2.0
+    paths:
+      include: ["azure-pipelines*.yml", "azure-pipelines*.yaml", ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml"]
+    pattern-regex: >-
+      (?m)^(?![ \t]*(condition|displayName|name|-[ \t]*name)[ \t]*:)(?![ \t]*[A-Za-z_][A-Za-z0-9_]*[ \t]*:[ \t]*["']?\$\([\w.]+\)["']?[ \t]*$)[^\n#]*\$\((Build\.SourceVersionMessage|Build\.SourceBranch|Build\.SourceBranchName|Build\.SourceVersionAuthor|Build\.RequestedFor|Build\.RequestedForEmail|System\.PullRequest\.SourceBranch|System\.PullRequest\.SourceBranchName|System\.PullRequest\.TargetBranch|System\.PullRequest\.SourceRepositoryURI)\)
+
+  - id: pathos.cicd.jenkins.script-injection
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      A Jenkinsfile interpolates a value that a branch, pull request or build parameter controls (BRANCH_NAME,
+      CHANGE_TITLE, CHANGE_BRANCH, TAG_NAME, params.*) into a double-quoted sh/bat/powershell script. Groovy inserts
+      it into the script text before the shell runs, so quotes or metacharacters in it run as commands (script
+      injection). Use a single-quoted script and read the value from the environment ('echo "$BRANCH_NAME"').
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-78: Improper Neutralization of Special Elements used in an OS Command ('OS Command Injection')"]
+      confidence: HIGH
+      references:
+        - https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#string-interpolation
+        - https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#injection-via-interpolation
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-regex: >-
+      \b(sh|bat|powershell|pwsh)[ \t]*\(?[ \t]*(script[ \t]*:[ \t]*)?"(?:"")?[^"]*\$\{?(env\.)?(BRANCH_NAME|CHANGE_TITLE|CHANGE_BRANCH|CHANGE_AUTHOR|CHANGE_AUTHOR_DISPLAY_NAME|CHANGE_FORK|TAG_NAME|GIT_BRANCH|GIT_COMMIT_MESSAGE|params\.\w+)\b
+
+  # ------------------------------------------------------- curl | sh
+  - id: pathos.cicd.curl-pipe-shell
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      The pipeline downloads a script and runs it in a shell in one step (curl ... | sh). Whoever controls the
+      server, the DNS or the network path at that moment controls the code that runs in the job, with its secrets.
+      Download a pinned version, verify its checksum or signature, then run it.
+    metadata:
+      category: cicd
+      cwe: ["CWE-494: Download of Code Without Integrity Check"]
+      confidence: HIGH
+      references:
+        - https://docs.gitlab.com/ci/pipeline_security/
+        - https://slsa.dev/spec/v1.0/threats
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml", "azure-pipelines*.yml", "azure-pipelines*.yaml",
+                ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml", "bitbucket-pipelines.yml"]
+    pattern-either:
+      - pattern-regex: \b(curl|wget)\b[^\n|#]*\|[ \t]*(sudo[ \t]+(-\S+[ \t]+)*)?(ba|z|da|k|fi)?sh\b
+      - pattern-regex: \b(ba|z)?sh[ \t]+(-c[ \t]+)?["']?(<\(|\$\()[ \t]*(curl|wget)\b
+      - pattern-regex: \b(iwr|Invoke-WebRequest|irm|Invoke-RestMethod)\b[^\n|#]*\|[ \t]*(iex|Invoke-Expression)\b
+
+  - id: pathos.cicd.jenkins.curl-pipe-shell
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      The Jenkinsfile downloads a script and runs it in a shell in one step (curl ... | sh). Whoever controls the
+      server, the DNS or the network path at that moment controls the code that runs on the agent, with its
+      credentials. Download a pinned version, verify its checksum or signature, then run it.
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-494: Download of Code Without Integrity Check"]
+      confidence: HIGH
+      references:
+        - https://slsa.dev/spec/v1.0/threats
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-either:
+      - pattern-regex: \b(curl|wget)\b[^\n|]*\|[ \t]*(sudo[ \t]+(-\S+[ \t]+)*)?(ba|z|da|k)?sh\b
+      - pattern-regex: \b(ba|z)?sh[ \t]+(-c[ \t]+)?["']?(<\(|\$\()[ \t]*(curl|wget)\b
+
+  # ------------------------------------------------------- Unpinned images
+  - id: pathos.cicd.unpinned-container-image
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      A pipeline job image has no tag or uses :latest, so every run can get different (and possibly compromised)
+      code with access to the job's secrets. Pin the image to a digest (image: name:tag@sha256:...) or at least to
+      an exact version tag.
+    metadata:
+      category: cicd
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere", "CWE-1357: Reliance on Insufficiently Trustworthy Component"]
+      confidence: HIGH
+      references:
+        - https://docs.gitlab.com/ci/yaml/#image
+        - https://support.atlassian.com/bitbucket-cloud/docs/use-docker-images-as-build-environments/
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/process/container-phases
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml", "azure-pipelines*.yml", "azure-pipelines*.yaml",
+                ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml", "bitbucket-pipelines.yml"]
+    pattern-either:
+      - pattern-regex: >-
+          (?m)^[ \t]*(-[ \t]*)?image:[ \t]*["']?(?!\$)[a-z0-9][a-z0-9._/-]*(:latest)?["']?[ \t]*(#.*)?$
+      - pattern-regex: >-
+          (?m)^[ \t]*(-[ \t]*)?image:[ \t]*\n[ \t]+name:[ \t]*["']?(?!\$)[a-z0-9][a-z0-9._/-]*(:latest)?["']?[ \t]*(#.*)?$
+
+  - id: pathos.cicd.jenkins.unpinned-container-image
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      A Jenkins pipeline uses a Docker image without a tag or with :latest, so every build can get different (and
+      possibly compromised) code with access to the build's credentials. Pin the image to a digest or an exact
+      version tag.
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere"]
+      confidence: HIGH
+      references:
+        - https://www.jenkins.io/doc/book/pipeline/docker/
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-either:
+      - pattern-regex: \bdocker\.image\([ \t]*['"](?!\$)[a-z0-9][a-z0-9._/-]*(:latest)?['"][ \t]*\)
+      - pattern-regex: (?m)^[ \t]*image[ \t]+['"](?!\$)[a-z0-9][a-z0-9._/-]*(:latest)?['"]
+
+  # ------------------------------------------- Unpinned includes and libraries
+  - id: pathos.cicd.gitlab.unpinned-include
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      The pipeline includes configuration that can change without a change to this repository: a remote URL
+      without an integrity hash, a project file from a branch (or without ref, the default branch), or a CI/CD
+      component at ~latest or a branch. Whoever can change that source can change the jobs and read their
+      secrets. Pin includes to a tag or commit SHA, and add integrity: to remote includes.
+    metadata:
+      category: cicd
+      platform: gitlab
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere", "CWE-494: Download of Code Without Integrity Check"]
+      confidence: MEDIUM
+      references:
+        - https://docs.gitlab.com/ci/yaml/includes/
+        - https://docs.gitlab.com/ci/yaml/#includeintegrity
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml"]
+    pattern-either:
+      - pattern-regex: >-
+          (?m)^[ \t]*(-[ \t]*)?remote:[ \t]*["']?https?://[^\s"']+["']?[ \t]*$(?![\r\n]+[ \t]*integrity:)
+      - pattern-regex: (?m)^[ \t]*(-[ \t]*|include:[ \t]*)["']?https?://[^\s"']+\.ya?ml["']?[ \t]*$
+      - pattern-regex: (?m)^[ \t]*ref:[ \t]*["']?(main|master|develop|development|dev|trunk|HEAD|latest)["']?[ \t]*$
+      - pattern-regex: >-
+          (?m)^[ \t]*-[ \t]*project:[ \t]*["']?[\w./-]+["']?[ \t]*\n[ \t]+file:[^\n]*\n(?:[ \t]+-[^\n]*\n)*(?![ \t]+ref:)
+      - pattern-regex: (?m)^[ \t]*(-[ \t]*)?component:[ \t]*["']?[^\s"'@]+@(~latest|main|master|HEAD)["']?
+
+  - id: pathos.cicd.azure.unpinned-template-repository
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      A repository resource (used for templates or extends) points to a branch (refs/heads/...). Whoever can push
+      to that branch can change this pipeline's steps and read its secrets. Reference a tag (refs/tags/...) or a
+      commit, and protect the template repository with required template checks.
+    metadata:
+      category: cicd
+      platform: azure-pipelines
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere"]
+      confidence: MEDIUM
+      references:
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/security/templates
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/yaml-schema/resources-repositories-repository
+      license: Apache-2.0
+    paths:
+      include: ["azure-pipelines*.yml", "azure-pipelines*.yaml", ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml"]
+    pattern-regex: (?m)^[ \t]*ref:[ \t]*["']?refs/heads/[^\s"']+
+
+  - id: pathos.cicd.bitbucket.unpinned-pipe
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      A Bitbucket pipe is used without a version or with :latest, so every run can get different (and possibly
+      compromised) code with access to the step's secrets. Pin the pipe to an exact version (pipe:
+      atlassian/name:1.2.3).
+    metadata:
+      category: cicd
+      platform: bitbucket
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere"]
+      confidence: HIGH
+      references:
+        - https://support.atlassian.com/bitbucket-cloud/docs/what-are-pipes/
+      license: Apache-2.0
+    paths:
+      include: ["bitbucket-pipelines.yml"]
+    pattern-regex: (?m)^[ \t]*(-[ \t]*)?pipe:[ \t]*["']?(docker://)?[a-z0-9][a-z0-9._/-]*(:latest)?["']?[ \t]*(#.*)?$
+
+  - id: pathos.cicd.jenkins.unpinned-shared-library
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      A Jenkins shared library is loaded without a version or from a branch. Whoever can push to that branch runs
+      code in this pipeline (often with Jenkins' own permissions for trusted libraries). Pin the library to a
+      tag or commit (@Library('name@v1.2.3')).
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-829: Inclusion of Functionality from Untrusted Control Sphere"]
+      confidence: MEDIUM
+      references:
+        - https://www.jenkins.io/doc/book/pipeline/shared-libraries/#library-versions
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-either:
+      - pattern-regex: >-
+          @Library\([ \t]*\[?[ \t]*['"][\w.-]+(@(master|main|develop|HEAD|trunk))?['"]
+      - pattern-regex: >-
+          (?m)^[ \t]*library[ \t]*\(?[ \t]*(identifier:[ \t]*)?['"][\w.-]+(@(master|main|develop|HEAD|trunk))?['"]
+
+  # ------------------------------------------------------- Secrets in logs
+  - id: pathos.cicd.secret-echoed
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      A pipeline script writes a variable whose name says it is a secret (token, password, key, credential) to
+      the job log, or prints the whole environment. Masking works only for registered secret values and not for
+      encoded or partial forms, and job logs are readable by many users. Do not print secrets; pass them to tools
+      through stdin or files.
+    metadata:
+      category: cicd
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File"]
+      confidence: MEDIUM
+      references:
+        - https://docs.gitlab.com/ci/variables/#mask-a-cicd-variable
+        - https://learn.microsoft.com/en-us/azure/devops/pipelines/process/set-secret-variables
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml", "azure-pipelines*.yml", "azure-pipelines*.yaml",
+                ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml", "bitbucket-pipelines.yml"]
+    pattern-either:
+      - pattern-regex: >-
+          (?mi)\b(echo|printf|print|write-host|write-output)\b(?![^\n]*\|)[^\n#]*\$[({]?[\w.]*(token|secret|passw(or)?d|api_?key|private_?key|credentials?|access_?key)[\w.]*
+      - pattern-regex: (?m)^[ \t]*-[ \t]+(printenv|env|export -p|set)[ \t]*$
+
+  - id: pathos.cicd.jenkins.secret-interpolation
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      A Jenkinsfile interpolates a secret-like variable (token, password, key, credential) into a double-quoted
+      echo or sh/bat step. Groovy inserts the value into the script text, where it appears in the process list
+      and can reach the build log unmasked. Use single quotes so the shell reads the value from the environment
+      ('curl -u "$USER:$TOKEN" ...'), and never echo secrets.
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-532: Insertion of Sensitive Information into Log File", "CWE-214: Invocation of Process Using Visible Sensitive Information"]
+      confidence: MEDIUM
+      references:
+        - https://www.jenkins.io/doc/book/pipeline/jenkinsfile/#string-interpolation
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-regex: >-
+      (?i)\b(echo|sh|bat|powershell)[ \t]*\(?[ \t]*(script[ \t]*:[ \t]*)?"[^"\n]*\$\{?(env\.)?\w*(token|secret|passw(or)?d|pass|api_?key|private_?key|credentials?)\w*
+
+  # ------------------------------------------------------- Privileged Docker
+  - id: pathos.cicd.privileged-docker
+    languages: [yaml]
+    severity: WARNING
+    message: >-
+      A job runs privileged containers, mounts the Docker socket, or runs Docker-in-Docker without TLS
+      (DOCKER_TLS_CERTDIR: ""). Code in the job (including dependencies and test code) can then take over the
+      runner host and every other job on it. Use rootless builders (BuildKit rootless, Kaniko, Buildah) or
+      dedicated, isolated runners.
+    metadata:
+      category: cicd
+      cwe: ["CWE-250: Execution with Unnecessary Privileges", "CWE-269: Improper Privilege Management"]
+      confidence: MEDIUM
+      references:
+        - https://docs.gitlab.com/ci/docker/using_docker_build/
+        - https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+      license: Apache-2.0
+    paths:
+      include: [".gitlab-ci.yml", "*.gitlab-ci.yml", ".gitlab/**/*.yml", ".gitlab/**/*.yaml", "azure-pipelines*.yml", "azure-pipelines*.yaml",
+                ".azure-pipelines/**/*.yml", ".azure-pipelines/**/*.yaml", ".azuredevops/**/*.yml", "bitbucket-pipelines.yml"]
+    pattern-either:
+      - pattern-regex: --privileged\b(?!=false)
+      - pattern-regex: (?m)^[ \t]*privileged:[ \t]*true\b
+      - pattern-regex: /var/run/docker\.sock
+      - pattern-regex: (?m)^[ \t]*DOCKER_TLS_CERTDIR:[ \t]*(""|'')[ \t]*$
+
+  - id: pathos.cicd.jenkins.privileged-docker
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      A Jenkins pipeline runs a privileged container or mounts the Docker socket into one. Code in the build can
+      then take over the agent and every other build on it. Use rootless builders or isolated agents.
+    metadata:
+      category: cicd
+      platform: jenkins
+      cwe: ["CWE-250: Execution with Unnecessary Privileges"]
+      confidence: MEDIUM
+      references:
+        - https://docs.docker.com/engine/security/#docker-daemon-attack-surface
+      license: Apache-2.0
+    paths:
+      include: ["Jenkinsfile", "Jenkinsfile.*", "*.Jenkinsfile", "*.jenkinsfile"]
+    pattern-either:
+      - pattern-regex: --privileged\b(?!=false)
+      - pattern-regex: /var/run/docker\.sock

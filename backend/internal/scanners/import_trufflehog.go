@@ -8,12 +8,14 @@ import (
 
 // TruffleHog JSON Lines (`trufflehog git|filesystem|github ... --json`):
 // one object per secret with SourceMetadata.Data.<source>.{file, line,
-// commit}, DetectorName and Verified. Raw, RawV2 and Redacted carry the
-// secret and are removed before the report is stored; identity is the
-// detector, file, commit and line. Verified (live) secrets are critical,
-// others high.
+// commit}, DetectorName and Verified. Raw, RawV2, Redacted and (since
+// TruffleHog 3.9x) SecretParts carry the secret and are removed before the
+// report is stored; identity is the detector, file, commit and line.
+// Verified (live) secrets are critical, others high.
 
-var trufflehogSecretKeys = []string{"Raw", "RawV2", "Redacted"}
+// SecretParts splits the secret into its parts (for a connection string:
+// user, host and password).
+var trufflehogSecretKeys = []string{"Raw", "RawV2", "Redacted", "SecretParts"}
 
 type trufflehogResult struct {
 	SourceMetadata struct {

@@ -1,0 +1,27 @@
+# golangci-lint with security-relevant linters only (gosec, errcheck,
+# bodyclose, noctx, rowserrcheck, sqlclosecheck, govet, staticcheck,
+# errorlint, nilerr). The image's golangci-lint-tree helper runs it with the
+# image's configuration in every Go module of the repository (a
+# repository's .golangci.yml is never read) with the image's Go toolchain,
+# offline, and merges the JSON reports. Parsed with the PATHOS
+# golangci-lint import parser.
+name: golangci-lint
+display_name: golangci-lint
+category: code-quality
+scan_types: [code-quality]
+license_spdx: GPL-3.0-only
+homepage: https://github.com/golangci/golangci-lint
+family: sast
+targets: [repository]
+command: /opt/pathos/sast/bin/golangci-lint-tree
+version_args: ["--version"]
+# {tmp}: Go build, module and lint caches of this run.
+args: ["{source}", "{output}", "{tmp}"]
+ok_exit_codes: [0]
+timeout: 60m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: import:golangci-lint

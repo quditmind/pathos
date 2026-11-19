@@ -23,7 +23,7 @@ These run in the `worker-core` image today, pinned by version and SHA-256 (or bu
 | Binary hardening (`binary-hardening`, built in) | Build artifacts; repositories when a profile selects it | PATHOS JSON |
 | ClamAV (`clamav`, client of the optional clamd service) | Repositories when a profile selects it and `PATHOS_CLAMAV_ADDRESS` is set | PATHOS JSON |
 
-The opt-in `worker-sast` family image adds three tools defined only by [tool manifests](#adding-a-tool-tool-manifests) (`workers/sast/tools.d`):
+The opt-in `worker-sast` family image adds 18 tools defined only by [tool manifests](#adding-a-tool-tool-manifests) (`workers/sast/tools.d`): Bandit, njsscan and ShellCheck, and the [SAST pack](#sast-pack-worker-sast) (gosec, Flawfinder, cppcheck, PHPStan, Psalm, Ruff, ESLint with eslint-plugin-security, Semgrep CE, Bearer CLI, TruffleHog, detect-secrets, Kingfisher, Talisman, Pylint and golangci-lint).
 
 | Tool | Runs on | Output (parser) |
 |---|---|---|
@@ -33,7 +33,7 @@ The opt-in `worker-sast` family image adds three tools defined only by [tool man
 
 Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#adding-a-tool-tool-manifests). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
-Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
+Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. The rule packs for cryptography, database security, AI/LLM applications and non-GitHub CI/CD pipelines (`workers/rules/pathos-{crypto,database,ai,cicd}.yml`, [below](#opengrep-rule-packs)) use the `crypto`, `database`, `ai` and `cicd` categories. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
 
 **Built-in scanners.** `licensecheck` and `binary-hardening` are part of the worker binary (pure Go: [google/licensecheck](https://github.com/google/licensecheck), BSD-3-Clause, and the Go standard library's `debug/elf`, `debug/pe` and `debug/macho`), so they add no binary to the image. ScanCode Toolkit was evaluated for file-level licences and not adopted: it is a large Python application with its own data set that would roughly double the worker image and its scan times, while licensecheck covers SPDX tags and licence texts in-process. The `clamav` scanner is a client of the ClamAV service (GPL-2.0, optional `clamav` Compose profile, not part of the PATHOS images); it streams repository files to clamd over a dedicated internal network ([OPERATIONS.md](OPERATIONS.md#malware-scanning-clamav)). The same service also scans uploaded source archives and build artifacts before PATHOS accepts them.
 
@@ -196,6 +196,53 @@ These tools are integrated through their own report format: the report is produc
 
 DeepSource has no documented report export and is not importable. Whispers and Terrascan stay excluded as scanners (archived) but their existing reports can be imported.
 
+## SAST pack (worker-sast)
+
+PATHOS 2.0 adds these tools to the `worker-sast` image. Each is pinned and verified (Go checksum database, `pip --require-hashes`, `npm ci` integrity hashes, or the SHA-256 of a release or source archive), runs offline (`network: none`), is off by default and has a manifest in `workers/sast/tools.d`. Go tools are built with Go 1.27.4; dependencies with fixable HIGH/CRITICAL CVEs are replaced (see [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-family-worker-images)). The image passes the Trivy gate (0 fixable HIGH/CRITICAL). Its size grows from 2.22 GB to 3.37 GB (uncompressed): the Go toolchain that gosec and golangci-lint need to load packages, Node.js for ESLint, PHP for PHPStan and Psalm, and the Go binaries of TruffleHog, Bearer and gosec are the largest parts.
+
+| Tool (catalog key) | Version | Licence (SPDX) | Category | How it runs | Parser |
+|---|---|---|---|---|---|
+| gosec (`gosec`) | 2.30.0 | Apache-2.0 | sast | `gosec-tree`: every Go package, with the image's Go toolchain; `GOPROXY=off`, so modules that are not vendored are reported as type-check errors, not downloaded | `import:gosec` |
+| Flawfinder (`flawfinder`) | 2.0.20 | GPL-2.0-or-later | sast | C/C++, risk level 1 and above | `import:flawfinder` |
+| cppcheck (`cppcheck`) | 2.19.0 | GPL-3.0-or-later | sast | C/C++, `--enable=warning,portability --inconclusive`; one memory leak reported on several return paths is one finding | `import:cppcheck` |
+| PHPStan (`phpstan`) | 2.3.6 | MIT | code-quality | Level 5, the image's configuration (a repository's `phpstan.neon` can load extensions); PHPStan has no security rules | `import:phpstan` |
+| Psalm (`psalm`) | 7.11.0 | MIT | sast | `psalm-taint`: taint analysis with a generated configuration (a repository's `psalm.xml` can load plugins) | `import:psalm` |
+| Ruff (`ruff`) | 0.17.5 | MIT | sast | flake8-bandit rules (`S`) only, `--isolated` (the repository's configuration cannot deselect rules) | `import:ruff` |
+| ESLint + eslint-plugin-security (`eslint-security`) | 10.15.0 + 4.2.1 | MIT AND Apache-2.0 | sast | `eslint-tree`: the plugin's recommended rules on JavaScript and TypeScript, the image's configuration only, `--no-inline-config` | `import:eslint` |
+| Semgrep CE (`semgrep-ce`) | 1.172.0 | LGPL-2.1-or-later | sast | The PATHOS rules of the core image (`/opt/pathos/rules`) only; no Semgrep Registry rules; metrics and version check off. Optional: Opengrep already runs the same rules | SARIF |
+| Bearer CLI (`bearer`) | 2.1.3 | Elastic-2.0 | sast | Bundled rules (Bearer/bearer-rules 0.48.4, Elastic-2.0) as an external rule directory; rule download and version check off. **Optional**: the Elastic License 2.0 is source-available, not open source | `import:bearer` |
+| TruffleHog (`trufflehog`) | 3.99.9 | AGPL-3.0-only | secrets | Filesystem mode, **verification off** (`--no-verification`), no update check; run unmodified as a separate process | `import:trufflehog` |
+| detect-secrets (`detect-secrets`) | 1.5.0 | Apache-2.0 | secrets | Every file (`--all-files`); no plugin verifies secrets online | `import:detect-secrets` |
+| Kingfisher (`kingfisher`) | 2.19.1 | Apache-2.0 | secrets | Current files, **validation off** (`--no-validate`), no update check | `import:kingfisher` |
+| Talisman (`talisman`) | 1.37.0 | MIT | secrets | `talisman-tree`: the current files, committed to a throwaway Git repository in the job's temporary directory; Talisman reports files, not lines | `import:talisman` |
+| Pylint (`pylint`) | 4.1.4 | GPL-2.0-or-later | code-quality | Security-relevant checks only (eval/exec, dangerous defaults, bare except, lost exceptions, missing timeouts, unclosed resources, subprocess and environment misuse, deprecated modules); the image's `pylintrc` | `import:pylint` |
+| golangci-lint (`golangci-lint`) | 2.15.0 | GPL-3.0-only | code-quality | `golangci-lint-tree`: gosec, errcheck, bodyclose, noctx, rowserrcheck, sqlclosecheck, govet, staticcheck, errorlint and nilerr in every Go module, the image's configuration (a repository's `.golangci.yml` can load plugins) | `import:golangci-lint` |
+
+Secret values: reports parsed with an import parser are stored like imported reports, with the secret values removed (TruffleHog `Raw`, `RawV2`, `Redacted` and `SecretParts`; Kingfisher snippets; detect-secrets hashes; Talisman's quoted values). The fixtures in `backend/internal/worker/testdata/manifests` are real output of each manifest command in the image (`docker run --network none`) on `testdata/manifests/sample-pack`, whose credentials are fake.
+
+Evaluated and not bundled:
+
+| Tool | Reason | Instead |
+|---|---|---|
+| Brakeman | The Brakeman Public Use License forbids distributing it as part of a product and commercial use without a licence (catalogued as restricted) | Import its JSON report (`brakeman`) |
+| Sobelow | Needs an Erlang/OTP and Elixir runtime (the `elixir:1.18-slim` image is 477 MB) for one Phoenix-only tool; last release v0.13.0 (2023-08) | Import its JSON report (`sobelow`) |
+| Horusec | No release since v2.8.0 (2022-06); it runs its analysers as Docker containers | Import its JSON report (`horusec`) |
+| DevSkim | Needs the .NET runtime, which no PATHOS image has yet (candidate for a .NET family image) | Import its SARIF report |
+| Nosey Parker | Repository archived; last release v0.24.0 (2025-05) | Import its JSON report (`noseyparker`) |
+| Whispers | Repository archived; last release 1.5.3 (2021) | Import its JSON report (`whispers`) |
+| PMD | Needs a Java runtime; belongs in a JVM family image (catalogued as `code-quality`, family `jvm`) | Import its XML report (`pmd`) |
+
+### Opengrep rule packs
+
+Four rule packs written for PATHOS (Apache-2.0) run in Opengrep with the baseline rules (worker-core image, `/opt/pathos/rules`), and in Semgrep CE when a profile selects it. Their findings use their own finding categories (rule ids `pathos.<pack>.*`; an administrator's rule with metadata category `crypto`, `database`, `ai` or `cicd` is recorded the same way). Every rule has a CWE, references, a positive and a negative test case in `workers/rules-tests/<pack>/` (`scripts/test-opengrep-rules.py`); cases the baseline rules already report are not repeated.
+
+| Pack (category) | Languages | Rules |
+|---|---|---|
+| `pathos-crypto.yml` (`crypto`) | Python, JavaScript/TypeScript, Java, Go, C# | Weak hashes (MD5, SHA-1, MD4) and ciphers (DES, 3DES, RC4, RC2, Blowfish), ECB mode, constant IVs and nonces, RSA keys under 2048 bits, non-cryptographic random numbers for tokens, passwords, keys, salts and nonces, disabled TLS certificate or host name verification and TLS 1.0/1.1, hard-coded encryption, MAC and token-signing keys |
+| `pathos-database.yml` (`database`) | Python, JavaScript/TypeScript, Java, Go, C#, YAML | SQL built by concatenation or formatting (DB-API, mysql/pg/Sequelize/knex/TypeORM, JDBC Statement, JPA, JdbcTemplate, ADO.NET, EF Core; in Go, request data concatenated into database/sql calls), Django `raw`/`extra`/`RawSQL`, SQLAlchemy `text`, Sequelize `literal`, GORM `Raw`/`Where`/`Order`, NoSQL injection (request objects in MongoDB queries, `$where`), connection strings with plaintext passwords or TLS disabled |
+| `pathos-ai.yml` (`ai`) | Python, JavaScript/TypeScript | Non-constant system prompts and instructions (prompt-injection sinks), model and tool-call output reaching eval/exec, shell commands or SQL (taint), unsafe model loading (torch.load without `weights_only=True`, joblib, dill, cloudpickle, `read_pickle`, `numpy.load(allow_pickle=True)`, Keras `safe_mode=False`), `trust_remote_code=True` without a pinned revision, LLM API keys in code |
+| `pathos-cicd.yml` (`cicd`) | GitLab CI, Azure Pipelines, Bitbucket Pipelines (YAML), Jenkinsfile (text) | Script injection from commit, branch, merge-request and parameter values (GitLab and Bitbucket variables in eval, `sh -c` or unquoted; Azure `$(...)` macros; Groovy interpolation into `sh`), `curl | sh`, unpinned images, includes, components, template repositories, pipes and shared libraries, secrets echoed to the log, privileged Docker, the Docker socket and Docker-in-Docker without TLS |
+
 ## Excluded
 
 | Tool | Reason |
@@ -214,10 +261,10 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 
 | Scan type (id) | Finding categories | Tools in the catalog |
 |---|---|---|
-| SAST (`sast`) | sast | Opengrep, Bandit, njsscan, Semgrep CE, CodeQL, Gosec, … |
+| SAST (`sast`) | sast | Opengrep, Bandit, njsscan, gosec, Psalm, Bearer, Semgrep CE, CodeQL, … |
 | DAST (`dast`) | dast | Nuclei, OWASP ZAP, PATHOS endpoint verification |
 | SCA (`sca`) | sca, eol | Trivy, Grype, OSV-Scanner, Dependency-Check, …, endoflife.date |
-| Secrets (`secrets`) | secrets | Gitleaks, TruffleHog, detect-secrets, Kingfisher |
+| Secrets (`secrets`) | secrets | Gitleaks, TruffleHog, detect-secrets, Kingfisher, Talisman |
 | IaC (`iac`) | iac | Checkov, KICS, KubeLinter, Kubescape, TFLint, Conftest, Hadolint |
 | Container (`container`) | container | Trivy (image), Dockle |
 | API security (`api`) | api, dast | Nuclei (API targets), Schemathesis |
@@ -227,18 +274,19 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 | Licence (`license`) | license | licensecheck, ScanCode, Trivy (license) |
 | SBOM (`sbom`) | (inventory, no findings) | Syft |
 | Malware (`malware`) | malware | ClamAV |
-| Code-quality security (`code-quality`) | code-quality | ShellCheck, PMD, Ruff |
+| Code-quality security (`code-quality`) | code-quality | ShellCheck, Pylint, golangci-lint, PHPStan, PMD, Ruff |
 | Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard |
-| Cryptography (`crypto`) | crypto | (imports and plugins) |
+| Cryptography (`crypto`) | crypto | Opengrep (PATHOS cryptography rules) |
 | Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules) |
-| CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac) |
+| CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac), Opengrep (PATHOS GitLab CI, Azure Pipelines, Bitbucket and Jenkins rules) |
 | Binary (`binary`) | binary | Binary hardening |
-| AI / LLM (`ai`) | ai | (imports and plugins) |
+| AI / LLM (`ai`) | ai | Opengrep (PATHOS AI/LLM rules) |
 | Runtime (`runtime`) | runtime | (imports and plugins) |
 | Compliance (`compliance`) | compliance | kube-bench |
 | Licence policy (`license-policy`) | license | Licence policy (evaluated by the server) |
-| Database security (`database`) | database | (imports and plugins) |
+| Database security (`database`) | database | Opengrep (PATHOS database rules) |
 | Manual review (`manual`) | any | PATHOS findings JSON, CSV and SARIF imports, HackerOne, Bugcrowd and Intigriti exports, Human Eye reviews |
+
 
 The finding categories added for these types are `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029). Configuration findings keep `misconfiguration`.
 
