@@ -133,3 +133,23 @@ export function searchCodes(codes: DiagCode[], q: string): DiagCode[] {
     return terms.every((t) => hay.includes(t));
   });
 }
+
+/**
+ * The Markdown of one code's section in the bundled docs (from its "## CODE"
+ * heading to the next "## "), for places without the API such as sign-in.
+ */
+export function catalogueSection(code: string, docs: HelpDoc[] = troubleshootingDocs): { doc: HelpDoc; title: string; body: string } | undefined {
+  if (!isCatalogueCode(code)) return undefined;
+  const area = code.split("-")[1]!.toLowerCase();
+  const doc = docs.find((d) => d.slug === area);
+  if (!doc) return undefined;
+  const lines = doc.body.split(/\r?\n/);
+  const start = lines.findIndex((l) => new RegExp(`^##\\s+${code}\\b`).test(l));
+  if (start < 0) return undefined;
+  let end = lines.findIndex((l, i) => i > start && /^##\s/.test(l));
+  if (end < 0) end = lines.length;
+  // Drop a trailing anchor line that belongs to the next code.
+  const section = lines.slice(start + 1, end).filter((l) => !/^<a id="[\w-]+"><\/a>\s*$/.test(l));
+  const title = lines[start]!.replace(/^##\s+/, "").replace(new RegExp(`^${code}[\\s:—–-]*`), "");
+  return { doc, title, body: section.join("\n").trim() };
+}

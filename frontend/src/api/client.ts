@@ -49,6 +49,8 @@ export interface ErrorEnvelope {
   verify: EnvelopeStep[];
   docs_url: string;
   request_id: string;
+  /** Whether AI troubleshooting is offered for this code. */
+  ai_help: boolean;
 }
 
 const str = (v: unknown) => (typeof v === "string" ? v : "");
@@ -83,6 +85,7 @@ export function parseEnvelope(err: Record<string, unknown> | undefined, topReque
     verify: steps(err.verify),
     docs_url: str(err.docs_url).startsWith("/") ? str(err.docs_url) : "",
     request_id: str(err.request_id) || topRequestId || "",
+    ai_help: err.ai_help === true,
   };
 }
 

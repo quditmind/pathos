@@ -46,7 +46,7 @@ The sidebar follows the application security lifecycle. Groups appear only when 
 | 8 · Remediate & gate | Remediation workspace *(roadmap)* · Policies · Component policies · Pull request checks · Risk acceptances · Suppression rules · VEX statements |
 | 9 · Report & monitor | Executive overview · Reports · Application posture · Benchmarking · Compliance · Developer insights · Continuous monitoring *(roadmap)* |
 | Configurations | Scan profiles · Scanners & workers · Scan coverage · Custom rules · Asset settings · Risk & intelligence · Secret validation · Review configurations · AI settings · Reverse engineering tools *(roadmap)* |
-| Administration | Organizations *(multi-tenant installations, installation administrators only)* · Users · Organization · Developer attribution · Notifications · AI usage · MCP registry · Audit log |
+| Administration | Organizations *(multi-tenant installations, installation administrators only)* · Users · Organization · Developer attribution · Notifications · AI usage · MCP registry · Audit log · Feature flags |
 
 Every page keeps its address from earlier versions; bookmarks and links keep working. Only the place in the menu changed.
 
@@ -57,6 +57,8 @@ Items marked *(roadmap)* are modules that are not built yet. They are shown dimm
 ### Feature flags
 
 New modules are switched on per organization with **feature flags**, which are off by default. The web app reads the flags of your organization from `GET /api/v1/meta`. A page behind a flag that is off says so, names the flag and who can turn it on (an administrator with the `settings.manage` permission).
+
+Administrators with `settings.manage` switch flags under **Administration › Feature flags**: each flag shows the module it gates, the roadmap milestone that delivers it and its last change. Every change is recorded in the audit log. A flag opens a module only once that module is built; until then its menu item stays disabled.
 
 ## Page states
 

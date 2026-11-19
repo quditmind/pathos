@@ -69,6 +69,7 @@ import {
   Wrench,
   RadioTower,
   Microscope,
+  ToggleRight,
 } from "lucide-react";
 import type { FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
@@ -226,6 +227,7 @@ export const groups: NavGroup[] = [
       { label: "AI usage", to: "/admin/ai-usage", icon: <Activity />, perm: "ai.configure" },
       { label: "MCP registry", to: "/admin/mcp", icon: <Network />, perm: "ai.review" },
       { label: "Audit log", to: "/admin/audit", icon: <FileClock />, perm: "audit.read" },
+      { label: "Feature flags", to: "/admin/feature-flags", icon: <ToggleRight />, perm: "settings.manage" },
     ],
   },
 ];

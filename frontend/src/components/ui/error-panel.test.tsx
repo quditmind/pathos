@@ -27,6 +27,7 @@ const envelope = {
   verify: ["Test the connection."],
   docs_url: "/help/troubleshooting/conn#PTH-CONN-1004",
   request_id: "reqabc",
+  ai_help: true,
 };
 const apiErr = (err: Record<string, unknown> = envelope) => new ApiError(409, String(err.code), String(err.message), "top-rid", undefined, err);
 
@@ -89,12 +90,13 @@ describe("ErrorPanel", () => {
 
   it("Troubleshoot with AI sends error_code (not the slug) and labels an AI answer", async () => {
     const api = mockApi({
-      "POST /api/v1/diagnostics/troubleshoot": () => ({ ...envelope, cause: { confirmed: false, text: "AI thinks the CA expired." }, source: "ai" }),
+      "POST /api/v1/diagnostics/troubleshoot": () => ({ ...envelope, cause: { confirmed: false, text: "AI thinks the CA expired." }, source: "ai", model: "qwen-local" }),
     });
     renderApp(<ErrorPanel error={apiErr({ ...envelope, message: "failed with token=abc123secret" })} />);
     await userEvent.click(await screen.findByRole("button", { name: /Troubleshoot with AI/ }));
     expect(await screen.findByText("AI-inferred: check before acting")).toBeInTheDocument();
     expect(screen.getByText("AI thinks the CA expired.")).toBeInTheDocument();
+    expect(screen.getByText("Model: qwen-local")).toBeInTheDocument();
     const body = api.calls.find((c) => c.method === "POST")!.body as { code: string; request_id: string; message: string; context: Record<string, string> };
     expect(body.code).toBe("PTH-CONN-1004");
     expect(body.request_id).toBe("reqabc");
@@ -116,6 +118,12 @@ describe("ErrorPanel", () => {
     await userEvent.click(await screen.findByRole("button", { name: /Troubleshoot with AI/ }));
     expect(await screen.findByText(/Troubleshooting is unavailable/)).toBeInTheDocument();
     expect(screen.getByText(envelope.impact)).toBeInTheDocument();
+  });
+
+  it("offers AI troubleshooting only when the code allows it", async () => {
+    renderApp(<ErrorPanel error={apiErr({ ...envelope, ai_help: false })} />);
+    await screen.findByRole("button", { name: /Verify/ });
+    expect(screen.queryByRole("button", { name: /Troubleshoot with AI/ })).toBeNull();
   });
 
   it("parses troubleshoot answers flat or wrapped", () => {

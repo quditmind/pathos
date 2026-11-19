@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { mockApi, renderApp } from "@/test/harness";
 import { buildDoc, helpDocs, helpGroups, renderDoc, resolveAnchor } from "./content";
 import { TroubleshootingPage } from "./TroubleshootingPage";
-import { codesFromDocs, normaliseCode, parseCodes, searchCodes } from "./troubleshooting";
+import { catalogueSection, codesFromDocs, normaliseCode, parseCodes, searchCodes } from "./troubleshooting";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -56,6 +56,20 @@ describe("catalogue parsing", () => {
     const list = codesFromDocs([doc]);
     expect(list).toEqual([expect.objectContaining({ code: "PTH-CONN-1004", title: "Connection uses an untrusted certificate", docs_url: "/help/troubleshooting/conn#pth-conn-1004-connection-uses-an-untrusted-certificate" })]);
     expect(resolveAnchor(doc.headings, "PTH-CONN-1004")).toBe("pth-conn-1004-connection-uses-an-untrusted-certificate");
+  });
+});
+
+describe("catalogue section (sign-in page, offline)", () => {
+  it("extracts one code's section from the bundled doc", () => {
+    const doc = buildDoc(
+      "x/docs/troubleshooting/auth.md",
+      "---\ntitle: Auth\n---\n# Auth\n\n<a id=\"PTH-AUTH-2001\"></a>\n\n## PTH-AUTH-2001: Account deactivated\n\nAsk an admin.\n\n<a id=\"PTH-AUTH-2002\"></a>\n\n## PTH-AUTH-2002: Other\n\nNo.\n",
+    )!;
+    const s = catalogueSection("PTH-AUTH-2001", [doc])!;
+    expect(s.title).toBe("Account deactivated");
+    expect(s.body).toBe("Ask an admin.");
+    expect(catalogueSection("PTH-AUTH-9999", [doc])).toBeUndefined();
+    expect(catalogueSection("nope", [doc])).toBeUndefined();
   });
 });
 

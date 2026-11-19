@@ -73,7 +73,7 @@ export function AboutDialog({ open, onOpenChange }: { open: boolean; onOpenChang
                       <td className="py-1.5 font-medium">{family}</td>
                       <td className="py-1.5">{pv ? displayVersion(pv) : na}</td>
                       <td className="py-1.5 text-muted-foreground">
-                        {ws.length ? ws.map((w) => `${w.name} ${displayVersion(w.version)}`).join(", ") : "None registered"}
+                        {ws.length ? ws.map((w) => `${w.name} ${displayVersion(w.version)}${w.online === false ? " (offline)" : ""}`).join(", ") : "None registered"}
                       </td>
                     </tr>
                   );

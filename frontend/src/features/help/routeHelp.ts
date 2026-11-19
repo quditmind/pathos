@@ -108,6 +108,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/admin/ai-usage": g("ai-analyst"),
   "/admin/mcp": g("ai-analyst"),
   "/admin/audit": g("administration", "audit-log"),
+  "/admin/feature-flags": g("navigation-and-shell", "feature-flags"),
   "/settings/security": g("sign-in-and-sso"),
   "/settings/tokens": g("reporting-and-integrations", "rest-api-tokens"),
 };

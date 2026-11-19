@@ -78,6 +78,7 @@ import { AttributionSettingsPage } from "@/features/insights/AttributionSettings
 import { SecretValidationPage } from "@/features/settings/SecretValidationPage";
 import { OrganizationsAdminPage } from "@/features/tenancy/OrganizationsAdminPage";
 import { SuspendedOrganization } from "@/features/tenancy/SuspendedOrganization";
+import { FeatureFlagsPage } from "@/features/flags/FeatureFlagsPage";
 
 function Authenticated() {
   const me = useMe();
@@ -232,6 +233,7 @@ const executiveRoute = createRoute({ getParentRoute: () => appRoute, path: "/exe
 const reportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/reports", component: ReportsPage });
 const integrationsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/integrations", component: IntegrationsPage });
 const complianceRoute = createRoute({ getParentRoute: () => appRoute, path: "/compliance", component: CompliancePage });
+const featureFlagsRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/feature-flags", component: FeatureFlagsPage });
 const securitySettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/security", component: SecuritySettingsPage });
 const tokensRoute = createRoute({ getParentRoute: () => appRoute, path: "/settings/tokens", component: TokensPage });
 const installationOrgsRoute = createRoute({ getParentRoute: () => appRoute, path: "/installation/organizations", component: OrganizationsAdminPage });
@@ -252,7 +254,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

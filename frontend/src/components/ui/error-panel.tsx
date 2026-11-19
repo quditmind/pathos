@@ -203,9 +203,11 @@ export function ErrorPanel({ error, title, onVerify }: { error: unknown; title?:
           <Button size="sm" onClick={() => void verify()} disabled={verifying}>
             <RotateCw className={verifying ? "motion-safe:animate-spin" : undefined} /> {verifying ? "Verifying…" : "Verify"}
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => ai.mutate()} disabled={ai.isPending}>
-            <Bot /> {ai.isPending ? "Asking…" : "Troubleshoot with AI"}
-          </Button>
+          {env.ai_help && (
+            <Button size="sm" variant="secondary" onClick={() => ai.mutate()} disabled={ai.isPending}>
+              <Bot /> {ai.isPending ? "Asking…" : "Troubleshoot with AI"}
+            </Button>
+          )}
           {docs && (
             <Button size="sm" variant="ghost" asChild>
               <Link to={docs.to as never} hash={docs.hash}>

@@ -10,7 +10,7 @@ export interface Meta {
   build_date?: string;
   api_version?: string;
   feature_flags?: Record<string, boolean>;
-  workers?: { name: string; family: string; version: string; scanners?: Record<string, string> }[];
+  workers?: { name: string; family: string; version: string; online?: boolean; scanners?: Record<string, string> }[];
   scanner_packs?: { family: string; version: string }[];
 }
 
