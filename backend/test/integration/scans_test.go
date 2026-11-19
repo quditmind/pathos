@@ -289,6 +289,21 @@ func TestScanPipeline(t *testing.T) {
 	if _, again := h.worker(reg2["token"].(string), "POST", "/internal/worker/v1/lease", map[string]any{}); again["job_id"] != q6["job_id"] {
 		t.Errorf("expired lease should be re-leased: %v", again)
 	}
+	// The worker dies while the same scan is queued again: the expired job
+	// gives way to the queued one instead of blocking the repository.
+	_, q7 := h.user(admin, "POST", "/api/v1/repositories/"+repo.String()+"/scan", nil)
+	if q7["job_id"] == q6["job_id"] {
+		t.Fatal("a running scan must not absorb a new request")
+	}
+	_, _ = appPool.Exec(t.Context(), `UPDATE scan_jobs SET lease_expires_at = now() - interval '1 minute' WHERE id = $1`, q6["job_id"])
+	if _, next := h.worker(reg2["token"].(string), "POST", "/internal/worker/v1/lease", map[string]any{}); next["job_id"] != q7["job_id"] {
+		t.Errorf("the queued scan should be leased after the expired one: %v", next)
+	}
+	var st6, err6 string
+	_ = appPool.QueryRow(t.Context(), `SELECT status, error FROM scan_jobs WHERE id = $1`, q6["job_id"]).Scan(&st6, &err6)
+	if st6 != "failed" || !strings.Contains(err6, "lease expired") {
+		t.Errorf("expired job with a queued successor: %s %q", st6, err6)
+	}
 
 	// Revocation is sticky.
 	_, workers := h.user(admin, "GET", "/api/v1/workers", nil)

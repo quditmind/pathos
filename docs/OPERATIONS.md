@@ -43,9 +43,9 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 Use them instead of building locally:
 
 ```bash
-git clone --branch v2.2.0 https://github.com/quditmind/pathos.git && cd pathos
+git clone --branch v2.2.1 https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh                 # new installs only
-# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.2.0
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.2.1
 deploy/scripts/upgrade.sh --pull
 ```
 
@@ -54,8 +54,8 @@ Upgrading to a later release works the same way: check out the new tag, set `PAT
 **Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
 
 ```bash
-cosign verify ghcr.io/quditmind/pathos:2.2.0 \
-  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.2.0" \
+cosign verify ghcr.io/quditmind/pathos:2.2.1 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.2.1" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -235,7 +235,7 @@ To enable one:
 
 Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
 
-The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck, cdxgen and pathos-reach are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). The family tools of `worker-mobile`, `worker-binary` and `worker-fuzz`, and ModelScan, also declare `network: none`. garak and promptfoo (`worker-ai`) send requests to an LLM endpoint target through the egress proxy: add the endpoint's host to `deploy/egress/allowlist.txt`. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck, cdxgen and pathos-reach are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev` and `storage.googleapis.com`, where the Go module proxy redirects downloads), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`; yarn 1 also `registry.yarnpkg.com`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). The family tools of `worker-mobile`, `worker-binary` and `worker-fuzz`, and ModelScan, also declare `network: none`. garak and promptfoo (`worker-ai`) send requests to an LLM endpoint target through the egress proxy: add the endpoint's host to `deploy/egress/allowlist.txt`. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
 
 Mobile app and artifact tools are selected on the scan target (**Scan targets → Additional tools**); repository tools (YARA-X, ModelScan, the fuzzers, the AI-BOM) in a scan profile.
 
@@ -258,6 +258,8 @@ docker run --rm -v pathos_scanner_cache:/cache --entrypoint /opt/pathos/binary/b
 ```
 
 Air-gapped installation: run the same command on a connected machine with a scratch volume, export the database (`cve-db-export /cache/plugins/cve-bin-tool /cache/cve.db`), copy the file into the air-gapped installation's cache volume and import it there (`cve-db-import /cache/plugins/cve-bin-tool /cache/cve.db`, `--network none`). The volume name depends on the Compose project (`docker volume ls | grep scanner_cache`).
+
+The update needs about 5 GB of memory while it builds the database: with a `--memory 2g` or `4g` limit it was killed (exit status 247) after downloading the NVD data. Run it without a memory limit or with `--memory 5g`, at a time when scans leave that much free.
 
 ### Fuzzing worker
 
@@ -381,6 +383,8 @@ By default, raw scanner reports and SBOMs are stored compressed in PostgreSQL. F
    ```
 
    The move is resumable. Each row switches to its object only after the object is written.
+
+   Uploads, source snapshots and Human Eye evidence written before object storage was enabled are not moved: they stay in the `sources` volume, and the API and jobs read them from there when the bucket does not have them (new objects go to the bucket only). Keep the `sources` volume mounted and in your backups as long as it holds data.
 
 Retention deletes the database row first, then the object. A failure leaves an unreferenced object, never a dangling reference.
 

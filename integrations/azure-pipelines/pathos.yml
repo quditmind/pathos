@@ -10,7 +10,7 @@
 #       parameters:
 #         url: https://pathos.example.com
 #         repository: acme/payments-api
-#         cliVersion: "2.2.0"
+#         cliVersion: "2.2.1"
 #         importFile: $(Build.SourcesDirectory)/semgrep.json
 #         failOn: high
 #

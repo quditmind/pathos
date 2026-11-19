@@ -74,12 +74,12 @@ ARG REGOLIBRARY=2.0.39 REGOLIBRARY_SUMS=3298400566bfd42670ba16c40556169d6bd59a1e
 RUN set -eux; \
     mkdir -p /dl /data/kubescape; cd /dl; \
     base="https://github.com/kubescape/regolibrary/releases/download/v${REGOLIBRARY}"; \
-    curl -fsSL --retry 3 -o checksums.txt "$base/checksums.txt"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o checksums.txt "$base/checksums.txt"; \
     echo "${REGOLIBRARY_SUMS}  checksums.txt" | sha256sum -c -; \
     frameworks="agentruntimehardening allcontrols armobest cis-aks-t1.2.0 cis-aks-t1.8.0 cis-eks-t1.7.0 cis-eks-t1.8.0 cis-gke-v1.9.0 \
       cis-v1.10.0 cis-v1.12.0 clusterscan devopsbest ism mitre nsa soc2 workloadscan"; \
     for a in $frameworks exceptions attack_tracks default_config_inputs; do \
-      curl -fsSL --retry 3 -o "$a" "$base/$a"; \
+      curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$a" "$base/$a"; \
       grep -E "^[0-9a-f]{64}  $a\$" checksums.txt | sha256sum -c -; \
     done; \
     for a in $frameworks exceptions; do cp "$a" "/data/kubescape/$a.json"; done; \
@@ -93,7 +93,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 ARG HADOLINT=2.15.1 HADOLINT_SHA=c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507
 RUN set -eux; \
     mkdir -p /out; \
-    curl -fsSL --retry 3 -o /out/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT}/hadolint-linux-x86_64"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o /out/hadolint "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT}/hadolint-linux-x86_64"; \
     echo "${HADOLINT_SHA}  /out/hadolint" | sha256sum -c -; \
     chmod 0755 /out/hadolint; /out/hadolint --version | grep -q "${HADOLINT}"
 
@@ -146,7 +146,11 @@ RUN set -eux; \
     chmod -R go-w /opt/pathos/iac /opt/pathos/tools.d; \
     for t in kics kics-scan kube-linter kubescape kubescape-scan tflint conftest conftest-tree kube-score scorecard polaris hadolint \
              hadolint-tree cfn-lint-tree cfn-nag-tree kube-score-tree; do test -x "/opt/pathos/iac/bin/$t"; done; \
-    /opt/pathos/iac/bin/cfn-nag-tree --version; /opt/pathos/iac/bin/hadolint-tree --version | grep -q 2.15.1
+    /opt/pathos/iac/bin/cfn-nag-tree --version; /opt/pathos/iac/bin/hadolint-tree --version | grep -q 2.15.1; \
+    # A repository without Kubernetes manifests is an empty result, not a
+    # failure (the bundled Kubescape's wording is matched by kubescape-scan).
+    mkdir /tmp/ks-empty; echo 'foo: bar' > /tmp/ks-empty/config.yml; \
+    /opt/pathos/iac/bin/kubescape-scan /tmp/ks-empty /tmp/ks-empty.json; test ! -s /tmp/ks-empty.json; rm -rf /tmp/ks-empty /tmp/ks-empty.json
 USER 10001:10001
 ENV PATHOS_WORKER_FAMILY=iac PATHOS_TOOLS_DIR=/opt/pathos/tools.d
 ENTRYPOINT ["/usr/local/bin/pathos-worker"]

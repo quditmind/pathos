@@ -404,15 +404,29 @@ const routingCondition = `(
 // recover even when no other worker is polling.
 func RequeueExpired(ctx context.Context, q db.Querier) error { return requeueExpired(ctx, q) }
 
+// requeueExpired: a job cannot return to the queue while an execution of the same scan
+// (repository, profile version, target and pull request: the key of
+// scan_jobs_queued_uq) is already queued; such a job is failed instead,
+// since the queued one replaces it. Before, it was skipped and stayed
+// "running" for good, and because one execution per repository runs at a
+// time, every later scan of the repository waited forever (seen when
+// workers were recreated while scans ran and the same scans had been
+// queued again).
 func requeueExpired(ctx context.Context, q db.Querier) error {
 	_, err := q.Exec(ctx, `
 		UPDATE scan_jobs j SET
-		  status = CASE WHEN j.attempts >= j.max_attempts THEN 'failed' ELSE 'queued' END,
-		  error = CASE WHEN j.attempts >= j.max_attempts THEN 'worker lease expired ' || j.attempts || ' times' ELSE j.error END,
-		  finished_at = CASE WHEN j.attempts >= j.max_attempts THEN now() ELSE NULL END,
+		  status = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN 'failed' ELSE 'queued' END,
+		  error = CASE WHEN j.attempts >= j.max_attempts THEN 'worker lease expired ' || j.attempts || ' times'
+		               WHEN dup.id IS NOT NULL THEN 'worker lease expired; the same scan is queued again'
+		               ELSE j.error END,
+		  finished_at = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN now() ELSE NULL END,
 		  leased_by = NULL, lease_expires_at = NULL
-		WHERE j.status = 'running' AND j.lease_expires_at < now()
-		  AND NOT EXISTS (SELECT 1 FROM scan_jobs q WHERE q.repository_id = j.repository_id AND q.target_id IS NOT DISTINCT FROM j.target_id AND q.status = 'queued')`)
+		FROM scan_jobs j0 LEFT JOIN LATERAL (
+		  SELECT q.id FROM scan_jobs q
+		  WHERE q.repository_id = j0.repository_id AND q.profile_version_id = j0.profile_version_id
+		    AND q.target_id IS NOT DISTINCT FROM j0.target_id AND q.pull_request IS NOT DISTINCT FROM j0.pull_request
+		    AND q.status = 'queued' LIMIT 1) dup ON true
+		WHERE j.id = j0.id AND j.status = 'running' AND j.lease_expires_at < now()`)
 	return err
 }
 

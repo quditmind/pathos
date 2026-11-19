@@ -94,7 +94,7 @@ ARG RUSTSEC_DB=472a4c9a785030434f15d7da84964d60fbe789ab RUSTSEC_DB_SHA=d881db6c5
 ARG RUBY_DB=49bb1fbb35476f27f8cfbfcb943790633836dc1c RUBY_DB_SHA=aeeb858600ad520858f29a8ae91dabc7ec5eb9acb9fea1fbe5c38ffedbbb824b
 ARG RETIRE_REPO=8d814f3c023a909b26be6a35a45b54163c2d95fe RETIRE_REPO_SHA=3602c6e405f1a32b62b92fee54b53d741e8eae0831fdcb3e8febb2155dcd3bfe
 RUN set -eux; \
-    fetch() { curl -fsSL --retry 3 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
+    fetch() { curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o "$1" "$2"; echo "$3  $1" | sha256sum -c -; }; \
     fetch node.tar.xz "https://nodejs.org/dist/v${NODE}/node-v${NODE}-linux-x64.tar.xz" "$NODE_SHA"; \
     fetch cargo-audit.tgz "https://github.com/rustsec/rustsec/releases/download/cargo-audit%2Fv${CARGO_AUDIT}/cargo-audit-x86_64-unknown-linux-musl-v${CARGO_AUDIT}.tgz" "$CARGO_AUDIT_SHA"; \
     fetch composer.phar "https://getcomposer.org/download/${COMPOSER}/composer.phar" "$COMPOSER_SHA"; \
@@ -137,7 +137,7 @@ RUN --mount=type=cache,target=/root/.npm set -eux; \
     # Bootstrap: npm ci with the npm of the lockfile, unpacked from the
     # registry tarball checked against the lockfile's integrity.
     url="$(node -e 'const l=require("./package-lock.json").packages["node_modules/npm"];console.log(l.resolved+" "+l.integrity)')"; \
-    curl -fsSL --retry 3 -o /tmp/npm.tgz "${url%% *}"; \
+    curl -fsSL --retry 5 --retry-all-errors --retry-delay 5 -o /tmp/npm.tgz "${url%% *}"; \
     test "sha512-$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync("/tmp/npm.tgz")).digest("base64"))')" = "${url#* }"; \
     mkdir -p /tmp/npm && tar -xzf /tmp/npm.tgz -C /tmp/npm --strip-components=1; \
     node /tmp/npm/bin/npm-cli.js ci --ignore-scripts --omit=optional --no-audit --no-fund; \

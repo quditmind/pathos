@@ -52,7 +52,7 @@ Request body (`POST`, `PUT`):
 | `auth_type` | `token` (service-account bearer token) or `kubeconfig` |
 | `api_server` | `token` only: `https://` URL of the API server. Loopback, link-local and metadata addresses are refused; RFC 1918/ULA addresses need `allow_private` |
 | `token` | `token` only: the bearer token (required on create), stored encrypted |
-| `ca_cert` | `token` only, optional: PEM CA certificate of the API server (public CAs when empty) |
+| `ca_cert` | `token` only, optional: PEM CA certificate of the API server (public CAs when empty). On `PUT`, an empty value keeps the stored certificate |
 | `kubeconfig` | `kubeconfig` only (required on create): YAML or JSON with inline credentials (`token`, or `client-certificate-data` and `client-key-data`) and `certificate-authority-data`. `exec`, `auth-provider`, file references, `proxy-url` and `insecure-skip-tls-verify` are refused (400). Only the selected context's server, CA and credential are stored, encrypted |
 | `context` | `kubeconfig` only, optional: context name (default `current-context`) |
 | `namespaces` | Optional list of namespace names to read (default: every namespace the role can list), at most 200 |

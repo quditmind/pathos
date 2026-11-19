@@ -4,6 +4,31 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [2.2.1] — 2026-11-20
+
+Fixes found by an end-to-end validation on 15 public open-source projects (Go, Java, Python, JavaScript/TypeScript, .NET, PHP, Ruby, Android, Terraform, Kubernetes/Helm and CI/CD repositories) with every worker image, plus open-source test services (kind, Jenkins, LocalStack, Mailpit). The report is in [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md); a deployment checklist is in [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md). **Upgrade if you run the family worker images**: in 2.2.0 most SAST, IaC and SCA family scans ended partial on real repositories.
+
+### Fixed
+- Family worker tools no longer run on repositories without their language or files (new manifest field `requires_files`), which made most SAST, IaC and SCA family scans end partial.
+- Trivy: concurrent workers no longer crash on a shared vulnerability database (SIGBUS) or contend for the scan cache lock; the Java database is no longer downloaded into the 1 GB `/tmp`.
+- OSV-Scanner no longer fails on Maven projects.
+- Nuclei on API targets: runs without the intrusive flag (it found no templates before) and handles OpenAPI documents with required parameters.
+- Family wrappers: Psalm report path; Kubescape on repositories without Kubernetes manifests; pip-audit on unpinned requirements; cdxgen on Gradle and Maven projects; govulncheck on modules without packages; yarn registry host; OWASP Dependency-Check uses the egress proxy.
+- Egress allowlist: govulncheck needs `storage.googleapis.com`; Docker Hub hosts for image targets.
+- The CycloneDX SBOM export returned the AI-BOM instead of the repository SBOM.
+- `pathos gate --repo` evaluated image and DAST scans of the repository instead of its repository scans.
+- Self-hosted AI reviews had no output limit.
+- Enabling S3 object storage on an existing installation broke scans of every existing repository.
+- An expired worker lease could block a repository's scan queue forever.
+- Imports could stay at 50 %.
+- Editing a Kubernetes cluster connection deleted its CA certificate.
+- The error for a refused image registry now names the registry host.
+- Docs: the import API example and the CVE Binary Tool database memory requirement.
+- Image builds retry every download on any error (5 attempts): Maven Central and GitHub release downloads intermittently answer 404 or 500, which `curl --retry` alone did not retry. Every download is still checked against its pinned SHA-256.
+
+### Known issues
+Listed with reproduction steps in [docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md) §9, among them: repository import needs a token even for public repositories; one execution per repository at a time (CI imports get 409 while a DAST scan runs); no private-CA setting for registries, webhooks and ticketing; OWASP Dependency-Check can stall during scans (make an NVD API key a prerequisite or leave it out of profiles); secret scanners are noisy (keep Talisman out of default profiles); Nuclei can exceed the 30-minute default timeout on API targets.
+
 ## [2.2.0] — 2026-11-19
 
 Proof and scale: optional multi-tenancy, benchmarks, performance fixes and a JetBrains IDE plugin. Migrations 00038 and 00040–00042 are additive; 00038 builds indexes concurrently, which can take minutes on large installations. Single-organization installations are unchanged until `pathosctl multi-tenancy enable`. Dependency findings get fingerprint version 2 and are re-keyed in place on the next scan, keeping their status and history.

@@ -349,6 +349,13 @@ func (s *Service) updateCluster(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if in.AuthType == "token" && curAuth == "token" && in.CACert == "" {
+		// Like the token, a stored CA certificate is kept unless a new one
+		// is sent (the edit form leaves it empty: "paste to replace").
+		// Dropping it made the next synchronisation fail with "x509:
+		// certificate signed by unknown authority".
+		in.CACert = curCA
+	}
 	enabled := in.Enabled == nil || *in.Enabled
 	err = db.InTx(r.Context(), s.DB, func(tx pgx.Tx) error {
 		if secret != nil {

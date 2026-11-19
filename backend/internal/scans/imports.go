@@ -297,6 +297,9 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 	_ = zw.Close()
 	n, ierr := s.Ingest(ctx, p.OrganizationID, jobID, ResultUpload{Scanner: key, Version: truncate(tool, 100), Status: "succeeded", Format: format}, gz.Bytes())
 	fj, ferr := s.FinalizeWith(context.WithoutCancel(ctx), jobID, ierr != nil, errText(ierr), FinalizeOpts{NoAutoResolve: !resolve})
+	// The execution was created as running (stage "scanning", 50 %); derive
+	// the final stage and progress like a worker-finished scan does.
+	_ = updateProgress(context.WithoutCancel(ctx), s.DB, jobID)
 	if ierr != nil || ferr != nil {
 		s.Log.Warn("import failed", "job_id", jobID, "ingest_err", ierr, "finalize_err", ferr)
 		fail("the report could not be imported: " + safeErr(errors.Join(ierr, ferr)))

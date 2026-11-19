@@ -13,7 +13,9 @@ import sys
 
 KUBESCAPE = "/opt/pathos/iac/bin/kubescape"
 ENV = dict(os.environ, KS_SKIP_UPDATE_CHECK="true", KS_OFFLINE="true")
-NO_INPUT = b"no YAML or JSON manifest files found"
+# Kubescape's messages for a directory without Kubernetes input (the
+# wording changed between releases; 4.x prints the second one).
+NO_INPUT = (b"no YAML or JSON manifest files found", b"no scannable Kubernetes resources found")
 
 if sys.argv[1:] == ["--version"]:
     os.execve(KUBESCAPE, [KUBESCAPE, "version"], ENV)
@@ -24,7 +26,7 @@ src, out = sys.argv[1:]
 run = subprocess.run([KUBESCAPE, "scan", src, "--format", "json", "--output", out, "--use-artifacts-from", "/opt/pathos/iac/kubescape",
                       "--keep-local", "--logger", "warning"], stderr=subprocess.PIPE, env=ENV, check=False)
 sys.stderr.buffer.write(run.stderr)
-if run.returncode != 0 and NO_INPUT in run.stderr:
+if run.returncode != 0 and any(m in run.stderr for m in NO_INPUT):
     open(out, "wb").close()
     sys.exit(0)
 sys.exit(run.returncode)

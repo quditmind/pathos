@@ -28,7 +28,7 @@ All three use the **`pathos` command-line tool**. Ready-made templates wrap it f
 Download the binary for your platform (Linux, macOS or Windows; amd64 or arm64) from the PATHOS release on GitHub. Each release has a `checksums.txt` with the SHA-256 of every binary, signed with Sigstore cosign (keyless, by the release workflow):
 
 ```bash
-v=2.2.0
+v=2.2.1
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/pathos_${v}_linux_amd64
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/checksums.txt
 sha256sum -c --ignore-missing checksums.txt
@@ -59,7 +59,7 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 | `pathos import --repo R --file F [--format ID] [--tool NAME] [--category CAT] [--commit SHA] [--branch NAME] [--complete]` | Uploads a results file and waits until the import's execution is finished. `--format` names the format (detected when omitted); `--tool` and `--category` default from the format. `--complete` marks findings the tool no longer reports as fixed (only for the tool's complete result). Commit and branch default from the CI environment (`GITHUB_SHA`, `CI_COMMIT_SHA`, `BUILD_SOURCEVERSION`, `GIT_COMMIT`, and the matching branch variables) |
 | `pathos import --sbom --repo R --file F` | Uploads a CycloneDX or SPDX JSON SBOM; it replaces the repository's component inventory |
 | `pathos scan --repo R [--profile UUID] [--name NAME] [--no-wait] [--wait-timeout 30m]` | Starts a scan and follows its stages and progress until it finishes |
-| `pathos gate (--scan UUID \| --repo R) [--fail-on SEV] [--scope new\|all] [--allow-partial]` | Evaluates the security gate of an execution (with `--repo`: the repository's latest finished execution). See below |
+| `pathos gate (--scan UUID \| --repo R) [--fail-on SEV] [--scope new\|all] [--allow-partial]` | Evaluates the security gate of an execution (with `--repo`: the latest finished execution of the repository's source code or of a result import; scan target executions such as images and URLs are not considered). See below |
 | `pathos findings [--repo R] [--severity critical,high] [--status open] [--category C] [--scanner KEY] [--limit 100] [--output table\|json]` | Lists findings |
 | `pathos sbom export --repo R [--format cyclonedx\|spdx] [--output FILE]` | Downloads the repository's SBOM |
 | `pathos version` | Prints the CLI version |
@@ -95,7 +95,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: semgrep scan --json --output semgrep.json   # any supported scanner
-      - uses: quditmind/pathos/integrations/github-action@v2.2.0
+      - uses: quditmind/pathos/integrations/github-action@v2.2.1
         with:
           url: https://pathos.example.com
           token: ${{ secrets.PATHOS_TOKEN }}
@@ -123,12 +123,12 @@ Include the template and extend its hidden jobs:
 
 ```yaml
 include:
-  - remote: https://raw.githubusercontent.com/quditmind/pathos/v2.2.0/integrations/gitlab/pathos.gitlab-ci.yml
+  - remote: https://raw.githubusercontent.com/quditmind/pathos/v2.2.1/integrations/gitlab/pathos.gitlab-ci.yml
 
 variables:
   PATHOS_URL: https://pathos.example.com
   PATHOS_REPOSITORY: acme/payments-api
-  PATHOS_CLI_VERSION: "2.2.0"
+  PATHOS_CLI_VERSION: "2.2.1"
   # PATHOS_TOKEN: masked, protected CI/CD variable
 
 pathos-import:
@@ -157,7 +157,7 @@ steps:
     parameters:
       url: https://pathos.example.com
       repository: acme/payments-api
-      cliVersion: "2.2.0"
+      cliVersion: "2.2.1"
       importFile: semgrep.json
       failOn: high
 ```
