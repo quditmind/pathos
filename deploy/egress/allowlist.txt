@@ -15,3 +15,8 @@ grype.anchore.io
 api.osv.dev
 api.deps.dev
 osv-vulnerabilities.storage.googleapis.com
+# Sigstore public-good instance: keyless signature verification of image and
+# artifact targets (only used when a target is configured for it)
+tuf-repo-cdn.sigstore.dev
+rekor.sigstore.dev
+fulcio.sigstore.dev

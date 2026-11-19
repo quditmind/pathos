@@ -19,10 +19,15 @@ These run in the `worker-core` image today, pinned by version and SHA-256 (or bu
 | actionlint | Repositories with GitHub Actions workflows | JSON |
 | Trivy (image) | Container image targets | SARIF |
 | Nuclei | Web application and API targets (reviewed template subset) | JSONL |
+| File licences (`licensecheck`, built in) | Repositories | PATHOS JSON |
+| Binary hardening (`binary-hardening`, built in) | Build artifacts; repositories when a profile selects it | PATHOS JSON |
+| ClamAV (`clamav`, client of the optional clamd service) | Repositories when a profile selects it and `PATHOS_CLAMAV_ADDRESS` is set | PATHOS JSON |
 
 Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#declarative-scanner-adapters-plugins). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
-**Not a scanner, but related:** ClamAV (GPL-2.0, optional `clamav` Compose profile) scans uploaded source archives and build artifacts for malware before PATHOS accepts them ([OPERATIONS.md](OPERATIONS.md#malware-scanning-clamav)). It does not produce findings and is not in the catalog.
+Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
+
+**Built-in scanners.** `licensecheck` and `binary-hardening` are part of the worker binary (pure Go: [google/licensecheck](https://github.com/google/licensecheck), BSD-3-Clause, and the Go standard library's `debug/elf`, `debug/pe` and `debug/macho`), so they add no binary to the image. ScanCode Toolkit was evaluated for file-level licences and not adopted: it is a large Python application with its own data set that would roughly double the worker image and its scan times, while licensecheck covers SPDX tags and licence texts in-process. The `clamav` scanner is a client of the ClamAV service (GPL-2.0, optional `clamav` Compose profile, not part of the PATHOS images); it streams repository files to clamd over a dedicated internal network ([OPERATIONS.md](OPERATIONS.md#malware-scanning-clamav)). The same service also scans uploaded source archives and build artifacts before PATHOS accepts them.
 
 Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** = excluded (reason given). Build = requires building the target code (no adapter; see [ARCHITECTURE.md §5](ARCHITECTURE.md#5-scanner-execution-and-isolation)).
 
@@ -78,12 +83,15 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 46 | OpenSSF Scorecard | Supply-chain posture | Apache-2.0 | active | Use | Uses SCM API |
 | 47 | ScanCode Toolkit | License compliance | Apache-2.0 + CC-BY (data) | active | Use | Replaces FOSSology for repo scanning |
 | 48 | Trivy (license) | License compliance | Apache-2.0 | active | Use | |
+| 48a | File licences (licensecheck) | License compliance (file level) | BSD-3-Clause (library) | active | Use | **Implemented** (built into the worker); violations of the licence policy become findings |
+| 48b | ClamAV (repository content) | Malware | GPL-2.0 (separate service) | active | Use | **Implemented** (opt-in; needs the clamd service) |
+| 48c | Binary hardening (checksec-style) | Binary analysis | Apache-2.0 (PATHOS) | n/a | Use | **Implemented** (built into the worker; ELF, PE, Mach-O) |
 | 49 | OWASP ZAP | DAST | Apache-2.0 | active | Use (target URL, not repo) | Runs against deployed app. Separate worker family and network policy |
 | 50 | Nuclei | DAST / templated checks | MIT | active | Use (target URL) | **Implemented** (URL and API targets) |
 | 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
-Count: **52 scanner integrations**: 45 "Use" plus 7 optional or license-restricted. The 8 supporting utilities below bring the total to 60 integrations.
+Count: **55 scanner integrations**: 48 "Use" plus 7 optional or license-restricted. The 8 supporting utilities below bring the total to 63 integrations. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
 
 ## Supporting utilities (not counted as scanners)
 
@@ -93,10 +101,22 @@ Count: **52 scanner integrations**: 45 "Use" plus 7 optional or license-restrict
 | cdxgen (OWASP) | SBOM generation (CycloneDX) | Apache-2.0 | active (repo moved) |
 | CycloneDX CLI | SBOM conversion/validation/merge | Apache-2.0 | active |
 | SPDX tools-python | SPDX validation/conversion | Apache-2.0 | maintained (2026-03) |
-| Cosign | Signature verification | Apache-2.0 | active |
+| Cosign | Signature verification | Apache-2.0 | active; **shipped** in worker-core (catalog key `cosign`): signature and in-toto attestation verification of image and artifact targets |
 | in-toto | Attestation verification | Apache-2.0 | active |
 | slsa-verifier | SLSA provenance verification | Apache-2.0 | active |
 | GUAC | Supply-chain graph (integration, later) | Apache-2.0 | active |
+
+## Built-in checks (not counted as scanners)
+
+The scanner catalog also lists three entries that are not third-party scanner integrations; they exist so their results and findings have a catalog key:
+
+| Key | What it is |
+|---|---|
+| `pathos-endpoints` | Verification of a repository's declared public endpoints, built into the worker agent (DNS, reachability, TLS, HSTS and security headers); runs only for `endpoints` targets |
+| `cosign` | The Sigstore cosign utility above, run for image and artifact targets with a signature verification policy |
+| `endoflife` | End-of-life findings from the endoflife.date intelligence feed; not run by a worker |
+
+`GET /api/v1/scanners` returns the 52 integrations, Syft and these three entries.
 
 ## Excluded
 

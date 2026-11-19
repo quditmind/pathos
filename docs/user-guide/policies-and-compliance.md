@@ -1,7 +1,7 @@
 ---
 title: Security policies and compliance
 section: user-guide
-order: 18
+order: 21
 version: "1.0"
 updated: 2026-11-19
 summary: Remediation SLAs, the license policy, security policies that block risky changes, require reviews and tighten deadlines, and open findings against OWASP, PCI DSS, ISO 27001 and SOC 2 controls.
@@ -13,7 +13,7 @@ summary: Remediation SLAs, the license policy, security policies that block risk
 ## Remediation SLAs and license policy
 
 - **Remediation SLAs.** Days from first detection, per severity (defaults: Critical 7, High 30, Medium 90, Low 180, Info none; 1–3,650 days, empty for no SLA). **Save SLAs** recomputes the deadlines of existing findings. How deadlines appear on findings is described in [Remediation SLAs](findings.md#remediation-slas).
-- **License policy.** One SPDX identifier per line followed by `deny` or `review` (at most 500 entries), then **Save license policy**. Components with a denied license count as violations in **Vulnerabilities → SBOM inventory** and on the dashboard (*License violations*). The default policy denies AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and marks GPL, LGPL-3.0 and BUSL-1.1 for review.
+- **License policy.** One SPDX identifier per line followed by `deny` or `review` (at most 500 entries), then **Save license policy**. Components with a denied license count as violations in **Vulnerabilities → SBOM inventory** and on the dashboard (*License violations*). Every violation, by an SBOM component or by a repository file, is also a **License** finding with an SLA; saving the policy re-evaluates them at once ([Licence findings](security-scanning.md#licence-findings)). The default policy denies AGPL-3.0, SSPL-1.0 and CC-BY-NC-4.0 and marks GPL, LGPL-3.0 and BUSL-1.1 for review.
 
 ## Security policies
 
@@ -21,6 +21,7 @@ A security policy says *"findings like this, in places like that, must be handle
 
 - **No actively exploited vulnerabilities in production**: KEV = yes, environment = production → block, deadline 7 days, notify.
 - **Hard-coded secrets in PCI repositories need a second look**: type = Secrets, compliance scope = PCI DSS → require a Human Eye review.
+- **Findings that land with an authentication change get a manual review**: landed with a security-material change = Authentication / authorization → require a Human Eye review (see [Material changes](developer-insights.md#security-policy-condition)).
 - **Malicious packages are never merged**: malicious package = yes → block.
 
 Open **Administration → Policies**, go to **Security policies** and select **New policy**. While you edit, PATHOS shows how many open findings would match right now, so you can check a policy before saving it.
@@ -36,7 +37,7 @@ What the actions do:
 
 Click a policy's **open violations** count to see the findings that violate it (and, with **Show resolved**, those that no longer do). A finding's details list the policies it violates. Every change is versioned and recorded in the audit log.
 
-Policies are checked after every scan, for every pull request check, and every 10 minutes, because a finding's risk, exploit status and age change between scans. Conditions on contextual risk, reachability, age or public exploits need data that pull request findings do not have yet, so those policies apply to the scan branch only (the list marks them).
+Policies are checked after every scan, for every pull request check, and every 10 minutes, because a finding's risk, exploit status and age change between scans. Conditions on contextual risk, reachability, age, public exploits or material changes need data that pull request findings do not have yet, so those policies apply to the scan branch only (the list marks them).
 
 ## Compliance
 

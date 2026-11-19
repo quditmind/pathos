@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CxXMLResults InitiatorName="ci" Owner="ci" ScanId="1000123" ProjectId="42" ProjectName="payments-api" TeamFullPathOnReportDate="CxServer\SP\Example" DeepLink="https://cx.example.test/CxWebClient/ViewerMain.aspx?scanid=1000123&amp;projectid=42" ScanStart="Tuesday, November 17, 2026 9:00:00 AM" Preset="Checkmarx Default" ScanTime="00h:04m:12s" LinesOfCodeScanned="18234" FilesScanned="211" ReportCreationTime="Tuesday, November 17, 2026 9:05:00 AM" Team="Example" CheckmarxVersion="9.6.0" ScanComments="" ScanType="Incremental" SourceOrigin="LocalPath" Visibility="Public">
+  <Query id="589" categories="OWASP Top 10 2021;A3-Injection" cweId="89" name="SQL_Injection" group="Java_High_Risk" Severity="High" Language="Java" LanguageHash="1" LanguageChangeDate="2026-01-01T00:00:00.000" SeverityIndex="3" QueryPath="Java\Cx\Java_High_Risk\SQL_Injection Version:1" QueryVersionCode="56110529">
+    <Result NodeId="10001230001" FileName="src/main/java/com/example/OrderDao.java" Status="New" Line="42" Column="38" FalsePositive="False" Severity="High" AssignToUser="" state="0" Remark="" DeepLink="https://cx.example.test/CxWebClient/ViewerMain.aspx?scanid=1000123&amp;projectid=42&amp;pathid=1" SeverityIndex="3">
+      <Path ResultId="1000123" PathId="1" SimilarityId="-1823745521" SourceMethod="getOrder" DestinationMethod="executeQuery">
+        <PathNode>
+          <FileName>src/main/java/com/example/OrderController.java</FileName>
+          <Line>27</Line>
+          <Column>55</Column>
+          <NodeId>1</NodeId>
+          <Name>id</Name>
+          <Type></Type>
+          <Length>2</Length>
+          <Snippet><Line><Number>27</Number><Code>    public Order getOrder(@RequestParam String id) {</Code></Line></Snippet>
+        </PathNode>
+        <PathNode>
+          <FileName>src/main/java/com/example/OrderDao.java</FileName>
+          <Line>42</Line>
+          <Column>38</Column>
+          <NodeId>2</NodeId>
+          <Name>executeQuery</Name>
+          <Type></Type>
+          <Length>12</Length>
+          <Snippet><Line><Number>42</Number><Code>        return stmt.executeQuery("SELECT * FROM orders WHERE id = " + id);</Code></Line></Snippet>
+        </PathNode>
+      </Path>
+    </Result>
+    <Result NodeId="10001230002" FileName="src/main/java/com/example/ReportDao.java" Status="Recurrent" Line="88" Column="20" FalsePositive="True" Severity="High" AssignToUser="" state="1" Remark="dev, 2026-10-01: constant input only" DeepLink="https://cx.example.test/CxWebClient/ViewerMain.aspx?scanid=1000123&amp;projectid=42&amp;pathid=2" SeverityIndex="3">
+      <Path ResultId="1000123" PathId="2" SimilarityId="733422190" SourceMethod="run" DestinationMethod="executeQuery">
+        <PathNode>
+          <FileName>src/main/java/com/example/ReportDao.java</FileName>
+          <Line>88</Line>
+          <Column>20</Column>
+          <NodeId>1</NodeId>
+          <Name>executeQuery</Name>
+          <Type></Type>
+          <Length>12</Length>
+          <Snippet><Line><Number>88</Number><Code>        stmt.executeQuery(REPORT_SQL + suffix);</Code></Line></Snippet>
+        </PathNode>
+      </Path>
+    </Result>
+  </Query>
+  <Query id="4214" categories="" cweId="79" name="Stored_XSS" group="JavaScript_High_Risk" Severity="Medium" Language="JavaScript" SeverityIndex="2" QueryPath="JavaScript\Cx\JavaScript_High_Risk\Stored_XSS Version:2">
+    <Result NodeId="10001230003" FileName="web/src/render.js" Status="New" Line="12" Column="5" FalsePositive="False" Severity="Medium" state="2" Remark="" DeepLink="" SeverityIndex="2">
+      <Path ResultId="1000123" PathId="3" SimilarityId="1550021" SourceMethod="load" DestinationMethod="innerHTML">
+        <PathNode>
+          <FileName>web/src/render.js</FileName>
+          <Line>12</Line>
+          <Column>5</Column>
+          <NodeId>1</NodeId>
+          <Name>innerHTML</Name>
+          <Snippet><Line><Number>12</Number><Code>    el.innerHTML = comment.body;</Code></Line></Snippet>
+        </PathNode>
+      </Path>
+    </Result>
+  </Query>
+</CxXMLResults>

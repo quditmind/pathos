@@ -63,6 +63,24 @@ Application URLs are **metadata only**. PATHOS never fetches, resolves or scans 
 
 > Application URLs and public exposure are recorded **per repository**. An application in PATHOS has no URL fields of its own. See [Applications](applications.md).
 
+## Verify declared public endpoints
+
+The public URLs, domain names and IP addresses you declare in the exposure section are metadata until you choose to verify them. **Endpoint verification** on the repository's **Details** tab checks them from a scan worker:
+
+- **DNS**: the name resolves (through the egress proxy when the worker has no resolver);
+- **reachability** over HTTPS and HTTP, and whether HTTP redirects to HTTPS;
+- **TLS**: certificate validity and expiry (expired, not yet valid, expiring within 30 days), host name match, trust chain, legacy protocols (TLS 1.0 and 1.1) and weak cipher suites (RC4, 3DES, CBC-SHA256, RSA key exchange);
+- **headers**: HSTS (missing or shorter than 180 days), Content-Security-Policy, X-Content-Type-Options, X-Frame-Options or `frame-ancestors`, and Referrer-Policy;
+- optionally the non-intrusive **Nuclei exposure templates** (exposed files and panels, subdomain takeovers).
+
+It is **opt-in** and limited in scope:
+
+1. Someone with repository management permission selects **Enable**, confirms **I am authorized to test these endpoints** (optionally with a reference such as a change ticket) and sets the request rate (1–10 per second, default 2). Name and time are recorded and audited.
+2. The statement covers the endpoints listed at that moment. Endpoints declared later are shown as *not authorized* and skipped until someone confirms the list again; turning on Nuclei also needs a new confirmation.
+3. **Verify now** queues the check on a worker (never on the PATHOS server). Only the declared hosts are contacted, through the egress proxy: add them to `deploy/egress/allowlist.txt`, otherwise they are reported as **Blocked by egress proxy**. Redirects to other hosts are not followed. Wildcard domains cannot be checked.
+
+Each endpoint then shows **Verified**, **Unreachable**, **DNS failure**, **Blocked by egress proxy** or **Skipped**, with the TLS protocol, certificate expiry and any legacy protocol. Problems become findings of the repository (type *Web and API (DAST)*, asset *Declared public endpoints*), resolved automatically when a later check no longer sees them. Verification is disabled in offline mode (`PATHOS_OFFLINE=true`). The check also appears in **Scanning → Scan targets** as a *Declared public endpoints* target.
+
 ## Branch selection
 
 - **Git repositories** are scanned on the **scan branch**. You choose it per repository in the import step (**Branch**, default: the provider's default branch). If no branch is chosen, the repository's default branch is used and shown as `main (default)` or similar.
@@ -144,7 +162,7 @@ The following record is illustrative (it was created for this guide from a small
 1. Open **Assets → Repositories**.
 2. Find the repository: type part of its name in **Search repositories**, or open **More filters** and enter the exact **Repository ID**, for example `QD-REPO-000042`.
    ![Repository inventory with KPI strip and Repository ID column](images/repositories-inventory.png "Repositories inventory: KPI strip, filters and the Repository ID column")
-3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and tabs: **Details**, **Source**, **Security** and **Dependencies** (the last needs `sbom.read`; see [Dependencies of a repository](posture.md#dependencies-of-a-repository)).
+3. Select the row. The details panel opens with the Repository ID at the top (use the copy button to copy it) and tabs: **Details**, **Source**, **Security**, **Dependencies** (needs `sbom.read`; see [Dependencies of a repository](posture.md#dependencies-of-a-repository)) and **Material changes** (needs `scans.read`; see [Material changes](developer-insights.md#material-changes)).
    ![Repository details panel](images/repository-drawer.png "The details panel opens over the inventory")
 4. On **Details**, select **Edit metadata**. The same sections as in the wizard appear.
 5. Change the fields, for example set **Production URL** to `https://payments.example.com`.

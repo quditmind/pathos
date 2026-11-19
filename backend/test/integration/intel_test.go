@@ -104,12 +104,15 @@ func TestIntelligenceAndRisk(t *testing.T) {
 		t.Fatalf("kev online: %d %v", code, run)
 	}
 	code, feeds := call(analyst, "GET", "/api/v1/intel/feeds", nil)
-	if code != 200 || len(feeds["items"].([]any)) != 4 {
+	if code != 200 || len(feeds["items"].([]any)) != 5 {
 		t.Errorf("feeds: %d %v", code, feeds)
 	}
 	for _, f := range feeds["items"].([]any) {
 		if fm := f.(map[string]any); fm["feed"] == "depsdev" && fm["enabled"] != false {
 			t.Error("the deps.dev feed sends package names and must start disabled")
+		}
+		if fm := f.(map[string]any); fm["feed"] == "endoflife" && fm["enabled"] != false {
+			t.Error("the endoflife.date feed is opt-in and must start disabled")
 		}
 	}
 	code, cve := call(analyst, "GET", "/api/v1/intel/cves/cve-2021-44228", nil)

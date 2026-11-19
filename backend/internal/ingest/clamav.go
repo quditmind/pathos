@@ -104,6 +104,15 @@ func (c ClamAV) Scan(ctx context.Context, r io.Reader) (Verdict, error) {
 	if err != nil {
 		return Verdict{}, err
 	}
+	v, err := c.ScanStream(ctx, r)
+	v.Engine = engine
+	return v, err
+}
+
+// ScanStream streams r to clamd and returns its verdict without asking for
+// the engine version (callers scanning many files ask once). A failure to
+// read r is reported as is (see IsClamAVSourceError).
+func (c ClamAV) ScanStream(ctx context.Context, r io.Reader) (Verdict, error) {
 	conn, err := c.dial(ctx)
 	if err != nil {
 		return Verdict{}, err
@@ -112,7 +121,7 @@ func (c ClamAV) Scan(ctx context.Context, r io.Reader) (Verdict, error) {
 	werr := sendStream(conn, r)
 	var srcErr *sourceError
 	if errors.As(werr, &srcErr) {
-		return Verdict{}, srcErr.err
+		return Verdict{}, srcErr
 	}
 	// clamd may answer (and close) early, for example when the size limit
 	// is exceeded; its reply explains a failed write.
@@ -126,7 +135,7 @@ func (c ClamAV) Scan(ctx context.Context, r io.Reader) (Verdict, error) {
 		}
 		return Verdict{}, rerr
 	}
-	return parseScanReply(reply, engine)
+	return parseScanReply(reply, "")
 }
 
 func parseScanReply(reply, engine string) (Verdict, error) {
@@ -150,6 +159,15 @@ func parseScanReply(reply, engine string) (Verdict, error) {
 type sourceError struct{ err error }
 
 func (e *sourceError) Error() string { return e.err.Error() }
+
+func (e *sourceError) Unwrap() error { return e.err }
+
+// IsClamAVSourceError reports whether err came from reading the scanned
+// data rather than from clamd.
+func IsClamAVSourceError(err error) bool {
+	var se *sourceError
+	return errors.As(err, &se)
+}
 
 func sendStream(w io.Writer, r io.Reader) error {
 	if _, err := w.Write([]byte("zINSTREAM\x00")); err != nil {

@@ -23,12 +23,28 @@ var Events = []EventDef{
 		Dynamic:     []string{"owners"},
 		Subject:     `[PATHOS] {{.Scan.New}} new finding{{if ne .Scan.New 1}}s{{end}} in {{.Repository}}`,
 		Body: `A {{.Scan.Trigger}} scan of {{.Repository}} found {{.Scan.New}} new finding{{if ne .Scan.New 1}}s{{end}}{{if .Scan.Fixed}} and resolved {{.Scan.Fixed}}{{end}}.
-{{if .Scan.GateFailed}}
+{{with .Scan.Changes}}
+Changes since the previous scanned commit{{if .BaseCommit}} {{.BaseShort}}{{end}}{{if .HeadCommit}} (now {{.HeadShort}}){{end}}: +{{.NewTotal}} new{{if .NewText}} ({{.NewText}}){{end}}, -{{.FixedTotal}} fixed{{if .FixedText}} ({{.FixedText}}){{end}}.
+{{end}}{{if .Scan.GateFailed}}
 The security gate FAILED for this scan.
 {{end}}
 {{range .Findings}}- [{{.Severity}}] {{.Title}}{{if .Location}} ({{.Location}}){{end}}
 {{end}}{{if gt .More 0}}…and {{.More}} more.
 {{end}}
+Review: {{.Link}}`,
+	},
+	{
+		Key: "change.material", Label: "Security-material change", Severity: true, Repository: true,
+		Description: "A branch scan found security-material changes since the previous scanned commit (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data). Severity is high when a high-level rule matched, otherwise medium.",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] {{.Count}} security-material change{{if ne .Count 1}}s{{end}} in {{.Repository}}`,
+		Body: `A {{.Scan.Trigger}} scan of {{.Repository}} found {{.Count}} security-material change{{if ne .Count 1}}s{{end}} since the previously scanned commit:
+
+{{range .Findings}}- [{{.Severity}}] {{.Title}}{{if .Location}} ({{.Location}}){{end}}
+{{end}}{{if gt .More 0}}…and {{.More}} more.
+{{end}}
+Material changes are prompts for a closer look, detected by explainable rules; they are not findings.
+
 Review: {{.Link}}`,
 	},
 	{
@@ -216,6 +232,21 @@ Open: {{.Link}}`,
 {{.Finding.Title}}
 
 Open: {{.Link}}`,
+	},
+	{
+		Key: "secret.pushed", Label: "Secret pushed", Severity: true, Repository: true,
+		Description: "Secret push protection found a likely secret in the commits of a push (one message per push). The secret value is never included.",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] Secret pushed to {{.Repository}} ({{.Push.Ref}})`,
+		Body: `A push to {{.Repository}} (branch {{.Push.Ref}}) added {{.Count}} likely secret{{if ne .Count 1}}s{{end}}:
+
+{{range .Findings}}- {{.Title}} ({{.Location}})
+{{end}}{{if gt .More 0}}…and {{.More}} more.
+{{end}}
+The value is in the repository history: revoke and rotate the credential, then remove it from the code.
+Values are not stored or shown by PATHOS.
+
+Details: {{.Link}}`,
 	},
 }
 

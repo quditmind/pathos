@@ -140,5 +140,10 @@ func StoreImportedSBOM(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, 
 	if err := replaceComponents(ctx, tx, orgID, repoID, nil, "import", comps); err != nil {
 		return 0, err
 	}
-	return len(comps), storeGraph(ctx, tx, orgID, repoID, ParseGraph(raw), aliases)
+	if err := storeGraph(ctx, tx, orgID, repoID, ParseGraph(raw), aliases); err != nil {
+		return 0, err
+	}
+	// Licence policy violations of the imported components.
+	_, _, err = SyncLicenseFindings(ctx, tx, orgID, &repoID, nil)
+	return len(comps), err
 }

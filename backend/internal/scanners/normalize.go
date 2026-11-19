@@ -64,7 +64,7 @@ func confidenceOf(category string, props map[string]any) string {
 		}
 	}
 	switch category {
-	case "sca", "container", "iac", "license":
+	case "sca", "container", "iac", "license", "misconfiguration", "binary":
 		return "high"
 	case "secrets", "sast":
 		return "medium"
@@ -266,6 +266,14 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 					f.SnippetStart = &n
 				}
 			}
+			if key == Opengrep && misconfigurationRule(res.RuleID, rule.Properties) {
+				f.Category = "misconfiguration"
+				if strings.Contains(strings.ToLower(res.RuleID), "secret") {
+					// Rules about hard-coded keys match the key itself: keep
+					// it out of the stored code context.
+					f.Snippet, f.SnippetStart = "", nil
+				}
+			}
 			f.Severity = severityOf(sc, rule, res)
 			f.Confidence = confidenceOf(f.Category, rule.Properties)
 			for _, k := range []string{"cvssv3_vector", "cvssv40_vector", "cvss_vector"} {
@@ -438,6 +446,23 @@ func packageOf(key string, res sarifResult) (name, version, fixed string) {
 	return name, version, fixed
 }
 
+// misconfigurationRule reports whether an Opengrep rule is a framework
+// configuration check: the PATHOS rules "pathos.misconfig.*" and any rule
+// whose metadata category (a SARIF tag) is "misconfiguration".
+func misconfigurationRule(ruleID string, props map[string]any) bool {
+	if strings.HasPrefix(opengrepPrefix.ReplaceAllString(ruleID, ""), "pathos.misconfig.") {
+		return true
+	}
+	if tags, ok := props["tags"].([]any); ok {
+		for _, t := range tags {
+			if s, ok := t.(string); ok && strings.EqualFold(s, "misconfiguration") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // opengrepPrefix matches the path-derived prefix Opengrep adds to rule IDs.
 var opengrepPrefix = regexp.MustCompile(`^(?:[a-z0-9_-]+\.)*?(?:rules\.)`)
 
@@ -578,6 +603,17 @@ func Parse(key string, raw []byte) ([]Finding, error) {
 	}
 	if key == Actionlint {
 		return ParseActionlint(raw)
+	}
+	if IsNative(key) {
+		return ParseNative(key, raw)
+	}
+	switch key {
+	case EndpointCheck:
+		return parseEndpoints(raw)
+	case Cosign:
+		return parseSignature(raw)
+	case EndOfLife:
+		return nil, errors.New("end-of-life findings come from the intelligence feed, not from scanner output")
 	}
 	return ParseSARIF(key, raw)
 }

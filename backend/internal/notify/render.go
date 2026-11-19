@@ -49,6 +49,9 @@ type Data struct {
 		New, Fixed         int
 		Attempts           int
 		GateFailed         bool
+		// Changes compares a push or merge scan with the previous scanned
+		// commit (nil for other scans).
+		Changes *ScanChanges
 	}
 	Risk struct {
 		Status, Justification, ExpiresAt, RequestedBy, DecidedBy, Note string
@@ -71,6 +74,10 @@ type Data struct {
 	}
 	Review struct {
 		Key, Status, Disposition, Priority, DueAt, Outcome string
+	}
+	// Push is secret.pushed: the branch and head commit of the push.
+	Push struct {
+		Ref, Commit string
 	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
@@ -195,12 +202,14 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		var started *time.Time
 		var queued time.Time
-		err := q.QueryRow(ctx, `SELECT trigger, error, attempts, findings_new, findings_fixed, gate_failed, started_at, queued_at
+		var change []byte
+		err := q.QueryRow(ctx, `SELECT trigger, error, attempts, findings_new, findings_fixed, gate_failed, started_at, queued_at, change_summary
 			FROM scan_jobs WHERE id = $1`, *ev.SubjectID).
-			Scan(&d.Scan.Trigger, &d.Scan.Error, &d.Scan.Attempts, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed, &started, &queued)
+			Scan(&d.Scan.Trigger, &d.Scan.Error, &d.Scan.Attempts, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed, &started, &queued, &change)
 		if err != nil {
 			return nil, fmt.Errorf("load scan job: %w", err)
 		}
+		d.Scan.Changes = parseChanges(change)
 		d.Scan.ID = ev.SubjectID.String()
 		d.Link = baseURL + "/scans?job=" + d.Scan.ID
 		if ev.Key == "findings.new" {
@@ -217,6 +226,41 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.More = max(d.Scan.New-len(items), 0)
 			d.Link = baseURL + "/findings?repository_id=" + ev.Repository.String()
 		}
+	case "change.material":
+		if ev.SubjectID == nil {
+			return nil, errors.New("event has no scan job")
+		}
+		if err := q.QueryRow(ctx, `SELECT trigger, findings_new, findings_fixed, gate_failed FROM scan_jobs WHERE id = $1`, *ev.SubjectID).
+			Scan(&d.Scan.Trigger, &d.Scan.New, &d.Scan.Fixed, &d.Scan.GateFailed); err != nil {
+			return nil, fmt.Errorf("load scan job: %w", err)
+		}
+		d.Scan.ID = ev.SubjectID.String()
+		rows, err := q.Query(ctx, `SELECT c.level, c.category, c.rule_id, c.file_path, c.start_line, c.detail FROM material_changes c
+			WHERE c.scan_job_id = $1 ORDER BY CASE c.level WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, c.category, c.file_path
+			LIMIT $2`, *ev.SubjectID, maxListed)
+		if err != nil {
+			return nil, err
+		}
+		for rows.Next() {
+			var level, cat, rule, path, detail string
+			var line *int
+			if err := rows.Scan(&level, &cat, &rule, &path, &line, &detail); err != nil {
+				rows.Close()
+				return nil, err
+			}
+			title := materialLabels[cat]
+			if title == "" {
+				title = cat
+			}
+			if detail != "" {
+				title += ": " + detail
+			}
+			d.Findings = append(d.Findings, Item{Title: title + " (rule " + rule + ")", Severity: level, Location: location(path, line, "", "")})
+		}
+		rows.Close()
+		d.Count = payloadInt(p, "count")
+		d.More = max(d.Count-len(d.Findings), 0)
+		d.Link = baseURL + "/scans/" + d.Scan.ID + "?tab=material"
 	case "finding.sla_breached", "policy.violated":
 		if ev.Key == "policy.violated" {
 			d.Policy, _ = p["policy_name"].(string)
@@ -341,6 +385,16 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 		}
 		d.Schedule.Succeeded, d.Schedule.Failed = payloadInt(p, "succeeded"), payloadInt(p, "failed")
 		d.Link = baseURL + "/scans?schedule_id=" + ev.SubjectID.String()
+	case "secret.pushed":
+		if ev.SubjectID == nil {
+			return nil, errors.New("event has no push scan")
+		}
+		if err := loadPushedSecrets(ctx, q, d, *ev.SubjectID); err != nil {
+			return nil, err
+		}
+		if ev.Repository != nil {
+			d.Link = baseURL + "/repositories?repo=" + ev.Repository.String()
+		}
 	case "review.assigned", "review.independent_requested", "review.independent_decided", "review.overdue":
 		if ev.SubjectID == nil {
 			return nil, errors.New("event has no review")
@@ -406,6 +460,13 @@ func loadFinding(ctx context.Context, q db.Querier, d *Data, id *uuid.UUID, base
 	return nil
 }
 
+// materialLabels names material change categories (see package material).
+var materialLabels = map[string]string{
+	"auth": "Authentication / authorization", "api_endpoint": "New API endpoint", "dependency": "New dependency",
+	"crypto": "Cryptography", "iac_exposure": "Infrastructure exposure", "secrets_handling": "Secrets handling",
+	"cicd": "CI/CD pipeline", "sensitive_data": "Sensitive data model",
+}
+
 // Sample returns representative data for template previews.
 func Sample(key, baseURL string) *Data {
 	d := &Data{Org: "Example Corp", BaseURL: baseURL, Event: key, Repository: "acme/payments-api", Severity: "critical",
@@ -420,6 +481,8 @@ func Sample(key, baseURL string) *Data {
 	d.Finding = d.Findings[0]
 	d.Scan.ID, d.Scan.Trigger, d.Scan.Error = "0190c0de-0000-7000-8000-000000000000", "schedule", "clone failed: repository not found"
 	d.Scan.New, d.Scan.Fixed, d.Scan.Attempts, d.Scan.GateFailed = 3, 1, 3, true
+	d.Scan.Changes = newScanChanges("3f6c1d2e9a8b7c6d5e4f3a2b1c0d9e8f7a6b5c4d", "9a8b7c6d5e4f3a2b1c0d3f6c1d2e9a8b7c6d5e4f",
+		map[string]int{"critical": 1, "high": 2}, map[string]int{"medium": 1}, 3, 1)
 	d.Risk.Status, d.Risk.Justification, d.Risk.ExpiresAt = "approved", "Endpoint is internal only and protected by the WAF rule PAY-12.", "2027-02-15 00:00 UTC"
 	d.Risk.RequestedBy, d.Risk.DecidedBy, d.Risk.Note = "Sam Developer", "Riley Manager", "Re-assess after the Q1 migration."
 	d.Schedule.Name, d.Schedule.DueAt, d.Schedule.Missed = "Nightly EMEA", "2026-11-15 02:00 UTC", 2
@@ -429,7 +492,52 @@ func Sample(key, baseURL string) *Data {
 	d.Import.Status, d.Import.RequestedBy, d.Import.Total, d.Import.Failed = "failed", "Sam Developer", 4, 1
 	d.Review.Key, d.Review.Status, d.Review.Disposition, d.Review.Priority = "QD-HR-000042", "in progress", "false positive", "p1"
 	d.Review.DueAt, d.Review.Outcome = "2026-11-19 09:00 UTC", "approved"
+	d.Push.Ref, d.Push.Commit = "main", "9f2c4e1a7b3d"
+	if key == "secret.pushed" {
+		d.Findings = []Item{
+			{Title: "AWS access key ID", Severity: "critical", Location: "config/settings.py:12 (commit 9f2c4e1a7b3d)"},
+			{Title: "GitHub personal access token", Severity: "critical", Location: ".env:3 (commit 9f2c4e1a7b3d)"},
+		}
+		d.Count, d.More, d.Link = 2, 0, baseURL+"/repositories"
+	}
 	return d
+}
+
+// loadPushedSecrets lists what a push scan found: rule, file, line and
+// commit only (values are never stored).
+func loadPushedSecrets(ctx context.Context, q db.Querier, d *Data, scanID uuid.UUID) error {
+	if err := q.QueryRow(ctx, `SELECT ref, after_sha, alerts FROM push_secret_scans WHERE id = $1`, scanID).
+		Scan(&d.Push.Ref, &d.Push.Commit, &d.Count); err != nil {
+		return fmt.Errorf("load push scan: %w", err)
+	}
+	if len(d.Push.Commit) > 12 {
+		d.Push.Commit = d.Push.Commit[:12]
+	}
+	rows, err := q.Query(ctx, `SELECT description, file_path, line, commit_sha FROM pushed_secrets
+		WHERE push_scan_id = $1 ORDER BY file_path, line LIMIT $2`, scanID, maxListed)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var desc, path, commit string
+		var line *int
+		if err := rows.Scan(&desc, &path, &line, &commit); err != nil {
+			return err
+		}
+		if len(commit) > 12 {
+			commit = commit[:12]
+		}
+		loc := location(path, line, "", "")
+		if commit != "" {
+			loc += " (commit " + commit + ")"
+		}
+		d.Findings = append(d.Findings, Item{Title: desc, Severity: "critical", Location: loc})
+	}
+	if d.Count > len(d.Findings) {
+		d.More = d.Count - len(d.Findings)
+	}
+	return rows.Err()
 }
 
 // limitWriter stops template output beyond a size.

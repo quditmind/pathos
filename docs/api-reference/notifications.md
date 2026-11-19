@@ -44,6 +44,7 @@ Every endpoint on this page needs `notifications.manage` at organization scope (
 | Event | Severity | Repository | Dynamic recipients |
 |---|:-:|:-:|---|
 | `findings.new` | yes | yes | `owners` |
+| `change.material` | yes | yes | `owners` |
 | `scan.failed` | | yes | `owners` |
 | `finding.sla_breached` | yes | yes | `assignee`, `owners` |
 | `policy.violated` | yes | yes | `assignee`, `owners` |
@@ -61,6 +62,7 @@ Every endpoint on this page needs `notifications.manage` at organization scope (
 | `review.independent_requested` | yes | yes | `independent_reviewers` |
 | `review.independent_decided` | yes | yes | `requester`, `assignee` |
 | `review.overdue` | yes | yes | see the `events` response |
+| `secret.pushed` | yes | yes | `owners` |
 
 Dynamic recipients: `assignee` (the finding's or review's assignee), `requester` (who asked for it), `approvers` (users who may accept risk for the repository, except the requester), `owners` (the application owner and security owner of the repository's application, plus the repository's business, technical and application owners), `independent_reviewers` (the named independent reviewer, otherwise users with `reviews.approve` for the repository, except the requester) and `report_recipients`. Only active users receive notifications.
 
@@ -211,7 +213,7 @@ Outbound webhooks post events to chat tools and other systems. (Webhooks that so
 
 **URL**: `https` only, no credentials. Loopback, link-local (cloud metadata) and CGNAT addresses are always refused, private networks only with `allow_private`. The address is checked again after DNS resolution on every request, and redirects to other hosts are not followed. URLs and signing secrets are stored encrypted.
 
-**JSON format**: `POST` with `Content-Type: application/json` and the headers `X-PATHOS-Event`, `X-PATHOS-Delivery` (unique ID; use it to de-duplicate), `X-PATHOS-Timestamp` (Unix seconds) and, when signed, `X-PATHOS-Signature: sha256=<hex HMAC-SHA256 of "<timestamp>.<body>" with the signing secret>`. Body: `id`, `event`, `event_label`, `occurred_at`, `summary`, `organization`, `repository`, `severity`, `link`, `count`, `findings[]` (`id`, `title`, `severity`, `location`; at most 10), and `scan` or `policy` when relevant. **Slack**: an incoming-webhook message (`text`). **Teams**: a message with an Adaptive Card (works with Teams Workflows webhooks).
+**JSON format**: `POST` with `Content-Type: application/json` and the headers `X-PATHOS-Event`, `X-PATHOS-Delivery` (unique ID; use it to de-duplicate), `X-PATHOS-Timestamp` (Unix seconds) and, when signed, `X-PATHOS-Signature: sha256=<hex HMAC-SHA256 of "<timestamp>.<body>" with the signing secret>`. Body: `id`, `event`, `event_label`, `occurred_at`, `summary`, `organization`, `repository`, `severity`, `link`, `count`, `findings[]` (`id`, `title`, `severity`, `location`; at most 10), and `scan` or `policy` when relevant. `scan` is `{ id, trigger, new, fixed, gate_failed }`; for push and merge scans it adds `changes`: `{ base_commit, head_commit, new: {severity: n}, fixed: {severity: n}, new_total, fixed_total }` (the [change summary](scans.md#the-execution-object)). The default *New findings* e-mail shows the same summary; custom templates can use `{{with .Scan.Changes}}…{{.BaseShort}} {{.HeadShort}} {{.NewTotal}} {{.NewText}} {{.FixedTotal}} {{.FixedText}}…{{end}}`. **Slack**: an incoming-webhook message (`text`). **Teams**: a message with an Adaptive Card (works with Teams Workflows webhooks).
 
 **Delivery**: queued with the event; a `2xx` response succeeds. Network errors, `408`, `429` and `5xx` are retried after 1 minute, 5 minutes, 30 minutes, 2 hours and 6 hours; other `4xx` responses fail at once.
 

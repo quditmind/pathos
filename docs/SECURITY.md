@@ -157,11 +157,35 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
 - Target credentials (registry tokens, passwords, header values) are encrypted (kind `scan_target`), never returned by the API, given only to the worker holding the job's lease, and redacted from scan logs.
 - An SBOM target is served to the worker with its SHA-256, which the worker verifies before Grype reads it.
 
+### Declared endpoint verification
+
+- Verifying a repository's declared public URLs, domains and IPs is **opt-in** per repository and needs a recorded authorization statement (user, time, optional reference; audited as `endpoint_verification.*`). The statement covers the endpoints declared at that moment (`authorized_scope`); endpoints added later are skipped until someone confirms again, and enabling the Nuclei exposure templates needs a new statement too.
+- Checks run on a **worker**, never on the API server, and only against the declared hosts: redirects to other hosts are not followed, wildcard domains are skipped, and the worker contacts the hosts only through the egress proxy (CONNECT tunnels for TLS, the proxy for HTTP), so the proxy's allowlist and private-address rules apply. Requests are spaced at the configured rate (1–10 per second, default 2).
+- Nothing intrusive is sent: DNS lookups, at most four TLS handshakes per endpoint (certificate and protocol observation, legacy-protocol and weak-cipher probes), one HTTPS request (plus at most three same-host redirects) and one HTTP request, each reading at most 64 KiB. The optional Nuclei run is limited to the exposure, exposed-panel and takeover templates with `dos`, `intrusive`, `bruteforce` and `fuzz` excluded.
+- With `PATHOS_OFFLINE=true` endpoint verification cannot be enabled or run, and the worker refuses such jobs.
+
+### Signature verification
+
+- Image and artifact signatures are verified on the worker with the pinned **cosign** binary (built from its Go module, module hash pinned). The public key and identities are policy, not secrets; registry credentials are written to a per-job Docker configuration file, never to cosign's command line.
+- Verification results are evidence: they are stored per scan (`signature_verifications`) whatever the outcome, and cosign's raw report is kept with the scan. Only when a target **requires** a signature does a failure become a finding (`supply-chain`, high) and fail the security gate.
+- Keyless verification contacts the Sigstore public-good services (`tuf-repo-cdn.sigstore.dev`, `rekor.sigstore.dev`, `fulcio.sigstore.dev`) through the egress proxy; they are in the default allowlist. Offline, only key-based verification runs (without the transparency log) and keyless verification is reported as `skipped`.
+
+### Introducing commits
+
+- `git blame` runs on the worker against its own full-history checkout of the scanned commit, with hooks and fsmonitor disabled and only regular files inside the checkout. Only the commit SHA, the author's **name** and the commit date are sent to PATHOS; author e-mail addresses are never collected. Shallow clones are reported as unknown rather than guessed.
+
 ### Build artifacts
 
 - Uploads need `repos.manage` on the repository and are limited to 200 MiB. The file is stored gzip-compressed in the object store or the database.
 - **Malware scanning:** when `PATHOS_CLAMAV_ADDRESS` is set for the `api` service, the API streams every artifact to ClamAV before accepting it. A detection rejects the upload (`422 malware_detected`) and is audited (`scan_target.malware_detected`). With `PATHOS_CLAMAV_REQUIRED=true`, uploads are refused while ClamAV is unavailable; otherwise they are accepted and their malware status is recorded as `unavailable`.
 - Archives are extracted on the worker with the snapshot extractor (no links, no traversal, bomb limits) after their SHA-256 is verified. Java archives and binaries are scanned whole. Nothing is executed.
+
+### Content scanners
+
+- **Malware (`clamav`)**: the worker streams repository files to clamd (`zINSTREAM`) over the internal `malware` Compose network, which only `worker-core` and `clamav` join; the worker gains no route to PostgreSQL, Valkey or the API's internal listener. Nothing from the checkout is executed; files are opened through `os.Root`, symbolic links are counted, never followed. clamd accepts its full command set from any client on that network (including `SHUTDOWN`); a compromised worker could at worst stop clamd, which `restart: unless-stopped` brings back, and scans then fail instead of passing. Detections are critical findings; files clamd could not scan are reported, and a skipped or failed run never closes malware findings.
+- **Binary hardening (`binary-hardening`)**: executables and libraries are parsed with the Go standard library (`debug/elf`, `debug/pe`, `debug/macho`), never loaded or run; a panic on a malformed file is recovered and logged.
+- **File licences (`licensecheck`)**: reads at most 16 KiB of each file (1 MiB of licence files), skips binary content and links; detections are stored as the repository's file licence inventory, and only policy violations become findings.
+- **Framework configuration rules**: the Django `SECRET_KEY` rule matches the key itself, so its code context is not stored on the finding; the raw Opengrep report (scan artifact, kept for the profile's retention) still contains the matched line, as for every Opengrep rule.
 
 ### Scanner plugins
 
@@ -173,6 +197,26 @@ Declarative scanner adapters let operators add tools without changing PATHOS ([S
 - Plugins run exactly like built-in scanners: the worker's unprivileged user, the read-only source checkout, the sandbox and egress policy, and the job's timeout. They scan repository source only, not scan targets.
 - The worker registers plugins in the catalog through a database function that accepts only `plugin-<category>-<name>` keys and cannot change built-in entries. At most 20 plugins load; invalid files are skipped with a log message.
 
+### Result imports and the CLI
+
+[Result imports](api-reference/result-imports.md) parse reports of 25 formats on the API server. Parsing is data only; nothing in a report is executed or fetched.
+
+- Uploads need `scans.run` on the repository and are limited to 64 MiB (gzip expanded to at most 256 MiB); at most 20 000 findings per report.
+- **XML** (ZAP, Burp, Nessus, OpenVAS, Checkmarx) is parsed with Go's `encoding/xml` in strict mode: DTDs and external entities are never processed or resolved (no XXE, no external fetches), only the five predefined entities are accepted (entity-expansion bombs fail), nesting depth is bounded by the standard library, and only UTF-8, US-ASCII and ISO-8859-1 / Windows-1252 are accepted.
+- **Secrets in reports:** secret values reported by Gitleaks, TruffleHog and Trivy are removed before the report is parsed or stored; finding identity never depends on them. Burp and ZAP request/response bodies are not kept in findings' original output. Every kept record is passed through the credential redaction used for scanner output.
+- **No suppression:** records a tool marks as false positive or not exploitable are imported with low confidence and the tool's verdict, never dropped or auto-dismissed.
+- A named `format` must agree with the detected one, so a report cannot be parsed under the wrong schema.
+
+The **`pathos` CLI** ([CI/CD integration](user-guide/ci-cd-integration.md)) authenticates with a REST API token (the owner's permissions, `api:read` or `api:write`). It always verifies TLS certificates (an extra CA with `--ca-cert`; there is no switch to disable verification), refuses plain HTTP except to loopback unless `--allow-http` is given, sends the token only to the configured host (never on a redirect elsewhere), never prints or logs it, and bounds every response it reads. Release binaries are listed with their SHA-256 in `checksums.txt`, which the release workflow signs with cosign keyless; the CI templates verify the checksum before running the binary.
+
+### Material change detection
+
+For branch scans of Git repositories the worker compares the scanned commit with the previously scanned commit of the same ref. It fetches only those two commits (the clone credential is still held for this step and dropped afterwards) into a private bare repository in the job workspace, runs `git diff` with `--no-ext-diff --no-textconv` and the clone hardening options (no hooks, no `file`/`ext` protocols, no redirects, fsck on transfer) and applies regular-expression rules to the changed lines. Nothing from the repository is executed. Only the matches are sent to the API, which redacts secrets in the matched line again before storing it. Uploads and scan targets are not compared.
+
+### Developer attribution and privacy
+
+Attribution of findings to people is **off by default** (`developer_insight_settings`). While it is off, the lease does not ask the worker for commit authors and the API discards any it receives. When an administrator (`settings.manage`) turns it on, workers send commit author **names** only; author e-mail addresses are never read or stored. Names map to PATHOS users only through links an administrator (`users.manage`) creates. Views of people data need the organization-wide `insights.people` permission. Turning attribution off deletes every stored author name, attribution and link in one transaction; switching and linking are audited.
+
 ## External data and offline mode
 
 PATHOS sends nothing to third parties unless a feature is configured.
@@ -182,6 +226,9 @@ PATHOS sends nothing to third parties unless a feature is configured.
 | EPSS and CISA KEV feeds | `jobs` | Nothing but the download request | Enabled, daily |
 | OSV lookups | `jobs` | The CVE and GHSA identifiers of open findings | Enabled |
 | deps.dev package health | `jobs` | **Package names** from the inventories, which can include private names | **Disabled**; an administrator enables it in **Risk & intelligence** |
+| endoflife.date end-of-life data | `jobs` (and `api` for **Download now**) | Nothing but the download request (`https://endoflife.date/api/v1/products/full`) | **Disabled**; an administrator enables it in **Risk & intelligence** |
+| Declared endpoint verification | workers, through the egress proxy | DNS lookups, TLS handshakes and GET requests to the repository's **declared** endpoints only | **Disabled**; enabled per repository with an authorization statement; never offline |
+| Sigstore (keyless signature verification) | workers, through the egress proxy | The image reference's signature lookup in Rekor; TUF trust root download | Only for targets configured for keyless verification; never offline |
 | AI providers | `jobs`, `api` | Redacted evidence (see below) | Only when a provider is configured |
 | Outbound webhooks, Jira, ServiceNow | `jobs`, `api` | Event and finding facts (redacted, no code) | Only when configured |
 | Vulnerability database updates | workers, through the egress proxy | Download requests | Enabled unless offline |
@@ -189,6 +236,7 @@ PATHOS sends nothing to third parties unless a feature is configured.
 With `PATHOS_OFFLINE=true` (air-gapped installations):
 
 - the API never downloads intelligence feeds; they are imported from files, and the UI says so;
+- declared endpoint verification is disabled and keyless signature verification is skipped (key-based verification still runs);
 - Trivy, Grype and OSV-Scanner use only the local databases imported from an offline bundle, and fail with an explicit error when one is missing;
 - `scripts/offline-bundle.sh import` refuses bundles with links or unsafe paths and verifies the SHA-256 of every file before replacing the databases.
 
@@ -202,6 +250,18 @@ The procedure is in [AIRGAP.md](AIRGAP.md).
 - **Guardrails:** AI never closes a Critical finding and never overrides a human decision. The approval policy is per configuration, with four eyes for interactive reviews and a written justification for closing Critical findings. AI patch proposals are validated (one file, well-formed, not whitespace-only), need a person's approval and are never applied by PATHOS.
 - **Self-hosted providers:** the provider type `self_hosted` accepts plain `http` and private addresses, since model servers usually run on the local network. Cloud providers keep the `https`-only rule and the public-address SSRF policy. Loopback, link-local and cloud metadata addresses stay blocked for every provider. The API key is optional and encrypted when given.
 - **Self-approval** of interactive reviews (`allow_self_approval`) is a property of the versioned AI configuration and off by default. Enabling it creates a new configuration version and an audit entry. Each self-approved review is recorded with `self_approved: true`, and Critical false positives still require a written note.
+
+## Secret push protection
+
+Push-event scanning is opt-in per repository (`repos.manage`). It runs in the jobs role, never on the request path: for a verified push webhook it reads the pushed commits' diffs through the provider API with the connection's credential (no clone; no repository code is executed) and matches only the lines the commits add against a curated set of high-confidence patterns. PATHOS stores the rule, file, line, commit and the first 16 hex characters of SHA-256 of the match (for de-duplication); the secret value is never stored, logged, sent in notifications or returned by the API. Diffs are bounded (50 commits read one by one, otherwise the combined diff; 1 MiB per file; 16 MiB per push). The client-side and pre-receive hooks in `integrations/` run Gitleaks with `--redact` and make no network connections to PATHOS.
+
+## Fix pull requests
+
+Fix pull requests are opt-in per repository (`repos.manage`) and requesting one needs both `findings.triage` and `repos.manage` on the repository, because PATHOS then writes to the repository with the connection's credential. The worker only clones (hardened as for scans) and edits manifests as text in Go: no package manager, build tool, lifecycle script, hook or other repository code runs, and the worker never pushes. The API creates the branch, commit and pull request itself; every SCM write method refuses any branch outside `pathos/fix/`, so PATHOS cannot push to a default or protected branch, and branch updates are fast-forward only (GitHub `force: false`, Bitbucket `parents`, Azure DevOps `oldObjectId`). Worker results are validated (relative paths without `..` or `.git`, at most 20 files and 20 MiB, a full base commit) before anything is written. A merged pull request never changes a finding: only a later scan resolves it. PR titles and bodies escape scanner-provided text. Requests, results, pull requests and state changes are audited (`fix_pr.*`).
+
+## VEX and application versions
+
+Imported VEX statements (OpenVEX, CycloneDX) never change a finding on import: matching `not_affected` and `fixed` statements become pending suggestions, and only a person other than the importer, holding `findings.accept_risk` on the repository, can approve one (enforced in the service and by a CHECK constraint). Approving `not_affected` closes the finding as a false positive through the normal lifecycle (history reason names the statement, importer and approver); approving `fixed` only records the statement, because findings are resolved by scans. Imported documents are parsed as data (at most 10 MB, 20 000 statements), not stored (only their SHA-256), and every import, decision and export is audited. Exports and the portfolio view are filtered by the caller's scoped `findings.export` / `sbom.read`; version snapshots show components and findings only for repositories the caller may read.
 
 ## Vulnerability management
 

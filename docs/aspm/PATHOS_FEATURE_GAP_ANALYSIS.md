@@ -1,6 +1,6 @@
 # PATHOS feature gap analysis and register
 
-The 100 target capabilities compared with PATHOS. The first assessment was made on 2026-11-17 (`main` plus PR #29); the register has been updated after every ASPM phase and is current as of phase 10. This is also the **feature register**: update it whenever a capability changes. "Phase N" in the evidence column means an ASPM phase ([PATHOS_IMPLEMENTATION_ROADMAP.md](PATHOS_IMPLEMENTATION_ROADMAP.md)).
+The 100 target capabilities compared with PATHOS. The first assessment was made on 2026-11-17 (`main` plus PR #29); the register has been updated after every ASPM phase and is current as of PATHOS 1.1 (phase 10 plus the 1.1 gap closure). This is also the **feature register**: update it whenever a capability changes. "Phase N" in the evidence column means an ASPM phase ([PATHOS_IMPLEMENTATION_ROADMAP.md](PATHOS_IMPLEMENTATION_ROADMAP.md)).
 
 **Status** uses the programme's values:
 
@@ -16,13 +16,13 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 
 | Module | Completed | In Progress | Not Started |
 |---|---|---|---|
-| A. Code and application scanning (1–15) | 10 | 5 | 0 |
+| A. Code and application scanning (1–15) | 15 | 0 | 0 |
 | B. ASPM and application intelligence (16–30) | 15 | 0 | 0 |
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
-| F. Supply chain and DevSecOps (61–75) | 12 | 3 | 0 |
+| F. Supply chain and DevSecOps (61–75) | 15 | 0 | 0 |
 | G. Enterprise and governance (76–100) | 24 | 1 | 0 |
-| **Total** | **91** | **9** | **0** |
+| **Total** | **99** | **1** | **0** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -31,19 +31,19 @@ Module E (AI Security Analyst) has no numbered features. Its requirements are as
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
 | 1 | SAST | Completed | ✓ | ✓ | ✓ | ✓ | Opengrep with baseline rules, multi-language | More engines (Bandit, Gosec, …) are catalogued only |
-| 2 | SCA / dependencies | Completed | ✓ | ✓ | ✓ | ✓ | Trivy fs, Grype (on the Syft SBOM), OSV-Scanner; cross-tool de-duplication | Reachability (see 41) |
+| 2 | SCA / dependencies | Completed | ✓ | ✓ | ✓ | ✓ | Trivy fs, Grype (on the Syft SBOM), OSV-Scanner; cross-tool de-duplication; automatic fix pull requests for vulnerable dependencies on GitHub, GitLab, Bitbucket and Azure DevOps (1.1) | Reachability (see 41) |
 | 3 | DAST | Completed | ✓ | ✓ | ✓ | ✓ | Web application targets scanned by Nuclei (reviewed non-intrusive templates), header or basic authentication, recorded authorization, rate limits, egress preflight (phase 2b) | ZAP spidering and scripted login flows |
 | 4 | IAST integration | Completed | ✓ | ✓ | ✓ | ✓ | IAST results imported as PATHOS findings JSON or SARIF (phase 2a) | — |
-| 5 | Secrets | Completed | ✓ | ✓ | ✓ | ✓ | Gitleaks mandatory, redaction, optional full history | Secret validity checks (TruffleHog verify, opt-in) |
+| 5 | Secrets | Completed | ✓ | ✓ | ✓ | ✓ | Gitleaks mandatory, redaction, optional full history; secret push protection: pre-commit and pre-receive Gitleaks hooks and push-event diff scanning with redacted alerts (1.1) | Secret validity checks (TruffleHog verify, opt-in) |
 | 6 | IaC | Completed | ✓ | ✓ | ✓ | ✓ | Checkov | KICS and Kubescape adapters (optional) |
 | 7 | Container image | Completed | ✓ | ✓ | ✓ | ✓ | Image targets (registry reference or digest) scanned by `trivy image` with registry credentials; findings keep package and fix data (phase 2b) | Dockle image-configuration checks; registry discovery |
 | 8 | API security | Completed | ✓ | ✓ | ✓ | ✓ | API targets from OpenAPI 3 / Swagger 2 (servers locked to the authorized host) tested with Nuclei DAST templates (phase 2b) | Schemathesis property-based testing; GraphQL |
-| 9 | Malware detection | In Progress | ✓ | ✓ | ◐ | ✓ | ClamAV on source uploads and on build artifact uploads (phase 10); OSV `MAL-*` and malware advisories classified as malicious packages (phase 7) | Malware scanning of repository content |
-| 10 | Licence scanning | In Progress | ✓ | ✓ | ✓ | ◐ | Licences from the SBOM, deny/review policy, SBOM page and KPI | Violations as findings (lifecycle and SLA), ScanCode for file-level licences |
-| 11 | Binary analysis | In Progress | ◐ | ✓ | ◐ | ✓ | Build artifacts (archives, Java archives, binaries) scanned by Trivy for vulnerable components; ClamAV on upload (phases 7, 10) | Hardening checks (checksec: PIE, RELRO, stack canaries, NX) |
-| 12 | Application configuration scanning | In Progress | ◐ | ◐ | — | ◐ | Checkov and Trivy cover some configuration files | Framework config rules (Spring, Django, Express), a misconfiguration category |
+| 9 | Malware detection | Completed | ✓ | ✓ | ✓ | ✓ | ClamAV on source uploads and build artifacts (phase 10); the `clamav` scanner streams repository content to clamd over an isolated `malware` network: critical findings with signature, SHA-256 and engine version, unscannable files reported, skipped with a clear reason when not configured; OSV `MAL-*` malicious packages (phase 7) (1.1) | — |
+| 10 | Licence scanning | Completed | ✓ | ✓ | ✓ | ✓ | Licence policy violations from the SBOM and from file-level licences (built-in `licensecheck`: google/licensecheck plus SPDX tags) are `license` findings with lifecycle and SLA, re-evaluated on policy change, resolved and never deleted (1.1) | Pull request scans create no licence findings; ScanCode not adopted (image size) |
+| 11 | Binary analysis | Completed | ✓ | ✓ | ✓ | ✓ | Built-in `binary-hardening` checks ELF, PE and Mach-O (PIE, RELRO, NX, canaries, FORTIFY, RPATH; ASLR, HIGH_ENTROPY_VA, DEP, CFG, SafeSEH, /GS) with remediation flags; always on for build artifacts, optional for repositories; Trivy for vulnerable components (1.1) | — |
+| 12 | Application configuration scanning | Completed | ✓ | ✓ | ✓ | ✓ | 27 Opengrep framework configuration rules (Spring Boot, Django, Express) with CWE, references and tested fixtures; `misconfiguration` finding category; Checkov and Trivy for other configuration files (1.1) | More frameworks (Rails, Laravel, ASP.NET) |
 | 13 | Fuzz testing | Completed | ✓ | ✓ | ✓ | ✓ | Fuzzing crash results imported (SARIF or PATHOS JSON) (phase 2a) | Running fuzzers stays in the customer's pipeline |
-| 14 | Infrastructure exposure | In Progress | ◐ | ✓ | ✓ | ✓ | Internet exposure, public URLs, domains and IPs per repository (declared) | Verification of declared endpoints (Nuclei, TLS checks), opt-in and scope-limited |
+| 14 | Infrastructure exposure | Completed | ✓ | ✓ | ✓ | ✓ | Declared public URLs, domains and IPs per repository; opt-in, authorization-gated, rate-limited worker verification through the egress proxy (DNS, reachability, TLS, HSTS, security headers, optional Nuclei exposure templates); per-endpoint status and findings; disabled offline (1.1) | Ports other than 80/443 through the default egress proxy |
 | 15 | Custom detection rules | Completed | ✓ | ✓ | ✓ | ✓ | Custom Opengrep rules: validation, versions, enable/disable; scans pin versions (phase 2a) | — |
 
 Cross-cutting requirements:
@@ -54,7 +54,7 @@ Cross-cutting requirements:
 | Git and local source | ✓ |
 | Configurable profiles, full scans, execution history, worker health, logs, severity thresholds, structured results | ✓ |
 | Incremental scanning | **missing**. Diff-aware scans for PRs (see 72) |
-| **SARIF/JSON import** | ✓ SARIF 2.1, Grype JSON, PATHOS findings JSON (phase 2a) |
+| **SARIF/JSON import** | ✓ 25 formats: SARIF 2.1, 21 native tool formats (JSON, JSON lines, XML), generic CSV and PATHOS findings JSON; explicit or detected format (phase 2a, 1.1) |
 | Adding engines | Compiled in. Documented adapter seam; a declarative adapter (SARIF tools) would make it data-driven |
 
 ## B. ASPM and application intelligence
@@ -140,21 +140,21 @@ The required review page sections are covered by the 8 workspace tabs: Overview,
 
 | # | Feature | Status | B | F | D | T | Evidence today | Gap |
 |---|---|---|---|---|---|---|---|---|
-| 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft CycloneDX per scan; CycloneDX 1.5 and SPDX 2.3 export of the inventory with its dependency graph (phase 7) | — |
-| 62 | SBOM import | Completed | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a); SBOM targets matched by Grype on workers (phase 2b) | — |
+| 61 | SBOM generation | Completed | ✓ | ✓ | ✓ | ✓ | Syft CycloneDX per scan; CycloneDX 1.5 and SPDX 2.3 export of the inventory with its dependency graph (phase 7); VEX export (OpenVEX, CycloneDX) per repository or application version (1.1) | — |
+| 62 | SBOM import | Completed | ✓ | ✓ | ✓ | ✓ | CycloneDX and SPDX import into the component inventory (phase 2a); SBOM targets matched by Grype on workers (phase 2b); VEX import as reviewable suggestions with four-eyes approval; application versions with frozen SBOM and findings snapshots and portfolio search (1.1) | — |
 | 63 | Dependency graph analysis | Completed | ✓ | ✓ | ✓ | ✓ | Dependency edges, direct and transitive depth, paths (phase 3, see 22) | — |
-| 64 | Package risk | In Progress | ✓ | ✓ | ✓ | ✓ | Known vulnerabilities; latest version, outdated, deprecated versions and OpenSSF Scorecard from deps.dev (opt-in feed, phase 7) | End-of-life dates of runtimes and frameworks |
+| 64 | Package risk | Completed | ✓ | ✓ | ✓ | ✓ | Known vulnerabilities; latest, outdated, deprecated versions and OpenSSF Scorecard from deps.dev (phase 7); end-of-life dates from endoflife.date (opt-in feed, offline import) for SBOM components, declared runtimes, Dockerfile base images and image targets, with `eol` findings and SLA (1.1) | End of life of image targets from the reference only, not the image contents |
 | 65 | Malicious packages | Completed | ✓ | ✓ | ✓ | ✓ | OSV `MAL-*` advisories and malware reports classified as malicious; KEV-level likelihood, always reachable; badge, filter and remediation guidance (phase 7) | — |
 | 66 | Licence compliance | Completed | ✓ | ✓ | ✓ | ✓ | Policy and SBOM view | Findings for violations (see 10) |
-| 67 | CI/CD pipeline security | Completed | ✓ | ✓ | ✓ | ✓ | zizmor (phase 2b) and actionlint (phase 7) for GitHub Actions; Checkov for GitLab CI, Azure Pipelines and Bitbucket Pipelines | — |
+| 67 | CI/CD pipeline security | Completed | ✓ | ✓ | ✓ | ✓ | zizmor (phase 2b) and actionlint (phase 7) for GitHub Actions; Checkov for GitLab CI, Azure Pipelines and Bitbucket Pipelines; CI integration: `pathos` CLI, GitHub Action, GitLab, Azure Pipelines and Jenkins templates with a security gate (1.1) | — |
 | 68 | GitHub | Completed | ✓ | ✓ | ✓ | ✓ | PAT, App, OAuth, webhooks, commit statuses (phase 7) | — |
 | 69 | GitLab | Completed | ✓ | ✓ | ✓ | ✓ | Commit statuses on merge requests (phase 7) | — |
 | 70 | Azure DevOps | Completed | ✓ | ✓ | ✓ | ✓ | Commit statuses on pull requests (phase 7) | — |
 | 71 | Bitbucket | Completed | ✓ | ✓ | ✓ | ✓ | Build statuses on pull requests (phase 7) | — |
-| 72 | Pull-request checks | Completed | ✓ | ✓ | ✓ | ✓ | Opt-in per repository: PR head scanned with the repository's profile, results kept apart from the scan branch's findings, new vs already known, gate by severity, commit status on all four providers (phase 7) | Pull requests from forks (the head branch must be in the repository) |
-| 73 | Commit-level analysis | In Progress | ✓ | ✓ | ✓ | ✓ | Commit recorded per scan and occurrence; commit of the first detecting scan shown on each finding; per-PR new findings (phase 7) | Exact introducing commit (blame) and push-triggered diff summaries |
+| 72 | Pull-request checks | Completed | ✓ | ✓ | ✓ | ✓ | Opt-in per repository: PR head scanned with the repository's profile, results kept apart from the scan branch's findings, new vs already known, gate by severity, commit status on all four providers (phase 7); CI templates with a security gate exit code (1.1) | Pull requests from forks (the head branch must be in the repository) |
+| 73 | Commit-level analysis | Completed | ✓ | ✓ | ✓ | ✓ | Commit per scan and occurrence; introducing commit and date from git blame on code findings (author name only while developer attribution is on; "unknown (shallow clone)" without history); push and merge change summaries on the scan, in notifications and webhooks; security-material change detection between scans (1.1) | Shallow clones are not deepened for blame |
 | 74 | Build artifact scanning | Completed | ✓ | ✓ | ✓ | ✓ | Container image targets (phase 2b); uploaded artifacts (zip, tar, Java archives, binaries) extracted safely on workers and scanned by Trivy (phase 7) | — |
-| 75 | Software provenance | In Progress | ◐ | ✓ | ◐ | ✓ | SLSA provenance of direct dependencies as verified by deps.dev (phase 7) | Verify Sigstore and in-toto attestations of images and artifacts (cosign) |
+| 75 | Software provenance | Completed | ✓ | ✓ | ✓ | ✓ | SLSA provenance of direct dependencies from deps.dev (phase 7); pinned cosign verifies image and artifact signatures (key or keyless) and in-toto/SLSA attestations, evidence per scan, optional "require signature" finding and gate failure; key-only offline (1.1) | Keyless verification offline (no bundled Sigstore trust root) |
 
 Formats: CycloneDX ✓ (generate, import, export), SPDX ✓ (import and export), SARIF ✓ (internal and import), OCI ✗.
 
@@ -179,7 +179,7 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 88 | Orchestration | Completed | | — |
 | 89 | Scanner health | Completed | | — |
 | 90 | Webhooks | Completed | Inbound SCM webhooks; outbound webhooks for every notification event: signed JSON (HMAC-SHA256), Slack, Microsoft Teams; retries with back-off, delivery log, SSRF protection, encrypted URLs (phase 9) | — |
-| 91 | REST API | Completed | `/api/v1`, documented; personal API tokens for REST (read or read-write, owner's permissions, audited) (phase 9) | — |
+| 91 | REST API | Completed | `/api/v1`, documented; personal API tokens for REST (read or read-write, owner's permissions, audited) (phase 9); `pathos` CLI and the scan gate endpoint (1.1) | — |
 | 92 | Jira | Completed | Optional connector (Cloud and Data Center): create an issue for a finding, link, status sync (phase 9) | Automatic ticket creation by policy |
 | 93 | ServiceNow | Completed | Optional connector: incidents (any table), link, status sync (phase 9) | Vulnerability Response items |
 | 94 | Notification engine | Completed | Email, in-app, rules, templates; Slack and Microsoft Teams through webhooks (phase 9) | — |
@@ -187,7 +187,7 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 96 | Custom security rules | Completed | Same as 15 (phase 2a) | — |
 | 97 | Data encryption | Completed | Keyring, encrypted stores, TLS | — |
 | 98 | Backup and recovery | Completed | Scripts, tested restore | — |
-| 99 | Plugin architecture | Completed | Declarative scanner adapters defined on workers (SARIF, no code; phase 10); connector interface for issue trackers (phase 10); import adapters for any SARIF tool | — |
+| 99 | Plugin architecture | Completed | Declarative scanner adapters defined on workers (SARIF, no code; phase 10); connector interface for issue trackers (phase 10); import adapters for any SARIF tool; import adapters for 25 formats (1.1) | — |
 | 100 | Offline / air-gapped | Completed | `PATHOS_OFFLINE` mode; offline bundles of the Trivy, Grype and OSV databases and the EPSS and KEV feeds with checksum verification (`scripts/offline-bundle.sh`); air-gap guide; local AI; egress allow-list (phase 10) | — |
 
 Authentication requirements:
@@ -201,16 +201,23 @@ Authentication requirements:
 
 ## Remaining gaps
 
-The original "biggest gaps by value" (contextual risk, imports, pull-request checks and webhooks, application intelligence, new target types, governance, ticketing) were all closed in ASPM phases 1 to 9. The nine capabilities still **In Progress**:
+The original "biggest gaps by value" were closed in ASPM phases 1 to 9; PATHOS 1.1 completed the eight remaining capabilities (9, 10, 11, 12, 14, 64, 73, 75). One capability is still **In Progress**, by decision:
 
 | # | Capability | What is missing |
 |---|---|---|
-| 9 | Malware detection | Malware scanning of repository content (uploads and build artifacts are scanned) |
-| 10 | Licence scanning | Licence violations as findings; file-level licences (ScanCode) |
-| 11 | Binary analysis | Hardening checks (PIE, RELRO, stack canaries, NX) |
-| 12 | Application configuration scanning | Framework configuration rules and a misconfiguration category |
-| 14 | Infrastructure exposure | Opt-in verification of declared public endpoints |
-| 64 | Package risk | End-of-life dates of runtimes and frameworks |
-| 73 | Commit-level analysis | Exact introducing commit (blame) and push diff summaries |
-| 75 | Software provenance | Sigstore and in-toto verification of images and artifacts |
-| 95 | Multi-tenant | Several organizations per deployment (decision D3) |
+| 95 | Multi-tenant | Several organizations per deployment (decision D3: single organization) |
+
+Smaller limits are listed in each row's Gap column.
+
+## Beyond the register (1.1)
+
+Capabilities added in 1.1 to match other application security tools; they have no numbered row:
+
+- **Import breadth:** 25 import formats (21 native tool formats, generic CSV, SARIF, Grype, PATHOS JSON).
+- **CI/CD:** the `pathos` CLI (import, scan, gate, findings, SBOM export) and GitHub Action, GitLab, Azure Pipelines and Jenkins templates.
+- **Automatic fix pull requests** for vulnerable dependencies on four SCMs, with honest per-ecosystem support; findings are resolved only by a later scan.
+- **VEX, application versions and component policies:** OpenVEX and CycloneDX VEX export and reviewed import, frozen release snapshots, portfolio search, operational SBOM policies.
+- **Secret push protection:** pre-commit and pre-receive hooks and push-event diff scanning with redacted alerts.
+- **Material change detection:** explainable rules for authentication, endpoints, crypto, IaC exposure, CI/CD, secrets handling and PII changes between scans; a notification event and a policy condition.
+- **Developer attribution:** who introduces and fixes findings, off by default, with identity linking and erasure.
+- **VS Code extension:** findings in the editor, triage from VS Code.

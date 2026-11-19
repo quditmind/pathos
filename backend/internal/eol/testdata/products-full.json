@@ -1,0 +1,5319 @@
+{
+ "schema_version": "1.2.1",
+ "generated_at": "2026-11-18T09:37:30+00:00",
+ "total": 16,
+ "result": [
+  {
+   "name": "alpine-linux",
+   "aliases": [
+    "alpine",
+    "alpinelinux"
+   ],
+   "label": "Alpine Linux",
+   "category": "os",
+   "tags": [
+    "linux-distribution",
+    "os"
+   ],
+   "identifiers": [
+    {
+     "type": "cpe",
+     "id": "cpe:/o:alpinelinux:alpine_linux"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:o:alpinelinux:alpine_linux"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:swid/alpine?tag_id=alpine"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/alpinelinux.svg",
+    "html": "https://endoflife.date/alpine-linux",
+    "releasePolicy": "https://alpinelinux.org/releases/"
+   },
+   "releases": [
+    {
+     "name": "3.24",
+     "codename": null,
+     "label": "3.24",
+     "releaseDate": "2026-06-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2028-06-01",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.24.4",
+      "date": "2026-11-05",
+      "link": "https://alpinelinux.org/posts/Alpine-3.24.0-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.23",
+     "codename": null,
+     "label": "3.23",
+     "releaseDate": "2025-12-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-11-01",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.23.8",
+      "date": "2026-11-05",
+      "link": "https://alpinelinux.org/posts/Alpine-3.23.0-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.22",
+     "codename": null,
+     "label": "3.22",
+     "releaseDate": "2025-05-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-05-01",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.22.8",
+      "date": "2026-11-05",
+      "link": "https://alpinelinux.org/posts/Alpine-3.22.0-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.21",
+     "codename": null,
+     "label": "3.21",
+     "releaseDate": "2024-12-05",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-11-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.21.10",
+      "date": "2026-11-05",
+      "link": "https://alpinelinux.org/posts/Alpine-3.21.0-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.20",
+     "codename": null,
+     "label": "3.20",
+     "releaseDate": "2024-05-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-04-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.20.10",
+      "date": "2026-04-15",
+      "link": "https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.19",
+     "codename": null,
+     "label": "3.19",
+     "releaseDate": "2023-12-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-11-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.19.9",
+      "date": "2025-10-08",
+      "link": "https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.18",
+     "codename": null,
+     "label": "3.18",
+     "releaseDate": "2023-05-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-05-09",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.18.12",
+      "date": "2025-02-14",
+      "link": "https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.17",
+     "codename": null,
+     "label": "3.17",
+     "releaseDate": "2022-11-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-11-22",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.17.10",
+      "date": "2024-09-06",
+      "link": "https://alpinelinux.org/posts/Alpine-3.17.10-3.18.9-3.19.4-3.20.3-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.16",
+     "codename": null,
+     "label": "3.16",
+     "releaseDate": "2022-05-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-05-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.16.9",
+      "date": "2024-01-26",
+      "link": "https://alpinelinux.org/posts/Alpine-3.16.9-3.17.7-3.18.6-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.15",
+     "codename": null,
+     "label": "3.15",
+     "releaseDate": "2021-11-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-11-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.15.11",
+      "date": "2023-11-30",
+      "link": "https://alpinelinux.org/posts/Alpine-3.15.11-3.16.8-3.17.6-3.18.5-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.14",
+     "codename": null,
+     "label": "3.14",
+     "releaseDate": "2021-06-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-05-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.14.10",
+      "date": "2023-03-29",
+      "link": "https://alpinelinux.org/posts/Alpine-3.14.10-3.15.8-3.16.5-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.13",
+     "codename": null,
+     "label": "3.13",
+     "releaseDate": "2021-01-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-11-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.13.12",
+      "date": "2022-08-09",
+      "link": "https://alpinelinux.org/posts/Alpine-3.12.12-3.13.10-3.14.6-3.15.4-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.12",
+     "codename": null,
+     "label": "3.12",
+     "releaseDate": "2020-05-29",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-05-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.12.12",
+      "date": "2022-04-04",
+      "link": "https://alpinelinux.org/posts/Alpine-3.12.12-3.13.10-3.14.6-3.15.4-released.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.11",
+     "codename": null,
+     "label": "3.11",
+     "releaseDate": "2019-12-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-11-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.11.13",
+      "date": "2021-11-12",
+      "link": "https://alpinelinux.org/posts/Alpine-3.11.13-3.12.9-3.13.7-released.html"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "angular",
+   "aliases": [],
+   "label": "Angular",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "google",
+    "herodevs",
+    "javascript-runtime"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:npm/%40angular/core"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:github/angular/angular"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:angular:angular"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:angular:angular"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": "Commercial Support"
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/angular.svg",
+    "html": "https://endoflife.date/angular",
+    "releasePolicy": "https://angular.dev/reference/releases"
+   },
+   "releases": [
+    {
+     "name": "22",
+     "codename": null,
+     "label": "22",
+     "releaseDate": "2026-06-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2027-06-30",
+     "isEol": false,
+     "eolFrom": "2028-06-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "22.2.6",
+      "date": "2026-11-11",
+      "link": "https://github.com/angular/angular/releases/tag/v22.2.6"
+     },
+     "custom": null
+    },
+    {
+     "name": "21",
+     "codename": null,
+     "label": "21",
+     "releaseDate": "2025-11-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-06-03",
+     "isEol": false,
+     "eolFrom": "2027-06-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "21.2.26",
+      "date": "2026-11-02",
+      "link": "https://github.com/angular/angular/releases/tag/v21.2.26"
+     },
+     "custom": null
+    },
+    {
+     "name": "20",
+     "codename": null,
+     "label": "20",
+     "releaseDate": "2025-05-28",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-11-19",
+     "isEol": false,
+     "eolFrom": "2026-11-28",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "20.3.35",
+      "date": "2026-11-02",
+      "link": "https://github.com/angular/angular/releases/tag/v20.3.35"
+     },
+     "custom": null
+    },
+    {
+     "name": "19",
+     "codename": null,
+     "label": "19",
+     "releaseDate": "2024-11-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-05-28",
+     "isEol": true,
+     "eolFrom": "2026-05-19",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "19.2.25",
+      "date": "2026-06-02",
+      "link": "https://github.com/angular/angular/releases/tag/v19.2.25"
+     },
+     "custom": null
+    },
+    {
+     "name": "18",
+     "codename": null,
+     "label": "18",
+     "releaseDate": "2024-05-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-11-19",
+     "isEol": true,
+     "eolFrom": "2025-11-21",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "18.2.14",
+      "date": "2025-09-10",
+      "link": "https://github.com/angular/angular/releases/tag/18.2.14"
+     },
+     "custom": null
+    },
+    {
+     "name": "17",
+     "codename": null,
+     "label": "17",
+     "releaseDate": "2023-11-08",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-05-08",
+     "isEol": true,
+     "eolFrom": "2025-05-15",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "17.3.12",
+      "date": "2024-07-17",
+      "link": "https://github.com/angular/angular/releases/tag/17.3.12"
+     },
+     "custom": null
+    },
+    {
+     "name": "16",
+     "codename": null,
+     "label": "16",
+     "releaseDate": "2023-05-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-11-08",
+     "isEol": true,
+     "eolFrom": "2024-11-08",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "16.2.12",
+      "date": "2023-11-02",
+      "link": "https://github.com/angular/angular/releases/tag/16.2.12"
+     },
+     "custom": null
+    },
+    {
+     "name": "15",
+     "codename": null,
+     "label": "15",
+     "releaseDate": "2022-11-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-05-03",
+     "isEol": true,
+     "eolFrom": "2024-05-18",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "15.2.10",
+      "date": "2023-10-04",
+      "link": "https://github.com/angular/angular/releases/tag/15.2.10"
+     },
+     "custom": null
+    },
+    {
+     "name": "14",
+     "codename": null,
+     "label": "14",
+     "releaseDate": "2022-06-02",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-11-18",
+     "isEol": true,
+     "eolFrom": "2023-11-18",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "14.3.0",
+      "date": "2023-03-13",
+      "link": "https://github.com/angular/angular/releases/tag/14.3.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "13",
+     "codename": null,
+     "label": "13",
+     "releaseDate": "2021-11-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-06-02",
+     "isEol": true,
+     "eolFrom": "2023-05-04",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "13.4.0",
+      "date": "2023-04-06",
+      "link": "https://github.com/angular/angular/releases/tag/13.4.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "12",
+     "codename": null,
+     "label": "12",
+     "releaseDate": "2021-05-13",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-11-12",
+     "isEol": true,
+     "eolFrom": "2022-11-12",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "12.2.17",
+      "date": "2022-11-22",
+      "link": "https://github.com/angular/angular/releases/tag/12.2.17"
+     },
+     "custom": null
+    },
+    {
+     "name": "11",
+     "codename": null,
+     "label": "11",
+     "releaseDate": "2020-11-11",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-05-11",
+     "isEol": true,
+     "eolFrom": "2022-05-11",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "11.2.14",
+      "date": "2021-05-12",
+      "link": "https://github.com/angular/angular/releases/tag/11.2.14"
+     },
+     "custom": null
+    },
+    {
+     "name": "10",
+     "codename": null,
+     "label": "10",
+     "releaseDate": "2020-06-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-12-24",
+     "isEol": true,
+     "eolFrom": "2021-12-24",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "10.2.5",
+      "date": "2021-04-21",
+      "link": "https://github.com/angular/angular/releases/tag/10.2.5"
+     },
+     "custom": null
+    },
+    {
+     "name": "9",
+     "codename": null,
+     "label": "9",
+     "releaseDate": "2020-02-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-08-06",
+     "isEol": true,
+     "eolFrom": "2021-08-06",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "9.1.13",
+      "date": "2020-12-16",
+      "link": "https://github.com/angular/angular/releases/tag/9.1.13"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "debian",
+   "aliases": [],
+   "label": "Debian",
+   "category": "os",
+   "tags": [
+    "linux-distribution",
+    "os"
+   ],
+   "identifiers": [
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:o:debian:debian_linux"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/o:debian:debian_linux"
+    }
+   ],
+   "labels": {
+    "eoas": "Debian Security Support",
+    "discontinued": null,
+    "eol": "Debian LTS",
+    "eoes": "ELTS"
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/debian.svg",
+    "html": "https://endoflife.date/debian",
+    "releasePolicy": "https://wiki.debian.org/DebianReleases"
+   },
+   "releases": [
+    {
+     "name": "13",
+     "codename": "Trixie",
+     "label": "13 (Trixie)",
+     "releaseDate": "2025-08-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2028-08-09",
+     "isEol": false,
+     "eolFrom": "2030-06-30",
+     "isEoes": false,
+     "eoesFrom": "2035-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "13.7",
+      "date": "2026-09-12",
+      "link": "https://www.debian.org/News/2026/20260912"
+     },
+     "custom": null
+    },
+    {
+     "name": "12",
+     "codename": "Bookworm",
+     "label": "12 (Bookworm)",
+     "releaseDate": "2023-06-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-07-11",
+     "isEol": false,
+     "eolFrom": "2028-06-30",
+     "isEoes": false,
+     "eoesFrom": "2033-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "12.15",
+      "date": "2026-07-11",
+      "link": "https://www.debian.org/News/2026/2026051602"
+     },
+     "custom": null
+    },
+    {
+     "name": "11",
+     "codename": "Bullseye",
+     "label": "11 (Bullseye)",
+     "releaseDate": "2021-08-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-08-14",
+     "isEol": true,
+     "eolFrom": "2026-08-31",
+     "isEoes": false,
+     "eoesFrom": "2031-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "11.11",
+      "date": "2024-08-31",
+      "link": "https://lists.debian.org/debian-release/2024/06/msg00700.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "10",
+     "codename": "Buster",
+     "label": "10 (Buster)",
+     "releaseDate": "2019-07-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-09-10",
+     "isEol": true,
+     "eolFrom": "2024-06-30",
+     "isEoes": false,
+     "eoesFrom": "2029-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "10.13",
+      "date": "2022-09-10",
+      "link": "https://www.debian.org/News/2022/20220910"
+     },
+     "custom": null
+    },
+    {
+     "name": "9",
+     "codename": "Stretch",
+     "label": "9 (Stretch)",
+     "releaseDate": "2017-06-17",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-07-18",
+     "isEol": true,
+     "eolFrom": "2022-07-01",
+     "isEoes": false,
+     "eoesFrom": "2027-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "9.13",
+      "date": "2020-07-18",
+      "link": "https://lists.debian.org/debian-announce/2017/msg00003.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "8",
+     "codename": "Jessie",
+     "label": "8 (Jessie)",
+     "releaseDate": "2015-04-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2018-06-17",
+     "isEol": true,
+     "eolFrom": "2020-06-30",
+     "isEoes": true,
+     "eoesFrom": "2025-06-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "8.11",
+      "date": "2018-06-23",
+      "link": "https://lists.debian.org/debian-announce/2015/msg00001.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "7",
+     "codename": "Wheezy",
+     "label": "7 (Wheezy)",
+     "releaseDate": "2013-05-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2016-04-25",
+     "isEol": true,
+     "eolFrom": "2018-05-31",
+     "isEoes": true,
+     "eoesFrom": "2020-06-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.11",
+      "date": "2016-06-04",
+      "link": "https://lists.debian.org/debian-announce/2013/msg00002.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "6",
+     "codename": "Squeeze",
+     "label": "6 (Squeeze)",
+     "releaseDate": "2011-02-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2014-05-31",
+     "isEol": true,
+     "eolFrom": "2016-02-29",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "6.0.10",
+      "date": "2014-07-19",
+      "link": "https://lists.debian.org/debian-announce/2011/msg00001.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "5",
+     "codename": "Lenny",
+     "label": "5 (Lenny)",
+     "releaseDate": "2009-02-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2012-02-06",
+     "isEol": true,
+     "eolFrom": "2012-02-06",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "5.0.10",
+      "date": "2012-03-10",
+      "link": "https://lists.debian.org/debian-announce/2009/msg00002.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "4",
+     "codename": "Etch",
+     "label": "4 (Etch)",
+     "releaseDate": "2007-04-08",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2010-02-15",
+     "isEol": true,
+     "eolFrom": "2010-02-15",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "4.0r9",
+      "date": "2010-05-22",
+      "link": "https://lists.debian.org/debian-announce/2007/msg00002.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.1",
+     "codename": "Sarge",
+     "label": "3.1 (Sarge)",
+     "releaseDate": "2005-06-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2008-03-31",
+     "isEol": true,
+     "eolFrom": "2008-03-31",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "3.1r8",
+      "date": "2008-04-13",
+      "link": "https://lists.debian.org/debian-announce/2005/msg00003.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.0",
+     "codename": "Woody",
+     "label": "3.0 (Woody)",
+     "releaseDate": "2002-07-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2006-06-30",
+     "isEol": true,
+     "eolFrom": "2006-06-30",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "3.0r6",
+      "date": "2005-06-02",
+      "link": "https://lists.debian.org/debian-announce/2002/msg00004.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.2",
+     "codename": "Potato",
+     "label": "2.2 (Potato)",
+     "releaseDate": "2000-08-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2003-06-30",
+     "isEol": true,
+     "eolFrom": "2003-06-30",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "2.2r7",
+      "date": "2002-07-13",
+      "link": "https://lists.debian.org/debian-announce/2000/msg00009.html"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.1",
+     "codename": "Slink",
+     "label": "2.1 (Slink)",
+     "releaseDate": "1999-03-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2000-09-30",
+     "isEol": true,
+     "eolFrom": "2000-10-30",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "2.1r5",
+      "date": "2000-02-16",
+      "link": "https://lists.debian.org/debian-announce/1999/msg00005.html"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "django",
+   "aliases": [],
+   "label": "Django",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "python-runtime"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "python:django"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:github/django/django"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:pypi/django"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:djangoproject:django"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:djangoproject:django"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/django.svg",
+    "html": "https://endoflife.date/django",
+    "releasePolicy": "https://www.djangoproject.com/download/#supported-versions"
+   },
+   "releases": [
+    {
+     "name": "6.1",
+     "codename": null,
+     "label": "6.1",
+     "releaseDate": "2026-08-05",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2027-04-30",
+     "isEol": false,
+     "eolFrom": "2027-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "6.1.3",
+      "date": "2026-11-03",
+      "link": "https://docs.djangoproject.com/en/6.1/releases/6.1.3/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.12 - 3.15 (added in 6.1.3)"
+     }
+    },
+    {
+     "name": "6.0",
+     "codename": null,
+     "label": "6.0",
+     "releaseDate": "2025-12-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-08-04",
+     "isEol": false,
+     "eolFrom": "2027-04-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "6.0.10",
+      "date": "2026-11-03",
+      "link": "https://docs.djangoproject.com/en/6.0/releases/6.0.10/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.12 - 3.14"
+     }
+    },
+    {
+     "name": "5.2",
+     "codename": null,
+     "label": "5.2 (LTS)",
+     "releaseDate": "2025-04-02",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-12-03",
+     "isEol": false,
+     "eolFrom": "2028-04-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "5.2.19",
+      "date": "2026-11-03",
+      "link": "https://docs.djangoproject.com/en/5.2/releases/5.2.19/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.10 - 3.14 (added in 5.2.8)"
+     }
+    },
+    {
+     "name": "5.1",
+     "codename": null,
+     "label": "5.1",
+     "releaseDate": "2024-08-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-04-02",
+     "isEol": true,
+     "eolFrom": "2025-12-03",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.1.15",
+      "date": "2025-12-02",
+      "link": "https://docs.djangoproject.com/en/5.1/releases/5.1.15/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.10 - 3.13 (added in 5.1.3)"
+     }
+    },
+    {
+     "name": "5.0",
+     "codename": null,
+     "label": "5.0",
+     "releaseDate": "2023-12-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-08-07",
+     "isEol": true,
+     "eolFrom": "2025-04-02",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.0.14",
+      "date": "2025-04-02",
+      "link": "https://docs.djangoproject.com/en/5.0/releases/5.0.14/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.10 - 3.12"
+     }
+    },
+    {
+     "name": "4.2",
+     "codename": null,
+     "label": "4.2 (LTS)",
+     "releaseDate": "2023-04-03",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-12-04",
+     "isEol": true,
+     "eolFrom": "2026-04-07",
+     "isMaintained": false,
+     "latest": {
+      "name": "4.2.30",
+      "date": "2026-04-07",
+      "link": "https://docs.djangoproject.com/en/4.2/releases/4.2.30/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.8 - 3.12 (added in 4.2.8)"
+     }
+    },
+    {
+     "name": "4.1",
+     "codename": null,
+     "label": "4.1",
+     "releaseDate": "2022-08-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-04-05",
+     "isEol": true,
+     "eolFrom": "2023-12-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "4.1.13",
+      "date": "2023-11-01",
+      "link": "https://docs.djangoproject.com/en/4.1/releases/4.1.13/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.8 - 3.11 (added in 4.1.3)"
+     }
+    },
+    {
+     "name": "4.0",
+     "codename": null,
+     "label": "4.0",
+     "releaseDate": "2021-12-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-08-03",
+     "isEol": true,
+     "eolFrom": "2023-04-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "4.0.10",
+      "date": "2023-02-14",
+      "link": "https://docs.djangoproject.com/en/4.0/releases/4.0.10/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.8 - 3.10"
+     }
+    },
+    {
+     "name": "3.2",
+     "codename": null,
+     "label": "3.2 (LTS)",
+     "releaseDate": "2021-04-06",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-12-07",
+     "isEol": true,
+     "eolFrom": "2024-04-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.2.25",
+      "date": "2024-03-04",
+      "link": "https://docs.djangoproject.com/en/3.2/releases/3.2.25/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.6 - 3.10 (added in 3.2.9)"
+     }
+    },
+    {
+     "name": "3.1",
+     "codename": null,
+     "label": "3.1",
+     "releaseDate": "2020-08-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-04-06",
+     "isEol": true,
+     "eolFrom": "2021-12-07",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.1.14",
+      "date": "2021-12-07",
+      "link": "https://docs.djangoproject.com/en/3.1/releases/3.1.14/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.6 - 3.9 (added in 3.1.3)"
+     }
+    },
+    {
+     "name": "3.0",
+     "codename": null,
+     "label": "3.0",
+     "releaseDate": "2019-12-02",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-08-03",
+     "isEol": true,
+     "eolFrom": "2021-04-06",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.0.14",
+      "date": "2021-04-06",
+      "link": "https://docs.djangoproject.com/en/3.0/releases/3.0.14/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.6 - 3.9 (added in 3.0.11)"
+     }
+    },
+    {
+     "name": "2.2",
+     "codename": null,
+     "label": "2.2 (LTS)",
+     "releaseDate": "2019-04-01",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2019-12-02",
+     "isEol": true,
+     "eolFrom": "2022-04-11",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.2.28",
+      "date": "2022-04-11",
+      "link": "https://docs.djangoproject.com/en/2.2/releases/2.2.28/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.5 - 3.9 (added in 2.2.17)"
+     }
+    },
+    {
+     "name": "2.1",
+     "codename": null,
+     "label": "2.1",
+     "releaseDate": "2018-08-01",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2019-04-01",
+     "isEol": true,
+     "eolFrom": "2019-12-02",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.1.15",
+      "date": "2019-12-02",
+      "link": "https://docs.djangoproject.com/en/2.1/releases/2.1.15/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.5 - 3.7"
+     }
+    },
+    {
+     "name": "2.0",
+     "codename": null,
+     "label": "2.0",
+     "releaseDate": "2017-12-02",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2018-08-01",
+     "isEol": true,
+     "eolFrom": "2019-04-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.0.13",
+      "date": "2019-02-12",
+      "link": "https://docs.djangoproject.com/en/2.0/releases/2.0.13/"
+     },
+     "custom": {
+      "supportedPythonVersions": "3.4 - 3.7"
+     }
+    }
+   ]
+  },
+  {
+   "name": "dotnet",
+   "aliases": [
+    "dotnetcore"
+   ],
+   "label": "Microsoft .NET",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "microsoft"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "dotnet"
+    },
+    {
+     "type": "repology",
+     "id": "dotnet-runtime"
+    },
+    {
+     "type": "repology",
+     "id": "dotnet-sdk"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.win-x64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.win-x86"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.win-arm"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.win-arm64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.osx-x64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.osx-arm64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-x64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-arm64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-arm"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-musl-x64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-musl-arm64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-musl-arm"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-bionic-x64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:nuget/Microsoft.NETCore.App.Runtime.linux-bionic-arm64"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-8.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-7.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-6.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-5.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-3.1"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-3.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/dotnet-sdk-2.1"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:microsoft:.net"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:microsoft:.net"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Support Status",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/dotnet.svg",
+    "html": "https://endoflife.date/dotnet",
+    "releasePolicy": "https://dotnet.microsoft.com/platform/support/policy/dotnet-core"
+   },
+   "releases": [
+    {
+     "name": "11",
+     "codename": null,
+     "label": "11",
+     "releaseDate": "2026-11-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2028-11-14",
+     "isMaintained": true,
+     "latest": {
+      "name": "11.0.0",
+      "date": "2026-11-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/11.0/11.0.0/11.0.0.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "10",
+     "codename": null,
+     "label": "10 (LTS)",
+     "releaseDate": "2025-11-11",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2028-11-14",
+     "isMaintained": true,
+     "latest": {
+      "name": "10.0.15",
+      "date": "2026-11-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/10.0/10.0.15/10.0.15.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "9",
+     "codename": null,
+     "label": "9",
+     "releaseDate": "2024-11-12",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-11-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.0.23",
+      "date": "2026-11-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/9.0/9.0.23/9.0.23.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "8",
+     "codename": null,
+     "label": "8 (LTS)",
+     "releaseDate": "2023-11-14",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-11-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "8.0.34",
+      "date": "2026-11-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/8.0/8.0.34/8.0.34.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "7",
+     "codename": null,
+     "label": "7",
+     "releaseDate": "2022-11-08",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-05-14",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.0.20",
+      "date": "2024-05-29",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/7.0/7.0.20/7.0.20.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "6",
+     "codename": null,
+     "label": "6 (LTS)",
+     "releaseDate": "2021-11-08",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-11-12",
+     "isMaintained": false,
+     "latest": {
+      "name": "6.0.36",
+      "date": "2024-11-12",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/6.0/6.0.36/6.0.36.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "5",
+     "codename": null,
+     "label": "5",
+     "releaseDate": "2020-11-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-05-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.0.17",
+      "date": "2022-05-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/5.0/5.0.17/5.0.17.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.1",
+     "codename": null,
+     "label": "Core 3.1 (LTS)",
+     "releaseDate": "2019-12-03",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-12-13",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.1.32",
+      "date": "2022-12-13",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/3.1/3.1.32/3.1.32.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.0",
+     "codename": null,
+     "label": "Core 3.0",
+     "releaseDate": "2019-09-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2020-03-03",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.0.3",
+      "date": "2020-02-19",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/3.0/3.0.3/3.0.3.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.2",
+     "codename": null,
+     "label": "Core 2.2",
+     "releaseDate": "2018-12-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2019-12-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.2.8",
+      "date": "2019-11-19",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/2.2/2.2.8/2.2.8.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.1",
+     "codename": null,
+     "label": "Core 2.1 (LTS)",
+     "releaseDate": "2018-05-30",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-08-21",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.1.30",
+      "date": "2021-08-19",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/2.1/2.1.30/2.1.30.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.0",
+     "codename": null,
+     "label": "Core 2.0",
+     "releaseDate": "2017-08-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2018-10-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.0.9",
+      "date": "2018-07-10",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/2.0/2.0.9.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.1",
+     "codename": null,
+     "label": "Core 1.1",
+     "releaseDate": "2016-11-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2019-06-27",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.1.13",
+      "date": "2019-05-15",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/1.1/1.1.13/1.1.13.md"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.0",
+     "codename": null,
+     "label": "Core 1.0",
+     "releaseDate": "2016-06-27",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2019-06-27",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.0.16",
+      "date": "2019-05-15",
+      "link": "https://github.com/dotnet/core/blob/main/release-notes/1.0/1.0.16/1.0.16.md"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "eclipse-temurin",
+   "aliases": [
+    "temurin"
+   ],
+   "label": "Eclipse Temurin",
+   "category": "lang",
+   "tags": [
+    "eclipse",
+    "java-distribution",
+    "lang"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "temurin-bin"
+    },
+    {
+     "type": "repology",
+     "id": "temurin-jre-bin"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:eclipse:temurin"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:eclipse:temurin"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/eclipseadoptium.svg",
+    "html": "https://endoflife.date/eclipse-temurin",
+    "releasePolicy": "https://adoptium.net/support/"
+   },
+   "releases": [
+    {
+     "name": "27",
+     "codename": null,
+     "label": "27",
+     "releaseDate": "2026-09-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-03-23",
+     "isMaintained": true,
+     "latest": {
+      "name": "27.0.1.0.2+1",
+      "date": "2026-10-24",
+      "link": "https://github.com/adoptium/temurin27-binaries/releases/tag/jdk-27.0.1.0.2+1"
+     },
+     "custom": null
+    },
+    {
+     "name": "26",
+     "codename": null,
+     "label": "26",
+     "releaseDate": "2026-03-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-09-22",
+     "isMaintained": false,
+     "latest": {
+      "name": "26.0.2.1+1",
+      "date": "2026-08-25",
+      "link": "https://github.com/adoptium/temurin26-binaries/releases/tag/jdk-26.0.2.1+1"
+     },
+     "custom": null
+    },
+    {
+     "name": "25",
+     "codename": null,
+     "label": "25 (LTS)",
+     "releaseDate": "2025-09-22",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2031-09-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "25.0.5+8",
+      "date": "2026-10-22",
+      "link": "https://github.com/adoptium/temurin25-binaries/releases/tag/jdk-25.0.5+8"
+     },
+     "custom": null
+    },
+    {
+     "name": "24",
+     "codename": null,
+     "label": "24",
+     "releaseDate": "2025-03-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-09-22",
+     "isMaintained": false,
+     "latest": {
+      "name": "24.0.2+12",
+      "date": "2025-07-17",
+      "link": "https://github.com/adoptium/temurin24-binaries/releases/tag/jdk-24.0.2+12"
+     },
+     "custom": null
+    },
+    {
+     "name": "23",
+     "codename": null,
+     "label": "23",
+     "releaseDate": "2024-09-17",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-03-18",
+     "isMaintained": false,
+     "latest": {
+      "name": "23.0.2+7",
+      "date": "2025-01-23",
+      "link": "https://github.com/adoptium/temurin23-binaries/releases/tag/jdk-23.0.2+7"
+     },
+     "custom": null
+    },
+    {
+     "name": "22",
+     "codename": null,
+     "label": "22",
+     "releaseDate": "2024-03-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-09-17",
+     "isMaintained": false,
+     "latest": {
+      "name": "22.0.2+9",
+      "date": "2024-07-17",
+      "link": "https://github.com/adoptium/temurin22-binaries/releases/tag/jdk-22.0.2+9"
+     },
+     "custom": null
+    },
+    {
+     "name": "21",
+     "codename": null,
+     "label": "21 (LTS)",
+     "releaseDate": "2023-10-10",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2029-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "21.0.13+9",
+      "date": "2026-10-22",
+      "link": "https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.13+9"
+     },
+     "custom": null
+    },
+    {
+     "name": "20",
+     "codename": null,
+     "label": "20",
+     "releaseDate": "2023-03-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-09-19",
+     "isMaintained": false,
+     "latest": {
+      "name": "20.0.2+9",
+      "date": "2023-07-21",
+      "link": "https://github.com/adoptium/temurin20-binaries/releases/tag/jdk-20.0.2+9"
+     },
+     "custom": null
+    },
+    {
+     "name": "19",
+     "codename": null,
+     "label": "19",
+     "releaseDate": "2022-09-26",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "19.0.2+7",
+      "date": "2023-01-20",
+      "link": "https://github.com/adoptium/temurin19-binaries/releases/tag/jdk-19.0.2+7"
+     },
+     "custom": null
+    },
+    {
+     "name": "18",
+     "codename": null,
+     "label": "18",
+     "releaseDate": "2022-03-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-09-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "18.0.2.1+1",
+      "date": "2022-08-26",
+      "link": "https://github.com/adoptium/temurin18-binaries/releases/tag/jdk-18.0.2.1+1"
+     },
+     "custom": null
+    },
+    {
+     "name": "17",
+     "codename": null,
+     "label": "17 (LTS)",
+     "releaseDate": "2021-09-22",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "17.0.21+9",
+      "date": "2026-10-22",
+      "link": "https://github.com/adoptium/temurin17-binaries/releases/tag/jdk-17.0.21+9"
+     },
+     "custom": null
+    },
+    {
+     "name": "11",
+     "codename": null,
+     "label": "11 (LTS)",
+     "releaseDate": "2021-08-01",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "11.0.33+10",
+      "date": "2026-11-04",
+      "link": "https://github.com/adoptium/temurin11-binaries/releases/tag/jdk-11.0.33+10"
+     },
+     "custom": null
+    },
+    {
+     "name": "16",
+     "codename": null,
+     "label": "16",
+     "releaseDate": "2021-07-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-09-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "16.0.2+7",
+      "date": "2021-07-30",
+      "link": "https://github.com/adoptium/temurin16-binaries/releases/tag/jdk-16.0.2+7"
+     },
+     "custom": null
+    },
+    {
+     "name": "8",
+     "codename": null,
+     "label": "8 (LTS)",
+     "releaseDate": "2021-07-29",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2030-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "8u512-b09",
+      "date": "2026-11-04",
+      "link": "https://github.com/adoptium/temurin8-binaries/releases/tag/jdk8u512-b09"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "go",
+   "aliases": [
+    "golang"
+   ],
+   "label": "Go",
+   "category": "lang",
+   "tags": [
+    "google",
+    "lang"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "go"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/go"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/library/golang"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/circleci/golang"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/cimg/go"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/bitnami/golang"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:brew/go"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:golang:go"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Supported",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/go.svg",
+    "html": "https://endoflife.date/go",
+    "releasePolicy": "https://go.dev/doc/devel/release#policy"
+   },
+   "releases": [
+    {
+     "name": "1.27",
+     "codename": null,
+     "label": "1.27",
+     "releaseDate": "2026-08-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "1.27.4",
+      "date": "2026-11-10",
+      "link": "https://go.dev/doc/go1.27"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.26",
+     "codename": null,
+     "label": "1.26",
+     "releaseDate": "2026-02-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "1.26.11",
+      "date": "2026-11-10",
+      "link": "https://go.dev/doc/go1.26"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.25",
+     "codename": null,
+     "label": "1.25",
+     "releaseDate": "2025-08-12",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-08-19",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.25.14",
+      "date": "2026-08-19",
+      "link": "https://go.dev/doc/devel/release#go1.25.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.24",
+     "codename": null,
+     "label": "1.24",
+     "releaseDate": "2025-02-11",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-02-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.24.13",
+      "date": "2026-02-04",
+      "link": "https://go.dev/doc/devel/release#go1.24.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.23",
+     "codename": null,
+     "label": "1.23",
+     "releaseDate": "2024-08-13",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-08-12",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.23.12",
+      "date": "2025-08-06",
+      "link": "https://go.dev/doc/devel/release#go1.23.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.22",
+     "codename": null,
+     "label": "1.22",
+     "releaseDate": "2024-02-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-02-11",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.22.12",
+      "date": "2025-02-04",
+      "link": "https://go.dev/doc/devel/release#go1.22.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.21",
+     "codename": null,
+     "label": "1.21",
+     "releaseDate": "2023-08-08",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-08-13",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.21.13",
+      "date": "2024-08-06",
+      "link": "https://go.dev/doc/devel/release#go1.21.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.20",
+     "codename": null,
+     "label": "1.20",
+     "releaseDate": "2023-02-01",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-02-06",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.20.14",
+      "date": "2024-02-06",
+      "link": "https://go.dev/doc/devel/release#go1.20.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.19",
+     "codename": null,
+     "label": "1.19",
+     "releaseDate": "2022-08-02",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-09-06",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.19.13",
+      "date": "2023-09-06",
+      "link": "https://go.dev/doc/devel/release#go1.19.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.18",
+     "codename": null,
+     "label": "1.18",
+     "releaseDate": "2022-03-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-02-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.18.10",
+      "date": "2023-01-10",
+      "link": "https://go.dev/doc/devel/release#go1.18.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.17",
+     "codename": null,
+     "label": "1.17",
+     "releaseDate": "2021-08-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-08-02",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.17.13",
+      "date": "2022-08-01",
+      "link": "https://go.dev/doc/devel/release#go1.17.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.16",
+     "codename": null,
+     "label": "1.16",
+     "releaseDate": "2021-02-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-03-15",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.16.15",
+      "date": "2022-03-03",
+      "link": "https://go.dev/doc/devel/release#go1.16.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.15",
+     "codename": null,
+     "label": "1.15",
+     "releaseDate": "2020-08-11",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-08-16",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.15.15",
+      "date": "2021-08-04",
+      "link": "https://go.dev/doc/devel/release#go1.15.minor"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.14",
+     "codename": null,
+     "label": "1.14",
+     "releaseDate": "2020-02-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-02-16",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.14.15",
+      "date": "2021-02-04",
+      "link": "https://go.dev/doc/devel/release#go1.14.minor"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "nginx",
+   "aliases": [],
+   "label": "nginx",
+   "category": "server-app",
+   "tags": [
+    "server-app",
+    "web-server"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/amzn/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/centos/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:apk/alpine/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/opensuse/nginx"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:github/nginx/nginx"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:f5:nginx"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/nginx.svg",
+    "html": "https://endoflife.date/nginx",
+    "releasePolicy": "https://www.nginx.com/blog/nginx-1-18-1-19-released/#NGINX-Versioning-Explained"
+   },
+   "releases": [
+    {
+     "name": "1.31",
+     "codename": null,
+     "label": "1.31",
+     "releaseDate": "2026-05-13",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "1.31.8",
+      "date": "2026-10-21",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.30",
+     "codename": null,
+     "label": "1.30",
+     "releaseDate": "2026-04-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "1.30.6",
+      "date": "2026-10-14",
+      "link": "https://nginx.org/en/CHANGES-1.30"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.29",
+     "codename": null,
+     "label": "1.29",
+     "releaseDate": "2025-06-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-05-13",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.29.8",
+      "date": "2026-04-07",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.28",
+     "codename": null,
+     "label": "1.28",
+     "releaseDate": "2025-04-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-04-14",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.28.3",
+      "date": "2026-03-24",
+      "link": "https://nginx.org/en/CHANGES-1.28"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.27",
+     "codename": null,
+     "label": "1.27",
+     "releaseDate": "2024-05-28",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-06-24",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.27.5",
+      "date": "2025-04-16",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.26",
+     "codename": null,
+     "label": "1.26",
+     "releaseDate": "2024-04-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-04-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.26.3",
+      "date": "2025-02-05",
+      "link": "https://nginx.org/en/CHANGES-1.26"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.25",
+     "codename": null,
+     "label": "1.25",
+     "releaseDate": "2023-05-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-05-29",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.25.5",
+      "date": "2024-04-16",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.24",
+     "codename": null,
+     "label": "1.24",
+     "releaseDate": "2023-04-11",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-04-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.24.0",
+      "date": "2023-04-11",
+      "link": "https://nginx.org/en/CHANGES-1.24"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.23",
+     "codename": null,
+     "label": "1.23",
+     "releaseDate": "2022-06-21",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-05-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.23.4",
+      "date": "2023-03-28",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.22",
+     "codename": null,
+     "label": "1.22",
+     "releaseDate": "2022-05-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-04-11",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.22.1",
+      "date": "2022-10-19",
+      "link": "https://nginx.org/en/CHANGES-1.22"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.21",
+     "codename": null,
+     "label": "1.21",
+     "releaseDate": "2021-05-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-06-21",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.21.6",
+      "date": "2022-01-25",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.20",
+     "codename": null,
+     "label": "1.20",
+     "releaseDate": "2021-04-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-05-24",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.20.2",
+      "date": "2021-11-16",
+      "link": "https://nginx.org/en/CHANGES-1.20"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.19",
+     "codename": null,
+     "label": "1.19",
+     "releaseDate": "2020-05-26",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-05-25",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.19.10",
+      "date": "2021-04-13",
+      "link": "https://nginx.org/en/CHANGES"
+     },
+     "custom": null
+    },
+    {
+     "name": "1.18",
+     "codename": null,
+     "label": "1.18",
+     "releaseDate": "2020-04-21",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-04-20",
+     "isMaintained": false,
+     "latest": {
+      "name": "1.18.0",
+      "date": "2020-04-21",
+      "link": "https://nginx.org/en/CHANGES-1.18"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "nodejs",
+   "aliases": [
+    "node"
+   ],
+   "label": "Node.js",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "herodevs",
+    "javascript-runtime",
+    "linux-foundation"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:generic/node"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/circleci/node"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/library/node"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/cimg/node"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/bitnami/node"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/nodejs"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/nodejs24"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:nodejs:node.js"
+    },
+    {
+     "type": "repology",
+     "id": "nodejs"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": "Commercial Support"
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/nodedotjs.svg",
+    "html": "https://endoflife.date/nodejs",
+    "releasePolicy": "https://nodejs.org/en/about/previous-releases"
+   },
+   "releases": [
+    {
+     "name": "26",
+     "codename": null,
+     "label": "26 (LTS)",
+     "releaseDate": "2026-05-05",
+     "isLts": true,
+     "ltsFrom": "2026-10-28",
+     "isEoas": false,
+     "eoasFrom": "2027-10-27",
+     "isEol": false,
+     "eolFrom": "2029-04-30",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "26.13.1",
+      "date": "2026-11-11",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V26.md#26.13.1"
+     },
+     "custom": null
+    },
+    {
+     "name": "25",
+     "codename": null,
+     "label": "25",
+     "releaseDate": "2025-10-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-04-01",
+     "isEol": true,
+     "eolFrom": "2026-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "25.9.0",
+      "date": "2026-04-01",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V25.md#25.9.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "24",
+     "codename": null,
+     "label": "24 (LTS)",
+     "releaseDate": "2025-05-06",
+     "isLts": true,
+     "ltsFrom": "2025-10-28",
+     "isEoas": true,
+     "eoasFrom": "2026-10-20",
+     "isEol": false,
+     "eolFrom": "2028-04-30",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "24.22.3",
+      "date": "2026-11-11",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V24.md#24.22.3"
+     },
+     "custom": null
+    },
+    {
+     "name": "23",
+     "codename": null,
+     "label": "23",
+     "releaseDate": "2024-10-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-04-01",
+     "isEol": true,
+     "eolFrom": "2025-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "23.11.1",
+      "date": "2025-05-14",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V23.md#23.11.1"
+     },
+     "custom": null
+    },
+    {
+     "name": "22",
+     "codename": null,
+     "label": "22 (LTS)",
+     "releaseDate": "2024-04-24",
+     "isLts": true,
+     "ltsFrom": "2024-10-29",
+     "isEoas": true,
+     "eoasFrom": "2025-10-21",
+     "isEol": false,
+     "eolFrom": "2027-04-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "22.23.5",
+      "date": "2026-11-11",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V22.md#22.23.5"
+     },
+     "custom": null
+    },
+    {
+     "name": "21",
+     "codename": null,
+     "label": "21",
+     "releaseDate": "2023-10-17",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-04-01",
+     "isEol": true,
+     "eolFrom": "2024-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "21.7.3",
+      "date": "2024-04-10",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V21.md#21.7.3"
+     },
+     "custom": null
+    },
+    {
+     "name": "20",
+     "codename": null,
+     "label": "20 (LTS)",
+     "releaseDate": "2023-04-18",
+     "isLts": true,
+     "ltsFrom": "2023-10-24",
+     "isEoas": true,
+     "eoasFrom": "2024-10-22",
+     "isEol": true,
+     "eolFrom": "2026-04-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "20.20.2",
+      "date": "2026-03-24",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V20.md#20.20.2"
+     },
+     "custom": null
+    },
+    {
+     "name": "19",
+     "codename": null,
+     "label": "19",
+     "releaseDate": "2022-10-18",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-04-01",
+     "isEol": true,
+     "eolFrom": "2023-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "19.9.0",
+      "date": "2023-04-10",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V19.md#19.9.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "18",
+     "codename": null,
+     "label": "18 (LTS)",
+     "releaseDate": "2022-04-19",
+     "isLts": true,
+     "ltsFrom": "2022-10-25",
+     "isEoas": true,
+     "eoasFrom": "2023-10-18",
+     "isEol": true,
+     "eolFrom": "2025-04-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "18.20.8",
+      "date": "2025-03-27",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V18.md#18.20.8"
+     },
+     "custom": null
+    },
+    {
+     "name": "17",
+     "codename": null,
+     "label": "17",
+     "releaseDate": "2021-10-19",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-04-01",
+     "isEol": true,
+     "eolFrom": "2022-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "17.9.1",
+      "date": "2022-06-01",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V17.md#17.9.1"
+     },
+     "custom": null
+    },
+    {
+     "name": "16",
+     "codename": null,
+     "label": "16 (LTS)",
+     "releaseDate": "2021-04-20",
+     "isLts": true,
+     "ltsFrom": "2021-10-26",
+     "isEoas": true,
+     "eoasFrom": "2022-10-18",
+     "isEol": true,
+     "eolFrom": "2023-09-11",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "16.20.2",
+      "date": "2023-08-09",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V16.md#16.20.2"
+     },
+     "custom": null
+    },
+    {
+     "name": "15",
+     "codename": null,
+     "label": "15",
+     "releaseDate": "2020-10-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-04-01",
+     "isEol": true,
+     "eolFrom": "2021-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "15.14.0",
+      "date": "2021-04-06",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V15.md#15.14.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "14",
+     "codename": null,
+     "label": "14 (LTS)",
+     "releaseDate": "2020-04-21",
+     "isLts": true,
+     "ltsFrom": "2020-10-27",
+     "isEoas": true,
+     "eoasFrom": "2021-10-19",
+     "isEol": true,
+     "eolFrom": "2023-04-30",
+     "isEoes": false,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "14.21.3",
+      "date": "2023-02-16",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V14.md#14.21.3"
+     },
+     "custom": null
+    },
+    {
+     "name": "13",
+     "codename": null,
+     "label": "13",
+     "releaseDate": "2019-10-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-04-01",
+     "isEol": true,
+     "eolFrom": "2020-06-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "13.14.0",
+      "date": "2020-04-29",
+      "link": "https://github.com/nodejs/node/blob/main/doc/changelogs/CHANGELOG_V13.md#13.14.0"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "php",
+   "aliases": [],
+   "label": "PHP",
+   "category": "lang",
+   "tags": [
+    "lang"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/php"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/php"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/php"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/php-cli"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/php-fpm"
+    },
+    {
+     "type": "repology",
+     "id": "php"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:php:php"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:php:php"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/php.svg",
+    "html": "https://endoflife.date/php",
+    "releasePolicy": "https://www.php.net/supported-versions.php"
+   },
+   "releases": [
+    {
+     "name": "8.5",
+     "codename": null,
+     "label": "8.5",
+     "releaseDate": "2025-11-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2027-12-31",
+     "isEol": false,
+     "eolFrom": "2029-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "8.5.12",
+      "date": "2026-10-21",
+      "link": "https://www.php.net/ChangeLog-8.php#8.5.12"
+     },
+     "custom": null
+    },
+    {
+     "name": "8.4",
+     "codename": null,
+     "label": "8.4",
+     "releaseDate": "2024-11-21",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2026-12-31",
+     "isEol": false,
+     "eolFrom": "2028-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "8.4.27",
+      "date": "2026-10-21",
+      "link": "https://www.php.net/ChangeLog-8.php#8.4.27"
+     },
+     "custom": null
+    },
+    {
+     "name": "8.3",
+     "codename": null,
+     "label": "8.3",
+     "releaseDate": "2023-11-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-12-31",
+     "isEol": false,
+     "eolFrom": "2027-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "8.3.36",
+      "date": "2026-10-21",
+      "link": "https://www.php.net/ChangeLog-8.php#8.3.36"
+     },
+     "custom": null
+    },
+    {
+     "name": "8.2",
+     "codename": null,
+     "label": "8.2",
+     "releaseDate": "2022-12-08",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-12-31",
+     "isEol": false,
+     "eolFrom": "2026-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "8.2.35",
+      "date": "2026-10-21",
+      "link": "https://www.php.net/ChangeLog-8.php#8.2.35"
+     },
+     "custom": null
+    },
+    {
+     "name": "8.1",
+     "codename": null,
+     "label": "8.1",
+     "releaseDate": "2021-11-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-11-25",
+     "isEol": true,
+     "eolFrom": "2025-12-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "8.1.34",
+      "date": "2025-12-18",
+      "link": "https://www.php.net/ChangeLog-8.php#8.1.34"
+     },
+     "custom": null
+    },
+    {
+     "name": "8.0",
+     "codename": null,
+     "label": "8.0",
+     "releaseDate": "2020-11-26",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-11-26",
+     "isEol": true,
+     "eolFrom": "2023-11-26",
+     "isMaintained": false,
+     "latest": {
+      "name": "8.0.30",
+      "date": "2023-08-03",
+      "link": "https://www.php.net/ChangeLog-8.php#8.0.30"
+     },
+     "custom": null
+    },
+    {
+     "name": "7.4",
+     "codename": null,
+     "label": "7.4",
+     "releaseDate": "2019-11-28",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-11-28",
+     "isEol": true,
+     "eolFrom": "2022-11-28",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.4.33",
+      "date": "2022-11-03",
+      "link": "https://www.php.net/ChangeLog-7.php#7.4.33"
+     },
+     "custom": null
+    },
+    {
+     "name": "7.3",
+     "codename": null,
+     "label": "7.3",
+     "releaseDate": "2018-12-06",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-12-06",
+     "isEol": true,
+     "eolFrom": "2021-12-06",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.3.33",
+      "date": "2021-11-18",
+      "link": "https://www.php.net/ChangeLog-7.php#7.3.33"
+     },
+     "custom": null
+    },
+    {
+     "name": "7.2",
+     "codename": null,
+     "label": "7.2",
+     "releaseDate": "2017-11-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2019-11-30",
+     "isEol": true,
+     "eolFrom": "2020-11-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.2.34",
+      "date": "2020-10-01",
+      "link": "https://www.php.net/ChangeLog-7.php#7.2.34"
+     },
+     "custom": null
+    },
+    {
+     "name": "7.1",
+     "codename": null,
+     "label": "7.1",
+     "releaseDate": "2016-12-01",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2018-12-01",
+     "isEol": true,
+     "eolFrom": "2019-12-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.1.33",
+      "date": "2019-10-24",
+      "link": "https://www.php.net/ChangeLog-7.php#7.1.33"
+     },
+     "custom": null
+    },
+    {
+     "name": "7.0",
+     "codename": null,
+     "label": "7.0",
+     "releaseDate": "2015-12-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2018-01-04",
+     "isEol": true,
+     "eolFrom": "2019-01-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "7.0.33",
+      "date": "2019-01-10",
+      "link": "https://www.php.net/ChangeLog-7.php#7.0.33"
+     },
+     "custom": null
+    },
+    {
+     "name": "5.6",
+     "codename": null,
+     "label": "5.6",
+     "releaseDate": "2014-08-28",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2017-01-19",
+     "isEol": true,
+     "eolFrom": "2018-12-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.6.40",
+      "date": "2019-01-10",
+      "link": "https://www.php.net/ChangeLog-5.php#5.6.40"
+     },
+     "custom": null
+    },
+    {
+     "name": "5.5",
+     "codename": null,
+     "label": "5.5",
+     "releaseDate": "2013-06-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2015-07-10",
+     "isEol": true,
+     "eolFrom": "2016-07-21",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.5.38",
+      "date": "2016-07-21",
+      "link": "https://www.php.net/ChangeLog-5.php#5.5.38"
+     },
+     "custom": null
+    },
+    {
+     "name": "5.4",
+     "codename": null,
+     "label": "5.4",
+     "releaseDate": "2012-03-01",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2014-09-14",
+     "isEol": true,
+     "eolFrom": "2015-09-14",
+     "isMaintained": false,
+     "latest": {
+      "name": "5.4.45",
+      "date": "2015-09-03",
+      "link": "https://www.php.net/ChangeLog-5.php#5.4.45"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "postgresql",
+   "aliases": [
+    "postgres",
+    "pg",
+    "psql",
+    "pgsql"
+   ],
+   "label": "PostgreSQL",
+   "category": "database",
+   "tags": [
+    "database"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "postgresql"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/postgresql"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/library/postgres"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/postgresql"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:postgresql:postgresql"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:postgresql:postgresql"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Support Status",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/postgresql.svg",
+    "html": "https://endoflife.date/postgresql",
+    "releasePolicy": "https://www.postgresql.org/support/versioning/"
+   },
+   "releases": [
+    {
+     "name": "18",
+     "codename": null,
+     "label": "18",
+     "releaseDate": "2025-09-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2030-11-14",
+     "isMaintained": true,
+     "latest": {
+      "name": "18.7",
+      "date": "2026-11-09",
+      "link": "https://www.postgresql.org/docs/release/18.7/"
+     },
+     "custom": null
+    },
+    {
+     "name": "17",
+     "codename": null,
+     "label": "17",
+     "releaseDate": "2024-09-26",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2029-11-08",
+     "isMaintained": true,
+     "latest": {
+      "name": "17.12",
+      "date": "2026-11-09",
+      "link": "https://www.postgresql.org/docs/release/17.12/"
+     },
+     "custom": null
+    },
+    {
+     "name": "16",
+     "codename": null,
+     "label": "16",
+     "releaseDate": "2023-09-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2028-11-09",
+     "isMaintained": true,
+     "latest": {
+      "name": "16.16",
+      "date": "2026-11-09",
+      "link": "https://www.postgresql.org/docs/release/16.16/"
+     },
+     "custom": null
+    },
+    {
+     "name": "15",
+     "codename": null,
+     "label": "15",
+     "releaseDate": "2022-10-13",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-11-11",
+     "isMaintained": true,
+     "latest": {
+      "name": "15.20",
+      "date": "2026-11-09",
+      "link": "https://www.postgresql.org/docs/release/15.20/"
+     },
+     "custom": null
+    },
+    {
+     "name": "14",
+     "codename": null,
+     "label": "14",
+     "releaseDate": "2021-09-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-11-12",
+     "isMaintained": false,
+     "latest": {
+      "name": "14.25",
+      "date": "2026-11-09",
+      "link": "https://www.postgresql.org/docs/release/14.25/"
+     },
+     "custom": null
+    },
+    {
+     "name": "13",
+     "codename": null,
+     "label": "13",
+     "releaseDate": "2020-09-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-11-13",
+     "isMaintained": false,
+     "latest": {
+      "name": "13.23",
+      "date": "2025-11-10",
+      "link": "https://www.postgresql.org/docs/release/13.23/"
+     },
+     "custom": null
+    },
+    {
+     "name": "12",
+     "codename": null,
+     "label": "12",
+     "releaseDate": "2019-10-03",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-11-21",
+     "isMaintained": false,
+     "latest": {
+      "name": "12.22",
+      "date": "2024-11-18",
+      "link": "https://www.postgresql.org/docs/release/12.22/"
+     },
+     "custom": null
+    },
+    {
+     "name": "11",
+     "codename": null,
+     "label": "11",
+     "releaseDate": "2018-10-18",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-11-09",
+     "isMaintained": false,
+     "latest": {
+      "name": "11.22",
+      "date": "2023-11-06",
+      "link": "https://www.postgresql.org/docs/release/11.22/"
+     },
+     "custom": null
+    },
+    {
+     "name": "10",
+     "codename": null,
+     "label": "10",
+     "releaseDate": "2017-10-05",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-11-10",
+     "isMaintained": false,
+     "latest": {
+      "name": "10.23",
+      "date": "2022-11-07",
+      "link": "https://www.postgresql.org/docs/release/10.23/"
+     },
+     "custom": null
+    },
+    {
+     "name": "9.6",
+     "codename": null,
+     "label": "9.6",
+     "releaseDate": "2016-09-29",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-11-11",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.6.24",
+      "date": "2021-11-08",
+      "link": "https://www.postgresql.org/docs/release/9.6.24/"
+     },
+     "custom": null
+    },
+    {
+     "name": "9.5",
+     "codename": null,
+     "label": "9.5",
+     "releaseDate": "2016-01-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-02-11",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.5.25",
+      "date": "2021-02-08",
+      "link": "https://www.postgresql.org/docs/release/9.5.25/"
+     },
+     "custom": null
+    },
+    {
+     "name": "9.4",
+     "codename": null,
+     "label": "9.4",
+     "releaseDate": "2014-12-18",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2020-02-13",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.4.26",
+      "date": "2020-02-10",
+      "link": "https://www.postgresql.org/docs/release/9.4.26/"
+     },
+     "custom": null
+    },
+    {
+     "name": "9.3",
+     "codename": null,
+     "label": "9.3",
+     "releaseDate": "2013-09-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2018-11-08",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.3.25",
+      "date": "2018-11-05",
+      "link": "https://www.postgresql.org/docs/release/9.3.25/"
+     },
+     "custom": null
+    },
+    {
+     "name": "9.2",
+     "codename": null,
+     "label": "9.2",
+     "releaseDate": "2012-09-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2017-11-09",
+     "isMaintained": false,
+     "latest": {
+      "name": "9.2.24",
+      "date": "2017-11-06",
+      "link": "https://www.postgresql.org/docs/release/9.2.24/"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "python",
+   "aliases": [],
+   "label": "Python",
+   "category": "lang",
+   "tags": [
+    "lang"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:generic/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.15"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.14"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.13"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.12"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.11"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.10"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.9"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.8"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.7"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.6"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.4"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.1"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python3.0"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.7"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.6"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.4"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/ubuntu/python2.1"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.15"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.14"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.13"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.11"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.9"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.7"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.4"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python3.1"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.7"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.6"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.4"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python2.1"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:deb/debian/python1.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.15"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.14"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.13"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.12"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.11"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.10"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.9"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.8"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.6"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/python3.5"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/amzn/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/amzn/python2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/amzn/python3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python27"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python38"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python39"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python3.11"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/python3.12"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/centos/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/centos/python2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/centos/python3"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/library/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/circleci/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/bitnami/python"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:github/python/cpython"
+    },
+    {
+     "type": "repology",
+     "id": "python"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:python:python"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:python:python"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/python.svg",
+    "html": "https://endoflife.date/python",
+    "releasePolicy": "https://devguide.python.org/versions/"
+   },
+   "releases": [
+    {
+     "name": "3.15",
+     "codename": null,
+     "label": "3.15",
+     "releaseDate": "2026-10-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2028-10-09",
+     "isEol": false,
+     "eolFrom": "2031-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.15.2",
+      "date": "2026-10-25",
+      "link": "https://www.python.org/downloads/release/python-3152/"
+     },
+     "custom": {
+      "pep": "PEP-0790"
+     }
+    },
+    {
+     "name": "3.14",
+     "codename": null,
+     "label": "3.14",
+     "releaseDate": "2025-10-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2027-10-01",
+     "isEol": false,
+     "eolFrom": "2030-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.14.10",
+      "date": "2026-10-25",
+      "link": "https://www.python.org/downloads/release/python-31410/"
+     },
+     "custom": {
+      "pep": "PEP-0745"
+     }
+    },
+    {
+     "name": "3.13",
+     "codename": null,
+     "label": "3.13",
+     "releaseDate": "2024-10-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-10-01",
+     "isEol": false,
+     "eolFrom": "2029-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.13.18",
+      "date": "2026-10-25",
+      "link": "https://www.python.org/downloads/release/python-31318/"
+     },
+     "custom": {
+      "pep": "PEP-0719"
+     }
+    },
+    {
+     "name": "3.12",
+     "codename": null,
+     "label": "3.12",
+     "releaseDate": "2023-10-02",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-04-02",
+     "isEol": false,
+     "eolFrom": "2028-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.12.16",
+      "date": "2026-10-25",
+      "link": "https://www.python.org/downloads/release/python-31216/"
+     },
+     "custom": {
+      "pep": "PEP-0693"
+     }
+    },
+    {
+     "name": "3.11",
+     "codename": null,
+     "label": "3.11",
+     "releaseDate": "2022-10-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-04-01",
+     "isEol": false,
+     "eolFrom": "2027-10-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.11.18",
+      "date": "2026-10-25",
+      "link": "https://www.python.org/downloads/release/python-31118/"
+     },
+     "custom": {
+      "pep": "PEP-0664"
+     }
+    },
+    {
+     "name": "3.10",
+     "codename": null,
+     "label": "3.10",
+     "releaseDate": "2021-10-04",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-04-05",
+     "isEol": true,
+     "eolFrom": "2026-10-01",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.10.22",
+      "date": "2026-10-01",
+      "link": "https://www.python.org/downloads/release/python-31022/"
+     },
+     "custom": {
+      "pep": "PEP-0619"
+     }
+    },
+    {
+     "name": "3.9",
+     "codename": null,
+     "label": "3.9",
+     "releaseDate": "2020-10-05",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-05-17",
+     "isEol": true,
+     "eolFrom": "2025-10-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.9.25",
+      "date": "2025-10-31",
+      "link": "https://www.python.org/downloads/release/python-3925/"
+     },
+     "custom": {
+      "pep": "PEP-0596"
+     }
+    },
+    {
+     "name": "3.8",
+     "codename": null,
+     "label": "3.8",
+     "releaseDate": "2019-10-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-05-03",
+     "isEol": true,
+     "eolFrom": "2024-10-07",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.8.20",
+      "date": "2024-09-06",
+      "link": "https://www.python.org/downloads/release/python-3820/"
+     },
+     "custom": {
+      "pep": "PEP-0569"
+     }
+    },
+    {
+     "name": "3.7",
+     "codename": null,
+     "label": "3.7",
+     "releaseDate": "2018-06-27",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-06-27",
+     "isEol": true,
+     "eolFrom": "2023-06-27",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.7.17",
+      "date": "2023-06-05",
+      "link": "https://www.python.org/downloads/release/python-3717/"
+     },
+     "custom": {
+      "pep": "PEP-0537"
+     }
+    },
+    {
+     "name": "3.6",
+     "codename": null,
+     "label": "3.6",
+     "releaseDate": "2016-12-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2018-12-24",
+     "isEol": true,
+     "eolFrom": "2021-12-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.6.15",
+      "date": "2021-09-03",
+      "link": "https://www.python.org/downloads/release/python-3615/"
+     },
+     "custom": {
+      "pep": "PEP-0494"
+     }
+    },
+    {
+     "name": "3.5",
+     "codename": null,
+     "label": "3.5",
+     "releaseDate": "2015-09-13",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": null,
+     "isEol": true,
+     "eolFrom": "2020-09-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.5.10",
+      "date": "2020-09-05",
+      "link": "https://www.python.org/downloads/release/python-3510/"
+     },
+     "custom": {
+      "pep": "PEP-0478"
+     }
+    },
+    {
+     "name": "3.4",
+     "codename": null,
+     "label": "3.4",
+     "releaseDate": "2014-03-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": null,
+     "isEol": true,
+     "eolFrom": "2019-03-18",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.4.10",
+      "date": "2019-03-18",
+      "link": "https://www.python.org/downloads/release/python-3410/"
+     },
+     "custom": {
+      "pep": "PEP-0429"
+     }
+    },
+    {
+     "name": "3.3",
+     "codename": null,
+     "label": "3.3",
+     "releaseDate": "2012-09-29",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": null,
+     "isEol": true,
+     "eolFrom": "2017-09-29",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.3.7",
+      "date": "2017-09-19",
+      "link": "https://www.python.org/downloads/release/python-337/"
+     },
+     "custom": {
+      "pep": "PEP-0398"
+     }
+    },
+    {
+     "name": "3.2",
+     "codename": null,
+     "label": "3.2",
+     "releaseDate": "2011-02-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": null,
+     "isEol": true,
+     "eolFrom": "2016-02-20",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.2.6",
+      "date": "2014-10-12",
+      "link": "https://www.python.org/downloads/release/python-326/"
+     },
+     "custom": {
+      "pep": "PEP-0392"
+     }
+    }
+   ]
+  },
+  {
+   "name": "react",
+   "aliases": [],
+   "label": "React",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "javascript-runtime",
+    "meta"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:github/facebook/react"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:npm/react"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:facebook:react"
+    }
+   ],
+   "labels": {
+    "eoas": "Active Support",
+    "discontinued": null,
+    "eol": "Security Support",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/react.svg",
+    "html": "https://endoflife.date/react",
+    "releasePolicy": "https://react.dev/community/versioning-policy"
+   },
+   "releases": [
+    {
+     "name": "19",
+     "codename": null,
+     "label": "19",
+     "releaseDate": "2024-12-05",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": null,
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "19.3.1",
+      "date": "2026-10-14",
+      "link": "https://github.com/react/react/releases/tag/v19.3.1"
+     },
+     "custom": null
+    },
+    {
+     "name": "18",
+     "codename": null,
+     "label": "18",
+     "releaseDate": "2022-03-29",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-12-05",
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "18.3.1",
+      "date": "2024-04-26",
+      "link": "https://github.com/react/react/releases/tag/v18.3.1"
+     },
+     "custom": null
+    },
+    {
+     "name": "17",
+     "codename": null,
+     "label": "17",
+     "releaseDate": "2020-10-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-03-29",
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "17.0.2",
+      "date": "2021-03-22",
+      "link": "https://github.com/react/react/releases/tag/v17.0.2"
+     },
+     "custom": null
+    },
+    {
+     "name": "16",
+     "codename": null,
+     "label": "16",
+     "releaseDate": "2017-09-26",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-10-20",
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "16.14.0",
+      "date": "2020-10-14",
+      "link": "https://github.com/react/react/releases/tag/v16.14.0"
+     },
+     "custom": null
+    },
+    {
+     "name": "15",
+     "codename": null,
+     "label": "15",
+     "releaseDate": "2016-04-07",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2020-10-14",
+     "isEol": false,
+     "eolFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "15.7.0",
+      "date": "2020-10-14",
+      "link": "https://github.com/react/react/releases/tag/v15.7.0"
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "ruby",
+   "aliases": [],
+   "label": "Ruby",
+   "category": "lang",
+   "tags": [
+    "lang"
+   ],
+   "identifiers": [
+    {
+     "type": "repology",
+     "id": "ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:alpm/arch/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:brew/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:docker/library/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:generic/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/fedora/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/redhat/ruby"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:rpm/centos/ruby"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/a:ruby-lang:ruby"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:a:ruby-lang:ruby"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "Support Status",
+    "eoes": null
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/ruby.svg",
+    "html": "https://endoflife.date/ruby",
+    "releasePolicy": "https://www.ruby-lang.org/en/downloads/branches/"
+   },
+   "releases": [
+    {
+     "name": "4.0",
+     "codename": null,
+     "label": "4.0",
+     "releaseDate": "2025-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2029-03-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "4.0.9",
+      "date": "2026-10-22",
+      "link": "https://github.com/ruby/ruby/releases/tag/v4.0.9"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.4",
+     "codename": null,
+     "label": "3.4",
+     "releaseDate": "2024-12-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2028-03-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.4.12",
+      "date": "2026-10-23",
+      "link": "https://github.com/ruby/ruby/releases/tag/v3_4_12"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.3",
+     "codename": null,
+     "label": "3.3",
+     "releaseDate": "2023-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-03-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.3.13",
+      "date": "2026-10-23",
+      "link": "https://github.com/ruby/ruby/releases/tag/v3_3_13"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.2",
+     "codename": null,
+     "label": "3.2",
+     "releaseDate": "2022-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.2.11",
+      "date": "2026-03-27",
+      "link": "https://github.com/ruby/ruby/releases/tag/v3_2_11"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.1",
+     "codename": null,
+     "label": "3.1",
+     "releaseDate": "2021-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-03-26",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.1.7",
+      "date": "2025-03-26",
+      "link": "https://github.com/ruby/ruby/releases/tag/v3_1_7"
+     },
+     "custom": null
+    },
+    {
+     "name": "3.0",
+     "codename": null,
+     "label": "3.0",
+     "releaseDate": "2020-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-04-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.0.7",
+      "date": "2024-04-23",
+      "link": "https://github.com/ruby/ruby/releases/tag/v3_0_7"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.7",
+     "codename": null,
+     "label": "2.7",
+     "releaseDate": "2019-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.7.8",
+      "date": "2023-03-30",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_7_8"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.6",
+     "codename": null,
+     "label": "2.6",
+     "releaseDate": "2018-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.6.10",
+      "date": "2022-04-12",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_6_10"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.5",
+     "codename": null,
+     "label": "2.5",
+     "releaseDate": "2017-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.5.9",
+      "date": "2021-04-05",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_5_9"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.4",
+     "codename": null,
+     "label": "2.4",
+     "releaseDate": "2016-12-23",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2020-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.4.10",
+      "date": "2020-03-31",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_4_10"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.3",
+     "codename": null,
+     "label": "2.3",
+     "releaseDate": "2015-12-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2019-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.3.8",
+      "date": "2018-10-17",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_3_8"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.2",
+     "codename": null,
+     "label": "2.2",
+     "releaseDate": "2014-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2018-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.2.10",
+      "date": "2018-03-28",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_2_10"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.1",
+     "codename": null,
+     "label": "2.1",
+     "releaseDate": "2013-12-25",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2017-03-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.1.10",
+      "date": "2016-03-31",
+      "link": "https://github.com/ruby/ruby/releases/tag/v2_1_10"
+     },
+     "custom": null
+    },
+    {
+     "name": "2.0.0",
+     "codename": null,
+     "label": "2.0.0",
+     "releaseDate": "2013-02-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2016-02-24",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.0.0p648",
+      "date": "2015-12-16",
+      "link": null
+     },
+     "custom": null
+    }
+   ]
+  },
+  {
+   "name": "spring-boot",
+   "aliases": [
+    "springboot"
+   ],
+   "label": "Spring Boot",
+   "category": "framework",
+   "tags": [
+    "framework",
+    "java-runtime",
+    "vmware"
+   ],
+   "identifiers": [
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-web"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-data-jpa"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-jdbc"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-data-mongodb"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-security"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-test"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-thymeleaf"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-amqp"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-websocket"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-actuator"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-undertow"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-autoconfigure"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-actuator-autoconfigure"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-webflux"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-aop"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-tomcat"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-logging"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-batch"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-log4j2"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:maven/org.springframework.boot/spring-boot-starter-validation"
+    },
+    {
+     "type": "purl",
+     "id": "pkg:github/spring-projects/spring-boot"
+    },
+    {
+     "type": "repology",
+     "id": "springboot"
+    }
+   ],
+   "labels": {
+    "eoas": null,
+    "discontinued": null,
+    "eol": "OSS support",
+    "eoes": "Commercial Support"
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/springboot.svg",
+    "html": "https://endoflife.date/spring-boot",
+    "releasePolicy": "https://github.com/spring-projects/spring-boot/wiki/Supported-Versions"
+   },
+   "releases": [
+    {
+     "name": "4.1",
+     "codename": null,
+     "label": "4.1",
+     "releaseDate": "2026-06-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2027-07-31",
+     "isEoes": false,
+     "eoesFrom": "2028-07-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "4.1.2",
+      "date": "2026-10-22",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v4.1.2"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 26"
+     }
+    },
+    {
+     "name": "4.0",
+     "codename": null,
+     "label": "4.0",
+     "releaseDate": "2025-11-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": false,
+     "eolFrom": "2026-12-31",
+     "isEoes": false,
+     "eoesFrom": "2027-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "4.0.9",
+      "date": "2026-10-22",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v4.0.9"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 25"
+     }
+    },
+    {
+     "name": "3.5",
+     "codename": null,
+     "label": "3.5",
+     "releaseDate": "2025-05-31",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2026-06-30",
+     "isEoes": false,
+     "eoesFrom": "2032-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.5.16",
+      "date": "2026-06-25",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.5.16"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 25"
+     }
+    },
+    {
+     "name": "3.4",
+     "codename": null,
+     "label": "3.4",
+     "releaseDate": "2024-11-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-12-31",
+     "isEoes": false,
+     "eoesFrom": "2026-12-31",
+     "isMaintained": true,
+     "latest": {
+      "name": "3.4.13",
+      "date": "2025-12-18",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.4.13"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 24"
+     }
+    },
+    {
+     "name": "3.3",
+     "codename": null,
+     "label": "3.3",
+     "releaseDate": "2024-05-31",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2025-06-30",
+     "isEoes": true,
+     "eoesFrom": "2026-06-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.3.13",
+      "date": "2025-06-19",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.3.13"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 23"
+     }
+    },
+    {
+     "name": "3.2",
+     "codename": null,
+     "label": "3.2",
+     "releaseDate": "2023-11-30",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-12-31",
+     "isEoes": true,
+     "eoesFrom": "2025-12-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.2.12",
+      "date": "2024-11-21",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.2.12"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 21"
+     }
+    },
+    {
+     "name": "3.1",
+     "codename": null,
+     "label": "3.1",
+     "releaseDate": "2023-05-31",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2024-06-30",
+     "isEoes": true,
+     "eoesFrom": "2025-06-30",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.1.12",
+      "date": "2024-05-23",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.1.12"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 21"
+     }
+    },
+    {
+     "name": "3.0",
+     "codename": null,
+     "label": "3.0",
+     "releaseDate": "2022-11-24",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-12-31",
+     "isEoes": true,
+     "eoesFrom": "2024-12-31",
+     "isMaintained": false,
+     "latest": {
+      "name": "3.0.13",
+      "date": "2023-11-23",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v3.0.13"
+     },
+     "custom": {
+      "supportedJavaVersions": "17 - 21"
+     }
+    },
+    {
+     "name": "2.7",
+     "codename": null,
+     "label": "2.7",
+     "releaseDate": "2022-05-31",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2023-06-30",
+     "isEoes": false,
+     "eoesFrom": "2029-06-30",
+     "isMaintained": true,
+     "latest": {
+      "name": "2.7.18",
+      "date": "2023-11-23",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.7.18"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 21"
+     }
+    },
+    {
+     "name": "2.6",
+     "codename": null,
+     "label": "2.6",
+     "releaseDate": "2021-11-17",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-11-24",
+     "isEoes": true,
+     "eoesFrom": "2024-02-24",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.6.15",
+      "date": "2023-05-18",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.6.15"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 19"
+     }
+    },
+    {
+     "name": "2.5",
+     "codename": null,
+     "label": "2.5",
+     "releaseDate": "2021-05-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2022-05-19",
+     "isEoes": true,
+     "eoesFrom": "2023-08-24",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.5.15",
+      "date": "2023-05-18",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.5.15"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 18"
+     }
+    },
+    {
+     "name": "2.4",
+     "codename": null,
+     "label": "2.4",
+     "releaseDate": "2020-11-12",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-11-18",
+     "isEoes": true,
+     "eoesFrom": "2023-02-23",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.4.13",
+      "date": "2021-11-18",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.4.13"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 16"
+     }
+    },
+    {
+     "name": "2.3",
+     "codename": null,
+     "label": "2.3",
+     "releaseDate": "2020-05-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2021-05-20",
+     "isEoes": true,
+     "eoesFrom": "2022-08-20",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.3.12",
+      "date": "2021-06-10",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.3.12.RELEASE"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 15"
+     }
+    },
+    {
+     "name": "2.2",
+     "codename": null,
+     "label": "2.2",
+     "releaseDate": "2019-10-16",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEol": true,
+     "eolFrom": "2020-10-16",
+     "isEoes": true,
+     "eoesFrom": "2022-01-16",
+     "isMaintained": false,
+     "latest": {
+      "name": "2.2.13",
+      "date": "2021-01-14",
+      "link": "https://github.com/spring-projects/spring-boot/releases/tag/v2.2.13.RELEASE"
+     },
+     "custom": {
+      "supportedJavaVersions": "8 - 15"
+     }
+    }
+   ]
+  },
+  {
+   "name": "ubuntu",
+   "aliases": [
+    "ubuntu-linux"
+   ],
+   "label": "Ubuntu",
+   "category": "os",
+   "tags": [
+    "linux-distribution",
+    "os"
+   ],
+   "identifiers": [
+    {
+     "type": "cpe",
+     "id": "cpe:2.3:o:canonical:ubuntu_linux"
+    },
+    {
+     "type": "cpe",
+     "id": "cpe:/o:canonical:ubuntu_linux"
+    }
+   ],
+   "labels": {
+    "eoas": "Hardware & Maintenance",
+    "discontinued": null,
+    "eol": "Maintenance & Security Support",
+    "eoes": "Expanded Security Maintenance"
+   },
+   "links": {
+    "icon": "https://cdn.jsdelivr.net/npm/simple-icons/icons/ubuntu.svg",
+    "html": "https://endoflife.date/ubuntu",
+    "releasePolicy": "https://ubuntu.com/project/docs/release-team/list-of-releases/"
+   },
+   "releases": [
+    {
+     "name": "26.10",
+     "codename": "Stonking Stingray",
+     "label": "26.10 'Stonking Stingray'",
+     "releaseDate": "2026-10-15",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2027-07-01",
+     "isEol": false,
+     "eolFrom": "2027-07-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": true,
+     "latest": {
+      "name": "26.10",
+      "date": "2026-10-15",
+      "link": "https://wiki.ubuntu.com/StonkingStingray/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "26.04",
+     "codename": "Resolute Raccoon",
+     "label": "26.04 'Resolute Raccoon' (LTS)",
+     "releaseDate": "2026-04-23",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2031-05-29",
+     "isEol": false,
+     "eolFrom": "2031-05-29",
+     "isEoes": false,
+     "eoesFrom": "2036-04-23",
+     "isMaintained": true,
+     "latest": {
+      "name": "26.04.1",
+      "date": "2026-08-27",
+      "link": "https://wiki.ubuntu.com/ResoluteRaccoon/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "25.10",
+     "codename": "Questing Quokka",
+     "label": "25.10 'Questing Quokka'",
+     "releaseDate": "2025-10-09",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-07-01",
+     "isEol": true,
+     "eolFrom": "2026-07-01",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "25.10",
+      "date": "2025-10-09",
+      "link": "https://wiki.ubuntu.com/QuestingQuokka/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "25.04",
+     "codename": "Plucky Puffin",
+     "label": "25.04 'Plucky Puffin'",
+     "releaseDate": "2025-04-17",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2026-01-17",
+     "isEol": true,
+     "eolFrom": "2026-01-17",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "25.04",
+      "date": "2025-04-17",
+      "link": "https://wiki.ubuntu.com/PluckyPuffin/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "24.10",
+     "codename": "Oracular Oriole",
+     "label": "24.10 'Oracular Oriole'",
+     "releaseDate": "2024-10-10",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2025-07-10",
+     "isEol": true,
+     "eolFrom": "2025-07-10",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "24.10",
+      "date": "2024-10-10",
+      "link": "https://wiki.ubuntu.com/OracularOriole/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "24.04",
+     "codename": "Noble Numbat",
+     "label": "24.04 'Noble Numbat' (LTS)",
+     "releaseDate": "2024-04-25",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": false,
+     "eoasFrom": "2029-05-31",
+     "isEol": false,
+     "eolFrom": "2029-05-31",
+     "isEoes": false,
+     "eoesFrom": "2034-04-25",
+     "isMaintained": true,
+     "latest": {
+      "name": "24.04.5",
+      "date": "2026-09-10",
+      "link": "https://wiki.ubuntu.com/NobleNumbat/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "23.10",
+     "codename": "Mantic Minotaur",
+     "label": "23.10 'Mantic Minotaur'",
+     "releaseDate": "2023-10-12",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-07-12",
+     "isEol": true,
+     "eolFrom": "2024-07-12",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "23.10",
+      "date": "2023-10-12",
+      "link": "https://wiki.ubuntu.com/ManticMinotaur/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "23.04",
+     "codename": "Lunar Lobster",
+     "label": "23.04 'Lunar Lobster'",
+     "releaseDate": "2023-04-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-01-20",
+     "isEol": true,
+     "eolFrom": "2024-01-20",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "23.04",
+      "date": "2023-04-20",
+      "link": "https://wiki.ubuntu.com/LunarLobster/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "22.10",
+     "codename": "Kinetic Kudu",
+     "label": "22.10 'Kinetic Kudu'",
+     "releaseDate": "2022-10-20",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2023-07-20",
+     "isEol": true,
+     "eolFrom": "2023-07-20",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "22.10",
+      "date": "2022-10-20",
+      "link": "https://wiki.ubuntu.com/KineticKudu/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "22.04",
+     "codename": "Jammy Jellyfish",
+     "label": "22.04 'Jammy Jellyfish' (LTS)",
+     "releaseDate": "2022-04-21",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2024-09-30",
+     "isEol": false,
+     "eolFrom": "2027-06-01",
+     "isEoes": false,
+     "eoesFrom": "2032-04-21",
+     "isMaintained": true,
+     "latest": {
+      "name": "22.04.5",
+      "date": "2024-09-12",
+      "link": "https://wiki.ubuntu.com/JammyJellyfish/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "21.10",
+     "codename": "Impish Indri",
+     "label": "21.10 'Impish Indri'",
+     "releaseDate": "2021-10-14",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-07-14",
+     "isEol": true,
+     "eolFrom": "2022-07-14",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "21.10",
+      "date": "2021-10-14",
+      "link": "https://wiki.ubuntu.com/ImpishIndri/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "21.04",
+     "codename": "Hirsute Hippo",
+     "label": "21.04 'Hirsute Hippo'",
+     "releaseDate": "2021-04-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-01-20",
+     "isEol": true,
+     "eolFrom": "2022-01-20",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "21.04",
+      "date": "2021-04-22",
+      "link": "https://wiki.ubuntu.com/HirsuteHippo/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "20.10",
+     "codename": "Groovy Gorilla",
+     "label": "20.10 'Groovy Gorilla'",
+     "releaseDate": "2020-10-22",
+     "isLts": false,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2021-07-22",
+     "isEol": true,
+     "eolFrom": "2021-07-22",
+     "isEoes": null,
+     "eoesFrom": null,
+     "isMaintained": false,
+     "latest": {
+      "name": "20.10",
+      "date": "2020-10-22",
+      "link": "https://wiki.ubuntu.com/GroovyGorilla/ReleaseNotes/"
+     },
+     "custom": null
+    },
+    {
+     "name": "20.04",
+     "codename": "Focal Fossa",
+     "label": "20.04 'Focal Fossa' (LTS)",
+     "releaseDate": "2020-04-23",
+     "isLts": true,
+     "ltsFrom": null,
+     "isEoas": true,
+     "eoasFrom": "2022-10-01",
+     "isEol": true,
+     "eolFrom": "2025-05-31",
+     "isEoes": false,
+     "eoesFrom": "2030-04-23",
+     "isMaintained": true,
+     "latest": {
+      "name": "20.04.6",
+      "date": "2023-03-23",
+      "link": "https://wiki.ubuntu.com/FocalFossa/ReleaseNotes/"
+     },
+     "custom": null
+    }
+   ]
+  }
+ ]
+}

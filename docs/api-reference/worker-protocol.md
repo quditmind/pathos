@@ -38,8 +38,13 @@ Bodies are JSON unless stated otherwise. Errors use the [common error format](in
 | `GET` | `/internal/worker/v1/jobs/{id}/target-file` | [Download the uploaded SBOM or artifact](#download-the-source-or-target-file) of a scan target job |
 | `POST` | `/internal/worker/v1/jobs/{id}/events` | [Report stage events and log lines](#events-and-logs) |
 | `POST` | `/internal/worker/v1/jobs/{id}/imports` | [Upload the code inventory](#code-inventory) used for reachability |
+| `POST` | `/internal/worker/v1/jobs/{id}/changes` | [Upload the material change report](#material-changes) |
+| `POST` | `/internal/worker/v1/jobs/{id}/runtimes` | [Upload the declared runtimes and base images](#runtimes-and-introducing-commits) (end of life) |
+| `POST` | `/internal/worker/v1/jobs/{id}/blame` | [Upload the introducing commits](#runtimes-and-introducing-commits) of code findings |
 | `POST` | `/internal/worker/v1/jobs/{id}/results` | [Upload one scanner's output](#results) |
 | `POST` | `/internal/worker/v1/jobs/{id}/complete` | [Finish the job](#complete) |
+| `POST` | `/internal/worker/v1/fix-lease` | [Lease a fix job](#fix-jobs) (when no scan is waiting) |
+| `POST` | `/internal/worker/v1/fix-jobs/{id}/result` | [Report the edited files of a fix job](#fix-jobs) |
 
 Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that holds the job's lease: another worker gets `409 lease_lost`, an unknown job `404`. Except for the heartbeat, the job must still be `running` (`409 conflict` "job is …" otherwise).
 
@@ -68,8 +73,10 @@ Every `/internal/worker/v1/jobs/{id}/…` call must come from the worker that ho
 | `credential` | Clone credential of the repository's SCM connection, if any. |
 | `public` | The repository is public; the worker may clone anonymously if the credential fails. |
 | `source` | For uploaded repositories: `{ type: "snapshot", sha256, size }`; download it from `/internal/worker/v1/jobs/{id}/source`. |
-| `target` | For scan-target jobs (image, web application, API, artifact, SBOM): kind, reference and any decrypted target credential. |
+| `target` | For scan-target jobs (image, web application, API, artifact, SBOM, declared endpoints): kind, reference and any decrypted target credential. Endpoints jobs carry `endpoints[]` (`kind`, `value`, `authorized`: only authorized endpoints may be contacted) and `rate_limit`; image and artifact jobs with a verification policy carry `signature` (the [policy](scan-targets.md#signature-verification)) and, for artifacts, `signature_material`. |
 | `timeout_seconds`, `exclusions`, `scanners[]` | From the pinned scan profile version: `{ key, config }` per scanner. Opengrep's config includes the organization's custom rules. |
+| `previous_commit_sha` | Commit of the repository's previous successful scan of the same ref (Git branch scans only; omitted for the first scan, pull requests, uploads and targets). The worker compares it with the scanned commit. |
+| `collect_authors` | `true` only while the organization has developer attribution on: the worker then lists the commit author names between the two commits. |
 
 If no clone credential can be obtained, the job fails and `204` is returned.
 
@@ -96,6 +103,32 @@ Messages are redacted and cut to 2,000 characters; timestamps far in the future 
 
 `POST /internal/worker/v1/jobs/{id}/imports` with `{ version: 1, files_scanned, imports: { … }, strings: { … } }` (at most 8 MiB) stores the repository's import inventory and recomputes the reachability of its dependency findings (see [Reachability](vulnerability-intelligence.md#reachability)). Returns `{ "findings_updated": n }`. Ignored (`0`) for pull request scans; `400` for scan-target jobs.
 
+### Material changes
+
+`POST /internal/worker/v1/jobs/{id}/changes` (at most 16 MiB), sent after the scanners and before `complete`:
+
+```json
+{
+  "version": 1, "status": "computed", "reason": "", "base_sha": "<sha>", "head_sha": "<sha>",
+  "files_changed": 12, "truncated": false,
+  "changes": [{ "category": "auth", "rule_id": "auth.spring-security", "file_path": "src/SecurityConfig.java", "change_type": "modified",
+                "side": "added", "start_line": 20, "end_line": 21, "match_count": 2, "snippet": "…", "explanation": "…" }],
+  "commits": [{ "sha": "<sha>", "author_name": "Ada Lovelace", "authored_at": "2026-11-18T10:00:00Z", "files": ["src/SecurityConfig.java"] }],
+  "commits_complete": true
+}
+```
+
+`status` is `computed`, `baseline`, `unchanged` or `unavailable` (with `reason`). Changes with unknown rules, and dependency changes (the API computes those from the SBOMs), are dropped; snippets are redacted. `commits` are ignored and never stored unless the organization has attribution on; the worker sends author names only, never e-mail addresses. A retried job replaces the earlier report. Ignored for pull request and scan-target jobs. Returns `{ "material_changes": n }` and queues the `change.material` notification event when `n > 0`; `400` for an invalid report.
+
+The worker fetches only the two commits (shallow, `--depth 1`, or `--depth 100` of the scanned commit when authors are collected) into a private bare repository with the job's clone credential, computes `git diff -U0` without external diff or textconv drivers and runs the rules on the changed lines; nothing in the repository is executed.
+
+### Runtimes and introducing commits
+
+After the scanners of a repository job (not for scan targets; ignored for pull request scans):
+
+- `POST /internal/worker/v1/jobs/{id}/runtimes` with `{ version: 1, runtimes: [{ kind: "runtime" | "image", name, version, path }] }` (at most 1,000 entries, 1 MiB) replaces the repository's declared runtimes (`node`, `python`, `ruby`, `go`, `java`, `dotnet`, `php`) and Dockerfile base images (`name` is the image reference). Invalid entries are dropped. Response `{ "stored": n }`. They are matched to end-of-life data when the job completes.
+- `POST /internal/worker/v1/jobs/{id}/blame` with `{ version: 1, mode: "full" | "shallow", entries: [{ file, line, commit, author, time }], missing: [{ file, line }] }` (at most 5,000 each, 4 MiB). For each code finding (`sast`, `secrets`, `iac`) of this job at `file:line`, `full` records the introducing commit (full SHA), the author's **name** and the commit time, unless one is already known; `missing` lines are not in the scanned commit; `shallow` marks the job's code findings `shallow_clone` (unknown). The worker sends `full` only for repositories with full history, and never sends author e-mail addresses. Response `{ "findings_updated": n }`.
+
 ### Results
 
 `POST /internal/worker/v1/jobs/{id}/results`, once per scanner (body at most 96 MiB):
@@ -114,3 +147,16 @@ The output is parsed into findings at once. Response `{ "findings": n }`. A deco
 ### Complete
 
 `POST /internal/worker/v1/jobs/{id}/complete` with `{ status: "succeeded" | "failed", error, commit_sha }`. `commit_sha` (the commit actually scanned) is stored when it is a full SHA. PATHOS finalizes the job (new and fixed findings, security gate, policies), then posts pull request statuses or starts follow-up work (AI review, Human Eye queue). Response `{ "status": "<final job status>" }`.
+
+### Fix jobs
+
+Fix jobs produce the file edits for [fix pull requests](findings.md#fix-pull-requests). The agent asks for one only when `lease` returned `204` (scans come first).
+
+`POST /internal/worker/v1/fix-lease` (empty JSON object) returns `204` when nothing is queued, otherwise `200` with `{ fix_id, full_name, clone_url, ref, credential, public, ecosystem, package_name, current_version, target_version, manifest_hint, timeout_seconds }`. The job is leased for 10 minutes; an expired lease returns it to the queue, at most 3 attempts. `ref` is the repository's scan branch.
+
+The worker clones `ref` (shallow, with the same hardening as scans: no hooks, filters, submodules or symbolic links), edits the manifests as text and never runs a package manager, build tool or repository code. It then calls `POST /internal/worker/v1/fix-jobs/{id}/result` with one of:
+
+- `{ "status": "ok", "base_commit": "<full SHA cloned>", "files": [{ "path": "requirements.txt", "content_base64": "…" }], "notes": [] }`: 1–20 files, each at most 5 MiB (20 MiB in total), relative paths without `..`. The API then creates the branch, commit and pull request itself; the worker never pushes.
+- `{ "status": "not_supported", "error": "…" }` or `{ "status": "failed", "error": "…" }`.
+
+Response `204`. Another worker gets `409 lease_lost`.

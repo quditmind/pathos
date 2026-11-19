@@ -66,7 +66,8 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `retry_of`, `retry_count` | Set on retries, which are always new executions |
 | `asset_type`, `target_id`, `target_name`, `target_reference` | `repository` for source-code scans; otherwise the [scan target](scan-targets.md) kind and the target |
 | `trigger`, `priority` | `manual`, `schedule`, `push`, `merge`, `pull_request`, `onboarding`, `emergency` or `import`; the queue priority follows the trigger (emergency 100 … schedule 30) |
-| `gate_failed` | The profile's `fail_on_critical` gate or a blocking [security policy](governance.md#security-policies) failed |
+| `gate_failed` | The profile's `fail_on_critical` gate, a blocking [security policy](governance.md#security-policies) or a [required signature](scan-targets.md#signature-verification) failed |
+| `change_summary` | Push and merge scans of the repository's code: `{ base_commit, base_scan_id, head_commit, new: {severity: n}, fixed: {severity: n}, new_total, fixed_total }` comparing with the previous finished scan (`base_*` empty without one); absent for other scans. The [`findings.new` notification](notifications.md#notification-events) and its webhook payload (`scan.changes`) carry it |
 | `config_snapshot` | Only on `GET /scans/{id}`: profile id, name, version, change note, scanners and their configuration, exclusions, severity threshold, timeout, SBOM, fail on critical, retention, capture time. Immutable |
 
 Database entities: `scan_jobs`, `scan_results` (engine jobs), `scan_job_events`, `scan_job_logs`, `finding_occurrences`, `scan_profile_versions`.
@@ -136,6 +137,42 @@ Response `200`: `{ "items": [execution…], "next_cursor": "2026-11-17T09:00:00Z
 `POST /api/v1/scans/{id}/retry` — creates a **new** execution of the same repository and profile (current version), linked by `retry_of`. Only `failed`, `partial` or `cancelled` executions. Permission `scans.run`.
 
 Response `202`: the new execution. Errors: `409 conflict` (wrong status, repository not scannable or missing prerequisites). Audited (`scan.retry`).
+
+### Evaluate the security gate
+
+`GET /api/v1/scans/{id}/gate` — whether an execution passes the security gate, for CI pipelines (the [`pathos gate`](../user-guide/ci-cd-integration.md) command calls it). Permission `scans.read` on the repository. Session or API token (`api:read` is enough). Read-only.
+
+| Parameter | Default | Description |
+|---|---|---|
+| `fail_on` | `none` | `critical`, `high`, `medium`, `low` or `none`: also fail when findings at or above this severity are open in `scope` |
+| `scope` | `new` | `new`: open findings first detected by this execution; `all`: every open finding of the repository (`open`, `in_progress`, `needs_review`) |
+| `allow_partial` | `false` | A `partial` execution (some engines failed) may pass |
+
+Response `200`:
+
+```json
+{
+  "scan_id": "0193a1c2-5b6e-7c3d-9e10-1f2a3b4c5d6e",
+  "scan_key": "QD-SCAN-000042",
+  "repository_id": "0193a1c2-0000-7000-8000-000000000101",
+  "repository_name": "acme/payments-api",
+  "status": "succeeded",
+  "finished": true,
+  "gate_failed": false,
+  "blocking_policies": [],
+  "fail_on": "high",
+  "scope": "new",
+  "allow_partial": false,
+  "by_severity": { "critical": 1, "high": 0, "medium": 2, "low": 0, "info": 0 },
+  "threshold_count": 1,
+  "passed": false,
+  "reasons": ["1 new finding(s) at or above high"]
+}
+```
+
+`passed` is `true` only when the execution has finished with `succeeded` (or `partial` with `allow_partial=true`), its own gate did not fail (`gate_failed`: the profile's `fail_on_critical` or a blocking [security policy](governance.md#security-policies)), no enabled blocking policy is violated by a finding it detected first (`blocking_policies`), and `threshold_count` is 0. `reasons` explains every failed condition; an execution that is still queued or running gives `"scan has not finished"`.
+
+Status codes: `200`, `400 invalid_request` (bad `fail_on`, `scope` or `allow_partial`), `401`, `404` (unknown or out of scope).
 
 ## Execution details
 

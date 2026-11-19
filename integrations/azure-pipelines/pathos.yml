@@ -1,0 +1,115 @@
+# PATHOS Azure Pipelines steps template: import results, start a scan and
+# enforce the security gate with the PATHOS CLI. Documented in
+# docs/user-guide/ci-cd-integration.md.
+#
+# Copy this file into your repository (or reference it from a repository
+# resource) and use it from a job running on a Linux agent:
+#
+#   steps:
+#     - template: pathos.yml
+#       parameters:
+#         url: https://pathos.example.com
+#         repository: acme/payments-api
+#         cliVersion: "1.1.0"
+#         importFile: $(Build.SourcesDirectory)/semgrep.json
+#         failOn: high
+#
+# Store the API token as the secret pipeline variable PATHOS_TOKEN (secret
+# variables are never exposed to scripts unless mapped, as below).
+
+parameters:
+  - name: url
+    type: string
+  - name: repository
+    type: string
+  - name: cliVersion
+    type: string
+  - name: cliRepo
+    type: string
+    default: quditmind/pathos
+  - name: importFile
+    type: string
+    default: ""
+  - name: importFormat
+    type: string
+    default: ""
+  - name: importTool
+    type: string
+    default: ""
+  - name: importCategory
+    type: string
+    default: ""
+  - name: complete
+    type: boolean
+    default: false
+  - name: scan
+    type: boolean
+    default: false
+  - name: gate
+    type: boolean
+    default: true
+  - name: failOn
+    type: string
+    default: none
+    values: [critical, high, medium, low, none]
+  - name: scope
+    type: string
+    default: new
+    values: [new, all]
+
+steps:
+  - bash: |
+      set -euo pipefail
+      v="${CLI_VERSION#v}"
+      case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) echo "unsupported architecture"; exit 2 ;; esac
+      asset="pathos_${v}_linux_${arch}"
+      base="https://github.com/${CLI_REPO}/releases/download/v${v}"
+      dir="$(Agent.TempDirectory)/pathos-cli"
+      mkdir -p "$dir" && cd "$dir"
+      curl -fsSL --proto '=https' -o "$asset" "$base/$asset"
+      curl -fsSL --proto '=https' -o checksums.txt "$base/checksums.txt"
+      grep " ${asset}\$" checksums.txt | sha256sum -c -
+      mv "$asset" pathos && chmod +x pathos
+      echo "##vso[task.prependpath]$dir"
+    displayName: Install the PATHOS CLI
+    env:
+      CLI_VERSION: ${{ parameters.cliVersion }}
+      CLI_REPO: ${{ parameters.cliRepo }}
+
+  - ${{ if ne(parameters.importFile, '') }}:
+      - bash: |
+          set -euo pipefail
+          args=(import --repo "$REPO" --file "$FILE")
+          [ -n "$FORMAT" ] && args+=(--format "$FORMAT")
+          [ -n "$TOOL" ] && args+=(--tool "$TOOL")
+          [ -n "$CATEGORY" ] && args+=(--category "$CATEGORY")
+          [ "$COMPLETE" = "True" ] && args+=(--complete)
+          pathos "${args[@]}"
+        displayName: Import results into PATHOS
+        env:
+          PATHOS_URL: ${{ parameters.url }}
+          PATHOS_TOKEN: $(PATHOS_TOKEN)
+          REPO: ${{ parameters.repository }}
+          FILE: ${{ parameters.importFile }}
+          FORMAT: ${{ parameters.importFormat }}
+          TOOL: ${{ parameters.importTool }}
+          CATEGORY: ${{ parameters.importCategory }}
+          COMPLETE: ${{ parameters.complete }}
+
+  - ${{ if eq(parameters.scan, true) }}:
+      - bash: pathos scan --repo "$REPO"
+        displayName: PATHOS scan
+        env:
+          PATHOS_URL: ${{ parameters.url }}
+          PATHOS_TOKEN: $(PATHOS_TOKEN)
+          REPO: ${{ parameters.repository }}
+
+  - ${{ if eq(parameters.gate, true) }}:
+      - bash: pathos gate --repo "$REPO" --fail-on "$FAIL_ON" --scope "$SCOPE"
+        displayName: PATHOS security gate
+        env:
+          PATHOS_URL: ${{ parameters.url }}
+          PATHOS_TOKEN: $(PATHOS_TOKEN)
+          REPO: ${{ parameters.repository }}
+          FAIL_ON: ${{ parameters.failOn }}
+          SCOPE: ${{ parameters.scope }}

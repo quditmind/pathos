@@ -44,12 +44,18 @@ type Service struct {
 	// StatusWriter returns the commit status writer of a repository's SCM
 	// connection (pull request checks); nil disables posting.
 	StatusWriter func(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error)
+	// FixPRTarget resolves the SCM writer of a repository for fix pull
+	// requests; nil disables creating them.
+	FixPRTarget FixPRTargetFunc
 	// PublicURL links commit statuses back to PATHOS ("" = no link).
 	PublicURL string
 	// ClamAVAddress (host:port) scans uploaded build artifacts for malware;
 	// ClamAVRequired refuses uploads while the scanner is unavailable.
 	ClamAVAddress  string
 	ClamAVRequired bool
+	// Offline (PATHOS_OFFLINE=true): declared endpoint verification, which
+	// contacts the endpoints, is disabled.
+	Offline bool
 }
 
 var errNotFound = errors.New("not found")
@@ -58,11 +64,13 @@ var errNotFound = errors.New("not found")
 func (s *Service) Register(mux *http.ServeMux) {
 	s.registerProfiles(mux)
 	s.registerPRChecks(mux)
+	s.registerFixPRs(mux)
 	s.registerJobs(mux)
 	s.registerFindings(mux)
 	s.registerImports(mux)
 	s.registerRules(mux)
 	s.registerTargets(mux)
+	s.registerEndpointVerification(mux)
 	s.registerWorkersAdmin(mux)
 }
 

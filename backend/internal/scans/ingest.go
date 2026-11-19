@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"pathos/internal/platform/objstore"
 	"slices"
@@ -51,7 +52,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var findings []scanners.Finding
 	parseErr := ""
 	if up.Status == "succeeded" && up.Scanner != scanners.Syft && len(raw) > 0 {
-		fs, err := scanners.Parse(up.Scanner, raw)
+		var fs []scanners.Finding
+		var err error
+		if scanners.IsImportKey(up.Scanner) {
+			fs, err = scanners.ParseImport(up.Scanner, up.Format, raw)
+		} else {
+			fs, err = scanners.Parse(up.Scanner, raw)
+		}
 		if err != nil {
 			if len(fs) == 0 {
 				up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
@@ -77,6 +84,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	}
 
 	var written []string // objects to remove if the transaction fails
+	licenseFindings := 0 // licence policy violations in files (licensecheck)
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if err := db.SetChangeContext(ctx, tx, nil, "scanner", "detected again by "+up.Scanner); err != nil {
 			return err
@@ -97,6 +105,12 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			case scanners.Grype:
 				ct = "application/json"
+			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint:
+				ct = "application/json"
+			}
+			if scanners.IsImportKey(up.Scanner) {
+				// The content type records the format for evidence capture.
+				ct = scanners.ImportContentType(firstNonEmpty(up.Format, scanners.DetectImportFormat(raw)))
 			}
 			sum := sha256.Sum256(raw)
 			artID := uuid.Must(uuid.NewV7())
@@ -118,19 +132,66 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			// findings or inventory.
 			return insertPRFindings(ctx, tx, jobID, findings)
 		}
-		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 {
+		licenses := false
+		if up.Scanner == scanners.Syft && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
+			} else {
+				licenses = true
 			}
 		}
-		return upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings)
+		// Evidence kept besides findings: per-endpoint verification status
+		// and signature verification results.
+		if up.Status == "succeeded" && len(raw) > 0 {
+			switch up.Scanner {
+			case scanners.EndpointCheck:
+				if err := recordEndpoints(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+					return err
+				}
+			case scanners.Cosign:
+				if err := recordSignature(ctx, tx, orgID, jobID, targetID, raw); err != nil {
+					return err
+				}
+			}
+		}
+		if up.Scanner == scanners.LicenseCheck && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			ls, err := scanners.ParseFileLicenses(raw)
+			if err != nil {
+				return err
+			}
+			if err := vuln.StoreFileLicenses(ctx, tx, orgID, repoID, jobID, ls); err != nil {
+				return err
+			}
+			licenses = true
+		}
+		if err := upsertFindings(ctx, tx, orgID, repoID, jobID, resultID, commit, targetID, findings); err != nil {
+			return err
+		}
+		if licenses {
+			// The licence policy against the updated inventory: violations
+			// become (or stay) findings, resolved ones are fixed.
+			run := &vuln.LicenseRun{JobID: jobID, ResultID: resultID, Source: "component"}
+			if up.Scanner == scanners.LicenseCheck {
+				run.Source = "file"
+			}
+			n, _, err := vuln.SyncLicenseFindings(ctx, tx, orgID, &repoID, run)
+			if err != nil {
+				return err
+			}
+			if up.Scanner == scanners.LicenseCheck {
+				licenseFindings = n
+				_, err = tx.Exec(ctx, `UPDATE scan_results SET findings_count = $2 WHERE id = $1`, resultID, n)
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil && len(written) > 0 {
 		if derr := s.Artifacts.Delete(context.WithoutCancel(ctx), written); derr != nil {
 			s.Log.Warn("orphaned artifact objects after a failed ingest", "keys", written, "err", derr)
 		}
 	}
-	return len(findings), err
+	return len(findings) + licenseFindings, err
 }
 
 // recompress keeps the worker's gzip unless it was not a single stream.
@@ -245,9 +306,11 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		var targetID *uuid.UUID
 		var failOnCritical bool
 		var pr *int
-		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id, j.pull_request FROM scan_jobs j
+		var trigger, commit, targetKind string
+		if err := tx.QueryRow(ctx, `SELECT j.repository_id, v.fail_on_critical, j.target_id, j.organization_id, j.pull_request, j.trigger,
+			j.commit_sha, j.target_kind FROM scan_jobs j
 			JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1 FOR UPDATE OF j`, jobID).
-			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr); err != nil {
+			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr, &trigger, &commit, &targetKind); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
@@ -287,17 +350,38 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
 		fixed := int64(0)
+		fixedBySeverity := map[string]int{}
 		if len(ok) > 0 && !opts.NoAutoResolve {
-			tag, err := tx.Exec(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
+			rows, err := tx.Query(ctx, `UPDATE findings SET status = 'fixed', resolved_at = now(), updated_at = now()
 				WHERE repository_id = $1 AND status IN ('open', 'in_progress', 'needs_review')
 				  AND (last_scan_job_id IS DISTINCT FROM $2)
 				  AND scanner_keys && $3::text[] AND NOT (scanner_keys && $4::text[])
-				  AND scan_target_id IS NOT DISTINCT FROM $5`,
+				  AND scan_target_id IS NOT DISTINCT FROM $5
+				RETURNING severity`,
 				repoID, jobID, ok, nonNilStrings(bad), targetID)
 			if err != nil {
 				return err
 			}
-			fixed = tag.RowsAffected()
+			for rows.Next() {
+				var sev string
+				if err := rows.Scan(&sev); err != nil {
+					rows.Close()
+					return err
+				}
+				fixedBySeverity[sev]++
+				fixed++
+			}
+			rows.Close()
+			if err := rows.Err(); err != nil {
+				return err
+			}
+		}
+		// End-of-life status of the components, runtimes and images this
+		// scan (re)discovered; new end-of-life findings count as found by it.
+		if status != "failed" && (targetID == nil || targetKind == "image") {
+			if err := s.syncEOL(ctx, tx, orgID, repoID, jobID); err != nil {
+				return err
+			}
 		}
 		if targetID == nil {
 			// Dependency findings added by this execution get their
@@ -330,13 +414,34 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 				return err
 			}
 		}
+		if targetID != nil {
+			unsigned, err := signatureGateFailed(ctx, tx, jobID)
+			if err != nil {
+				return err
+			}
+			if unsigned {
+				gate = true
+				if err := AddEvent(ctx, tx, orgID, jobID, "finalize", "", "info", "security gate failed: the target requires a verified signature"); err != nil {
+					return err
+				}
+			}
+		}
+		var change []byte
+		if targetID == nil && (trigger == "push" || trigger == "merge") {
+			cs, err := changeSummary(ctx, tx, jobID, repoID, commit, fixedBySeverity)
+			if err != nil {
+				return err
+			}
+			change, _ = json.Marshal(cs)
+			job.ChangeSummary = cs
+		}
 		errText := logging.RedactString(truncate(workerErr, 2000))
 		if errText == "" && len(bad) > 0 {
 			errText = "scanners failed: " + joinSorted(bad)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL,
-			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6 WHERE id = $1`,
-			jobID, status, newCount, fixed, gate, errText); err != nil {
+			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6, change_summary = $7 WHERE id = $1`,
+			jobID, status, newCount, fixed, gate, errText, change); err != nil {
 			return err
 		}
 		job.Status, job.FindingsNew, job.FindingsFixed, job.GateFailed = status, newCount, int(fixed), gate

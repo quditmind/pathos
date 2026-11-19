@@ -332,6 +332,11 @@ func Tools(cfg Config) map[string]Tool {
 	for k, t := range targetTools(cache, cfg) {
 		tools[k] = t
 	}
+	for k, t := range nativeTools(cfg) {
+		tools[k] = t
+	}
+	tools["pathos-endpoints"] = endpointsTool{cfg: cfg}
+	tools["cosign"] = cosignTool{cfg: cfg}
 	return tools
 }
 

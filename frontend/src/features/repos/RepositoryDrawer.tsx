@@ -1,4 +1,5 @@
 import { DependencyPanel } from "@/features/posture/DependencyPanel";
+import { EndOfLifePanel } from "@/features/posture/EndOfLifePanel";
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Pencil } from "lucide-react";
 import { api, ApiError } from "@/api/client";
@@ -17,10 +18,14 @@ import { MetadataSection } from "./metadata/MetadataSections";
 import { MetadataSummary } from "./metadata/MetadataSummary";
 import { clientErrors, diffMetadata, draftFromRepository, sectionForKey, sections, type MetadataDraft } from "./metadata/model";
 import { PublicExposureBadge, RepositoryKey } from "./badges";
+import { FixPRSettingsPanel } from "@/features/fixprs/FixPRPanel";
+import { PushProtectionPanel } from "./PushProtectionPanel";
+import { EndpointVerificationSection } from "./EndpointVerification";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
+import { RepositoryMaterialChanges } from "@/features/insights/MaterialChanges";
 
-type Tab = "details" | "source" | "security" | "dependencies";
+type Tab = "details" | "source" | "security" | "dependencies" | "material";
 
 interface ScanDraft {
   scan_branch: string;
@@ -91,8 +96,9 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
                 ["source", "Source"],
                 ["security", "Security"],
                 ["dependencies", "Dependencies"],
+                ["material", "Material changes"],
               ] as const
-            ).filter(([k]) => k !== "dependencies" || canDo("sbom.read")).map(([k, l]) => (
+            ).filter(([k]) => (k !== "dependencies" || canDo("sbom.read")) && (k !== "material" || canDo("scans.read"))).map(([k, l]) => (
               <button
                 key={k}
                 role="tab"
@@ -110,7 +116,15 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
             {tab === "details" && <DetailsPanel key={r.id} r={r} onDeleted={onClose} />}
             {tab === "source" && <SourcePanel r={r} />}
             {tab === "security" && <SecurityPanel r={r} />}
-            {tab === "dependencies" && <DependencyPanel repoId={r.id} />}
+            {tab === "security" && <PushProtectionPanel r={r} />}
+            {tab === "security" && <FixPRSettingsPanel r={r} />}
+            {tab === "dependencies" && (
+              <div className="space-y-5">
+                <EndOfLifePanel repoId={r.id} />
+                <DependencyPanel repoId={r.id} />
+              </div>
+            )}
+            {tab === "material" && <RepositoryMaterialChanges repoId={r.id} />}
           </div>
         </div>
       )}
@@ -210,6 +224,7 @@ function DetailsPanel({ r, onDeleted }: { r: Repository; onDeleted: () => void }
           {!canEdit && <span className="self-center text-[12px] text-muted-foreground">Read-only: you are not an owner of this repository.</span>}
         </div>
         <MetadataSummary draft={orig} settings={settings.data} showNames />
+        <EndpointVerificationSection r={r} />
         <section aria-label="Scanning">
           <h3 className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">Scanning</h3>
           <dl className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">

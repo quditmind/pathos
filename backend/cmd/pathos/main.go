@@ -14,8 +14,11 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"pathos/internal/eol"
 	"pathos/internal/platform/sourcestore"
 	"pathos/internal/policy"
+	"pathos/internal/pushprotect"
+	"pathos/internal/releases"
 	"pathos/internal/reporting"
 	"pathos/internal/repos"
 	"pathos/internal/risk"
@@ -296,6 +299,8 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go reposSvc.RunImportWorkers(ctx, cfg.ImportConcurrency, host)
 	// SCM inventory for the unmanaged-asset report (daily per connection).
 	go reposSvc.RunInventory(ctx)
+	// Secret push protection: scan the commits of verified push webhooks.
+	go (&pushprotect.Service{DB: pool, Log: log, Diff: reposSvc.PushDiffReader}).RunBackground(ctx)
 	log.Info("repository import workers started", "concurrency", cfg.ImportConcurrency)
 	// Human Review: automatic queue ingestion, capture of the original
 	// scanner output before retention prunes it, overdue notifications.
@@ -305,6 +310,11 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	// scores.
 	go server.NewIntelService(server.Deps{DB: pool, Log: log, Offline: cfg.Offline}).RunBackground(ctx)
 	go risk.RunBackground(ctx, pool, log)
+	go releases.RunBackground(ctx, pool, log) // component (SBOM) policies, hourly
+	// Fix pull requests: record merged/closed state (findings are resolved by scans only).
+	go scans.RunFixPRTracker(ctx, pool, log, server.FixPRTarget(reposSvc), 15*time.Minute)
+	// End-of-life status changes with the calendar: recomputed daily.
+	go eol.RunBackground(ctx, pool, log)
 	go func() {
 		// OAuth tokens are refreshed before they expire; expired uploads
 		// are removed.

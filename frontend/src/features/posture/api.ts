@@ -141,6 +141,10 @@ export interface DepComponent {
   /** SLSA provenance of this version (direct dependencies are checked). */
   provenance?: "verified" | "unverified" | "none";
   provenance_source?: string;
+  /** End of life (endoflife.date) when the package is a tracked framework. */
+  eol_status?: "eol" | "approaching" | "supported";
+  eol_cycle?: string;
+  eol_date?: string | null;
 }
 
 export interface DependencyGraph {

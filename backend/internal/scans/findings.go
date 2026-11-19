@@ -84,10 +84,16 @@ type FindingView struct {
 	// Malicious: the package itself is malware (OSV MAL-*).
 	Malicious bool `json:"malicious"`
 	// IntroducedCommit is the commit of the scan that first detected it.
-	IntroducedCommit string     `json:"introduced_commit"`
-	RiskScore        *float64   `json:"risk_score"`
-	ApplicationID    *uuid.UUID `json:"application_id"`
-	ApplicationName  *string    `json:"application_name"`
+	IntroducedCommit string `json:"introduced_commit"`
+	// Introduction is the commit that introduced the code (git blame):
+	// status known, shallow_clone (unknown: no history), not_found or "".
+	IntroducedStatus    string     `json:"introduced_status"`
+	IntroducedCommitSHA string     `json:"introduced_commit_sha"`
+	IntroducedAuthor    string     `json:"introduced_author"`
+	IntroducedAt        *time.Time `json:"introduced_at"`
+	RiskScore           *float64   `json:"risk_score"`
+	ApplicationID       *uuid.UUID `json:"application_id"`
+	ApplicationName     *string    `json:"application_name"`
 	// Scan target the finding belongs to (nil: the repository's code).
 	TargetID     *uuid.UUID   `json:"scan_target_id"`
 	TargetKind   *string      `json:"scan_target_kind"`
@@ -115,7 +121,8 @@ const findingSelect = `
 	       hr.id, hr.review_key, hr.status, f.human_disposition, f.human_severity, ` + LifecycleExpr + `,
 	       f.cvss_version, f.cvss_vector, f.confidence, f.epss_score::float8, f.epss_percentile::float8, f.kev, f.kev_due_date,
 	       f.exploit_available, f.reachability, f.risk_score::float8, app.id, app.name, f.scan_target_id, stg.kind, stg.name, f.reachability_basis, f.suppression_rule_id, f.malicious,
-	       COALESCE((SELECT fj.commit_sha FROM scan_jobs fj WHERE fj.id = f.first_scan_job_id), '')
+	       COALESCE((SELECT fj.commit_sha FROM scan_jobs fj WHERE fj.id = f.first_scan_job_id), ''),
+	       f.introduced_status, f.introduced_commit_sha, f.introduced_author, f.introduced_at
 	FROM findings f JOIN repositories r ON r.id = f.repository_id LEFT JOIN users au ON au.id = f.assignee_id
 	LEFT JOIN human_reviews hr ON hr.finding_id = f.id LEFT JOIN applications app ON app.id = r.application_id
 	LEFT JOIN scan_targets stg ON stg.id = f.scan_target_id`
@@ -155,7 +162,8 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 		&f.Status, &f.FirstSeenAt, &f.LastSeenAt, &f.ResolvedAt, &f.AssigneeID, &f.AssigneeName, &f.SLADueAt, &f.Recurrence,
 		&f.AcceptedUntil, &f.AIStatus, &f.HumanReviewID, &f.HumanReviewKey, &f.HumanReviewState, &f.HumanDisposition, &f.HumanSeverity,
 		&f.Lifecycle, &f.CVSSVersion, &f.CVSSVector, &f.Confidence, &f.EPSS, &f.EPSSPercentile, &f.KEV, &f.KEVDueDate, &f.ExploitAvailable,
-		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.SuppressionRuleID, &f.Malicious, &f.IntroducedCommit)
+		&f.Reachability, &f.RiskScore, &f.ApplicationID, &f.ApplicationName, &f.TargetID, &f.TargetKind, &f.TargetName, &f.ReachabilityBasis, &f.SuppressionRuleID, &f.Malicious, &f.IntroducedCommit,
+		&f.IntroducedStatus, &f.IntroducedCommitSHA, &f.IntroducedAuthor, &f.IntroducedAt)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
@@ -164,7 +172,7 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 
 var (
 	findingStatuses   = []string{"open", "fixed", "false_positive", "accepted_risk", "in_progress", "needs_review"}
-	findingCategories = []string{"secrets", "sast", "sca", "iac", "container", "license", "dast", "other"}
+	findingCategories = scanners.FindingCategories
 )
 
 // findingsWhere builds the scoped WHERE clause shared by list and summary.
@@ -326,7 +334,7 @@ func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 	case "":
 	case "repository":
 		where = append(where, "f.scan_target_id IS NULL")
-	case "image", "url", "api", "sbom":
+	case "image", "url", "api", "sbom", "artifact", "endpoints":
 		add("f.scan_target_id IN (SELECT id FROM scan_targets WHERE kind = ?)", v)
 	default:
 		return nil, nil, httpx.BadRequest("invalid target_kind")

@@ -24,6 +24,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/insights"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
@@ -74,7 +75,11 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/imports", s.jobImports)
+	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/changes", s.jobChanges)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/events", s.workerEvents)
+	authed.HandleFunc("POST /internal/worker/v1/fix-lease", s.fixLease)
+	authed.HandleFunc("POST /internal/worker/v1/fix-jobs/{id}/result", s.fixResult)
+	s.registerWorkerProvenance(authed)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
 	return mux
@@ -230,6 +235,10 @@ type LeasedJob struct {
 	FullHistory bool       `json:"full_history"`
 	// Target replaces the repository source for scan-target jobs.
 	Target *LeasedTarget `json:"target,omitempty"`
+	// PreviousCommitSHA and CollectAuthors drive material change detection
+	// and developer attribution (package insights).
+	PreviousCommitSHA string `json:"previous_commit_sha,omitempty"`
+	CollectAuthors    bool   `json:"collect_authors,omitempty"`
 }
 
 // JobSource describes a snapshot to download instead of cloning.
@@ -353,6 +362,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		job.Credential = &cred
 	}
+	if job.Target == nil && job.Source == nil {
+		job.PreviousCommitSHA, job.CollectAuthors = insights.LeaseInfo(ctx, s.DB, wk.orgID, job.JobID)
+	}
 	if err := AddEvent(ctx, s.DB, wk.orgID, job.JobID, "leased", "", "info", "picked up by worker "+wk.Name); err == nil {
 		_ = updateProgress(ctx, s.DB, job.JobID)
 	}
@@ -417,6 +429,9 @@ type ResultUpload struct {
 	ContentType string `json:"content_type"`
 	// OutputGzip is the gzip-compressed raw tool output, base64 encoded.
 	OutputGzip string `json:"output_gzip"`
+	// Format is the import format of an imported report (never set by
+	// workers).
+	Format string `json:"-"`
 }
 
 const maxResultBody = 96 << 20

@@ -60,6 +60,10 @@ func (s *Service) retryScan(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.Conflict("only failed, partial or cancelled scans can be retried"))
 		return
 	}
+	if j.AssetType == "endpoints" && s.Offline {
+		s.fail(w, r, httpx.Conflict(errOfflineEndpoints))
+		return
+	}
 	var res EnqueueResult
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var err error

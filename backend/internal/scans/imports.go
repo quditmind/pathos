@@ -44,6 +44,13 @@ func (s *Service) registerImports(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/imports/results", s.importResults)
 	mux.HandleFunc("POST /api/v1/imports/sbom", s.importSBOM)
 	mux.HandleFunc("GET /api/v1/imports/history", s.importHistory)
+	mux.HandleFunc("GET /api/v1/imports/formats", s.importFormats)
+}
+
+// importFormats lists the supported result and SBOM formats.
+func (s *Service) importFormats(w http.ResponseWriter, r *http.Request) {
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"results": scanners.ImportFormats(), "sbom": []map[string]string{
+		{"id": "cyclonedx", "label": "CycloneDX JSON"}, {"id": "spdx", "label": "SPDX 2.x JSON"}}, "categories": scanners.ImportCategories})
 }
 
 // ImportJob is a recorded import.
@@ -188,8 +195,8 @@ func sum256(b []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
-// importResults imports a SARIF 2.1, Grype JSON or PATHOS findings JSON
-// report as a scan execution of the repository.
+// importResults imports a report in one of the supported formats
+// (scanners.ImportFormats) as a scan execution of the repository.
 func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	p := s.Principal(ctx)
@@ -203,10 +210,28 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// The format: named explicitly ("format") or detected from the content.
+	// A named format must agree with what the content is.
+	detected := scanners.DetectImportFormat(data)
+	format := strings.ToLower(strings.TrimSpace(form["format"]))
+	var meta scanners.ImportFormat
+	if format != "" {
+		var ok bool
+		if meta, ok = scanners.LookupImportFormat(format); !ok {
+			s.fail(w, r, httpx.BadRequest("unknown format; GET /api/v1/imports/formats lists the supported formats"))
+			return
+		}
+	} else if detected != "" {
+		format = detected
+		meta, _ = scanners.LookupImportFormat(format)
+	}
 	tool := strings.TrimSpace(form["tool"])
+	if tool == "" {
+		tool = meta.Tool // tool-specific formats name their tool
+	}
 	category := form["category"]
 	if category == "" {
-		category = "other"
+		category = firstNonEmpty(meta.Category, "other")
 	}
 	key, err := scanners.ImportKey(category, tool)
 	if err != nil {
@@ -224,13 +249,12 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	resolve, _ := strconv.ParseBool(form["resolve_missing"])
-	format := scanners.DetectImportFormat(data)
 	job := ImportJob{Kind: "results", Format: format, Tool: truncate(tool, 100), ScannerKey: &key, Category: category, RepositoryID: repoID,
 		FileName: name, SHA256: sum256(data), SizeBytes: int64(len(data)), CommitSHA: strings.ToLower(commit), ResolveMissing: resolve}
 	fail := func(msg string) {
 		job.Status, job.Error = "failed", msg
 		if job.Format == "" {
-			job.Format = "sarif"
+			job.Format = "unknown"
 		}
 		rec, err := s.recordImport(ctx, p, job)
 		if err != nil {
@@ -239,8 +263,20 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 		}
 		httpx.WriteJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": map[string]any{"code": "invalid_report", "message": msg}, "import": rec})
 	}
+	switch {
+	case format == "":
+		fail("unrecognised report: name its format (GET /api/v1/imports/formats lists them)")
+		return
+	case detected != "" && !scanners.SameImportParser(detected, format):
+		dm, _ := scanners.LookupImportFormat(detected)
+		fail(fmt.Sprintf("the file is %s, not %s", dm.Label, meta.Label))
+		return
+	}
+	// Secret values some tools report in plain text are removed before the
+	// report is parsed or stored (the recorded sha256 is the upload's).
+	data = scanners.SanitizeImport(format, data)
 	// Validate before anything is written.
-	parsed, err := scanners.Parse(key, data)
+	parsed, err := scanners.ParseImport(key, format, data)
 	if err != nil && len(parsed) == 0 {
 		fail(safeErr(err))
 		return
@@ -259,7 +295,7 @@ func (s *Service) importResults(w http.ResponseWriter, r *http.Request) {
 	zw := gzip.NewWriter(&gz)
 	_, _ = zw.Write(data)
 	_ = zw.Close()
-	n, ierr := s.Ingest(ctx, p.OrganizationID, jobID, ResultUpload{Scanner: key, Version: truncate(tool, 100), Status: "succeeded"}, gz.Bytes())
+	n, ierr := s.Ingest(ctx, p.OrganizationID, jobID, ResultUpload{Scanner: key, Version: truncate(tool, 100), Status: "succeeded", Format: format}, gz.Bytes())
 	fj, ferr := s.FinalizeWith(context.WithoutCancel(ctx), jobID, ierr != nil, errText(ierr), FinalizeOpts{NoAutoResolve: !resolve})
 	if ierr != nil || ferr != nil {
 		s.Log.Warn("import failed", "job_id", jobID, "ingest_err", ierr, "finalize_err", ferr)
@@ -415,6 +451,10 @@ func (s *Service) importHistory(w http.ResponseWriter, r *http.Request) {
 	if out == nil {
 		out = []ImportJob{}
 	}
+	results := []string{}
+	for _, f := range scanners.ImportFormats() {
+		results = append(results, f.ID)
+	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out, "formats": map[string][]string{
-		"results": {"sarif", "grype", "pathos"}, "sbom": {"cyclonedx", "spdx"}}, "categories": scanners.ImportCategories})
+		"results": results, "sbom": {"cyclonedx", "spdx"}}, "categories": scanners.ImportCategories})
 }

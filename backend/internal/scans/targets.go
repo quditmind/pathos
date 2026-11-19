@@ -47,7 +47,7 @@ import (
 
 const secretKindTarget = "scan_target"
 
-var targetKinds = []string{"image", "url", "api", "sbom", "artifact"}
+var targetKinds = []string{"image", "url", "api", "sbom", "artifact", "endpoints"}
 
 func (s *Service) registerTargets(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/scan-targets", s.listTargets)
@@ -66,6 +66,11 @@ type TargetConfig struct {
 	RateLimit int `json:"rate_limit,omitempty"`
 	// MinSeverity limits DAST templates to this severity and above.
 	MinSeverity string `json:"min_severity,omitempty"`
+	// Nuclei runs the non-intrusive exposure templates against declared
+	// endpoints (endpoints targets).
+	Nuclei bool `json:"nuclei,omitempty"`
+	// Signature verification of image and artifact targets (cosign).
+	Signature *SignatureConfig `json:"signature,omitempty"`
 }
 
 // ScanTarget is the API representation (secrets are never returned).
@@ -91,11 +96,15 @@ type ScanTarget struct {
 	AuthorizationNote string       `json:"authorization_note"`
 	Enabled           bool         `json:"enabled"`
 	Scanners          []string     `json:"scanners"`
-	CreatedBy         *string      `json:"created_by"`
-	CreatedAt         time.Time    `json:"created_at"`
-	UpdatedAt         time.Time    `json:"updated_at"`
-	OpenFindings      int          `json:"open_findings"`
-	LastScan          *struct {
+	// HasSignature: an artifact's signature or Sigstore bundle was uploaded.
+	HasSignature bool `json:"has_signature"`
+	// LastVerification is the latest signature verification evidence.
+	LastVerification *SignatureVerification `json:"last_verification"`
+	CreatedBy        *string                `json:"created_by"`
+	CreatedAt        time.Time              `json:"created_at"`
+	UpdatedAt        time.Time              `json:"updated_at"`
+	OpenFindings     int                    `json:"open_findings"`
+	LastScan         *struct {
 		ID         uuid.UUID  `json:"id"`
 		ScanKey    string     `json:"scan_key"`
 		Status     string     `json:"status"`
@@ -113,7 +122,11 @@ const targetSelect = `
 	       (SELECT count(*) FROM findings f WHERE f.scan_target_id = t.id AND f.status IN ('open', 'in_progress', 'needs_review')),
 	       (SELECT jsonb_build_object('id', j.id, 'scan_key', j.scan_key, 'status', j.status, 'queued_at', j.queued_at,
 	                                  'finished_at', j.finished_at, 'error', j.error)
-	          FROM scan_jobs j WHERE j.target_id = t.id ORDER BY j.queued_at DESC LIMIT 1)
+	          FROM scan_jobs j WHERE j.target_id = t.id ORDER BY j.queued_at DESC LIMIT 1),
+	       t.signature_material IS NOT NULL,
+	       (SELECT jsonb_build_object('status', sv.status, 'mode', sv.mode, 'required', sv.required, 'attestation_status', sv.attestation_status,
+	                                  'details', sv.details, 'scan_job_id', sv.scan_job_id, 'verified_at', sv.created_at)
+	          FROM signature_verifications sv WHERE sv.scan_target_id = t.id ORDER BY sv.created_at DESC LIMIT 1)
 	FROM scan_targets t
 	JOIN repositories r ON r.id = t.repository_id
 	LEFT JOIN users au ON au.id = t.authorized_by
@@ -121,11 +134,11 @@ const targetSelect = `
 
 func scanTarget(row pgx.Row) (ScanTarget, error) {
 	var t ScanTarget
-	var cfg, last []byte
+	var cfg, last, verification []byte
 	err := row.Scan(&t.ID, &t.RepositoryID, &t.RepositoryName, &t.Kind, &t.Name, &t.Reference, &t.EgressHost, &cfg,
 		&t.SBOMFormat, &t.SBOMComponents, &t.SBOMSize, &t.AuthType, &t.AuthUsername, &t.AuthHeaderName, &t.HasSecret,
 		&t.AuthorizedBy, &t.AuthorizedAt, &t.AuthorizationNote, &t.Enabled, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
-		&t.OpenFindings, &last)
+		&t.OpenFindings, &last, &t.HasSignature, &verification)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, errNotFound
 	}
@@ -136,7 +149,10 @@ func scanTarget(row pgx.Row) (ScanTarget, error) {
 	if len(last) > 0 {
 		_ = json.Unmarshal(last, &t.LastScan)
 	}
-	t.Scanners = scanners.TargetScanners[t.Kind]
+	if len(verification) > 0 {
+		_ = json.Unmarshal(verification, &t.LastVerification)
+	}
+	t.Scanners = targetScannerKeys(t.Kind, t.Config)
 	return t, nil
 }
 
@@ -254,7 +270,7 @@ func validConfig(c TargetConfig) error {
 	if c.MinSeverity != "" && !slices.Contains([]string{"low", "medium", "high", "critical"}, c.MinSeverity) {
 		return errors.New("min_severity must be low, medium, high or critical")
 	}
-	return nil
+	return validSignatureConfig(c.Signature)
 }
 
 // targetSecret is the encrypted credential of a target.
@@ -287,7 +303,7 @@ func (s *Service) listTargets(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := q.Get("kind"); v != "" {
 		if !slices.Contains(targetKinds, v) {
-			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom or artifact"))
+			s.fail(w, r, httpx.BadRequest("kind must be image, url, api, sbom, artifact or endpoints"))
 			return
 		}
 		args = append(args, v)
@@ -360,6 +376,9 @@ type targetRequest struct {
 	Authorized        bool    `json:"authorized"`
 	AuthorizationNote *string `json:"authorization_note"`
 	Enabled           *bool   `json:"enabled"`
+	// SignatureMaterial is an artifact's detached signature (base64) or
+	// Sigstore bundle (JSON); "" removes it.
+	SignatureMaterial *string `json:"signature_material"`
 }
 
 var headerNameRe = regexp.MustCompile(`^[A-Za-z0-9-]{1,100}$`)
@@ -427,8 +446,19 @@ func (f *targetFields) apply(req targetRequest) error {
 		}
 	case "sbom", "artifact":
 		f.egress = ""
+	case "endpoints":
+		return httpx.BadRequest("declared endpoints are verified from the repository's endpoint verification settings")
 	default:
 		return httpx.BadRequest("kind must be image, url, api, sbom or artifact")
+	}
+	if f.config.Signature != nil && f.config.Signature.Mode != "" && f.kind != "image" && f.kind != "artifact" {
+		return httpx.BadRequest("signature verification applies to container image and artifact targets")
+	}
+	if f.config.Signature != nil && f.config.Signature.Attestation != "" && f.kind != "image" {
+		return httpx.BadRequest("attestations are verified for container image targets")
+	}
+	if f.config.Nuclei {
+		return httpx.BadRequest("nuclei applies to declared endpoint verification only")
 	}
 	if err != nil {
 		return httpx.BadRequest(err.Error())
@@ -591,6 +621,20 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("upload a new target to change the file"))
 		return
 	}
+	if cur.Kind == "endpoints" {
+		s.fail(w, r, httpx.BadRequest("manage declared endpoint verification from the repository (PUT /api/v1/repositories/{id}/endpoint-verification)"))
+		return
+	}
+	if req.SignatureMaterial != nil && cur.Kind != "artifact" {
+		s.fail(w, r, httpx.BadRequest("a signature or Sigstore bundle can be attached to artifact targets only"))
+		return
+	}
+	if req.SignatureMaterial != nil {
+		if err := validSignatureMaterial(*req.SignatureMaterial); err != nil {
+			s.fail(w, r, httpx.BadRequest(err.Error()))
+			return
+		}
+	}
 	if err := f.apply(req); err != nil {
 		s.fail(w, r, err)
 		return
@@ -613,6 +657,15 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		cfg, _ := json.Marshal(f.config)
+		if req.SignatureMaterial != nil {
+			var mat *string
+			if v := strings.TrimSpace(*req.SignatureMaterial); v != "" {
+				mat = &v
+			}
+			if _, err := tx.Exec(ctx, `UPDATE scan_targets SET signature_material = $2 WHERE id = $1`, id, mat); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_targets SET name = $2, reference = $3, egress_host = $4, config = $5, api_spec = $6,
 			auth_type = $7, auth_username = $8, auth_header_name = $9, secret_id = $10, authorization_note = $11, enabled = $12,
 			authorized_by = CASE WHEN $13 THEN $14::uuid ELSE authorized_by END,
@@ -627,7 +680,8 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.update", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"name": f.name, "reference": f.reference, "enabled": f.enabled, "reauthorized": reauth,
-				"credential_changed": req.AuthSecret != nil}})
+				"credential_changed": req.AuthSecret != nil, "signature": signatureAudit(f.config.Signature),
+				"signature_material_changed": req.SignatureMaterial != nil}})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -776,6 +830,10 @@ func (s *Service) scanTarget(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if t.Kind == "endpoints" && s.Offline {
+		s.fail(w, r, httpx.Conflict(errOfflineEndpoints))
+		return
+	}
 	var res EnqueueResult
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var err error
@@ -826,7 +884,7 @@ func EnqueueTarget(ctx context.Context, q db.Querier, orgID, targetID uuid.UUID,
 	if archived != nil || !enabled {
 		return res, fmt.Errorf("%w: the target is disabled or its repository is archived", ErrNotScannable)
 	}
-	if (kind == "url" || kind == "api") && authorizedAt == nil {
+	if (kind == "url" || kind == "api" || kind == "endpoints") && authorizedAt == nil {
 		return res, fmt.Errorf("%w: testing this application has not been authorized", ErrScanPrerequisite)
 	}
 	if profileVersion == nil {
@@ -851,7 +909,13 @@ func EnqueueTarget(ctx context.Context, q db.Querier, orgID, targetID uuid.UUID,
 	if err := json.Unmarshal(snap, &m); err != nil {
 		return res, err
 	}
-	keys := scanners.TargetScanners[kind]
+	var tcfgRaw []byte
+	if err := q.QueryRow(ctx, `SELECT config FROM scan_targets WHERE id = $1`, targetID).Scan(&tcfgRaw); err != nil {
+		return res, err
+	}
+	var tcfg TargetConfig
+	_ = json.Unmarshal(tcfgRaw, &tcfg)
+	keys := targetScannerKeys(kind, tcfg)
 	sc := make([]map[string]any, 0, len(keys))
 	for _, k := range keys {
 		sc = append(sc, map[string]any{"key": k})
@@ -897,6 +961,11 @@ type LeasedTarget struct {
 	MinSeverity string `json:"min_severity,omitempty"`
 	// FileName of an artifact target.
 	FileName string `json:"file_name,omitempty"`
+	// Endpoints of an endpoints target.
+	Endpoints []LeasedEndpoint `json:"endpoints,omitempty"`
+	// Signature verification policy and an artifact's signature material.
+	Signature         *SignatureConfig `json:"signature,omitempty"`
+	SignatureMaterial string           `json:"signature_material,omitempty"`
 }
 
 // leaseTarget fills a leased job's target (with its decrypted credential)
@@ -904,11 +973,14 @@ type LeasedTarget struct {
 func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uuid.UUID, job *LeasedJob) error {
 	var t LeasedTarget
 	var cfgRaw []byte
-	var spec *string
+	var spec, material *string
 	var secretID *uuid.UUID
+	var repoID uuid.UUID
+	var scope []string
 	if err := tx.QueryRow(ctx, `SELECT kind, reference, api_spec, sbom_sha256, sbom_size, auth_type, auth_username, auth_header_name,
-		secret_id, config, artifact_name FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
-		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw, &t.FileName); err != nil {
+		secret_id, config, artifact_name, signature_material, repository_id, authorized_scope FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
+		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw, &t.FileName,
+			&material, &repoID, &scope); err != nil {
 		return err
 	}
 	if spec != nil {
@@ -917,6 +989,19 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	var cfg TargetConfig
 	_ = json.Unmarshal(cfgRaw, &cfg)
 	t.RateLimit, t.MinSeverity = cfg.RateLimit, cfg.MinSeverity
+	if cfg.Signature != nil && cfg.Signature.Mode != "" && (t.Kind == "image" || t.Kind == "artifact") {
+		t.Signature = cfg.Signature
+		if material != nil {
+			t.SignatureMaterial = *material
+		}
+	}
+	if t.Kind == "endpoints" {
+		eps, err := leaseEndpoints(ctx, tx, repoID, scope)
+		if err != nil {
+			return err
+		}
+		t.Endpoints = eps
+	}
 	if secretID != nil && t.AuthType != "none" {
 		if s.Secrets == nil {
 			return errors.New("credential storage is not configured")
@@ -945,7 +1030,7 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 		byKey[ps.Key] = ps
 	}
 	job.Scanners = nil
-	for _, k := range scanners.TargetScanners[t.Kind] {
+	for _, k := range targetScannerKeys(t.Kind, cfg) {
 		ps, ok := byKey[k]
 		if !ok {
 			ps = ProfileScanner{Key: k}
@@ -997,7 +1082,11 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if part.FormName() != "file" {
-			b, _ := io.ReadAll(io.LimitReader(part, 4096))
+			limit := int64(4096)
+			if part.FormName() == "signature" {
+				limit = maxSignatureMaterial + 1
+			}
+			b, _ := io.ReadAll(io.LimitReader(part, limit))
 			form[part.FormName()] = strings.TrimSpace(string(b))
 			continue
 		}
@@ -1036,6 +1125,14 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	if fileName == "" || fileName == "." || fileName == "/" {
 		fileName = "artifact.bin"
 	}
+	var material *string
+	if v := form["signature"]; v != "" {
+		if err := validSignatureMaterial(v); err != nil {
+			s.fail(w, r, httpx.BadRequest(err.Error()))
+			return
+		}
+		material = &v
+	}
 	// Malware scan (clamd) of the uploaded file, when configured.
 	malware := "not_configured"
 	if s.ClamAVAddress != "" {
@@ -1073,14 +1170,14 @@ func (s *Service) createArtifactTarget(w http.ResponseWriter, r *http.Request) {
 	digest := hex.EncodeToString(h.Sum(nil))
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO scan_targets (id, organization_id, repository_id, kind, name, reference, artifact_name, artifact_key,
-			artifact_gzip, sbom_sha256, sbom_size, created_by) VALUES ($1, $2, $3, 'artifact', $4, $5, $6, $7, $8, $9, $10, $11)`,
-			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID); err != nil {
+			artifact_gzip, sbom_sha256, sbom_size, created_by, signature_material) VALUES ($1, $2, $3, 'artifact', $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID, material); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"kind": "artifact", "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID,
-				"malware_scan": malware}})
+				"malware_scan": malware, "signature_attached": material != nil}})
 	})
 	if err != nil {
 		if key != nil && s.Artifacts != nil {

@@ -95,15 +95,26 @@ A repository belongs to at most one application; an application can have many re
 
 15. [Posture](posture.md): application posture, coverage, unmanaged assets, attack paths, blast radius
 16. [Dashboards and reporting](dashboards.md): dashboard, executive overview, reports, KPIs, CSV export
-17. [Supply chain and pull requests](supply-chain.md): SBOM export, package health, malicious packages, pull request checks
-18. [Security policies and compliance](policies-and-compliance.md): SLAs, license policy, security policies, compliance frameworks
-19. [Integrations and API tokens](reporting-and-integrations.md): webhooks, Jira, ServiceNow, REST API tokens
+17. [Material changes and developer insights](developer-insights.md): security-material changes between scans, opt-in developer attribution
+
+**Supply chain and governance**
+
+18. [Supply chain and pull requests](supply-chain.md): SBOM export, package health, end of life, signatures, malicious packages, pull request checks, fix pull requests
+19. [Application versions, VEX and component policies](releases-and-vex.md): release snapshots, VEX import and export, portfolio search, component policies
+20. [Secret push protection](secret-push-protection.md): pre-commit and pre-receive hooks, push-event secret alerts
+21. [Security policies and compliance](policies-and-compliance.md): SLAs, license policy, security policies, compliance frameworks
+
+**Integrations and developer tools**
+
+22. [Integrations and API tokens](reporting-and-integrations.md): webhooks, Jira, ServiceNow, REST API tokens
+23. [CI/CD integration](ci-cd-integration.md): the `pathos` CLI, GitHub Action, GitLab, Azure Pipelines and Jenkins templates, security gate
+24. [IDE integration (VS Code)](ide-integration-vscode.md): findings in the editor, triage from VS Code
 
 **AI and administration**
 
-20. [AI features](ai-analyst.md): AI settings, AI reviews, MCP, AI Security Analyst, AI reports, AI usage
-21. [Administration](administration.md): users and roles, organization, notifications, workers, audit log
-22. [Troubleshooting and FAQ](troubleshooting.md)
+25. [AI features](ai-analyst.md): AI settings, AI reviews, MCP, AI Security Analyst, AI reports, AI usage
+26. [Administration](administration.md): users and roles, organization, notifications, workers, audit log
+27. [Troubleshooting and FAQ](troubleshooting.md)
 
 The [API reference](../api-reference/index.md) documents the endpoints behind every screen.
 

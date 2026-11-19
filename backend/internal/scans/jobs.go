@@ -31,6 +31,7 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/v1/scans", s.bulkScan)
 	mux.HandleFunc("GET /api/v1/scans", s.listJobs)
 	mux.HandleFunc("GET /api/v1/scans/{id}", s.getJob)
+	mux.HandleFunc("GET /api/v1/scans/{id}/gate", s.scanGate)
 	mux.HandleFunc("POST /api/v1/scans/{id}/cancel", s.cancelJob)
 	s.registerExecutions(mux)
 	mux.HandleFunc("GET /api/v1/scans/{id}/results/{scanner}/artifact", s.downloadArtifact)
@@ -414,6 +415,9 @@ type Job struct {
 	FindingsTotal  int            `json:"findings_total"`
 	Severity       map[string]int `json:"severity"` // distinct findings observed in this execution
 	ConfigSnapshot map[string]any `json:"config_snapshot,omitempty"`
+	// ChangeSummary (push and merge scans): new and fixed findings since
+	// the previous scanned commit.
+	ChangeSummary *ChangeSummary `json:"change_summary,omitempty"`
 }
 
 // Result is one scanner's outcome within a job.
@@ -437,7 +441,8 @@ const jobSelect = `
 	       COALESCE((SELECT jsonb_object_agg(x.severity, x.n) FROM (
 	         SELECT f.severity, count(DISTINCT f.id) AS n FROM finding_occurrences o
 	         JOIN scan_results sr ON sr.id = o.scan_result_id JOIN findings f ON f.id = o.finding_id
-	         WHERE sr.scan_job_id = j.id GROUP BY f.severity) x), '{}'::jsonb)
+	         WHERE sr.scan_job_id = j.id GROUP BY f.severity) x), '{}'::jsonb),
+	       j.change_summary
 	FROM scan_jobs j
 	JOIN repositories r ON r.id = j.repository_id
 	LEFT JOIN countries co ON co.id = r.country_id
@@ -449,13 +454,17 @@ const jobSelect = `
 
 func scanJob(row pgx.Row) (Job, error) {
 	var j Job
+	var change []byte
 	err := row.Scan(&j.ID, &j.RepositoryID, &j.RepositoryName, &j.RepositoryKey, &j.ProfileName, &j.ProfileVersion, &j.Trigger, &j.Priority,
 		&j.Status, &j.Ref, &j.CommitSHA, &j.Attempts, &j.WorkerName, &j.RequestedBy, &j.Error, &j.FindingsNew,
 		&j.FindingsFixed, &j.GateFailed, &j.QueuedAt, &j.StartedAt, &j.FinishedAt,
 		&j.ScanKey, &j.Name, &j.ProfileID, &j.Progress, &j.Stage, &j.RetryOf, &j.RetryCount, &j.ScheduleID, &j.ScheduleRunID,
-		&j.SnapshotID, &j.AssetType, &j.TargetID, &j.TargetName, &j.TargetRef, &j.DurationMS, &j.Severity)
+		&j.SnapshotID, &j.AssetType, &j.TargetID, &j.TargetName, &j.TargetRef, &j.DurationMS, &j.Severity, &change)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return j, errNotFound
+	}
+	if len(change) > 0 {
+		_ = json.Unmarshal(change, &j.ChangeSummary)
 	}
 	for _, k := range []string{"critical", "high", "medium", "low", "info"} {
 		if _, ok := j.Severity[k]; !ok {

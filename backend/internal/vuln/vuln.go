@@ -735,8 +735,16 @@ func (s *Service) putLicenses(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		// Licence findings follow the new policy at once: new violations
+		// are opened, findings for licences no longer denied or flagged
+		// are fixed (never deleted), severities follow the decision.
+		violations, resolved, err := SyncLicenseFindings(ctx, tx, p.OrganizationID, nil, nil)
+		if err != nil {
+			return err
+		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "license_policy.update", TargetType: "organization", TargetID: p.OrganizationID.String(), Metadata: map[string]any{"entries": len(req.Items)}})
+			Action: "license_policy.update", TargetType: "organization", TargetID: p.OrganizationID.String(),
+			Metadata: map[string]any{"entries": len(req.Items), "violations": violations, "findings_resolved": resolved}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

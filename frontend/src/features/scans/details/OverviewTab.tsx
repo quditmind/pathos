@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { Download } from "lucide-react";
-import type { ScanJob } from "@/api/types";
+import type { ScanChangeSummary, ScanJob } from "@/api/types";
 import { Alert, Badge, Card, Table, Td, Th } from "@/components/ui/primitives";
 import { JobStatusPill, SeverityBadge, duration } from "@/components/data/Severity";
 import { formatDateTime } from "@/lib/utils";
@@ -16,11 +16,57 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Push and merge scans: what changed since the previous scanned commit. */
+export function ChangeSummaryCard({ c }: { c: ScanChangeSummary }) {
+  const counts = (m: ScanChangeSummary["new"]) =>
+    severities.filter((s) => (m[s] ?? 0) > 0).map((s) => (
+      <span key={s} className="inline-flex items-center gap-1">
+        <SeverityBadge value={s} /> <span className="tabular">{m[s]}</span>
+      </span>
+    ));
+  return (
+    <Card className="p-4" data-testid="change-summary">
+      <h2 className="mb-1 text-[13px] font-semibold">Changes since the previous scanned commit</h2>
+      <p className="mb-3 text-[12px] text-muted-foreground">
+        {c.base_commit ? (
+          <>
+            <span className="font-mono">{c.base_commit.slice(0, 12)}</span>
+            {c.base_scan_id && (
+              <>
+                {" "}(<Link to="/scans/$id" params={{ id: c.base_scan_id }} className="text-primary hover:underline">previous scan</Link>)
+              </>
+            )}
+          </>
+        ) : (
+          "No earlier scan of this repository"
+        )}{" "}
+        → <span className="font-mono">{c.head_commit ? c.head_commit.slice(0, 12) : "this scan"}</span>
+      </p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <div className="text-[12px] text-muted-foreground">New findings</div>
+          <div className="tabular text-lg font-semibold text-danger">+{c.new_total}</div>
+          <div className="mt-1 flex flex-wrap gap-2">{counts(c.new)}</div>
+        </div>
+        <div>
+          <div className="text-[12px] text-muted-foreground">Fixed findings</div>
+          <div className="tabular text-lg font-semibold text-success">−{c.fixed_total}</div>
+          <div className="mt-1 flex flex-wrap gap-2">{counts(c.fixed)}</div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 export function OverviewTab({ job: j }: { job: ScanJob }) {
   return (
     <div className="space-y-4">
       {j.error && <Alert tone={j.status === "partial" ? "warning" : "danger"}>{j.error}</Alert>}
-      {j.gate_failed && <Alert>Security gate failed: new critical findings were introduced.</Alert>}
+      {j.gate_failed && (
+        <Alert>
+          Security gate failed: new critical findings, a blocking security policy{j.asset_type === "image" || j.asset_type === "artifact" ? " or a required signature that was not verified" : ""}. The Logs tab names the reason.
+        </Alert>
+      )}
 
       <Card className="p-4">
         <div className="mb-4 flex flex-wrap items-center gap-4">
@@ -92,6 +138,8 @@ export function OverviewTab({ job: j }: { job: ScanJob }) {
           </div>
         </div>
       </Card>
+
+      {j.change_summary && <ChangeSummaryCard c={j.change_summary} />}
 
       {!!j.results?.length && (
         <Card>

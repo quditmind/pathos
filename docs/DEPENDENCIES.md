@@ -20,7 +20,7 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 | PATHOS runtime base | `gcr.io/distroless/static-debian13:nonroot` | Apache-2.0 | API, jobs, scheduler and migrate |
 | Mailpit (profile `dev`) | `axllent/mailpit:v1.33.1` | MIT | SMTP sink for development |
 | SeaweedFS (profile `objectstore`) | `chrislusf/seaweedfs:4.51` | Apache-2.0 | Optional S3-compatible store (instead of MinIO, ARCHITECTURE D1) |
-| ClamAV (profile `clamav`) | `clamav/clamav:1.5` | GPL-2.0 | Optional malware scanning of uploads |
+| ClamAV (profile `clamav`) | `clamav/clamav:1.5` | GPL-2.0 | Optional malware scanning of uploads and (the `clamav` scanner) of repository content. A separate service; PATHOS talks to it over the clamd network protocol and does not link or distribute it |
 | Ollama (profile `ollama`) | `ollama/ollama:0.40.13` | MIT | Optional local model server |
 | Grafana otel-lgtm (profile `observability`) | `grafana/otel-lgtm:0.39.0` | Apache-2.0 | Local observability backend, evaluation only |
 
@@ -28,10 +28,19 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 
 | Image | Used for |
 |---|---|
-| `golang:1.27.4-alpine` | The PATHOS binaries, the worker agent, and Gitleaks, Nuclei and actionlint built from source |
+| `golang:1.27.4-alpine` | The PATHOS binaries, the worker agent, and Gitleaks, Nuclei, actionlint and cosign built from source |
 | `node:26.13.1-alpine` | The frontend build (inside the proxy image) |
 | `debian:trixie-slim` | Downloading and verifying the scanner binaries |
 | `python:3.13-slim-trixie` | The `worker-core` runtime (Checkov needs Python); `pip` is removed after installing Checkov |
+
+## Optional Git hooks (`integrations/`)
+
+Not shipped in any image; installed by repository owners or Git server administrators (see the user guide page *Secret push protection*).
+
+| Tool | Version | License | Used by |
+|---|---|---|---|
+| Gitleaks | 8.30.1 (binary, `zricethezav/gitleaks:v8.30.1` image, or the upstream pre-commit hook at tag `v8.30.1`) | MIT | `integrations/pre-commit/` and `integrations/pre-receive/` |
+| pre-commit | any | MIT | Optional framework for `integrations/pre-commit/` |
 
 ## Scanners in worker-core
 
@@ -48,6 +57,10 @@ Dependabot proposes weekly updates. When you change a pin, update this page in t
 | actionlint | 1.7.12 | MIT | Built from its Go module |
 | Nuclei | 3.11.1 | MIT | Built from its Go module with patched dependencies (`kin-openapi`, `go-git`, `go-jose`, `grpc`, `x/crypto`, `x/net`, `x/text`) |
 | Nuclei templates | 10.5.1 | MIT | Source archive, SHA-256 pinned; a reviewed subset only ([SECURITY.md](SECURITY.md#scan-targets)) |
+| File licences (`licensecheck`), binary hardening (`binary-hardening`), ClamAV client (`clamav`) | PATHOS version | Apache-2.0 | Built into the worker agent (`pathos-worker`): no additional binary |
+| cosign (Sigstore) | 3.1.4 | Apache-2.0 | Built from its Go module; the module hash (`h1:d3UHS8oJebMf6XUhPtWv9weU1ZYRyXq9HJ7QPccmqvY=`, Go checksum database) is checked before building. Signature and attestation verification of image and artifact targets |
+
+Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 
 The licensing review of all catalogued scanners is in [SCANNER_CATALOG.md](SCANNER_CATALOG.md).
 
@@ -70,6 +83,7 @@ Direct dependencies from `backend/go.mod`:
 | `go.opentelemetry.io/otel` (API, SDK, metric, trace, OTLP/HTTP exporters) | v1.47.0 | Traces and metrics | Apache-2.0 |
 | `go.opentelemetry.io/contrib` (`otelhttp`, `runtime`) | v0.72.0 | HTTP and runtime instrumentation | Apache-2.0 |
 | `go.yaml.in/yaml/v3` | v3.0.6 | Scanner plugin definitions, custom rules, OpenAPI documents | MIT and Apache-2.0 |
+| `github.com/google/licensecheck` | v0.3.1 | File-level licence detection in the worker (`licensecheck` scanner); embeds the SPDX licence texts it matches | BSD-3-Clause |
 
 Notable indirect modules: `github.com/go-jose/go-jose/v4` v4.1.6 (OIDC). The OpenAI, xAI and self-hosted providers, the MCP server and the SCM clients use the standard library only.
 
@@ -95,6 +109,18 @@ From `frontend/package.json`:
 | `vitest`, `jsdom`, `@testing-library/*` | 5.1.0, 31.0.1, … | Unit tests | MIT |
 
 End-to-end tests use `@playwright/test` 1.65.1 (Apache-2.0), in `e2e/`.
+
+## VS Code extension (ide/vscode)
+
+The extension has no runtime dependencies (it uses the `fetch` built into VS Code's Node.js); the packages below are build and test tools from `ide/vscode/package.json` and are not shipped in the `.vsix`.
+
+| Package | Version | Purpose | License |
+|---|---|---|---|
+| `typescript` | 6.0.3 | Language | Apache-2.0 |
+| `@types/vscode` | 1.90.0 | VS Code API types (matches `engines.vscode`) | MIT |
+| `@types/node` | 22.20.5 | Node.js types | MIT |
+| `vitest` | 5.1.0 | Unit tests | MIT |
+| `@vscode/vsce` | 4.1.0 | Packaging the `.vsix` | MIT (its optional `@vscode/vsce-sign` helper, used only for Marketplace signing, is under Microsoft's own licence) |
 
 ## Test and security tooling (not shipped)
 

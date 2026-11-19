@@ -26,7 +26,7 @@ Filters are kept in the page address, so a filtered view can be bookmarked or sh
 | Concept | Values |
 |---|---|
 | Severity | Critical, High, Medium, Low, Info. PATHOS never changes it; a Human Eye reviewer records an *assessed* severity separately |
-| Type | Secrets, Code (SAST), Dependencies (SCA), Infrastructure as code, Container, License, Web and API (DAST), Other |
+| Type | Secrets, Code (SAST), Dependencies (SCA), Infrastructure as code, Container, License, Web and API (DAST), Malware, Framework configuration, Binary hardening, Other |
 | Risk | Contextual risk score 0–100, see [Contextual risk](vulnerability-intelligence.md#contextual-risk) |
 
 ## Finding details
@@ -40,6 +40,12 @@ Select a finding to open its details panel:
 - the Human Eye review and its outcome, if there is one
 - type, rule, CVE (links to the [vulnerability page](vulnerability-intelligence.md#vulnerability-details)), CWE, package, **Fixed in**, location, **Detected by**, first and last seen, **First detected at commit**, reachability, and whether a suppression rule decided it
 - the security policies it violates, linked tickets, related findings, the code snippet, **AI review** and **Sightings** (every scan that saw it)
+
+### Where a finding came from
+
+- **First detected at commit**: the commit of the first scan that found the finding.
+- **Introduced by** (code, secret and IaC findings): the commit that introduced the line, with the author's name and date, from `git blame` of the scanned commit. Repositories cloned without history show **Unknown (shallow clone)**; enable full history to record it. See [Commit-based tracking](security-scanning.md#commit-based-tracking).
+- Two further types exist besides scanner results: **End of life** (a runtime, framework or image no longer supported, see [End of life](supply-chain.md#end-of-life)) and **Supply chain (signatures)** (a required signature that could not be verified, see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification)).
 
 ## Status and lifecycle
 

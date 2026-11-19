@@ -52,15 +52,20 @@ Scores are recomputed in the background (jobs role) whenever an input changes: i
 | `kev` | CISA Known Exploited Vulnerabilities catalog | On, daily |
 | `osv` | OSV vulnerability records (descriptions, references, vendor CVSS, fixed versions) | On, daily; see [OSV feed](#osv-feed) |
 | `depsdev` | deps.dev package health; see [package health](supply-chain.md#package-health) | **Off**: it sends package names to `api.deps.dev` |
+| `endoflife` | endoflife.date release cycles and end-of-life dates; see [endoflife.date feed](#endoflifedate-feed) | **Off**: an administrator opts in (it sends nothing but the download request) |
 
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `GET` | `/api/v1/intel/feeds` | `findings.read` | Every feed: enabled, URL, interval, record count, last run, last success, next due |
 | `PUT` | `/api/v1/intel/feeds/{feed}` | `settings.manage` (organization-wide) | `{ enabled, url (https), interval_hours (1–720) }`; each field optional |
 | `POST` | `/api/v1/intel/feeds/{feed}/run` | `settings.manage` (organization-wide) | Download now (`409` while a run is in progress, `502 feed_failed` on download errors) |
-| `POST` | `/api/v1/intel/feeds/{feed}/import` | `settings.manage` (organization-wide) | Offline import: multipart field `file`, at most 64 MiB (EPSS CSV or CSV.gz, KEV JSON, OSV JSON or zip). `422 invalid_feed` with the reason when the file cannot be parsed; `409` while a run is in progress |
+| `POST` | `/api/v1/intel/feeds/{feed}/import` | `settings.manage` (organization-wide) | Offline import: multipart field `file`, at most 64 MiB (EPSS CSV or CSV.gz, KEV JSON, OSV JSON or zip, endoflife.date API v1 JSON). `422 invalid_feed` with the reason when the file cannot be parsed; `409` while a run is in progress |
 
 An unknown `{feed}` returns `404`. The jobs role downloads each enabled feed when its interval has passed, and retries an hour after a failure. Each import replaces the feed's data atomically and is recorded in `intel_feed_runs` and the audit log. With `PATHOS_OFFLINE=true` nothing is downloaded; import the files instead.
+
+### endoflife.date feed
+
+Feed key `endoflife`, default URL `https://endoflife.date/api/v1/products/full` (the API v1 document with every product and its release cycles), daily, **disabled by default**. The file import accepts the same document (or a single-product document from `/api/v1/products/{name}`). After each successful load every repository's [end-of-life status](supply-chain.md#end-of-life) is recomputed. `records` is the number of products.
 
 ### OSV feed
 

@@ -1,0 +1,30 @@
+# PATHOS secret push protection: pre-commit hook definitions.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+#
+# pre-commit reads this manifest from the ROOT of a hook repository. Mirror
+# the integrations/pre-commit directory as its own Git repository (see
+# README.md), or use the upstream Gitleaks hook with the PATHOS config as
+# shown in pre-commit-config.example.yaml.
+#
+# Both hooks check only the staged changes, redact secret values in their
+# output and read .gitleaks.toml (the PATHOS baseline, pathos-gitleaks.toml)
+# from the repository root when it exists.
+
+# Uses a Gitleaks binary on PATH (v8.30.1 or later, the version the PATHOS
+# worker image runs).
+- id: pathos-gitleaks
+  name: PATHOS secret check (Gitleaks)
+  description: Block commits that add secrets (Gitleaks on the staged changes, values redacted).
+  entry: gitleaks git --pre-commit --staged --redact --no-banner --verbose
+  language: system
+  pass_filenames: false
+  stages: [pre-commit]
+
+# Runs the official Gitleaks container image, pinned by tag and digest; needs Docker only.
+- id: pathos-gitleaks-docker
+  name: PATHOS secret check (Gitleaks, Docker)
+  description: Same as pathos-gitleaks, using the official zricethezav/gitleaks:v8.30.1 image (pinned by digest).
+  entry: zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f git --pre-commit --staged --redact --no-banner --verbose
+  language: docker_image
+  pass_filenames: false
+  stages: [pre-commit]

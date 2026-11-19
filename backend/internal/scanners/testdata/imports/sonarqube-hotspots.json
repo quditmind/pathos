@@ -1,0 +1,17 @@
+{
+  "paging": { "pageIndex": 1, "pageSize": 100, "total": 1 },
+  "hotspots": [
+    {
+      "key": "AYx2-hs-0001",
+      "component": "acme_orders:src/main/resources/application.properties",
+      "project": "acme_orders",
+      "securityCategory": "auth",
+      "vulnerabilityProbability": "HIGH",
+      "status": "TO_REVIEW",
+      "line": 7,
+      "message": "Make sure this database password gets changed and removed from the code.",
+      "ruleKey": "java:S2068"
+    }
+  ],
+  "components": []
+}

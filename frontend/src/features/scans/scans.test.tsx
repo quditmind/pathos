@@ -135,12 +135,12 @@ describe("scan details", () => {
     "GET /api/v1/scans/j1/logs": () => ({ items: [], sources: [], next_after_id: null }),
   });
 
-  it("has exactly six tabs and follows the URL", async () => {
+  it("has exactly seven tabs and follows the URL", async () => {
     mockApi(routes(job()));
     const { router } = renderApp(<ScanDetails id="j1" />, { permissions: ["scans.read", "scans.compare", "findings.read"], path: "/?tab=stages" });
     const tabs = await screen.findAllByRole("tab");
-    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Findings", "Execution Logs", "Stages", "Configuration", "History"]);
-    expect(detailTabs).toHaveLength(6);
+    expect(tabs.map((t) => t.textContent)).toEqual(["Overview", "Findings", "Material changes", "Execution Logs", "Stages", "Configuration", "History"]);
+    expect(detailTabs).toHaveLength(7);
     expect(screen.getByRole("tab", { name: "Stages" })).toHaveAttribute("aria-selected", "true");
     expect(await screen.findByText("Fetch source")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("tab", { name: "History" }));

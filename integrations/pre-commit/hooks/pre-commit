@@ -1,0 +1,66 @@
+#!/bin/sh
+# PATHOS secret check: a plain Git pre-commit hook (no pre-commit framework).
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+#
+# Install in one clone:   cp pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+# Install for all clones: git config --global core.hooksPath ~/.config/git/hooks  (and copy it there)
+#
+# Runs Gitleaks on the staged changes only. Secret values are redacted in the
+# output. Configuration, in order: $PATHOS_GITLEAKS_CONFIG, .gitleaks.toml in
+# the repository root, otherwise the Gitleaks defaults.
+#
+# Requires gitleaks v8.19 or later on PATH (PATHOS runs v8.30.1), or Docker
+# (set PATHOS_GITLEAKS_DOCKER=1 to use the pinned official image).
+#
+# Bypass for one commit: git commit --no-verify. Your organization's policy
+# may forbid this; the server-side checks (pre-receive hook, PATHOS push
+# scanning and scheduled scans) still see the commit.
+set -u
+
+GITLEAKS_IMAGE="zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f"
+root=$(git rev-parse --show-toplevel) || exit 1
+cd "$root" || exit 1
+
+config=""
+if [ -n "${PATHOS_GITLEAKS_CONFIG:-}" ]; then
+  config="$PATHOS_GITLEAKS_CONFIG"
+elif [ -f .gitleaks.toml ]; then
+  config=".gitleaks.toml"
+fi
+
+if [ "${PATHOS_GITLEAKS_DOCKER:-0}" = "1" ]; then
+  set -- docker run --rm -v "$root:/src" -w /src "$GITLEAKS_IMAGE"
+elif command -v gitleaks >/dev/null 2>&1; then
+  set -- gitleaks
+else
+  echo "PATHOS secret check: gitleaks is not installed." >&2
+  echo "  Install gitleaks v8.30.1 (https://github.com/gitleaks/gitleaks/releases) or set PATHOS_GITLEAKS_DOCKER=1." >&2
+  echo "  The commit was NOT checked for secrets." >&2
+  # Fail closed unless the user opted out explicitly.
+  [ "${PATHOS_GITLEAKS_OPTIONAL:-0}" = "1" ] && exit 0
+  exit 1
+fi
+
+if [ -n "$config" ]; then
+  set -- "$@" git --pre-commit --staged --redact --no-banner --verbose --config "$config"
+else
+  set -- "$@" git --pre-commit --staged --redact --no-banner --verbose
+fi
+
+"$@"
+status=$?
+if [ "$status" -eq 1 ]; then
+  cat >&2 <<'EOF'
+
+PATHOS secret check: the staged changes contain what looks like a secret (values redacted above).
+  - Remove it from the change (git restore --staged <file>, edit, git add) and load it from a secret store instead.
+  - If it was ever valid, revoke and rotate it: removing it from the commit does not un-share it.
+  - A false positive? Add a narrow allowlist entry to .gitleaks.toml or an inline "gitleaks:allow" comment.
+EOF
+  exit 1
+fi
+if [ "$status" -ne 0 ]; then
+  echo "PATHOS secret check: gitleaks failed (exit $status); the commit was NOT checked." >&2
+  exit "$status"
+fi
+exit 0

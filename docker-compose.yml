@@ -344,8 +344,12 @@ services:
       HTTP_PROXY: http://egress:3128
       https_proxy: http://egress:3128
       http_proxy: http://egress:3128
-      NO_PROXY: api
-      no_proxy: api
+      NO_PROXY: api,clamav
+      no_proxy: api,clamav
+      # Malware scanning of repository content (the "clamav" scanner in a
+      # scan profile): COMPOSE_PROFILES=clamav and
+      # PATHOS_CLAMAV_ADDRESS=clamav:3310. Empty: the scanner is skipped.
+      PATHOS_CLAMAV_ADDRESS: ${PATHOS_CLAMAV_ADDRESS:-}
     tmpfs:
       - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001
       - /tmp:size=1g,mode=1777
@@ -355,7 +359,8 @@ services:
       - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
       - ./workers/rules-extra:/rules:ro
     # scan: egress proxy only. worker-api: the API's worker listener only.
-    networks: [scan, worker-api]
+    # malware: clamd only (no other service is on that network).
+    networks: [scan, worker-api, malware]
     mem_limit: ${PATHOS_WORKER_MEMORY:-4g}
     pids_limit: 1024
     depends_on:
@@ -420,8 +425,9 @@ services:
     volumes:
       - clamav_db:/var/lib/clamav
     # data: reachable by api (build artifacts) and jobs (source archives).
+    # malware: reachable by worker-core (repository content scans).
     # edge: signature downloads.
-    networks: [data, edge]
+    networks: [data, edge, malware]
     security_opt: ["no-new-privileges:true"]
     healthcheck:
       test: ["CMD", "clamdcheck.sh"]
@@ -470,6 +476,10 @@ networks:
   worker-api:
     internal: true
   scan:
+    internal: true
+  # worker-core <-> clamav only: workers stream repository files to clamd
+  # without joining the data network (PostgreSQL, Redis, API internals).
+  malware:
     internal: true
 
 volumes:

@@ -1,0 +1,80 @@
+# PATHOS GitLab CI template: import results, start a scan and enforce the
+# security gate with the PATHOS CLI. Documented in
+# docs/user-guide/ci-cd-integration.md.
+#
+# Include it (pin the tag) and set the variables:
+#
+#   include:
+#     - remote: https://raw.githubusercontent.com/quditmind/pathos/v1.1.0/integrations/gitlab/pathos.gitlab-ci.yml
+#
+#   variables:
+#     PATHOS_URL: https://pathos.example.com
+#     PATHOS_REPOSITORY: acme/payments-api
+#     PATHOS_CLI_VERSION: "1.1.0"
+#   # PATHOS_TOKEN: a masked, protected CI/CD variable (Settings > CI/CD > Variables)
+#
+#   pathos-import:
+#     extends: .pathos-import
+#     needs: [semgrep]            # the job that produced the report
+#     variables:
+#       PATHOS_IMPORT_FILE: semgrep.json
+#
+#   pathos-gate:
+#     extends: .pathos-gate
+#     needs: [pathos-import]
+#     variables:
+#       PATHOS_FAIL_ON: high
+
+variables:
+  PATHOS_CLI_REPO: quditmind/pathos
+  PATHOS_FAIL_ON: "none"
+  PATHOS_SCOPE: "new"
+
+.pathos-cli:
+  image: alpine:3.22
+  before_script:
+    - apk add --no-cache curl ca-certificates >/dev/null
+    - |
+      set -eu
+      test -n "${PATHOS_CLI_VERSION:-}" || { echo "set PATHOS_CLI_VERSION"; exit 2; }
+      v="${PATHOS_CLI_VERSION#v}"
+      case "$(uname -m)" in x86_64) arch=amd64 ;; aarch64) arch=arm64 ;; *) echo "unsupported architecture"; exit 2 ;; esac
+      asset="pathos_${v}_linux_${arch}"
+      base="https://github.com/${PATHOS_CLI_REPO}/releases/download/v${v}"
+      curl -fsSL --proto '=https' -o "$asset" "$base/$asset"
+      curl -fsSL --proto '=https' -o checksums.txt "$base/checksums.txt"
+      grep " ${asset}\$" checksums.txt | sha256sum -c -
+      install -m 0755 "$asset" /usr/local/bin/pathos
+      rm -f "$asset" checksums.txt
+
+# Import a results file (any supported format) into PATHOS.
+.pathos-import:
+  extends: .pathos-cli
+  variables:
+    PATHOS_IMPORT_FILE: ""
+    PATHOS_IMPORT_FORMAT: ""
+    PATHOS_IMPORT_TOOL: ""
+    PATHOS_IMPORT_CATEGORY: ""
+    PATHOS_COMPLETE: "false"
+  script:
+    - |
+      set -eu
+      set -- import --repo "$PATHOS_REPOSITORY" --file "$PATHOS_IMPORT_FILE"
+      [ -n "$PATHOS_IMPORT_FORMAT" ] && set -- "$@" --format "$PATHOS_IMPORT_FORMAT"
+      [ -n "$PATHOS_IMPORT_TOOL" ] && set -- "$@" --tool "$PATHOS_IMPORT_TOOL"
+      [ -n "$PATHOS_IMPORT_CATEGORY" ] && set -- "$@" --category "$PATHOS_IMPORT_CATEGORY"
+      [ "$PATHOS_COMPLETE" = "true" ] && set -- "$@" --complete
+      pathos "$@"
+
+# Start a PATHOS scan of the repository and wait for it.
+.pathos-scan:
+  extends: .pathos-cli
+  script:
+    - pathos scan --repo "$PATHOS_REPOSITORY"
+
+# Fail the pipeline when the latest execution's security gate fails or
+# findings at or above PATHOS_FAIL_ON exist (exit code 1).
+.pathos-gate:
+  extends: .pathos-cli
+  script:
+    - pathos gate --repo "$PATHOS_REPOSITORY" --fail-on "$PATHOS_FAIL_ON" --scope "$PATHOS_SCOPE"

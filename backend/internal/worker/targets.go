@@ -39,6 +39,13 @@ type JobTarget struct {
 	MinSeverity string `json:"min_severity,omitempty"`
 	// FileName of an artifact target.
 	FileName string `json:"file_name,omitempty"`
+	// Endpoints of an endpoints target (a repository's declared public
+	// endpoints).
+	Endpoints []JobEndpoint `json:"endpoints,omitempty"`
+	// Signature verification policy (image and artifact targets) and the
+	// uploaded signature or Sigstore bundle of an artifact.
+	Signature         *SignatureConfig `json:"signature,omitempty"`
+	SignatureMaterial string           `json:"signature_material,omitempty"`
 }
 
 // secrets lists credential values the reporter must never log.
@@ -80,6 +87,13 @@ func (a *Agent) prepareTarget(ctx context.Context, job Job, dir string) (string,
 		return a.fetchTargetFile(ctx, job, filepath.Join(dir, "target.sbom.json"))
 	case "artifact":
 		return a.prepareArtifact(ctx, job, dir)
+	case "endpoints":
+		if a.cfg.Offline {
+			return "", errors.New("endpoint verification is disabled in offline mode (PATHOS_OFFLINE=true)")
+		}
+		// The URL list Nuclei reads (authorized endpoints only).
+		p := filepath.Join(dir, "endpoints.txt")
+		return p, endpointList(t.Endpoints, p)
 	}
 	return "", fmt.Errorf("unsupported target kind %q", t.Kind)
 }
@@ -211,6 +225,14 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	case "api":
 		args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
 			"-etags", "dos,intrusive,bruteforce")
+	case "endpoints":
+		// Declared public endpoints: the exposure subset only (exposed
+		// files and panels, subdomain takeovers), never fuzzing.
+		var sets []string
+		for _, d := range []string{"exposures", "exposed-panels", "takeovers"} {
+			sets = append(sets, filepath.Join(nucleiTemplates, "http", d))
+		}
+		args = append(args, "-l", specFile, "-t", strings.Join(sets, ","), "-etags", "dos,intrusive,bruteforce,fuzz")
 	default:
 		args = append(args, "-u", t.Reference, "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
 			"-etags", "dos,intrusive,bruteforce,fuzz")
@@ -265,8 +287,8 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 			return "", err
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
-			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api") {
-				return "only runs for web application and API targets", nil
+			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api" && in.Target.Kind != "endpoints") {
+				return "only runs for web application, API and declared endpoint targets", nil
 			}
 			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, in.TargetFile)...); err != nil {
 				return "", err
@@ -378,10 +400,7 @@ func javaArchive(name string) bool {
 // archives and other files are scanned as they are. Nothing from the
 // artifact is ever executed.
 func (a *Agent) prepareArtifact(ctx context.Context, job Job, dir string) (string, error) {
-	name := filepath.Base(job.Target.FileName)
-	if name == "" || name == "." || name == "/" || strings.HasPrefix(name, ".") {
-		name = "artifact.bin"
-	}
+	name := artifactFileName(job.Target.FileName)
 	raw := filepath.Join(dir, "download")
 	if _, err := a.fetchTargetFile(ctx, job, raw); err != nil {
 		return "", err
@@ -423,6 +442,10 @@ func (a *Agent) prepareArtifact(ctx context.Context, job Job, dir string) (strin
 	if err := ingest.ExtractSnapshot(ctx, nf, scan, ingest.DefaultLimits()); err != nil {
 		return "", fmt.Errorf("extracting the artifact: %w", err)
 	}
-	_ = os.Remove(raw)
+	// The original file stays (outside the scan directory) when its
+	// signature is verified.
+	if job.Target.Signature == nil || job.Target.Signature.Mode == "" {
+		_ = os.Remove(raw)
+	}
 	return scan, nil
 }

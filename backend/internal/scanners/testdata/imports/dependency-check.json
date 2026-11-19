@@ -1,0 +1,53 @@
+{
+  "reportSchema": "1.1",
+  "scanInfo": { "engineVersion": "12.1.0", "dataSource": [] },
+  "projectInfo": { "name": "orders-service", "reportDate": "2026-11-18T09:00:00.000Z", "credits": {} },
+  "dependencies": [
+    {
+      "isVirtual": false,
+      "fileName": "log4j-core-2.14.1.jar",
+      "filePath": "/build/target/lib/log4j-core-2.14.1.jar",
+      "md5": "f1a9c4f1f1a9c4f1f1a9c4f1f1a9c4f1",
+      "sha1": "9141212b8507ab50a45525b545b39d224614528b",
+      "packages": [
+        { "id": "pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1", "confidence": "HIGH", "url": "https://ossindex.sonatype.org/component/pkg:maven/org.apache.logging.log4j/log4j-core@2.14.1" }
+      ],
+      "vulnerabilities": [
+        {
+          "source": "NVD",
+          "name": "CVE-2021-44228",
+          "severity": "CRITICAL",
+          "cvssv2": { "score": 9.3, "accessVector": "NETWORK", "severity": "HIGH" },
+          "cvssv3": { "baseScore": 10.0, "attackVector": "NETWORK", "attackComplexity": "LOW", "baseSeverity": "CRITICAL" },
+          "cwes": ["CWE-20", "CWE-502", "CWE-917"],
+          "description": "Apache Log4j2 JNDI features do not protect against attacker controlled LDAP endpoints.",
+          "notes": "",
+          "references": [],
+          "vulnerableSoftware": [{ "software": { "id": "cpe:2.3:a:apache:log4j:*:*:*:*:*:*:*:*", "vulnerabilityIdMatched": "true" } }]
+        }
+      ]
+    },
+    {
+      "isVirtual": false,
+      "fileName": "commons-text-1.9.jar",
+      "filePath": "/build/target/lib/commons-text-1.9.jar",
+      "packages": [{ "id": "pkg:maven/org.apache.commons/commons-text@1.9", "confidence": "HIGH" }],
+      "vulnerabilities": [
+        {
+          "source": "OSSINDEX",
+          "name": "CVE-2022-42889",
+          "severity": "",
+          "cvssv3": { "baseScore": 9.8, "attackVector": "NETWORK", "baseSeverity": "CRITICAL" },
+          "cwes": ["CWE-94"],
+          "description": "Apache Commons Text performs variable interpolation."
+        }
+      ]
+    },
+    {
+      "isVirtual": false,
+      "fileName": "guava-33.0.0-jre.jar",
+      "filePath": "/build/target/lib/guava-33.0.0-jre.jar",
+      "packages": [{ "id": "pkg:maven/com.google.guava/guava@33.0.0-jre", "confidence": "HIGH" }]
+    }
+  ]
+}

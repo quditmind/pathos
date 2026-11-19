@@ -1,0 +1,185 @@
+# PATHOS framework configuration rules: Express / Node.js.
+# Copyright PATHOS contributors. Licensed under the Apache License, Version 2.0.
+# Original rules written for PATHOS. Findings from rules with
+# "category: misconfiguration" (ids pathos.misconfig.*) are reported in the
+# "misconfiguration" finding category. Test fixtures: workers/rules-tests/.
+rules:
+  - id: pathos.misconfig.express.helmet-missing
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      This Express application does not use helmet, so it sends none of the standard security headers
+      (Content-Security-Policy, Strict-Transport-Security, X-Content-Type-Options, frame protection) and still
+      advertises X-Powered-By. Add app.use(helmet()) before the routes.
+    metadata:
+      category: misconfiguration
+      framework: express
+      cwe: ["CWE-693: Protection Mechanism Failure"]
+      confidence: MEDIUM
+      references:
+        - https://expressjs.com/en/advanced/best-practice-security.html#use-helmet
+        - https://helmetjs.github.io/
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: const $APP = express();
+          - pattern: let $APP = express();
+          - pattern: var $APP = express();
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+
+  - id: pathos.misconfig.express.x-powered-by
+    languages: [javascript, typescript]
+    severity: INFO
+    message: >-
+      The Express application announces itself with the X-Powered-By header. Call app.disable("x-powered-by")
+      (helmet does this too) so the framework is not advertised to scanners.
+    metadata:
+      category: misconfiguration
+      framework: express
+      cwe: ["CWE-200: Exposure of Sensitive Information to an Unauthorized Actor"]
+      confidence: MEDIUM
+      references:
+        - https://expressjs.com/en/advanced/best-practice-security.html#reduce-fingerprinting
+      license: Apache-2.0
+    patterns:
+      - pattern-either:
+          - pattern: const $APP = express();
+          - pattern: let $APP = express();
+          - pattern: var $APP = express();
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.disable("x-powered-by");
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.set("x-powered-by", false);
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          const $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.disable("x-powered-by");
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.set("x-powered-by", false);
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          let $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.disable("x-powered-by");
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.set("x-powered-by", false);
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.use(..., helmet(...), ...);
+      - pattern-not-inside: |
+          var $APP = express();
+          ...
+          $APP.use(..., helmet, ...);
+
+  - id: pathos.misconfig.express.insecure-cookie
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      A cookie (or the session cookie) is set with secure: false or httpOnly: false. It is then sent over plain
+      HTTP or readable by any script on the page. Set secure: true, httpOnly: true and an explicit sameSite.
+    metadata:
+      category: misconfiguration
+      framework: express
+      cwe: ["CWE-614: Sensitive Cookie in HTTPS Session Without 'Secure' Attribute", "CWE-1004: Sensitive Cookie Without 'HttpOnly' Flag"]
+      confidence: HIGH
+      references:
+        - https://expressjs.com/en/advanced/best-practice-security.html#use-cookies-securely
+        - https://owasp.org/www-community/controls/SecureCookieAttribute
+      license: Apache-2.0
+    pattern-either:
+      - pattern: "$RES.cookie($N, $V, {..., secure: false, ...})"
+      - pattern: "$RES.cookie($N, $V, {..., httpOnly: false, ...})"
+      - pattern: "session({..., cookie: {..., secure: false, ...}, ...})"
+      - pattern: "session({..., cookie: {..., httpOnly: false, ...}, ...})"
+      - pattern: "cookieSession({..., secure: false, ...})"
+      - pattern: "cookieSession({..., httpOnly: false, ...})"
+
+  - id: pathos.misconfig.express.cors-any-origin
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      CORS allows any origin (origin "*", reflected origins with credentials, or cors() with its defaults). Any web
+      site can then read responses from a visitor's browser. Pass the list of trusted origins to cors().
+    metadata:
+      category: misconfiguration
+      framework: express
+      cwe: ["CWE-942: Permissive Cross-domain Policy with Untrusted Domains"]
+      confidence: HIGH
+      references:
+        - https://github.com/expressjs/cors#configuration-options
+        - https://cheatsheetseries.owasp.org/cheatsheets/HTML5_Security_Cheat_Sheet.html#cross-origin-resource-sharing
+      license: Apache-2.0
+    pattern-either:
+      - pattern: "cors({..., origin: '*', ...})"
+      - pattern: "cors({..., origin: true, ..., credentials: true, ...})"
+      - pattern: "cors({..., credentials: true, ..., origin: true, ...})"
+      - pattern: $APP.use(cors())
+      - pattern: $RES.setHeader("Access-Control-Allow-Origin", "*")
+      - pattern: $RES.header("Access-Control-Allow-Origin", "*")
+      - pattern: $RES.set("Access-Control-Allow-Origin", "*")
+
+  - id: pathos.misconfig.express.trust-proxy-all
+    languages: [javascript, typescript]
+    severity: WARNING
+    message: >-
+      "trust proxy" is set to true, so Express trusts X-Forwarded-For and X-Forwarded-Proto from any client: req.ip,
+      rate limits and secure-cookie decisions can be spoofed. Trust only your proxies (a hop count or their
+      addresses, for example app.set("trust proxy", 1)).
+    metadata:
+      category: misconfiguration
+      framework: express
+      cwe: ["CWE-348: Use of Less Trusted Source"]
+      confidence: HIGH
+      references:
+        - https://expressjs.com/en/guide/behind-proxies.html
+      license: Apache-2.0
+    pattern-either:
+      - pattern: $APP.set("trust proxy", true)
+      - pattern: $APP.enable("trust proxy")

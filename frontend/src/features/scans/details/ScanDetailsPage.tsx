@@ -12,10 +12,12 @@ import { LogsTab } from "./LogsTab";
 import { StagesTab } from "./StagesTab";
 import { ConfigurationTab } from "./ConfigurationTab";
 import { HistoryTab } from "./HistoryTab";
+import { ScanMaterialChanges } from "@/features/insights/MaterialChanges";
 
 export const detailTabs = [
   ["overview", "Overview"],
   ["findings", "Findings"],
+  ["material", "Material changes"],
   ["logs", "Execution Logs"],
   ["stages", "Stages"],
   ["configuration", "Configuration"],
@@ -32,7 +34,7 @@ export function ScanDetailsPage() {
   return <ScanDetails id={id} />;
 }
 
-/** Execution details with six tabs; the active tab lives in the URL (?tab=). */
+/** Execution details with seven tabs; the active tab lives in the URL (?tab=). */
 export function ScanDetails({ id }: { id: string }) {
   const search = useSearch({ strict: false }) as DetailsSearch;
   const tab: DetailTab = validateDetailsSearch(search).tab ?? "overview";
@@ -88,6 +90,7 @@ export function ScanDetails({ id }: { id: string }) {
           <div role="tabpanel" id={`scan-panel-${tab}`} aria-labelledby={`scan-tab-${tab}`} className="pt-4">
             {tab === "overview" && <OverviewTab job={j} />}
             {tab === "findings" && <FindingsTab job={j} />}
+            {tab === "material" && <ScanMaterialChanges jobId={j.id} />}
             {tab === "logs" && <LogsTab job={j} />}
             {tab === "stages" && <StagesTab job={j} />}
             {tab === "configuration" && <ConfigurationTab job={j} />}
