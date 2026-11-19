@@ -35,7 +35,7 @@ organization (for example `security/pathos-hooks`) and tag it. Then:
 ```yaml
 repos:
   - repo: https://git.example.com/security/pathos-hooks
-    rev: v2.0.0
+    rev: v2.1.0
     hooks:
       - id: pathos-gitleaks          # gitleaks on PATH
       # - id: pathos-gitleaks-docker # or: Docker only, pinned official image

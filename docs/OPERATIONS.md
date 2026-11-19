@@ -43,9 +43,9 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 Use them instead of building locally:
 
 ```bash
-git clone --branch v2.0.0 https://github.com/quditmind/pathos.git && cd pathos
+git clone --branch v2.1.0 https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh                 # new installs only
-# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.0.0
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=2.1.0
 deploy/scripts/upgrade.sh --pull
 ```
 
@@ -54,8 +54,8 @@ Upgrading to a later release works the same way: check out the new tag, set `PAT
 **Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
 
 ```bash
-cosign verify ghcr.io/quditmind/pathos:2.0.0 \
-  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.0.0" \
+cosign verify ghcr.io/quditmind/pathos:2.1.0 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v2.1.0" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
