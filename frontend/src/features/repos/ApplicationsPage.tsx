@@ -1,30 +1,63 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
-import { Boxes, Plus } from "lucide-react";
+import { Boxes, Plus, Rocket } from "lucide-react";
 import { api } from "@/api/client";
 import type { Application, User } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Card, EmptyState, Input, Label, PageHeader, Select } from "@/components/ui/primitives";
+import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select } from "@/components/ui/primitives";
 import { DataTable, type Column } from "@/components/data/DataTable";
 import { CriticalityBadge } from "@/components/data/TagChip";
 import { useSession } from "@/features/auth/session";
 import { useBusinessUnits, useUsers } from "@/features/users/api";
 import { useApplications, useRepoMutation } from "./api";
+import { useOnboardingDrafts, type DraftItem } from "@/features/inventory/api";
+import { useFeatureFlag } from "@/features/shell/meta";
 
-const columns: Column<Application>[] = [
+/**
+ * Columns. With the "onboarding" flag the name links to the application
+ * profile (/applications/$id) and drafts show their onboarding status; a
+ * row click still opens the edit dialog (as does ?app=).
+ */
+export function applicationColumns(hub: boolean, drafts: Map<string, DraftItem>): Column<Application>[] {
+  return [
   {
     id: "name",
     header: "Application",
     required: true,
     cell: (a) => (
       <div>
-        <div className="font-medium">{a.name}</div>
+        {hub ? (
+          <Link to="/applications/$id" params={{ id: a.id }} onClick={(e) => e.stopPropagation()} className="font-medium text-primary hover:underline">
+            {a.name}
+          </Link>
+        ) : (
+          <div className="font-medium">{a.name}</div>
+        )}
         {a.description && <div className="max-w-md truncate text-[12px] text-muted-foreground">{a.description}</div>}
       </div>
     ),
     csv: (a) => a.name,
   },
+  ...(hub
+    ? [
+        {
+          id: "onboarding",
+          header: "Status",
+          cell: (a: Application) => {
+            const d = drafts.get(a.id);
+            return d ? (
+              <Link to="/onboarding" search={{ app: a.id } as never} onClick={(e) => e.stopPropagation()}>
+                <Badge tone="warning">{d.progress.label}</Badge>
+              </Link>
+            ) : (
+              <Badge tone="success">Registered</Badge>
+            );
+          },
+          csv: (a: Application) => drafts.get(a.id)?.progress.label ?? "Registered",
+        } satisfies Column<Application>,
+      ]
+    : []),
   { id: "key", header: "Application ID", required: true, className: "whitespace-nowrap font-mono text-[12px]", cell: (a) => a.application_key, csv: (a) => a.application_key },
   { id: "ref", header: "External ID", defaultHidden: true, exportAlways: true, className: "font-mono text-[12px]", cell: (a) => a.external_ref || <span className="text-muted-foreground">—</span>, csv: (a) => a.external_ref },
   { id: "lifecycle", header: "Lifecycle", className: "text-[12px] capitalize", cell: (a) => a.lifecycle, csv: (a) => a.lifecycle },
@@ -54,13 +87,17 @@ const columns: Column<Application>[] = [
       </Link>
     ),
   },
-];
+  ];
+}
 
 export function ApplicationsPage() {
   const { can, canOrgWide } = useSession();
   const search = useSearch({ strict: false }) as { app?: string };
   const navigate = useNavigate();
   const apps = useApplications();
+  const hub = useFeatureFlag("onboarding");
+  const drafts = useOnboardingDrafts(hub);
+  const columns = useMemo(() => applicationColumns(hub, new Map((drafts.data ?? []).map((d) => [d.id, d]))), [hub, drafts.data]);
   const [editing, setEditing] = useState<Application | "new" | null>(null);
   useEffect(() => {
     if (search.app && apps.data) {
@@ -74,7 +111,18 @@ export function ApplicationsPage() {
       <PageHeader
         title="Applications"
         description="Business applications (assets) that group repositories and carry ownership."
-        actions={can("repos.manage") && <Button onClick={() => setEditing("new")}><Plus /> New application</Button>}
+        actions={
+          can("repos.manage") && (
+            <>
+              {hub && (
+                <Button variant="secondary" asChild>
+                  <Link to="/onboarding"><Rocket /> Onboard an application</Link>
+                </Button>
+              )}
+              <Button onClick={() => setEditing("new")}><Plus /> New application</Button>
+            </>
+          )
+        }
       />
       <Card>
         <DataTable

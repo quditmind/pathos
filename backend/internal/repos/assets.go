@@ -28,10 +28,13 @@ const (
 	KindCompliance         = "compliance"
 	KindHostingRegion      = "hosting_region"
 	KindLifecycleStatus    = "lifecycle_status"
+	// KindAuthenticationModel classifies how an application authenticates
+	// its users (PATHOS 3.0 M3 application classification).
+	KindAuthenticationModel = "authentication_model"
 )
 
 var classificationKinds = []string{KindCriticality, KindDataClassification, KindEnvironment, KindApplicationType,
-	KindInternetExposure, KindCompliance, KindHostingRegion, KindLifecycleStatus}
+	KindInternetExposure, KindCompliance, KindHostingRegion, KindLifecycleStatus, KindAuthenticationModel}
 
 // Classification is one catalog entry.
 type Classification struct {
@@ -111,6 +114,16 @@ var defaultClassifications = map[string][]classificationSeed{
 		{"asia_pacific", "Asia Pacific", "", ""},
 		{"middle_east_africa", "Middle East and Africa", "", ""},
 		{"multi_region", "Multi-region / global", "", ""},
+	},
+	KindAuthenticationModel: {
+		{"oidc_sso", "Single sign-on (OpenID Connect)", "Users sign in through an OpenID Connect identity provider", ""},
+		{"saml_sso", "Single sign-on (SAML)", "Users sign in through a SAML identity provider", ""},
+		{"oauth2", "OAuth 2.0 tokens", "API clients present OAuth 2.0 access tokens", ""},
+		{"api_key", "API keys", "Clients present static API keys", ""},
+		{"mtls", "Mutual TLS", "Clients authenticate with certificates", ""},
+		{"local_accounts", "Local accounts", "The application stores its own user names and passwords", ""},
+		{"none", "No authentication", "Anonymous access", ""},
+		{"unknown", "Unknown", "Not yet assessed", ""},
 	},
 	KindLifecycleStatus: {
 		{"planned", "Planned", "", "#8250df"},

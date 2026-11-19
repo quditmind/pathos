@@ -125,25 +125,56 @@ describe("sidebar regroup (prompt §5)", () => {
 
   it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
-    // Built modules (M2: Connectors) carry their route and still their phase and flag.
-    expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([["Connectors", "/connectors", "connectors"]]);
-    expect(roadmap.map((i) => i.label).sort()).toEqual(
+    // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
+    // application) carry their route and still their phase and flag.
+    expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
+      ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
+      ["Connectors", "/connectors", "connectors"],
+      ["Onboard an application", "/onboarding", "onboarding"],
+    ]);
+    // Not-yet-built modules have no route at all.
+    expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       [
         "API & endpoints",
         "Binary analysis",
         "CodeGraph",
-        "Connectors",
         "Continuous monitoring",
-        "Lifecycle overview",
         "Remediation workspace",
         "Reverse engineering tools",
         "Threat models",
       ].sort(),
     );
+    expect(groups.flatMap((g) => g.items).filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
+      roadmap.filter((i) => !i.to).map((i) => i.label).sort(),
+    );
     for (const i of roadmap) {
       expect(i.phase, i.label).toBeGreaterThan(0);
       expect(i.flag, i.label).toBeTruthy();
     }
+  });
+
+  it("every flagged module with a route carries a phase and a flag", () => {
+    const flagged = groups.flatMap((g) => g.items).filter((i) => i.to && i.flag);
+    expect(flagged.map((i) => [i.label, i.to, i.flag])).toEqual([
+      ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
+      ["Connectors", "/connectors", "connectors"],
+      ["Onboard an application", "/onboarding", "onboarding"],
+    ]);
+    for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
+  });
+
+  it("enables flagged items only when their flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { onboarding: true, lifecycle_overview: false } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["repos.read", "repos.manage"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "Onboard an application" })).toHaveAttribute("href", "/onboarding");
+    const life = within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")!;
+    expect(life).toHaveAttribute("title", "Lifecycle overview: arrives in roadmap phase 3");
   });
 
   it("renders roadmap items disabled with their phase", async () => {

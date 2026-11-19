@@ -370,7 +370,7 @@ export type AssetField =
 
 export type ClassificationKind =
   | "criticality" | "data_classification" | "environment" | "application_type"
-  | "internet_exposure" | "compliance" | "hosting_region" | "lifecycle_status";
+  | "internet_exposure" | "compliance" | "hosting_region" | "lifecycle_status" | "authentication_model";
 
 export interface Classification {
   id: string;

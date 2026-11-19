@@ -184,6 +184,8 @@ var orgFieldAllowed = []string{
 	"internal/auth/organizations.go:switchRequest.OrganizationID",       // checked against the caller's memberships
 	"internal/scm/contract.go:RepoRef.Organization",                     // SCM organization (GitHub organization, Azure DevOps organization)
 	"internal/scm/scm.go:RemoteRepo.Organization",                       // SCM organization
+	"internal/inventory/onboarding.go:SourceRef.Organization",           // SCM organization of a repository being onboarded
+	"internal/inventory/onboarding.go:OnboardingSource.Organization",    // SCM organization (response only)
 }
 
 func TestNoOrganizationFromClientInput(t *testing.T) {

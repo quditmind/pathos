@@ -217,7 +217,7 @@ func (s *Service) components(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
-	scope, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 5)
+	scope, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 6)
 	like := "%" + strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(strings.ToLower(strings.TrimSpace(q.Get("q")))) + "%"
 	var repo *uuid.UUID
 	if v := q.Get("repository_id"); v != "" {
@@ -228,12 +228,23 @@ func (s *Service) components(w http.ResponseWriter, r *http.Request) {
 		}
 		repo = &id
 	}
+	// application_id narrows to one application (the application profile's
+	// SBOM tab).
+	var app *uuid.UUID
+	if v := q.Get("application_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			s.fail(w, r, httpx.BadRequest("invalid application_id"))
+			return
+		}
+		app = &id
+	}
 	policy := q.Get("license")
 	if policy != "" && policy != "deny" && policy != "review" && policy != "violations" {
 		s.fail(w, r, httpx.BadRequest("license must be deny, review or violations"))
 		return
 	}
-	args = append([]any{p.OrganizationID, like, repo, policy}, args...)
+	args = append([]any{p.OrganizationID, like, repo, policy, app}, args...)
 	// The page is the first 500 (name, version) groups. Their licences
 	// (from every matching component, whatever the licence filter) and open
 	// vulnerabilities are looked up for those 500 only: a per-group subquery
@@ -244,7 +255,7 @@ func (s *Service) components(w http.ResponseWriter, r *http.Request) {
 		         (SELECT min(lp.decision) FROM license_policies lp WHERE lp.organization_id = $1 AND lp.spdx_id = ANY(sc.licenses)) AS policy
 		  FROM sbom_components sc JOIN repositories r ON r.id = sc.repository_id LEFT JOIN countries co ON co.id = r.country_id
 		  WHERE sc.organization_id = $1 AND r.archived_at IS NULL AND (lower(sc.name) LIKE $2 OR lower(sc.purl) LIKE $2)
-		    AND ($3::uuid IS NULL OR r.id = $3) AND `+scope+`),
+		    AND ($3::uuid IS NULL OR r.id = $3) AND ($5::uuid IS NULL OR r.application_id = $5) AND `+scope+`),
 		g AS (
 		  SELECT c.name, c.version, max(c.purl) AS purl, max(c.type) AS type, COALESCE(min(c.policy), '') AS policy,
 		         array_agg(DISTINCT c.full_name ORDER BY c.full_name) AS repos, array_agg(c.repo_id) AS repo_ids

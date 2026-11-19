@@ -70,6 +70,7 @@ import {
   RadioTower,
   Microscope,
   ToggleRight,
+  Rocket,
 } from "lucide-react";
 import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
@@ -111,13 +112,14 @@ export const groups: NavGroup[] = [
     label: "Home",
     items: [
       { label: "Dashboard", to: "/", icon: <LayoutDashboard /> },
-      { label: "Lifecycle overview", icon: <Workflow />, phase: 3, flag: "lifecycle_overview" },
+      { label: "Lifecycle overview", to: "/lifecycle", icon: <Workflow />, perm: "repos.read", phase: 3, flag: "lifecycle_overview" },
     ],
   },
   {
     label: "1 · Connect",
     items: [
       { label: "Connectors", to: "/connectors", icon: <Cable />, phase: 2, flag: "connectors" },
+      { label: "Onboard an application", to: "/onboarding", icon: <Rocket />, perm: "repos.manage", phase: 3, flag: "onboarding" },
       { label: "Add repositories", to: "/repositories/import", icon: <FolderPlus />, perm: "repos.manage" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
       { label: "SCM connections", to: "/admin/scm", icon: <Plug />, perm: "scm.manage" },
@@ -239,6 +241,17 @@ export const groups: NavGroup[] = [
 /** Multi-tenant installs: Installation › Organizations, first in Administration, for installation administrators. */
 export const installationItem: NavItem = { label: "Organizations", to: "/installation/organizations", icon: <Building2 /> };
 
+/**
+ * The item as rendered: a flagged item keeps its route only while its flag
+ * is on (otherwise it is a roadmap item, disabled with its phase); an
+ * enabled flagged item drops its phase badge.
+ */
+export function navTarget(it: NavItem, flags: Record<string, boolean>): NavItem {
+  if (!it.flag) return it;
+  if (it.to && flags[it.flag] === true) return { ...it, phase: undefined };
+  return { ...it, to: undefined };
+}
+
 export function navGroupsFor(installationAdmin: boolean): NavGroup[] {
   if (!installationAdmin) return groups;
   return groups.map((g) => (g.label === "Administration" ? { ...g, items: [installationItem, ...g.items] } : g));
@@ -273,9 +286,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   useCommandPaletteHotkey(setPaletteOpen);
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
   const path = useRouterState({ select: (s) => s.location.pathname });
-  const { flags } = useFeatureFlags();
-  // A flagged module is a link only while its flag is on for this organization.
-  const live = (it: NavItem) => !!it.to && (!it.flag || flags[it.flag] === true);
 
   // Scoped permissions show the entry if held anywhere; org-only ones need an org-wide grant.
   const scopedPerms = new Set(["org.read", "repos.read", "repos.manage", "scans.read", "scans.compare", "findings.read", "scanners.read", "ai.review", "sbom.read", "reviews.read"]);
@@ -284,6 +294,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   // not an organization permission.
   const tenancy = useMyOrganizations();
   const navGroups = navGroupsFor(!!(tenancy.data?.multi_tenant && tenancy.data.installation_admin));
+  const { flags } = useFeatureFlags();
 
   return (
     <ShellProvider>
@@ -306,8 +317,10 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {!collapsed && (
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
-                {items.map((it, idx) => {
-                  const isLive = live(it);
+                {items.map((item, idx) => {
+                  // A flagged module is a link only while its flag is on for this organization.
+                  const it = navTarget(item, flags);
+                  const isLive = !!it.to;
                   const active =
                     isLive &&
                     it.to &&

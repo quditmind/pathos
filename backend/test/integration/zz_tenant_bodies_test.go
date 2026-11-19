@@ -475,6 +475,12 @@ var writeFixtures = map[string]map[string]any{
 		"auth_username": nil, "auth_header_name": nil, "auth_secret": nil, "signature_material": nil, "intrusive_authorized": nil,
 		"intrusive_authorization_note": nil, "authorized": true},
 	"PUT /api/v1/ticket-connections/{id}": {"kind": "jira", "auth_type": "bearer", "config": map[string]any{"project_key": "ISO"}},
+	// PATHOS 3.0 M3 (inventory).
+	"POST /api/v1/tag-rules":                      {"target_type": "repository", "condition": "path_pattern", "field": nil, "value": "iso/*"},
+	"PATCH /api/v1/tag-rules/{id}":                {"target_type": "repository", "condition": "path_pattern", "field": nil, "value": "iso/*"},
+	"PATCH /api/v1/tag-categories/{id}/framework": {"color": "#336699", "mandatory_asset_types": nil},
+	"POST /api/v1/onboarding":                     {"mode": "link", "application": nil},
+	"POST /api/v1/tag-assignments/bulk":           {"target_type": "application", "ids": []any{"@applications"}, "add_tag_ids": []any{"@tags"}, "remove_tag_ids": nil},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

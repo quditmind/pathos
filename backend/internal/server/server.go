@@ -24,6 +24,7 @@ import (
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
+	"pathos/internal/inventory"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
 	"pathos/internal/org"
@@ -221,6 +222,7 @@ func Build(d Deps) Handlers {
 	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	repoSvc.Register(protected)
+	(&inventory.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	pushSvc.Register(protected)
 	scanSvc.Register(protected)
 	aiSvc.Register(protected)
