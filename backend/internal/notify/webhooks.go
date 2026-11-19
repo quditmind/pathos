@@ -56,19 +56,31 @@ type Webhook struct {
 	LastStatus   *string    `json:"last_status"`
 	LastAt       *time.Time `json:"last_delivery_at"`
 	Failed24h    int        `json:"failed_24h"`
+	// TriggerAuth (Teams): the Microsoft Entra app used for Workflows
+	// triggers restricted to the tenant (the client secret is never
+	// returned); null when the trigger is open to anyone.
+	TriggerAuth *TriggerAuth `json:"trigger_auth"`
 }
 
 const webhookSelect = `SELECT w.id, w.name, w.format, w.url_host, w.signing_secret_id IS NOT NULL, w.events, w.min_severity, w.allow_private,
 	w.enabled, w.created_at,
 	(SELECT d.status FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id AND d.status <> 'pending' ORDER BY d.created_at DESC LIMIT 1),
 	(SELECT max(d.delivered_at) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id),
-	(SELECT count(*) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id AND d.status = 'failed' AND d.created_at > now() - interval '24 hours')
+	(SELECT count(*) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id AND d.status = 'failed' AND d.created_at > now() - interval '24 hours'),
+	CASE WHEN w.trigger_auth_secret_id IS NOT NULL THEN w.trigger_auth END
 	FROM outbound_webhooks w`
 
 func scanWebhook(r pgx.Row) (Webhook, error) {
 	var w Webhook
+	var ta []byte
 	err := r.Scan(&w.ID, &w.Name, &w.Format, &w.Host, &w.Signed, &w.Events, &w.MinSeverity, &w.AllowPrivate, &w.Enabled, &w.CreatedAt,
-		&w.LastStatus, &w.LastAt, &w.Failed24h)
+		&w.LastStatus, &w.LastAt, &w.Failed24h, &ta)
+	if err == nil && len(ta) > 0 {
+		var t TriggerAuth
+		if json.Unmarshal(ta, &t) == nil && t.ClientID != "" {
+			w.TriggerAuth = &t
+		}
+	}
 	return w, err
 }
 
@@ -91,6 +103,9 @@ type webhookInput struct {
 	Enabled      *bool    `json:"enabled"`
 	// Sign (json format): generate a signing secret, returned once.
 	Sign bool `json:"sign"`
+	// TriggerAuth (teams format): authenticate to a Workflows trigger
+	// restricted to the tenant. Omitted: unchanged; tenant_id "": removed.
+	TriggerAuth *TriggerAuthInput `json:"trigger_auth"`
 }
 
 func (in *webhookInput) validate(update bool) (*url.URL, error) {
@@ -112,12 +127,19 @@ func (in *webhookInput) validate(update bool) (*url.URL, error) {
 	if in.MinSeverity != nil && !slices.Contains([]string{"critical", "high", "medium", "low", "info"}, *in.MinSeverity) {
 		return nil, httpx.BadRequest("invalid min_severity")
 	}
+	if in.TriggerAuth != nil && strings.TrimSpace(in.TriggerAuth.TenantID) != "" && !triggerAuthAllowed(in.Format) {
+		return nil, httpx.BadRequest("trigger_auth is only for the teams format")
+	}
 	if update && in.URL == "" {
 		return nil, nil
 	}
 	u, err := url.Parse(strings.TrimSpace(in.URL))
 	if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || len(in.URL) > 2000 {
 		return nil, httpx.BadRequest("url must be an https URL without credentials")
+	}
+	if in.Format == "teams" && RetiredTeamsHost(u.Hostname()) {
+		return nil, httpx.BadRequest("Office 365 connector webhooks (webhook.office.com) were retired in May 2026: create a Workflows flow with " +
+			"the trigger \"When a Teams webhook request is received\" and use its URL").WithDiag("PTH-CONN-1310")
 	}
 	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate}).ValidateBaseURL(u.Scheme + "://" + u.Host); err != nil {
 		return nil, httpx.BadRequest("url: " + err.Error())
@@ -198,8 +220,13 @@ func (s *Service) createWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 			return err
 		}
+		auth, err := s.saveTriggerAuth(r.Context(), tx, p.OrganizationID, id, p.UserID, in.Format, in.Name, in.TriggerAuth)
+		if err != nil {
+			return err
+		}
 		return s.auditWrite(r.Context(), tx, p, "webhook.create", "webhook", id.String(),
-			map[string]any{"name": in.Name, "format": in.Format, "host": u.Host, "events": in.Events, "signed": signing != "", "allow_private": in.AllowPrivate})
+			map[string]any{"name": in.Name, "format": in.Format, "host": u.Host, "events": in.Events, "signed": signing != "", "allow_private": in.AllowPrivate,
+				"trigger_auth": auth})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -266,8 +293,13 @@ func (s *Service) updateWebhook(w http.ResponseWriter, r *http.Request) {
 			}
 			return err
 		}
+		auth, err := s.saveTriggerAuth(r.Context(), tx, p.OrganizationID, id, p.UserID, in.Format, in.Name, in.TriggerAuth)
+		if err != nil {
+			return err
+		}
 		return s.auditWrite(r.Context(), tx, p, "webhook.update", "webhook", id.String(),
-			map[string]any{"name": in.Name, "format": in.Format, "host": host, "events": in.Events, "url_changed": u != nil, "enabled": enabled})
+			map[string]any{"name": in.Name, "format": in.Format, "host": host, "events": in.Events, "url_changed": u != nil, "enabled": enabled,
+				"trigger_auth": auth})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -295,12 +327,12 @@ func (s *Service) deleteWebhook(w http.ResponseWriter, r *http.Request) {
 	err = db.InTx(r.Context(), s.DB, func(tx pgx.Tx) error {
 		var name string
 		var urlID uuid.UUID
-		var signID *uuid.UUID
+		var signID, authID *uuid.UUID
 		if err := tx.QueryRow(r.Context(), `DELETE FROM outbound_webhooks WHERE organization_id = $1 AND id = $2
-			RETURNING name, url_secret_id, signing_secret_id`, p.OrganizationID, id).Scan(&name, &urlID, &signID); err != nil {
+			RETURNING name, url_secret_id, signing_secret_id, trigger_auth_secret_id`, p.OrganizationID, id).Scan(&name, &urlID, &signID, &authID); err != nil {
 			return err
 		}
-		for _, sid := range []*uuid.UUID{&urlID, signID} {
+		for _, sid := range []*uuid.UUID{&urlID, signID, authID} {
 			if sid != nil {
 				if err := s.Secrets.Delete(r.Context(), tx, p.OrganizationID, *sid); err != nil {
 					return err
@@ -404,6 +436,9 @@ type endpoint struct {
 	id                   uuid.UUID
 	format, url, signing string
 	allowPrivate         bool
+	// Teams trigger authentication (nil: open trigger, no header).
+	trigger                   *TriggerAuth
+	triggerSecret, triggerKey string
 }
 
 func loadEndpoint(ctx context.Context, q db.Querier, store *secrets.Store, orgID, id uuid.UUID) (endpoint, error) {
@@ -428,6 +463,11 @@ func loadEndpoint(ctx context.Context, q db.Querier, store *secrets.Store, orgID
 			return ep, err
 		}
 		ep.signing = string(sig)
+	}
+	if ep.format == "teams" {
+		if err := loadTriggerAuth(ctx, q, store, orgID, id, &ep); err != nil {
+			return ep, err
+		}
 	}
 	return ep, nil
 }
@@ -539,6 +579,13 @@ func sendWebhook(ctx context.Context, c *http.Client, ep endpoint, deliveryID uu
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", "PATHOS-Webhooks")
+	if ep.trigger != nil {
+		tok, err := entraToken(ctx, c, *ep.trigger, ep.triggerSecret, ep.triggerKey)
+		if err != nil {
+			return 0, err
+		}
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
 	if ep.format == "json" {
 		ts := strconv.FormatInt(time.Now().Unix(), 10)
 		req.Header.Set("X-PATHOS-Event", key)
@@ -560,6 +607,12 @@ func sendWebhook(ctx context.Context, c *http.Client, ep endpoint, deliveryID uu
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		if ep.format == "teams" && (resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden) {
+			if ep.trigger == nil {
+				return resp.StatusCode, fmt.Errorf("HTTP %d: the Workflows trigger requires authentication; configure trigger authentication (Microsoft Entra app)", resp.StatusCode)
+			}
+			return resp.StatusCode, fmt.Errorf("HTTP %d: the Workflows trigger refused the Entra token (check the allowed users and the audience)", resp.StatusCode)
+		}
 		return resp.StatusCode, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 	return resp.StatusCode, nil

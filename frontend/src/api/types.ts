@@ -489,6 +489,20 @@ export interface ScmConnection {
   repository_count: number;
   created_at: string;
   capabilities: ProviderCapabilities;
+  /** Connectors feature: whether a private CA bundle is set (the PEM is never returned). */
+  has_ca_bundle?: boolean;
+  /** Connectors feature: the CA bundle's certificates. */
+  ca_certificates?: CACertificate[];
+}
+
+/** One certificate of a connection's private CA bundle. */
+export interface CACertificate {
+  subject: string;
+  issuer: string;
+  not_after: string;
+  sha256_fingerprint: string;
+  is_ca: boolean;
+  expired: boolean;
 }
 
 export interface ProviderCapabilities {

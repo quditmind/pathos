@@ -13,8 +13,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
+	"pathos/internal/connectors"
 	"pathos/internal/eol"
 	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/sourcestore"
@@ -25,6 +27,7 @@ import (
 	"pathos/internal/repos"
 	"pathos/internal/risk"
 	"pathos/internal/tickets"
+	"pathos/internal/vault"
 	"syscall"
 	"time"
 
@@ -190,10 +193,11 @@ func runAPI(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	handlers := server.Build(server.Deps{DB: pool, Redis: rdb, Auth: authSvc, Provisioner: prov, OrgID: orgID, MultiTenant: multi, Log: log, Offline: cfg.Offline,
-		Secrets: &secrets.Store{Keys: keys}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
+		Secrets: &secrets.Store{Keys: keys, Refs: vaultRefs(cfg)}, SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP},
 		PublicURL: cfg.PublicURL.String(), WorkerBootstrapToken: cfg.WorkerBootstrapToken,
 		RateLimiter: rateLimiter(cfg, rdb, log), RateLimitPolicy: scaledPolicy(cfg.RateLimitScale), Artifacts: artifacts,
-		Sources: sources, Limits: importLimits(cfg)})
+		Sources: sources, Limits: importLimits(cfg), EgressProxyURL: cfg.EgressProxyURL, ConnectorCheckInterval: cfg.ConnectorCheckInterval,
+		ObjectStoreMeta: objectStoreMeta(cfg)})
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handlers.Public,
@@ -292,12 +296,12 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 		return err
 	}
 	az := &authz.Authorizer{}
-	aiSvc := server.NewAIService(server.Deps{DB: pool, Log: log, Secrets: &secrets.Store{Keys: keys},
+	aiSvc := server.NewAIService(server.Deps{DB: pool, Log: log, Secrets: &secrets.Store{Keys: keys, Refs: vaultRefs(cfg)},
 		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate}}, az)
 	go aiSvc.RunWorker(ctx)
 
 	// Notifications: outbox dispatch, email delivery, SLA breach detection.
-	store := &secrets.Store{Keys: keys}
+	store := &secrets.Store{Keys: keys, Refs: vaultRefs(cfg)}
 	go (&notify.Dispatcher{Pool: pool, Secrets: store, Sender: notify.SMTPSender{}, BaseURL: cfg.PublicURL.String(), Log: log}).Run(ctx)
 
 	var orgID uuid.UUID
@@ -333,8 +337,17 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	go risk.RunBackground(ctx, pool, log)
 	// Kubernetes and registry inventories (only connections an
 	// administrator added) and the runtime links of findings.
-	go server.NewRuntimeService(server.Deps{DB: pool, Log: log, Secrets: store,
-		SCMNet: scm.NetPolicy{AllowHTTP: cfg.SCMAllowHTTP}}, repoAz).RunBackground(ctx)
+	rtSvc := server.NewRuntimeService(server.Deps{DB: pool, Log: log, Secrets: store,
+		SCMNet: scm.NetPolicy{AllowHTTP: cfg.SCMAllowHTTP}}, repoAz)
+	go rtSvc.RunBackground(ctx)
+	// Connectors hub: scheduled health checks of every connector of the
+	// organizations with the "connectors" flag on, and the "Check now"
+	// requests of the kinds the API server never calls (Kubernetes,
+	// registries, egress proxy).
+	connEnv := server.ConnectorEnv(server.Deps{DB: pool, Log: log, Secrets: store, Offline: cfg.Offline, Artifacts: artifacts,
+		SCMNet: scm.NetPolicy{AllowPrivate: cfg.SCMAllowPrivate, AllowHTTP: cfg.SCMAllowHTTP}, EgressProxyURL: cfg.EgressProxyURL,
+		ConnectorCheckInterval: cfg.ConnectorCheckInterval, ObjectStoreMeta: objectStoreMeta(cfg)}, "jobs", reposSvc, aiSvc, rtSvc)
+	go (&connectors.Background{Env: connEnv}).Run(ctx)
 	go releases.RunBackground(ctx, pool, log) // component (SBOM) policies, hourly
 	// Fix pull requests: record merged/closed state (findings are resolved by scans only).
 	go scans.RunFixPRTracker(ctx, pool, log, server.FixPRTarget(reposSvc), 15*time.Minute)
@@ -466,6 +479,22 @@ func artifactStore(ctx context.Context, cfg *config.Config, log *slog.Logger) (o
 	return nil, fmt.Errorf("object store %s/%s unavailable: %w", cfg.S3Endpoint, cfg.S3Bucket, lastErr)
 }
 
+// objectStoreMeta describes the object store for the Connectors hub
+// (never the keys).
+func objectStoreMeta(cfg *config.Config) map[string]string {
+	if cfg.S3Bucket == "" {
+		return nil
+	}
+	host := cfg.S3Endpoint
+	if host == "" {
+		host = "https://s3." + cfg.S3Region + ".amazonaws.com"
+	}
+	if u, err := url.Parse(host); err == nil && u.Host != "" {
+		host = u.Scheme + "://" + u.Host
+	}
+	return map[string]string{"host": host, "bucket": cfg.S3Bucket, "region": cfg.S3Region, "auth_method": "access_key"}
+}
+
 // sourceStore opens the encrypted store for uploads and snapshots: S3 when
 // PATHOS_S3_BUCKET is set, otherwise PATHOS_SOURCE_STORE_DIR.
 func sourceStore(cfg *config.Config, keys *crypto.Keyring, log *slog.Logger) (repos.SourceStore, error) {
@@ -594,4 +623,12 @@ func healthcheck(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+// vaultRefs is the process-wide resolver of "vault:" secret references.
+// Its Source (the organization's Vault/OpenBao connection) is set by the
+// connectors wiring; until then references fail with PTH-CONN-1608.
+func vaultRefs(cfg *config.Config) *vault.Resolver {
+	vault.Default.AllowHTTP = cfg.SCMAllowHTTP
+	return vault.Default
 }

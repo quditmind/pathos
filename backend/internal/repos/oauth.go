@@ -55,7 +55,11 @@ func (s *Service) listProviders(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, authz.ErrForbidden)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": scm.Providers()})
+	items := scm.Providers()
+	if s.connectorsOn(r.Context(), p.OrganizationID) {
+		items = scm.ConnectorCatalog()
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 // OAuthAppView is the API form of an OAuth application (no secret).

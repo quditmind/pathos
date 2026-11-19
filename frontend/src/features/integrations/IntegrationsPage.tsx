@@ -110,7 +110,8 @@ function ConnectionDialog({ open, onClose, conn }: { open: boolean; onClose: () 
   );
 }
 
-export function IntegrationsPage() {
+/** Ticketing integrations. `embedded` renders it inside the Connectors hub (/connectors?manage=integrations). */
+export function IntegrationsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const qc = useQueryClient();
   const { can } = useSession();
   const list = useTicketConnections();
@@ -127,7 +128,7 @@ export function IntegrationsPage() {
   const manage = can("settings.manage");
   return (
     <>
-      <PageHeader title="Integrations" description="Optional connections to issue trackers. Notification webhooks (SIEM, Slack, Microsoft Teams) are under Notifications → Webhooks; REST API tokens under your user menu."
+      <PageHeader level={embedded ? 2 : 1} title="Integrations" description="Optional connections to issue trackers. Notification webhooks (SIEM, Slack, Microsoft Teams) are under Notifications → Webhooks; REST API tokens under your user menu."
         actions={manage && <Button onClick={() => setDialog({ conn: null })}><Plus /> New connection</Button>} />
       <Card>
         {(test.error ?? remove.error) && <div className="p-3"><Alert>{(test.error ?? remove.error)!.message}</Alert></div>}

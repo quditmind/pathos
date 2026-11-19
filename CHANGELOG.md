@@ -24,7 +24,61 @@ Migrations 00046 and 00047 are additive. Everything new is behind the feature fl
 
 #### Changed
 - The Findings page accepts `?application_id=` (the API already did).
-- The cross-tenant isolation suite enables the M3 flags in both organizations, maps `tag-rules`, seeds organization B with rules, onboardings, application tags and history, adds valid-body fixtures for the new writes and raises its coverage floors (138 write routes reaching the organization check, 12 parent-in-body controls).
+- The cross-tenant isolation suite enables the M3 flags in both organizations, maps `tag-rules`, seeds organization B with rules, onboardings, application tags and history, adds valid-body fixtures for the new writes and raises its coverage floors (144 write routes, with the M2 connector routes, reaching the organization check, 12 parent-in-body controls).
+
+### PATHOS 3.0 M2 — Connectors (backend)
+
+Migration 00044 is additive: two new tenant tables (`connectors`, `connector_health_checks`) with the standard row-level security policy, and nullable columns on `scm_connections` (`webhook_signing_secret_id`) and `outbound_webhooks` (`trigger_auth`, `trigger_auth_secret_id`). Everything new is behind the `connectors` feature flag (off by default); SCM connections, integrations, notifications, runtime and AI settings work as before whatever the flag.
+
+#### Added
+- **Connectors API** (`/api/v1/connectors`, [API](docs/api-reference/connectors.md), [user guide](docs/user-guide/connectors.md)): the kinds catalogue (`GET /kinds`: 53 kinds in 9 categories with status existing/partial/planned, authentication methods, docs anchor, offline support and where the check runs), one list over every existing connection (SCM, Jira, ServiceNow, JSON/Slack/Teams webhooks, SMTP relay, Kubernetes clusters, registries, AI providers, vulnerability feeds, live secret validation, object storage, egress proxy) without copying settings or credentials, the connector detail with non-secret metadata and the last check's full error envelope, `POST /{id}/check` (a real check, recorded) and `GET /{id}/checks` (history, cursor paging), and create/update/delete for kinds stored in the registry. No new permission: each kind reuses the permissions of its existing page.
+- **Health checks for every existing kind**, read-only and side-effect free: SCM connection test (with credential-expiry and GitLab legacy-token warnings), Jira `myself` and project, ServiceNow one table record, outbound webhooks from the delivery log (nothing is posted; Teams triggers with authentication request a Microsoft Entra token), SMTP connect/TLS/AUTH without a message, Kubernetes `/version` and a one-item list per resource kind, registry `/v2/` and one tag list, AI provider model list (no tokens used), feed last run and age, secret validation configuration only, object store `HeadBucket`, egress proxy reachability. Failures map to `PTH-CONN`/`PTH-SYNC` codes deterministically; status is never healthy without a successful check and turns unknown when the last check is older than twice the interval. Kubernetes, registries and the egress proxy are checked by the jobs service only.
+- **Scheduled checks** in the jobs service for organizations with the flag on (`PATHOS_CONNECTOR_CHECK_INTERVAL`, default 1 h), "Check now" requests of jobs-only kinds, and history retention (30 days, at least 200 checks per connector).
+- **AI troubleshooting of a connector**: `POST /api/v1/diagnostics/troubleshoot` accepts `subject: {kind: "connector", id}`; the server builds the context from the connector's non-secret metadata and last check (never credentials, URLs beyond the host, bodies or e-mail addresses) and ignores client-supplied context.
+- **GitLab webhook signing tokens** (Standard Webhooks HMAC-SHA256, GitLab 19.0+): `PUT`/`DELETE /api/v1/scm-connections/{id}/webhook-signing-token`; with a token set, deliveries need a valid `webhook-signature` within 5 minutes and the legacy `X-Gitlab-Token` alone is refused. `webhook_signed` in the connection view.
+- **Microsoft Teams Workflows trigger authentication**: `trigger_auth` (Entra tenant, client ID, write-only client secret, flow-service audience) on Teams webhooks; PATHOS sends a client-credentials bearer token, as Microsoft documents for triggers restricted to the tenant or to specific users.
+- **Jira Cloud scoped API tokens**: `config.token_type: scoped` calls `https://api.atlassian.com/ex/jira/{cloudId}`, with the cloud ID looked up from the site (`/_edge/tenant_info`) or set in `config.cloud_id`.
+- 34 catalogue codes (`PTH-CONN-1005`, `1006`, `1013`, `1015`, `1016`, `1019`, `1021`, `1022`, `1106`, `1112`, `1201`, `1203`, `1205`, `1210`, `1211`, `1301`–`1303`, `1310`–`1313`, `1320`, `1321`, `1330`, `1430`, `1431`, `1502`, `1512`–`1514`, `1531`, `1532`, `PTH-SYNC-1022`) with regenerated troubleshooting pages.
+- `PATHOS_EGRESS_PROXY_URL` (api, jobs; Compose default `http://egress:3128`) and `PATHOS_CONNECTOR_CHECK_INTERVAL` (jobs).
+
+#### Changed
+- Inbound SCM webhooks accept deliveries up to **25 MB** (was 5 MiB; GitHub and gitlab.com send up to 25 MB). Larger ones answer `413` with `PTH-CONN-1106`.
+- SCM read calls (listing, discovery, re-sync) wait for a provider's `Retry-After` (seconds or HTTP date, up to 60 s, at most twice, within the caller's deadline) on a rate limit before failing; writes are not retried.
+- Teams webhooks refuse retired Office 365 connector URLs (`webhook.office.com`, `PTH-CONN-1310`); a 401/403 from a Workflows trigger explains that the trigger needs authentication.
+- The SMTP sender, Jira/ServiceNow connector, Kubernetes and registry clients and AI providers report typed errors (status, stage) so failures map to catalogue codes; messages are unchanged.
+
+### PATHOS 3.0 M2 — Connectors: new connector kinds
+
+Migration 00045 is additive (two columns and widened constraints on `scm_connections`). Everything new is behind the `connectors` feature flag; existing SCM connections behave as before.
+
+#### Added
+- **Per-connection private CA bundle** for SCM connections (GitHub Enterprise Server, GitLab self-managed, Bitbucket Data Center, Generic Git): PEM certificates added to the system trust store for that connection and its clones, stored as configuration (not a secret) and shown with subject, expiry and SHA-256 fingerprint; private keys refused; TLS 1.2 minimum. Scan workers trust the bundle for the clone ([Provider integrations](docs/user-guide/provider-integrations.md#private-ca-bundle-self-hosted-servers)).
+- **Base URL normalization**: GitHub Enterprise Server URLs get `/api/v3`, GitLab URLs lose a trailing `/api/v4`.
+- **Server version checks**: GitHub Enterprise Server (`/meta`, warning `PTH-CONN-1105` below the oldest supported release), GitLab (`/version`, reported), Bitbucket Data Center (`application-properties`, `PTH-CONN-1123`).
+- **Generic Git** provider (`generic_git`): one connection per repository over HTTPS (user name + token) or SSH (deploy key). Health check and sync use a pure-Go `git ls-remote` (smart HTTP, or `git-upload-pack` over SSH) because the api/jobs images have no git binary. SSH host keys are pinned: the administrator's `SHA256:` fingerprint must match the `known_hosts` entry, and unknown keys are never accepted (`PTH-CONN-1140`); authentication failures `PTH-CONN-1141`. Scan workers clone over SSH with the pinned key and `StrictHostKeyChecking=yes`; the key lives in a 0600 file only while one git command runs. `openssh-client` added to the worker image.
+- **Bitbucket Data Center** provider (`bitbucket_data_center`): REST 1.0 discovery (projects, repositories with `start`/`limit` paging), repository details, branches, latest commit, project/repository HTTP access tokens (Bearer) and user tokens (Basic), `PTH-CONN-1124` when a token lacks the permission, and signed webhooks at `POST /api/webhooks/bitbucket-data-center/{id}` (`X-Hub-Signature` HMAC-SHA256, `repo:refs_changed`, `pr:opened`, `pr:from_ref_updated`, `pr:merged`).
+- **Bitbucket Pipelines template** `integrations/bitbucket-pipelines/bitbucket-pipelines.yml` (import, scan, gate steps as YAML anchors); the `pathos` CLI reads `BITBUCKET_COMMIT` and `BITBUCKET_BRANCH` ([CI/CD integration](docs/user-guide/ci-cd-integration.md#bitbucket-pipelines)).
+- **Vault/OpenBao secret references**: a connector credential can be `vault:<mount>/<path>#<key>`, resolved at use time from KV v2 with AppRole or Kubernetes auth; never written to disk or cached (only the Vault client token is kept in memory); optional allowed path prefix; health check (`sys/health`, login, canary). Codes `PTH-CONN-1601`–`1608`. Tested against an OpenBao dev server ([Secret references](docs/user-guide/secret-references.md)).
+- Error catalogue: `PTH-CONN-1105`, `1123`, `1124`, `1140`, `1141`, `1601`–`1608`.
+
+#### Not built (Planned)
+- Cloud accounts (AWS, Azure, GCP) and cloud secret manager references.
+
+### PATHOS 3.0 M2 — Connectors (web app)
+
+#### Added
+- **Connectors hub** (`/connectors`, sidebar **1 · Connect › Connectors**), behind the `connectors` feature flag (off by default; the page shows the *feature disabled* state and the menu item stays disabled with its phase while it is off). Tabs **Connectors · Authentication · Configuration · Health** and a rail with the nine categories (SCM & IDE, CI/CD, Cloud, Containers, Security, IAM & Secrets, APIs, Databases, Monitoring) with connected and supported counts from `GET /api/v1/connectors` and `GET /api/v1/connectors/kinds`.
+  - Cards show the kind, name, real status (*Healthy*, *Degraded*, *Failing*, *Unknown*, *Disabled*, or *Never checked* when no check ran; never *Healthy* without a successful check), last check and last sync. Kinds that are not connected show **Connect**: existing kinds open their existing create flow (SCM connections and Integrations inside the hub, Notifications, Runtime, AI settings), new kinds open the **Add connector** dialog; planned kinds have none.
+  - Details panel with **Check now** (`POST /connectors/{id}/check`), the health history (`GET /connectors/{id}/checks`) and failures in the shared error panel with **Verify** and **Troubleshoot with AI**.
+  - **Health** tab: every connector with status, last error code (linked to the Troubleshooting centre), time since the last check and last sync, a status filter (including *Never checked*) and search.
+  - **Authentication** and **Configuration** tabs: auth method, credential *Set* / *Not set* (never the value), where it is kept (PATHOS or a Vault/OpenBao reference), expiry, scopes, base URL, proxy, custom CA present (yes/no); fields that look secret are only ever shown as set or not set.
+  - **Add connector** / **Edit** for new kinds (`POST`/`PUT /api/v1/connectors`): write-only credential, or a HashiCorp Vault / OpenBao secret reference where the kind supports it.
+- User guide: [Connectors](docs/user-guide/connectors.md) with a Troubleshooting section; help for `/connectors` in the Help drawer.
+- Playwright: `e2e/tests/connectors-parity.spec.ts` proves that every action of SCM connections and Integrations is available inside the hub, and the redirects; `e2e/screenshots/connectors.spec.ts` captures the hub in light and dark.
+
+#### Changed
+- With the `connectors` flag on, `/admin/scm` and `/admin/integrations` redirect into the hub (keeping their parameters, including the OAuth callback result); with the flag off they open the old pages exactly as before. Their sidebar items are unchanged.
+- *Administration › Notifications* opens the tab named in `?tab=` (for example `webhooks`), so Connectors can link to it.
 
 ### PATHOS 3.0 M1 — Enterprise shell (backend)
 

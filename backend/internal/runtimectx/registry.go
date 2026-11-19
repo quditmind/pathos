@@ -35,6 +35,8 @@ type RegistryClient struct {
 
 	last   time.Time
 	tokens map[string]string // scope → bearer token
+	// lastRateLimit is the last ratelimit-remaining header (Docker Hub).
+	lastRateLimit string
 }
 
 // RegistryImage is one tag of a repository.
@@ -125,6 +127,9 @@ func (c *RegistryClient) do(ctx context.Context, method, path, accept, scope str
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
 			return nil, err
+		}
+		if v := resp.Header.Get("Ratelimit-Remaining"); v != "" {
+			c.lastRateLimit = cut(v, 40)
 		}
 		if resp.StatusCode == http.StatusUnauthorized && attempt == 0 && c.Auth != "bearer" {
 			ch := resp.Header.Get("WWW-Authenticate")

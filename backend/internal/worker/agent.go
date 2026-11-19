@@ -249,19 +249,15 @@ func (a *Agent) Run(ctx context.Context) error {
 
 // Job is a leased scan job.
 type Job struct {
-	JobID          string       `json:"job_id"`
-	FullName       string       `json:"full_name"`
-	CloneURL       string       `json:"clone_url"`
-	Ref            string       `json:"ref"`
-	CommitSHA      string       `json:"commit_sha"`
-	TimeoutSeconds int          `json:"timeout_seconds"`
-	Scanners       []JobScanner `json:"scanners"`
-	Credential     *struct {
-		Username string `json:"username"`
-		Token    string `json:"token"`
-		Scheme   string `json:"scheme"` // basic (default) | bearer
-	} `json:"credential"`
-	Public bool `json:"public"`
+	JobID          string         `json:"job_id"`
+	FullName       string         `json:"full_name"`
+	CloneURL       string         `json:"clone_url"`
+	Ref            string         `json:"ref"`
+	CommitSHA      string         `json:"commit_sha"`
+	TimeoutSeconds int            `json:"timeout_seconds"`
+	Scanners       []JobScanner   `json:"scanners"`
+	Credential     *JobCredential `json:"credential"`
+	Public         bool           `json:"public"`
 	// Source, when set, replaces the clone: the job scans an uploaded
 	// snapshot served by the worker API.
 	Source *JobSource `json:"source"`
@@ -279,6 +275,20 @@ type Job struct {
 	// SecretValidation lists the providers an administrator enabled for
 	// live secret validation (nil: off, the default).
 	SecretValidation *SecretValidationConfig `json:"secret_validation,omitempty"`
+}
+
+// JobCredential is the clone credential handed to a worker for one job:
+// HTTPS (user name + token, Basic or Bearer), or an SSH key with the pinned
+// known_hosts entries (Generic Git), and an optional private CA bundle.
+type JobCredential struct {
+	Username string `json:"username"`
+	Token    string `json:"token"`
+	Scheme   string `json:"scheme"` // basic (default) | bearer
+	// SSHPrivateKey and SSHKnownHosts: Generic Git over SSH.
+	SSHPrivateKey string `json:"ssh_private_key,omitempty"`
+	SSHKnownHosts string `json:"ssh_known_hosts,omitempty"`
+	// CABundle is the connection's private CA (PEM).
+	CABundle string `json:"ca_bundle,omitempty"`
 }
 
 // JobSource identifies a non-Git source for a job.

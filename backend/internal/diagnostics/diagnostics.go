@@ -42,7 +42,16 @@ type Service struct {
 	// WorkerOnlineWindow is how recent a heartbeat must be for a worker
 	// to count as online.
 	WorkerOnlineWindow time.Duration
+	// Subjects build the troubleshooting context of a subject kind
+	// ("connector") on the server: non-secret configuration metadata and
+	// the last stored failure, never client-supplied text. ok is false
+	// when the caller may not read the subject (answered 404).
+	Subjects map[string]SubjectContext
 }
+
+// SubjectContext returns the redacted context and stored error message of
+// one subject.
+type SubjectContext func(ctx context.Context, p *authz.Principal, id uuid.UUID) (ctxMap map[string]string, message string, ok bool, err error)
 
 // RegisterPublic mounts GET /api/v1/meta, which answers without
 // authentication (product, vendor and version only).
@@ -188,8 +197,19 @@ type TroubleshootRequest struct {
 	// Message is the error message the user saw (optional).
 	Message string `json:"message"`
 	// Context is non-secret metadata (route, connection kind, HTTP status,
-	// recent log lines). It is redacted before anything is sent.
+	// recent log lines). It is redacted before anything is sent. Ignored
+	// when Subject is set (the server builds the context).
 	Context map[string]string `json:"context"`
+	// Subject names a stored subject ({"kind": "connector", "id": ...});
+	// the server then builds the context from its configuration metadata
+	// and last failure.
+	Subject *Subject `json:"subject,omitempty"`
+}
+
+// Subject is the thing being troubleshot.
+type Subject struct {
+	Kind string `json:"kind"`
+	ID   string `json:"id"`
 }
 
 // TroubleshootResponse has the diagnostic fields of the error envelope plus
@@ -250,6 +270,32 @@ func (s *Service) troubleshoot(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		cleanCtx[k] = sanitize(v, 2000)
+	}
+	if in.Subject != nil {
+		build, known := s.Subjects[in.Subject.Kind]
+		id, perr := uuid.Parse(in.Subject.ID)
+		if !known || perr != nil {
+			httpx.WriteError(w, r, s.Log, &httpx.Error{Status: http.StatusUnprocessableEntity, Code: "validation_failed",
+				Message: "subject must name a known subject kind and id", Fields: map[string]string{"subject": "unknown subject"}})
+			return
+		}
+		sctx, smsg, ok, err := build(ctx, p, id)
+		if err != nil {
+			httpx.WriteError(w, r, s.Log, err)
+			return
+		}
+		if !ok {
+			httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
+			return
+		}
+		// Only the server-built context goes to the model.
+		cleanCtx = map[string]string{}
+		for k, v := range sctx {
+			if ctxKeyRe.MatchString(k) && len(cleanCtx) < 40 {
+				cleanCtx[k] = sanitize(v, 500)
+			}
+		}
+		msg = sanitize(smsg, 1000)
 	}
 	reqID := in.RequestID
 	if reqID == "" {

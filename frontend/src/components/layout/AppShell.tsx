@@ -118,7 +118,7 @@ export const groups: NavGroup[] = [
   {
     label: "1 · Connect",
     items: [
-      { label: "Connectors", icon: <Cable />, phase: 2, flag: "connectors" },
+      { label: "Connectors", to: "/connectors", icon: <Cable />, phase: 2, flag: "connectors" },
       { label: "Onboard an application", to: "/onboarding", icon: <Rocket />, perm: "repos.manage", phase: 3, flag: "onboarding" },
       { label: "Add repositories", to: "/repositories/import", icon: <FolderPlus />, perm: "repos.manage" },
       { label: "Import history", to: "/repositories/imports", icon: <History />, perm: "repos.read" },
@@ -318,14 +318,17 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <div className="px-2 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
                 )}
                 {items.map((item, idx) => {
+                  // A flagged module is a link only while its flag is on for this organization.
                   const it = navTarget(item, flags);
+                  const isLive = !!it.to;
                   const active =
+                    isLive &&
                     it.to &&
                     (it.to === "/" ? path === "/" : path === it.to || (path.startsWith(it.to + "/") && !items.some((o) => o.to && o.to !== it.to && path.startsWith(o.to))));
                   const cls = cn(
                     "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] [&_svg]:size-4 [&_svg]:shrink-0",
                     active ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground",
-                    it.to ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
+                    isLive ? "hover:bg-surface-muted hover:text-foreground" : "cursor-default opacity-60",
                   );
                   const sectionHead =
                     !collapsed && it.section && it.section !== items[idx - 1]?.section ? (
@@ -335,7 +338,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                     <>
                       {it.icon}
                       {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
-                      {!collapsed && it.phase && (
+                      {!collapsed && it.phase && !isLive && (
                         <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground" aria-hidden>
                           Phase {it.phase}
                         </span>
@@ -345,8 +348,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   return (
                     <div key={it.label}>
                       {sectionHead}
-                      {it.to ? (
-                        <Link to={it.to} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
+                      {isLive ? (
+                        <Link to={it.to!} className={cls} title={collapsed ? it.label : undefined} aria-current={active ? "page" : undefined}>
                           {content}
                         </Link>
                       ) : (

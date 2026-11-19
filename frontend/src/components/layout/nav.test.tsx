@@ -86,7 +86,7 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(admin.items[0]).toMatchObject({ label: "Organizations", to: "/installation/organizations" });
   });
 
-  it("every old route still resolves to a page (no redirect), also SCM connections and Integrations", () => {
+  it("every old route still resolves to a page (no router redirect; SCM connections and Integrations redirect in their component only while the connectors flag is on)", () => {
     const byPath = router.routesByPath as Record<string, { options: { component?: unknown; beforeLoad?: unknown } }>;
     const all: [string, string][] = [...oldMenu, ["Organizations", "/installation/organizations"]];
     for (const [, to] of all) {
@@ -123,19 +123,29 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(conf.indexOf("Secret validation")).toBe(conf.indexOf("Risk & intelligence") + 1);
   });
 
-  it("new modules are roadmap items with a phase and a feature flag, never a link", () => {
-    const roadmap = groups.flatMap((g) => g.items).filter((i) => !i.to);
-    expect(roadmap.map((i) => i.label).sort()).toEqual(
+  it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
+    const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
+    // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
+    // application) carry their route and still their phase and flag.
+    expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
+      ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
+      ["Connectors", "/connectors", "connectors"],
+      ["Onboard an application", "/onboarding", "onboarding"],
+    ]);
+    // Not-yet-built modules have no route at all.
+    expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       [
         "API & endpoints",
         "Binary analysis",
         "CodeGraph",
-        "Connectors",
         "Continuous monitoring",
         "Remediation workspace",
         "Reverse engineering tools",
         "Threat models",
       ].sort(),
+    );
+    expect(groups.flatMap((g) => g.items).filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
+      roadmap.filter((i) => !i.to).map((i) => i.label).sort(),
     );
     for (const i of roadmap) {
       expect(i.phase, i.label).toBeGreaterThan(0);
@@ -143,10 +153,11 @@ describe("sidebar regroup (prompt §5)", () => {
     }
   });
 
-  it("flagged modules with a route (M3) carry a phase and a flag", () => {
+  it("every flagged module with a route carries a phase and a flag", () => {
     const flagged = groups.flatMap((g) => g.items).filter((i) => i.to && i.flag);
     expect(flagged.map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
+      ["Connectors", "/connectors", "connectors"],
       ["Onboard an application", "/onboarding", "onboarding"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
@@ -181,5 +192,21 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(connectors).toHaveAttribute("title", "Connectors: arrives in roadmap phase 2");
     expect(within(connectors as HTMLElement).getByText("arrives in roadmap phase 2")).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Repositories" })).toHaveAttribute("href", "/repositories");
+  });
+
+  it("makes Connectors a link only while the connectors flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { connectors: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["repos.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const link = await within(nav).findByRole("link", { name: "Connectors" });
+    expect(link).toHaveAttribute("href", "/connectors");
+    expect(within(nav).queryByText("arrives in roadmap phase 2")).not.toBeInTheDocument();
+    // Other roadmap items stay disabled.
+    expect(within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
   });
 });

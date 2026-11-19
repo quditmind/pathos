@@ -460,7 +460,8 @@ var writeFixtures = map[string]map[string]any{
 	"PUT /api/v1/human-reviews/{id}/remediation":              {"status": "open", "priority": "p2", "link": "https://tracker.iso-probe.invalid/1"},
 	"PUT /api/v1/human-reviews/{id}/severity":                 {"cvss_vector": nil, "cvss_score": nil},
 	"PUT /api/v1/mcp-servers/{id}/tools":                      {"tools": []any{map[string]any{"tool": "list_pending_findings", "access": "read", "allowed": true}}},
-	"PUT /api/v1/notifications/webhooks/{id}":                 {"format": "json", "events": []any{"findings.new"}},
+	"PUT /api/v1/notifications/webhooks/{id}":                 {"format": "json", "events": []any{"findings.new"}, "trigger_auth": nil},
+	"PUT /api/v1/scm-connections/{id}/webhook-signing-token":  {"token": "whsec_aXNvbGF0aW9uLXByb2JlLXNpZ25pbmcta2V5LTEyMzQ="},
 	"PUT /api/v1/scan-profiles/{id}":                          {"severity_threshold": "high", "timeout_seconds": 600},
 	"POST /api/v1/applications":                               {"criticality": "high", "lifecycle": nil, "environment": nil},
 	"POST /api/v1/ai/configurations":                          {"effort": "low", "approval_policy": "never"},
@@ -473,7 +474,7 @@ var writeFixtures = map[string]map[string]any{
 	"POST /api/v1/scan-targets": {"kind": "url", "config": nil, "api_spec": nil, "auth_type": nil,
 		"auth_username": nil, "auth_header_name": nil, "auth_secret": nil, "signature_material": nil, "intrusive_authorized": nil,
 		"intrusive_authorization_note": nil, "authorized": true},
-	"PUT /api/v1/ticket-connections/{id}": {"kind": "jira", "auth_type": "bearer"},
+	"PUT /api/v1/ticket-connections/{id}": {"kind": "jira", "auth_type": "bearer", "config": map[string]any{"project_key": "ISO"}},
 	// PATHOS 3.0 M3 (inventory).
 	"POST /api/v1/tag-rules":                      {"target_type": "repository", "condition": "path_pattern", "field": nil, "value": "iso/*"},
 	"PATCH /api/v1/tag-rules/{id}":                {"target_type": "repository", "condition": "path_pattern", "field": nil, "value": "iso/*"},

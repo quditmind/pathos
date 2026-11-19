@@ -408,6 +408,15 @@ Indexes only, built with `CREATE INDEX CONCURRENTLY` (the migration runs outside
 
 The rank expressions must stay identical to `sevRank` and `riskRank` in `internal/scans/findings.go`; a unit test checks it.
 
+## Connectors (migration 00044)
+
+| Table | Purpose |
+|---|---|
+| `connectors` | The Connectors registry. For an existing connection: `kind`, `source_table` and `source_key` (the legacy row's id, the feed name, or `''` for the per-organization singletons `smtp_settings`, `secret_validation_settings`, `installation_object_store`, `installation_egress_proxy`), unique per `(organization_id, source_table, source_key)`; rows are added and removed by reconciliation in the connectors service (no triggers, the legacy tables stay the source of truth and keep their settings and credentials). For a kind stored here: `name` (unique per organization, case-insensitive), `config` (non-secret, at most 64 KiB) and `secret_id` (credential in `secrets`, composite key to the same organization). Health: `status` (`unknown`, `healthy`, `degraded`, `failing`, `disabled`), `last_check_at`, `last_ok_at`, `last_error_code` (a catalogue code or `''`). `check_requested_at`/`check_requested_by`: a "Check now" waiting for the jobs service |
+| `connector_health_checks` | One row per check: `status`, `trigger` (`schedule`, `user`, `verify`), `triggered_by`, `checked_at`, `duration_ms`, `error_code`, `message` (redacted, at most 2,000 characters), `steps` (JSON array of `{check, status, error_code, detail}`), `observed` (non-secret facts). Composite key to `connectors` with `ON DELETE CASCADE`. The jobs service keeps 30 days and at least the last 200 checks of each connector |
+
+Both are tenant tables with the standard row-level security policy from `pathos_apply_app_grants()`. The migration also adds `scm_connections.webhook_signing_secret_id` (GitLab signing token, kind `webhook`) and `outbound_webhooks.trigger_auth` (`{tenant_id, client_id, audience}`) with `trigger_auth_secret_id` (Teams trigger client secret, kind `integration`), each secret with a composite key to the same organization.
+
 ## Feature flags (migration 00043)
 
 | Table | Purpose |

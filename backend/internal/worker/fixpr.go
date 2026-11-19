@@ -93,11 +93,7 @@ func (a *Agent) runFix(parent context.Context, job FixJob) fixResult {
 	token := ""
 	if job.Credential != nil {
 		token = job.Credential.Token
-		cj.Credential = &struct {
-			Username string `json:"username"`
-			Token    string `json:"token"`
-			Scheme   string `json:"scheme"`
-		}{job.Credential.Username, job.Credential.Token, job.Credential.Scheme}
+		cj.Credential = &JobCredential{Username: job.Credential.Username, Token: job.Credential.Token, Scheme: job.Credential.Scheme}
 	}
 	job.Credential = nil
 	commit, err := clone(ctx, cj, src, filepath.Join(ws, "git"), a.cfg.MaxRepoBytes)

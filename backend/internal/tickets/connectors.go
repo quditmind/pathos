@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -27,6 +28,73 @@ type Conn struct {
 	Secret   string
 	Config   Config
 	HTTP     *http.Client
+	// cloudID caches the looked-up cloud ID of a scoped Jira connection.
+	cloudID string
+}
+
+// Jira token types.
+const (
+	TokenUnscoped = "unscoped"
+	TokenScoped   = "scoped"
+)
+
+// AtlassianGateway is the Atlassian API gateway that scoped API tokens must
+// call: https://api.atlassian.com/ex/jira/{cloudId}/rest/... (tests
+// replace it).
+var AtlassianGateway = "https://api.atlassian.com"
+
+var cloudIDRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+// ErrCloudID means the cloud ID of a Jira Cloud site could not be found.
+var ErrCloudID = errors.New("the Jira cloud ID could not be found; enter it in the connection (config.cloud_id)")
+
+// apiBase is where REST calls go: the site URL, or for a scoped Jira token
+// the Atlassian API gateway with the site's cloud ID.
+func (c *Conn) apiBase(ctx context.Context) (string, error) {
+	if c.Kind != "jira" || c.Config.TokenType != TokenScoped {
+		return strings.TrimRight(c.BaseURL, "/"), nil
+	}
+	id := c.Config.CloudID
+	if id == "" {
+		id = c.cloudID
+	}
+	if id == "" {
+		var err error
+		if id, err = c.lookupCloudID(ctx); err != nil {
+			return "", err
+		}
+		c.cloudID = id
+	}
+	return strings.TrimRight(AtlassianGateway, "/") + "/ex/jira/" + url.PathEscape(id), nil
+}
+
+// lookupCloudID reads the cloud ID from the site's tenant information
+// (GET https://<site>.atlassian.net/_edge/tenant_info, unauthenticated).
+func (c *Conn) lookupCloudID(ctx context.Context) (string, error) {
+	cctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(cctx, http.MethodGet, strings.TrimRight(c.BaseURL, "/")+"/_edge/tenant_info", nil)
+	if err != nil {
+		return "", ErrCloudID
+	}
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "PATHOS-ASPM")
+	resp, err := c.HTTP.Do(req)
+	if err != nil {
+		var ue *url.Error
+		if errors.As(err, &ue) {
+			err = ue.Err
+		}
+		return "", fmt.Errorf("%w: %w", ErrCloudID, err)
+	}
+	defer resp.Body.Close()
+	var out struct {
+		CloudID string `json:"cloudId"`
+	}
+	if resp.StatusCode != http.StatusOK || json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&out) != nil || !cloudIDRe.MatchString(strings.ToLower(out.CloudID)) {
+		return "", ErrCloudID
+	}
+	return strings.ToLower(out.CloudID), nil
 }
 
 // Config holds connector settings.
@@ -35,6 +103,14 @@ type Config struct {
 	ProjectKey string   `json:"project_key,omitempty"`
 	IssueType  string   `json:"issue_type,omitempty"`
 	Labels     []string `json:"labels,omitempty"`
+	// TokenType (Jira Cloud): "" or "unscoped" (classic API token, site
+	// URL) or "scoped" (API token with scopes, called through the
+	// Atlassian API gateway api.atlassian.com/ex/jira/{cloudId}). The two
+	// kinds of token look alike, so the administrator chooses.
+	TokenType string `json:"token_type,omitempty"`
+	// CloudID of the Jira Cloud site (scoped tokens); looked up from the
+	// site when empty.
+	CloudID string `json:"cloud_id,omitempty"`
 	// ServiceNow
 	Table           string `json:"table,omitempty"`
 	AssignmentGroup string `json:"assignment_group,omitempty"`
@@ -125,7 +201,7 @@ func (c Conn) Status(ctx context.Context, t Ticket) (Ticket, error) {
 	return k.Status(ctx, t)
 }
 
-func (c Conn) do(ctx context.Context, method, path string, body any, out any) error {
+func (c *Conn) do(ctx context.Context, method, path string, body any, out any) error {
 	var rd io.Reader
 	if body != nil {
 		b, err := json.Marshal(body)
@@ -136,7 +212,11 @@ func (c Conn) do(ctx context.Context, method, path string, body any, out any) er
 	}
 	cctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(cctx, method, strings.TrimRight(c.BaseURL, "/")+path, rd)
+	base, err := c.apiBase(cctx)
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequestWithContext(cctx, method, base+path, rd)
 	if err != nil {
 		return errors.New("invalid base URL")
 	}
@@ -162,22 +242,37 @@ func (c Conn) do(ctx context.Context, method, path string, body any, out any) er
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	switch {
 	case resp.StatusCode == http.StatusUnauthorized:
-		return errors.New("authentication failed (check the user and token)")
+		return &HTTPError{Status: resp.StatusCode, Msg: "authentication failed (check the user and token)"}
 	case resp.StatusCode == http.StatusForbidden:
-		return errors.New("permission denied for this operation")
+		return &HTTPError{Status: resp.StatusCode, Msg: "permission denied for this operation"}
 	case resp.StatusCode == http.StatusNotFound:
-		return errors.New("not found (check the URL, project or table)")
+		return &HTTPError{Status: resp.StatusCode, Msg: "not found (check the URL, project or table)"}
 	case resp.StatusCode < 200 || resp.StatusCode > 299:
-		return fmt.Errorf("HTTP %d%s", resp.StatusCode, remoteMessage(c.Kind, data))
+		return &HTTPError{Status: resp.StatusCode, Msg: fmt.Sprintf("HTTP %d%s", resp.StatusCode, remoteMessage(c.Kind, data)),
+			RetryAfter: resp.Header.Get("Retry-After")}
 	}
 	if out == nil || len(data) == 0 {
 		return nil
 	}
 	if err := json.Unmarshal(data, out); err != nil {
-		return fmt.Errorf("unexpected response from %s", c.Kind)
+		return &HTTPError{Status: resp.StatusCode, Msg: "unexpected response from " + c.Kind, Unreadable: true}
 	}
 	return nil
 }
+
+// HTTPError is a non-2xx (or unreadable) answer of the tracker. Its
+// message never contains the request or the credential.
+type HTTPError struct {
+	Status int
+	Msg    string
+	// RetryAfter is the tracker's Retry-After header (rate limits).
+	RetryAfter string
+	// Unreadable: a 2xx answer that is not the expected JSON (often a
+	// sign-in page or a wrong base URL).
+	Unreadable bool
+}
+
+func (e *HTTPError) Error() string { return e.Msg }
 
 // remoteMessage extracts a short validation message (never the request).
 func remoteMessage(kind string, b []byte) string {

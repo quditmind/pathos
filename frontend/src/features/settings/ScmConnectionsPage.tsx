@@ -16,6 +16,8 @@ import { ConnectProviderDialog } from "./ConnectProviderDialog";
 import { CopyButton, OAuthAppsSection } from "./OAuthAppsSection";
 import { authTypeLabels, providerLabel, startOAuth, useProviders, useUpdateConnection } from "./scmApi";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { useFeatureFlag } from "@/features/shell/meta";
+import { CABundleSection, caBundleApplies } from "./CABundleSection";
 
 export interface ScmSearch {
   tab?: "oauth";
@@ -36,11 +38,23 @@ export function validateScmSearch(s: Record<string, unknown>): ScmSearch {
   };
 }
 
-export function ScmConnectionsPage() {
+/**
+ * SCM connections. `embedded` renders the same page inside the Connectors hub
+ * (/connectors?manage=scm): every action stays available, the hub's own `tab`
+ * parameter is left alone (the OAuth tab uses `scm_tab`) and navigation stays
+ * in the hub.
+ */
+export function ScmConnectionsPage({ embedded = false }: { embedded?: boolean } = {}) {
   const { canOrgWide } = useSession();
   const manage = canOrgWide("scm.manage");
-  const search = useSearch({ strict: false }) as ScmSearch;
+  const raw = useSearch({ strict: false }) as ScmSearch & { scm_tab?: "oauth" };
+  const search: ScmSearch = embedded ? { ...raw, tab: raw.scm_tab } : raw;
   const navigate = useNavigate();
+  // Navigation target: the old page, or the hub with the SCM panel open.
+  const go = (tab: ScmSearch["tab"]) =>
+    embedded
+      ? navigate({ to: "/connectors", search: { category: "scm_ide", manage: "scm", ...(tab ? { scm_tab: tab } : {}) } as never, replace: true })
+      : navigate({ to: "/admin/scm", search: (tab ? { tab } : {}) as never, replace: true });
   const conns = useConnections();
   const providers = useProviders();
   const [notice, setNotice] = useState<{ tone: "success" | "danger"; text: string } | null>(null);
@@ -56,15 +70,16 @@ export function ScmConnectionsPage() {
         ? { tone: "success", text: "The provider connection was authorised and saved." }
         : { tone: "danger", text: `The provider sign-in did not complete: ${search.message || "unknown error"}` },
     );
-    void navigate({ to: "/admin/scm", search: (search.tab ? { tab: search.tab } : {}) as never, replace: true });
+    void go(search.tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search.oauth]);
 
-  const setTab = (t: "connections" | "oauth") => void navigate({ to: "/admin/scm", search: (t === "oauth" ? { tab: "oauth" } : {}) as never, replace: true });
+  const setTab = (t: "connections" | "oauth") => void go(t === "oauth" ? "oauth" : undefined);
 
   return (
     <>
       <PageHeader
+        level={embedded ? 2 : 1}
         title="SCM connections"
         description="Git and DevOps providers used to discover and import repositories and receive webhooks. Credentials are encrypted at rest and never shown again."
         actions={
@@ -140,7 +155,7 @@ export function ScmConnectionsPage() {
         open={connectOpen}
         onOpenChange={(o) => {
           setConnectOpen(o);
-          if (!o && search.connect) void navigate({ to: "/admin/scm", search: {} as never, replace: true });
+          if (!o && search.connect) void go(undefined);
         }}
         providers={providers.data}
         category={search.connect === "git" || search.connect === "devops" ? search.connect : undefined}
@@ -186,6 +201,8 @@ function ConnectionCard({
   const isOAuth = c.auth_type === "oauth";
   const needsReconnect = c.status === "expired" || c.status === "revoked";
   const expiresSoon = c.token_expires_at && new Date(c.token_expires_at).getTime() - Date.now() < 7 * 86400_000;
+  // The per-connection CA bundle is part of the connectors feature.
+  const connectorsOn = useFeatureFlag("connectors");
 
   const reconnect = async () => {
     if (!c.oauth_app_id) return setReconnectError("This connection has no OAuth application; delete it and connect again.");
@@ -232,6 +249,7 @@ function ConnectionCard({
         )}
         {c.organizations?.length > 0 && <div>Limited to: {c.organizations.join(", ")}</div>}
       </div>
+      {connectorsOn && caBundleApplies(c) && <CABundleSection c={c} manage={manage} onNotice={onNotice} />}
       {resync.isSuccess && (
         <p className="mt-1 text-[12px] text-success">
           Re-synced: {resync.data.checked} checked, {resync.data.updated} updated
