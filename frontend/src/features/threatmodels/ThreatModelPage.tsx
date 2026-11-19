@@ -341,7 +341,7 @@ export function ThreatModelView({ modelId, tab, threat, onNavigate }: { modelId:
           </button>
         ))}
       </div>
-      <div role="tabpanel" id={`tm-panel-${tab}`} aria-labelledby={`tm-tab-${tab}`} className="grid gap-3 lg:grid-cols-[1fr_320px]">
+      <div role="tabpanel" id={`tm-panel-${tab}`} aria-labelledby={`tm-tab-${tab}`} className={tab === "diagram" ? "grid gap-3" : "grid gap-3 lg:grid-cols-[1fr_320px]"}>
         <div className="min-w-0">
           {tab === "threats" &&
             (threats.isPending ? (
@@ -354,7 +354,8 @@ export function ThreatModelView({ modelId, tab, threat, onNavigate }: { modelId:
           {tab === "diagram" && <Diagram model={m} threats={sorted} />}
           {tab === "versions" && <Versions model={m} />}
         </div>
-        <ApprovalPanel model={m} />
+        {/* The diagram uses the full width (its inspector is the side panel). */}
+        {tab !== "diagram" && <ApprovalPanel model={m} />}
       </div>
       <ThreatDetail threatId={threat} model={m} onClose={() => onNavigate({ threat: undefined })} />
       {editable && <AddThreatDialog open={adding} onOpenChange={setAdding} modelId={m.id} defaultRepo={m.repository_id ?? undefined} />}

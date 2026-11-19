@@ -400,3 +400,22 @@ func TestRuleCatalogue(t *testing.T) {
 		}
 	}
 }
+
+func TestCriticalNeedsAFinding(t *testing.T) {
+	f := newFixture().route("POST", "/api/orders", "createOrder")
+	f.node("tb:internet", "trust_boundary", nil).node("iac:k8s:Ingress/x", "iac_resource", nil).edge("iac:k8s:Ingress/x", "crosses_boundary", "tb:internet")
+	f.node("ds:postgresql", "datastore", map[string]any{"technology": "postgresql"}).edge("fn:createOrder", "writes", "ds:postgresql")
+	got := byRule(f.run(t), "TM-T-001")
+	if len(got) != 1 || got[0].Severity != "high" || !strings.Contains(got[0].SeverityReason, "capped at high (critical needs") {
+		t.Fatalf("without a finding: %+v", got)
+	}
+	for i := range f.g.Nodes {
+		if f.g.Nodes[i].Key == "fn:createOrder" {
+			f.g.Nodes[i].Findings = map[string]int{"high": 1}
+		}
+	}
+	got = byRule(f.run(t), "TM-T-001")
+	if len(got) != 1 || got[0].Severity != "critical" || !strings.Contains(got[0].SeverityReason, "open critical or high finding") {
+		t.Fatalf("with a finding: %+v", got)
+	}
+}

@@ -397,10 +397,13 @@ func appendNode(list []EvNode, n EvNode) []EvNode {
 
 // scoring applies the documented severity and confidence adjustments.
 type scoring struct {
-	severity   string
-	confidence float64
-	reasons    []string
-	creasons   []string
+	// fromFindings: an open critical or high finding raised the severity
+	// (only then can a rule threat be critical).
+	fromFindings bool
+	severity     string
+	confidence   float64
+	reasons      []string
+	creasons     []string
 }
 
 func score(r Rule) *scoring {
@@ -446,9 +449,13 @@ func (s *scoring) apply(r Rule, g *Graph, t *Threat) {
 	if g.Partial {
 		s.conf(-0.1, "the snapshot is partial (some discovery engines failed)")
 	}
-	if r.Absence && slices.Index(Severities, s.severity) < slices.Index(Severities, "high") {
+	switch {
+	case r.Absence && slices.Index(Severities, s.severity) < slices.Index(Severities, "high"):
 		s.severity = "high"
 		s.reasons = append(s.reasons, "capped at high (absence of evidence)")
+	case s.severity == "critical" && !s.fromFindings:
+		s.severity = "high"
+		s.reasons = append(s.reasons, "capped at high (critical needs an open critical or high finding on the elements)")
 	}
 	t.Severity = s.severity
 	t.SeverityReason = strings.Join(s.reasons, "; ")
@@ -477,6 +484,7 @@ func findingsUp(s *scoring, g *Graph, ev Evidence) {
 	}
 	if hi > 0 {
 		s.up(1, fmt.Sprintf("%d open critical or high finding(s) on %s", hi, where))
+		s.fromFindings = true
 	}
 }
 
@@ -595,14 +603,13 @@ func ruleExposedWrite(c *ruleCtx) []Threat {
 		store, _ := c.g.node(k)
 		hits := byStore[k]
 		ev := Evidence{Nodes: []EvNode{evNode(store)}, Exposure: c.exposure()}
-		unauth := 0
-		var routes []string
+		var routes, unauthRoutes []string
 		for i, h := range hits {
-			if c.authEvidence(h.en) == "" {
-				unauth++
-			}
 			if !slices.Contains(routes, h.en.route.Label) {
 				routes = append(routes, h.en.route.Label)
+				if c.authEvidence(h.en) == "" {
+					unauthRoutes = append(unauthRoutes, h.en.route.Label)
+				}
 			}
 			if i >= 5 {
 				continue
@@ -614,8 +621,8 @@ func ruleExposedWrite(c *ruleCtx) []Threat {
 		}
 		s := score(r)
 		c.internetUp(s)
-		if unauth > 0 {
-			s.up(1, fmt.Sprintf("%d writing entry point(s) without authentication evidence", unauth))
+		if len(unauthRoutes) > 0 {
+			s.up(1, fmt.Sprintf("%d writing entry point(s) without authentication evidence (%s)", len(unauthRoutes), strings.Join(firstN(unauthRoutes, 3), ", ")))
 		}
 		findingsUp(s, c.g, ev)
 		t := Threat{Title: "Tampering with " + store.Label + " from exposed entry points",

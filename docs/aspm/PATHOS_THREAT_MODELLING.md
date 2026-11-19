@@ -55,7 +55,7 @@ At most 600 elements and 600 flows per repository are kept for the diagram. AI-i
 
 ## 3. Rule catalogue
 
-Severity starts at the rule's base; it is raised one level when the repository is internet-facing (a `crosses_boundary` edge into the internet boundary: published port, Ingress, LoadBalancer or NodePort Service, open security group, or an observed exposed workload; or the inventory's public exposure `yes`) and one level when an evidence node holds open critical or high findings; rules that fire on **absent** evidence are capped at high. Confidence starts at the rule's base; +0.10 when the internet exposure is observed at run time, −0.10 when the snapshot is partial; bounded to 0.10–0.99. The reasons are stored with each threat.
+Severity starts at the rule's base; it is raised one level when the repository is internet-facing (a `crosses_boundary` edge into the internet boundary: published port, Ingress, LoadBalancer or NodePort Service, open security group, or an observed exposed workload; or the inventory's public exposure `yes`) and one level when an evidence node holds open critical or high findings; rules that fire on **absent** evidence are capped at high, and a rule threat reaches critical only when an open critical or high finding on its elements raised it (otherwise it is capped at high). Confidence starts at the rule's base; +0.10 when the internet exposure is observed at run time, −0.10 when the snapshot is partial; bounded to 0.10–0.99. The reasons are stored with each threat.
 
 | Rule | Ver. | STRIDE | Element | Fires when | Base severity / confidence | ATT&CK · CAPEC · CWE · D3FEND |
 |---|---|---|---|---|---|---|
