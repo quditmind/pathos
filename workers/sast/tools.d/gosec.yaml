@@ -2,7 +2,10 @@
 # every Go package of the repository with the image's Go toolchain, offline
 # (modules that are not vendored are not downloaded; their packages are
 # reported as errors in the report, not as findings). JSON report parsed with
-# the PATHOS gosec import parser.
+# the PATHOS gosec import parser. 2.2.2: scanned per module and top-level
+# directory with GOMEMLIMIT below the container limit (gosec ./... was
+# OOM-killed at 4 GB on mid-size repositories); a chunk that still fails is
+# named and the other chunks' findings are kept (result partial).
 name: gosec
 display_name: gosec
 category: sast

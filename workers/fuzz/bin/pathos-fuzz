@@ -241,7 +241,8 @@ def go(source, output, tmp):
                         "detail": "" if status in ("passed", "crashed") else out[-1500:]})
         print("go-fuzz %s/%s: %s (%.0fs)" % (pkg, name, status, took), file=sys.stderr)
     write(output, "go-fuzz", targets, findings)
-    return 0
+    return outcome("go-fuzz", targets, "Go modules are offline (GOPROXY=off): modules whose dependencies are not vendored "
+                   "(go mod vendor) cannot be built")
 
 
 # ------------------------------------------------------------- Atheris
@@ -329,7 +330,28 @@ def atheris(source, output, tmp):
                         "detail": "" if status in ("passed", "crashed") else out[-1500:]})
         print("atheris %s: %s (%.0fs)" % (harness, status, took), file=sys.stderr)
     write(output, "atheris", targets, findings)
-    return 0
+    return outcome("atheris", targets, "the harness imports modules that are not installed in the fuzz image")
+
+
+def outcome(tool, targets, build_hint):
+    """Exit status: 0 when every target that was tried ran (passed or
+    crashed); 3 when a target did not build, failed or hung, with the
+    reason as the last line of standard error, so the scan reports the tool
+    as failed and the execution as partial instead of a success with no
+    findings (VALIDATION_REPORT O4). The report is written either way and
+    its crashes are kept."""
+    tried = [t for t in targets if t["status"] != "skipped"]
+    bad = [t for t in tried if t["status"] in ("build-failed", "failed", "timeout")]
+    if not bad:
+        return 0
+    builds = sum(t["status"] == "build-failed" for t in bad)
+    first = bad[0]
+    where = first.get("package") or first.get("file") or first["name"]
+    msg = "%s: %d of %d fuzz targets did not run (%d did not build" % (tool, len(bad), len(tried), builds)
+    msg += "; %s)" % build_hint if builds else ")"
+    msg += "; first: %s/%s %s" % (where, first["name"], first["status"])
+    print(msg, file=sys.stderr)
+    return 3
 
 
 def write(output, tool, targets, findings):
