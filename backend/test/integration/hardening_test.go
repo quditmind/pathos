@@ -140,3 +140,37 @@ func TestMissingFamilyToolsArePartial(t *testing.T) {
 		t.Errorf("a tool skipped for lack of files: %s %q", status, msg)
 	}
 }
+
+// TestWorkerReleaseOnShutdown: a stopping worker returns its job to the
+// queue; another worker picks it up (VALIDATION_REPORT O9).
+func TestWorkerReleaseOnShutdown(t *testing.T) {
+	ctx := t.Context()
+	h := newScanHarness(t)
+	admin := reviewUser(t, "platform_admin")
+	repo := createRepo(t, "rel-"+uuid.NewString()[:6])
+	_, q := h.user(admin, "POST", "/api/v1/repositories/"+repo.String()+"/scan", nil)
+	jobID := q["job_id"].(string)
+	_, r1 := h.worker(bootstrap, "POST", "/internal/worker/v1/register", map[string]any{"name": "rel1-" + uuid.NewString()[:6], "family": "core"})
+	_, r2 := h.worker(bootstrap, "POST", "/internal/worker/v1/register", map[string]any{"name": "rel2-" + uuid.NewString()[:6], "family": "core"})
+	t1, t2 := r1["token"].(string), r2["token"].(string)
+	h.leaseJob(t1, jobID)
+	if code, _ := h.worker(t2, "POST", "/internal/worker/v1/jobs/"+jobID+"/release", map[string]any{"reason": "x"}); code != 404 && code != 409 {
+		t.Errorf("another worker cannot release the job: %d", code)
+	}
+	code, out := h.worker(t1, "POST", "/internal/worker/v1/jobs/"+jobID+"/release", map[string]any{"reason": "worker w1 stopped (SIGTERM)"})
+	if code != 200 || out["status"] != "queued" {
+		t.Fatalf("release: %d %v", code, out)
+	}
+	var status, stage string
+	var leased *uuid.UUID
+	_ = appPool.QueryRow(ctx, `SELECT status, stage, leased_by FROM scan_jobs WHERE id = $1`, jobID).Scan(&status, &stage, &leased)
+	if status != "queued" || leased != nil {
+		t.Errorf("released job: %s %v", status, leased)
+	}
+	h.leaseJob(t2, jobID) // picked up by the other worker
+	// The last attempt is failed instead of requeued.
+	_, _ = appPool.Exec(ctx, `UPDATE scan_jobs SET attempts = max_attempts WHERE id = $1`, jobID)
+	if code, out := h.worker(t2, "POST", "/internal/worker/v1/jobs/"+jobID+"/release", map[string]any{"reason": "worker w2 stopped (SIGTERM)"}); code != 200 || out["status"] != "failed" {
+		t.Errorf("release of the last attempt: %d %v", code, out)
+	}
+}
