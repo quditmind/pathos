@@ -23,3 +23,5 @@ intrusive: false
 requires_build: false
 default_enabled: false
 parser: import:gosec
+# Skipped (not failed) on repositories without these files.
+requires_files: ["*.go"]
