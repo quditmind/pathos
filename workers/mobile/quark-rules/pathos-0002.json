@@ -1,0 +1,25 @@
+{
+    "crime": "Send the device ID by SMS",
+    "permission": [
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.SEND_SMS"
+    ],
+    "api": [
+        {
+            "class": "Landroid/telephony/TelephonyManager;",
+            "method": "getDeviceId",
+            "descriptor": "()Ljava/lang/String;"
+        },
+        {
+            "class": "Landroid/telephony/SmsManager;",
+            "method": "sendTextMessage",
+            "descriptor": "(Ljava/lang/String; Ljava/lang/String; Ljava/lang/String; Landroid/app/PendingIntent; Landroid/app/PendingIntent;)V"
+        }
+    ],
+    "score": 3,
+    "label": [
+        "collection",
+        "sms",
+        "privacy"
+    ]
+}

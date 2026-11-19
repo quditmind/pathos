@@ -38,6 +38,7 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 - `ghcr.io/quditmind/pathos-worker-core`
 - `ghcr.io/quditmind/pathos-worker-sast` (opt-in [family worker image](#family-worker-images), built on the signed `pathos-worker-core` of the same release)
 - `ghcr.io/quditmind/pathos-worker-dast` (opt-in family worker image for web application and API targets, without sqlmap and Nikto)
+- `ghcr.io/quditmind/pathos-worker-mobile`, `pathos-worker-binary`, `pathos-worker-ai` and `pathos-worker-fuzz` (opt-in family worker images, built the same way)
 
 Use them instead of building locally:
 
@@ -193,6 +194,10 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 | IaC and CI/CD | `iac` | `worker-iac` | KICS, KubeLinter, Kubescape, TFLint, Conftest (PATHOS policies), Hadolint, cfn-lint, cfn_nag, Polaris, kube-score, Trivy (config), OpenSSF Scorecard (`--local`) |
 | SCA, malicious packages and SBOM | `sca` | `worker-sca` | govulncheck, pip-audit, cargo-audit, bundler-audit, Retire.js, npm/yarn/pnpm audit, Composer audit, OWASP Dependency-Check, GuardDog, pathos-depcheck, cdxgen |
 | DAST | `dast` | `worker-dast` | OWASP ZAP (baseline, full and API scans), Wapiti, Dalfox, ffuf, testssl.sh, SSLyze, Schemathesis, Arjun; sqlmap and Nikto only in an opt-in build ([DAST tools](user-guide/dast.md)) |
+| Mobile | `mobile` | `worker-mobile` | mobsfscan, APKLeaks, Quark-Engine, mobile app checks (mobile app targets) |
+| Binary | `binary` | `worker-binary` | CVE Binary Tool, capa, YARA-X (build artifacts; YARA-X also mobile apps and repositories) |
+| AI | `ai` | `worker-ai` | ModelScan (repositories, model artifacts), garak and promptfoo (LLM endpoint targets) |
+| Fuzzing | `fuzz` | `worker-fuzz` | Go native fuzzing, Atheris (repositories; builds and runs repository code) |
 
 To enable one:
 
@@ -203,7 +208,33 @@ To enable one:
 
 Routing: a scan that uses a family tool is leased only by a worker that advertises it (every family tool of the scan), so keep at least one family worker running while profiles use its tools. When no online worker has all the tools a scan needs, any worker runs the scan and records the missing tools as *skipped* (*scanner not available in this worker image*). `worker-core` keeps running the scans that use core tools only; both kinds can be scaled (`--scale worker-sast=N`).
 
-The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck and cdxgen are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+The family tools of `worker-sast` and `worker-iac` declare `network: none`: they run without the egress proxy variables and need no allowlist entry (Kubescape's frameworks, KICS' queries and Trivy's misconfiguration checks are part of the image). In `worker-sca`, cargo-audit, bundler-audit, Retire.js, pathos-depcheck and cdxgen are offline too (advisory snapshots in the image). The others declare `network: registry` and need their registry, which the default allowlist does not contain: govulncheck (`proxy.golang.org`, `sum.golang.org`, `vuln.go.dev`), pip-audit (`pypi.org`), npm, yarn and pnpm audit (`registry.npmjs.org`), Composer audit (`packagist.org`, `repo.packagist.org`), Dependency-Check (`nvd.nist.gov`, or `services.nvd.nist.gov` with an API key) and GuardDog (`pypi.org`, `files.pythonhosted.org`, `registry.npmjs.org`). To allow them, rename `deploy/egress/conf.d/sca-registries.conf.disabled` to `sca-registries.conf` (or copy the lines you need) and restart `egress`; without it those tools fail with a connection error. Optional settings for these tools (an NVD API key, a Go module proxy or vulnerability database mirror, a private npm registry) go in a file mounted read-only at `/etc/pathos/sca.env` in `worker-sca` (`NVD_API_KEY=…`, `NVD_DATAFEED_URL=…`, `GOPROXY=…`, `GOVULNDB=…`, `NPM_CONFIG_REGISTRY=…`; other lines are ignored), because the worker passes tools a scrubbed environment. Dependency-Check keeps the NVD data in the worker's cache volume; the first run downloads it (about 250 MB). The tools of `worker-dast` declare `network: target`: they run only for web application and API targets with an authorization statement (intrusive ones also need the target's intrusive testing flag), are added to a target under **Additional tools** rather than to a scan profile, and reach only the target's host through a local scope proxy and then the egress proxy, so the target's host must be on the egress allowlist. Its image is about 1 GB larger than `worker-core` (Java runtime and ZAP). `PATHOS_DAST_WITH_SQLMAP=true` and `PATHOS_DAST_WITH_NIKTO=true` in `.env` build sqlmap and Nikto into it (licence terms in [DAST tools](user-guide/dast.md#opt-in-tools-sqlmap-and-nikto)). The family tools of `worker-mobile`, `worker-binary` and `worker-fuzz`, and ModelScan, also declare `network: none`. garak and promptfoo (`worker-ai`) send requests to an LLM endpoint target through the egress proxy: add the endpoint's host to `deploy/egress/allowlist.txt`. Released family images are signed like the others (`cosign verify ghcr.io/quditmind/pathos-worker-sast:<version> …`). `scripts/security-scan.sh` scans every family image that is built locally (CI requires them).
+
+Mobile app and artifact tools are selected on the scan target (**Scan targets → Additional tools**); repository tools (YARA-X, ModelScan, the fuzzers, the AI-BOM) in a scan profile.
+
+### Mounted rule sets
+
+| Variable | Mounted at | Used by |
+|---|---|---|
+| `PATHOS_QUARK_RULES_DIR` (default `workers/mobile/quark-rules-extra`, empty) | `/opt/pathos/mobile/quark-rules-extra` in `worker-mobile` | Quark-Engine, in addition to the PATHOS rules (for example the community quark-rules set, which has no licence and is therefore not bundled) |
+| `PATHOS_YARA_RULES_DIR` (default `workers/binary/yara-extra`, empty) | `/opt/pathos/binary/yara-extra` in `worker-binary` | YARA-X, in addition to the bundled ReversingLabs and PATHOS rules; compiled at scan time |
+
+### CVE Binary Tool database
+
+CVE Binary Tool (`worker-binary`) matches component versions against a vulnerability database in the worker's cache volume (`/cache/plugins/cve-bin-tool`). The image contains no database and scans never download one: until it is installed, the tool's result is *failed* with a hint. The database is built from the NVD JSON 2.0 feeds (through `cveb.in`, the mirror the CVE Binary Tool project maintains) and curl's advisories (`curl.se`); it is about 600 MB.
+
+Connected installation (the container uses Docker's default network, not the worker networks; run it again to refresh, for example weekly):
+
+```bash
+docker run --rm -v pathos_scanner_cache:/cache --entrypoint /opt/pathos/binary/bin/pathos-binary \
+  ${PATHOS_IMAGE_PREFIX}pathos-worker-binary:${PATHOS_VERSION} cve-db-update /cache/plugins/cve-bin-tool
+```
+
+Air-gapped installation: run the same command on a connected machine with a scratch volume, export the database (`cve-db-export /cache/plugins/cve-bin-tool /cache/cve.db`), copy the file into the air-gapped installation's cache volume and import it there (`cve-db-import /cache/plugins/cve-bin-tool /cache/cve.db`, `--network none`). The volume name depends on the Compose project (`docker volume ls | grep scanner_cache`).
+
+### Fuzzing worker
+
+`worker-fuzz` builds and runs code from the repositories it scans (Go fuzz targets, Atheris harnesses). Enable it only for repositories whose code you are willing to run in the worker sandbox. Besides the isolation of every worker, the fuzzers run without the egress proxy variables (and with `GOPROXY=off`), on a copy of the checkout, under CPU-time, file-size and memory limits and a time budget (`FUZZ_SECONDS`, `FUZZ_TOTAL_SECONDS`, `FUZZ_MAX_TARGETS` in `workers/fuzz/tools.d`). The service has a CPU limit (`PATHOS_FUZZ_CPUS`, default 2), and its `/work` tmpfs allows execution, which Go test binaries need. Because the worker also runs core jobs it keeps the `scan` network; repository code can therefore reach the egress proxy, which forwards only to the allowlisted hosts.
 
 ## Endpoint verification, end-of-life data and signatures
 

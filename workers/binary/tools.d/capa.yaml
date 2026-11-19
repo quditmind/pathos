@@ -1,0 +1,34 @@
+# capa: capabilities of executables (ELF, PE, .NET) found with the
+# capa-rules set, mapped to MITRE ATT&CK and the Malware Behavior Catalog.
+# The report keeps capa's own JSON per file under "capa"; "capabilities"
+# lists the matched rules without capa's library and subscope rules.
+# Severity: medium for capabilities typical of malware (anti-analysis,
+# persistence, command and control, process injection, ...), low for other
+# ATT&CK-mapped capabilities, info otherwise.
+name: capa
+display_name: capa
+category: binary
+scan_types: [binary, malware]
+license_spdx: Apache-2.0
+homepage: https://github.com/mandiant/capa
+family: binary
+targets: [binary]
+command: /opt/pathos/binary/bin/pathos-binary
+version_args: ["version", "capa"]
+args: ["capa", "{artifact}", "{output}", "{tmp}"]
+timeout: 1h
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: capabilities
+  rule_id: rule
+  title: "{rule} ({namespace})"
+  message: "{description}. ATT&CK: {attack}. Matches: {matches}."
+  severity: severity
+  default_severity: info
+  file: file
+  identity: "{rule} {file}"

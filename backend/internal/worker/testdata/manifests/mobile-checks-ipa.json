@@ -1,0 +1,96 @@
+{
+ "tool": "mobile-app-checks",
+ "version": 1,
+ "packages": [
+  {
+   "file": "pathos-test.ipa",
+   "id": "org.pathos.testapp"
+  }
+ ],
+ "findings": [
+  {
+   "id": "IOS-ATS-ARBITRARY-LOADS",
+   "title": "App Transport Security is disabled (NSAllowsArbitraryLoads)",
+   "severity": "high",
+   "description": "NSAllowsArbitraryLoads=true turns off App Transport Security: the app may load content over cleartext HTTP and weak TLS.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/Info.plist",
+   "component": "",
+   "cwe": "CWE-319",
+   "masvs": "MASVS-NETWORK-1",
+   "evidence": "NSAllowsArbitraryLoads=true",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-ATS-EXCEPTION-DOMAIN",
+   "title": "App Transport Security exception for legacy.pathos-test.invalid",
+   "severity": "medium",
+   "description": "Connections to legacy.pathos-test.invalid (subdomains: yes) are exempt from App Transport Security: NSExceptionAllowsInsecureHTTPLoads=true, NSExceptionMinimumTLSVersion=TLSv1.0.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/Info.plist",
+   "component": "legacy.pathos-test.invalid",
+   "cwe": "CWE-319",
+   "masvs": "MASVS-NETWORK-1",
+   "evidence": "NSExceptionAllowsInsecureHTTPLoads=true; NSExceptionMinimumTLSVersion=TLSv1.0",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-URL-SCHEME",
+   "title": "Custom URL scheme: pathostest://",
+   "severity": "low",
+   "description": "The app registers the custom URL scheme pathostest://. Any app can register the same scheme and receive the URLs, and any web page or app can open it with attacker-chosen parameters: validate every parameter and prefer universal links for sensitive actions.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/Info.plist",
+   "component": "pathostest",
+   "cwe": "CWE-939",
+   "masvs": "MASVS-PLATFORM-1",
+   "evidence": "pathostest://",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-MINIMUM-OS",
+   "title": "The app supports outdated iOS versions (MinimumOSVersion 12.0)",
+   "severity": "low",
+   "description": "iOS versions before 14 no longer receive security updates.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/Info.plist",
+   "component": "",
+   "cwe": "CWE-1104",
+   "masvs": "MASVS-CODE-3",
+   "evidence": "MinimumOSVersion=12.0",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-GET-TASK-ALLOW",
+   "title": "The app can be debugged (get-task-allow entitlement)",
+   "severity": "high",
+   "description": "get-task-allow=true lets a debugger attach to the app; it is set in development builds and must not be in a release build.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/embedded.mobileprovision",
+   "component": "",
+   "cwe": "CWE-489",
+   "masvs": "MASVS-RESILIENCE-2",
+   "evidence": "get-task-allow=true",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-APS-DEVELOPMENT",
+   "title": "Development push notification environment",
+   "severity": "low",
+   "description": "aps-environment=development: the package was built with a development provisioning profile.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/embedded.mobileprovision",
+   "component": "",
+   "cwe": "CWE-489",
+   "masvs": "MASVS-RESILIENCE-2",
+   "evidence": "aps-environment=development",
+   "package": "org.pathos.testapp"
+  },
+  {
+   "id": "IOS-KEYCHAIN-WILDCARD",
+   "title": "Wildcard keychain access group",
+   "severity": "medium",
+   "description": "The keychain access groups include a wildcard (PATHOSTEST.*): keychain items may be shared with every app of the team.",
+   "file": "pathos-test.ipa!/Payload/PathosTest.app/embedded.mobileprovision",
+   "component": "",
+   "cwe": "CWE-732",
+   "masvs": "MASVS-STORAGE-1",
+   "evidence": "PATHOSTEST.*",
+   "package": "org.pathos.testapp"
+  }
+ ]
+}

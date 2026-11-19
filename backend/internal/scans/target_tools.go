@@ -81,7 +81,9 @@ func toolScansKind(targets []string, kind string) bool {
 		switch {
 		case kind == t && (t == "image" || t == "url" || t == "api"),
 			kind == "api" && t == "url",
-			kind == "artifact" && (t == "binary" || t == "mobile-app" || t == "model"):
+			kind == "artifact" && (t == "binary" || t == "mobile-app" || t == "model"),
+			kind == "mobile-app" && t == "mobile-app",
+			kind == "llm-endpoint" && t == "llm-endpoint":
 			return true
 		}
 	}
@@ -158,7 +160,7 @@ func (s *Service) setIntrusive(ctx context.Context, tx pgx.Tx, p *authz.Principa
 	}
 	if err != nil {
 		if db.IsCheckViolation(err) {
-			return httpx.BadRequest("intrusive testing can be authorized only for an authorized web application or API target")
+			return httpx.BadRequest("intrusive testing can be authorized only for an authorized web application, API or LLM endpoint target")
 		}
 		return err
 	}

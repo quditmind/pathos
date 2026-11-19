@@ -137,7 +137,7 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - The credential travels in `GIT_CONFIG_*` environment variables (an HTTP header), never in argv, the URL or `.git/config`.
   - Hooks are disabled, `file://` and `ext::` transports are forbidden, symlinks are not checked out, objects are fsck'd, redirects are not followed, refs are validated against option injection, and repository size is capped.
   - `.git` is deleted before scanners run, and the workspace is removed after every job.
-  - Repository code is never built or executed.
+  - Repository code is never built or executed, except by the opt-in fuzzing tools of the `worker-fuzz` family image (Go native fuzzing, Atheris), which a scan profile must select: they run the repository's fuzz harnesses in that worker's sandbox only (never on the API or jobs host), on a copy of the checkout, without the egress proxy variables and with `GOPROXY=off`, under CPU-time, file-size, memory and time limits, in a container with a CPU limit ([OPERATIONS.md](OPERATIONS.md#fuzzing-worker)).
   - Code context for AI evidence is read only from paths whose fully resolved location (`EvalSymlinks`) stays inside the checkout.
 - **Process control:** each tool runs in its own process group; on timeout or cancellation the whole group is killed. Tool output and stderr captures are size-limited, and credentials in error text are redacted.
 - **Egress:** Squid allows only the domains in `deploy/egress/allowlist.txt`. It denies RFC 1918, loopback, link-local and metadata, CGNAT and multicast destinations whatever DNS returns, strips `Via` and `X-Forwarded-For`, and logs every request to the `egress_logs` volume.

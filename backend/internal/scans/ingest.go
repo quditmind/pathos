@@ -51,7 +51,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 
 	var findings []scanners.Finding
 	parseErr := ""
-	// SBOM generators (Syft, cdxgen) produce the component inventory, not
+	// SBOM generators (Syft, cdxgen, the AI-BOM) produce the component inventory, not
 	// findings.
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
 	if up.Status == "succeeded" && !sbomTool && len(raw) > 0 {
@@ -157,11 +157,18 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			return insertPRFindings(ctx, tx, jobID, findings)
 		}
 		licenses := false
-		if sbomTool && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+		if sbomTool && up.Scanner != scanners.AIBOM && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
 			if _, err := vuln.StoreSBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
 				s.Log.Warn("SBOM inventory not updated", "job_id", jobID, "err", err)
 			} else {
 				licenses = true
+			}
+		}
+		// The AI-BOM adds the repository's AI frameworks, models and LLM
+		// APIs to its component inventory (beside Syft's components).
+		if up.Scanner == scanners.AIBOM && up.Status == "succeeded" && len(raw) > 0 && targetID == nil {
+			if _, err := vuln.StoreAIBOM(ctx, tx, orgID, repoID, jobID, raw); err != nil {
+				s.Log.Warn("AI-BOM inventory not updated", "job_id", jobID, "err", err)
 			}
 		}
 		// Evidence kept besides findings: per-endpoint verification status

@@ -269,7 +269,7 @@ func Tools(cfg Config) map[string]Tool {
 		}},
 		"trivy-fs": simpleTool{"trivy", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			dir := in.Src
-			if in.Target != nil && in.Target.Kind == "artifact" {
+			if in.Target != nil && (in.Target.Kind == "artifact" || in.Target.Kind == "mobile-app") {
 				dir = in.TargetFile
 			}
 			if cfg.Offline {

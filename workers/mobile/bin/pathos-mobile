@@ -1,0 +1,183 @@
+#!/opt/pathos/mobile/bin/python
+"""Runs a worker-mobile tool on a mobile app target (workers/mobile/tools.d).
+
+    pathos-mobile <tool> <artifact> <output> <tmp>
+    pathos-mobile version <tool>
+
+<artifact> is the scan directory of a mobile app or build artifact target:
+the extracted package plus the package file itself (.apk, .aab, .ipa). The
+first package found is analysed (mobile-app-checks reads all of them).
+
+  mobsfscan   jadx decompiles the APK or AAB to Java sources and resources
+              in <tmp>; mobsfscan scans them (SARIF, paths relative to the
+              decompiled tree)
+  apkleaks    APKLeaks on the APK (it runs the same jadx); JSON
+  quark       Quark-Engine with the PATHOS rules (and the operator's rules
+              in /opt/pathos/mobile/quark-rules-extra when mounted). The
+              report is {"quark": <Quark's own JSON, unchanged>, "crimes":
+              [crimes with a confidence of 60 % or more, with the APK name
+              and the calling methods]} so that behaviours Quark did not
+              find are not reported
+  checks      the PATHOS manifest, signing, Info.plist and entitlement checks
+
+iOS packages have no Java code: mobsfscan, apkleaks and quark write an
+empty report for them and say so on stderr. Nothing from the package is
+executed: jadx and androguard read it.
+"""
+import json
+import os
+import shutil
+import subprocess
+import sys
+
+BIN = os.path.dirname(os.path.realpath(__file__))
+ROOT = os.path.dirname(BIN)
+JADX = "/opt/pathos/mobile/jadx/bin/jadx"
+RULES = "/opt/pathos/mobile/quark-rules"
+RULES_EXTRA = "/opt/pathos/mobile/quark-rules-extra"
+EMPTY_SARIF = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+               "runs": [{"tool": {"driver": {"name": "mobsfscan", "rules": []}}, "results": []}]}
+MIN_CONFIDENCE = 60
+
+
+def find_package(target, exts):
+    if os.path.isfile(target):
+        return target if target.lower().endswith(exts) else None
+    for root, dirs, files in os.walk(target):
+        if root[len(target):].count(os.sep) >= 2:
+            dirs[:] = []
+        for f in sorted(files):
+            if f.lower().endswith(exts):
+                return os.path.join(root, f)
+    return None
+
+
+def env(tmp):
+    e = dict(os.environ)
+    e.update({"JAVA_HOME": "/opt/pathos/mobile/jre", "TMPDIR": tmp, "HOME": os.path.join(tmp, "home"),
+              # jadx: bounded heap; the worker's memory limit applies too.
+              "JAVA_OPTS": "-Xmx2g -XX:+UseSerialGC", "SEMGREP_SEND_METRICS": "off", "SEMGREP_ENABLE_VERSION_CHECK": "0"})
+    e["PATH"] = "/opt/pathos/mobile/jre/bin:/opt/pathos/mobile/jadx/bin:" + e.get("PATH", "") + ":" + BIN
+    os.makedirs(e["HOME"], exist_ok=True)
+    return e
+
+
+def run(args, tmp, ok=(0,), cwd=None):
+    p = subprocess.run(args, env=env(tmp), cwd=cwd, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+    if p.returncode not in ok:
+        raise SystemExit("%s exited with status %d" % (os.path.basename(args[0]), p.returncode))
+
+
+def no_android(output, what, empty):
+    print("no Android package (.apk, .aab) in the target: %s does not apply" % what, file=sys.stderr)
+    with open(output, "w") as f:
+        json.dump(empty, f)
+    return 0
+
+
+def decompile(pkg, tmp):
+    out = os.path.join(tmp, "jadx")
+    shutil.rmtree(out, ignore_errors=True)
+    # jadx exits 1 when some methods could not be decompiled; the rest of
+    # the sources are still written.
+    run([JADX, "--no-debug-info", "-j", "2", "-d", out, pkg], tmp, ok=(0, 1))
+    if not os.path.isdir(out):
+        raise SystemExit("jadx produced no output")
+    return out
+
+
+def mobsfscan(target, output, tmp):
+    pkg = find_package(target, (".apk", ".aab"))
+    if not pkg:
+        return no_android(output, "mobsfscan", EMPTY_SARIF)
+    src = decompile(pkg, tmp)
+    # mobsfscan exits 1 when it finds issues.
+    run([os.path.join(BIN, "mobsfscan"), "--sarif", "-o", output, "."], tmp, ok=(0, 1), cwd=src)
+    return 0
+
+
+def apkleaks(target, output, tmp):
+    pkg = find_package(target, (".apk",))
+    if not pkg:
+        return no_android(output, "APKLeaks", {"package": "", "results": []})
+    run([os.path.join(BIN, "apkleaks"), "-f", pkg, "--json", "-o", output], tmp, cwd=tmp)
+    return 0
+
+
+def quark(target, output, tmp):
+    pkg = find_package(target, (".apk",))
+    if not pkg:
+        return no_android(output, "Quark-Engine", {"quark": None, "crimes": []})
+    rules = os.path.join(tmp, "quark-rules")
+    os.makedirs(rules, exist_ok=True)
+    n = 0
+    for d in (RULES, RULES_EXTRA):
+        if not os.path.isdir(d):
+            continue
+        for root, _, files in os.walk(d):
+            for f in files:
+                if f.endswith(".json") and n < 5000:
+                    n += 1
+                    # The file name is the rule id of the findings.
+                    dst = os.path.join(rules, f)
+                    if os.path.exists(dst):
+                        dst = os.path.join(rules, "extra-" + f)
+                    shutil.copyfile(os.path.join(root, f), dst)
+    raw = os.path.join(tmp, "quark.json")
+    run([os.path.join(BIN, "quark"), "-a", pkg, "-r", rules, "-s", "-o", raw], tmp, cwd=tmp)
+    with open(raw) as f:
+        rep = json.load(f)
+    crimes = []
+    for c in rep.get("crimes") or []:
+        try:
+            conf = int(str(c.get("confidence", "0")).rstrip("%"))
+        except ValueError:
+            continue
+        if conf < MIN_CONFIDENCE:
+            continue
+        methods = []
+        for seq in (c.get("sequence") or []) + (c.get("register") or []):
+            for m in seq if isinstance(seq, dict) else []:
+                if m not in methods:
+                    methods.append(m)
+        crimes.append({"rule": c.get("rule"), "crime": c.get("crime"), "confidence": c.get("confidence"), "score": c.get("score"),
+                       "label": c.get("label"), "permissions": c.get("permissions"), "apk": os.path.basename(pkg),
+                       "methods": methods[:20], "method": methods[0] if methods else ""})
+    with open(output, "w") as f:
+        json.dump({"quark": rep, "crimes": crimes}, f)
+    return 0
+
+
+def checks(target, output, tmp):
+    run([os.path.join(ROOT, "bin", "python"), "-I", os.path.join(ROOT, "share", "pathos_mobile_checks.py"), target, output], tmp)
+    return 0
+
+
+TOOLS = {"mobsfscan": mobsfscan, "apkleaks": apkleaks, "quark": quark, "checks": checks}
+
+
+def version(tool):
+    from importlib.metadata import version as v
+
+    jadx = subprocess.run([JADX, "--version"], env=env("/tmp"), capture_output=True, text=True, check=False).stdout.strip()
+    pkg = {"mobsfscan": "mobsfscan", "apkleaks": "apkleaks", "quark": "quark-engine", "checks": "androguard"}[tool]
+    extra = "" if tool in ("quark", "checks") else " (jadx %s)" % jadx
+    print("%s %s%s" % (pkg, v(pkg), extra))
+    return 0
+
+
+def main(argv):
+    if len(argv) == 3 and argv[1] == "version" and argv[2] in TOOLS:
+        return version(argv[2])
+    if len(argv) != 5 or argv[1] not in TOOLS:
+        print(__doc__, file=sys.stderr)
+        return 2
+    tool, target, output, tmp = argv[1:]
+    if not os.path.exists(target):
+        print("no mobile app in this scan (repository scans have no package)", file=sys.stderr)
+        return 2
+    return TOOLS[tool](os.path.realpath(target), output, tmp)
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

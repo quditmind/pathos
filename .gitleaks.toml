@@ -19,4 +19,6 @@ paths = [
   '''^backend/internal/worker/testdata/manifests/''',
   '''^backend/internal/scanners/testdata/opengrep-packs\.sarif$''',
   '''^workers/rules-tests/''',
+  # Real output of the family-image tools (hashes in capa's report).
+  '''^backend/internal/worker/testdata/manifests/(mobile|binary|ai|fuzz)-''',
 ]

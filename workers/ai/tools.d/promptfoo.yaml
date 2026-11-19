@@ -1,0 +1,26 @@
+# promptfoo: the PATHOS red-team suite (workers/ai/promptfoo/
+# redteam-tests.yaml: prompt injection, jailbreak, system prompt and secret
+# disclosure, markdown exfiltration, script output, harmful instructions)
+# run with promptfoo eval against an LLM endpoint target. Deterministic
+# assertions only: no grader model, no promptfoo cloud (telemetry, sharing
+# and remote generation are off). Requires the target's authorization and
+# intrusive testing flag. Results JSON, parsed with the promptfoo import
+# parser: one finding per failed test case.
+name: promptfoo
+display_name: promptfoo
+category: ai
+scan_types: [ai]
+license_spdx: MIT
+homepage: https://github.com/promptfoo/promptfoo
+family: ai
+targets: [llm-endpoint]
+command: /opt/pathos/ai/bin/pathos-ai
+version_args: ["version", "promptfoo"]
+args: ["promptfoo", "{llm_target}", "{output}", "{tmp}"]
+timeout: 1h
+output: file
+network: target
+intrusive: true
+requires_build: false
+default_enabled: false
+parser: import:promptfoo

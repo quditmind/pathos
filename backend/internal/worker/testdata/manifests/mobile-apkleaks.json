@@ -1,0 +1,33 @@
+{
+    "package": "org.pathos.testapp",
+    "results": [
+        {
+            "name": "Authorization_Bearer",
+            "matches": [
+                "bearer pathos-test-session-value",
+                "bearer pathos-test-session-value10.20.30.40"
+            ]
+        },
+        {
+            "name": "Generic_API_Key",
+            "matches": [
+                "API_KEY = \"pathosTestApiKeyValue0123456789abcd\""
+            ]
+        },
+        {
+            "name": "IP_Address",
+            "matches": [
+                "10.20.30.4"
+            ]
+        },
+        {
+            "name": "LinkFinder",
+            "matches": [
+                "\"AES/ECB/PKCS5Padding\"",
+                "\"http://api.pathos-test.invalid/v1/login\"",
+                "\"http://api.pathos-test.invalid/v1/login?device=\"",
+                "\"http://schemas.android.com/apk/res/android\""
+            ]
+        }
+    ]
+}

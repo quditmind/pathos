@@ -94,10 +94,14 @@ var (
 	placeholderRe    = regexp.MustCompile(`\{[a-z_]+\}`)
 	// manifestTargets are what a tool can scan; targetPlaceholder is the
 	// argument that passes each to the tool.
-	manifestTargets   = []string{"repository", "image", "url", "api", "mobile-app", "binary", "model"}
+	// An llm-endpoint tool reads {llm_target}: a JSON file (mode 0600, in
+	// the job directory) with the endpoint URL, model and credential, so the
+	// credential never appears in a command line.
+	manifestTargets   = []string{"repository", "image", "url", "api", "mobile-app", "binary", "model", "llm-endpoint"}
 	targetPlaceholder = map[string][]string{"repository": {"{source}"}, "image": {"{image}"}, "url": {"{target_url}"},
-		"api": {"{openapi}", "{target_url}"}, "mobile-app": {"{artifact}"}, "binary": {"{artifact}"}, "model": {"{artifact}"}}
-	placeholders = []string{"{source}", "{output}", "{target_url}", "{openapi}", "{image}", "{artifact}", "{cache}", "{tmp}"}
+		"api": {"{openapi}", "{target_url}"}, "mobile-app": {"{artifact}"}, "binary": {"{artifact}"}, "model": {"{artifact}"},
+		"llm-endpoint": {"{llm_target}"}}
+	placeholders = []string{"{source}", "{output}", "{target_url}", "{openapi}", "{image}", "{artifact}", "{llm_target}", "{cache}", "{tmp}"}
 )
 
 // Key is the tool's scanner key: the catalog key of a first-party
@@ -121,7 +125,9 @@ func (d PluginDef) RunsOn(kind string) bool {
 			kind == "image" && t == "image",
 			kind == "url" && t == "url",
 			kind == "api" && (t == "api" || t == "url"),
-			kind == "artifact" && (t == "binary" || t == "mobile-app" || t == "model"):
+			kind == "artifact" && (t == "binary" || t == "mobile-app" || t == "model"),
+			kind == "mobile-app" && t == "mobile-app",
+			kind == "llm-endpoint" && t == "llm-endpoint":
 			return true
 		}
 	}
@@ -198,8 +204,8 @@ func (d *PluginDef) validateSpec() error {
 	default:
 		return errors.New("network must be none, target or registry")
 	}
-	if d.Network == "target" && !slices.ContainsFunc(d.Targets, func(t string) bool { return t == "url" || t == "api" }) {
-		return errors.New("network: target applies to url and api targets")
+	if d.Network == "target" && !slices.ContainsFunc(d.Targets, func(t string) bool { return t == "url" || t == "api" || t == "llm-endpoint" }) {
+		return errors.New("network: target applies to url, api and llm-endpoint targets")
 	}
 	if d.Intrusive && d.Network != "target" {
 		return errors.New("intrusive tools send traffic to the target: set network: target")
@@ -396,8 +402,10 @@ func (t pluginTool) expand(args []string, in RunInput, tmp string) []string {
 			}
 		case "image":
 			pairs = append(pairs, "{image}", tg.Reference)
-		case "artifact":
+		case "artifact", "mobile-app":
 			pairs = append(pairs, "{artifact}", in.TargetFile)
+		case "llm-endpoint":
+			pairs = append(pairs, "{target_url}", tg.Reference, "{llm_target}", in.TargetFile)
 		}
 	}
 	r := strings.NewReplacer(pairs...)
@@ -428,6 +436,9 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 	}
 	if strings.Contains(strings.Join(t.def.Args, " "), "{openapi}") && kind == "api" && in.TargetFile == "" {
 		return "", errors.New("the API target has no OpenAPI document")
+	}
+	if kind == "llm-endpoint" && in.TargetFile == "" {
+		return "", errors.New("the LLM endpoint target has no endpoint description")
 	}
 	if t.def.timeout > 0 {
 		var cancel context.CancelFunc

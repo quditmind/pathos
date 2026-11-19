@@ -1,0 +1,20 @@
+{
+    "crime": "Encrypt data with a hard-coded key",
+    "permission": [],
+    "api": [
+        {
+            "class": "Ljavax/crypto/spec/SecretKeySpec;",
+            "method": "<init>",
+            "descriptor": "([B Ljava/lang/String;)V"
+        },
+        {
+            "class": "Ljavax/crypto/Cipher;",
+            "method": "doFinal",
+            "descriptor": "([B)[B"
+        }
+    ],
+    "score": 1,
+    "label": [
+        "crypto"
+    ]
+}

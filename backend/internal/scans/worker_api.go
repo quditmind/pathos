@@ -145,7 +145,7 @@ type ToolManifest struct {
 }
 
 var (
-	manifestTargets = []string{"repository", "image", "url", "api", "mobile-app", "binary", "model"}
+	manifestTargets = []string{"repository", "image", "url", "api", "mobile-app", "binary", "model", "llm-endpoint"}
 	spdxRe          = regexp.MustCompile(`^[A-Za-z0-9.+:() -]{1,100}$`)
 	familyRe        = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,39}$`)
 )
@@ -837,7 +837,7 @@ func (s *Service) jobTargetFile(w http.ResponseWriter, r *http.Request) {
 	var gz []byte
 	var key *string
 	if err := s.DB.QueryRow(ctx, `SELECT COALESCE(t.sbom_gzip, t.artifact_gzip), t.artifact_key FROM scan_jobs j JOIN scan_targets t ON t.id = j.target_id
-		WHERE j.id = $1 AND t.kind IN ('sbom', 'artifact')`, id).Scan(&gz, &key); err != nil || (len(gz) == 0 && key == nil) {
+		WHERE j.id = $1 AND t.kind IN ('sbom', 'artifact', 'mobile-app')`, id).Scan(&gz, &key); err != nil || (len(gz) == 0 && key == nil) {
 		httpx.WriteError(w, r, s.Log, httpx.E(http.StatusNotFound, "no_target_file", "this job has no uploaded target file"))
 		return
 	}

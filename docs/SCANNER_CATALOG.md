@@ -92,6 +92,8 @@ The opt-in `worker-dast` family image (Compose profile `dast`) adds tools for au
 - **Nuclei** DAST templates for APIs are already run by `worker-core` for API targets (all 251 templates of the `dast` directory), so the pack does not add them again.
 - Target credentials are **not** passed to these tools (their reports can contain request headers, and raw reports are stored as they are): they scan as an anonymous visitor.
 
+Four more opt-in family images (`worker-mobile`, `worker-binary`, `worker-ai`, `worker-fuzz`) add 12 tools (and the built-in AI-BOM); they are listed in [Family images: mobile, binary, AI and fuzzing](#family-images-mobile-binary-ai-and-fuzzing).
+
 Opengrep runs PATHOS' own Apache-2.0 baseline rules; the community `opengrep-rules` pack carries a Commons Clause restriction and is not bundled. All other catalogue entries have no adapter yet: they can be selected only once a worker provides them, for example as a [declarative plugin](#adding-a-tool-tool-manifests). Versions are listed in [DEPENDENCIES.md](DEPENDENCIES.md#scanners-in-worker-core).
 
 Opengrep also runs the PATHOS framework configuration rules (`workers/rules/pathos-misconfig-*.yml`: Spring Boot, Django, Express), whose findings use the `misconfiguration` category. The rule packs for cryptography, database security, AI/LLM applications and non-GitHub CI/CD pipelines (`workers/rules/pathos-{crypto,database,ai,cicd}.yml`, [below](#opengrep-rule-packs)) use the `crypto`, `database`, `ai` and `cicd` categories. Each rule has a message, CWE, severity and references; the fixtures in `workers/rules-tests/` are run with `scripts/test-opengrep-rules.py`.
@@ -160,7 +162,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | **Implemented** (`worker-dast` manifest, API targets, intrusive) |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
-Count: **55 scanner integrations**: 48 "Use" plus 7 optional or license-restricted. The `worker-dast` pack adds 10 catalog entries in `backend/internal/scanners/catalog_dast.go` (ZAP baseline and API scan, Wapiti, Dalfox, ffuf, testssl.sh, SSLyze, Arjun, and the restricted sqlmap and Nikto) and updates ZAP (full scan) and Schemathesis in place. The 8 supporting utilities below bring the total to 63 integrations. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
+Count: **97 catalogued scanner integrations**, 80 of which a PATHOS worker image runs (worker-core and the family images); the others are optional, licence-restricted or bring-your-own, and their reports can be imported. The family packs add their entries in `backend/internal/scanners/catalog_<family>.go`. Built-in checks (endpoint verification, cosign, endoflife.date, the AI-BOM) and the supporting utilities below come on top. Separately, [result imports](api-reference/result-imports.md) read 232 report formats from 207 tools. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
 
 ## Supporting utilities (not counted as scanners)
 
@@ -416,18 +418,18 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 | Container (`container`) | container | Trivy (image), Dockle |
 | API security (`api`) | api, dast | Nuclei (API targets), Schemathesis, OWASP ZAP API scan |
 | IAST (`iast`) | iast | (imports only) |
-| Mobile (`mobile`) | mobile | mobsfscan |
-| Fuzzing (`fuzzing`) | fuzz | ffuf, Schemathesis (their findings are recorded as dast and api) |
+| Mobile (`mobile`) | mobile | mobsfscan, APKLeaks, Quark-Engine, mobile app checks |
+| Fuzzing (`fuzzing`) | fuzz | ffuf, Schemathesis (their findings are recorded as dast and api), Go native fuzzing, Atheris, Jazzer (not shipped) |
 | Licence (`license`) | license | licensecheck, ScanCode, Trivy (license) |
-| SBOM (`sbom`) | (inventory, no findings) | Syft, cdxgen |
-| Malware (`malware`) | malware | ClamAV, GuardDog |
+| SBOM (`sbom`) | (inventory, no findings) | Syft, cdxgen, AI-BOM |
+| Malware (`malware`) | malware | ClamAV, GuardDog, YARA-X, capa, Quark-Engine |
 | Code-quality security (`code-quality`) | code-quality | ShellCheck, Pylint, golangci-lint, PHPStan, PMD, Ruff |
 | Supply chain (`supply-chain`) | supply-chain | cosign, OpenSSF Scorecard, GuardDog, pathos-depcheck |
 | Cryptography (`crypto`) | crypto | Opengrep (PATHOS cryptography rules), testssl.sh, SSLyze (their findings are recorded as misconfiguration) |
 | Configuration (`configuration`) | misconfiguration | Opengrep (framework configuration rules), testssl.sh, SSLyze, Nikto |
 | CI/CD pipeline (`cicd`) | cicd, iac | zizmor, actionlint (their findings are recorded as iac), Opengrep (PATHOS GitLab CI, Azure Pipelines, Bitbucket and Jenkins rules) |
-| Binary (`binary`) | binary | Binary hardening |
-| AI / LLM (`ai`) | ai | Opengrep (PATHOS AI/LLM rules) |
+| Binary (`binary`) | binary | Binary hardening, CVE Binary Tool (its findings are recorded as sca), capa, YARA-X |
+| AI / LLM (`ai`) | ai | Opengrep (PATHOS AI/LLM rules), ModelScan, garak, promptfoo, AI-BOM |
 | Runtime (`runtime`) | runtime | (imports and plugins) |
 | Compliance (`compliance`) | compliance | kube-bench |
 | Licence policy (`license-policy`) | license | Licence policy (evaluated by the server) |
@@ -464,15 +466,15 @@ Version 1 files (the plugin format of PATHOS 1.x: `name`, `display_name`, `categ
 | `scan_types` | Scan type ids the tool covers (at most 10), e.g. `[sast]`, `[dast, fuzzing]` |
 | `license_spdx` | SPDX licence expression of the tool |
 | `family` | The worker family that ships it (informational) |
-| `targets` | What the tool scans: `repository` (default), `image`, `url`, `api`, `mobile-app`, `binary`, `model` |
+| `targets` | What the tool scans: `repository` (default), `image`, `url`, `api`, `mobile-app`, `binary`, `model`, `llm-endpoint` |
 | `command` | Absolute path of an existing executable that is not writable by group or others |
-| `args` | Arguments, no shell. Placeholders: `{source}` (repository checkout), `{output}` (report file), `{target_url}` (url and api targets), `{openapi}` (the api target's OpenAPI file), `{image}` (image reference), `{artifact}` (uploaded artifact file), `{cache}` (persistent per tool), `{tmp}` (per run). Every declared target needs its placeholder |
+| `args` | Arguments, no shell. Placeholders: `{source}` (repository checkout), `{output}` (report file), `{target_url}` (url and api targets), `{openapi}` (the api target's OpenAPI file), `{image}` (image reference), `{artifact}` (the scan directory of an uploaded artifact or mobile app), `{llm_target}` (llm-endpoint targets: a JSON file, mode 0600, with the URL, model and credential headers, so the credential is never on a command line), `{cache}` (persistent per tool), `{tmp}` (per run). Every declared target needs its placeholder |
 | `version_args` | Arguments that print the version (default `--version`) |
 | `ok_exit_codes` | Exit codes meaning success (default `0`; many tools exit `1` when they find something) |
 | `timeout` | Go duration between `10s` and `6h` (default: the job's timeout) |
 | `env` | Extra variables (not `PATH`, `HOME`, `LD_*`, `*_PROXY`, `PATHOS_*`) |
 | `output` | `file` (written to `{output}`, default) or `stdout` |
-| `network` | `none`: the egress proxy variables are removed from the tool's environment (the worker networks reach nothing else). `registry`: the tool downloads databases or packages through the egress proxy. `target`: the tool sends requests to the scan target (url and api targets only); scans then need the target's authorization statement |
+| `network` | `none`: the egress proxy variables are removed from the tool's environment (the worker networks reach nothing else). `registry`: the tool downloads databases or packages through the egress proxy. `target`: the tool sends requests to the scan target (url, api and llm-endpoint targets only); scans then need the target's authorization statement |
 | `intrusive` | `true` for tools that send attack traffic (active scans, fuzzers, injection probes). Requires `network: target`; such tools run only for targets with the **intrusive testing authorized** flag |
 | `requires_build` | The tool needs a built project (informational) |
 | `default_enabled` | Informational; manifest tools are never enabled by default |
@@ -529,6 +531,52 @@ Operators can add a tool to a worker without changing PATHOS: put a manifest in 
 Security: manifests are files on the worker host or in the image, never API input, so a PATHOS administrator cannot make workers run arbitrary programs. Tools run exactly like built-in scanners: no shell, the worker's unprivileged user, its read-only source checkout, its sandbox and egress policy, and the job's timeout. Tools that contact a target need its authorization statement, intrusive tools also its intrusive testing flag. The full trust model is in [SECURITY.md](SECURITY.md#scanner-plugins).
 
 
+
+## Family images: mobile, binary, AI and fuzzing
+
+Four opt-in family images (Compose profiles `mobile`, `binary`, `ai`, `fuzz`) extend `worker-core` with tools defined only by manifests (`workers/<family>/tools.d`). Every download is pinned by version (or commit) and SHA-256, pip `--require-hashes` or the npm lockfile; each image passes the Trivy gate (0 fixable high or critical vulnerabilities, checked on 2026-11-19). The fixtures of `backend/internal/worker/manifests_families_test.go` were produced by running each manifest command in these images. Image sizes (uncompressed, including the 1.77 GB core image): worker-mobile 2.83 GB, worker-binary 2.18 GB, worker-ai 2.97 GB, worker-fuzz 2.29 GB.
+
+| Image | Tool (catalog key) | Version | Licence | Runs on | Output (parser) |
+|---|---|---|---|---|---|
+| worker-mobile | mobsfscan (`mobsfscan`), on Java sources decompiled by jadx 1.5.7 (Apache-2.0) on Temurin JRE 21.0.13.1 (GPL-2.0-with-classpath-exception) | 1.2.0 (Semgrep CE 1.172.0) | LGPL-3.0-or-later (Semgrep LGPL-2.1-or-later) | Mobile app targets (APK, AAB) | SARIF |
+| worker-mobile | APKLeaks (`apkleaks`) | 2.6.3 | Apache-2.0 | Mobile app targets (APK) | JSON (`import:apkleaks`, secret values redacted) |
+| worker-mobile | Quark-Engine (`quark-engine`) with PATHOS' own rules (Apache-2.0, `workers/mobile/quark-rules`) | 26.11.1 (androguard 4.1.4) | GPL-3.0-only | Mobile app targets (APK) | JSON (`jsonmap`; Quark's report kept under `quark`) |
+| worker-mobile | Mobile app configuration checks (`mobile-app-checks`, PATHOS helper) | 1 (androguard 4.1.4, Apache-2.0) | Apache-2.0 | Mobile app targets (APK, IPA) | JSON (`jsonmap`) |
+| worker-binary | CVE Binary Tool (`cve-bin-tool`) | 3.4.1, commit `ee13c919` of the main branch | GPL-3.0-or-later | Build artifact targets (binaries, firmware) | JSON (`jsonmap`; findings in the `sca` category) |
+| worker-binary | capa (`capa`) with capa-rules 10.0.0 (Apache-2.0) | 10.0.0 | Apache-2.0 | Build artifact targets (ELF, PE, .NET) | JSON (`jsonmap`; capa's reports kept under `capa`) |
+| worker-binary | YARA-X (`yara-x`) with the ReversingLabs YARA rules (MIT, commit `e0a0be54`) and a PATHOS test rule | 1.23.0 | BSD-3-Clause | Build artifacts, mobile apps, repositories (profile) | JSON (`jsonmap`) |
+| worker-ai | ModelScan (`modelscan`) | 0.8.8 | Apache-2.0 | Repositories (profile), model artifacts | JSON (`import:modelscan`) |
+| worker-ai | garak (`garak`) | 0.17.1 | Apache-2.0 | LLM endpoint targets (intrusive) | JSON Lines (`import:garak`) |
+| worker-ai | promptfoo (`promptfoo`) with the PATHOS red-team suite (`workers/ai/promptfoo/redteam-tests.yaml`) on Node.js 26.13.1 (MIT) | 0.126.0 | MIT | LLM endpoint targets (intrusive) | JSON (`import:promptfoo`) |
+| worker-fuzz | Go native fuzzing (`go-fuzz`), Go toolchain | 1.27.4 | BSD-3-Clause | Repositories (profile; builds the code) | JSON (`jsonmap`) |
+| worker-fuzz | Atheris (`atheris`) | 3.1.0 | Apache-2.0 | Repositories (profile; runs the code) | JSON (`jsonmap`) |
+| (every worker) | AI-BOM (`ai-bom`, built in) | PATHOS | Apache-2.0 | Repositories (profile) | CycloneDX 1.6 (inventory, no findings) |
+
+Notes on each tool:
+
+- **Mobile app targets** are uploaded packages (`POST /api/v1/scan-targets/mobile-app`). The worker extracts the package (native libraries, executables and Info.plist reach the binary hardening checks, which read ELF and Mach-O) and keeps the package itself beside the contents for the mobile tools. iOS packages have no Java code: mobsfscan, APKLeaks and Quark-Engine report nothing for them. The manifest of an Android App Bundle (`.aab`) is stored as protocol buffers and is not checked; mobsfscan and APKLeaks read AABs through jadx.
+- **jadx** bundles Guava 31.1-android (CVE-2026-102554); the image replaces those classes in the jadx jar with Guava 33.8.0-android from Maven Central (pinned by SHA-256). The mobile fixtures were produced with the patched jar.
+- **Quark-Engine** reports behaviours with a Quark confidence of 60 % or more (100 % high, 80 % medium, 60 % low). The community rule set (quark-engine/quark-rules) has no licence file, so it is not bundled; an operator who may use it mounts it at `/opt/pathos/mobile/quark-rules-extra` (`PATHOS_QUARK_RULES_DIR`).
+- **Mobile app checks** (`workers/mobile/bin/pathos_mobile_checks.py`, with Python tests in `workers/mobile/test`): Android `debuggable`, `allowBackup`, cleartext traffic (manifest and network security configuration, user CAs), exported activities, services, receivers and providers without a permission (the launcher activity excepted), `minSdkVersion` below 23, v1-only signing (Janus, CVE-2017-13156), debug certificate, unsigned package; iOS `NSAllowsArbitraryLoads` and other App Transport Security exceptions, exception domains with insecure HTTP or TLS below 1.2, custom URL schemes, `MinimumOSVersion` below 14, `get-task-allow`, development push environment and wildcard keychain groups (entitlements of `embedded.mobileprovision` and of the executable's code signature).
+- **CVE Binary Tool** runs offline (`--offline -u never`) on a database in the worker's cache volume; the image has no database and a scan fails with a hint until one is installed ([OPERATIONS.md](OPERATIONS.md#cve-binary-tool-database)). Release 3.4 (2024-09) reads the retired NVD JSON 1.1 feeds and cannot build a database any more, so the image installs a commit of the main branch (by archive SHA-256) that reads the NVD JSON 2.0 feeds.
+- **capa** runs on up to 25 executables of up to 64 MiB per artifact (largest first, 10 minutes each). Capabilities typical of malware (anti-analysis, persistence, command and control, injection, ...) are medium, other ATT&CK-mapped capabilities low, the rest info.
+- **YARA-X** rules are compiled when the image is built (310 ReversingLabs rules, which also proves they compile); more rules can be mounted at `/opt/pathos/binary/yara-extra` (`PATHOS_YARA_RULES_DIR`) and are compiled at scan time.
+- **garak** runs only probes whose detectors match strings (`promptinject`, `dan.DAN_Jailbreak`, `encoding.InjectBase64`, `latentinjection.LatentJailbreak`, `web_injection.MarkdownImageExfil`, `web_injection.TaskXSS`; up to 256 prompts per probe, `GARAK_PROMPT_CAP`), one attempt at a time, through its REST generator. Its full dependency set (PyTorch, Transformers, provider SDKs, cloud clients) is not installed; probes and detectors that need a local model or a dataset download are not available.
+- **promptfoo** runs `promptfoo eval` of a static PATHOS suite with deterministic assertions (prompt injection, indirect injection, encoded instructions, jailbreak, system prompt and secret disclosure, markdown exfiltration, script output, harmful requests). Telemetry, update checks, sharing and remote generation are off; no grader model is used. promptfoo's model-generated `redteam` plugins are not used, because they need a generator model or promptfoo's cloud.
+- **LLM endpoint targets** are OpenAI-compatible chat completions URLs with a model name and an optional credential (stored encrypted like other target credentials). garak and promptfoo are `network: target` and `intrusive`: they run only for authorized targets with the intrusive testing flag, through the egress proxy (the host must be on the allowlist). The tests use a stub server (`workers/ai/test/stub_llm.py`), never a real provider.
+- **Go native fuzzing and Atheris** build and run repository code: only in the worker sandbox, only when a scan profile selects them, with `network: none` (Go module downloads off, `GOPROXY=off`: only vendored or no dependencies), on a copy of the checkout, with nice 10, CPU-time, file-size and (Atheris) address-space limits, `FUZZ_SECONDS` per target (default 60), `FUZZ_TOTAL_SECONDS` (default 1200) and at most `FUZZ_MAX_TARGETS` (default 20); the Compose service adds a CPU limit (`PATHOS_FUZZ_CPUS`, default 2). A crash is a `fuzz` finding located at the crashing line, with the reproducer input (base64, at most 4 KiB, with its size and SHA-256) in the stored report. Atheris harnesses can import the Python standard library and the repository's own modules only.
+- **AI-BOM** (built into every worker, opt-in per profile) records AI and ML frameworks and LLM SDKs declared as dependencies (requirements files, pyproject.toml, Pipfile, setup.py/cfg, environment.yml, package.json, go.mod, pom.xml, build.gradle), model files (safetensors, GGUF, ONNX, PyTorch, Keras, TensorFlow Lite, Core ML, pickled models in model directories, with SHA-256), Hugging Face model references and hosted model names in code, and the LLM APIs the code calls (provider hosts and SDK imports) as SBOM components of type `framework`, `library`, `machine-learning-model` and `service`. They are kept apart from Syft's components: an SBOM scan does not remove them, the next AI-BOM replaces them.
+
+Not shipped:
+
+| Tool | Reason |
+|---|---|
+| Jazzer | JVM harnesses need the project built with Maven or Gradle, which downloads dependencies (the fuzz worker has no network). Jazzer crash logs can be imported (`libfuzzer` format) |
+| Quark-Engine community rules | No licence; can be mounted by the operator |
+| apktool | Not needed: jadx produces the Java sources and resources mobsfscan and APKLeaks read |
+| garak model-based detectors and dataset probes, full garak dependency set | Need PyTorch/Transformers (several GB) or downloads at run time |
+| promptfoo `redteam generate` plugins | Need a generator model or promptfoo's remote generation service |
+| binwalk (firmware extraction) | Not evaluated in this pack; CVE Binary Tool extracts common archive and package formats itself |
 
 ## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
 

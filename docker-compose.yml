@@ -450,6 +450,86 @@ services:
       <<: *worker-env
       PATHOS_WORKER_FAMILY: dast
 
+  #   COMPOSE_PROFILES=mobile  ->  mobsfscan, APKLeaks, Quark-Engine, mobile app checks (mobile app targets)
+  worker-mobile:
+    <<: *worker
+    profiles: [mobile]
+    build:
+      context: .
+      dockerfile: workers/mobile/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-mobile:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: mobile
+    volumes:
+      - scanner_cache:/cache
+      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+      - ./workers/rules-extra:/rules:ro
+      # Optional: Quark-Engine rules the operator may use (the community set
+      # has no licence and is not bundled).
+      - ${PATHOS_QUARK_RULES_DIR:-./workers/mobile/quark-rules-extra}:/opt/pathos/mobile/quark-rules-extra:ro
+
+  #   COMPOSE_PROFILES=binary  ->  CVE Binary Tool, capa, YARA-X (build artifacts, firmware)
+  worker-binary:
+    <<: *worker
+    profiles: [binary]
+    build:
+      context: .
+      dockerfile: workers/binary/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-binary:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: binary
+    volumes:
+      - scanner_cache:/cache
+      - ./deploy/scanners.d:/etc/pathos/scanners.d:ro
+      - ./workers/rules-extra:/rules:ro
+      # Optional: more YARA rules (*.yar, *.yara), compiled at scan time.
+      - ${PATHOS_YARA_RULES_DIR:-./workers/binary/yara-extra}:/opt/pathos/binary/yara-extra:ro
+
+  #   COMPOSE_PROFILES=ai  ->  ModelScan, garak, promptfoo (LLM endpoint targets)
+  worker-ai:
+    <<: *worker
+    profiles: [ai]
+    build:
+      context: .
+      dockerfile: workers/ai/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-ai:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: ai
+
+  #   COMPOSE_PROFILES=fuzz  ->  Go native fuzzing, Atheris. These build and
+  #   run repository code: the container gets a CPU limit, and /work allows
+  #   execution (the Go test binaries run from it).
+  worker-fuzz:
+    <<: *worker
+    profiles: [fuzz]
+    build:
+      context: .
+      dockerfile: workers/fuzz/Dockerfile
+      additional_contexts:
+        core: service:worker-core
+      args: { CORE_IMAGE: core }
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-fuzz:${PATHOS_VERSION:-dev}
+    environment:
+      <<: *worker-env
+      PATHOS_WORKER_FAMILY: fuzz
+    tmpfs:
+      - /work:size=${PATHOS_WORKER_TMPFS:-3g},mode=0700,uid=10001,gid=10001,exec
+      - /tmp:size=1g,mode=1777
+    cpus: ${PATHOS_FUZZ_CPUS:-2}
+    pids_limit: 512
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce

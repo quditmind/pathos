@@ -10,7 +10,7 @@ summary: Export SBOMs, check package health, end-of-life dates and provenance, v
 
 ## Export an SBOM
 
-Open a repository and use **SBOM (CycloneDX)** or **SBOM (SPDX)** on its **Security** tab. **Vulnerabilities → SBOM inventory** lists the components of every repository. CycloneDX is the file from the latest scan; SPDX 2.3 is generated from the repository's component inventory and keeps the dependency graph (which package depends on which). Imported SBOMs can be exported in both formats.
+Open a repository and use **SBOM (CycloneDX)** or **SBOM (SPDX)** on its **Security** tab. **Vulnerabilities → SBOM inventory** lists the components of every repository. When a scan profile includes the **AI-BOM** scanner, the inventory also lists the repository's AI parts: AI and ML frameworks and LLM SDKs (type `framework` or `library`), model files and model references (`machine-learning-model`, for example `pkg:huggingface/meta-llama/Llama-3.1-8B`), and the LLM APIs its code calls (`service`). The next AI-BOM replaces them; an SBOM scan keeps them. CycloneDX is the file from the latest scan; SPDX 2.3 is generated from the repository's component inventory and keeps the dependency graph (which package depends on which). Imported SBOMs can be exported in both formats.
 
 ## Package health
 

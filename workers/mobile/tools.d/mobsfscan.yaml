@@ -1,0 +1,25 @@
+# mobsfscan: static analysis of Android source code (Java, Kotlin, the
+# manifest and resources) with libsast and Semgrep CE rules. The image's
+# pathos-mobile helper decompiles the APK or AAB with jadx first; findings
+# are located in the decompiled tree (sources/..., resources/...). SARIF.
+name: mobsfscan
+display_name: mobsfscan
+category: mobile
+scan_types: [mobile]
+license_spdx: LGPL-3.0-or-later
+homepage: https://github.com/MobSF/mobsfscan
+family: mobile
+targets: [mobile-app]
+command: /opt/pathos/mobile/bin/pathos-mobile
+version_args: ["version", "mobsfscan"]
+args: ["mobsfscan", "{artifact}", "{output}", "{tmp}"]
+timeout: 45m
+env:
+  SEMGREP_SEND_METRICS: "off"
+  SEMGREP_ENABLE_VERSION_CHECK: "0"
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: sarif

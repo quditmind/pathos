@@ -1,0 +1,9 @@
+{
+  "name": "pathos-worker-ai-promptfoo",
+  "private": true,
+  "description": "promptfoo for the PATHOS worker-ai image (installed with npm ci from the lockfile).",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "promptfoo": "0.126.0"
+  }
+}

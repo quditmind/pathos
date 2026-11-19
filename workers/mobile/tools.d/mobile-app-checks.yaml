@@ -1,0 +1,34 @@
+# PATHOS mobile app checks (workers/mobile/bin/pathos_mobile_checks.py,
+# androguard): Android manifest (debuggable, allowBackup, cleartext traffic,
+# exported components without a permission, minSdkVersion) and signing
+# schemes; iOS Info.plist (App Transport Security exceptions, URL schemes,
+# minimum iOS version) and entitlements. Native code hardening of the same
+# package is reported by the binary-hardening scanner.
+name: mobile-app-checks
+display_name: Mobile app configuration checks
+category: mobile
+scan_types: [mobile]
+license_spdx: Apache-2.0
+homepage: https://github.com/quditmind/pathos
+family: mobile
+targets: [mobile-app]
+command: /opt/pathos/mobile/bin/pathos-mobile
+version_args: ["version", "checks"]
+args: ["checks", "{artifact}", "{output}", "{tmp}"]
+timeout: 15m
+output: file
+network: none
+intrusive: false
+requires_build: false
+default_enabled: false
+parser: jsonmap
+jsonmap:
+  records: findings
+  rule_id: id
+  title: title
+  message: description
+  severity: severity
+  default_severity: info
+  file: file
+  cwe: cwe
+  identity: "{id} {component}"

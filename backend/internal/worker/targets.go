@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"crypto/tls"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -19,9 +20,10 @@ import (
 )
 
 // JobTarget is a non-repository scan target: a container image, a web
-// application URL (DAST), an API (OpenAPI) or an imported SBOM.
+// application URL (DAST), an API (OpenAPI), an imported SBOM, an uploaded
+// build artifact or mobile app, declared endpoints or an LLM endpoint.
 type JobTarget struct {
-	Kind      string `json:"kind"` // image | url | api | sbom
+	Kind      string `json:"kind"` // image | url | api | sbom | artifact | mobile-app | endpoints | llm-endpoint
 	Reference string `json:"reference"`
 	// Spec is the OpenAPI document of an api target.
 	Spec string `json:"spec,omitempty"`
@@ -39,6 +41,8 @@ type JobTarget struct {
 	MinSeverity string `json:"min_severity,omitempty"`
 	// FileName of an artifact target.
 	FileName string `json:"file_name,omitempty"`
+	// Model of an llm-endpoint target.
+	Model string `json:"model,omitempty"`
 	// Endpoints of an endpoints target (a repository's declared public
 	// endpoints).
 	Endpoints []JobEndpoint `json:"endpoints,omitempty"`
@@ -88,8 +92,13 @@ func (a *Agent) prepareTarget(ctx context.Context, job Job, dir string) (string,
 		return p, os.WriteFile(p, []byte(t.Spec), 0o600)
 	case "sbom":
 		return a.fetchTargetFile(ctx, job, filepath.Join(dir, "target.sbom.json"))
-	case "artifact":
+	case "artifact", "mobile-app":
 		return a.prepareArtifact(ctx, job, dir)
+	case "llm-endpoint":
+		if err := checkReachable(ctx, t.Reference); err != nil {
+			return "", err
+		}
+		return writeLLMTarget(t, filepath.Join(dir, "llm-target.json"))
 	case "endpoints":
 		if a.cfg.Offline {
 			return "", errors.New("endpoint verification is disabled in offline mode (PATHOS_OFFLINE=true)")
@@ -400,6 +409,55 @@ func workflowFiles(src string) []string {
 	return out
 }
 
+// LLMTarget is the endpoint description an llm-endpoint tool reads
+// ({llm_target}): the chat completions URL, the model and the credential.
+// It is written with mode 0600 into the job directory (removed with it), so
+// the credential is never part of a command line or of the environment of
+// other tools.
+type LLMTarget struct {
+	URL   string `json:"url"`
+	Model string `json:"model"`
+	// API is the request format: "openai-chat" (OpenAI-compatible chat
+	// completions).
+	API string `json:"api"`
+	// Headers to send (the credential: Authorization or the target's
+	// header).
+	Headers map[string]string `json:"headers"`
+	// RateLimit is the target's request rate per second (0: the tool's
+	// default, sequential requests).
+	RateLimit int `json:"rate_limit,omitempty"`
+}
+
+func writeLLMTarget(t *JobTarget, p string) (string, error) {
+	lt := LLMTarget{URL: t.Reference, Model: t.Model, API: "openai-chat", Headers: map[string]string{}, RateLimit: t.RateLimit}
+	switch t.AuthType {
+	case "header":
+		if t.HeaderName != "" {
+			lt.Headers[t.HeaderName] = t.HeaderValue
+		}
+	case "basic":
+		if t.Username != "" {
+			lt.Headers["Authorization"] = "Basic " + basicAuth(t.Username, t.Password)
+		}
+	}
+	b, err := json.Marshal(lt)
+	if err != nil {
+		return "", err
+	}
+	return p, os.WriteFile(p, b, 0o600)
+}
+
+// mobilePackage reports whether name is an Android (APK, AAB) or iOS (IPA)
+// package: mobile tools read the package itself, binary hardening the
+// native libraries and executables inside it.
+func mobilePackage(name string) bool {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".apk", ".aab", ".ipa":
+		return true
+	}
+	return false
+}
+
 // javaArchive reports whether name is a Java archive, which scanners read
 // whole (they look at the embedded manifests and nested archives).
 func javaArchive(name string) bool {
@@ -435,29 +493,35 @@ func (a *Agent) prepareArtifact(ctx context.Context, job Job, dir string) (strin
 	head := make([]byte, 512)
 	k, _ := io.ReadFull(f, head)
 	format, ferr := ingest.DetectFormat(head[:k], "")
+	if ferr == nil && mobilePackage(name) {
+		// Mobile packages: the contents are extracted (native libraries,
+		// Info.plist, executables) and the package itself is kept beside
+		// them for the mobile tools. A package the safe extraction rejects
+		// is scanned as a file only.
+		if _, err := f.Seek(0, io.SeekStart); err != nil {
+			return "", err
+		}
+		if err := extractArtifact(ctx, f, format, dir, scan); err != nil {
+			toolLog(ctx, "the package contents were not extracted (%v); scanning the package file only", err)
+			if err := os.RemoveAll(scan); err != nil {
+				return "", err
+			}
+			if err := os.MkdirAll(scan, 0o700); err != nil {
+				return "", err
+			}
+		}
+		keep := filepath.Join(scan, name)
+		if _, err := os.Lstat(keep); err == nil {
+			keep = filepath.Join(scan, "original-"+name)
+		}
+		return scan, os.Rename(raw, keep)
+	}
 	if ferr != nil || javaArchive(name) {
 		// Not an archive (or a Java archive): scan the file itself.
 		return scan, os.Rename(raw, filepath.Join(scan, name))
 	}
-	st, err := f.Stat()
-	if err != nil {
+	if err := extractArtifact(ctx, f, format, dir, scan); err != nil {
 		return "", err
-	}
-	norm := filepath.Join(dir, "normalized.tar.gz")
-	// #nosec G304 -- path is created by the worker inside its job directory
-	nf, err := os.OpenFile(norm, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
-	if err != nil {
-		return "", err
-	}
-	defer nf.Close()
-	if _, err := ingest.Normalize(ctx, f, format, st.Size(), nf, ingest.DefaultLimits()); err != nil {
-		return "", fmt.Errorf("the artifact archive was rejected: %w", err)
-	}
-	if _, err := nf.Seek(0, io.SeekStart); err != nil {
-		return "", err
-	}
-	if err := ingest.ExtractSnapshot(ctx, nf, scan, ingest.DefaultLimits()); err != nil {
-		return "", fmt.Errorf("extracting the artifact: %w", err)
 	}
 	// The original file stays (outside the scan directory) when its
 	// signature is verified.
@@ -465,4 +529,32 @@ func (a *Agent) prepareArtifact(ctx context.Context, job Job, dir string) (strin
 		_ = os.Remove(raw)
 	}
 	return scan, nil
+}
+
+// extractArtifact validates and extracts an archive into scan.
+func extractArtifact(ctx context.Context, f *os.File, format, dir, scan string) error {
+	st, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	norm := filepath.Join(dir, "normalized.tar.gz")
+	// #nosec G304 -- path is created by the worker inside its job directory
+	nf, err := os.OpenFile(norm, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0o600)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = nf.Close()
+		_ = os.Remove(norm)
+	}()
+	if _, err := ingest.Normalize(ctx, f, format, st.Size(), nf, ingest.DefaultLimits()); err != nil {
+		return fmt.Errorf("the artifact archive was rejected: %w", err)
+	}
+	if _, err := nf.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
+	if err := ingest.ExtractSnapshot(ctx, nf, scan, ingest.DefaultLimits()); err != nil {
+		return fmt.Errorf("extracting the artifact: %w", err)
+	}
+	return nil
 }

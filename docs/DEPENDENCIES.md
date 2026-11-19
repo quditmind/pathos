@@ -116,6 +116,23 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-dast | testssl.sh | 3.2.5 | GPL-2.0-only | Source archive of the release tag, SHA-256 pinned; uses the system OpenSSL (the bundled legacy OpenSSL binaries are not installed) |
 | worker-dast (opt-in build) | sqlmap | 1.10.11 | GPL-2.0-or-later (with the authors' interpretation of derived works) | `pip install --require-hashes` (`workers/dast/requirements-sqlmap.txt`), only with `WITH_SQLMAP=true` |
 | worker-dast (opt-in build) | Nikto | 2.6.1 | GPL-3.0 (code); databases: Nikto-only terms (`LicenseRef-Nikto`) | Source archive of the release tag, SHA-256 pinned, only with `WITH_NIKTO=true` |
+| worker-mobile | mobsfscan (with libsast and Semgrep CE 1.172.0) | 1.2.0 | LGPL-3.0-or-later (Semgrep: LGPL-2.1-or-later) | `pip install --require-hashes` into `/opt/pathos/mobile` (`workers/mobile/requirements.txt`); mcp 1.28.1 and PyJWT 2.14.0 as in worker-sast |
+| worker-mobile | APKLeaks | 2.6.3 | Apache-2.0 | Same |
+| worker-mobile | Quark-Engine | 26.11.1 | GPL-3.0-only | Same; PATHOS' own rules (Apache-2.0, `workers/mobile/quark-rules`) |
+| worker-mobile | androguard (PATHOS mobile app checks) | 4.1.4 | Apache-2.0 | Same |
+| worker-mobile | jadx | 1.5.7 | Apache-2.0 | Release archive, SHA-256 pinned; its bundled Guava replaced with Guava 33.8.0-android (Apache-2.0, Maven Central, SHA-256 pinned) |
+| worker-mobile | Eclipse Temurin JRE | 21.0.13.1+2 | GPL-2.0-with-classpath-exception | Release archive, SHA-256 pinned |
+| worker-binary | capa | 10.0.0 | Apache-2.0 | `pip install --require-hashes` into `/opt/pathos/binary` (`workers/binary/requirements.txt`) |
+| worker-binary | capa-rules, capa signatures (`sigs/`) | 10.0.0 | Apache-2.0 | Release archives, SHA-256 pinned |
+| worker-binary | CVE Binary Tool | 3.4.1 (main branch, commit `ee13c919cdabec89f0f48c4c77858526d421a5a7`) | GPL-3.0-or-later | Source archive by SHA-256 in the pip requirements; the vulnerability database is installed by the operator ([OPERATIONS.md](OPERATIONS.md#cve-binary-tool-database)) |
+| worker-binary | YARA-X (`yr`) | 1.23.0 | BSD-3-Clause | Release archive, SHA-256 pinned |
+| worker-binary | ReversingLabs YARA rules | commit `e0a0be54aa1e11ccfd6854e4f19e9476f328fd84` | MIT | Source archive, SHA-256 pinned; compiled into `/opt/pathos/binary/yara/rules.yarc` with PATHOS' rules (`workers/binary/yara`) |
+| worker-ai | ModelScan | 0.8.8 | Apache-2.0 | `pip install --require-hashes --ignore-requires-python` into `/opt/pathos/ai` (`workers/ai/requirements.txt`) |
+| worker-ai | garak | 0.17.1 | Apache-2.0 | Same, with only the dependencies its REST generator and string-matching probes import |
+| worker-ai | promptfoo | 0.126.0 | MIT | `npm ci --omit=dev --ignore-scripts` from `workers/ai/promptfoo/package-lock.json` |
+| worker-ai | Node.js | 26.13.1 | MIT | Release archive, SHA-256 pinned (only the `node` binary is copied) |
+| worker-fuzz | Go toolchain (Go native fuzzing) | 1.27.4 | BSD-3-Clause | Copied from the `golang:1.27.4-trixie` image, pinned by digest |
+| worker-fuzz | Atheris | 3.1.0 | Apache-2.0 | `pip install --require-hashes` into `/opt/pathos/fuzz` (`workers/fuzz/requirements.txt`) |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 

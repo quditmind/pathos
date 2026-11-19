@@ -128,7 +128,8 @@ var (
 	intrusive = func(sc *Scanner) { sc.Intrusive, sc.Network = true, "target" }
 )
 
-// Catalog lists every scanner integration (55), in display order.
+// Catalog lists every scanner integration, in display order: 55 here,
+// more appended by the catalog_<family>.go files of the family images.
 var Catalog = []Scanner{
 	s(Gitleaks, "Gitleaks", "secrets", "MIT", "use", "core", core, mandatory, home("https://github.com/gitleaks/gitleaks"), note("Always on; secrets are redacted in reports")),
 	s("trufflehog", "TruffleHog", "secrets", "AGPL-3.0", "use", "secrets", note("Verification mode off by default")),
@@ -201,6 +202,9 @@ var SyftUtility = Scanner{Key: Syft, Name: "Syft", Category: "sbom", License: "A
 // manifest): repository for repository scanners, otherwise the scan target
 // kinds it runs for.
 func TargetsOf(sc Scanner) []string {
+	if len(sc.Targets) > 0 {
+		return sc.Targets
+	}
 	if !sc.TargetOnly {
 		if sc.Network == "target" {
 			return []string{"url", "api"}

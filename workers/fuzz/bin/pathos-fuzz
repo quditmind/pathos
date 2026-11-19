@@ -1,0 +1,357 @@
+#!/opt/pathos/fuzz/bin/python
+"""Runs the fuzz harnesses a repository contains (workers/fuzz/tools.d).
+
+    pathos-fuzz go      <source> <output> <tmp>
+    pathos-fuzz atheris <source> <output> <tmp>
+    pathos-fuzz version go|atheris
+
+  go       every `func FuzzXxx(f *testing.F)` in the repository's *_test.go
+           files, with `go test -run=^$ -fuzz=^FuzzXxx$ -fuzztime=<N>s`
+  atheris  every Python file that imports atheris and calls atheris.Fuzz(),
+           run with the Atheris (libFuzzer) options -max_total_time=<N>
+
+This builds and runs repository code. It runs only in the worker sandbox
+(never on the API server), only when a scan profile selects the tool, with
+no network access (the egress proxy is removed from the environment and Go
+module downloads are off: GOPROXY=off, so only modules in vendor/ or none
+are available), on a copy of the checkout (the fuzzers write their corpus
+next to the code), and under limits: nice 10, CPU time, file size and
+address space (rlimits), per-target wall time, a total time budget and at
+most FUZZ_MAX_TARGETS targets.
+
+Environment (set in the manifest): FUZZ_SECONDS (per target, default 60),
+FUZZ_TOTAL_SECONDS (default 1200), FUZZ_MAX_TARGETS (default 20), FUZZ_JOBS
+(parallel fuzzing workers per target, default 2), FUZZ_MEMORY_MB (default
+2048).
+
+Output: {"tool", "version": 1, "targets": [{"kind", "package"|"file",
+"name", "status", "seconds", "detail"}], "findings": [...]}. A finding is a
+crash: the error, the crashing frame in the repository, and the reproducer
+input (base64, at most 4 KiB, with its size and SHA-256) as evidence.
+Targets that do not build or time out are listed in "targets", not
+reported as findings.
+"""
+import base64
+import hashlib
+import json
+import os
+import re
+import resource
+import shutil
+import subprocess
+import sys
+import time
+
+BIN = os.path.dirname(os.path.realpath(__file__))
+GO = "/opt/pathos/fuzz/go/bin/go"
+MAX_COPY_BYTES = 1 << 30
+MAX_FILE_BYTES = 64 << 20
+MAX_REPRO = 4096
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".tox"}
+
+GO_FUZZ_RE = re.compile(r"^func\s+(Fuzz\w*)\s*\(\s*\w+\s+\*testing\.F\s*\)", re.M)
+ATHERIS_RE = re.compile(r"^\s*import\s+atheris\b|^\s*from\s+atheris\s+import", re.M)
+
+
+def setting(name, default):
+    try:
+        return max(1, int(os.environ.get(name, default)))
+    except ValueError:
+        return default
+
+
+SECONDS = setting("FUZZ_SECONDS", 60)
+TOTAL = setting("FUZZ_TOTAL_SECONDS", 1200)
+MAX_TARGETS = setting("FUZZ_MAX_TARGETS", 20)
+JOBS = min(setting("FUZZ_JOBS", 2), 8)
+MEMORY_MB = setting("FUZZ_MEMORY_MB", 2048)
+
+
+def copy_tree(src, dst):
+    """Copies the checkout (regular files only, no links) within limits."""
+    total = 0
+    for root, dirs, files in os.walk(src):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not os.path.islink(os.path.join(root, d))]
+        rel = os.path.relpath(root, src)
+        os.makedirs(os.path.join(dst, rel), exist_ok=True)
+        for f in files:
+            p = os.path.join(root, f)
+            if os.path.islink(p) or not os.path.isfile(p):
+                continue
+            size = os.path.getsize(p)
+            if size > MAX_FILE_BYTES:
+                continue
+            total += size
+            if total > MAX_COPY_BYTES:
+                raise SystemExit("the repository is larger than %d MiB; fuzzing skipped" % (MAX_COPY_BYTES >> 20))
+            shutil.copyfile(p, os.path.join(dst, rel, f))
+
+
+def limits(cpu_seconds, address_space):
+    def apply():
+        os.nice(10)
+        resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 5))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (512 << 20, 512 << 20))
+        if address_space:
+            resource.setrlimit(resource.RLIMIT_AS, (address_space, address_space))
+        os.setsid()
+    return apply
+
+
+def base_env(tmp):
+    e = {k: v for k, v in os.environ.items() if not k.startswith(("PATHOS_", "FUZZ_")) and not k.lower().endswith("_proxy")}
+    e.update({"HOME": os.path.join(tmp, "home"), "TMPDIR": tmp, "PYTHONDONTWRITEBYTECODE": "1"})
+    os.makedirs(e["HOME"], exist_ok=True)
+    return e
+
+
+def run_limited(args, cwd, env, wall, cpu, address_space=0):
+    start = time.monotonic()
+    try:
+        p = subprocess.run(args, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           timeout=wall, preexec_fn=limits(cpu, address_space), check=False)
+        out, rc = p.stdout.decode("utf-8", "replace"), p.returncode
+    except subprocess.TimeoutExpired as e:
+        out, rc = (e.stdout or b"").decode("utf-8", "replace"), None
+    return rc, out, round(time.monotonic() - start, 1)
+
+
+def reproducer(path):
+    try:
+        with open(path, "rb") as f:
+            data = f.read()
+    except OSError:
+        return {}
+    return {"reproducer_base64": base64.b64encode(data[:MAX_REPRO]).decode(), "reproducer_size": len(data),
+            "reproducer_sha256": hashlib.sha256(data).hexdigest(), "reproducer_truncated": len(data) > MAX_REPRO}
+
+
+def classify(error):
+    e = error.lower()
+    for pat, kind, cwe, sev in (
+            ("index out of range", "index-out-of-range", "CWE-129", "medium"),
+            ("slice bounds out of range", "slice-bounds-out-of-range", "CWE-129", "medium"),
+            ("nil pointer dereference", "nil-dereference", "CWE-476", "medium"),
+            ("nil map", "nil-map-write", "CWE-476", "medium"),
+            ("integer divide by zero", "divide-by-zero", "CWE-369", "medium"),
+            ("zerodivisionerror", "divide-by-zero", "CWE-369", "medium"),
+            ("out of memory", "out-of-memory", "CWE-400", "low"),
+            ("memoryerror", "out-of-memory", "CWE-400", "low"),
+            ("hung or terminated", "hang", "CWE-835", "low"),
+            ("timeout", "timeout", "CWE-835", "low"),
+            ("recursionerror", "recursion", "CWE-674", "low"),
+            ("stack overflow", "stack-overflow", "CWE-674", "low"),
+            ("concurrent map", "data-race", "CWE-362", "medium")):
+        if pat in e:
+            return kind, cwe, sev
+    return ("panic" if "panic" in e else "uncaught-exception"), "CWE-248", "medium"
+
+
+# ------------------------------------------------------------------ Go
+
+
+def go_targets(root):
+    found = []
+    for d, dirs, files in os.walk(root):
+        dirs[:] = sorted(x for x in dirs if x not in SKIP_DIRS and x != "vendor" and x != "testdata")
+        for f in sorted(files):
+            if not f.endswith("_test.go"):
+                continue
+            try:
+                with open(os.path.join(d, f), encoding="utf-8", errors="replace") as fh:
+                    text = fh.read(1 << 20)
+            except OSError:
+                continue
+            for m in GO_FUZZ_RE.finditer(text):
+                line = text.count("\n", 0, m.start()) + 1
+                found.append((os.path.relpath(d, root), m.group(1), os.path.relpath(os.path.join(d, f), root), line))
+    return found
+
+
+GO_FRAME_RE = re.compile(r"^\s+(/\S+\.go):(\d+)", re.M)
+
+
+def go_crash(out, root, pkg, name, test_file, test_line):
+    m = re.search(r"Failing input written to (\S+)", out)
+    if not m:
+        return None
+    # The error: the first "panic:" line or the fuzz failure message.
+    err = ""
+    for pat in (r"panic: (.+)", r"--- FAIL: .*\n\s+(.+)", r"fuzzing process (hung or terminated unexpectedly.*)"):
+        mm = re.search(pat, out)
+        if mm:
+            err = mm.group(1).strip()
+            break
+    err = err or "the fuzz target failed"
+    file, line = test_file, test_line
+    for fm in GO_FRAME_RE.finditer(out[out.find("panic:"):] if "panic:" in out else out):
+        p = fm.group(1)
+        if p.startswith(root + os.sep) and "/testing/" not in p:
+            rel = os.path.relpath(p, root)
+            file, line = rel, int(fm.group(2))
+            break
+    kind, cwe, sev = classify(err)
+    corpus = os.path.join(root, pkg, m.group(1))
+    rerun = re.search(r"go test -run=(\S+)", out)
+    f = {"rule_id": "go-fuzz/" + kind, "kind": kind, "engine": "go", "confidence": "high", "target": name, "package": pkg, "error": err[:500],
+         "title": "Fuzz target %s crashes: %s" % (name, err[:150]), "severity": sev, "cwe": cwe, "file": file, "line": line,
+         "rerun": "go test -run=%s ./%s" % (rerun.group(1) if rerun else name, pkg) if pkg != "." else "go test -run=%s" % (
+             rerun.group(1) if rerun else name),
+         "reproducer_file": os.path.basename(m.group(1)), "output": out[-3000:]}
+    f.update(reproducer(corpus))
+    f["description"] = ("Go fuzzing found an input that makes %s (package %s) fail: %s. The reproducer input is in this finding's "
+                        "evidence (reproducer_base64, in Go's corpus file format); re-run with %s after saving it to "
+                        "testdata/fuzz/%s/." % (name, pkg, err[:300], f["rerun"], name))
+    return f
+
+
+def go(source, output, tmp):
+    src = os.path.join(tmp, "src")
+    copy_tree(source, src)
+    env = base_env(tmp)
+    env.update({"GOTOOLCHAIN": "local", "GOPROXY": "off", "GOFLAGS": "-buildvcs=false", "GONOSUMDB": "*", "GONOSUMCHECK": "1",
+                "GOSUMDB": "off", "GOCACHE": os.path.join(tmp, "gocache"), "GOMODCACHE": os.path.join(tmp, "gomodcache"),
+                "GOTMPDIR": tmp, "CGO_ENABLED": "0", "GOMAXPROCS": str(JOBS), "GOTELEMETRY": "off",
+                "PATH": os.path.dirname(GO) + ":" + env.get("PATH", "")})
+    targets, findings = [], []
+    deadline = time.monotonic() + TOTAL
+    for pkg, name, test_file, test_line in go_targets(src)[:MAX_TARGETS]:
+        if time.monotonic() > deadline - SECONDS:
+            targets.append({"kind": "go", "package": pkg, "name": name, "status": "skipped", "detail": "total time budget used"})
+            continue
+        wall = SECONDS + 600  # compiling the test binary counts too
+        rc, out, took = run_limited([GO, "test", "-run=^$", "-fuzz=^%s$" % name, "-fuzztime=%ds" % SECONDS, "-parallel=%d" % JOBS, "."],
+                                    os.path.join(src, pkg), env, wall, cpu=wall * JOBS)
+        crash = go_crash(out, src, pkg, name, test_file, test_line) if rc not in (0, None) else None
+        if crash:
+            findings.append(crash)
+            status = "crashed"
+        elif rc == 0:
+            status = "passed"
+        elif rc is None:
+            status = "timeout"
+        elif "[setup failed]" in out or "build failed" in out or "cannot find module" in out or "go: " in out[:2000]:
+            status = "build-failed"
+        else:
+            status = "failed"
+        targets.append({"kind": "go", "package": pkg, "name": name, "status": status, "seconds": took,
+                        "detail": "" if status in ("passed", "crashed") else out[-1500:]})
+        print("go-fuzz %s/%s: %s (%.0fs)" % (pkg, name, status, took), file=sys.stderr)
+    write(output, "go-fuzz", targets, findings)
+    return 0
+
+
+# ------------------------------------------------------------- Atheris
+
+
+def atheris_harnesses(root):
+    found = []
+    for d, dirs, files in os.walk(root):
+        dirs[:] = sorted(x for x in dirs if x not in SKIP_DIRS and x != "site-packages")
+        for f in sorted(files):
+            if not f.endswith(".py"):
+                continue
+            p = os.path.join(d, f)
+            try:
+                with open(p, encoding="utf-8", errors="replace") as fh:
+                    text = fh.read(1 << 20)
+            except OSError:
+                continue
+            if ATHERIS_RE.search(text) and "atheris.Fuzz(" in text:
+                found.append(os.path.relpath(p, root))
+    return found
+
+
+PY_FRAME_RE = re.compile(r'^\s*File "([^"]+)", line (\d+)', re.M)
+
+
+def atheris_crash(out, root, harness, crash_dir):
+    files = sorted(os.listdir(crash_dir)) if os.path.isdir(crash_dir) else []
+    if not files and "ERROR: libFuzzer" not in out:
+        return None
+    err = ""
+    m = re.search(r"=== Uncaught Python exception: ===\s*\n(.+)", out)
+    if m:
+        err = m.group(1).strip()
+    else:
+        m = re.search(r"ERROR: libFuzzer: (.+)", out)
+        err = m.group(1).strip() if m else "the fuzz target crashed"
+    file, line = harness, 0
+    frames = [(p, int(n)) for p, n in PY_FRAME_RE.findall(out) if p.startswith(root + os.sep)]
+    if frames:
+        file, line = os.path.relpath(frames[-1][0], root), frames[-1][1]
+    kind, cwe, sev = classify(err)
+    f = {"rule_id": "atheris/" + kind, "kind": kind, "engine": "atheris", "confidence": "high", "target": harness, "package": os.path.dirname(harness) or ".",
+         "error": err[:500], "title": "Fuzz harness %s crashes: %s" % (harness, err[:150]), "severity": sev, "cwe": cwe,
+         "file": file, "line": line, "rerun": "python %s <reproducer file>" % harness,
+         "reproducer_file": files[0] if files else "", "output": out[-3000:]}
+    if files:
+        f.update(reproducer(os.path.join(crash_dir, files[0])))
+    f["description"] = ("Atheris found an input that makes the harness %s fail: %s. The reproducer input is in this finding's "
+                        "evidence (reproducer_base64); re-run with %s." % (harness, err[:300], f["rerun"]))
+    return f
+
+
+def atheris(source, output, tmp):
+    src = os.path.join(tmp, "src")
+    copy_tree(source, src)
+    env = base_env(tmp)
+    targets, findings = [], []
+    deadline = time.monotonic() + TOTAL
+    for i, harness in enumerate(atheris_harnesses(src)[:MAX_TARGETS]):
+        if time.monotonic() > deadline - SECONDS:
+            targets.append({"kind": "atheris", "file": harness, "name": harness, "status": "skipped", "detail": "total time budget used"})
+            continue
+        crash_dir = os.path.join(tmp, "crashes", str(i))
+        os.makedirs(crash_dir, exist_ok=True)
+        hdir = os.path.join(src, os.path.dirname(harness))
+        env["PYTHONPATH"] = src + ":" + hdir
+        wall = SECONDS + 120
+        rc, out, took = run_limited([os.path.join(BIN, "python"), os.path.join(src, harness), "-max_total_time=%d" % SECONDS,
+                                     "-rss_limit_mb=%d" % MEMORY_MB, "-timeout=20", "-artifact_prefix=" + crash_dir + "/",
+                                     "-print_final_stats=0"], hdir, env, wall, cpu=wall, address_space=(MEMORY_MB + 1024) << 20)
+        crash = atheris_crash(out, src, harness, crash_dir) if rc not in (0, None) else None
+        if crash:
+            findings.append(crash)
+            status = "crashed"
+        elif rc == 0:
+            status = "passed"
+        elif rc is None:
+            status = "timeout"
+        elif "ModuleNotFoundError" in out or "ImportError" in out:
+            status = "build-failed"
+        else:
+            status = "failed"
+        targets.append({"kind": "atheris", "file": harness, "name": harness, "status": status, "seconds": took,
+                        "detail": "" if status in ("passed", "crashed") else out[-1500:]})
+        print("atheris %s: %s (%.0fs)" % (harness, status, took), file=sys.stderr)
+    write(output, "atheris", targets, findings)
+    return 0
+
+
+def write(output, tool, targets, findings):
+    with open(output, "w") as f:
+        json.dump({"tool": tool, "version": 1, "seconds_per_target": SECONDS, "targets": targets, "findings": findings}, f)
+
+
+def main(argv):
+    if len(argv) == 3 and argv[1] == "version":
+        if argv[2] == "go":
+            return subprocess.run([GO, "version"], check=False).returncode
+        from importlib.metadata import version
+
+        print("atheris %s" % version("atheris"))
+        return 0
+    if len(argv) != 5 or argv[1] not in ("go", "atheris"):
+        print(__doc__, file=sys.stderr)
+        return 2
+    source = argv[2]
+    if "{" in source or not os.path.isdir(source):
+        print("fuzzing runs on repository checkouts only", file=sys.stderr)
+        return 2
+    return {"go": go, "atheris": atheris}[argv[1]](os.path.realpath(source), argv[3], argv[4])
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

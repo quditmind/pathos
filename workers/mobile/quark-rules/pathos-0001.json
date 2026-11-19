@@ -1,0 +1,25 @@
+{
+    "crime": "Send the device ID over the network",
+    "permission": [
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.INTERNET"
+    ],
+    "api": [
+        {
+            "class": "Landroid/telephony/TelephonyManager;",
+            "method": "getDeviceId",
+            "descriptor": "()Ljava/lang/String;"
+        },
+        {
+            "class": "Ljava/net/URL;",
+            "method": "openConnection",
+            "descriptor": "()Ljava/net/URLConnection;"
+        }
+    ],
+    "score": 2,
+    "label": [
+        "collection",
+        "network",
+        "privacy"
+    ]
+}

@@ -26,8 +26,8 @@ func load(t *testing.T, key string) []Finding {
 func TestCatalog(t *testing.T) {
 	// catalog.go lists 55 scanner integrations; the family packs
 	// (catalog_<family>.go) replace some of them and add more.
-	if len(Catalog) < 55 {
-		t.Errorf("SCANNER_CATALOG lists at least 55 scanner integrations, got %d", len(Catalog))
+	if len(Catalog) < 97 {
+		t.Errorf("SCANNER_CATALOG lists at least 97 scanner integrations, got %d", len(Catalog))
 	}
 	seen := map[string]bool{}
 	mandatory := 0
