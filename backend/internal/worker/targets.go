@@ -239,7 +239,10 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
 				"-etags", "dos,intrusive,bruteforce")
 		} else {
-			args = append(args, "-l", specFile, "-im", "openapi", "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
+			// specFile is the URL list from apiOperationURLs here: Nuclei
+			// runs its ordinary templates only on URL inputs, not on an
+			// OpenAPI input.
+			args = append(args, "-l", specFile, "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
 				"-etags", "dos,intrusive,bruteforce,fuzz")
 		}
 	case "endpoints":
@@ -319,7 +322,14 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api" && in.Target.Kind != "endpoints") {
 				return "only runs for web application, API and declared endpoint targets", nil
 			}
-			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, in.TargetFile)...); err != nil {
+			list := in.TargetFile
+			if in.Target.Kind == "api" && !in.Target.IntrusiveAuthorized {
+				list = filepath.Join(filepath.Dir(in.Out), "api-urls.txt")
+				if err := writeAPIURLList(in.Target.Reference, in.TargetFile, list); err != nil {
+					return "", err
+				}
+			}
+			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, list)...); err != nil {
 				return "", err
 			}
 			// No findings: an empty JSONL report.

@@ -25,9 +25,12 @@ func TestNucleiArgs(t *testing.T) {
 		t.Error("URL scans must not fuzz")
 	}
 	// Without intrusive testing authorization, API scans never fuzz.
-	safe := strings.Join(nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example"}, "/o", "/w/openapi.yaml"), " ")
-	if strings.Contains(safe, "-dast") || !strings.Contains(safe, "-etags dos,intrusive,bruteforce,fuzz") || !strings.Contains(safe, "-im openapi") {
-		t.Errorf("API scans without the intrusive flag must not fuzz: %s", safe)
+	// Nuclei loads no ordinary template for an OpenAPI input ("no templates
+	// provided for scan"), so these scans read the operation URL list.
+	safe := strings.Join(nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example"}, "/o", "/w/api-urls.txt"), " ")
+	if strings.Contains(safe, "-dast") || !strings.Contains(safe, "-etags dos,intrusive,bruteforce,fuzz") || strings.Contains(safe, "-im openapi") ||
+		!strings.Contains(safe, "-l /w/api-urls.txt") {
+		t.Errorf("API scans without the intrusive flag must not fuzz and must scan the URL list: %s", safe)
 	}
 	api := nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example", RateLimit: 500, AuthType: "basic", Username: "u", Password: "p",
 		IntrusiveAuthorized: true}, "/o", "/w/openapi.yaml")
