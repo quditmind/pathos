@@ -251,7 +251,15 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 	}
 	n := 0
 	err = db.InTx(ctx, pool, func(tx pgx.Tx) error {
+		// The batch is picked (and locked) from the risk_dirty partial
+		// index first: joined directly, the planner walked repositories and
+		// their findings looking for dirty rows, which got slower as the
+		// remaining dirty findings thinned out (docs/PERFORMANCE.md). The
+		// outer FOR UPDATE (rows already locked by this transaction) makes
+		// the query read their latest committed version, as before.
 		rows, err := tx.Query(ctx, `
+			WITH batch AS (
+			  SELECT id FROM findings WHERE organization_id = $1 AND risk_dirty LIMIT $2 FOR UPDATE SKIP LOCKED)
 			SELECT f.id, f.status, f.severity, COALESCE(f.human_severity, ''), f.cvss::float8, e.score::float8, e.percentile::float8,
 			       k.cve_id IS NOT NULL, k.due_date, f.exploit_available, r.criticality, COALESCE(a.criticality, ''), r.public_exposure,
 			       f.reachability, f.reachability_method, f.confidence, COALESCE(f.human_disposition, ''), f.fixed_version <> '',
@@ -259,17 +267,16 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			               WHERE h.finding_id = f.id AND ha.answers->>'compensating_controls_present' = 'yes'),
 			       -- public exploit or proof of concept referenced by the OSV record
 			       f.cve <> '' AND EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND v.exploit_refs > 0
-			               AND (v.id = f.cve OR f.cve = ANY(v.aliases))),
+			               AND (v.id = f.cve OR v.aliases @> ARRAY[f.cve])),
 			       `+MaliciousExpr+`,
 			       f.category = 'secrets' AND f.secret_validation_status = 'active',
 			       f.runtime_status, f.runtime_exposed, f.runtime_privileged, f.runtime_alert, f.runtime_context
-			FROM findings f
+			FROM batch JOIN findings f ON f.id = batch.id
 			JOIN repositories r ON r.id = f.repository_id
 			LEFT JOIN applications a ON a.id = r.application_id
 			LEFT JOIN intel_epss e ON e.cve_id = f.cve
 			LEFT JOIN intel_kev k ON k.cve_id = f.cve
-			WHERE f.organization_id = $1 AND f.risk_dirty
-			LIMIT $2 FOR UPDATE OF f SKIP LOCKED`, orgID, limit)
+			FOR UPDATE OF f`, orgID, limit)
 		if err != nil {
 			return err
 		}
@@ -333,6 +340,13 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 	return n, err
 }
 
+// recomputeBatch is how many findings one Recompute transaction scores and
+// keeps locked. Measured with 1 million findings (docs/PERFORMANCE.md):
+// 500 and 2,000 score the same 2,900-3,000 findings/s (5,000: 2,200-2,300),
+// but a batch of 500 holds its row locks for about 0.25 s against 0.7-0.8 s
+// for 2,000, so scans and triage that touch the same findings wait less.
+const recomputeBatch = 500
+
 // RunBackground re-scores dirty findings (jobs role).
 func RunBackground(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 	t := time.NewTicker(30 * time.Second)
@@ -344,13 +358,13 @@ func RunBackground(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 			for _, o := range orgs {
 				total := 0
 				for ctx.Err() == nil {
-					n, err := Recompute(ctx, pool, o, 2000)
+					n, err := Recompute(ctx, pool, o, recomputeBatch)
 					if err != nil {
 						log.Warn("risk recompute failed", "err", err)
 						break
 					}
 					total += n
-					if n < 2000 {
+					if n < recomputeBatch {
 						break
 					}
 				}
@@ -372,5 +386,5 @@ func RunBackground(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) {
 // GitHub "Malicious code in" / "Malware in" advisories.
 const MaliciousExpr = `(f.rule_id LIKE 'MAL-%' OR f.cve LIKE 'MAL-%'
 	OR f.title ~* '^(malicious code in|malware in|embedded malicious code)'
-	OR EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND (v.id IN (f.cve, f.rule_id) OR f.cve = ANY(v.aliases) OR f.rule_id = ANY(v.aliases))
+	OR EXISTS (SELECT 1 FROM intel_vulns v WHERE v.found AND (v.id IN (f.cve, f.rule_id) OR v.aliases @> ARRAY[f.cve] OR v.aliases @> ARRAY[f.rule_id])
 	           AND (v.id LIKE 'MAL-%' OR EXISTS (SELECT 1 FROM unnest(v.aliases) a WHERE a LIKE 'MAL-%'))))`

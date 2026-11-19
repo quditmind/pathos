@@ -23,6 +23,8 @@ All endpoints are under `/api/v1` and use the [common conventions](index.md#auth
 | `POST` | `/api/v1/me/notifications/read` | signed in | [Mark notifications as read](#in-app-notifications) |
 | `GET` | `/api/v1/me/mfa` | signed in (session only) | [Your MFA status](#mfa-and-recovery-codes) |
 | `POST` | `/api/v1/me/recovery-codes` | signed in (session only) | [New recovery codes for yourself](#mfa-and-recovery-codes) |
+| `GET` | `/api/v1/me/organizations` | signed in | [Your organizations](#your-organizations) |
+| `POST` | `/api/v1/me/organization` | signed in (session only) | [Switch organization](#your-organizations) |
 
 "Session only": API tokens get `403 token_not_allowed` on these paths, so a token can never create tokens or change sign-in security.
 
@@ -51,6 +53,28 @@ All endpoints are under `/api/v1` and use the [common conventions](index.md#auth
 ```
 
 `permissions` are held at some scope, `org_wide_permissions` at organization scope. `role_assignments` has the [assignment objects](#role-assignments). `csrf_token` is empty when the request was authenticated with an API token.
+
+### Your organizations
+
+With multi-tenancy (`docs/MULTI_TENANCY.md` in the PATHOS repository) one person can belong to several organizations; each request acts in one of them, taken from the session (or the API token), never from the request. `GET /api/v1/me/organizations`:
+
+```json
+{
+  "multi_tenant": true,
+  "installation_admin": false,
+  "active_organization_id": "0190c0de-0000-7000-8000-000000000001",
+  "items": [
+    { "organization_id": "0190c0de-0000-7000-8000-000000000001", "name": "Acme", "slug": "acme", "status": "active",
+      "user_id": "0190c0de-2222-7000-8000-000000000001", "user_status": "active" },
+    { "organization_id": "0190c0de-0000-7000-8000-000000000002", "name": "Globex", "slug": "globex", "status": "active",
+      "user_id": "0190c0de-2222-7000-8000-000000000009", "user_status": "active" }
+  ]
+}
+```
+
+`items` lists active memberships in active organizations (and the current one). On a single-organization install `multi_tenant` is `false` and `items` has one entry. This endpoint and the switch also work while the session's organization is suspended (every other endpoint then answers `403 organization_suspended`).
+
+`POST /api/v1/me/organization` with `{ "organization_id": "<uuid>" }` switches: the target must be an active organization where the caller has an active membership (otherwise `404`). The server starts a new session (new cookie and CSRF token), ends the old one and answers `200 { "active_organization_id": "<uuid>" }`; reload the application afterwards. API tokens and MCP tokens belong to one organization and cannot switch (`403 session_required`). Audited in both organizations as `auth.switch_organization` (the old organization's entry does not name the new one).
 
 ### API tokens
 
@@ -361,3 +385,17 @@ Multi-factor authentication is managed in Keycloak; PATHOS shows the status and 
 The status object is `{ configured, pending, recovery_codes, recovery_pending }`: an authenticator is set up, enrolment is required at the next sign-in, the user has recovery codes, new codes will be generated at the next sign-in. The `POST` endpoints return `{ "changed": true, "mfa": { …status } }`; `changed` is `false` when the requirement was already set.
 
 Errors: `409 mfa_unavailable` when Keycloak provisioning is not configured or the account is not linked to Keycloak yet; `502 idp_error` when Keycloak cannot be reached.
+
+## Installation administration
+
+Multi-tenant installations only (`docs/MULTI_TENANCY.md` in the PATHOS repository). Every endpoint needs a **browser session** of an **installation administrator** (`PATHOS_INSTALLATION_ADMIN_EMAIL`, `pathosctl installation-admin grant`); organization roles, including `super_admin` and `platform_admin`, get `403`, API tokens get `403`, and an install without multi-tenancy answers `404 multi_tenancy_disabled`. These endpoints manage organizations only; they return no organization data beyond name, slug, status and two counts.
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/api/v1/installation/organizations` | Every organization: `id`, `name`, `slug`, `status` (`active`, `suspended`), `suspended_at`, `suspended_reason`, `created_at`, `users` (not deactivated), `repositories` (not archived) |
+| `POST` | `/api/v1/installation/organizations` | Create: `{ "name": "Globex", "slug": "globex", "admin_email": "owner@globex.example" }` (`admin_email` optional) → `201 { "organization": {…}, "invited_admin": {…} }`. Seeds regions, scan profile, SLA and licence policies, notification rules, MCP registry and asset classifications; the email is invited as the organization's `super_admin`. `409` for a taken slug, `400` for an invalid one (1–63 lowercase letters, digits and hyphens) |
+| `POST` | `/api/v1/installation/organizations/{id}/suspend` | `{ "reason": "contract ended" }` (≤ 500 characters) → the organization. Sign-in, API and MCP tokens and workers of the organization are refused; scheduled scans pause. `409 default_organization` for `PATHOS_ORG_SLUG` |
+| `POST` | `/api/v1/installation/organizations/{id}/resume` | → the organization |
+| `DELETE` | `/api/v1/installation/organizations/{id}` | `{ "confirm_slug": "globex" }` → `200 { "deleted": true, "rows": 1234, "objects": 56 }`. Only a suspended organization (`409 not_suspended`) and never the default one; `400` when the slug does not match. Deletes stored objects first (`502 object_storage_error` if that fails; nothing is deleted from the database then), then every row of the organization, including its audit log. Irreversible |
+| `GET` | `/api/v1/installation/admins` | Installation administrators: `subject`, `email`, `created_by`, `created_at` |
+| `GET` | `/api/v1/installation/audit-logs` | The newest 200 installation audit entries: `actor_subject`, `actor_email`, `action` (`organization.create`, `organization.suspend`, `organization.resume`, `organization.delete`, `installation_admin.grant`, `installation_admin.revoke`, `installation_admin.bootstrap`), `organization_id`, `outcome`, `request_id`, `metadata`, `created_at` |

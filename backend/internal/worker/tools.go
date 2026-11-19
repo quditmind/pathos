@@ -176,11 +176,29 @@ func lastLine(s string) string {
 
 var versionRe = regexp.MustCompile(`v?(\d+\.\d+\.\d+[\w.+-]*)`)
 
+// defaultVersionTimeout bounds a tool's version command.
+const defaultVersionTimeout = 20 * time.Second
+
 func versionOf(ctx context.Context, name string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	return versionWith(ctx, defaultVersionTimeout, nil, name, args...)
+}
+
+// versionWith runs a version command with a timeout and, when env is not
+// nil, the scrubbed tool environment plus env (manifest tools: the same
+// environment as their scans, so settings such as a disabled version
+// check apply to the version command too).
+func versionWith(ctx context.Context, timeout time.Duration, env []string, name string, args ...string) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	// #nosec G204 -- scanner binaries and arguments come from the worker's fixed tool table; no shell is involved
-	out, err := exec.CommandContext(ctx, name, args...).CombinedOutput()
+	cmd := exec.CommandContext(ctx, name, args...)
+	if env != nil {
+		cmd.Env = mergeEnv(baseEnv(), env)
+	}
+	// Children that keep the output open (a wrapper's subprocess) must not
+	// hold the worker past the timeout.
+	cmd.WaitDelay = 2 * time.Second
+	out, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", err
 	}

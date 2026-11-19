@@ -1,0 +1,2 @@
+trivy: {"Version":2,"NextUpdate":"2026-11-20T07:06:49.809946107Z","UpdatedAt":"2026-11-19T07:06:49.809946527Z","DownloadedAt":"2026-11-19T10:59:30.488788803Z"}
+grype: { "digest": "xxh64:e4cda140a1e22565", "source": "https://grype.anchore.io/databases/v6/vulnerability-db_v6.1.10_2026-11-19T00:22:15Z_1795069397.tar.zst?checksum=sha256%3Acf30f15bf29c0b7addc26938fcd6e22fa8a5f8740143962a0e77666ed9747030", "client_version": "v6.1.10"}

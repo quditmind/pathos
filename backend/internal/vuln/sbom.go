@@ -16,6 +16,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"pathos/internal/platform/db"
+
 	"pathos/internal/authz"
 	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
@@ -145,7 +147,7 @@ func replaceComponents(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, 
 	for i, c := range comps {
 		rows[i] = []any{orgID, repoID, jobID, c.Name, c.Version, c.PURL, c.Type, c.Licenses, source, c.Ref}
 	}
-	_, err := tx.CopyFrom(ctx, pgx.Identifier{"sbom_components"},
+	_, err := db.CopyFrom(ctx, tx, pgx.Identifier{"sbom_components"},
 		[]string{"organization_id", "repository_id", "scan_job_id", "name", "version", "purl", "type", "licenses", "source", "bom_ref"}, pgx.CopyFromRows(rows))
 	return err
 }
@@ -232,21 +234,30 @@ func (s *Service) components(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	args = append([]any{p.OrganizationID, like, repo, policy}, args...)
+	// The page is the first 500 (name, version) groups. Their licences
+	// (from every matching component, whatever the licence filter) and open
+	// vulnerabilities are looked up for those 500 only: a per-group subquery
+	// over all components made the query quadratic in the inventory size.
 	rows, err := s.DB.Query(ctx, `
-		WITH c AS (
+		WITH c AS MATERIALIZED (
 		  SELECT sc.name, sc.version, sc.purl, sc.type, sc.licenses, r.full_name, r.id AS repo_id,
 		         (SELECT min(lp.decision) FROM license_policies lp WHERE lp.organization_id = $1 AND lp.spdx_id = ANY(sc.licenses)) AS policy
 		  FROM sbom_components sc JOIN repositories r ON r.id = sc.repository_id LEFT JOIN countries co ON co.id = r.country_id
 		  WHERE sc.organization_id = $1 AND r.archived_at IS NULL AND (lower(sc.name) LIKE $2 OR lower(sc.purl) LIKE $2)
-		    AND ($3::uuid IS NULL OR r.id = $3) AND `+scope+`)
-		SELECT c.name, c.version, max(c.purl), max(c.type),
-		       (SELECT COALESCE(array_agg(DISTINCT l), '{}') FROM c c2, unnest(c2.licenses) l WHERE c2.name = c.name AND c2.version = c.version),
-		       COALESCE(min(c.policy), ''), array_agg(DISTINCT c.full_name ORDER BY c.full_name),
-		       (SELECT count(*) FROM findings f WHERE f.repository_id = ANY(array_agg(c.repo_id)) AND f.category = 'sca'
-		          AND f.status IN ('open', 'in_progress', 'needs_review') AND f.package_name = c.name AND f.package_version = c.version)
-		FROM c
-		WHERE $4 = '' OR ($4 = 'violations' AND c.policy IS NOT NULL) OR c.policy = $4
-		GROUP BY c.name, c.version ORDER BY lower(c.name), c.version LIMIT 500`, args...)
+		    AND ($3::uuid IS NULL OR r.id = $3) AND `+scope+`),
+		g AS (
+		  SELECT c.name, c.version, max(c.purl) AS purl, max(c.type) AS type, COALESCE(min(c.policy), '') AS policy,
+		         array_agg(DISTINCT c.full_name ORDER BY c.full_name) AS repos, array_agg(c.repo_id) AS repo_ids
+		  FROM c
+		  WHERE $4 = '' OR ($4 = 'violations' AND c.policy IS NOT NULL) OR c.policy = $4
+		  GROUP BY c.name, c.version ORDER BY lower(c.name), c.version LIMIT 500),
+		lic AS (
+		  SELECT c.name, c.version, array_agg(DISTINCT l) AS licenses
+		  FROM c JOIN g ON g.name = c.name AND g.version = c.version, unnest(c.licenses) l GROUP BY c.name, c.version)
+		SELECT g.name, g.version, g.purl, g.type, COALESCE(lic.licenses, '{}'), g.policy, g.repos,
+		       (SELECT count(*) FROM findings f WHERE f.repository_id = ANY(g.repo_ids) AND f.category = 'sca'
+		          AND f.status IN ('open', 'in_progress', 'needs_review') AND f.package_name = g.name AND f.package_version = g.version)
+		FROM g LEFT JOIN lic ON lic.name = g.name AND lic.version = g.version ORDER BY lower(g.name), g.version`, args...)
 	if err != nil {
 		s.fail(w, r, err)
 		return

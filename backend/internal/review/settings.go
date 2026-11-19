@@ -55,6 +55,13 @@ const settingsCols = `auto_queue, auto_triggers, auto_scanners, auto_categories,
 	evidence_required_dispositions, evidence_required_severities, required_fields, notify_assignment, notify_independent_review,
 	notify_overdue, ai_assist, ai_send_code, evidence_max_mb, unassigned_can_assess, final_approval_severities, final_approval_dispositions`
 
+// EnsureSettings creates an organization's default Human Eye settings
+// (idempotent; seeded for every new organization).
+func EnsureSettings(ctx context.Context, q db.Querier, orgID uuid.UUID) error {
+	_, err := q.Exec(ctx, `INSERT INTO human_review_settings (organization_id) VALUES ($1) ON CONFLICT DO NOTHING`, orgID)
+	return err
+}
+
 // loadSettings returns the configuration, creating the defaults on first use.
 func loadSettings(ctx context.Context, q db.Querier, orgID uuid.UUID) (Settings, error) {
 	if _, err := q.Exec(ctx, `INSERT INTO human_review_settings (organization_id) VALUES ($1) ON CONFLICT DO NOTHING`, orgID); err != nil {

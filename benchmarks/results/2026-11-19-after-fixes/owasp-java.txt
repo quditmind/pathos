@@ -1,0 +1,4 @@
+opengrep         succeeded  findings=449    TP=241   FP=206   FN=1174  TN=1119  TPR=0.170 FPR=0.155 score=+0.015
+semgrep-ce       succeeded  findings=449    TP=241   FP=206   FN=1174  TN=1119  TPR=0.170 FPR=0.155 score=+0.015
+bearer           succeeded  findings=2194   TP=980   FP=382   FN=435   TN=943   TPR=0.693 FPR=0.288 score=+0.404
+combined         succeeded  findings=3092   TP=1033  FP=434   FN=382   TN=891   TPR=0.730 FPR=0.328 score=+0.402

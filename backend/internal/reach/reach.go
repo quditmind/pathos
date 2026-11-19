@@ -26,6 +26,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"pathos/internal/platform/db"
 )
 
 // Inventory is the code's use of packages (from the worker).
@@ -401,7 +403,7 @@ func StoreInventory(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, imp
 		}
 	}
 	if len(rows) > 0 {
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"repository_code_imports"}, []string{"organization_id", "repository_id", "ecosystem", "kind", "name"},
+		if _, err := db.CopyFrom(ctx, tx, pgx.Identifier{"repository_code_imports"}, []string{"organization_id", "repository_id", "ecosystem", "kind", "name"},
 			pgx.CopyFromRows(rows)); err != nil {
 			return err
 		}

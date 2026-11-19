@@ -4,6 +4,9 @@
 //	pathosctl migrate-status      print current and latest migration versions
 //	pathosctl gen-key             print a new random master key (base64)
 //	pathosctl rotate-master-key   re-wrap all secret DEKs with the current master key
+//	pathosctl multi-tenancy enable|disable|status
+//	pathosctl installation-admin grant|revoke <email> | list
+//	pathosctl organizations       list organizations
 package main
 
 import (
@@ -15,7 +18,9 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -28,9 +33,11 @@ import (
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/logging"
 	"pathos/internal/platform/objstore"
+	"pathos/internal/review"
 	"pathos/internal/scanners"
 	"pathos/internal/scans"
 	"pathos/internal/secrets"
+	"pathos/internal/tenancy"
 	"pathos/internal/vuln"
 )
 
@@ -44,7 +51,12 @@ commands:
   migrate-artifacts   move scan artifacts stored in PostgreSQL to the configured S3 bucket
   gen-key             print a new random 32-byte master key (base64)
   rbac-matrix         print the role/permission matrix as Markdown
-  rotate-master-key   re-wrap every secret's data key with the current master key`)
+  rotate-master-key   re-wrap every secret's data key with the current master key
+  multi-tenancy enable|disable|status
+                      turn multi-tenancy (row-level security on every tenant table) on or off
+  installation-admin grant <email> | revoke <email> | list
+                      manage installation administrators (the person must have signed in once)
+  organizations       list organizations with their status`)
 }
 
 func main() {
@@ -109,6 +121,12 @@ func main() {
 		}
 	case "rotate-master-key":
 		err = rotate(ctx, pool, cfg, log)
+	case "multi-tenancy":
+		err = multiTenancy(ctx, pool, os.Args[2:], log)
+	case "installation-admin":
+		err = installationAdmin(ctx, pool, os.Args[2:], log)
+	case "organizations":
+		err = listOrganizations(ctx, pool)
 	case "migrate-artifacts":
 		if cfg.S3Bucket == "" {
 			err = fmt.Errorf("PATHOS_S3_BUCKET is not set; configure object storage first")
@@ -162,6 +180,9 @@ func migrate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *s
 	if err := scans.EnsureDefaultProfile(ctx, pool, id); err != nil {
 		return fmt.Errorf("ensure default scan profile: %w", err)
 	}
+	if err := review.EnsureSettings(ctx, pool, id); err != nil {
+		return fmt.Errorf("ensure Human Eye settings: %w", err)
+	}
 	if err := org.EnsureAuditPartitions(ctx, pool); err != nil {
 		return err
 	}
@@ -187,4 +208,91 @@ func rotate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *sl
 		log.Info("rotation complete", "rewrapped", n, "key_version", kr.CurrentVersion())
 	}
 	return err
+}
+
+// multiTenancy turns multi-tenancy on or off (pathos_set_multi_tenant).
+// Restart the api, jobs and scheduler services afterwards: they read the
+// mode at startup.
+func multiTenancy(ctx context.Context, pool *pgxpool.Pool, args []string, log *slog.Logger) error {
+	if len(args) != 1 {
+		return fmt.Errorf("usage: pathosctl multi-tenancy enable|disable|status")
+	}
+	switch args[0] {
+	case "enable", "disable":
+		if _, err := pool.Exec(ctx, `SELECT pathos_set_multi_tenant($1)`, args[0] == "enable"); err != nil {
+			return err
+		}
+		log.Info("multi-tenancy changed; restart the api, jobs and scheduler services", "enabled", args[0] == "enable")
+		fallthrough
+	case "status":
+		on, err := tenancy.MultiTenant(ctx, pool)
+		if err != nil {
+			return err
+		}
+		gaps, err := tenancy.RLSGaps(ctx, pool)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("multi_tenant=%t rls_gaps=%d\n", on, len(gaps))
+		for _, g := range gaps {
+			fmt.Println("  not isolated:", g)
+		}
+		return nil
+	}
+	return fmt.Errorf("usage: pathosctl multi-tenancy enable|disable|status")
+}
+
+// installationAdmin grants, revokes or lists installation administrators. A person
+// is identified by the identity-provider subject of any of their users
+// rows, so they must have signed in once.
+func installationAdmin(ctx context.Context, pool *pgxpool.Pool, args []string, log *slog.Logger) error {
+	if len(args) == 1 && args[0] == "list" {
+		admins, err := tenancy.ListInstallationAdmins(ctx, pool)
+		if err != nil {
+			return err
+		}
+		for _, a := range admins {
+			fmt.Printf("%s\t%s\t%s\n", a.Email, a.Subject, a.CreatedAt.Format(time.RFC3339))
+		}
+		return nil
+	}
+	if len(args) != 2 || (args[0] != "grant" && args[0] != "revoke") {
+		return fmt.Errorf("usage: pathosctl installation-admin grant|revoke <email> | list")
+	}
+	email := strings.ToLower(strings.TrimSpace(args[1]))
+	rows, err := pool.Query(ctx, `SELECT DISTINCT keycloak_subject FROM users WHERE email = $1 AND keycloak_subject IS NOT NULL`, email)
+	if err != nil {
+		return err
+	}
+	subs, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return err
+	}
+	if len(subs) != 1 {
+		return fmt.Errorf("found %d identities for %s; the person must have signed in once (and the email must be unambiguous)", len(subs), email)
+	}
+	var changed bool
+	if args[0] == "grant" {
+		changed, err = tenancy.GrantInstallationAdmin(ctx, pool, subs[0], email, "pathosctl")
+	} else {
+		changed, err = tenancy.RevokeInstallationAdmin(ctx, pool, subs[0])
+	}
+	if err != nil {
+		return err
+	}
+	_ = tenancy.WriteInstallationAudit(ctx, pool, tenancy.InstallationAuditEntry{ActorSubject: "pathosctl", Action: "installation_admin." + args[0],
+		Metadata: map[string]any{"email": email, "changed": changed}})
+	log.Info("installation administrator updated", "action", args[0], "email", email, "changed", changed)
+	return nil
+}
+
+func listOrganizations(ctx context.Context, pool *pgxpool.Pool) error {
+	orgs, err := tenancy.ListOrganizations(ctx, pool)
+	if err != nil {
+		return err
+	}
+	for _, o := range orgs {
+		fmt.Printf("%s\t%s\t%s\tusers=%d\trepositories=%d\t%s\n", o.Slug, o.Status, o.ID, o.Users, o.Repositories, o.Name)
+	}
+	return nil
 }

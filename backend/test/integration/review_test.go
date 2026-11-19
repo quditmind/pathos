@@ -559,6 +559,11 @@ func TestHumanReviewMigrationRollback(t *testing.T) {
 	if _, err := ownerPool.Exec(ctx, `SELECT pathos_apply_app_grants()`); err != nil {
 		t.Fatal(err)
 	}
+	// The rollback went below the multi-tenancy migrations: re-enable
+	// row-level security as TestMain did.
+	if _, err := ownerPool.Exec(ctx, `SELECT pathos_set_multi_tenant(true)`); err != nil {
+		t.Fatal(err)
+	}
 	var settings int
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM human_review_settings`).Scan(&settings)
 	if settings == 0 {

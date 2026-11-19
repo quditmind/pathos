@@ -89,6 +89,20 @@ type Config struct {
 	OrgName             string
 	OrgSlug             string
 	BootstrapAdminEmail string
+
+	// Multi-tenancy (enabled in the database with `pathosctl
+	// multi-tenancy enable`; see docs/MULTI_TENANCY.md).
+	// InstallationAdminEmail becomes a platform administrator at its first
+	// login with a verified email (like BootstrapAdminEmail for the
+	// organization).
+	InstallationAdminEmail string
+	// OrgClaim is the ID-token claim that lists a user's organizations
+	// (default "groups"); OrgGroupPrefix selects and strips the entries
+	// that name an organization slug (default "/pathos/", matching
+	// Keycloak group paths /pathos/<slug>). An empty prefix takes every
+	// entry as a slug.
+	OrgClaim       string
+	OrgGroupPrefix string
 }
 
 type OIDCConfig struct {
@@ -151,30 +165,33 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 
 	c := &Config{
-		Env:                  get("PATHOS_ENV", "production"),
-		Role:                 Role(get("PATHOS_ROLE", string(RoleAPI))),
-		HTTPAddr:             get("PATHOS_HTTP_ADDR", ":8080"),
-		LogLevel:             get("PATHOS_LOG_LEVEL", "info"),
-		DatabaseURL:          get("PATHOS_DATABASE_URL", ""),
-		RedisURL:             get("PATHOS_REDIS_URL", ""),
-		SessionIdleTTL:       dur("PATHOS_SESSION_IDLE_TTL", "8h"),
-		SessionAbsoluteTTL:   dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
-		WorkerAPIAddr:        get("PATHOS_WORKER_API_ADDR", ":8081"),
-		WorkerBootstrapToken: get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
-		SCMAllowPrivate:      get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
-		Offline:              get("PATHOS_OFFLINE", "false") == "true",
-		SCMAllowHTTP:         get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
-		OTLPEndpoint:         get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-		RequireMFA:           get("PATHOS_REQUIRE_MFA", "false") == "true",
-		S3Endpoint:           get("PATHOS_S3_ENDPOINT", ""),
-		S3Region:             get("PATHOS_S3_REGION", "us-east-1"),
-		S3Bucket:             get("PATHOS_S3_BUCKET", ""),
-		S3AccessKey:          get("PATHOS_S3_ACCESS_KEY", ""),
-		S3SecretKey:          get("PATHOS_S3_SECRET_KEY", ""),
-		S3PathStyle:          get("PATHOS_S3_PATH_STYLE", "true") == "true",
-		OrgName:              get("PATHOS_ORG_NAME", "Default Organization"),
-		OrgSlug:              get("PATHOS_ORG_SLUG", "default"),
-		BootstrapAdminEmail:  strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
+		Env:                    get("PATHOS_ENV", "production"),
+		Role:                   Role(get("PATHOS_ROLE", string(RoleAPI))),
+		HTTPAddr:               get("PATHOS_HTTP_ADDR", ":8080"),
+		LogLevel:               get("PATHOS_LOG_LEVEL", "info"),
+		DatabaseURL:            get("PATHOS_DATABASE_URL", ""),
+		RedisURL:               get("PATHOS_REDIS_URL", ""),
+		SessionIdleTTL:         dur("PATHOS_SESSION_IDLE_TTL", "8h"),
+		SessionAbsoluteTTL:     dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		WorkerAPIAddr:          get("PATHOS_WORKER_API_ADDR", ":8081"),
+		WorkerBootstrapToken:   get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
+		SCMAllowPrivate:        get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		Offline:                get("PATHOS_OFFLINE", "false") == "true",
+		SCMAllowHTTP:           get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
+		OTLPEndpoint:           get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		RequireMFA:             get("PATHOS_REQUIRE_MFA", "false") == "true",
+		S3Endpoint:             get("PATHOS_S3_ENDPOINT", ""),
+		S3Region:               get("PATHOS_S3_REGION", "us-east-1"),
+		S3Bucket:               get("PATHOS_S3_BUCKET", ""),
+		S3AccessKey:            get("PATHOS_S3_ACCESS_KEY", ""),
+		S3SecretKey:            get("PATHOS_S3_SECRET_KEY", ""),
+		S3PathStyle:            get("PATHOS_S3_PATH_STYLE", "true") == "true",
+		OrgName:                get("PATHOS_ORG_NAME", "Default Organization"),
+		OrgSlug:                get("PATHOS_ORG_SLUG", "default"),
+		BootstrapAdminEmail:    strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
+		InstallationAdminEmail: strings.ToLower(get("PATHOS_INSTALLATION_ADMIN_EMAIL", "")),
+		OrgClaim:               get("PATHOS_OIDC_ORGANIZATION_CLAIM", "groups"),
+		OrgGroupPrefix:         get("PATHOS_OIDC_ORGANIZATION_PREFIX", "/pathos/"),
 		OIDC: OIDCConfig{
 			Issuer:                  get("PATHOS_OIDC_ISSUER", ""),
 			DiscoveryURL:            get("PATHOS_OIDC_DISCOVERY_URL", ""),

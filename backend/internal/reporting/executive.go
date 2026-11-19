@@ -146,16 +146,33 @@ func (s *Service) executive(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Weekly trend: new and fixed per week, and findings open at week end
-	// (first seen before it and not resolved by then).
+	// (first seen before it and not resolved by then; false positives and
+	// accepted risks excluded). One pass over the findings: each one is
+	// bucketed by week (a timestamp t is in week w exactly when
+	// date_trunc('week', t) = w), and the open count is a running sum of +1
+	// in the week first seen and -1 in the week resolved (never before the
+	// week first seen), with earlier weeks folded into the first one.
+	// TestExecutiveTrendMatchesDefinition checks it against the per-week
+	// definition.
 	// #nosec G202 -- cond is built from placeholders
 	rows, err := s.DB.Query(ctx, `WITH weeks AS (
-		  SELECT generate_series(date_trunc('week', now() - make_interval(days => $2)), date_trunc('week', now()), interval '1 week') AS w)
-		SELECT to_char(w, 'YYYY-MM-DD'),
-		  (SELECT count(*)`+from+` AND f.first_seen_at >= w AND f.first_seen_at < w + interval '1 week'),
-		  (SELECT count(*)`+from+` AND f.status = 'fixed' AND f.resolved_at >= w AND f.resolved_at < w + interval '1 week'),
-		  (SELECT count(*)`+from+` AND f.first_seen_at < w + interval '1 week' AND f.status NOT IN ('false_positive')
-		     AND (f.resolved_at IS NULL OR f.resolved_at >= w + interval '1 week') AND (f.status <> 'accepted_risk'))
-		FROM weeks ORDER BY w`, args...)
+		  SELECT generate_series(date_trunc('week', now() - make_interval(days => $2)), date_trunc('week', now()), interval '1 week') AS w),
+		lo AS (SELECT min(w) AS w FROM weeks),
+		base AS (SELECT f.status, f.first_seen_at, f.resolved_at`+from+`),
+		ev AS (
+		  SELECT date_trunc('week', b.first_seen_at) AS wk, 1 AS new, 0 AS fixed, 0 AS delta FROM base b
+		  UNION ALL
+		  SELECT date_trunc('week', b.resolved_at), 0, 1, 0 FROM base b WHERE b.status = 'fixed' AND b.resolved_at IS NOT NULL
+		  UNION ALL
+		  SELECT GREATEST(date_trunc('week', b.first_seen_at), lo.w), 0, 0, 1 FROM base b, lo
+		  WHERE b.status NOT IN ('false_positive', 'accepted_risk')
+		  UNION ALL
+		  SELECT GREATEST(date_trunc('week', GREATEST(b.resolved_at, b.first_seen_at)), lo.w), 0, 0, -1 FROM base b, lo
+		  WHERE b.status NOT IN ('false_positive', 'accepted_risk') AND b.resolved_at IS NOT NULL),
+		agg AS (SELECT wk, sum(new) AS new, sum(fixed) AS fixed, sum(delta) AS delta FROM ev GROUP BY wk)
+		SELECT to_char(weeks.w, 'YYYY-MM-DD'), COALESCE(a.new, 0)::bigint, COALESCE(a.fixed, 0)::bigint,
+		  (SELECT COALESCE(sum(x.delta), 0) FROM agg x WHERE x.wk <= weeks.w)::bigint
+		FROM weeks LEFT JOIN agg a ON a.wk = weeks.w ORDER BY weeks.w`, args...)
 	if err != nil {
 		s.fail(w, r, err)
 		return
@@ -172,10 +189,10 @@ func (s *Service) executive(w http.ResponseWriter, r *http.Request) {
 		// #nosec G202 -- expressions are constants; cond is built from placeholders
 		rows, err := s.DB.Query(ctx, `SELECT `+idExpr+`::text, `+nameExpr+`,
 			  count(*) FILTER (WHERE f.severity = 'critical'), count(*) FILTER (WHERE f.severity = 'high'), count(*), count(*) FILTER (WHERE f.kev),
-			  max(f.risk_score)
+			  round(max(f.risk_score))::int
 			FROM findings f JOIN repositories r ON r.id = f.repository_id `+join+`
 			WHERE f.organization_id = $1 AND r.archived_at IS NULL AND $2::int > 0 AND `+openCond+` AND `+cond+`
-			GROUP BY 1, 2 ORDER BY 3 DESC, 4 DESC, 7 DESC NULLS LAST LIMIT 10`, args...)
+			GROUP BY 1, 2 ORDER BY 3 DESC, 4 DESC, max(f.risk_score) DESC NULLS LAST LIMIT 10`, args...)
 		if err != nil {
 			return nil, err
 		}

@@ -21,8 +21,8 @@ Columns B / F / D / T are the backend / frontend / database / test state: ✓ do
 | C. Vulnerability intelligence (31–45) | 15 | 0 | 0 |
 | D. Manual validation and AI (46–60) | 15 | 0 | 0 |
 | F. Supply chain and DevSecOps (61–75) | 15 | 0 | 0 |
-| G. Enterprise and governance (76–100) | 24 | 1 | 0 |
-| **Total** | **99** | **1** | **0** |
+| G. Enterprise and governance (76–100) | 25 | 0 | 0 |
+| **Total** | **100** | **0** | **0** |
 
 Module E (AI Security Analyst) has no numbered features. Its requirements are assessed in §E.
 
@@ -183,7 +183,7 @@ Dependency inventory: vulnerable ✓, licence violations ✓, direct/transitive 
 | 92 | Jira | Completed | Optional connector (Cloud and Data Center): create an issue for a finding, link, status sync (phase 9) | Automatic ticket creation by policy |
 | 93 | ServiceNow | Completed | Optional connector: incidents (any table), link, status sync (phase 9) | Vulnerability Response items |
 | 94 | Notification engine | Completed | Email, in-app, rules, templates; Slack and Microsoft Teams through webhooks (phase 9) | — |
-| 95 | Multi-tenant | In Progress | `organization_id` everywhere | Several organizations per deployment: tenant resolution, administration and isolation tests (see decision D3) |
+| 95 | Multi-tenant | Completed | Optional multi-tenancy (2.2; decision D3 revised): several isolated organizations per installation, enabled with `pathosctl multi-tenancy enable`. Organization from the authenticated session, token or worker only; PostgreSQL row-level security on every tenant table with the scope set on every connection checkout; same-organization foreign keys; installation administrators create, suspend and delete organizations; memberships of one person in several organizations with an organization switcher; Keycloak group or OIDC claim mapping; one organization per worker; cross-tenant isolation suite over every API route, MCP, worker API and webhooks, with and without row-level security ([MULTI_TENANCY.md](../MULTI_TENANCY.md)) | No shared workers; claim mapping adds but never removes memberships; row-level security can make lookups by `lower(...)` slower (not measured at scale); readable keys come from installation-wide sequences |
 | 96 | Custom security rules | Completed | Same as 15 (phase 2a) | — |
 | 97 | Data encryption | Completed | Keyring, encrypted stores, TLS | — |
 | 98 | Backup and recovery | Completed | Scripts, tested restore | — |
@@ -201,11 +201,7 @@ Authentication requirements:
 
 ## Remaining gaps
 
-The original "biggest gaps by value" were closed in ASPM phases 1 to 9; PATHOS 1.1 completed the eight remaining capabilities (9, 10, 11, 12, 14, 64, 73, 75). One capability is still **In Progress**, by decision:
-
-| # | Capability | What is missing |
-|---|---|---|
-| 95 | Multi-tenant | Several organizations per deployment (decision D3: single organization) |
+The original "biggest gaps by value" were closed in ASPM phases 1 to 9; PATHOS 1.1 completed the eight remaining capabilities (9, 10, 11, 12, 14, 64, 73, 75). The last one, 95 (multi-tenant), was kept out by decision D3 (single organization) until the owner revised it for PATHOS 2.2: multi-tenancy is now supported as an option that an operator enables, and single-organization installs are unchanged ([MULTI_TENANCY.md](../MULTI_TENANCY.md)). No capability is In Progress.
 
 Smaller limits are listed in each row's Gap column.
 

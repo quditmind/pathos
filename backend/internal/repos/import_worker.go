@@ -17,6 +17,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/identity"
 	"pathos/internal/platform/db"
+	"pathos/internal/platform/tenant"
 	"pathos/internal/scm"
 )
 
@@ -253,6 +254,9 @@ func (s *Service) runImportItem(parent context.Context, it importItem, owner str
 	if timeout <= 0 {
 		timeout = 30 * time.Minute
 	}
+	// The item is processed in its own organization's scope (jobs claim
+	// items across organizations in system scope).
+	parent = tenant.WithOrg(parent, it.OrgID)
 	tctx, tcancel := context.WithTimeout(parent, timeout)
 	defer tcancel()
 	ctx, cancel := context.WithCancelCause(tctx)

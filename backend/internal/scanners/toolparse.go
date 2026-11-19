@@ -472,7 +472,7 @@ func LocateToolOutput(key string, p ToolParser, raw []byte, fingerprint string) 
 			return nil, err
 		}
 		for i, f := range keyRecords(key, recs) {
-			if f.Fingerprint == fingerprint {
+			if f.Matches(fingerprint) {
 				return &Located{Raw: redactJSON(recs[i].Raw)}, nil
 			}
 		}

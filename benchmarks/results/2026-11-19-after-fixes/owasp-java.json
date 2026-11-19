@@ -1,0 +1,645 @@
+{
+  "suite": "owasp-java",
+  "source": "https://github.com/OWASP-Benchmark/BenchmarkJava/archive/c6717ea295433deba1b20bb3127614833d005462.tar.gz (expectedresults-1.2.csv)",
+  "license": "GPL-2.0",
+  "match": "owasp",
+  "cases": 2740,
+  "positive": 1415,
+  "tools": [
+    {
+      "scanner": "opengrep",
+      "version": "2.0.0",
+      "status": "succeeded",
+      "duration_ms": 3666,
+      "findings": 449,
+      "unrelated": 2,
+      "overall": {
+        "tp": 241,
+        "fp": 206,
+        "tn": 1119,
+        "fn": 1174,
+        "precision": 0.5391498881431768,
+        "recall": 0.17031802120141343,
+        "fpr": 0.15547169811320755,
+        "f1": 0.25886143931256717,
+        "score": 0.014846323088205882
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 125,
+          "fn": 126,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "crypto": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 116,
+          "fn": 130,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "hash": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 107,
+          "fn": 129,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 32,
+          "fn": 27,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 133,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 31,
+          "fn": 36,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 241,
+          "fp": 206,
+          "tn": 26,
+          "fn": 31,
+          "precision": 0.5391498881431768,
+          "recall": 0.8860294117647058,
+          "fpr": 0.8879310344827587,
+          "f1": 0.6703755215577191,
+          "score": -0.0019016227180528311
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 43,
+          "fn": 83,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 275,
+          "fn": 218,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 15,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 209,
+          "fn": 246,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 11,
+        "tpr": 0.08054812834224599,
+        "fpr": 0.08072100313479624,
+        "score": -0.00017287479255025738
+      },
+      "file_only": {
+        "tp": 241,
+        "fp": 206,
+        "tn": 1119,
+        "fn": 1174,
+        "precision": 0.5391498881431768,
+        "recall": 0.17031802120141343,
+        "fpr": 0.15547169811320755,
+        "f1": 0.25886143931256717,
+        "score": 0.014846323088205882
+      }
+    },
+    {
+      "scanner": "semgrep-ce",
+      "version": "1.172.0",
+      "status": "succeeded",
+      "duration_ms": 12680,
+      "findings": 449,
+      "unrelated": 2,
+      "overall": {
+        "tp": 241,
+        "fp": 206,
+        "tn": 1119,
+        "fn": 1174,
+        "precision": 0.5391498881431768,
+        "recall": 0.17031802120141343,
+        "fpr": 0.15547169811320755,
+        "f1": 0.25886143931256717,
+        "score": 0.014846323088205882
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 125,
+          "fn": 126,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "crypto": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 116,
+          "fn": 130,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "hash": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 107,
+          "fn": 129,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "ldapi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 32,
+          "fn": 27,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 133,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 31,
+          "fn": 36,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "sqli": {
+          "tp": 241,
+          "fp": 206,
+          "tn": 26,
+          "fn": 31,
+          "precision": 0.5391498881431768,
+          "recall": 0.8860294117647058,
+          "fpr": 0.8879310344827587,
+          "f1": 0.6703755215577191,
+          "score": -0.0019016227180528311
+        },
+        "trustbound": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 43,
+          "fn": 83,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "weakrand": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 275,
+          "fn": 218,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xpathi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 20,
+          "fn": 15,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "xss": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 209,
+          "fn": 246,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 11,
+        "tpr": 0.08054812834224599,
+        "fpr": 0.08072100313479624,
+        "score": -0.00017287479255025738
+      },
+      "file_only": {
+        "tp": 241,
+        "fp": 206,
+        "tn": 1119,
+        "fn": 1174,
+        "precision": 0.5391498881431768,
+        "recall": 0.17031802120141343,
+        "fpr": 0.15547169811320755,
+        "f1": 0.25886143931256717,
+        "score": 0.014846323088205882
+      }
+    },
+    {
+      "scanner": "bearer",
+      "version": "2.1.3",
+      "status": "succeeded",
+      "duration_ms": 39062,
+      "findings": 2194,
+      "unrelated": 17,
+      "overall": {
+        "tp": 980,
+        "fp": 382,
+        "tn": 943,
+        "fn": 435,
+        "precision": 0.7195301027900147,
+        "recall": 0.6925795053003534,
+        "fpr": 0.28830188679245283,
+        "f1": 0.7057976233345337,
+        "score": 0.40427761850790056
+      },
+      "by_category": {
+        "cmdi": {
+          "tp": 60,
+          "fp": 41,
+          "tn": 84,
+          "fn": 66,
+          "precision": 0.594059405940594,
+          "recall": 0.47619047619047616,
+          "fpr": 0.328,
+          "f1": 0.5286343612334802,
+          "score": 0.14819047619047615
+        },
+        "crypto": {
+          "tp": 130,
+          "fp": 27,
+          "tn": 89,
+          "fn": 0,
+          "precision": 0.8280254777070064,
+          "recall": 1,
+          "fpr": 0.23275862068965517,
+          "f1": 0.9059233449477352,
+          "score": 0.7672413793103449
+        },
+        "hash": {
+          "tp": 89,
+          "fp": 0,
+          "tn": 107,
+          "fn": 40,
+          "precision": 1,
+          "recall": 0.689922480620155,
+          "fpr": 0,
+          "f1": 0.81651376146789,
+          "score": 0.689922480620155
+        },
+        "ldapi": {
+          "tp": 15,
+          "fp": 12,
+          "tn": 20,
+          "fn": 12,
+          "precision": 0.5555555555555556,
+          "recall": 0.5555555555555556,
+          "fpr": 0.375,
+          "f1": 0.5555555555555556,
+          "score": 0.18055555555555558
+        },
+        "pathtraver": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 135,
+          "fn": 133,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "securecookie": {
+          "tp": 36,
+          "fp": 0,
+          "tn": 31,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "sqli": {
+          "tp": 214,
+          "fp": 171,
+          "tn": 61,
+          "fn": 58,
+          "precision": 0.5558441558441558,
+          "recall": 0.7867647058823529,
+          "fpr": 0.7370689655172413,
+          "f1": 0.6514459665144596,
+          "score": 0.049695740365111596
+        },
+        "trustbound": {
+          "tp": 78,
+          "fp": 39,
+          "tn": 4,
+          "fn": 5,
+          "precision": 0.6666666666666666,
+          "recall": 0.9397590361445783,
+          "fpr": 0.9069767441860465,
+          "f1": 0.78,
+          "score": 0.032782291958531884
+        },
+        "weakrand": {
+          "tp": 218,
+          "fp": 0,
+          "tn": 275,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "xpathi": {
+          "tp": 11,
+          "fp": 11,
+          "tn": 9,
+          "fn": 4,
+          "precision": 0.5,
+          "recall": 0.7333333333333333,
+          "fpr": 0.55,
+          "f1": 0.5945945945945945,
+          "score": 0.18333333333333324
+        },
+        "xss": {
+          "tp": 129,
+          "fp": 81,
+          "tn": 128,
+          "fn": 117,
+          "precision": 0.6142857142857143,
+          "recall": 0.524390243902439,
+          "fpr": 0.3875598086124402,
+          "f1": 0.5657894736842106,
+          "score": 0.13683043528999883
+        }
+      },
+      "category_average": {
+        "categories": 11,
+        "tpr": 0.7005378028753537,
+        "fpr": 0.31976037627321663,
+        "score": 0.38077742660213704
+      },
+      "file_only": {
+        "tp": 1060,
+        "fp": 722,
+        "tn": 603,
+        "fn": 355,
+        "precision": 0.5948372615039281,
+        "recall": 0.7491166077738516,
+        "fpr": 0.5449056603773584,
+        "f1": 0.663121676571786,
+        "score": 0.20421094739649315
+      }
+    }
+  ],
+  "combined": {
+    "scanner": "combined",
+    "status": "succeeded",
+    "duration_ms": 55408,
+    "findings": 3092,
+    "unrelated": 21,
+    "overall": {
+      "tp": 1033,
+      "fp": 434,
+      "tn": 891,
+      "fn": 382,
+      "precision": 0.7041581458759373,
+      "recall": 0.7300353356890459,
+      "fpr": 0.32754716981132076,
+      "f1": 0.7168632893823733,
+      "score": 0.4024881658777251
+    },
+    "by_category": {
+      "cmdi": {
+        "tp": 60,
+        "fp": 41,
+        "tn": 84,
+        "fn": 66,
+        "precision": 0.594059405940594,
+        "recall": 0.47619047619047616,
+        "fpr": 0.328,
+        "f1": 0.5286343612334802,
+        "score": 0.14819047619047615
+      },
+      "crypto": {
+        "tp": 130,
+        "fp": 27,
+        "tn": 89,
+        "fn": 0,
+        "precision": 0.8280254777070064,
+        "recall": 1,
+        "fpr": 0.23275862068965517,
+        "f1": 0.9059233449477352,
+        "score": 0.7672413793103449
+      },
+      "hash": {
+        "tp": 89,
+        "fp": 0,
+        "tn": 107,
+        "fn": 40,
+        "precision": 1,
+        "recall": 0.689922480620155,
+        "fpr": 0,
+        "f1": 0.81651376146789,
+        "score": 0.689922480620155
+      },
+      "ldapi": {
+        "tp": 15,
+        "fp": 12,
+        "tn": 20,
+        "fn": 12,
+        "precision": 0.5555555555555556,
+        "recall": 0.5555555555555556,
+        "fpr": 0.375,
+        "f1": 0.5555555555555556,
+        "score": 0.18055555555555558
+      },
+      "pathtraver": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 135,
+        "fn": 133,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "securecookie": {
+        "tp": 36,
+        "fp": 0,
+        "tn": 31,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "sqli": {
+        "tp": 267,
+        "fp": 223,
+        "tn": 9,
+        "fn": 5,
+        "precision": 0.5448979591836735,
+        "recall": 0.9816176470588235,
+        "fpr": 0.9612068965517241,
+        "f1": 0.7007874015748031,
+        "score": 0.020410750507099396
+      },
+      "trustbound": {
+        "tp": 78,
+        "fp": 39,
+        "tn": 4,
+        "fn": 5,
+        "precision": 0.6666666666666666,
+        "recall": 0.9397590361445783,
+        "fpr": 0.9069767441860465,
+        "f1": 0.78,
+        "score": 0.032782291958531884
+      },
+      "weakrand": {
+        "tp": 218,
+        "fp": 0,
+        "tn": 275,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "xpathi": {
+        "tp": 11,
+        "fp": 11,
+        "tn": 9,
+        "fn": 4,
+        "precision": 0.5,
+        "recall": 0.7333333333333333,
+        "fpr": 0.55,
+        "f1": 0.5945945945945945,
+        "score": 0.18333333333333324
+      },
+      "xss": {
+        "tp": 129,
+        "fp": 81,
+        "tn": 128,
+        "fn": 117,
+        "precision": 0.6142857142857143,
+        "recall": 0.524390243902439,
+        "fpr": 0.3875598086124402,
+        "f1": 0.5657894736842106,
+        "score": 0.13683043528999883
+      }
+    },
+    "category_average": {
+      "categories": 11,
+      "tpr": 0.7182517066186692,
+      "fpr": 0.340136551821806,
+      "score": 0.37811515479686314
+    },
+    "file_only": {
+      "tp": 1113,
+      "fp": 774,
+      "tn": 551,
+      "fn": 302,
+      "precision": 0.589825119236884,
+      "recall": 0.7865724381625442,
+      "fpr": 0.5841509433962264,
+      "f1": 0.6741368867353119,
+      "score": 0.20242149476631777
+    }
+  }
+}

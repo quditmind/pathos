@@ -108,7 +108,7 @@ A repository belongs to at most one application; an application can have many re
 
 22. [Integrations and API tokens](reporting-and-integrations.md): webhooks, Jira, ServiceNow, REST API tokens
 23. [CI/CD integration](ci-cd-integration.md): the `pathos` CLI, GitHub Action, GitLab, Azure Pipelines and Jenkins templates, security gate
-24. [IDE integration (VS Code)](ide-integration-vscode.md): findings in the editor, triage from VS Code
+24. IDE integration: [VS Code](ide-integration-vscode.md) and [JetBrains IDEs](ide-integration-jetbrains.md) (IntelliJ IDEA, GoLand, PyCharm, WebStorm and others): findings in the editor, triage from the IDE
 
 **AI and administration**
 

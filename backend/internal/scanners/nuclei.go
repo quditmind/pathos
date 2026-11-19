@@ -60,7 +60,7 @@ func ParseNucleiJSONL(raw []byte) ([]Finding, error) {
 			return out, err
 		}
 		f.ScannerKey = Nuclei
-		f.Fingerprint = Fingerprint(f, snip)
+		setFingerprint(&f, snip)
 		out = append(out, f)
 	}
 	if err := sc.Err(); err != nil {

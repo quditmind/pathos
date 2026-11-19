@@ -1,0 +1,7 @@
+trivy-fs         succeeded  findings=60     TP=57    FP=0     FN=0     TN=13    TPR=1.000 FPR=0.000 score=+1.000
+grype            succeeded  findings=57     TP=57    FP=0     FN=0     TN=13    TPR=1.000 FPR=0.000 score=+1.000
+osv-scanner      succeeded  findings=112    TP=57    FP=0     FN=0     TN=13    TPR=1.000 FPR=0.000 score=+1.000
+pip-audit        succeeded  findings=58     TP=31    FP=0     FN=26    TN=13    TPR=0.544 FPR=0.000 score=+0.544
+npm-audit        succeeded  findings=8      TP=8     FP=0     FN=49    TN=13    TPR=0.140 FPR=0.000 score=+0.140
+govulncheck      succeeded  findings=6      TP=6     FP=0     FN=51    TN=13    TPR=0.105 FPR=0.000 score=+0.105
+combined         succeeded  findings=68     TP=57    FP=0     FN=0     TN=13    TPR=1.000 FPR=0.000 score=+1.000

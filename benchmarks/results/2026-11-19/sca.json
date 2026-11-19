@@ -1,0 +1,506 @@
+{
+  "suite": "sca-pinned-versions",
+  "source": "PATHOS benchmarks/suites/sca (self-made projects); answer key from api.osv.dev on 2026-11-19",
+  "license": "Apache-2.0 (PATHOS; self-made)",
+  "match": "sca",
+  "cases": 70,
+  "positive": 57,
+  "tools": [
+    {
+      "scanner": "trivy-fs",
+      "version": "0.76.2",
+      "status": "succeeded",
+      "duration_ms": 1460,
+      "findings": 60,
+      "unrelated": 2,
+      "overall": {
+        "tp": 57,
+        "fp": 0,
+        "tn": 13,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "by_category": {
+        "go": {
+          "tp": 6,
+          "fp": 0,
+          "tn": 2,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "maven": {
+          "tp": 12,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "npm": {
+          "tp": 8,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "pypi": {
+          "tp": 31,
+          "fp": 0,
+          "tn": 3,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 1,
+        "fpr": 0,
+        "score": 1
+      }
+    },
+    {
+      "scanner": "grype",
+      "version": "0.121.3",
+      "status": "succeeded",
+      "duration_ms": 5475,
+      "findings": 57,
+      "unrelated": 0,
+      "overall": {
+        "tp": 57,
+        "fp": 0,
+        "tn": 13,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "by_category": {
+        "go": {
+          "tp": 6,
+          "fp": 0,
+          "tn": 2,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "maven": {
+          "tp": 12,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "npm": {
+          "tp": 8,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "pypi": {
+          "tp": 31,
+          "fp": 0,
+          "tn": 3,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 1,
+        "fpr": 0,
+        "score": 1
+      }
+    },
+    {
+      "scanner": "osv-scanner",
+      "version": "2.7.1",
+      "status": "succeeded",
+      "duration_ms": 6250,
+      "findings": 112,
+      "unrelated": 2,
+      "overall": {
+        "tp": 57,
+        "fp": 0,
+        "tn": 13,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "by_category": {
+        "go": {
+          "tp": 6,
+          "fp": 0,
+          "tn": 2,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "maven": {
+          "tp": 12,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "npm": {
+          "tp": 8,
+          "fp": 0,
+          "tn": 4,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        },
+        "pypi": {
+          "tp": 31,
+          "fp": 0,
+          "tn": 3,
+          "fn": 0,
+          "precision": 1,
+          "recall": 1,
+          "fpr": 0,
+          "f1": 1,
+          "score": 1
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 1,
+        "fpr": 0,
+        "score": 1
+      }
+    },
+    {
+      "scanner": "pip-audit",
+      "version": "2.10.1",
+      "status": "succeeded",
+      "duration_ms": 1771,
+      "findings": 0,
+      "unrelated": 0,
+      "overall": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 13,
+        "fn": 57,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "by_category": {
+        "go": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 2,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "maven": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 12,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "npm": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pypi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 3,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 0,
+        "fpr": 0,
+        "score": 0
+      }
+    },
+    {
+      "scanner": "npm-audit",
+      "version": "12.2.3",
+      "status": "succeeded",
+      "duration_ms": 233,
+      "findings": 0,
+      "unrelated": 0,
+      "overall": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 13,
+        "fn": 57,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "by_category": {
+        "go": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 2,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "maven": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 12,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "npm": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pypi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 3,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 0,
+        "fpr": 0,
+        "score": 0
+      }
+    },
+    {
+      "scanner": "govulncheck",
+      "version": "1.10.0",
+      "status": "succeeded",
+      "duration_ms": 2949,
+      "findings": 6,
+      "unrelated": 6,
+      "overall": {
+        "tp": 0,
+        "fp": 0,
+        "tn": 13,
+        "fn": 57,
+        "precision": null,
+        "recall": 0,
+        "fpr": 0,
+        "f1": null,
+        "score": 0
+      },
+      "by_category": {
+        "go": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 2,
+          "fn": 6,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "maven": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 12,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "npm": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 4,
+          "fn": 8,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        },
+        "pypi": {
+          "tp": 0,
+          "fp": 0,
+          "tn": 3,
+          "fn": 31,
+          "precision": null,
+          "recall": 0,
+          "fpr": 0,
+          "f1": null,
+          "score": 0
+        }
+      },
+      "category_average": {
+        "categories": 4,
+        "tpr": 0,
+        "fpr": 0,
+        "score": 0
+      }
+    }
+  ],
+  "combined": {
+    "scanner": "combined",
+    "status": "succeeded",
+    "duration_ms": 18138,
+    "findings": 84,
+    "unrelated": 8,
+    "overall": {
+      "tp": 57,
+      "fp": 0,
+      "tn": 13,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "fpr": 0,
+      "f1": 1,
+      "score": 1
+    },
+    "by_category": {
+      "go": {
+        "tp": 6,
+        "fp": 0,
+        "tn": 2,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "maven": {
+        "tp": 12,
+        "fp": 0,
+        "tn": 4,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "npm": {
+        "tp": 8,
+        "fp": 0,
+        "tn": 4,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      },
+      "pypi": {
+        "tp": 31,
+        "fp": 0,
+        "tn": 3,
+        "fn": 0,
+        "precision": 1,
+        "recall": 1,
+        "fpr": 0,
+        "f1": 1,
+        "score": 1
+      }
+    },
+    "category_average": {
+      "categories": 4,
+      "tpr": 1,
+      "fpr": 0,
+      "score": 1
+    }
+  }
+}

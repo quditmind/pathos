@@ -30,6 +30,7 @@ import (
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
 	"pathos/internal/platform/objstore"
+	"pathos/internal/platform/tenant"
 	"pathos/internal/reach"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
@@ -102,15 +103,26 @@ func (s *Service) workerAuth(next http.Handler) http.Handler {
 		}
 		var wk Worker
 		var sc []byte
-		err := s.DB.QueryRow(r.Context(), `UPDATE workers SET last_seen_at = now() WHERE token_sha256 = $1 AND revoked_at IS NULL
-			RETURNING id, organization_id, name, family, version, scanners`, hashToken(tok)).
-			Scan(&wk.ID, &wk.orgID, &wk.Name, &wk.Family, &wk.Version, &sc)
+		var orgStatus string
+		// The worker's organization is not known before the token is: look
+		// the hash up in system scope, then scope the whole request to the
+		// worker's organization (row-level security). A worker never sees
+		// another organization's jobs, sources or results.
+		err := s.DB.QueryRow(tenant.WithSystem(r.Context()), `UPDATE workers w SET last_seen_at = now() WHERE token_sha256 = $1 AND revoked_at IS NULL
+			RETURNING id, organization_id, name, family, version, scanners,
+			          (SELECT o.status FROM organizations o WHERE o.id = w.organization_id)`, hashToken(tok)).
+			Scan(&wk.ID, &wk.orgID, &wk.Name, &wk.Family, &wk.Version, &sc, &orgStatus)
 		if err != nil {
 			httpx.WriteError(w, r, s.Log, httpx.ErrUnauthenticated)
 			return
 		}
+		if orgStatus != "active" {
+			httpx.WriteError(w, r, s.Log, httpx.E(http.StatusForbidden, "organization_suspended", "the worker's organization is suspended"))
+			return
+		}
 		_ = json.Unmarshal(sc, &wk.Scanners)
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), workerCtxKey{}, &wk)))
+		ctx := tenant.WithOrg(context.WithValue(r.Context(), workerCtxKey{}, &wk), wk.orgID)
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }
 
@@ -121,6 +133,10 @@ type registerRequest struct {
 	Family   string            `json:"family"`
 	Version  string            `json:"version"`
 	Scanners map[string]string `json:"scanners"`
+	// Organization is the slug of the organization the worker serves
+	// (PATHOS_WORKER_ORGANIZATION); empty: the default organization
+	// (PATHOS_ORG_SLUG). A worker serves exactly one organization.
+	Organization string `json:"organization"`
 	// Plugins describes the declarative adapters among Scanners (v1
 	// workers).
 	Plugins map[string]pluginMeta `json:"plugins"`
@@ -220,10 +236,22 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, err)
 		return
 	}
-	if !workerNameRe.MatchString(req.Name) || req.Family == "" || len(req.Family) > 40 || len(req.Version) > 100 || len(req.Scanners) > 700 {
+	if !workerNameRe.MatchString(req.Name) || req.Family == "" || len(req.Family) > 40 || len(req.Version) > 100 || len(req.Scanners) > 700 || len(req.Organization) > 63 {
 		httpx.WriteError(w, r, s.Log, httpx.BadRequest("invalid worker registration"))
 		return
 	}
+	orgID := s.OrgID
+	if req.Organization != "" {
+		// The bootstrap token is the platform operator's secret: it may
+		// register a worker for any active organization.
+		var status string
+		err := s.DB.QueryRow(tenant.WithSystem(ctx), `SELECT id, status FROM organizations WHERE slug = $1`, req.Organization).Scan(&orgID, &status)
+		if err != nil || status != "active" {
+			httpx.WriteError(w, r, s.Log, httpx.BadRequest("unknown or suspended organization"))
+			return
+		}
+	}
+	ctx = tenant.WithOrg(ctx, orgID)
 	plugins := map[string]pluginMeta{}
 	tools := map[string]ToolManifest{}
 	for k, v := range req.Scanners {
@@ -255,7 +283,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 	var id uuid.UUID
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var revoked *time.Time
-		err := tx.QueryRow(ctx, `SELECT id, revoked_at FROM workers WHERE organization_id = $1 AND name = $2 FOR UPDATE`, s.OrgID, req.Name).Scan(&id, &revoked)
+		err := tx.QueryRow(ctx, `SELECT id, revoked_at FROM workers WHERE organization_id = $1 AND name = $2 FOR UPDATE`, orgID, req.Name).Scan(&id, &revoked)
 		switch {
 		case err == nil && revoked != nil:
 			return httpx.E(http.StatusForbidden, "worker_revoked", "this worker was revoked by an administrator")
@@ -268,7 +296,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 		case errors.Is(err, pgx.ErrNoRows):
 			id = uuid.Must(uuid.NewV7())
 			if _, err := tx.Exec(ctx, `INSERT INTO workers (id, organization_id, name, family, version, token_sha256, scanners, tools, last_seen_at)
-				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())`, id, s.OrgID, req.Name, req.Family, req.Version, hashToken(token), sc, toolsJSON); err != nil {
+				VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())`, id, orgID, req.Name, req.Family, req.Version, hashToken(token), sc, toolsJSON); err != nil {
 				return err
 			}
 		default:
@@ -299,7 +327,7 @@ func (s *Service) register(w http.ResponseWriter, r *http.Request) {
 			WHERE leased_by = $1 AND status = 'running'`, id); err != nil {
 			return err
 		}
-		return audit.Write(ctx, tx, audit.Entry{OrganizationID: s.OrgID, Action: "worker.register", TargetType: "worker", TargetID: id.String(),
+		return audit.Write(ctx, tx, audit.Entry{OrganizationID: orgID, Action: "worker.register", TargetType: "worker", TargetID: id.String(),
 			Metadata: map[string]any{"name": req.Name, "family": req.Family, "version": req.Version, "tools": slices.Sorted(maps.Keys(tools))}})
 	})
 	if err != nil {
@@ -513,8 +541,12 @@ func (s *Service) failJob(ctx context.Context, id uuid.UUID, msg string) {
 func (s *Service) ownedJob(ctx context.Context, wk *Worker, id uuid.UUID) (status string, err error) {
 	var leasedBy *uuid.UUID
 	err = s.DB.QueryRow(ctx, `SELECT status, leased_by FROM scan_jobs WHERE id = $1 AND organization_id = $2`, id, wk.orgID).Scan(&status, &leasedBy)
+	if errors.Is(err, pgx.ErrNoRows) {
+		// Another organization's job looks exactly like a missing one.
+		return "", httpx.ErrNotFound
+	}
 	if err != nil {
-		return "", errNotFound
+		return "", err
 	}
 	if leasedBy == nil || *leasedBy != wk.ID {
 		return status, httpx.E(http.StatusConflict, "lease_lost", "this job is not leased by this worker")

@@ -161,7 +161,10 @@ func runOneDue(ctx context.Context, pool *pgxpool.Pool, now time.Time, log *slog
 		err := tx.QueryRow(ctx, `
 			SELECT s.id, s.organization_id, s.name, s.priority, s.max_concurrent, s.next_run_at, `+timingCols+`
 			FROM scan_schedules s WHERE s.enabled AND s.next_run_at <= $1
-			ORDER BY s.next_run_at LIMIT 1 FOR UPDATE SKIP LOCKED`, now).
+			  -- Suspended organizations run no scheduled scans (missed runs
+			  -- follow the schedule's catch-up policy after resumption).
+			  AND EXISTS (SELECT 1 FROM organizations o WHERE o.id = s.organization_id AND o.status = 'active')
+			ORDER BY s.next_run_at LIMIT 1 FOR UPDATE OF s SKIP LOCKED`, now).
 			Scan(&sc.ID, &sc.OrgID, &sc.Name, &sc.Priority, &sc.MaxConcurrent, &due,
 				&tr.Kind, &tr.Cron, &tr.Timezone, &tr.RunAt, &tr.Interval, &tr.WindowStart, &tr.WindowEnd, &tr.WindowDays)
 		if errors.Is(err, pgx.ErrNoRows) {

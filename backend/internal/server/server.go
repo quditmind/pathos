@@ -43,6 +43,7 @@ import (
 	"pathos/internal/scm"
 	"pathos/internal/search"
 	"pathos/internal/secrets"
+	"pathos/internal/tenancy"
 	"pathos/internal/tickets"
 	"pathos/internal/vuln"
 )
@@ -55,7 +56,11 @@ type Deps struct {
 	Redis       redis.UniversalClient
 	Auth        *auth.Service
 	Provisioner identity.Provisioner
-	OrgID       uuid.UUID
+	// OrgID is the default organization (PATHOS_ORG_SLUG).
+	OrgID uuid.UUID
+	// MultiTenant is set when multi-tenancy is enabled
+	// (docs/MULTI_TENANCY.md).
+	MultiTenant bool
 	Log         *slog.Logger
 	Secrets     *secrets.Store
 	SCMNet      scm.NetPolicy
@@ -86,7 +91,14 @@ func Handler(d Deps) http.Handler { return Build(d).Public }
 
 // Build assembles the public API and the internal worker API.
 func Build(d Deps) Handlers {
-	az := &authz.Authorizer{H: &org.Hierarchy{DB: d.DB, OrgID: d.OrgID}}
+	// The hierarchy takes the organization from the request context; the
+	// default organization is a fallback for single-organization installs
+	// only (with multi-tenancy an unscoped lookup finds nothing).
+	hierarchyOrg := d.OrgID
+	if d.MultiTenant {
+		hierarchyOrg = uuid.Nil
+	}
+	az := &authz.Authorizer{H: &org.Hierarchy{DB: d.DB, OrgID: hierarchyOrg}}
 
 	public := http.NewServeMux()
 	public.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -95,6 +107,11 @@ func Build(d Deps) Handlers {
 	public.HandleFunc("GET /readyz", readiness(d))
 	public.HandleFunc("GET /api/auth/login", d.Auth.HandleLogin)
 	public.HandleFunc("GET /api/auth/callback", d.Auth.HandleCallback)
+	// Organization switcher: these two also work while the session's
+	// organization is suspended (to switch away), so they check the
+	// session themselves instead of RequireAuth.
+	public.HandleFunc("GET /api/v1/me/organizations", d.Auth.HandleMyOrganizations)
+	public.HandleFunc("POST /api/v1/me/organization", d.Auth.HandleSwitchOrganization)
 
 	repoSvc := NewReposService(d, az)
 	scanSvc := &scans.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom,
@@ -150,6 +167,41 @@ func Build(d Deps) Handlers {
 		},
 	}).Register(protected)
 	(&org.Handlers{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	installation := &tenancy.Handlers{DB: d.DB, Log: d.Log, DefaultOrgID: d.OrgID,
+		Caller: func(ctx context.Context) *tenancy.Caller {
+			// Installation administration needs a browser session (never an
+			// API token) of a person linked to the identity provider.
+			p := auth.PrincipalFrom(ctx)
+			if p == nil || p.Subject == "" || auth.SessionFrom(ctx) == nil {
+				return nil
+			}
+			return &tenancy.Caller{Subject: p.Subject, Email: p.Email}
+		},
+		Seed: func(ctx context.Context, orgID uuid.UUID) error {
+			if err := scans.EnsureDefaultProfile(ctx, d.DB, orgID); err != nil {
+				return err
+			}
+			if err := vuln.EnsureDefaults(ctx, d.DB, orgID); err != nil {
+				return err
+			}
+			if err := notify.EnsureDefaults(ctx, d.DB, d.Secrets, orgID); err != nil {
+				return err
+			}
+			if err := mcp.EnsureBuiltIn(ctx, d.DB, orgID, d.PublicURL); err != nil {
+				return err
+			}
+			if err := review.EnsureSettings(ctx, d.DB, orgID); err != nil {
+				return err
+			}
+			return repos.EnsureAssetDefaults(ctx, d.DB, orgID)
+		}}
+	if d.Artifacts != nil {
+		installation.DeleteArtifacts = d.Artifacts.Delete
+	}
+	if d.Sources != nil {
+		installation.DeleteSources = func(ctx context.Context, keys []string) error { return d.Sources.Delete(ctx, keys...) }
+	}
+	installation.Register(protected)
 	(&dashboard.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&search.Handlers{DB: d.DB, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	repoSvc.Register(protected)

@@ -826,6 +826,10 @@ func (s *Service) retryDelivery(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
+			var found bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM notifications WHERE organization_id = $1 AND id = $2)`, p.OrganizationID, id).Scan(&found); err != nil || !found {
+				return errNotFound
+			}
 			return httpx.Conflict("only failed or suppressed emails can be retried")
 		}
 		return s.auditWrite(ctx, tx, p, "notifications.retry", "notification", id.String(), nil)

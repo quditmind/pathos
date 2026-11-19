@@ -107,7 +107,7 @@ func ParseNative(key string, raw []byte) ([]Finding, error) {
 		if ev := strings.TrimSpace(nf.Evidence); ev != "" {
 			f.Snippet = truncate(logging.RedactString(ev), 16000)
 		}
-		f.Fingerprint = Fingerprint(f, hashOf(nf.Key))
+		setFingerprint(&f, hashOf(nf.Key))
 		out = append(out, f)
 	}
 	return out, nil

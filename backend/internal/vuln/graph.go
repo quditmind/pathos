@@ -7,6 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+
+	"pathos/internal/platform/db"
 )
 
 // Dependency graph of an SBOM: which component depends on which.
@@ -180,7 +182,7 @@ func storeGraph(ctx context.Context, tx pgx.Tx, orgID, repoID uuid.UUID, g Graph
 		seen[e] = true
 		rows = append(rows, []any{orgID, repoID, e.Parent, e.Child})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"sbom_dependencies"}, []string{"organization_id", "repository_id", "parent_ref", "child_ref"},
+	if _, err := db.CopyFrom(ctx, tx, pgx.Identifier{"sbom_dependencies"}, []string{"organization_id", "repository_id", "parent_ref", "child_ref"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return err
 	}

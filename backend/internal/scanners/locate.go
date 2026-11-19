@@ -99,7 +99,7 @@ func LocateSARIF(key string, raw []byte, fingerprint string) (*Located, error) {
 	}
 	idx := -1
 	for i, f := range fs {
-		if f.Fingerprint == fingerprint {
+		if f.Matches(fingerprint) {
 			idx = i
 			break
 		}
@@ -246,7 +246,7 @@ func locateGrype(key string, raw []byte, fingerprint string) (*Located, error) {
 		return nil, err
 	}
 	for i, f := range fs {
-		if f.Fingerprint == fingerprint && i < len(doc.Matches) {
+		if f.Matches(fingerprint) && i < len(doc.Matches) {
 			return &Located{Raw: redactJSON(doc.Matches[i])}, nil
 		}
 	}

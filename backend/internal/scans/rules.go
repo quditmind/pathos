@@ -418,6 +418,11 @@ func (s *Service) ruleVersions(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	var found bool
+	if err := s.DB.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM custom_rules WHERE organization_id = $1 AND id = $2)`, p.OrganizationID, id).Scan(&found); err != nil || !found {
+		s.fail(w, r, errNotFound)
+		return
+	}
 	rows, err := s.DB.Query(r.Context(), `SELECT v.version, v.content, v.enabled, v.change_note, COALESCE(NULLIF(u.display_name, ''), u.email), v.created_at
 		FROM custom_rule_versions v JOIN custom_rules r ON r.id = v.rule_id LEFT JOIN users u ON u.id = v.created_by
 		WHERE r.organization_id = $1 AND v.rule_id = $2 ORDER BY v.version DESC LIMIT 100`, p.OrganizationID, id)

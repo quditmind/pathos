@@ -1,0 +1,5 @@
+# Gradle and IntelliJ Platform Gradle Plugin output and caches
+.gradle/
+.kotlin/
+.intellijPlatform/
+build/

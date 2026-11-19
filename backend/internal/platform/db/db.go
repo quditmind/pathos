@@ -7,7 +7,13 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -15,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	"pathos/internal/platform/tenant"
 	"pathos/migrations"
 )
 
@@ -33,10 +40,22 @@ func Connect(ctx context.Context, url string, log *slog.Logger) (*pgxpool.Pool, 
 	}
 	cfg.MaxConnLifetime = time.Hour
 	cfg.MaxConnIdleTime = 15 * time.Minute
+	// PostgreSQL's JIT compiler costs 0.5-1 s on the large aggregate
+	// queries (dashboard, posture) and saves less than that
+	// (docs/PERFORMANCE.md). A jit parameter in the database URL wins.
+	if cfg.ConnConfig.RuntimeParams == nil {
+		cfg.ConnConfig.RuntimeParams = map[string]string{}
+	}
+	if _, set := cfg.ConnConfig.RuntimeParams["jit"]; !set {
+		cfg.ConnConfig.RuntimeParams["jit"] = "off"
+	}
+	st := &poolState{}
+	cfg.PrepareConn = st.prepare
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
+	pools.Store(pool, st)
 	deadline := time.Now().Add(60 * time.Second)
 	for {
 		pctx, cancel := context.WithTimeout(ctx, 3*time.Second)
@@ -51,6 +70,46 @@ func Connect(ctx context.Context, url string, log *slog.Logger) (*pgxpool.Pool, 
 		}
 		log.Warn("waiting for database", "err", err)
 		time.Sleep(2 * time.Second)
+	}
+}
+
+// poolState holds the per-pool tenancy default.
+type poolState struct {
+	mu         sync.RWMutex
+	defaultOrg uuid.UUID
+}
+
+var pools sync.Map // *pgxpool.Pool -> *poolState
+
+// prepare runs on every connection checkout. It always overwrites both
+// row-level security variables, so a connection never keeps the scope of
+// its previous user: the scope comes from the context of the query that
+// checks the connection out (tenant.WithOrg / tenant.WithSystem), else the
+// pool default (single-organization installs), else none, which makes
+// every tenant table look empty.
+func (st *poolState) prepare(ctx context.Context, c *pgx.Conn) (bool, error) {
+	st.mu.RLock()
+	def := st.defaultOrg
+	st.mu.RUnlock()
+	org, bypass := tenant.Settings(ctx, def)
+	if _, err := c.Exec(ctx, `SELECT set_config('app.organization_id', $1, false), set_config('app.rls_bypass', $2, false)`, org, bypass); err != nil {
+		// Never hand out a connection whose scope could not be set.
+		return false, fmt.Errorf("set tenant scope: %w", err)
+	}
+	return true, nil
+}
+
+// SetDefaultOrganization makes orgID the scope of queries whose context
+// carries none. Only single-organization installs set it (there it is the
+// only organization, so nothing changes for existing code paths); with
+// multi-tenancy enabled the default stays empty and unscoped queries see
+// no tenant rows.
+func SetDefaultOrganization(pool *pgxpool.Pool, orgID uuid.UUID) {
+	if v, ok := pools.Load(pool); ok {
+		st := v.(*poolState)
+		st.mu.Lock()
+		st.defaultOrg = orgID
+		st.mu.Unlock()
 	}
 }
 
@@ -161,4 +220,90 @@ func SetChangeContext(ctx context.Context, tx pgx.Tx, actor *[16]byte, source, r
 	_, err := tx.Exec(ctx, `SELECT set_config('pathos.actor', $1, true), set_config('pathos.source', $2, true), set_config('pathos.reason', $3, true)`,
 		a, source, reason)
 	return err
+}
+
+// rowSecurity is set when multi-tenancy (row-level security) is enabled:
+// PostgreSQL rejects COPY FROM into tables with row-level security.
+var rowSecurity atomic.Bool
+
+// SetRowLevelSecurity tells CopyFrom whether tenant tables enforce
+// row-level security (multi-tenancy enabled).
+func SetRowLevelSecurity(on bool) { rowSecurity.Store(on) }
+
+// Copier is satisfied by pgx.Tx and *pgxpool.Pool.
+type Copier interface {
+	CopyFrom(ctx context.Context, table pgx.Identifier, cols []string, src pgx.CopyFromSource) (int64, error)
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
+// CopyFrom bulk-inserts rows. Without row-level security it uses COPY (as
+// before); with row-level security (which COPY FROM does not support) it
+// sends multi-row INSERT statements, whose rows the tenant policies check.
+func CopyFrom(ctx context.Context, q Copier, table pgx.Identifier, cols []string, src pgx.CopyFromSource) (int64, error) {
+	if !rowSecurity.Load() {
+		return q.CopyFrom(ctx, table, cols, src)
+	}
+	if len(cols) == 0 {
+		return 0, errors.New("copy: no columns")
+	}
+	head := "INSERT INTO " + table.Sanitize() + " ("
+	for i, c := range cols {
+		if i > 0 {
+			head += ", "
+		}
+		head += pgx.Identifier{c}.Sanitize()
+	}
+	head += ") VALUES "
+	// At most 65535 bind parameters per statement.
+	per := max(1, 60000/len(cols))
+	var total int64
+	var args []any
+	n := 0
+	flush := func() error {
+		if n == 0 {
+			return nil
+		}
+		var b strings.Builder
+		b.WriteString(head)
+		for r := range n {
+			if r > 0 {
+				b.WriteString(", ")
+			}
+			b.WriteByte('(')
+			for c := range cols {
+				if c > 0 {
+					b.WriteString(", ")
+				}
+				b.WriteString("$" + strconv.Itoa(r*len(cols)+c+1))
+			}
+			b.WriteByte(')')
+		}
+		tag, err := q.Exec(ctx, b.String(), args...)
+		if err != nil {
+			return err
+		}
+		total += tag.RowsAffected()
+		args, n = args[:0], 0
+		return nil
+	}
+	for src.Next() {
+		vals, err := src.Values()
+		if err != nil {
+			return total, err
+		}
+		if len(vals) != len(cols) {
+			return total, fmt.Errorf("copy: %d values for %d columns", len(vals), len(cols))
+		}
+		args = append(args, vals...)
+		n++
+		if n == per {
+			if err := flush(); err != nil {
+				return total, err
+			}
+		}
+	}
+	if err := src.Err(); err != nil {
+		return total, err
+	}
+	return total, flush()
 }

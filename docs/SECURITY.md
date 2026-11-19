@@ -54,7 +54,20 @@ Personal API tokens serve both the MCP server and the REST API.
 
 ## Authorization
 
-Scoped RBAC is enforced in the API; see [RBAC_MATRIX.md](RBAC_MATRIX.md). Privilege-escalation checks apply to both granting and revoking roles. Every denial is audited (`authz.denied`). Resources outside the caller's scope return 404, not 403, so their existence is not disclosed.
+Scoped RBAC is enforced in the API; see [RBAC_MATRIX.md](RBAC_MATRIX.md). Privilege-escalation checks apply to both granting and revoking roles. Every denial is audited (`authz.denied`). Resources outside the caller's scope return 404, not 403, so their existence is not disclosed. Authorization resolves every repository, business unit and region target inside the caller's organization, also for organization-wide grants, so another organization's resource is treated like a missing one.
+
+## Tenant isolation
+
+With multi-tenancy enabled, one installation hosts several organizations ([MULTI_TENANCY.md](MULTI_TENANCY.md)). Isolation has two independent layers and database constraints:
+
+- **Application:** the organization of every request comes only from the authenticated session, API token, MCP token, worker token or webhook connection, never from client input; every query filters by it; authorization proves each target belongs to it. Static tests fail when code adds a request field or parameter carrying an organization, widens the database scope without review, or serves a route outside the authenticated router.
+- **Row-level security** on every tenant table: the connection pool sets `app.organization_id` (or, for reviewed system work, `app.rls_bypass`) on every connection checkout from the request's context; without either, tenant tables look empty. The application role is subject to the policies; the migration owner is not. New tables with an `organization_id` column get the policy automatically.
+- **Same-organization foreign keys** on every reference between two tenant tables, so the database rejects a row pointing at another organization's row.
+- Workers belong to one organization and see only its jobs; shared workers are not supported. Object storage keys carry the organization id. Suspension blocks sign-in, tokens and workers; deletion removes the organization's rows (including its audit log) and stored objects.
+- An installation administrator manages organizations only and gets no access to their data.
+- The isolation suite calls every API route as each role of one organization with another organization's ids, with and without row-level security, and checks that nothing leaks and nothing changes (`backend/test/integration/zz_tenant_isolation_test.go`).
+
+Residual risks (row-level security query plans, installation-wide sequence numbers, shared reference data, claim-based memberships not being removed automatically) are listed in [MULTI_TENANCY.md](MULTI_TENANCY.md#6-limits-and-residual-risks).
 
 ## Secrets at rest
 
@@ -74,7 +87,10 @@ Scoped RBAC is enforced in the API; see [RBAC_MATRIX.md](RBAC_MATRIX.md). Privil
   - cannot `UPDATE`, `DELETE` or `TRUNCATE` the audit log, its default partition or any monthly partition;
   - cannot modify the permission catalog or migration history;
   - cannot change or delete append-only history (finding status history, Human Eye decisions, approvals, comments and history);
-  - adds scanner catalog rows only through two `SECURITY DEFINER` functions, restricted to import keys (`import-…`) and plugin keys (`plugin-…`).
+  - adds scanner catalog rows only through two `SECURITY DEFINER` functions, restricted to import keys (`import-…`) and plugin keys (`plugin-…`);
+  - has no privileges on audit log partitions (it writes and reads through the parent table);
+  - cannot change the installation settings (multi-tenancy mode) or rewrite the installation audit log;
+  - is subject to row-level security on every tenant table once multi-tenancy is enabled.
 - `pathos_apply_app_grants()` re-applies these grants at the end of every migration. Integration tests assert the denials (`backend/test/integration`).
 
 ## Audit log

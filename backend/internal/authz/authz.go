@@ -55,9 +55,12 @@ type Hierarchy interface {
 type Principal struct {
 	UserID         uuid.UUID
 	OrganizationID uuid.UUID
-	Email          string
-	DisplayName    string
-	Grants         []Grant
+	// Subject is the person's OIDC subject (the same in every organization
+	// the person belongs to); empty for users never linked to the IdP.
+	Subject     string
+	Email       string
+	DisplayName string
+	Grants      []Grant
 }
 
 // HasOrgWide reports whether p holds perm at organization scope.
@@ -106,22 +109,29 @@ func (a *Authorizer) Can(ctx context.Context, p *Principal, perm Permission, tar
 	if p == nil {
 		return false, nil
 	}
+	// A grant never reaches outside the principal's organization.
+	if target.Type == ScopeOrganization && target.ID != p.OrganizationID {
+		return false, nil
+	}
 	if info, ok := LookupPermission(perm); ok && info.OrgOnly {
 		return p.HasOrgWide(perm), nil
-	}
-	if p.HasOrgWide(perm) {
-		return true, nil
 	}
 	if !p.HasAnywhere(perm) {
 		return false, nil
 	}
 	chain := []Scope{target}
 	if target.Type != ScopeOrganization && a.H != nil {
+		// Resolving the ancestors also proves that the target exists in
+		// the request's organization (multi-tenancy): an organization-wide
+		// grant does not cover another organization's resource.
 		anc, err := a.H.Ancestors(ctx, target)
 		if err != nil {
 			return false, err
 		}
 		chain = anc
+	}
+	if p.HasOrgWide(perm) {
+		return true, nil
 	}
 	for _, g := range p.Grants {
 		if g.Permission != perm {

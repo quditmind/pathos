@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"path"
 	"regexp"
 	"strconv"
@@ -35,6 +36,12 @@ type Finding struct {
 	StartLine    *int
 	EndLine      *int
 	Fingerprint  string
+	// LegacyFingerprint is the finding's fingerprint under the previous
+	// fingerprint version, when it differs (dependency findings whose
+	// package identity is now normalized). Stored findings with it are
+	// re-keyed instead of being replaced (scans.upsertFindings), and
+	// evidence is located by either.
+	LegacyFingerprint string
 	// Confidence is high | medium | low | unknown (see confidenceOf).
 	Confidence string
 	// CVSSVector and CVSSVersion when the tool reports a vector.
@@ -136,7 +143,52 @@ var (
 
 // Fingerprint computes the stable identity of a finding. Line numbers are
 // deliberately excluded so findings survive code moving around.
-func Fingerprint(f Finding, snippetKey string) string {
+//
+// Fingerprint version 2 (PATHOS 2.1) normalizes the package identity of
+// dependency findings so that tools naming the same package or version
+// differently merge into one finding: names are lower-cased with runs of
+// "-", "_" and "." folded to "-" (PEP 503 for PyPI, and npm scopes'
+// case), and a leading "v" of a version is dropped (Go modules). Maven
+// names must be group:artifact (the Grype parser adds the group from the
+// package URL). LegacyFingerprint is version 1.
+func Fingerprint(f Finding, snippetKey string) string { return fingerprint(f, snippetKey, true) }
+
+// LegacyFingerprint is the version 1 fingerprint (package identity as the
+// tool reported it).
+func LegacyFingerprint(f Finding, snippetKey string) string { return fingerprint(f, snippetKey, false) }
+
+// Matches reports whether fp is the finding's fingerprint, current or
+// legacy (stored findings from before a fingerprint version change).
+func (f Finding) Matches(fp string) bool {
+	return fp != "" && (f.Fingerprint == fp || f.LegacyFingerprint == fp)
+}
+
+// setFingerprint sets Fingerprint and, when it differs, LegacyFingerprint.
+func setFingerprint(f *Finding, snippetKey string) {
+	f.Fingerprint = Fingerprint(*f, snippetKey)
+	f.LegacyFingerprint = ""
+	if l := LegacyFingerprint(*f, snippetKey); l != f.Fingerprint {
+		f.LegacyFingerprint = l
+	}
+}
+
+var pkgSepRe = regexp.MustCompile(`[-_.]+`)
+
+// NormalizePackageName is the package identity used in fingerprints.
+func NormalizePackageName(name string) string {
+	return pkgSepRe.ReplaceAllString(strings.ToLower(strings.TrimSpace(name)), "-")
+}
+
+// NormalizePackageVersion is the version used in fingerprints.
+func NormalizePackageVersion(v string) string {
+	v = strings.ToLower(strings.TrimSpace(v))
+	if len(v) > 1 && v[0] == 'v' && v[1] >= '0' && v[1] <= '9' {
+		v = v[1:]
+	}
+	return v
+}
+
+func fingerprint(f Finding, snippetKey string, normalized bool) string {
 	family := f.Category
 	if family != "sca" {
 		family = f.ScannerKey // non-SCA findings are tool-specific
@@ -147,7 +199,11 @@ func Fingerprint(f Finding, snippetKey string) string {
 		if vuln == "" {
 			vuln = f.RuleID
 		}
-		secondary = strings.ToLower(f.PackageName + "@" + f.PackageVersion + "|" + vuln)
+		name, version := f.PackageName, f.PackageVersion
+		if normalized {
+			name, version = NormalizePackageName(name), NormalizePackageVersion(version)
+		}
+		secondary = strings.ToLower(name + "@" + version + "|" + vuln)
 	}
 	h := sha256.New()
 	for _, part := range []string{family, ruleForFingerprint(f), NormalizePath(f.FilePath), snippetKey, secondary} {
@@ -309,7 +365,7 @@ func ParseSARIF(key string, raw []byte) ([]Finding, error) {
 			default:
 				snippetKey = hashOf(res.Message.Text)
 			}
-			f.Fingerprint = Fingerprint(f, snippetKey)
+			setFingerprint(&f, snippetKey)
 			out = append(out, f)
 		}
 	}
@@ -689,6 +745,7 @@ type grypeDoc struct {
 			Locations []struct {
 				Path string `json:"path"`
 			} `json:"locations"`
+			PURL string `json:"purl"`
 		} `json:"artifact"`
 	} `json:"matches"`
 }
@@ -749,8 +806,42 @@ func ParseGrypeJSON(raw []byte) ([]Finding, error) {
 		}
 		f.Title = truncate(fmt.Sprintf("%s in %s %s", id, f.PackageName, f.PackageVersion), 300)
 		f.Description = truncate(logging.RedactString(v.Description), 4000)
-		f.Fingerprint = Fingerprint(f, "")
+		// Grype names Maven packages by artifact ID only; other tools use
+		// group:artifact. The fingerprint uses the full name; the version 1
+		// fingerprint is the one of the name Grype reported.
+		legacy := LegacyFingerprint(f, "")
+		if g, a, ok := mavenPURL(m.Artifact.PURL); ok && a == f.PackageName {
+			f.PackageName = g + ":" + a
+			f.Title = truncate(fmt.Sprintf("%s in %s %s", id, f.PackageName, f.PackageVersion), 300)
+		}
+		f.Fingerprint, f.LegacyFingerprint = Fingerprint(f, ""), ""
+		if legacy != f.Fingerprint {
+			f.LegacyFingerprint = legacy
+		}
 		out = append(out, f)
 	}
 	return out, nil
+}
+
+// mavenPURL returns the group and artifact of a Maven package URL
+// (pkg:maven/<group>/<artifact>@<version>).
+func mavenPURL(purl string) (group, artifact string, ok bool) {
+	rest, found := strings.CutPrefix(purl, "pkg:maven/")
+	if !found {
+		return "", "", false
+	}
+	if i := strings.IndexAny(rest, "@?#"); i >= 0 {
+		rest = rest[:i]
+	}
+	group, artifact, ok = strings.Cut(rest, "/")
+	if !ok || group == "" || artifact == "" || strings.Contains(artifact, "/") {
+		return "", "", false
+	}
+	if g, err := url.PathUnescape(group); err == nil {
+		group = g
+	}
+	if a, err := url.PathUnescape(artifact); err == nil {
+		artifact = a
+	}
+	return group, artifact, true
 }

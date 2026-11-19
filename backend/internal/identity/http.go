@@ -18,6 +18,7 @@ import (
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/platform/tenant"
 )
 
 // SessionRevoker ends all sessions of a user.
@@ -406,7 +407,13 @@ func (h *Handlers) setStatus(w http.ResponseWriter, r *http.Request, status stri
 			h.Log.Info("sessions revoked", "user_id", id, "count", n)
 		}
 	}
-	if h.Provisioner != nil && u.KeycloakSubject != nil {
+	if h.Provisioner != nil && u.KeycloakSubject != nil && status == StatusDeactivated && hasOtherMemberships(ctx, h.DB, *u.KeycloakSubject, p.OrganizationID) {
+		// Multi-tenancy: the person still belongs to another organization.
+		// Deactivating them here must not lock them out there, so the IdP
+		// account stays enabled; sign-in to this organization is refused
+		// because the membership is deactivated.
+		h.Log.Info("identity provider account kept: the person belongs to other organizations", "user_id", id)
+	} else if h.Provisioner != nil && u.KeycloakSubject != nil {
 		enabled := status != StatusDeactivated
 		if err := h.Provisioner.SetEnabled(ctx, *u.KeycloakSubject, enabled); err != nil {
 			h.Log.Warn("keycloak enable/disable failed", "err", err, "user_id", id)
@@ -416,6 +423,20 @@ func (h *Handlers) setStatus(w http.ResponseWriter, r *http.Request, status stri
 		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, u)
+}
+
+// hasOtherMemberships reports whether subject has a membership that is not
+// deactivated in an organization other than orgID. It reads across
+// organizations (system scope) but returns only a boolean about the same
+// person.
+func hasOtherMemberships(ctx context.Context, q db.Querier, subject string, orgID uuid.UUID) bool {
+	var ok bool
+	if err := q.QueryRow(tenant.WithSystem(ctx), `SELECT EXISTS (SELECT 1 FROM users
+		WHERE keycloak_subject = $1 AND organization_id <> $2 AND status <> 'deactivated')`, subject, orgID).Scan(&ok); err != nil {
+		// Unknown: keep the IdP account (fail safe for the other organizations).
+		return true
+	}
+	return ok
 }
 
 // --- roles & assignments --------------------------------------------------

@@ -149,7 +149,7 @@ func parseGeneric(key string, raw []byte) ([]Finding, error) {
 		if f.Category == "sca" {
 			snippetKey = ""
 		}
-		f.Fingerprint = Fingerprint(f, snippetKey)
+		setFingerprint(&f, snippetKey)
 		out = append(out, f)
 	}
 	return out, nil
@@ -168,7 +168,7 @@ func locateGeneric(key string, raw []byte, fingerprint string) (*Located, error)
 		return nil, err
 	}
 	for i, f := range fs {
-		if f.Fingerprint == fingerprint && i < len(doc.Findings) {
+		if f.Matches(fingerprint) && i < len(doc.Findings) {
 			return &Located{Raw: redactJSON(doc.Findings[i])}, nil
 		}
 	}

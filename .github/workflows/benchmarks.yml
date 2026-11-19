@@ -1,0 +1,54 @@
+# PATHOS benchmarks (docs/BENCHMARKS.md), on manual dispatch only.
+#
+#   smoke (default)  builds the worker-core image and runs the smoke subset of
+#                    benchmarks/run.sh: the generated secrets suite with
+#                    Gitleaks and the reachability benchmark. Nothing is
+#                    downloaded; it fails if Gitleaks' recall drops below the
+#                    floor in run.sh, so the harness cannot rot unnoticed.
+#   full             all suites: builds core, sast and sca, downloads the
+#                    pinned OWASP Benchmark archives (checksums verified) and
+#                    the vulnerability databases. Takes about an hour on a
+#                    hosted runner; the numbers depend on the runner.
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Run every suite (downloads the public suites)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: benchmarks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmarks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Run the benchmark harness
+        env:
+          PATHOS_BENCH_DIR: ${{ runner.temp }}/pathos-bench
+          PATHOS_BENCH_OUT: ${{ runner.temp }}/pathos-bench/results/run
+          FULL: ${{ inputs.full }}
+        run: |
+          if [ "$FULL" = "true" ]; then
+            benchmarks/run.sh --build
+          else
+            docker build -q -f workers/core/Dockerfile -t pathos-worker-core:dev . >/dev/null
+            benchmarks/run.sh --smoke
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: benchmark-results
+          path: ${{ runner.temp }}/pathos-bench/results/run
+          retention-days: 30

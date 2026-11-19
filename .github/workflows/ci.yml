@@ -4,6 +4,8 @@
 #   integration  Go integration tests against PostgreSQL 18 (race detector)
 #   frontend     typecheck, unit tests, production build, npm audit
 #   vscode-extension  typecheck, unit tests and .vsix package of ide/vscode, npm audit
+#   jetbrains-plugin  unit and IntelliJ Platform tests, plugin ZIP and Plugin Verifier
+#                     (two IDE versions) of ide/jetbrains, built in a pinned JDK container
 #   stack        builds every image, starts the full Compose stack from a fresh
 #                install, then: smoke test, Playwright browser tests, Trivy on
 #                our images and an OWASP ZAP baseline (scripts/security-scan.sh);
@@ -57,6 +59,8 @@ jobs:
           if [ -n "$unformatted" ]; then echo "Run gofmt on:"; echo "$unformatted"; exit 1; fi
       - run: go vet ./... && go vet -tags integration ./test/integration/...
       - run: go test -race -count=1 ./...
+      # The worker-sca wrapper (stand-in tools; no image needed).
+      - run: python3 -I ../workers/sca/test/test_pathos_sca.py
       # The CLI (unit-tested above) must build for every release platform.
       - name: Build the pathos CLI (linux, darwin, windows; amd64, arm64)
         run: |
@@ -144,6 +148,45 @@ jobs:
         with:
           name: pathos-vscode-vsix
           path: ide/vscode/*.vsix
+          if-no-files-found: error
+          retention-days: 14
+
+  jetbrains-plugin:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Gradle (wrapper checked by distributionSha256Sum) runs in the pinned
+      # eclipse-temurin container of scripts/gradle-jetbrains.sh; every
+      # dependency, IDE included, is checked against
+      # ide/jetbrains/gradle/verification-metadata.xml.
+      # The Gradle home (Gradle, the IntelliJ Platform and the verifier's
+      # IDEs, about 6 GB) is cached; the dependency checksums still apply
+      # to cached files.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pathos-gradle
+          key: jetbrains-gradle-${{ hashFiles('ide/jetbrains/gradle/verification-metadata.xml', 'ide/jetbrains/gradle/wrapper/gradle-wrapper.properties', 'ide/jetbrains/*.gradle.kts', 'ide/jetbrains/gradle.properties') }}
+          restore-keys: jetbrains-gradle-
+      - name: Build, test and package
+        run: scripts/gradle-jetbrains.sh build
+      - name: Plugin Verifier (IntelliJ IDEA 2025.3 and 2026.3)
+        run: scripts/gradle-jetbrains.sh verifyPlugin
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: pathos-jetbrains-reports
+          path: |
+            ide/jetbrains/build/reports/tests/
+            ide/jetbrains/build/reports/pluginVerifier/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pathos-jetbrains-plugin
+          path: ide/jetbrains/build/distributions/*.zip
           if-no-files-found: error
           retention-days: 14
 

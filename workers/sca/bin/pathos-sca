@@ -8,8 +8,24 @@ Finds the files the tool reads (lockfiles, requirement files, modules),
 runs the tool on each with options that keep it from running repository
 code (no package-manager plugins, scripts, toolchain or package-manager
 version switching), and writes one report in the tool's own format to
-<output> (several runs are merged; an empty file means nothing to scan).
-Exit status: 0 when the report was written, 3 when every run failed.
+<output> (an empty file means nothing to scan).
+
+Tools that read one lockfile or requirements file at a time (npm, yarn,
+pnpm and Composer audit, pip-audit) run once per file found anywhere in
+the repository (outside node_modules, vendor and the other SKIP_DIRS), and
+their reports are written in a PATHOS envelope:
+
+    {"pathos_reports": [{"file": "<path in the repository>", "report": <the tool's JSON>}
+                        or {"file": ..., "report_text": "<the tool's JSON Lines>"}, ...]}
+
+which the PATHOS import parsers read: each finding is located in the file
+its report came from. govulncheck runs once per Go module and records the
+module's directory in each run's config message (pathos_module_dir).
+
+Exit status: 0 when every run succeeded (a tool's "vulnerabilities found"
+status is success), 3 when any run failed; the reports of the runs that
+succeeded are still written, and the last line on standard error says
+which runs failed and why (the worker shows it as the tool's error).
 """
 
 import json
@@ -101,13 +117,53 @@ def write(out, data):
         f.write(data)
 
 
-def finish(runs, failed):
-    if failed and not runs:
-        log("every run failed")
-        return 3
-    if failed:
-        log("%d of %d runs failed; the report has the others" % (failed, failed + runs))
-    return 0
+def finish(runs, failures):
+    """Exit status of a tool: 0 when nothing failed, else 3 with a summary
+    of the failures as the last line of standard error."""
+    if not failures:
+        return 0
+    first = failures[0]
+    more = "" if len(failures) == 1 else " (and %d more)" % (len(failures) - 1)
+    log("%d of %d runs failed: %s%s" % (len(failures), len(failures) + runs, first, more))
+    return 3
+
+
+def last_error(stderr, stdout=b""):
+    """The most useful line of a failed tool's output."""
+    text = re.sub(r"\x1b\[[0-9;]*m", "", (stderr or b"").decode(errors="replace"))
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    errs = [l for l in lines if "error" in l.lower()]
+    line = (errs or lines or [""])[-1]
+    if not line and stdout:
+        line = stdout.decode(errors="replace").strip().splitlines()[-1] if stdout.strip() else ""
+    return line[:300] or "no output"
+
+
+def json_or_none(data):
+    try:
+        return json.loads(data)
+    except ValueError:
+        return None
+
+
+def per_file(src, out, files, audit):
+    """Runs audit(path) -> (report or None, report_text or None, error or
+    None) on every file and writes the PATHOS envelope."""
+    reports, failures = [], []
+    for path in files:
+        log("%s" % rel(src, path))
+        report, text, err = audit(path)
+        if err:
+            failures.append("%s: %s" % (rel(src, path), err))
+            continue
+        entry = {"file": rel(src, path)}
+        if text is not None:
+            entry["report_text"] = text
+        else:
+            entry["report"] = report
+        reports.append(entry)
+    write(out, json.dumps({"pathos_reports": reports}).encode() if reports else b"")
+    return finish(len(reports), failures)
 
 
 # --- tools -------------------------------------------------------------------
@@ -131,17 +187,35 @@ def govulncheck(src, out, cache):
         "GOPROXY": os.environ.get("GOPROXY") or "https://proxy.golang.org",
     }
     db = os.environ.get("GOVULNDB") or "https://vuln.go.dev"
-    runs = failed = 0
+    runs, failures = 0, []
     with open(out, "wb") as f:
         for m in mods:
-            log("govulncheck " + (rel(src, m) or "."))
+            d = rel(src, m)
+            log("govulncheck " + d)
             r = capture([BIN + "/govulncheck", "-db", db, "-C", m, "-format", "json", "./..."], env={**os.environ, **env})
             if r.returncode == 0:
-                f.write(r.stdout)
+                f.write(govulncheck_with_dir(r.stdout, "" if d == "." else d))
                 runs += 1
             else:
-                failed += 1
-    return finish(runs, failed)
+                failures.append("%s: %s" % (d, last_error(r.stderr)))
+    return finish(runs, failures)
+
+
+def govulncheck_with_dir(stream, moddir):
+    """govulncheck's JSON message stream, one message per line, with the
+    module's directory in the config message."""
+    dec, i, out = json.JSONDecoder(), 0, []
+    text = stream.decode(errors="replace")
+    while True:
+        while i < len(text) and text[i].isspace():
+            i += 1
+        if i >= len(text):
+            break
+        msg, i = dec.raw_decode(text, i)
+        if isinstance(msg, dict) and isinstance(msg.get("config"), dict):
+            msg["config"]["pathos_module_dir"] = moddir
+        out.append(json.dumps(msg))
+    return ("\n".join(out) + "\n").encode() if out else b""
 
 
 def pip_audit(src, out, cache):
@@ -152,28 +226,47 @@ def pip_audit(src, out, cache):
         write(out, b"")
         return 0
     # pip is not installed: pip-audit reads a pip version from pip-version.
-    env = {"PIPAPI_PYTHON_LOCATION": BIN + "/pip-version"}
-    args = [SCA + "/bin/pip-audit", "--disable-pip", "--no-deps", "--progress-spinner", "off", "-f", "json", "-o", out,
-            "--cache-dir", os.path.join(cache, "pip-audit")]
-    for r in reqs:
-        args += ["-r", r]
-    return 0 if run(args, env=env, ok=(0, 1)) is not None else 3
+    env = {**os.environ, "PIPAPI_PYTHON_LOCATION": BIN + "/pip-version"}
+    tmp = out + ".pip-audit.json"
+
+    # One run per file: pip-audit refuses a package pinned in two files of
+    # one run, and its exit status 1 means both "vulnerabilities found" and
+    # "error"; only a JSON report counts as success.
+    def audit(req):
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        r = capture([SCA + "/bin/pip-audit", "--disable-pip", "--no-deps", "--progress-spinner", "off", "-f", "json", "-o", tmp,
+                     "--cache-dir", os.path.join(cache, "pip-audit"), "-r", req], env=env)
+        rep = None
+        if r.returncode in (0, 1) and os.path.exists(tmp):
+            with open(tmp, "rb") as f:
+                rep = json_or_none(f.read())
+        if not isinstance(rep, dict) or "dependencies" not in rep:
+            return None, None, "pip-audit exited with %d: %s" % (r.returncode, last_error(r.stderr))
+        return rep, None, None
+
+    try:
+        return per_file(src, out, reqs, audit)
+    finally:
+        if os.path.exists(tmp):
+            os.remove(tmp)
 
 
 def cargo_audit(src, out, cache):
     """cargo-audit on every Cargo.lock with the bundled RustSec database
     (offline)."""
-    reports, failed = [], 0
+    reports, failures = [], []
     for lock in find(src, lambda f: f == "Cargo.lock"):
         r = capture([BIN + "/cargo-audit", "audit", "--db", SCA + "/db/advisory-db", "--no-fetch", "--stale", "--json",
                      "--file", lock])
-        try:
-            reports.append(json.loads(r.stdout))
-        except ValueError:
-            failed += 1
+        rep = json_or_none(r.stdout)
+        if isinstance(rep, dict):
+            reports.append(rep)
+        else:
+            failures.append("%s: cargo-audit exited with %d: %s" % (rel(src, lock), r.returncode, last_error(r.stderr)))
     if not reports:
         write(out, b"")
-        return finish(0, failed)
+        return finish(0, failures)
     merged = reports[0]
     for rep in reports[1:]:
         v = merged.setdefault("vulnerabilities", {"found": False, "count": 0, "list": []})
@@ -185,30 +278,31 @@ def cargo_audit(src, out, cache):
         for kind, items in (rep.get("warnings") or {}).items():
             w[kind] = (w.get(kind) or []) + (items or [])
     write(out, json.dumps(merged).encode())
-    return finish(len(reports), failed)
+    return finish(len(reports), failures)
 
 
 def bundler_audit(src, out, cache):
     """bundler-audit on every Gemfile.lock with the bundled Ruby advisory
     database (offline)."""
     env = {"BUNDLE_GEMFILE": "/nonexistent/Gemfile"}
-    reports, failed = [], 0
+    reports, failures = [], []
     for lock in find(src, lambda f: f == "Gemfile.lock"):
         r = capture(["/usr/local/bin/bundle-audit", "check", "--no-update", "--database", SCA + "/db/ruby-advisory-db",
                      "--format", "json", "--gemfile-lock", os.path.basename(lock), os.path.dirname(lock)],
                     env={**os.environ, **env})
-        try:
-            reports.append(json.loads(r.stdout))
-        except ValueError:
-            failed += 1
+        rep = json_or_none(r.stdout)
+        if isinstance(rep, dict):
+            reports.append(rep)
+        else:
+            failures.append("%s: bundle-audit exited with %d: %s" % (rel(src, lock), r.returncode, last_error(r.stderr)))
     if not reports:
         write(out, b"")
-        return finish(0, failed)
+        return finish(0, failures)
     merged = reports[0]
     for rep in reports[1:]:
         merged["results"] = (merged.get("results") or []) + (rep.get("results") or [])
     write(out, json.dumps(merged).encode())
-    return finish(len(reports), failed)
+    return finish(len(reports), failures)
 
 
 def retire(src, out, cache):
@@ -226,73 +320,95 @@ def node_env():
             "YARN_IGNORE_PATH": "1", "COREPACK_ENABLE_STRICT": "0"}
 
 
-def root_file(src, *names):
-    for n in names:
-        p = os.path.join(src, n)
-        if os.path.isfile(p):
-            return p
-    return None
+def lockfiles(src, *names):
+    """Every lockfile with one of names in the repository (outside
+    SKIP_DIRS); in a directory with several, the first name wins."""
+    seen, out = set(), []
+    for p in find(src, lambda f: f in names):
+        d = os.path.dirname(p)
+        if d not in seen:
+            seen.add(d)
+            out.append(p)
+    return out
+
+
+def tool_json(r, ok_codes, valid):
+    """A run's JSON report, or an error: exit status in ok_codes and a
+    report for which valid(report) is true."""
+    rep = json_or_none(r.stdout)
+    if r.returncode in ok_codes and isinstance(rep, dict) and valid(rep):
+        return rep, None, None
+    err = ""
+    if isinstance(rep, dict) and rep.get("error"):
+        e = rep["error"]
+        err = e.get("summary") or e.get("message") or e.get("code") if isinstance(e, dict) else str(e)
+    return None, None, "exited with %d: %s" % (r.returncode, (str(err)[:300] if err else last_error(r.stderr, r.stdout)))
 
 
 def npm_audit(src, out, cache):
-    """npm audit of the root package-lock.json (npm's audit endpoint of
-    registry.npmjs.org, or NPM_CONFIG_REGISTRY)."""
-    if not root_file(src, "package-lock.json", "npm-shrinkwrap.json"):
-        write(out, b"")
-        return 0
-    with open(out, "wb") as f:
-        r = run([NODE, SCA + "/npm/node_modules/npm/bin/npm-cli.js", "audit", "--json", "--package-lock-only",
-                 "--ignore-scripts", "--registry", NPM_REGISTRY, "--cache", os.path.join(cache, "npm")],
-                cwd=src, env=node_env(), ok=(0, 1), stdout=f)
-    return 0 if r is not None else 3
+    """npm audit of every package-lock.json (or npm-shrinkwrap.json) in the
+    repository (npm's audit endpoint of registry.npmjs.org, or
+    NPM_CONFIG_REGISTRY). Exit status 1 means vulnerabilities were found;
+    a report without "vulnerabilities" (npm's error JSON) is a failure."""
+    def audit(lock):
+        r = capture([NODE, SCA + "/npm/node_modules/npm/bin/npm-cli.js", "audit", "--json", "--package-lock-only",
+                     "--ignore-scripts", "--registry", NPM_REGISTRY, "--cache", os.path.join(cache, "npm")],
+                    cwd=os.path.dirname(lock), env={**os.environ, **node_env()})
+        return tool_json(r, (0, 1), lambda rep: "vulnerabilities" in rep or "advisories" in rep)
+    return per_file(src, out, lockfiles(src, "npm-shrinkwrap.json", "package-lock.json"), audit)
 
 
 def yarn_audit(src, out, cache):
-    """yarn audit (Yarn 1) of the root yarn.lock. Yarn 2+ lockfiles are not
-    audited (Yarn 2+ runs the release committed in the repository)."""
-    lock = root_file(src, "yarn.lock")
-    if not lock:
-        write(out, b"")
-        return 0
-    with open(lock, "rb") as f:
-        if b"__metadata:" in f.read(4096):
-            log("yarn.lock is a Yarn 2+ lockfile; yarn audit (Yarn 1) cannot read it")
-            write(out, b"")
-            return 0
-    with open(out, "wb") as f:
-        # Exit status: a bit mask of the severities found (0-31).
-        r = run([NODE, NPM_BIN + "/yarn", "audit", "--json", "--non-interactive", "--ignore-engines", "--registry", NPM_REGISTRY,
-                 "--cache-folder", os.path.join(cache, "yarn")],
-                cwd=src, env=node_env(), ok=tuple(range(32)), stdout=f)
-    return 0 if r is not None else 3
+    """yarn audit (Yarn 1) of every yarn.lock. Yarn 2+ lockfiles are
+    skipped (Yarn 2+ runs the release committed in the repository)."""
+    def audit(lock):
+        # Exit status: a bit mask of the severities found (0-31). Success
+        # is an auditSummary line in the JSON Lines output.
+        r = capture([NODE, NPM_BIN + "/yarn", "audit", "--json", "--non-interactive", "--ignore-engines", "--registry", NPM_REGISTRY,
+                     "--cache-folder", os.path.join(cache, "yarn")], cwd=os.path.dirname(lock), env={**os.environ, **node_env()})
+        text = r.stdout.decode(errors="replace")
+        types = [(json_or_none(l) or {}).get("type") for l in text.splitlines() if l.strip()]
+        if r.returncode < 32 and "auditSummary" in types:
+            return None, text, None
+        errs = [(json_or_none(l) or {}).get("data") for l in text.splitlines() if '"type":"error"' in l.replace(" ", "")]
+        return None, None, "exited with %d: %s" % (r.returncode, str(errs[-1])[:300] if errs else last_error(r.stderr))
+    locks = lockfiles(src, "yarn.lock")
+    # Yarn 2+ lockfiles are not an error: they are skipped with a message.
+    v1 = []
+    for lock in locks:
+        with open(lock, "rb") as f:
+            if b"__metadata:" in f.read(4096):
+                log("%s is a Yarn 2+ lockfile; yarn audit (Yarn 1) cannot read it" % rel(src, lock))
+                continue
+        v1.append(lock)
+    return per_file(src, out, v1, audit)
 
 
 def pnpm_audit(src, out, cache):
-    """pnpm audit of the root pnpm-lock.yaml (registry.npmjs.org)."""
-    if not root_file(src, "pnpm-lock.yaml"):
-        write(out, b"")
-        return 0
-    with open(out, "wb") as f:
-        r = run([NODE, NPM_BIN + "/pnpm", "audit", "--json", "--ignore-scripts", "--registry", NPM_REGISTRY],
-                # Never download and run the pnpm version a package.json names.
-                cwd=src, env={**node_env(), "npm_config_manage_package_manager_versions": "false", "npm_config_store_dir": os.path.join(cache, "pnpm-store"),
-                              "XDG_CACHE_HOME": os.path.join(cache, "xdg")}, ok=(0, 1), stdout=f)
-    return 0 if r is not None else 3
+    """pnpm audit of every pnpm-lock.yaml (registry.npmjs.org)."""
+    env = {**os.environ, **node_env(), "npm_config_manage_package_manager_versions": "false",
+           "npm_config_store_dir": os.path.join(cache, "pnpm-store"), "XDG_CACHE_HOME": os.path.join(cache, "xdg")}
+
+    def audit(lock):
+        # Never download and run the pnpm version a package.json names.
+        r = capture([NODE, NPM_BIN + "/pnpm", "audit", "--json", "--ignore-scripts", "--registry", NPM_REGISTRY],
+                    cwd=os.path.dirname(lock), env=env)
+        return tool_json(r, (0, 1), lambda rep: "advisories" in rep or "metadata" in rep)
+    return per_file(src, out, lockfiles(src, "pnpm-lock.yaml"), audit)
 
 
 def composer_audit(src, out, cache):
-    """composer audit of the root composer.lock (no plugins, no scripts;
+    """composer audit of every composer.lock (no plugins, no scripts;
     advisories from packagist.org)."""
-    if not root_file(src, "composer.lock"):
-        write(out, b"")
-        return 0
-    env = {"COMPOSER_HOME": os.path.join(cache, "composer"), "COMPOSER_CACHE_DIR": os.path.join(cache, "composer", "cache"),
+    env = {**os.environ, "COMPOSER_HOME": os.path.join(cache, "composer"), "COMPOSER_CACHE_DIR": os.path.join(cache, "composer", "cache"),
            "COMPOSER_NO_INTERACTION": "1", "COMPOSER_ALLOW_SUPERUSER": "0", "COMPOSER_DISABLE_XDEBUG_WARN": "1"}
-    with open(out, "wb") as f:
+
+    def audit(lock):
         # Exit status: 1 vulnerable, 2 abandoned packages, 3 both.
-        r = run(["/usr/bin/php", SCA + "/composer.phar", "audit", "--locked", "--format=json", "--no-plugins", "--no-scripts",
-                 "--no-interaction", "--working-dir", src], env=env, ok=(0, 1, 2, 3), stdout=f)
-    return 0 if r is not None else 3
+        r = capture(["/usr/bin/php", SCA + "/composer.phar", "audit", "--locked", "--format=json", "--no-plugins", "--no-scripts",
+                     "--no-interaction", "--working-dir", os.path.dirname(lock)], env=env)
+        return tool_json(r, (0, 1, 2, 3), lambda rep: "advisories" in rep)
+    return per_file(src, out, lockfiles(src, "composer.lock"), audit)
 
 
 NVD_FEEDS = "https://nvd.nist.gov/feeds/json/cve/2.0/nvdcve-2.0-{0}.json.gz"
@@ -328,14 +444,13 @@ def guarddog(src, out, cache):
     typosquatting). Nothing is installed or executed."""
     targets = [("pypi", p) for p in find(src, lambda f: f.startswith("requirements") and f.endswith(".txt"))]
     targets += [("npm", p) for p in find(src, lambda f: f == "package.json")]
-    runs_out, failed = [], 0
+    runs_out, failures = [], []
     base = None
     for eco, path in targets:
         r = capture([SCA + "/bin/guarddog", eco, "verify", path, "--output-format", "sarif"], env={**os.environ, **GUARDDOG_ENV})
-        try:
-            doc = json.loads(r.stdout)
-        except ValueError:
-            failed += 1
+        doc = json_or_none(r.stdout)
+        if not isinstance(doc, dict):
+            failures.append("%s: guarddog exited with %d: %s" % (rel(src, path), r.returncode, last_error(r.stderr)))
             continue
         base = base or doc
         for run_ in doc.get("runs") or []:
@@ -359,10 +474,10 @@ def guarddog(src, out, cache):
             runs_out.append(run_)
     if base is None:
         write(out, b"")
-        return finish(0, failed)
+        return finish(0, failures)
     base["runs"] = runs_out
     write(out, json.dumps(base).encode())
-    return finish(len(targets) - failed, failed)
+    return finish(len(targets) - len(failures), failures)
 
 
 def depcheck(src, out, cache):

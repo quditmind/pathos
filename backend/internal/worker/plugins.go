@@ -63,6 +63,7 @@ type PluginDef struct {
 	Args           []string          `yaml:"args" json:"args"`
 	OKExitCodes    []int             `yaml:"ok_exit_codes" json:"ok_exit_codes"`
 	Timeout        string            `yaml:"timeout" json:"timeout"`
+	VersionTimeout string            `yaml:"version_timeout" json:"version_timeout"` // the version command (default 20s, 1s-5m)
 	Env            map[string]string `yaml:"env" json:"env"`
 	Output         string            `yaml:"output" json:"output"` // file (default) | stdout
 	Network        string            `yaml:"network" json:"network"`
@@ -78,9 +79,10 @@ type PluginDef struct {
 	JSONMap *scanners.JSONMap `yaml:"jsonmap" json:"jsonmap,omitempty"`
 
 	// FirstParty marks a manifest from the image's trusted directory.
-	FirstParty bool `yaml:"-" json:"first_party"`
-	parser     scanners.ToolParser
-	timeout    time.Duration
+	FirstParty     bool `yaml:"-" json:"first_party"`
+	parser         scanners.ToolParser
+	timeout        time.Duration
+	versionTimeout time.Duration
 }
 
 const (
@@ -221,6 +223,13 @@ func (d *PluginDef) validateSpec() error {
 			return errors.New("timeout must be a duration between 10s and 6h")
 		}
 		d.timeout = to
+	}
+	if d.VersionTimeout != "" {
+		to, err := time.ParseDuration(d.VersionTimeout)
+		if err != nil || to < time.Second || to > 5*time.Minute {
+			return errors.New("version_timeout must be a duration between 1s and 5m")
+		}
+		d.versionTimeout = to
 	}
 	p, err := scanners.ParseToolParserSpec(d.Parser, d.JSONMap)
 	if err != nil {
@@ -404,7 +413,29 @@ func (t pluginTool) Version(ctx context.Context) (string, error) {
 	if len(args) == 0 {
 		args = []string{"--version"}
 	}
-	return versionOf(ctx, t.def.Command, args...)
+	timeout := t.def.versionTimeout
+	if timeout == 0 {
+		timeout = defaultVersionTimeout
+	}
+	return versionWith(ctx, timeout, t.env(), t.def.Command, args...)
+}
+
+// env is the environment a manifest tool runs with (besides the scrubbed
+// base): no proxy for network: none, then the manifest's env, sorted.
+func (t pluginTool) env() []string {
+	env := []string{}
+	if t.def.Network == "none" {
+		env = append(env, noProxyEnv...)
+	}
+	keys := make([]string, 0, len(t.def.Env))
+	for k := range t.def.Env {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		env = append(env, k+"="+t.def.Env[k])
+	}
+	return env
 }
 
 func (t pluginTool) expand(args []string, in RunInput, tmp string) []string {

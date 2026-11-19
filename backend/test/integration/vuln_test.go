@@ -5,6 +5,7 @@ package integration
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -198,5 +199,17 @@ func TestVulnerabilityManagement(t *testing.T) {
 	_, viol := call(analyst, "GET", "/api/v1/sbom/components?license=deny&repository_id="+repo.String(), nil)
 	if items := viol["items"].([]any); len(items) != 1 || items[0].(map[string]any)["name"] != "copyleft-lib" {
 		t.Errorf("license violations: %v", viol)
+	}
+	// Licences are merged across every row of a component (whatever the
+	// licence filter), and open SCA findings of the package are counted.
+	_, _ = appPool.Exec(ctx, `INSERT INTO sbom_components (organization_id, repository_id, scan_job_id, name, version, licenses)
+		VALUES ($1, $2, $3, 'copyleft-lib', '1.0.0', '{MIT}')`, orgID, repo, job)
+	_, _ = appPool.Exec(ctx, `INSERT INTO findings (id, organization_id, repository_id, fingerprint, category, scanner_keys, rule_id, title, severity,
+		package_name, package_version) VALUES ($1, $2, $3, $4, 'sca', '{osv-scanner}', 'GHSA-x', 'vulnerable copyleft-lib', 'high', 'copyleft-lib', '1.0.0')`,
+		uuid.New(), orgID, repo, uuid.NewString())
+	_, viol = call(analyst, "GET", "/api/v1/sbom/components?license=deny&repository_id="+repo.String(), nil)
+	if items := viol["items"].([]any); len(items) != 1 || fmt.Sprint(items[0].(map[string]any)["licenses"]) != "[AGPL-3.0-only MIT]" ||
+		items[0].(map[string]any)["open_vulnerabilities"] != float64(1) {
+		t.Errorf("component licences and open vulnerabilities: %v", viol)
 	}
 }

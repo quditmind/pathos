@@ -33,8 +33,11 @@ type Config struct {
 	BootstrapToken string
 	Name           string
 	Family         string
-	WorkDir        string // tmpfs workspace root
-	CacheDir       string // vulnerability DB cache
+	// Organization is the slug of the organization this worker serves
+	// (multi-tenancy); empty: the installation's default organization.
+	Organization string
+	WorkDir      string // tmpfs workspace root
+	CacheDir     string // vulnerability DB cache
 	// Offline: use only cached vulnerability databases (air-gapped).
 	Offline bool
 	// PluginsDir holds declarative scanner adapter definitions.
@@ -171,9 +174,14 @@ func (a *Agent) register(ctx context.Context) error {
 			manifests[p.Key()] = p.advert()
 		}
 	}
-	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/register", a.cfg.BootstrapToken, map[string]any{
+	reg := map[string]any{
 		"name": a.cfg.Name, "family": a.cfg.Family, "version": a.cfg.Version, "scanners": versions, "plugins": plugins, "tools": manifests,
-	}, &out); err != nil {
+	}
+	if a.cfg.Organization != "" {
+		// Sent only when set: older API servers reject unknown fields.
+		reg["organization"] = a.cfg.Organization
+	}
+	if _, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/register", a.cfg.BootstrapToken, reg, &out); err != nil {
 		return err
 	}
 	a.token = out.Token

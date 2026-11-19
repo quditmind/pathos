@@ -611,7 +611,8 @@ func TestOnboardingOrganizationIsolation(t *testing.T) {
 	repoID := items(o.job(t, admin, id(job, "id")))[0]["repository_id"].(string)
 
 	otherOrg := uuid.Must(uuid.NewV7())
-	if _, err := appPool.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1, 'Other', $2)`, otherOrg, "other-"+otherOrg.String()[:8]); err != nil {
+	// Creating an organization is a platform action (owner role here).
+	if _, err := ownerPool.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1, 'Other', $2)`, otherOrg, "other-"+otherOrg.String()[:8]); err != nil {
 		t.Fatal(err)
 	}
 	intruder := &authz.Principal{UserID: uuid.New(), OrganizationID: otherOrg}
