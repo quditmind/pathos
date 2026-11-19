@@ -7,9 +7,10 @@ import { isAppRoute, splitHref } from "@/lib/utils";
 import type { Chart, Dashboard } from "@/api/types";
 import { FilterBar, type FilterDef } from "@/components/data/FilterBar";
 import { KpiCard } from "@/components/data/KpiCard";
-import { Alert, Card, PageHeader, Skeleton, Spinner } from "@/components/ui/primitives";
+import { Card, PageHeader, Skeleton, Spinner } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { useBusinessUnits, useRegions } from "@/features/users/api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const ChartBody = lazy(() => import("./Charts"));
 
@@ -113,7 +114,7 @@ export function DashboardPage() {
       </Card>
 
       {q.isError ? (
-        <Alert>Could not load the dashboard: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load the dashboard" />
       ) : !data ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 24 }, (_, i) => (

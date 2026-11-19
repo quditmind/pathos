@@ -14,11 +14,22 @@ export function LogoMark({ className = "size-7" }: { className?: string }) {
   );
 }
 
-export function Wordmark() {
+/**
+ * Brand wordmark: "Quditmind | PATHOS". Vendor in the muted tone, product in
+ * the existing PATHOS lettering; `mark={false}` renders the text only.
+ */
+export function Wordmark({ mark = true, size = "md" }: { mark?: boolean; size?: "md" | "lg" }) {
+  const lg = size === "lg";
   return (
     <span className="flex items-center gap-2">
-      <LogoMark />
-      <span className="text-[15px] font-semibold tracking-[0.12em]">PATHOS</span>
+      {mark && <LogoMark className={lg ? "size-12" : "size-7"} />}
+      <span className={lg ? "flex items-baseline gap-2 text-xl" : "flex items-baseline gap-1.5 text-[13px]"}>
+        <span className="font-medium text-muted-foreground">Quditmind</span>
+        <span className="text-border" aria-hidden>
+          |
+        </span>
+        <span className={lg ? "font-semibold tracking-[0.14em]" : "text-[14px] font-semibold tracking-[0.12em]"}>PATHOS</span>
+      </span>
     </span>
   );
 }

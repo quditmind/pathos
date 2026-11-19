@@ -2,9 +2,10 @@ import { useDeferredValue, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, CircleDashed, Clock, MinusCircle, Radar } from "lucide-react";
 import { api } from "@/api/client";
-import { Alert, Card, EmptyState, Input, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, Input, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { cn, formatDateTime } from "@/lib/utils";
 import { type CoverageResponse, type CoverageStatus, coverageLabel } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const statusMeta: Record<CoverageStatus, { label: string; icon: React.ReactNode; cls: string }> = {
   covered: { label: "Covered", icon: <CheckCircle2 className="size-3.5" />, cls: "text-success" },
@@ -54,7 +55,7 @@ export function CoveragePage() {
       )}
       <Card>
         {cov.isError ? (
-          <div className="p-4"><Alert>{cov.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={cov.error} /></div>
         ) : cov.isPending ? (
           <Skeleton className="m-4 h-40" />
         ) : !cov.data.items.length ? (

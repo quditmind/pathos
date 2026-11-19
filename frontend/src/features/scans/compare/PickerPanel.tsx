@@ -2,13 +2,14 @@ import { useEffect, useState } from "react";
 import { GitCompareArrows, Search, X } from "lucide-react";
 import type { ScanJob } from "@/api/types";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, Input, Label, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, Input, Label, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { JobStatusPill } from "@/components/data/Severity";
 import { useDebounced } from "@/lib/useDebounced";
 import { formatDateTime } from "@/lib/utils";
 import { useCatalog, useProfiles, useScans } from "../api";
 import { statusOptions } from "../shared";
 import { dateRange, MAX_COMPARE, MIN_COMPARE, type CompareSearch } from "./model";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Filters = Omit<CompareSearch, "ids">;
 
@@ -135,7 +136,7 @@ export function PickerPanel({
 
       <div className="max-h-[60vh] min-h-40 overflow-y-auto">
         {scans.error ? (
-          <div className="p-3"><Alert>Could not load executions: {scans.error.message}</Alert></div>
+          <div className="p-3"><ErrorPanel error={scans.error} title="Could not load executions" /></div>
         ) : scans.isPending ? (
           <div className="space-y-2 p-3">{Array.from({ length: 5 }, (_, i) => <Skeleton key={i} className="h-8" />)}</div>
         ) : rows.length === 0 ? (

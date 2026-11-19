@@ -1,6 +1,7 @@
 ---
 title: Importing repositories
 section: user-guide
+group: connect
 order: 5
 version: "1.0"
 updated: 2026-11-19

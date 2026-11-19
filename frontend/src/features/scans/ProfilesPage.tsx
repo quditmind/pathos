@@ -4,10 +4,11 @@ import { api } from "@/api/client";
 import type { ProfileSettings, ScanProfile, Severity } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useCatalog, useProfile, useProfiles, useScanMutation } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function ProfilesPage() {
   const { canOrgWide } = useSession();
@@ -103,7 +104,7 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
       )}>
       {!isNew && !profile.data ? <Skeleton className="h-60" /> : (
         <fieldset disabled={readOnly} className="space-y-4 text-[13px]">
-          {error && <Alert>{error.message}</Alert>}
+          {error && <ErrorPanel error={error} />}
           <div className="grid grid-cols-2 gap-3">
             <div><Label htmlFor="pf-name">Name</Label><Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} /></div>
             <div><Label htmlFor="pf-desc" hint="(optional)">Description</Label><Input id="pf-desc" value={desc} onChange={(e) => setDesc(e.target.value)} /></div>

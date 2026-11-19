@@ -1,6 +1,7 @@
 ---
 title: Troubleshooting and FAQ
 section: user-guide
+group: home
 order: 27
 version: "1.0"
 updated: 2026-11-20

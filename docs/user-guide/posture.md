@@ -1,6 +1,7 @@
 ---
 title: Posture
 section: user-guide
+group: threat-model, discover, report
 order: 15
 version: "1.0"
 updated: 2026-11-19

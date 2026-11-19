@@ -12,6 +12,7 @@ import {
   basisLabel, useClusters, useMappings, useRegistries, useRuntimeSummary, useWorkloads,
   type RegistryConnection, type RuntimeAlert, type RuntimeCluster, type SyncRun, type SyncStatus, type Workload, type WorkloadFilters,
 } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const textareaClass = "min-h-24 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-[color:var(--ring)]";
 const shortDigest = (d: string) => (d ? `${d.slice(0, 19)}…` : "");
@@ -87,7 +88,7 @@ function ClusterDialog({ open, onClose, cluster }: { open: boolean; onClose: () 
       description="Read-only inventory. The credentials are stored encrypted; the jobs service contacts the API server, never the PATHOS API server."
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={missing || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save"}</Button></>}>
       <div className="space-y-3 text-[13px]">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 md:grid-cols-2">
           <div><Label htmlFor="rc-name">Name</Label><Input id="rc-name" value={f.name} maxLength={120} onChange={(e) => set({ name: e.target.value })} placeholder="e.g. prod-eu-1" /></div>
           <div><Label htmlFor="rc-auth">Credentials</Label>
@@ -127,7 +128,7 @@ function RunsDialog({ path, title, onClose }: { path: string | null; title: stri
   const q = useQuery({ queryKey: ["runtime", "runs", path], queryFn: () => api<{ items: SyncRun[] }>(path!), enabled: !!path });
   return (
     <Dialog open={!!path} onOpenChange={(o) => !o && onClose()} size="lg" title={title} description="The last 30 synchronisations.">
-      {q.isError ? <Alert>{q.error.message}</Alert> : q.isPending ? <Skeleton className="h-24" /> : !q.data.items.length ? (
+      {q.isError ? <ErrorPanel error={q.error} /> : q.isPending ? <Skeleton className="h-24" /> : !q.data.items.length ? (
         <p className="text-[12.5px] text-muted-foreground">No synchronisation yet.</p>
       ) : (
         <Table>
@@ -168,7 +169,7 @@ function ClustersTab() {
         {manage && list.data!.items.length > 0 && <Button size="sm" className="ml-auto" onClick={() => setDialog({ cluster: null })}><Plus /> Add cluster</Button>}
       </div>
       {(sync.error ?? remove.error) && <div className="p-3"><Alert>{(sync.error ?? remove.error)!.message}</Alert></div>}
-      {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.items.length ? (
+      {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.items.length ? (
         <ConnectHelp canManage={manage} onAdd={() => setDialog({ cluster: null })} />
       ) : (
         <Table>
@@ -239,7 +240,7 @@ function RegistryDialog({ open, onClose, reg }: { open: boolean; onClose: () => 
       description="Lists tags and digests of the repositories you name (OCI distribution API, read-only) and reads the org.opencontainers.image.source and revision labels."
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!f.name.trim() || !f.base_url.trim() || !f.repositories.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save"}</Button></>}>
       <div className="space-y-3 text-[13px]">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 md:grid-cols-2">
           <div><Label htmlFor="rg-name">Name</Label><Input id="rg-name" value={f.name} maxLength={120} onChange={(e) => set({ name: e.target.value })} /></div>
           <div><Label htmlFor="rg-url">Registry URL</Label><Input id="rg-url" type="url" value={f.base_url} onChange={(e) => set({ base_url: e.target.value })} placeholder="https://ghcr.io" /></div>
@@ -269,7 +270,7 @@ function RegistryDialog({ open, onClose, reg }: { open: boolean; onClose: () => 
 function RegistryImages({ id }: { id: string }) {
   type Img = { registry: string; repository: string; tag: string; digest: string; source_url: string; revision: string; running: boolean };
   const q = useQuery({ queryKey: ["runtime", "registry-images", id], queryFn: () => api<{ items: Img[] }>(`/api/v1/runtime/registries/${id}/images`).then((r) => r.items) });
-  if (q.isError) return <Alert>{q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} />;
   if (q.isPending) return <Skeleton className="h-12" />;
   if (!q.data.length) return <p className="px-4 py-2 text-[12px] text-muted-foreground">No images listed yet.</p>;
   return (
@@ -305,7 +306,7 @@ function RegistriesTab() {
         {manage && <Button size="sm" className="ml-auto" onClick={() => setDialog({ reg: null })}><Plus /> Add registry</Button>}
       </div>
       {(sync.error ?? remove.error) && <div className="p-3"><Alert>{(sync.error ?? remove.error)!.message}</Alert></div>}
-      {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.items.length ? (
+      {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-20" /> : !list.data.items.length ? (
         <EmptyState icon={<Server />} title="No registry connected">
           Optional. Connect a registry to list which images and digests exist and to read their <code className="font-mono">org.opencontainers.image.source</code> and{" "}
           <code className="font-mono">revision</code> labels, which link a running image to the repository and commit it was built from.
@@ -385,7 +386,7 @@ function WorkloadDetail({ w }: { w: Workload }) {
           ))}
         </ul>
         <h4 className="mb-1 mt-2 font-semibold">Runtime alerts</h4>
-        {q.isPending ? <Skeleton className="h-6" /> : q.isError ? <Alert>{q.error.message}</Alert> : !q.data.alerts.length ? (
+        {q.isPending ? <Skeleton className="h-6" /> : q.isError ? <ErrorPanel error={q.error} /> : !q.data.alerts.length ? (
           <p className="text-muted-foreground">No open Falco, Tetragon or Tracee alert matched this workload.</p>
         ) : (
           <ul>{q.data.alerts.map((a) => <li key={a.finding_id}><Link to="/findings" search={{ finding: a.finding_id } as never} className="text-primary hover:underline">{a.title}</Link> <span className="text-muted-foreground">({a.severity}) {a.location}</span></li>)}</ul>
@@ -421,7 +422,7 @@ function WorkloadsTab() {
           <option value="">With or without findings</option><option value="true">With open findings</option>
         </Select>
       </div>
-      {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-32" /> : !list.data.items.length ? (
+      {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-32" /> : !list.data.items.length ? (
         <EmptyState icon={<Container />} title="No workloads">
           {Object.values(f).some(Boolean) ? "No workload matches the filters." : "The connected clusters have not been synchronised yet, or the role cannot list workloads. See the cluster's history."}
         </EmptyState>
@@ -518,7 +519,7 @@ function MappingsTab() {
           <Button disabled={!f.application_id || (!f.namespace.trim() && !f.label_key.trim()) || add.isPending} onClick={() => add.mutate()}><Plus /> Add mapping</Button>
         </div>
       )}
-      {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-12" /> : !list.data.length ? (
+      {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-12" /> : !list.data.length ? (
         <p className="px-4 pb-4 text-[12px] text-muted-foreground">No mapping yet. Unmapped workloads still link to findings through their images.</p>
       ) : (
         <Table>
@@ -559,7 +560,7 @@ export function RuntimePage() {
   return (
     <>
       <PageHeader title="Runtime" description="What runs in your Kubernetes clusters, which images and digests, how it is exposed, and which findings it carries. Read-only; synchronised by the jobs service." />
-      {summary.isError && <div className="mb-3"><Alert>{summary.error.message}</Alert></div>}
+      {summary.isError && <div className="mb-3"><ErrorPanel error={summary.error} /></div>}
       {s && s.clusters > 0 && (
         <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {[

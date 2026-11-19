@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Input, Label, Select, Spinner } from "@/components/ui/primitives";
+import { Input, Label, Select, Spinner } from "@/components/ui/primitives";
 import { useDebounced } from "@/lib/useDebounced";
 import { cn, formatDateTime } from "@/lib/utils";
 import { describeCron, previewSchedule, saveSchedule, useScheduleMutation } from "./api";
 import { buildRequest, emptyForm, formErrors, presetCron, timeZones, weekdayNames, weekdayShort, type IntervalUnit, type ScheduleForm, type ScheduleMode } from "./form";
 import { PlanEditor } from "./PlanEditor";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const modes: [ScheduleMode, string][] = [
   ["once", "One-time"],
@@ -76,7 +77,7 @@ export function ScheduleDialog({ initial, onClose }: { initial: ScheduleForm | n
         </Button>
       </>}>
       <div className="space-y-3 text-[13px]">
-        {save.isError && <Alert>{save.error.message}</Alert>}
+        {save.isError && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <div>
             <Label htmlFor="s-name">Name</Label>

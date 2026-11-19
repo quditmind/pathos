@@ -2,12 +2,17 @@
 # Edge proxy image: Caddy serving the built frontend and proxying /api and /auth.
 # Build context: repository root.
 FROM node:26.13.1-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS web
-WORKDIR /web
+# The repository layout is mirrored under /build (frontend/ next to docs/,
+# CHANGELOG.md and NOTICE): the web app bundles them by relative path, and
+# Vite's glob does not resolve files at the file-system root.
+WORKDIR /build/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm npm ci --no-audit --no-fund
 COPY frontend/ ./
-# Help Center content (docs/user-guide, docs/api-reference) is bundled at build time.
-COPY docs/ /docs/
+# Help Center content (docs/user-guide, docs/api-reference, docs/troubleshooting) is bundled at build time.
+COPY docs/ /build/docs/
+# Shell: "What's new" (CHANGELOG.md) and third-party notices (NOTICE) in About.
+COPY CHANGELOG.md NOTICE /build/
 RUN npm run build
 
 # Caddy rebuilt from the v2.11.9 release with golang.org/x/net v0.62.0
@@ -18,4 +23,4 @@ RUN xcaddy build v2.11.9 --replace golang.org/x/net=golang.org/x/net@v0.62.0 --o
 FROM caddy:2.11.9-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0
 COPY --from=caddy /out/caddy /usr/bin/caddy
 COPY deploy/caddy/Caddyfile /etc/caddy/Caddyfile
-COPY --from=web /web/dist /srv
+COPY --from=web /build/frontend/dist /srv

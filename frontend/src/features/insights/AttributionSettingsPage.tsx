@@ -8,6 +8,7 @@ import { directoryUsers } from "@/features/assets/api";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { useIdentities, useIdentityMutations, useInsightSettings, useSetAttribution } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Administration → Developer attribution: the privacy switch and git author links. */
 export function AttributionSettingsPage() {
@@ -24,7 +25,7 @@ export function AttributionSettingsPage() {
       {!allowed ? (
         <Alert tone="warning">You need settings.manage, users.manage or insights.people at organization scope.</Alert>
       ) : settings.isError ? (
-        <Alert>Could not load the settings: {settings.error.message}</Alert>
+        <ErrorPanel error={settings.error} title="Could not load the settings" />
       ) : !s ? (
         <Skeleton className="h-40" />
       ) : (
@@ -41,7 +42,7 @@ export function AttributionSettingsPage() {
               <li>Results are visible only to users with the organization-wide insights.people permission.</li>
               <li>Turning it off erases every stored author name, attribution and identity link immediately.</li>
             </ul>
-            {setAttribution.error && <Alert>{setAttribution.error.message}</Alert>}
+            {setAttribution.error && <ErrorPanel error={setAttribution.error} />}
             {s.can_manage ? (
               s.attribution_enabled ? (
                 <Button variant="danger-outline" onClick={() => setConfirmOff(true)}>Turn off and erase attribution data</Button>
@@ -90,7 +91,7 @@ function IdentityLinks() {
         automatically.
       </p>
       {q.isError ? (
-        <Alert>Could not load identities: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load identities" />
       ) : !q.data ? (
         <Skeleton className="h-24" />
       ) : (

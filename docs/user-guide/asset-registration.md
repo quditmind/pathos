@@ -1,6 +1,7 @@
 ---
 title: Asset registration
 section: user-guide
+group: inventory
 order: 6
 version: "1.0"
 updated: 2026-11-19

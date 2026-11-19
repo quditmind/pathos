@@ -13,6 +13,7 @@ import { FormField, Textarea } from "@/features/repos/metadata/fields";
 import { fieldLabels, sections, slugify } from "@/features/repos/metadata/model";
 import { cn } from "@/lib/utils";
 import { catalog, useAssetSettings, useCreateClassification, useUpdateAssetSettings, useUpdateClassification, type ClassificationInput } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const kindLabels: Record<ClassificationKind, { title: string; help: string }> = {
   criticality: { title: "Criticality", help: "Fixed four levels. Labels, descriptions and colours are editable; colours also feed the suggested asset colours." },
@@ -165,7 +166,7 @@ export function AssetSettingsPage() {
           </div>
           {update.isError && (
             <div className="mt-3">
-              <Alert>{update.error.message}</Alert>
+              <ErrorPanel error={update.error} />
             </div>
           )}
           {saved && !dirty && (
@@ -252,7 +253,7 @@ function CatalogEditor({ kind, entries, manage }: { kind: ClassificationKind; en
       </div>
       {update.isError && (
         <div className="mb-2">
-          <Alert>{update.error.message}</Alert>
+          <ErrorPanel error={update.error} />
         </div>
       )}
       {!entries.length ? (
@@ -366,7 +367,7 @@ function ClassificationDialog({ kind, entry, nextOrder, onClose }: { kind: Class
       }
     >
       <div className="space-y-3">
-        {m.isError && !fields && <Alert>{m.error.message}</Alert>}
+        {m.isError && !fields && <ErrorPanel error={m.error} />}
         <FormField label="Label" required error={fields?.label}>
           <Input
             autoFocus

@@ -1,6 +1,7 @@
 ---
 title: IDE integration (VS Code)
 section: user-guide
+group: connect
 order: 24
 version: "1.0"
 updated: 2026-11-19

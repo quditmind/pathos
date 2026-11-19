@@ -4,11 +4,12 @@ import { Wrench } from "lucide-react";
 import type { Kpi } from "@/api/types";
 import { KpiCard } from "@/components/data/KpiCard";
 import { SeverityBadge } from "@/components/data/Severity";
-import { Alert, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { qs, useOverview } from "./api";
 import { useFilterNav } from "./QueuePage";
 import { fmtHours, remediationLabel, ReviewFilterBar, ReviewKeyLink } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const OverviewCharts = lazy(() => import("./OverviewCharts"));
 
@@ -36,7 +37,7 @@ export function OverviewPage() {
           show={["date", "repository", "application", "scanner", "severity", "reviewer", "status", "disposition"]}
         />
       </Card>
-      {ov.isError && <Alert>Could not load the overview: {ov.error.message}</Alert>}
+      {ov.isError && <ErrorPanel error={ov.error} title="Could not load the overview" />}
       {ov.isPending ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">{Array.from({ length: 12 }, (_, i) => <Skeleton key={i} className="h-24" />)}</div>
       ) : d ? (

@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { BarChart3 } from "lucide-react";
-import { Alert, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { type Benchmark, type BenchmarkMetric, type Dimension, dimensionLabel, useBenchmark } from "./api";
 import { daysOptions } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function value(b: Benchmark, m: BenchmarkMetric): number | null {
   const v = b[m.key];
@@ -49,7 +50,7 @@ export function BenchmarkPage() {
       </div>
       <Card>
         {q.isError ? (
-          <div className="p-4"><Alert>{q.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={q.error} /></div>
         ) : q.isPending ? (
           <Skeleton className="m-4 h-40" />
         ) : items.length < 1 ? (

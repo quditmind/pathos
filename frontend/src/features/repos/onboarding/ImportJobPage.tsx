@@ -10,6 +10,7 @@ import { formatDateTime } from "@/lib/utils";
 import { importPollInterval, isActive, useImportAction, useImportJob } from "./api";
 import { ImportStatusBadge } from "./ImportStatusBadge";
 import { sourceLabel } from "./ImportsPage";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function ImportJobPage() {
   const { id } = useParams({ strict: false }) as { id: string };
@@ -139,7 +140,7 @@ export function ImportJobView({ id }: { id: string }) {
           </div>
         </div>
       </Card>
-      {act.isError && <Alert>{act.error.message}</Alert>}
+      {act.isError && <ErrorPanel error={act.error} />}
 
       <Card>
         <ul className="divide-y divide-border" aria-label="Import items">

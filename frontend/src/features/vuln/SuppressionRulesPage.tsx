@@ -10,6 +10,7 @@ import { RepoFilter } from "@/features/review/shared";
 import { useApplications } from "@/features/repos/api";
 import { formatDateTime } from "@/lib/utils";
 import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface SuppressionRule {
   id: string;
@@ -184,10 +185,10 @@ export function SuppressionRulesPage() {
           {["pending", "active", "expired", "revoked", "rejected", "withdrawn"].map((s) => <option key={s} value={s}>{s}</option>)}
         </Select>
       </div>
-      {act.error && <div className="mb-3"><Alert>{act.error.message}</Alert></div>}
+      {act.error && <div className="mb-3"><ErrorPanel error={act.error} /></div>}
       <Card>
         {list.isError ? (
-          <div className="p-4"><Alert>{list.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={list.error} /></div>
         ) : list.isPending ? (
           <Skeleton className="m-4 h-32" />
         ) : !list.data.length ? (

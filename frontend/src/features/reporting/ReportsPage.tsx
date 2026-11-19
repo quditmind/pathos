@@ -5,12 +5,13 @@ import { Download, FileSpreadsheet, Pencil, Play, Plus, Printer, Trash2 } from "
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { RepoFilter } from "@/features/review/shared";
 import { useUsers } from "@/features/users/api";
 import { formatDateTime } from "@/lib/utils";
 import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 interface Definition { filters: Record<string, string>; group_by: string; columns: string[] }
 interface Report {
@@ -97,7 +98,7 @@ function ReportDialog({ open, onClose, report, meta }: { open: boolean; onClose:
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving…" : "Save report"}</Button></>}>
       <div className="grid gap-4 text-[13px] lg:grid-cols-[minmax(0,340px)_minmax(0,1fr)]">
         <div className="space-y-3">
-          {save.error && <Alert>{save.error.message}</Alert>}
+          {save.error && <ErrorPanel error={save.error} />}
           <div><Label htmlFor="rp-name">Name</Label><Input id="rp-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} placeholder="e.g. Open critical dependencies" /></div>
           <div><Label htmlFor="rp-desc">Description</Label><Input id="rp-desc" value={description} maxLength={2000} onChange={(e) => setDescription(e.target.value)} /></div>
           <fieldset className="space-y-2 rounded-md border border-border p-3">
@@ -153,7 +154,7 @@ function ReportDialog({ open, onClose, report, meta }: { open: boolean; onClose:
         </div>
         <div className="min-w-0">
           <h3 className="mb-1 text-[12px] font-semibold">Preview</h3>
-          {preview.isError ? <Alert>{preview.error.message}</Alert> : preview.isPending ? <Skeleton className="h-48" /> : <ResultTable r={preview.data} />}
+          {preview.isError ? <ErrorPanel error={preview.error} /> : preview.isPending ? <Skeleton className="h-48" /> : <ResultTable r={preview.data} />}
         </div>
       </div>
     </Dialog>
@@ -178,10 +179,10 @@ export function ReportsPage() {
   return (
     <>
       <PageHeader title="Reports" description="Saved, shareable and scheduled views of findings: filters, grouping and columns of your choice, as a table, CSV or print." actions={<Button onClick={() => setDialog({ report: null })}><Plus /> New report</Button>} />
-      {remove.error && <div className="mb-3"><Alert>{remove.error.message}</Alert></div>}
+      {remove.error && <div className="mb-3"><ErrorPanel error={remove.error} /></div>}
       <div className="grid gap-4 xl:grid-cols-[340px_minmax(0,1fr)]">
         <Card className="print:hidden">
-          {list.isError ? <div className="p-3"><Alert>{list.error.message}</Alert></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.items.length ? (
+          {list.isError ? <div className="p-3"><ErrorPanel error={list.error} /></div> : list.isPending ? <Skeleton className="m-3 h-24" /> : !list.data.items.length ? (
             <EmptyState icon={<FileSpreadsheet />} title="No reports yet">Create one, for example “Open critical dependencies by application”.</EmptyState>
           ) : (
             <ul className="divide-y divide-border">
@@ -217,7 +218,7 @@ export function ReportsPage() {
                 </div>
               </div>
               {current?.description && <p className="text-[12.5px] text-muted-foreground">{current.description}</p>}
-              {run.isError ? <Alert>{run.error.message}</Alert> : run.isPending ? <Skeleton className="h-48" /> : <ResultTable r={run.data} />}
+              {run.isError ? <ErrorPanel error={run.error} /> : run.isPending ? <Skeleton className="h-48" /> : <ResultTable r={run.data} />}
             </div>
           )}
         </Card>

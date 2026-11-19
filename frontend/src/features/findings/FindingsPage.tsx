@@ -32,6 +32,7 @@ import { reviewApi } from "@/features/review/api";
 import { dispositionLabel, statusLabel as reviewStatusLabel } from "@/features/review/shared";
 import type { Disposition, ReviewStatus } from "@/features/review/types";
 import { KevBadge, MaliciousBadge, LifecycleBadge, lifecycleLabel, pct, RiskBadge, RiskPanel } from "@/features/vuln/intel";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Human Eye outcome of a finding (link to the assessment workspace). */
 function HumanReviewCell({ f }: { f: Finding }) {
@@ -213,7 +214,7 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
   const d = f.data;
   return (
     <Dialog side open={!!id} onOpenChange={(o) => !o && onClose()} title={d?.title ?? "Finding"} description={d ? `${d.repository_name}${d.repository_key ? ` · ${d.repository_key}` : ""}` : undefined}>
-      {f.isError ? <Alert>{f.error.message}</Alert> : !d ? <Skeleton className="h-40" /> : (
+      {f.isError ? <ErrorPanel error={f.error} /> : !d ? <Skeleton className="h-40" /> : (
         <div className="space-y-5 text-[13px]">
           <div className="flex flex-wrap items-center gap-2">
             <SeverityBadge value={d.severity} />
@@ -327,7 +328,7 @@ function AISection({ id }: { id: string }) {
           </Button>
         )}
       </div>
-      {request.isError && <Alert>{request.error.message}</Alert>}
+      {request.isError && <ErrorPanel error={request.error} />}
       {reviews.data?.items.length ? (
         <div className="space-y-2">{reviews.data.items.slice(0, 3).map((r) => <ReviewCard key={r.id} review={r} />)}</div>
       ) : (
@@ -378,8 +379,8 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       <Button size="sm" variant="ghost" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: null }, done)}>Unassign</Button>
       </>}
       <Button size="sm" variant="ghost" className="ml-auto" aria-label="Clear selection" onClick={onDone}><X /></Button>
-      {bulk.isError && <div className="w-full"><Alert>{bulk.error.message}</Alert></div>}
-      {sendToReview.isError && <div className="w-full"><Alert>{sendToReview.error.message}</Alert></div>}
+      {bulk.isError && <div className="w-full"><ErrorPanel error={bulk.error} /></div>}
+      {sendToReview.isError && <div className="w-full"><ErrorPanel error={sendToReview.error} /></div>}
     </Card>
   );
 }

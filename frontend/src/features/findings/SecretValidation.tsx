@@ -7,6 +7,7 @@ import { Alert, Badge } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { useVulnMutation } from "@/features/vuln/api";
 import { formatDateTime } from "@/lib/utils";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const secretStatusLabel: Record<SecretValidationStatus, string> = {
   active: "Active",
@@ -110,7 +111,7 @@ export function SecretValidationPanel({ f }: { f: Pick<Finding, "id" | "category
           Live validation is off unless an administrator enables providers in Administration → Secret validation.
         </p>
       )}
-      {recheck.isError && <Alert>{recheck.error.message}</Alert>}
+      {recheck.isError && <ErrorPanel error={recheck.error} />}
       {recheck.isSuccess && <p className="text-[12px] text-muted-foreground">Scan queued: the verdict is updated when the scan finishes.</p>}
     </div>
   );

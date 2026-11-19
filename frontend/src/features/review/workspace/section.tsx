@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, Card } from "@/components/ui/primitives";
+import { Card } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { reviewApi, useReviewMutation } from "../api";
 import type { Assessment, ReviewDetail } from "../types";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type SectionKey = "answers" | "fields" | "reproduction" | "risk" | "remediation" | "dataflow_notes";
 
@@ -71,7 +72,7 @@ export function SaveBar({ s, editable, d }: { s: ReturnType<typeof useSections>;
       <span className="text-[12px] text-muted-foreground" aria-live="polite">
         {s.dirty ? "Unsaved changes" : s.saved ? "Saved" : d.assessment.updated_by && d.assessment.updated_at ? `Last saved ${formatDateTime(d.assessment.updated_at)} by ${d.assessment.updated_by}` : ""}
       </span>
-      {s.error && <div className="w-full"><Alert>{s.error.message}</Alert></div>}
+      {s.error && <div className="w-full"><ErrorPanel error={s.error} /></div>}
     </div>
   );
 }

@@ -20,10 +20,11 @@ for (const [path, heading] of scanningPages) {
   });
 }
 
-test("Scanning and Configurations navigation sections", async ({ page }) => {
+test("Assess and Configurations navigation sections", async ({ page }) => {
   await page.goto("/scans/overview");
   const nav = page.getByRole("navigation", { name: "Main" });
-  for (const label of ["Scan Overview", "Scans", "Scan Schedules", "Scan Comparison", "Scan targets", "Import Results"]) {
+  // 3.0 sidebar labels (prompt §5); Scan targets moved to "2 · Inventory".
+  for (const label of ["Scan overview", "Scans", "Scan schedules", "Scan comparison", "Scan targets", "Import results"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
   await expect(nav.getByText("Configurations", { exact: true })).toBeVisible();

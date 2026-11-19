@@ -6,6 +6,7 @@ import { formatDateTime } from "@/lib/utils";
 import { useSnapshots, useSyncRepository, useSyncRuns } from "./api";
 import { ProviderIcon, SyncStatusBadge } from "./badges";
 import { SourceActions } from "./RepoActions";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 function Item({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -54,7 +55,7 @@ export function SourcePanel({ r }: { r: Repository }) {
           </span>
         )}
       </div>
-      {sync.isError && <Alert>{sync.error.message}</Alert>}
+      {sync.isError && <ErrorPanel error={sync.error} />}
       {r.sync_error && r.sync_status !== "ok" && <Alert tone="warning">Last sync: {r.sync_error}</Alert>}
 
       <dl className="grid gap-x-4 gap-y-2.5 sm:grid-cols-2">
@@ -98,7 +99,7 @@ export function SourcePanel({ r }: { r: Repository }) {
           {snaps.isPending ? (
             <Skeleton className="h-16" />
           ) : snaps.isError ? (
-            <Alert>{snaps.error.message}</Alert>
+            <ErrorPanel error={snaps.error} />
           ) : !snaps.data.length ? (
             <p className="text-[12px] text-muted-foreground">No snapshots.</p>
           ) : (
@@ -135,7 +136,7 @@ export function SourcePanel({ r }: { r: Repository }) {
         {runs.isPending ? (
           <Skeleton className="h-16" />
         ) : runs.isError ? (
-          <Alert>{runs.error.message}</Alert>
+          <ErrorPanel error={runs.error} />
         ) : !runs.data.length ? (
           <p className="text-[12px] text-muted-foreground">No sync runs yet.</p>
         ) : (

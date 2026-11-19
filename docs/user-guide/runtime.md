@@ -1,6 +1,7 @@
 ---
 title: Runtime context (Kubernetes and registries)
 section: user-guide
+group: inventory, discover
 order: 19
 version: "2.0"
 updated: 2026-11-19

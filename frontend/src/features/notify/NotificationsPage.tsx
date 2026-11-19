@@ -11,6 +11,7 @@ import { useBusinessUnits, useRegions, useRoles, useUsers } from "@/features/use
 import { cn, formatDateTime } from "@/lib/utils";
 import { useDeliveries, useDelivery, useEvents, useNotifyMutation, useRules, useSmtp, useTemplates } from "./api";
 import { WebhooksTab } from "./WebhooksTab";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const tabs = [
   { key: "rules", label: "Rules" },
@@ -143,7 +144,7 @@ function RuleDialog({ draft, onClose }: { draft: RuleDraft | null; onClose: () =
     <Dialog open={!!draft} onOpenChange={(o) => !o && onClose()} title={d.id ? `Edit rule${d.system ? " (built-in)" : ""}` : "New notification rule"}
       footer={<><Button variant="secondary" onClick={onClose}>Cancel</Button><Button disabled={!d.name.trim() || save.isPending} onClick={() => save.mutate(undefined, { onSuccess: onClose })}>Save rule</Button></>}>
       <div className="space-y-3">
-        {save.isError && <Alert>{save.error.message}</Alert>}
+        {save.isError && <ErrorPanel error={save.error} />}
         <div><Label htmlFor="r-name">Name</Label><Input id="r-name" value={d.name} onChange={(e) => setD({ ...d, name: e.target.value })} /></div>
         <div>
           <Label htmlFor="r-ev">Event</Label>
@@ -233,7 +234,7 @@ function SmtpTab({ onTest }: { onTest: () => void }) {
   return (
     <div className="grid gap-4 lg:grid-cols-[2fr_1fr]">
       <Card className="space-y-3 p-4">
-        {save.isError && <Alert>{save.error.message}</Alert>}
+        {save.isError && <ErrorPanel error={save.error} />}
         {save.isSuccess && <Alert tone="success">Saved.</Alert>}
         <label className="flex items-center gap-2 text-[13px] font-medium"><input type="checkbox" checked={d.enabled} onChange={(e) => setD({ ...d, enabled: e.target.checked })} /> Send email notifications</label>
         <div className="grid grid-cols-[1fr_110px] gap-3">
@@ -265,7 +266,7 @@ function SmtpTab({ onTest }: { onTest: () => void }) {
       <Card className="space-y-2 p-4">
         <h2 className="text-[13px] font-semibold">Send a test email</h2>
         <p className="text-[12px] text-muted-foreground">Queued like any notification and delivered by the jobs service, so it tests the real path. Leave empty to send to yourself.</p>
-        {test.isError && <Alert>{test.error.message}</Alert>}
+        {test.isError && <ErrorPanel error={test.error} />}
         {test.isSuccess && <Alert tone="success">Queued for {test.data.to}. Watch its status in the delivery history.</Alert>}
         <Input aria-label="Test recipient" placeholder="you@example.com" value={to} onChange={(e) => setTo(e.target.value)} />
         <div className="flex gap-2">
@@ -377,7 +378,7 @@ function HistoryTab() {
           ))}
         </div>
       )}
-      {retry.isError && <div className="mb-3"><Alert>{retry.error.message}</Alert></div>}
+      {retry.isError && <div className="mb-3"><ErrorPanel error={retry.error} /></div>}
       <Card>
         <DataTable tableId="notify-history" exportName="pathos-notification-deliveries" columns={columns} rows={list.data?.items ?? []} rowKey={(d) => d.id}
           isPending={list.isPending} error={list.error} onRowClick={(d) => setOpen(d.id)}

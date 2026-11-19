@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button";
 import { ColorPicker } from "@/components/ui/color-picker";
 import { ConfirmDialog } from "@/components/ui/confirm";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { TagChip } from "@/components/data/TagChip";
 import { useCreateTag, useDeleteTag, useUpdateTag } from "@/features/assets/api";
 import { useSession } from "@/features/auth/session";
 import { useRepoMutation, useTagCategories } from "@/features/repos/api";
 import { FormField } from "@/features/repos/metadata/fields";
 import { tagSwatches } from "@/features/repos/metadata/TagPicker";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function TagsPage() {
   const { canOrgWide } = useSession();
@@ -37,7 +38,7 @@ export function TagsPage() {
         description="Tag categories classify repositories. Mandatory categories must be set on every import and edit."
         actions={manage && <Button onClick={() => setCreating(true)}><Plus /> New category</Button>}
       />
-      {error && <div className="mb-3"><Alert>{error.message}</Alert></div>}
+      {error && <div className="mb-3"><ErrorPanel error={error} /></div>}
       {cats.isPending ? (
         <Skeleton className="h-32" />
       ) : !cats.data?.length ? (
@@ -162,7 +163,7 @@ function TagDialog({ category, tag, onClose }: { category: TagCategory; tag: Tag
       }
     >
       <div className="space-y-3">
-        {m.isError && !fields && <Alert>{m.error.message}</Alert>}
+        {m.isError && !fields && <ErrorPanel error={m.error} />}
         <FormField label="Name" required error={fields?.name}>
           <Input autoFocus maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
         </FormField>
@@ -190,7 +191,7 @@ function CreateCategory({ open, onOpenChange }: { open: boolean; onOpenChange: (
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())} title="New tag category"
       footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button type="submit" form="cat-form" disabled={!f.name.trim() || create.isPending}>Create</Button></>}>
       <form id="cat-form" className="space-y-3" onSubmit={(e) => { e.preventDefault(); create.mutate({ ...f, name: f.name.trim() }, { onSuccess: close }); }}>
-        {create.isError && <Alert>{create.error.message}</Alert>}
+        {create.isError && <ErrorPanel error={create.error} />}
         <div><Label htmlFor="cat-name">Name</Label><Input id="cat-name" autoFocus maxLength={100} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Team" /></div>
         <div><Label htmlFor="cat-desc" hint="(optional)">Description</Label><Input id="cat-desc" value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} /></div>
         <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[var(--primary)]" checked={f.is_mandatory} onChange={(e) => setF({ ...f, is_mandatory: e.target.checked })} /> Mandatory on every repository</label>

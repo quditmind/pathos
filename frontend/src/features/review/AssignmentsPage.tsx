@@ -2,12 +2,13 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Inbox, UserPlus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Alert, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { cn } from "@/lib/utils";
 import { useWorkload } from "./api";
 import { BulkDialog, ReviewsTable, useFilterNav } from "./QueuePage";
 import { fmtHours, ReviewFilterBar } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** Assignments: analyst workload and (re)assignment of open reviews. */
 export function AssignmentsPage() {
@@ -27,7 +28,7 @@ export function AssignmentsPage() {
           <h2 className="text-[13px] font-semibold">Workload by analyst</h2>
         </div>
         {wl.isError ? (
-          <div className="p-4"><Alert>{wl.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={wl.error} /></div>
         ) : wl.isPending ? (
           <Skeleton className="m-4 h-24" />
         ) : rows.length === 0 ? (

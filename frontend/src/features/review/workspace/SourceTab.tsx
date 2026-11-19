@@ -8,6 +8,7 @@ import { useSource, useSourceCommits } from "../api";
 import { diffLines, hunks } from "../lib/diff";
 import { findReferences, findSymbols, highlightLines, type Token } from "../lib/highlight";
 import type { ReviewDetail } from "../types";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const tokenClass: Record<Token["kind"], string> = {
   kw: "text-[var(--code-keyword,#7c3aed)] font-medium",
@@ -109,7 +110,7 @@ export function SourceTab({ d, path, line }: { d: ReviewDetail; path?: string; l
           </p>
         )}
         {src.isError ? (
-          <div className="p-4"><Alert>{src.error.message}</Alert></div>
+          <div className="p-4"><ErrorPanel error={src.error} /></div>
         ) : src.isPending ? (
           <Skeleton className="m-3 h-96" />
         ) : s && !s.available ? (
@@ -257,7 +258,7 @@ export function SourceTab({ d, path, line }: { d: ReviewDetail; path?: string; l
 
 function CompareView({ base, other, pending, error }: { base: string[] | null; other?: { available: boolean; lines: string[]; unavailable_message?: string }; pending: boolean; error: Error | null }) {
   const result = useMemo(() => (base && other?.available ? diffLines(base, other.lines) : null), [base, other]);
-  if (error) return <div className="p-3"><Alert>{error.message}</Alert></div>;
+  if (error) return <div className="p-3"><ErrorPanel error={error} /></div>;
   if (pending) return <Skeleton className="m-3 h-40" />;
   if (!other?.available) return <p className="p-3 text-[12px] text-muted-foreground">The other version is unavailable: {other?.unavailable_message}</p>;
   if (!base) return <p className="p-3 text-[12px] text-muted-foreground">The scanned version is unavailable.</p>;

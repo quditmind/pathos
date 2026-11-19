@@ -5,6 +5,7 @@ import { Alert, Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td
 import { useSession } from "@/features/auth/session";
 import { Tabs } from "@/features/scans/shared";
 import { formatHours, useDevelopers, useInsightSettings, useTeams, useTrend } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const TrendChart = lazy(() => import("./TrendChart"));
 
@@ -46,7 +47,7 @@ export function DeveloperInsightsPage() {
       {!allowed ? (
         <Alert tone="warning">You need the organization-wide insights.people permission to see developer attribution.</Alert>
       ) : settings.isError ? (
-        <Alert>Could not load the settings: {settings.error.message}</Alert>
+        <ErrorPanel error={settings.error} title="Could not load the settings" />
       ) : !settings.data ? (
         <Skeleton className="h-40" />
       ) : !settings.data.attribution_enabled ? (
@@ -77,7 +78,7 @@ export function DeveloperInsightsPage() {
 
 function DevelopersTab({ days }: { days: number }) {
   const q = useDevelopers(days);
-  if (q.isError) return <Alert>Could not load developers: {q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} title="Could not load developers" />;
   if (!q.data) return <Skeleton className="h-40" />;
   if (!q.data.length) {
     return (
@@ -122,7 +123,7 @@ function DevelopersTab({ days }: { days: number }) {
 
 function TeamsTab({ days }: { days: number }) {
   const q = useTeams(days);
-  if (q.isError) return <Alert>Could not load teams: {q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} title="Could not load teams" />;
   if (!q.data) return <Skeleton className="h-40" />;
   if (!q.data.length) return <EmptyState icon={<UserRoundSearch />} title="No attributed findings yet" />;
   return (
@@ -176,7 +177,7 @@ function TrendTab({ days }: { days: number }) {
         </Select>
       </label>
       {q.isError ? (
-        <Alert>Could not load the trend: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load the trend" />
       ) : !q.data ? (
         <Skeleton className="h-[240px]" />
       ) : (

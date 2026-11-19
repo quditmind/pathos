@@ -1,6 +1,7 @@
 ---
 title: Live secret validation
 section: user-guide
+group: validate
 order: 20
 version: "2.0"
 updated: 2026-11-19

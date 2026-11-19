@@ -12,6 +12,7 @@ import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { materialCategories } from "@/features/insights/api";
 import { categoryLabel } from "@/lib/findingCategories";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface PolicyConditions {
   min_severity?: string;
@@ -174,7 +175,7 @@ function PolicyDialog({ open, onClose, policy }: { open: boolean; onClose: () =>
       }
     >
       <div className="space-y-4 text-[13px]">
-        {save.error && <Alert>{save.error.message}</Alert>}
+        {save.error && <ErrorPanel error={save.error} />}
         <div className="grid gap-3 md:grid-cols-2">
           <div><Label htmlFor="pol-name">Name</Label><Input id="pol-name" value={name} maxLength={200} onChange={(e) => setName(e.target.value)} placeholder="e.g. No exploited vulnerabilities in production" /></div>
           <div><Label htmlFor="pol-desc">Description</Label><Input id="pol-desc" value={description} maxLength={2000} onChange={(e) => setDescription(e.target.value)} /></div>
@@ -263,7 +264,7 @@ function Violations({ policy }: { policy: SecurityPolicy }) {
         <h3 className="text-[13px] font-semibold">{resolved ? "Resolved" : "Open"} violations of {policy.name}</h3>
         <Button size="sm" variant="ghost" onClick={() => setResolved(!resolved)}>{resolved ? "Show open" : "Show resolved"}</Button>
       </div>
-      {q.isError ? <Alert>{q.error.message}</Alert> : q.isPending ? <Skeleton className="h-16" /> : !q.data.length ? <p className="text-[12px] text-muted-foreground">None.</p> : (
+      {q.isError ? <ErrorPanel error={q.error} /> : q.isPending ? <Skeleton className="h-16" /> : !q.data.length ? <p className="text-[12px] text-muted-foreground">None.</p> : (
         <Table>
           <thead><tr><Th>Severity</Th><Th>Finding</Th><Th>Repository</Th><Th>{resolved ? "Resolved" : "Since"}</Th></tr></thead>
           <tbody>
@@ -310,7 +311,7 @@ export function SecurityPolicies() {
         {manage && <Button className="ml-auto" onClick={() => setDialog({ policy: null })}><Plus /> New policy</Button>}
       </div>
       {(toggleEnabled.error ?? remove.error) && <div className="mb-2"><Alert>{(toggleEnabled.error ?? remove.error)!.message}</Alert></div>}
-      {q.isError ? <Alert>{q.error.message}</Alert> : q.isPending ? <Skeleton className="h-24" /> : !q.data.length ? (
+      {q.isError ? <ErrorPanel error={q.error} /> : q.isPending ? <Skeleton className="h-24" /> : !q.data.length ? (
         <EmptyState icon={<ShieldAlert />} title="No security policies">For example: block any new actively exploited vulnerability in internet-facing production repositories.</EmptyState>
       ) : (
         <Table>

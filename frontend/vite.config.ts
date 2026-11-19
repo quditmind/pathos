@@ -2,9 +2,14 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import pkg from "./package.json" with { type: "json" };
+
+// The bundle version (frontend/package.json) is compared at run time with the
+// backend version from GET /api/v1/meta to offer a reload after an upgrade.
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  define: { __PATHOS_BUNDLE_VERSION__: JSON.stringify(pkg.version) },
   resolve: { alias: { "@": "/src" } },
   build: { sourcemap: false, target: "es2022" },
   server: {

@@ -25,6 +25,7 @@ import { EndpointVerificationSection } from "./EndpointVerification";
 import { SecurityPanel } from "./SecurityPanel";
 import { SourcePanel } from "./SourcePanel";
 import { RepositoryMaterialChanges } from "@/features/insights/MaterialChanges";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Tab = "details" | "source" | "security" | "dependencies" | "material";
 
@@ -313,7 +314,7 @@ function DetailsPanel({ r, onDeleted }: { r: Repository; onDeleted: () => void }
 
   return (
     <div className="space-y-6">
-      {save.isError && !(save.error instanceof ApiError && save.error.fields) && <Alert>{save.error.message}</Alert>}
+      {save.isError && !(save.error instanceof ApiError && save.error.fields) && <ErrorPanel error={save.error} />}
       {Object.keys(errors).length > 0 && <Alert>Please correct the highlighted fields ({[...errorSections].filter(Boolean).length || 1} section(s)).</Alert>}
       {!canManage && <Alert tone="warning">As an owner you can edit descriptive metadata; business unit, department and country need repository management permission.</Alert>}
       {sections.map((s) => (

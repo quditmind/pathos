@@ -1,9 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import type { Schedule, ScheduleRun } from "@/api/types";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { describeSchedule, useScheduleRuns } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const runTone: Record<ScheduleRun["status"], "success" | "warning" | "danger" | "primary" | "neutral"> = {
   completed: "success",
@@ -26,7 +27,7 @@ export function RunHistory({ schedule, onClose }: { schedule: Schedule | null; o
           <Link to="/scans" search={{ schedule_id: schedule.id } as never} className="inline-block text-primary hover:underline">
             View all executions of this schedule →
           </Link>
-          {runs.isError ? <Alert>{runs.error.message}</Alert> : runs.isPending ? <Skeleton className="h-40" /> : !runs.data.length ? (
+          {runs.isError ? <ErrorPanel error={runs.error} /> : runs.isPending ? <Skeleton className="h-40" /> : !runs.data.length ? (
             <EmptyState title="No runs yet">Runs appear here when the schedule fires or is run manually.</EmptyState>
           ) : (
             <Card>

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, Badge, Card, PageHeader, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import type { MFAStatus } from "@/features/users/api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /** The signed-in user's own sign-in security: two-factor status and recovery codes. */
 export function SecuritySettingsPage() {
@@ -20,7 +21,7 @@ export function SecuritySettingsPage() {
     <>
       <PageHeader title="Sign-in security" description="Your two-factor authentication and recovery codes. Sign-in itself is handled by the PATHOS identity provider (Keycloak)." />
       <Card className="max-w-2xl p-4 text-[13px]">
-        {st.isError ? <Alert>{st.error.message}</Alert> : st.isPending ? <Skeleton className="h-24" /> : (
+        {st.isError ? <ErrorPanel error={st.error} /> : st.isPending ? <Skeleton className="h-24" /> : (
           <div className="space-y-4">
             <div className="flex items-center gap-2">
               <ShieldCheck className="size-4 text-muted-foreground" aria-hidden />
@@ -47,7 +48,7 @@ export function SecuritySettingsPage() {
                   <KeyRound /> {m!.recovery_codes ? "Generate new recovery codes" : "Set up recovery codes"}
                 </Button>
               )}
-              {codes.error && <Alert>{codes.error.message}</Alert>}
+              {codes.error && <ErrorPanel error={codes.error} />}
             </div>
           </div>
         )}

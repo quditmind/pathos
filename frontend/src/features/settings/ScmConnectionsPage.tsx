@@ -15,6 +15,7 @@ import { AuthFields, authFieldBody } from "./AuthFields";
 import { ConnectProviderDialog } from "./ConnectProviderDialog";
 import { CopyButton, OAuthAppsSection } from "./OAuthAppsSection";
 import { authTypeLabels, providerLabel, startOAuth, useProviders, useUpdateConnection } from "./scmApi";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export interface ScmSearch {
   tab?: "oauth";
@@ -384,7 +385,7 @@ function RotateDialog({ c, providers, onClose, onDone }: { c: ScmConnection; pro
     >
       {update.isError && !errs && (
         <div className="mb-3">
-          <Alert>{update.error.message}</Alert>
+          <ErrorPanel error={update.error} />
         </div>
       )}
       {!providers ? (

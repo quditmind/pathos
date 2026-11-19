@@ -9,6 +9,7 @@ import { useSession } from "@/features/auth/session";
 import { cn, formatDateTime } from "@/lib/utils";
 import type { UnmanagedResponse } from "./api";
 import { When } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const issueOrder = ["no_application", "no_owner", "never_scanned", "stale_scan", "scanning_disabled", "sync_failing", "archived_in_scm"];
 
@@ -33,7 +34,7 @@ export function UnmanagedPage() {
         title="Unmanaged assets"
         description="Repositories PATHOS manages with governance gaps, and shadow repositories: active in a connected SCM but never imported. The SCM inventory refreshes daily."
       />
-      {q.isError && <Alert>{q.error.message}</Alert>}
+      {q.isError && <ErrorPanel error={q.error} />}
       {q.isPending && <Skeleton className="h-48" />}
       {q.data && (
         <div className="space-y-4">
@@ -105,7 +106,7 @@ export function UnmanagedPage() {
                   {[30, 90, 365].map((d) => <option key={d} value={d}>Pushed in the last {d} days</option>)}
                 </Select>
               </div>
-              {refresh.error && <div className="p-3"><Alert>{refresh.error.message}</Alert></div>}
+              {refresh.error && <div className="p-3"><ErrorPanel error={refresh.error} /></div>}
               <div className="flex flex-wrap gap-2 border-b border-border px-4 py-2 text-[12px]">
                 {(q.data.inventory ?? []).map((c) => (
                   <span key={c.scm_connection_id} className="inline-flex items-center gap-1.5 rounded border border-border px-2 py-1">

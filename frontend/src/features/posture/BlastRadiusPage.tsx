@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Crosshair, Search } from "lucide-react";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Card, EmptyState, Input, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { KevBadge, RiskBadge } from "@/features/vuln/intel";
 import { type BlastRadius, relationLabel } from "./api";
 import { GraphLink } from "./shared";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type BlastSearch = { cve?: string; package?: string; version?: string };
 export const validateBlastSearch = (s: Record<string, unknown>): BlastSearch => {
@@ -60,7 +61,7 @@ export function BlastRadiusPage() {
       {!active ? (
         <Card><EmptyState icon={<Crosshair />} title="Search for a vulnerability or a package" /></Card>
       ) : q.isError ? (
-        <Alert>{q.error.message}</Alert>
+        <ErrorPanel error={q.error} />
       ) : q.isPending ? (
         <Skeleton className="h-40" />
       ) : (

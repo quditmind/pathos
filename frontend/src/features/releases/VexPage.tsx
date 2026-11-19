@@ -11,6 +11,7 @@ import { useRepositories } from "@/features/repos/api";
 import { formatDateTime } from "@/lib/utils";
 import { ImportSummary } from "./ApplicationVersionsPage";
 import { readVexFile, useReleasesMutation, useSuggestions, useVexImports, vexStatusLabel, type ImportResult, type VexSuggestion } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 /**
  * VEX review: statements imported from OpenVEX or CycloneDX documents are
@@ -34,7 +35,7 @@ export function VexPage() {
             <option value="pending">Pending review</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="">All</option>
           </Select>
         </div>
-        {sug.isError ? <Alert>{sug.error.message}</Alert> : sug.isPending ? <Skeleton className="h-24" /> : !sug.data.length ? (
+        {sug.isError ? <ErrorPanel error={sug.error} /> : sug.isPending ? <Skeleton className="h-24" /> : !sug.data.length ? (
           <EmptyState icon={<FileCheck2 />} title={status === "pending" ? "Nothing to review" : "No suggestions"}>Import a VEX document for a repository or an application version.</EmptyState>
         ) : (
           <div className="space-y-2">{sug.data.map((s) => <SuggestionCard key={s.id} s={s} />)}</div>
@@ -42,7 +43,7 @@ export function VexPage() {
       </Card>
       <Card>
         <h2 className="mb-3 text-[14px] font-semibold">Imports</h2>
-        {imports.isError ? <Alert>{imports.error.message}</Alert> : imports.isPending ? <Skeleton className="h-16" /> : !imports.data.length ? (
+        {imports.isError ? <ErrorPanel error={imports.error} /> : imports.isPending ? <Skeleton className="h-16" /> : !imports.data.length ? (
           <p className="text-[13px] text-muted-foreground">No VEX documents imported yet.</p>
         ) : (
           <Table>
@@ -99,7 +100,7 @@ function SuggestionCard({ s }: { s: VexSuggestion }) {
       ) : (
         <p className="mt-2 text-[11.5px] text-warning">{s.cannot_decide_reason}</p>
       ))}
-      {decide.isError && <div className="mt-2"><Alert>{decide.error.message}</Alert></div>}
+      {decide.isError && <div className="mt-2"><ErrorPanel error={decide.error} /></div>}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 ---
 title: Administration
 section: user-guide
+group: administration
 order: 26
 version: "1.0"
 updated: 2026-11-20

@@ -4,6 +4,7 @@ import { GitCompareArrows } from "lucide-react";
 import { Alert, Badge, Card, EmptyState, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { formatDateTime } from "@/lib/utils";
 import { materialCategories, useRepoMaterialChanges, useScanMaterialChanges, type MaterialChange, type MaterialRun } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const levelTone = { high: "danger", medium: "warning", low: "neutral" } as const;
 
@@ -104,7 +105,7 @@ const disclaimer =
 export function ScanMaterialChanges({ jobId }: { jobId: string }) {
   const q = useScanMaterialChanges(jobId);
   const [cat, setCat] = useState("");
-  if (q.isError) return <Alert>Could not load material changes: {q.error.message}</Alert>;
+  if (q.isError) return <ErrorPanel error={q.error} title="Could not load material changes" />;
   if (!q.data) return <Skeleton className="h-32" />;
   const items = q.data.items.filter((c) => !cat || c.category === cat);
   return (
@@ -167,7 +168,7 @@ export function RepositoryMaterialChanges({ repoId }: { repoId: string }) {
         </label>
       </div>
       {q.isError ? (
-        <Alert>Could not load material changes: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load material changes" />
       ) : !q.data ? (
         <Skeleton className="h-32" />
       ) : (

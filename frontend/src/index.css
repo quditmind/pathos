@@ -133,3 +133,14 @@ body {
   main { overflow: visible !important; }
   .break-inside-avoid { break-inside: avoid; }
 }
+
+/* WCAG 2.2: honour reduced motion everywhere (skeleton pulse, spinners,
+   sidebar width, drawer and menu transitions). */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

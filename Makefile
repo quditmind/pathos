@@ -1,5 +1,5 @@
 # Developer shortcuts. Every target runs its toolchain in a container.
-.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix docs-errors
+.PHONY: help install up down logs test test-go test-web test-integration test-rules lint smoke build rbac-matrix docs-errors e2e
 
 # Build metadata of locally built images (docs/OPERATIONS.md, "Build metadata").
 PATHOS_COMMIT ?= $(shell git rev-parse HEAD 2>/dev/null || echo unknown)

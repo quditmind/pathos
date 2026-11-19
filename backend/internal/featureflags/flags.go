@@ -43,7 +43,7 @@ var Known = []Flag{
 	{"reverse_engineering", "Reverse engineering workspace (static tier)", "M10"},
 	{"remediation_workspace", "Remediation workspace and gates", "M8"},
 	{"continuous_monitoring", "Continuous monitoring feed and architecture drift", "M9"},
-	{"lifecycle_overview", "Application security lifecycle overview", "M1"},
+	{"lifecycle_overview", "Application security lifecycle overview", "M3"},
 }
 
 // IsKnown reports whether name is a known flag.

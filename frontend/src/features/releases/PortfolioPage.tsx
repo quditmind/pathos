@@ -4,8 +4,9 @@ import { PackageSearch, Search } from "lucide-react";
 import { api } from "@/api/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Label, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import type { Portfolio } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 type Query = { name: string; version: string; purl: string; cve: string };
 
@@ -44,7 +45,7 @@ export function PortfolioPage() {
       </Card>
       {!q ? (
         <Card><EmptyState icon={<PackageSearch />} title="Search the portfolio">Enter a component name, a package URL or a CVE.</EmptyState></Card>
-      ) : res.isError ? <Alert>{res.error.message}</Alert> : res.isPending ? <Skeleton className="h-32" /> : (
+      ) : res.isError ? <ErrorPanel error={res.error} /> : res.isPending ? <Skeleton className="h-32" /> : (
         <div className="space-y-4">
           <Card>
             <h2 className="mb-2 text-[14px] font-semibold">Application versions ({res.data.versions.length})</h2>

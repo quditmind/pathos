@@ -18,6 +18,7 @@ import { OverviewTab } from "./OverviewTab";
 import { RemediationTab } from "./RemediationTab";
 import { RiskTab } from "./RiskTab";
 import { SourceTab } from "./SourceTab";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 export const workspaceTabs = [
   ["overview", "Overview"],
@@ -64,7 +65,7 @@ export function Workspace({ id }: { id: string }) {
     return (
       <>
         <BackLink />
-        <Alert>Could not load the review: {q.error.message}</Alert>
+        <ErrorPanel error={q.error} title="Could not load the review" />
       </>
     );
   }
@@ -122,7 +123,7 @@ export function Workspace({ id }: { id: string }) {
           </div>
         }
       />
-      {start.error && <div className="mb-3"><Alert>{start.error.message}</Alert></div>}
+      {start.error && <div className="mb-3"><ErrorPanel error={start.error} /></div>}
 
       <dl className="mb-4 grid grid-cols-2 gap-x-4 gap-y-2 rounded-lg border border-border bg-surface p-3 text-[12.5px] sm:grid-cols-4 lg:grid-cols-8">
         <Fact label="Review status"><StatusBadge status={d.status} /></Fact>

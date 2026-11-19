@@ -4,9 +4,10 @@ import { api } from "@/api/client";
 import type { McpServer } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
-import { Alert, Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
+import { Badge, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { useAIMutation, useMcpServers } from "./api";
+import { ErrorPanel } from "@/components/ui/error-panel";
 
 const statusTone = { approved: "success", pending: "warning", rejected: "danger", disabled: "neutral" } as const;
 
@@ -24,7 +25,7 @@ export function McpRegistryPage() {
     <>
       <PageHeader title="MCP registry" description="MCP servers approved for use with PATHOS data, and which of their tools are allowed. New requests start pending and with every tool disallowed."
         actions={<Button onClick={() => setRequesting(true)}><Plus /> {manage ? "Register server" : "Request server"}</Button>} />
-      {error && <div className="mb-3"><Alert>{error.message}</Alert></div>}
+      {error && <div className="mb-3"><ErrorPanel error={error} /></div>}
       {servers.isPending ? <Skeleton className="h-32" /> : !servers.data?.length ? <Card><EmptyState icon={<Server />} title="No MCP servers" /></Card> : (
         <div className="space-y-3">
           {servers.data.map((s) => (
@@ -82,7 +83,7 @@ function RequestDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o
     <Dialog open={open} onOpenChange={(o) => (o ? onOpenChange(true) : close())} title="Register MCP server" description="The server starts pending; an administrator approves it and allows individual tools."
       footer={<><Button variant="secondary" onClick={close}>Cancel</Button><Button type="submit" form="mcp-form" disabled={create.isPending}>Submit</Button></>}>
       <form id="mcp-form" onSubmit={submit} className="space-y-3 text-[13px]">
-        {create.isError && <Alert>{create.error.message}</Alert>}
+        {create.isError && <ErrorPanel error={create.error} />}
         <div className="grid grid-cols-2 gap-3">
           <div><Label htmlFor="m-name">Name</Label><Input id="m-name" required value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></div>
           <div><Label htmlFor="m-tr">Transport</Label><Select id="m-tr" className="w-full" value={f.transport} onChange={(e) => setF({ ...f, transport: e.target.value })}>

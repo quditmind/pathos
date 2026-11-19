@@ -1,6 +1,7 @@
 ---
 title: Application versions, VEX and component policies
 section: user-guide
+group: remediate
 order: 19
 version: "1.1"
 updated: 2026-11-19
