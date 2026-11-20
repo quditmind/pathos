@@ -90,6 +90,7 @@ import { validateConnectorsSearch } from "@/features/connectors/model";
 import { IntegrationsRoute, ScmConnectionsRoute } from "@/features/connectors/redirects";
 import { validateCodeGraphSearch } from "@/features/codegraph/search";
 import { validateThreatModelSearch, validateThreatModelsSearch } from "@/features/threatmodels/search";
+import { validateReaAnalysisSearch, validateReaArtifactsSearch } from "@/features/rea/search";
 
 function Authenticated() {
   const me = useMe();
@@ -243,6 +244,13 @@ const ThreatModelsPage = lazyRouteComponent(() => import("@/features/threatmodel
 const ThreatModelPage = lazyRouteComponent(() => import("@/features/threatmodels/ThreatModelPage"), "ThreatModelPage");
 const threatModelsRoute = createRoute({ getParentRoute: () => appRoute, path: "/threat-models", component: ThreatModelsPage, validateSearch: validateThreatModelsSearch });
 const threatModelRoute = createRoute({ getParentRoute: () => appRoute, path: "/threat-models/$modelId", component: ThreatModelPage, validateSearch: validateThreatModelSearch });
+// Reverse engineering, static tier (M10, flag `reverse_engineering`).
+const ReaArtifactsPage = lazyRouteComponent(() => import("@/features/rea/ArtifactsPage"), "ArtifactsPage");
+const ReaAnalysisPage = lazyRouteComponent(() => import("@/features/rea/AnalysisPage"), "AnalysisPage");
+const ReaSettingsPage = lazyRouteComponent(() => import("@/features/rea/SettingsPage"), "ReaSettingsPage");
+const reaRoute = createRoute({ getParentRoute: () => appRoute, path: "/reverse-engineering", component: ReaArtifactsPage, validateSearch: validateReaArtifactsSearch });
+const reaAnalysisRoute = createRoute({ getParentRoute: () => appRoute, path: "/reverse-engineering/analyses/$analysisId", component: ReaAnalysisPage, validateSearch: validateReaAnalysisSearch });
+const reaSettingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/reverse-engineering", component: ReaSettingsPage });
 const customRulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/custom-rules", component: CustomRulesPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
@@ -293,7 +301,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, remediationRoute, remediationItemRoute, gatesRoute, gateExceptionsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, threatModelsRoute, threatModelRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiEvidenceRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, remediationRoute, remediationItemRoute, gatesRoute, gateExceptionsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, threatModelsRoute, threatModelRoute, reaRoute, reaAnalysisRoute, reaSettingsRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiEvidenceRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

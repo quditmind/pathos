@@ -279,7 +279,16 @@ Data ships with the build and in the offline bundle; no online fetch is needed (
 
 **Consequences.** A new family image with a JVM (Ghidra) and .NET (ILSpy) runtime is large; the image size must be measured and documented. Analyses are slower than in-process runs because inputs are copied into the runner.
 
-**Status.** Proposed, needs owner approval.
+**Implementation (M10).** Option 1 as proposed: `workers/rea` is a standalone image (not an extension of the core image), its agent on `worker-api` only, every parser in `worker-rea-sandbox` through `RunUntrusted`; analyses have their own lease lane. Default input as proposed, refined: the per-artifact authorisation (permission `rea.authorize`, reason, audited) is allowed unless an administrator chooses the policy "own builds only"; provenance is an SLSA attestation verified with `cosign verify-blob-attestation`. Ghidra, Jadx and ILSpy are optional build arguments; Joern and angr are not included (size). Measurements and details: [PATHOS_REVERSE_ENGINEERING.md](PATHOS_REVERSE_ENGINEERING.md).
+
+**Status.** Accepted (approved as built, 2026-11-20, by the owner's delegate) and implemented in M10 behind the `reverse_engineering` flag. Implementation notes, with the decisions taken at approval:
+
+- **Approved as built**: option 1, a standalone `workers/rea` family image (`pathos-worker-rea`, Compose profile `rea`), every parser in `worker-rea-sandbox` through `RunUntrusted`, the agent on `worker-api` only, analyses in their own lease lane. The release workflow builds, signs and pushes `pathos-worker-rea` like the other families.
+- **`rea.authorize` stays a separate permission** from `rea.run`: starting an analysis and vouching for an artifact that is not from the organization's own builds are different decisions (Owner and Security Admin hold both; Security Analyst and AppSec Engineer hold `rea.run` only).
+- **The 230-minute limit is accepted**: the per-organization time limit is 5–230 minutes (the lease and reconcile windows of the lane are sized for it).
+- **Ghidra stays opt-in**: Ghidra, Jadx and ILSpy decompilers are build arguments (`WITH_GHIDRA` …); the published image ships radare2, binwalk and the Go readers.
+- **Weak cryptography requires a source import**: the Go standard library links weak hashes and ciphers (DES, RC4, MD5, SHA-1) into every network program for TLS and legacy formats, so `rea/go-weak-crypto` is reported only when the source snapshot imports the package itself (a matched, sensitive diff item with the import's file and line); linked through the standard library alone it yields no diff item and no finding draft (`TestWeakCryptoLinkedByTheStandardLibraryIsNotReported`).
+- **Rule 3 exception**: Configurations › Reverse engineering tools names the analysis tools (it is a configuration page, like Scan profiles, Scanners & workers, Scan coverage and Import results; decision C5). The Binary analysis workspace names the kind of analysis only.
 
 ---
 

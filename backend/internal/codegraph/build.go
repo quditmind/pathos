@@ -198,7 +198,7 @@ func (s *Service) rediscover(ctx context.Context, orgID, jobID uuid.UUID) (*Buil
 	}
 	var latestAt *time.Time
 	var latestCommit, latestStatus string
-	_ = s.DB.QueryRow(ctx, `SELECT created_at, commit_sha, status FROM codegraph_snapshots WHERE repository_id = $1
+	_ = s.DB.QueryRow(ctx, `SELECT created_at, commit_sha, status FROM codegraph_snapshots WHERE repository_id = $1 AND kind = 'source'
 		ORDER BY created_at DESC LIMIT 1`, repoID).Scan(&latestAt, &latestCommit, &latestStatus)
 	if latestStatus == "queued" || latestStatus == "building" {
 		return nil, "a build is queued or running", nil

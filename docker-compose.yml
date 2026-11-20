@@ -597,6 +597,81 @@ services:
     ulimits:
       nofile: { soft: 4096, hard: 4096 }
 
+  #   COMPOSE_PROFILES=rea  ->  reverse engineering, static tier (feature flag
+  #   reverse_engineering; docs/aspm/PATHOS_REVERSE_ENGINEERING.md):
+  #   pathos-rea with radare2, binwalk and ILSpy (Ghidra and Jadx with the
+  #   build arguments WITH_GHIDRA / WITH_JADX). The worker leases only
+  #   reverse-engineering jobs (their own queue lane) and is on the internal
+  #   worker-api network only: no scan network, no egress proxy, no route to
+  #   the internet. It never analyses an artifact itself: parsing an
+  #   untrusted binary can trigger a parser bug, so pathos-rea runs in
+  #   worker-rea-sandbox, handed over through the rea_sandbox volume. The
+  #   artifact is never executed.
+  worker-rea:
+    <<: *worker
+    profiles: [rea]
+    build: &rea-build
+      context: .
+      dockerfile: workers/rea/Dockerfile
+      args:
+        VERSION: "${PATHOS_VERSION:-dev}"
+        COMMIT: "${PATHOS_COMMIT:-unknown}"
+        BUILD_DATE: "${PATHOS_BUILD_DATE:-unknown}"
+        WITH_GHIDRA: "${PATHOS_REA_WITH_GHIDRA:-false}"
+        WITH_JADX: "${PATHOS_REA_WITH_JADX:-false}"
+        WITH_ILSPY: "${PATHOS_REA_WITH_ILSPY:-true}"
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-rea:${PATHOS_VERSION:-dev}
+    environment:
+      PATHOS_API_URL: http://api:8081
+      PATHOS_WORKER_BOOTSTRAP_TOKEN: ${PATHOS_WORKER_BOOTSTRAP_TOKEN}
+      PATHOS_WORKER_ORGANIZATION: ${PATHOS_WORKER_ORGANIZATION:-}
+      PATHOS_OFFLINE: ${PATHOS_OFFLINE:-false}
+      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+      PATHOS_WORKER_FAMILY: rea
+      PATHOS_SANDBOX_DIR: /sandbox
+    volumes:
+      - rea_sandbox:/sandbox
+    # worker-api only: it leases jobs and uploads results, nothing else.
+    networks: [worker-api]
+    mem_limit: ${PATHOS_REA_WORKER_MEMORY:-1g}
+    depends_on:
+      api: { condition: service_healthy }
+
+  # The sandbox runner for worker-rea: same image, `pathos-worker
+  # sandbox-runner`. It runs pathos-rea (radare2, binwalk, ILSpy, the
+  # optional Ghidra and Jadx) on the artifact the worker hands it, with no
+  # network at all (network_mode: none: only a loopback interface, no DNS),
+  # its own UID (10002; group 10001 to share the job directories), PID and
+  # IPC namespaces, no worker token or proxy settings, a read-only root
+  # filesystem, no capabilities and its own cgroup limits
+  # (PATHOS_REA_MEMORY must be at least the memory limit set in
+  # Configurations > Reverse engineering tools). It shares only the
+  # rea_sandbox volume with worker-rea. It must be the container's PID 1
+  # (no `init: true`). Run one worker-rea replica per runner.
+  worker-rea-sandbox:
+    profiles: [rea]
+    build: *rea-build
+    image: ${PATHOS_IMAGE_PREFIX:-}pathos-worker-rea:${PATHOS_VERSION:-dev}
+    command: ["sandbox-runner"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    user: "10002:10001"
+    network_mode: none
+    ipc: none
+    environment:
+      PATHOS_SANDBOX_DIR: /sandbox
+      PATHOS_LOG_LEVEL: ${PATHOS_LOG_LEVEL:-info}
+    volumes:
+      - rea_sandbox:/sandbox
+    mem_limit: ${PATHOS_REA_MEMORY:-4g}
+    memswap_limit: ${PATHOS_REA_MEMORY:-4g}
+    cpus: ${PATHOS_REA_CPUS:-2}
+    pids_limit: ${PATHOS_REA_PIDS:-256}
+    ulimits:
+      nofile: { soft: 4096, hard: 4096 }
+
   mailpit:
     profiles: [dev]
     image: axllent/mailpit:v1.33.1@sha256:aef2aacc11f075ec0fb6874275ee4a421e688e11a96ebb296134d1735c7761ce
@@ -721,6 +796,13 @@ volumes:
       type: tmpfs
       device: tmpfs
       o: size=${PATHOS_FUZZ_SANDBOX_TMPFS:-4g},uid=10001,gid=10001,mode=0750
+  # Shared by worker-rea (owner) and worker-rea-sandbox: a size-limited
+  # tmpfs (the artifact, the extracted firmware, the analysis output).
+  rea_sandbox:
+    driver_opts:
+      type: tmpfs
+      device: tmpfs
+      o: size=${PATHOS_REA_SANDBOX_TMPFS:-4g},uid=10001,gid=10001,mode=0750
   import_work:
   clamav_db:
   ollama_models:

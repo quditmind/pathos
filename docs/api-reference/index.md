@@ -25,6 +25,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Runtime context](runtime.md#clusters) | Kubernetes clusters and container registries (read-only inventories), workloads, application mappings, where a finding runs |
 | [CodeGraph](codegraph.md#views) | Code graph snapshots per application, repository and commit: builds, 15 views with server-side aggregation and lazy expansion, node inspector, path tracing, diffs, JSON export, rediscovery settings (feature flag `codegraph`) |
 | [Threat models](threat-models.md) | Threat models of an application: STRIDE generation on CodeGraph and attack paths, threats with evidence, method, severity, confidence and mitigation, ATT&CK / CAPEC / CWE / D3FEND mappings, versions and approval, Threat Dragon and PATHOS import and export (feature flag `threat_models`) |
+| [Reverse engineering](reverse-engineering.md) | Static reverse engineering of build artifacts from your own builds: input policy and audited authorisations, analyses in the sandboxed worker-rea lane, functions, strings, imports, sections, the binary call graph, the source ↔ binary diff and finding proposals (feature flag `reverse_engineering`) |
 | [Ticketing and reports](integrations-reporting.md#ticketing-jira-servicenow) | Jira and ServiceNow, executive overview, custom reports |
 
 **Findings and scanning**

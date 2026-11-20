@@ -39,6 +39,7 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 - `ghcr.io/quditmind/pathos-worker-sast` (opt-in [family worker image](#family-worker-images), built on the signed `pathos-worker-core` of the same release)
 - `ghcr.io/quditmind/pathos-worker-dast` (opt-in family worker image for web application and API targets, without sqlmap and Nikto)
 - `ghcr.io/quditmind/pathos-worker-mobile`, `pathos-worker-binary`, `pathos-worker-ai` and `pathos-worker-fuzz` (opt-in family worker images, built the same way)
+- `ghcr.io/quditmind/pathos-worker-graph` (opt-in CodeGraph discovery family image, built the same way) and `ghcr.io/quditmind/pathos-worker-rea` (opt-in [reverse-engineering worker](#reverse-engineering-worker), a standalone image; signed and pushed like the others)
 
 Use them instead of building locally:
 
@@ -246,6 +247,7 @@ Family images add groups of tools, defined by [tool manifests](SCANNER_CATALOG.m
 | AI | `ai` | `worker-ai` | ModelScan (repositories, model artifacts), garak and promptfoo (LLM endpoint targets) |
 | Fuzzing | `fuzz` | `worker-fuzz` | Go native fuzzing, Atheris (repositories; builds and runs repository code) |
 | CodeGraph discovery | `graph` | `worker-graph` | pathos-graph (CodeGraph builds only; never in scan profiles). Feature flag `codegraph`; see [CodeGraph](user-guide/codegraph.md) |
+| Reverse engineering | `rea` | `worker-rea`, `worker-rea-sandbox` | pathos-rea with radare2, binwalk and ILSpy (Ghidra and Jadx with build arguments): static analysis of build artifacts, only in the sandbox runner. Feature flag `reverse_engineering`; see [Reverse engineering](user-guide/reverse-engineering.md) |
 
 To enable one:
 
@@ -279,6 +281,14 @@ docker run --rm -v pathos_scanner_cache:/cache --entrypoint /opt/pathos/binary/b
 ```
 
 Air-gapped installation: run the same command on a connected machine with a scratch volume, export the database (`cve-db-export /cache/plugins/cve-bin-tool /cache/cve.db`), copy the file into the air-gapped installation's cache volume and import it there (`cve-db-import /cache/plugins/cve-bin-tool /cache/cve.db`, `--network none`). The volume name depends on the Compose project (`docker volume ls | grep scanner_cache`).
+
+### Reverse engineering worker
+
+`worker-rea` (Compose profile `rea`) leases only reverse-engineering executions (trigger `rea`, their own lane) and nothing else leases them. It is a standalone image (Debian trixie, not based on worker-core): the `pathos-worker` agent built from this repository, `pathos-rea`, radare2 6.2.6, binwalk 3.1.0 and ilspycmd 11.2 (a native build, no .NET runtime). It is on the `worker-api` network only. Every analysis runs in `worker-rea-sandbox` (network none, UID 10002, read-only, no capabilities) through the `rea_sandbox` tmpfs volume; limits `PATHOS_REA_MEMORY` (default 4g; at least the memory set in Configurations → Reverse engineering tools), `PATHOS_REA_CPUS` (2), `PATHOS_REA_PIDS` (256), `PATHOS_REA_SANDBOX_TMPFS` (4g), and `PATHOS_REA_WORKER_MEMORY` (1g) for the agent. Run one `worker-rea` replica per runner.
+
+Build arguments: `PATHOS_REA_WITH_GHIDRA=true` adds Ghidra 12.2 headless with a pinned Eclipse Temurin 25 JDK (decompiled pseudo-C and extra call edges; the GhidraServer wrapper is removed and Guava is replaced by 33.7.2 so the image passes the Trivy gate); `PATHOS_REA_WITH_JADX=true` adds Jadx 1.5.7 (it fails the Trivy gate: its single jar bundles Guava 31.1 with a fixable CVE, so it is off by default); `PATHOS_REA_WITH_ILSPY=false` removes ILSpy.
+
+Measured (M10): default image 253 MB, Trivy 0 fixable HIGH/CRITICAL (unfixed Debian findings only); with Ghidra 1.43 GB, 0 fixable; with Ghidra and Jadx 1.62 GB, fails the gate. A Go service binary of about 10 MB (7,300 functions) is analysed with radare2 and binwalk in about 50 s; with Ghidra in about 180 s (4 GB, 2 CPUs). `workers/rea/test/rea-e2e.sh <image>` tests the image: a C ELF and a Go binary built in the test, a firmware blob made from test data, and an isolation probe (`pathos-rea selftest`) through the real runner.
 
 ### Fuzzing worker
 

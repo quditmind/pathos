@@ -100,6 +100,31 @@ jobs:
       - name: govulncheck
         run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
 
+  # Reverse-engineering analyser (workers/rea/analyse: its own Go module).
+  rea-engine:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: workers/rea/analyse
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: workers/rea/analyse/go.mod
+      - name: gofmt
+        run: |
+          unformatted="$(gofmt -l $(git ls-files '*.go'))"
+          if [ -n "$unformatted" ]; then echo "Run gofmt on:"; echo "$unformatted"; exit 1; fi
+      - run: go vet . && go test -race -count=1 ./...
+      - name: gosec
+        run: go run "github.com/securego/gosec/v2/cmd/gosec@${GOSEC_VERSION}" ./...
+      - name: govulncheck
+        run: go run "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}" ./...
+
   integration:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -231,9 +256,11 @@ jobs:
         # image scan covers them.
         env:
           PATHOS_COMMIT: ${{ github.sha }}
-        run: docker compose --profile sast --profile iac --profile sca --profile dast --profile mobile --profile binary --profile ai --profile fuzz --profile graph build
+        run: docker compose --profile sast --profile iac --profile sca --profile dast --profile mobile --profile binary --profile ai --profile fuzz --profile graph --profile rea build
       - name: Fuzz sandbox isolation (malicious harness in the built image)
         run: workers/fuzz/test/sandbox-e2e.sh pathos-worker-fuzz:dev
+      - name: Reverse-engineering sandbox (own C, Go and firmware builds analysed in the built image; isolation probe)
+        run: workers/rea/test/rea-e2e.sh pathos-worker-rea:dev
       - name: Start the stack
         run: docker compose up -d --wait --wait-timeout 600
       - name: Smoke test

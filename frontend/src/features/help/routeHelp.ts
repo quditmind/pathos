@@ -58,6 +58,10 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/posture/attack-paths": g("posture", "attack-paths"),
   "/posture/blast-radius": g("posture", "blast-radius"),
 
+  // Reverse engineering
+  "/reverse-engineering": g("reverse-engineering", "binary-analysis-workspace"),
+  "/reverse-engineering/analyses/$analysisId": g("reverse-engineering", "the-analysis-tabs"),
+
   // Assess
   "/scans/overview": g("scanning"),
   "/scans": g("scanning"),
@@ -107,6 +111,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/admin/scanners": g("security-scanning"),
   "/configurations/scan-coverage": g("scan-coverage"),
   "/configurations/custom-rules": g("security-scanning"),
+  "/configurations/reverse-engineering": g("reverse-engineering", "configuration"),
   "/admin/assets": g("asset-registration"),
   "/admin/risk-intelligence": g("vulnerability-intelligence"),
   "/admin/secret-validation": g("secret-validation"),

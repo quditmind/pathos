@@ -163,6 +163,10 @@ var paramTables = map[string]string{
 	// PATHOS 3.0 M8: remediation workspace and security gates.
 	"items": "remediation_items", "views": "remediation_views", "gates": "security_gates", "decisions": "gate_decisions",
 	"gate-exceptions": "gate_exceptions",
+	// Reverse engineering (M10): artifacts are scan targets; function ids
+	// are binary graph nodes.
+	"artifacts": "scan_targets", "authorizations": "rea_authorizations", "analyses": "rea_analyses",
+	"drafts": "rea_finding_drafts", "functions": "codegraph_nodes",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -580,6 +584,12 @@ func TestTenantIsolation(t *testing.T) {
 			VALUES ($1, $2, $3, $4, $5, 'high', 'manual', now() + interval '30 days')`, uuid.Must(uuid.NewV7()), orgA.ID, "ISO-A-"+uuid.NewString()[:8], f2, aRepo); err != nil {
 			t.Logf("seed A human review: %v", err)
 		}
+		// A scan target in A, so creates with a target in the body (M10:
+		// POST /api/v1/rea/analyses) are probed with B's target too.
+		if _, err := iso.Exec(actx, `INSERT INTO scan_targets (id, organization_id, repository_id, kind, name, reference) VALUES ($1, $2, $3, 'image', 'iso-a-image', 'registry.iso-a.invalid/app:1')`,
+			uuid.Must(uuid.NewV7()), orgA.ID, aRepo); err != nil {
+			t.Logf("seed A scan target: %v", err)
+		}
 		// A security policy in A (security gates reference one).
 		if _, err := iso.Exec(actx, `INSERT INTO security_policies (id, organization_id, name, conditions, actions) VALUES ($1, $2, 'iso-a-policy', '{"min_severity":"critical"}', '{"notify":true}')`,
 			uuid.Must(uuid.NewV7()), orgA.ID); err != nil {
@@ -790,8 +800,12 @@ func TestTenantIsolation(t *testing.T) {
 // explanation, threat suggestions) on top: 167 of 168 reach the
 // organization check; 14 of 22 parent-in-body controls (16 with
 // row-level security).
+// Measured 2026-11-20 with M10 (reverse engineering: authorisations, diff
+// recomputation, finding drafts; an A scan target so analyses are probed
+// with B's target in the body) on top: 172 of 173 reach the organization
+// check; 14 of 25 parent-in-body controls (16 with row-level security).
 const (
-	minWriteRoutesReached = 167
+	minWriteRoutesReached = 172
 	minParentControls     = 14
 )
 
@@ -837,6 +851,9 @@ var requiredWriteRoutes = []string{
 	// AI evidence records, correlation and threat suggestions (M7)
 	"POST /api/v1/ai/evidence/{id}/review", "POST /api/v1/ai/evidence/{id}/replay", "POST /api/v1/findings/{id}/correlation/explain",
 	"POST /api/v1/threat-models/{id}/suggest",
+	// reverse engineering: authorisations, diff recomputation, finding drafts (M10)
+	"POST /api/v1/rea/artifacts/{id}/authorizations", "DELETE /api/v1/rea/artifacts/{id}/authorizations/{aid}",
+	"POST /api/v1/rea/analyses/{id}/diff", "POST /api/v1/rea/drafts/{id}/create-finding", "POST /api/v1/rea/drafts/{id}/dismiss",
 }
 
 var uuidRe = regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
@@ -1318,7 +1335,7 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 }
 
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace", "ai_intelligence"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace", "ai_intelligence", "reverse_engineering"}
 
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
@@ -1352,6 +1369,12 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 		ON CONFLICT (organization_id, name) DO UPDATE SET enabled = true`, uuid.Must(uuid.NewV7()), org); err != nil {
 		t.Fatal(err)
 	}
+	// Reverse engineering (M10) rows of B: an analysis of one of B's
+	// artifact targets (any target when B has no artifact), an
+	// authorisation, a diff item and a finding draft.
+	reaTarget := one(`SELECT id FROM scan_targets WHERE organization_id = $1 ORDER BY (kind = 'artifact') DESC, created_at LIMIT 1`)
+	reaAuth, reaAnalysis, reaItem := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	reaSHA := strings.Repeat("b", 64)
 	// Remediation and gates (M8) rows of B.
 	remItem, gatePolicy, gate, decision := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	stmts := []struct {
@@ -1389,6 +1412,18 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 			INSERT INTO security_gates (id, organization_id, name, stage, policy_id, mode, repository_id) SELECT $1, $2, $3, 'deploy', p.id, 'block', $4 FROM p`, []any{gate, org, "iso-b-gate-" + n(), repo, gatePolicy, "iso-b-gate-policy-" + n()}},
 		{"gate_decisions", `INSERT INTO gate_decisions (id, organization_id, stage, repository_id, outcome, gate_ids, policy_ids, reasons) VALUES ($1, $2, 'deploy', $3, 'block', ARRAY[$4::uuid], ARRAY[$5::uuid], '[{"code":"policy_matched","message":"B"}]')`, []any{decision, org, repo, gate, gatePolicy}},
 		{"gate_exceptions", `INSERT INTO gate_exceptions (id, organization_id, gate_id, decision_id, kind, repository_id, reason, requested_by, expires_at) VALUES ($1, $2, $3, $4, 'exception', $5, 'B exception', $6, now() + interval '30 days')`, []any{uuid.Must(uuid.NewV7()), org, gate, decision, repo, user}},
+		// Reverse engineering (M10).
+		{"rea_authorizations", `INSERT INTO rea_authorizations (id, organization_id, target_id, artifact_sha256, reason, authorized_by) VALUES ($1, $2, $3, $4, 'B authorisation for isolation', $5)`,
+			[]any{reaAuth, org, reaTarget, reaSHA, user}},
+		{"rea_analyses", `INSERT INTO rea_analyses (id, organization_id, target_id, repository_id, artifact_name, artifact_sha256, trust_basis, authorization_id, status, finished_at)
+			SELECT $1, $2, $3, $4, 'b-artifact.bin', $5, 'authorization', a.id, 'ready', now() FROM rea_authorizations a WHERE a.organization_id = $2 ORDER BY a.created_at LIMIT 1`,
+			[]any{reaAnalysis, org, reaTarget, repo, reaSHA}},
+		{"rea_diff_items", `INSERT INTO rea_diff_items (id, organization_id, analysis_id, side, kind, name, binary_node_key, sensitive, sensitive_reason)
+			SELECT $1, $2, x.id, 'binary_only', 'package', 'net/http/pprof', 'imp:go:net/http/pprof', true, 'B debug handlers' FROM rea_analyses x WHERE x.organization_id = $2 ORDER BY x.created_at LIMIT 1`,
+			[]any{reaItem, org}},
+		{"rea_finding_drafts", `INSERT INTO rea_finding_drafts (id, organization_id, analysis_id, diff_item_id, title, severity, rule_id)
+			SELECT $1, $2, d.analysis_id, d.id, 'B draft', 'medium', 'rea/go-pprof' FROM rea_diff_items d WHERE d.organization_id = $2 ORDER BY d.id LIMIT 1`,
+			[]any{uuid.Must(uuid.NewV7()), org}},
 		// An AI evidence record about one of B's findings (M7).
 		{"ai_evidence_records", `INSERT INTO ai_evidence_records (id, organization_id, task, operation, subject_kind, subject_id, finding_id, provider,
 			provider_location, model, prompt_template, status, conclusion, verdict, steps, requested_by) VALUES ($1, $2, 'finding_validation', 'ai_review',

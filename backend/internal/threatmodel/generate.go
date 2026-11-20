@@ -41,6 +41,7 @@ func latestSnapshots(ctx context.Context, q db.Querier, orgID, appID uuid.UUID, 
 		FROM codegraph_snapshots s JOIN repositories r ON r.id = s.repository_id
 		WHERE s.organization_id = $1 AND s.application_id = $2 AND ($3::uuid IS NULL OR s.repository_id = $3)
 		  AND r.archived_at IS NULL AND r.application_id = $2 AND s.status IN ('ready', 'partial') AND s.storage = 'rows'
+		  AND s.kind = 'source'
 		ORDER BY s.repository_id, s.created_at DESC, s.id DESC`, orgID, appID, repoID)
 	if err != nil {
 		return nil, err
