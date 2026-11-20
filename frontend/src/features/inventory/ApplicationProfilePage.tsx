@@ -29,6 +29,7 @@ import {
 } from "./api";
 import { ClassificationForm } from "./ClassificationForm";
 import { LifecycleStrip } from "./LifecycleStrip";
+import { MonitoringWidget } from "@/features/monitoring/MonitoringWidget";
 
 export const profileTabs = [
   { key: "overview", label: "Overview" },
@@ -209,6 +210,7 @@ function OverviewTab({ a }: { a: ApplicationProfile }) {
         <p className="mb-3 text-[12px] text-muted-foreground">Which of the nine phases hold real data for this application. Phases without data say so.</p>
         {life.isPending ? <Skeleton className="h-16" /> : life.isError ? <ErrorPanel error={life.error} /> : <LifecycleStrip phases={life.data.phases} />}
       </Card>
+      <MonitoringWidget applicationId={a.id} />
       <Card className="p-4">
         <h2 className="mb-3 text-[14px] font-semibold">Security posture (last 90 days)</h2>
         {!can("findings.read") ? (

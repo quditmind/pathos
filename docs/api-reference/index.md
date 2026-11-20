@@ -25,6 +25,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Runtime context](runtime.md#clusters) | Kubernetes clusters and container registries (read-only inventories), workloads, application mappings, where a finding runs |
 | [CodeGraph](codegraph.md#views) | Code graph snapshots per application, repository and commit: builds, 15 views with server-side aggregation and lazy expansion, node inspector, path tracing, diffs, JSON export, rediscovery settings (feature flag `codegraph`) |
 | [Threat models](threat-models.md) | Threat models of an application: STRIDE generation on CodeGraph and attack paths, threats with evidence, method, severity, confidence and mitigation, ATT&CK / CAPEC / CWE / D3FEND mappings, versions and approval, Threat Dragon and PATHOS import and export (feature flag `threat_models`) |
+| [Reverse engineering](reverse-engineering.md) | Static reverse engineering of build artifacts from your own builds: input policy and audited authorisations, analyses in the sandboxed worker-rea lane, functions, strings, imports, sections, the binary call graph, the source ↔ binary diff and finding proposals (feature flag `reverse_engineering`) |
 | [Ticketing and reports](integrations-reporting.md#ticketing-jira-servicenow) | Jira and ServiceNow, executive overview, custom reports |
 
 **Findings and scanning**
@@ -59,6 +60,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Notifications and outbound webhooks](notifications.md) | SMTP, notification rules, email templates, delivery history, outbound webhooks |
 | [Connectors](connectors.md) | Kinds catalogue, one list over every connection, health checks and history, AI troubleshooting of a connector (flag `connectors`) |
 | [Remediation and security gates](remediation-and-gates.md) | Remediation items, fix verification with before-and-after evidence, saved views, security gates at every stage, gate decisions, exceptions and approvals (flag `remediation_workspace`) |
+| [Continuous monitoring](monitoring.md) | The feed of the lifecycle feedback loops, architecture drift between CodeGraph snapshots, drift alert settings, developer feedback on gate failures, version stamps of every export (flag `continuous_monitoring`) |
 | [Product metadata, diagnostics and feature flags](diagnostics.md) | `GET /api/v1/meta`, the error catalogue, AI troubleshooting, feature flags |
 | [Worker protocol (internal)](worker-protocol.md) | The internal API scan workers use; not for API clients |
 

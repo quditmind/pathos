@@ -366,8 +366,14 @@ func TestOnboardingNoDuplicatesAndDrafts(t *testing.T) {
 		byKey[p.(map[string]any)["key"].(string)] = p.(map[string]any)
 	}
 	if byKey["connect"]["has_data"] != true || byKey["discover"]["has_data"] != true || byKey["assess"]["has_data"] != true ||
-		byKey["threat_model"]["available"] != false || byKey["threat_model"]["has_data"] != false {
+		byKey["threat_model"]["available"] != true || byKey["threat_model"]["has_data"] != false {
 		t.Errorf("phases: %v", byKey)
+	}
+	// Built modules never say "arrives in" (M9); phases without data say so.
+	for _, k := range []string{"discover", "threat_model", "remediate", "report"} {
+		if sum, _ := byKey[k]["summary"].(string); strings.Contains(sum, "arrives in") || sum == "" {
+			t.Errorf("phase %s summary: %q", k, sum)
+		}
 	}
 	code, m = h.do(admin, "GET", "/api/v1/lifecycle/overview", nil)
 	if code != 200 || len(m["items"].([]any)) < 3 || len(m["phase_totals"].([]any)) != 9 {

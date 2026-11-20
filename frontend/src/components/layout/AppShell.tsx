@@ -77,6 +77,7 @@ import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
 import { HelpMenu } from "@/features/shell/HelpMenu";
 import { ShellProvider } from "@/features/shell/ShellProvider";
+import { PrintStamp } from "@/features/shell/PrintStamp";
 import { Toaster } from "@/components/ui/toast";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
 import { NotificationCentre } from "./NotificationCentre";
@@ -159,7 +160,7 @@ export const groups: NavGroup[] = [
   },
   {
     label: "5 · Reverse engineering",
-    items: [{ label: "Binary analysis", icon: <Binary />, phase: 10, flag: "reverse_engineering" }],
+    items: [{ label: "Binary analysis", to: "/reverse-engineering", icon: <Binary />, perm: "findings.read", phase: 10, flag: "reverse_engineering" }],
   },
   {
     label: "6 · Assess",
@@ -207,7 +208,7 @@ export const groups: NavGroup[] = [
       { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
       { label: "Compliance", to: "/compliance", icon: <ClipboardCheck />, perm: "findings.read" },
       { label: "Developer insights", to: "/insights/developers", icon: <UserRoundSearch />, perm: "insights.people" },
-      { label: "Continuous monitoring", icon: <RadioTower />, phase: 9, flag: "continuous_monitoring" },
+      { label: "Continuous monitoring", to: "/monitoring", icon: <RadioTower />, perm: "findings.read", phase: 9, flag: "continuous_monitoring" },
     ],
   },
   {
@@ -222,7 +223,7 @@ export const groups: NavGroup[] = [
       { label: "Secret validation", to: "/admin/secret-validation", icon: <KeyRound />, perm: "settings.manage" },
       { label: "Review configurations", to: "/human-review/configurations", icon: <Settings2 />, perm: "reviews.read" },
       { label: "AI settings", to: "/admin/ai", icon: <Cpu />, perm: "ai.configure" },
-      { label: "Reverse engineering tools", icon: <Microscope />, phase: 10, flag: "reverse_engineering" },
+      { label: "Reverse engineering tools", to: "/configurations/reverse-engineering", icon: <Microscope />, perm: "scanners.read", phase: 10, flag: "reverse_engineering" },
     ],
   },
   {
@@ -434,6 +435,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onToggleTheme={() => setDark(!dark)} />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-6 py-6">{children}</div>
+          <PrintStamp />
         </main>
       </div>
       <Toaster />

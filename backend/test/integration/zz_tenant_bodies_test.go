@@ -244,6 +244,9 @@ var refTables = map[string]string{
 	"configuration_id": "ai_configurations", "role_id": "roles", "ticket_connection_id": "ticket_connections",
 	"rule_id": "custom_rules", "policy_id": "security_policies", "upload_id": "source_uploads",
 	"conversation_id": "ai_conversations", "classification_id": "asset_classifications", "oauth_app_id": "scm_oauth_apps",
+	"source_snapshot_id": "codegraph_snapshots",
+	// PATHOS 3.0 M9: remediation items reference an M5 threat.
+	"threat_id": "threats",
 }
 
 func jsonName(f *ast.Field) (string, bool) {
@@ -496,7 +499,7 @@ var writeFixtures = map[string]map[string]any{
 	"PUT /api/v1/gates/{id}":                       {"stage": "deploy", "mode": "warn", "application_id": nil},
 	"POST /api/v1/gates/evaluate":                  {"stage": "deploy", "application_id": nil, "scan_id": nil, "pull_request": nil, "commit_sha": nil},
 	"POST /api/v1/gates/decisions/{id}/exceptions": {"scope": "decision", "gate_id": nil},
-	"POST /api/v1/remediation/items":               {"mode": "per_finding", "kind": "code_fix", "priority": "high"},
+	"POST /api/v1/remediation/items":               {"mode": "per_finding", "kind": "threat_mitigation", "priority": "high"}, // finding_ids and threat_id (M9)
 	"PATCH /api/v1/remediation/items/{id}":         {"status": "in_progress", "priority": "high", "fix_pull_request_id": nil, "clear_owner": nil, "clear_due": nil},
 	"POST /api/v1/remediation/items/bulk":          {"status": nil, "priority": "high", "clear_owner": nil},
 	"POST /api/v1/remediation/items/{id}/verify":   {"scan_job_id": nil},
@@ -504,6 +507,9 @@ var writeFixtures = map[string]map[string]any{
 	// AI evidence (M7).
 	"POST /api/v1/ai/evidence/{id}/review":    {"decision": "accepted", "note": "isolation probe"},
 	"POST /api/v1/threat-models/{id}/suggest": {"max_threats": 1},
+	// Reverse engineering (M10).
+	"POST /api/v1/rea/artifacts/{id}/authorizations": {"reason": "isolation probe authorisation"},
+	"POST /api/v1/rea/drafts/{id}/dismiss":           {"reason": "isolation probe"},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

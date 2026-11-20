@@ -35,24 +35,24 @@ The sidebar follows the application security lifecycle. Groups appear only when 
 
 | Group | Pages |
 |---|---|
-| Home | Dashboard · Lifecycle overview *(roadmap)* |
+| Home | Dashboard · Lifecycle overview *(flag `lifecycle_overview`)* |
 | 1 · Connect | Connectors *(flag `connectors`)* · Add repositories · Import history · SCM connections · Integrations |
 | 2 · Inventory | Applications · Repositories · Scan targets · Unmanaged assets · Coverage · Tags |
-| 3 · Discover | CodeGraph *(roadmap)* · Context graph · Runtime · API & endpoints *(roadmap)* · SBOM inventory · Component portfolio |
-| 4 · Threat model | Threat models *(roadmap)* · Attack paths · Blast radius |
-| 5 · Reverse engineering | Binary analysis *(roadmap)* |
+| 3 · Discover | CodeGraph *(flag `codegraph`)* · Context graph · Runtime · API & endpoints *(flag `codegraph`)* · SBOM inventory · Component portfolio |
+| 4 · Threat model | Threat models *(flag `threat_models`)* · Attack paths · Blast radius |
+| 5 · Reverse engineering | Binary analysis *(flag `reverse_engineering`)* |
 | 6 · Assess | Scan overview · Scans · Scan schedules · Scan comparison · Import results · Findings |
-| 7 · Validate & intelligence | AI Security Analyst · AI reviews · AI reports · Human Eye: overview, review queue, assessments, assignments, review reports |
-| 8 · Remediate & gate | Remediation workspace *(roadmap)* · Policies · Component policies · Pull request checks · Risk acceptances · Suppression rules · VEX statements |
-| 9 · Report & monitor | Executive overview · Reports · Application posture · Benchmarking · Compliance · Developer insights · Continuous monitoring *(roadmap)* |
-| Configurations | Scan profiles · Scanners & workers · Scan coverage · Custom rules · Asset settings · Risk & intelligence · Secret validation · Review configurations · AI settings · Reverse engineering tools *(roadmap)* |
+| 7 · Validate & intelligence | AI Security Analyst · AI reviews · AI reports · AI evidence log *(flag `ai_intelligence`)* · Human Eye: overview, review queue, assessments, assignments, review reports |
+| 8 · Remediate & gate | Remediation workspace *(flag `remediation_workspace`)* · Policies · Component policies · Pull request checks · Risk acceptances · Suppression rules · VEX statements |
+| 9 · Report & monitor | Executive overview · Reports · Application posture · Benchmarking · Compliance · Developer insights · Continuous monitoring *(flag `continuous_monitoring`)* |
+| Configurations | Scan profiles · Scanners & workers · Scan coverage · Custom rules · Asset settings · Risk & intelligence · Secret validation · Review configurations · AI settings · Reverse engineering tools *(flag `reverse_engineering`)* |
 | Administration | Organizations *(multi-tenant installations, installation administrators only)* · Users · Organization · Developer attribution · Notifications · AI usage · MCP registry · Audit log · Feature flags |
 
 Every page keeps its address from earlier versions; bookmarks and links keep working. Only the place in the menu changed. With the `connectors` flag on, **SCM connections** (`/admin/scm`) and **Integrations** (`/admin/integrations`) open inside [Connectors](connectors.md), which contains the same pages with every action; with the flag off they open as before.
 
-### Roadmap items
+### Modules behind a feature flag
 
-Items marked *(roadmap)* are modules that are not built yet. They are shown dimmed with a **Phase N** label and cannot be opened; hover over one to read "arrives in roadmap phase N". Nothing behind them is simulated.
+Every lifecycle module is built. Items marked *(flag …)* open only while that feature flag is on for your organization; while it is off they are shown dimmed with a **Phase N** label and cannot be opened (hover over one to read its phase). Nothing behind them is simulated.
 
 ### Feature flags
 

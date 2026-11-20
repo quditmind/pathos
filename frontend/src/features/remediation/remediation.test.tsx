@@ -266,3 +266,99 @@ describe("application profile Remediation tab", () => {
     expect(api.calls.some((c) => c.path === "/api/v1/remediation/items")).toBe(false);
   });
 });
+
+// --- PATHOS 3.0 M9: remediation ↔ threats (example fixture data, test only) ---
+describe("remediation ↔ threats", () => {
+  const threatRef = { id: "t1", title: "Unauthenticated route reaches the orders store (test fixture)", severity: "high" as const, status: "open", threat_model_id: "tm1", threat_model_title: "Payments threat model", threat_model_version: 2 };
+  const mitigation = (over: Partial<ItemDetail> = {}) => detail({ kind: "threat_mitigation", application_id: "a1", threat: threatRef, findings: [], ...over });
+
+  it("shows the linked threat with its model and version, and links into the threat model", async () => {
+    mockApi({ "GET /api/v1/meta": meta(true), "GET /api/v1/remediation/items/i1": () => mitigation() });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read"], path: "/remediation/items/i1" });
+    const card = await screen.findByTestId("item-threat");
+    expect(within(card).getByRole("link", { name: threatRef.title })).toHaveAttribute("href", "/threat-models/tm1?threat=t1");
+    expect(card).toHaveTextContent("Payments threat model · version 2");
+    expect(within(card).getByText("Open")).toBeInTheDocument();
+    // Read-only without remediation.manage.
+    expect(within(card).queryByRole("button", { name: /Change threat|Link a threat/ })).toBeNull();
+  });
+
+  it("links a threat of the item's application and unlinks after confirmation", async () => {
+    const api = mockApi({
+      "GET /api/v1/meta": meta(true),
+      "GET /api/v1/remediation/items/i1": () => mitigation({ threat: null }),
+      "GET /api/v1/threat-models": () => ({ items: [{ id: "tm1", title: "Payments threat model", version: 2, status: "approved" }] }),
+      "GET /api/v1/threat-models/tm1/threats": () => ({ items: [{ id: "t2", title: "Order ids can be guessed (test fixture)", severity: "medium", status: "open" }] }),
+      "PATCH /api/v1/remediation/items/i1": () => ({ ...item, kind: "threat_mitigation" }),
+    });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read", "remediation.manage"], path: "/remediation/items/i1" });
+    const card = await screen.findByTestId("item-threat");
+    expect(card).toHaveTextContent("No threat linked");
+    fireEvent.click(within(card).getByRole("button", { name: "Link a threat" }));
+    await within(card).findByRole("option", { name: /Payments threat model · v2/ });
+    expect(api.calls.find((c) => c.path === "/api/v1/threat-models")?.url.searchParams.get("application_id")).toBe("a1");
+    fireEvent.change(within(card).getByLabelText("Threat model"), { target: { value: "tm1" } });
+    await within(card).findByRole("option", { name: /Order ids can be guessed/ });
+    fireEvent.change(within(card).getByLabelText("Threat"), { target: { value: "t2" } });
+    fireEvent.click(within(card).getByRole("button", { name: "Link threat" }));
+    await waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ threat_id: "t2" }));
+  });
+
+  it("unlinks with threat_id null after confirmation", async () => {
+    const api = mockApi({
+      "GET /api/v1/meta": meta(true),
+      "GET /api/v1/remediation/items/i1": () => mitigation(),
+      "PATCH /api/v1/remediation/items/i1": () => ({ ...item, kind: "threat_mitigation" }),
+    });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read", "remediation.manage"], path: "/remediation/items/i1" });
+    const card = await screen.findByTestId("item-threat");
+    fireEvent.click(within(card).getByRole("button", { name: "Unlink" }));
+    expect(api.calls.some((c) => c.method === "PATCH")).toBe(false);
+    fireEvent.click(await screen.findByRole("button", { name: "Unlink" }));
+    await waitFor(() => expect(api.calls.find((c) => c.method === "PATCH")?.body).toEqual({ threat_id: null }));
+  });
+
+  it("hides the threat card for other kinds without a threat", async () => {
+    mockApi({ "GET /api/v1/meta": meta(true), "GET /api/v1/remediation/items/i1": () => detail() });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: ["remediation.read", "remediation.manage"], path: "/remediation/items/i1" });
+    await screen.findByText("Verified AI fix");
+    expect(screen.queryByTestId("item-threat")).toBeNull();
+  });
+
+  it("filters the workspace by threat from the URL", async () => {
+    const api = mockApi({ "GET /api/v1/meta": meta(true), "GET /api/v1/remediation/items": () => ({ items: [item] }), "GET /api/v1/remediation/views": () => ({ items: [] }) });
+    renderApp(<RemediationPage />, { permissions: ["remediation.read"], path: "/remediation?threat_id=t1" });
+    expect(await screen.findByText("One threat only")).toBeInTheDocument();
+    expect(api.calls.find((c) => c.path === "/api/v1/remediation/items")?.url.searchParams.get("threat_id")).toBe("t1");
+  });
+
+  it("threat detail lists its remediation items and creates one for remediation.manage", async () => {
+    const { ThreatRemediation } = await import("@/features/threatmodels/threats");
+    const threat = { id: "t1", title: "Unauthenticated route (test fixture)" } as Parameters<typeof ThreatRemediation>[0]["threat"];
+    const api = mockApi({ "GET /api/v1/meta": meta(true), "POST /api/v1/remediation/items": () => ({ items: [{ ...item, id: "i9" }] }) });
+    renderApp(<ThreatRemediation threat={threat} items={[{ id: "i1", title: "Add authentication", status: "in_progress", priority: "high" }]} />, {
+      permissions: ["remediation.read", "remediation.manage"],
+    });
+    expect(await screen.findByRole("link", { name: "Add authentication" })).toHaveAttribute("href", "/remediation/items/i1");
+    fireEvent.click(screen.getByRole("button", { name: "Create remediation item" }));
+    await waitFor(() =>
+      expect(api.calls.find((c) => c.method === "POST")?.body).toEqual({
+        threat_id: "t1", title: "Mitigate: Unauthenticated route (test fixture)", kind: "threat_mitigation", finding_ids: [], mode: "group",
+      }),
+    );
+  });
+
+  it("threat detail hides remediation without the flag or the permission", async () => {
+    const { ThreatRemediation } = await import("@/features/threatmodels/threats");
+    const threat = { id: "t1", title: "x" } as Parameters<typeof ThreatRemediation>[0]["threat"];
+    mockApi({ "GET /api/v1/meta": meta(false) });
+    const { unmount } = renderApp(<ThreatRemediation threat={threat} items={[]} />, { permissions: ["remediation.read", "remediation.manage"] });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("Remediation items")).toBeNull();
+    unmount();
+    mockApi({ "GET /api/v1/meta": meta(true) });
+    renderApp(<ThreatRemediation threat={threat} items={[]} />, { permissions: ["threats.read"] });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByText("Remediation items")).toBeNull();
+  });
+});

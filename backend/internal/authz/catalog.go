@@ -54,6 +54,12 @@ const (
 	PermThreatsManage  Permission = "threats.manage"
 	PermThreatsApprove Permission = "threats.approve"
 
+	// Reverse engineering (PATHOS 3.0 M10): running an analysis also
+	// needs scans.run; authorising an artifact that is not from the
+	// organization's own builds is separate and audited.
+	PermREARun       Permission = "rea.run"
+	PermREAAuthorize Permission = "rea.authorize"
+
 	PermReviewsRead      Permission = "reviews.read"
 	PermReviewsAssess    Permission = "reviews.assess"
 	PermReviewsAssign    Permission = "reviews.assign"
@@ -130,6 +136,8 @@ var Permissions = []PermissionInfo{
 	{PermThreatsRead, "Threat model", "View threat models, threats, their evidence and versions", false},
 	{PermThreatsManage, "Threat model", "Create, generate, edit, import and submit threat models; change threats with a reason", false},
 	{PermThreatsApprove, "Threat model", "Approve, reject or request changes on threat models in review (never one's own)", false},
+	{PermREARun, "Reverse engineering", "Start static reverse-engineering analyses of build artifacts (with scans.run), recompute source ↔ binary diffs", false},
+	{PermREAAuthorize, "Reverse engineering", "Authorise analysis of an artifact that is not from the organization's own builds (per artifact, with a reason; audited)", false},
 
 	{PermReviewsRead, "Human Eye", "View the review queue, completed assessments and review reports", false},
 	{PermReviewsAssess, "Human Eye", "Perform assessments: investigate, upload evidence, comment and submit review decisions", false},
@@ -195,14 +203,16 @@ var SystemRoles = []SystemRole{
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview, PermAIFix,
 			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople,
-			PermThreatsManage, PermThreatsApprove, PermRemediationManage, PermGatesManage, PermGatesApproveExcept)},
+			PermThreatsManage, PermThreatsApprove, PermRemediationManage, PermGatesManage, PermGatesApproveExcept,
+			PermREARun, PermREAAuthorize)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage,
+			PermREARun)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
 		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage)},
+			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage, PermREARun)},
 	{"independent_reviewer", "Independent Reviewer",
 		"Second-level reviewer: validates other analysts' Human Eye decisions before closure",
 		with(readOnly, PermReviewsApprove, PermFindingsExport, PermThreatsApprove, PermGatesApproveExcept)},

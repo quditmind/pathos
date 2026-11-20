@@ -409,6 +409,7 @@ func (s *Service) downloadEvidence(w http.ResponseWriter, r *http.Request) {
 	if text != nil {
 		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 		w.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": "evidence.txt"}))
+		httpx.StampHeaders(w, time.Now())
 		_, _ = io.WriteString(w, *text)
 		return
 	}
@@ -434,6 +435,7 @@ func (s *Service) downloadEvidence(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", ct)
 	w.Header().Set("Content-Disposition", mime.FormatMediaType(disp, map[string]string{"filename": name}))
+	httpx.StampHeaders(w, time.Now())
 	_ = audit.Write(ctx, s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 		Action: "human_review.evidence_download", TargetType: "human_review", TargetID: v.ID.String(), Metadata: map[string]any{"evidence_id": eid}})
 	_, _ = w.Write(data)

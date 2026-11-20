@@ -634,3 +634,15 @@ func (s *Service) listViolations(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": out})
 }
+
+// EvaluateOrganization re-evaluates every enabled component policy of one
+// organization now (the dependency-change feedback loop, PATHOS 3.0 M9).
+func EvaluateOrganization(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) (EvalStats, error) {
+	var st EvalStats
+	err := db.InTx(ctx, pool, func(tx pgx.Tx) error {
+		var err error
+		st, err = evaluateOrg(ctx, tx, orgID, nil, time.Now())
+		return err
+	})
+	return st, err
+}

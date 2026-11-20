@@ -985,37 +985,81 @@ func (s *Service) frameworkEntries(w http.ResponseWriter, r *http.Request) {
 
 // --- feedback loop ------------------------------------------------------------------
 
+// AutoUpdateOutcome is what the architecture feedback loop did to one
+// threat model lineage after a new CodeGraph snapshot.
+type AutoUpdateOutcome struct {
+	// LineageID and Title identify the model.
+	LineageID uuid.UUID
+	Title     string
+	// ModelID and Version: the version that holds the regenerated draft
+	// (Updated), or the latest version left alone (review needed).
+	ModelID uuid.UUID
+	Version int
+	// Updated: the draft was regenerated (in place, or as a new draft
+	// version after the approved one: CreatedVersion). Otherwise the model
+	// needs a review: automatic updates are off, the latest version is in
+	// review, or it is a manual model that was never generated.
+	Updated        bool
+	CreatedVersion bool
+	Reason         string
+	Result         GenResult
+	// ApprovedVersion is the approved version left unchanged, if any.
+	ApprovedVersion int
+}
+
 // OnSnapshotReady regenerates the application's threat models in a draft
 // after a new CodeGraph snapshot is stored (when the flag and auto_update
 // are on): an existing draft in place, else a new draft version after the
 // approved one; an in-review version is left alone. Errors are logged.
 func (s *Service) OnSnapshotReady(ctx context.Context, orgID, appID, snapshotID uuid.UUID) {
+	_, _ = s.AutoUpdate(ctx, orgID, appID, snapshotID)
+}
+
+// AutoUpdate is OnSnapshotReady returning what it did per model lineage
+// (the monitoring feed records it, PATHOS 3.0 M9). Approved versions are
+// never changed: a regenerated draft is a new version that needs review
+// and approval. Without the threat_models flag it returns nothing.
+func (s *Service) AutoUpdate(ctx context.Context, orgID, appID, snapshotID uuid.UUID) ([]AutoUpdateOutcome, error) {
 	ctx = tenant.WithOrg(ctx, orgID)
 	log := s.Log.With("application_id", appID, "snapshot_id", snapshotID)
 	if on, err := featureflags.Enabled(ctx, s.DB, orgID, flagName); err != nil || !on {
-		return
+		return nil, err
 	}
 	st, err := loadSettings(ctx, s.DB, orgID)
-	if err != nil || !st.AutoUpdate {
-		return
+	if err != nil {
+		return nil, err
 	}
 	rows, err := s.DB.Query(ctx, `SELECT m.id FROM threat_models m WHERE m.organization_id = $1 AND m.application_id = $2
 		AND m.version = (SELECT max(x.version) FROM threat_models x WHERE x.lineage_id = m.lineage_id)
-		AND m.status IN ('draft', 'approved') AND m.method <> 'imported'`, orgID, appID)
+		AND m.status IN ('draft', 'approved', 'in_review') AND m.method <> 'imported'`, orgID, appID)
 	if err != nil {
 		log.Warn("threat model auto-update: lookup failed", "err", err)
-		return
+		return nil, err
 	}
 	ids, err := pgx.CollectRows(rows, pgx.RowTo[uuid.UUID])
 	if err != nil {
-		return
+		return nil, err
 	}
+	var out []AutoUpdateOutcome
 	for _, id := range ids {
 		m, err := getModel(ctx, s.DB, orgID, id)
 		if err != nil {
 			continue
 		}
-		if m.Method == MethodManual && m.GeneratedAt == nil {
+		oc := AutoUpdateOutcome{LineageID: m.LineageID, Title: m.Title, ModelID: m.ID, Version: m.Version}
+		if m.Status == "approved" {
+			oc.ApprovedVersion = m.Version
+		}
+		switch {
+		case m.Status == "in_review":
+			oc.Reason = "the latest version is in review; it was left unchanged"
+			out = append(out, oc)
+			continue
+		case !st.AutoUpdate:
+			oc.Reason = "automatic updates are off"
+			out = append(out, oc)
+			continue
+		case m.Method == MethodManual && m.GeneratedAt == nil:
 			continue // never generated: the author chose a manual model
 		}
 		gen, err := compute(ctx, s.DB, m, nil, Engines)
@@ -1037,12 +1081,16 @@ func (s *Service) OnSnapshotReady(ctx context.Context, orgID, appID, snapshotID 
 				return err
 			}
 			res.CreatedVersion = created
+			oc.ModelID, oc.Version, oc.Updated, oc.CreatedVersion, oc.Result = target, tm.Version, true, created, res
 			return audit.Write(ctx, tx, audit.Entry{OrganizationID: orgID, Action: "threat_model.auto_update", TargetType: "threat_model",
 				TargetID: target.String(), Metadata: map[string]any{"application_id": appID, "snapshot_id": snapshotID, "result": res,
 					"version": tm.Version, "lineage_id": tm.LineageID}})
 		})
 		if err != nil {
 			log.Warn("threat model auto-update failed", "err", err, "threat_model_id", id, "error_code", CodeGenerateFailed)
+			continue
 		}
+		out = append(out, oc)
 	}
+	return out, nil
 }

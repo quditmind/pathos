@@ -511,3 +511,31 @@ AI security intelligence of PATHOS 3.0 M7 ([PATHOS_AI_SECURITY_INTELLIGENCE.md](
 
 Link columns (nullable, `ON DELETE SET NULL`): `ai_reviews.evidence_record_id`, `ai_fix_proposals.evidence_record_id`, `ai_messages.evidence_record_id`, `ai_reports.evidence_record_id`, `human_review_recommendations.evidence_record_id`. `threats.ai_evidence_id` now references `ai_evidence_records` (the M5 reserved AI path), and `threat_events.action` accepts `ai_accepted`.
 
+## Reverse engineering (migrations 00061–00063)
+
+Static reverse engineering of PATHOS 3.0 M10 ([PATHOS_REVERSE_ENGINEERING.md](aspm/PATHOS_REVERSE_ENGINEERING.md), [ADR-009](aspm/PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-009-reverse-engineering-isolation)). Every new table carries `organization_id` with the standard row-level security policy; references use composite `(organization_id, id)` keys.
+
+| Table or change | Contents |
+|---|---|
+| `scan_jobs.trigger` | Adds `rea`: an analysis is a scan execution of an artifact target with a per-organization system profile named "Reverse engineering (system)" (stored archived). `scan_jobs_running_uq` becomes one running execution per repository **and lane** (`trigger = 'rea'` or not), so an analysis neither waits for nor blocks the repository's scans |
+| `scan_targets.provenance_material` | An artifact's SLSA provenance attestation (Sigstore bundle, ≤ 256 KiB), verified by the cosign check like the signature |
+| `rea_settings` | Per organization (no row: defaults): `enabled_tools` (`radare2`, `binwalk`), `memory_mb` (4096), `timeout_minutes` (30, at most 230), `input_policy` (`own_builds_or_authorized`; or `own_builds_only`), `decompiled_code_ai` (`none`; or `local`, `cloud`) |
+| `rea_authorizations` | "Analyse untrusted artifact": `target_id`, `artifact_sha256` (the authorisation applies to this file only), `reason` (10–1000 characters), `authorized_by`, `revoked_at`/`revoked_by`. At most one active authorisation per target |
+| `rea_analyses` | One analysis: `target_id`, `repository_id`, `application_id`, `scan_job_id` (unique), `artifact_name`, `artifact_sha256`, `trust_basis` (`signature`, `provenance`, `authorization`; `authorization` needs `authorization_id`), `trust_detail` (the input-policy evaluation at start), `status` (`queued`, `running`, `ready`, `partial`, `failed`), `commit_sha` and `commit_source` (`provenance`, `binary`, `user`), `snapshot_id` (the binary graph), `source_snapshot_id` (the CodeGraph source snapshot compared), `diff_status` (`pending`, `ready`, `no_commit`, `no_source_snapshot`), `format`, `arch`, `language`, `tools` (tool → version, status, detail), `stats` (counts, Go build information, firmware contents), `error_code`, `error` |
+| `codegraph_snapshots.kind` | `source` (discovery) or `binary` (an analysis; trigger `rea`, no scan job, `application_id` may be NULL). Every CodeGraph and threat-model query reads `source` snapshots only |
+| `codegraph_nodes.type`, `codegraph_edges.type`, `codegraph_evidence.kind` | Add the binary node types `binary`, `binary_function`, `import`, `string_ref`, `section`, the edge type `references` and the evidence kind `binary` (verified; `ref` must be a file offset `0x…`, `detail` names the tool). The evidence-type check is renamed `codegraph_evidence_type_kind_check` |
+| `rea_code` | Code views of selected functions: `node_key`, `tool`, `kind` (`pseudo_c`, `disassembly`, `java`, `csharp`), `body` (≤ 20,000 characters, secrets redacted) |
+| `rea_diff_items` | Source ↔ binary diff: `side` (`binary_only`, `source_only`, `matched`), `kind` (`function`, `package`, `route`, `string`), `name`, `binary_node_key`, `binary_offset`, `tool`, `source_node_key`, `source_file`, `source_line`, `sensitive` and `sensitive_reason`, `evidence` (JSON array of `{evidence, kind, ref, detail}`) |
+| `rea_finding_drafts` | Proposals for sensitive binary-only items: `diff_item_id`, `title`, `description`, `severity`, `rule_id`, `cwe`, `status` (`proposed`, `dismissed`, `created`), `evidence`, `finding_id`, `decided_by`/`_at`, `decision_reason`. Checks: a decided draft names who or when; a created draft has its finding. A finding created from a draft starts as `needs_review` (category `binary`, scanner `pathos-rea`) |
+## Continuous monitoring and architecture drift (migrations 00064–00065)
+
+PATHOS 3.0 M9 (flag `continuous_monitoring`; migrations 00058–00063 belong to M7 and M10).
+
+| Table | Purpose |
+|---|---|
+| `monitoring_events` | The feed: `event_type` (`rediscovery.queued`, `dependency.changed`, `architecture.drift`, `threat_model.updated`, `threat_model.review_needed`, `risk.rescored`, `fix.verification_queued`, `fix.verified`, `gate.failed`, `findings.new`, `ai.triage_queued`, `ai.triage_concluded`), `feedback_loop` (1–7), `severity`, `title`, `summary`, `evidence_label` (`verified`, `observed`, `ai_inferred`), `evidence` (references), `subject_type`/`subject_id`, `details`, optional `application_id`/`repository_id`. Written only while the flag is on; never updated (except the commit of drift evidence once known); pruned after 365 days by the jobs role |
+| `architecture_drifts` | One row per new CodeGraph snapshot: `from_snapshot_id` (NULL for a baseline; SET NULL when that snapshot is deleted), `to_snapshot_id` (unique), `from_commit`, `to_commit`, `severity`, `has_changes`, `counts`, `items` (at most 500, with evidence), `truncated` |
+| `monitoring_settings` | Per organization: `drift_alerts` (default false), `drift_alert_min_severity` (default `high`) |
+
+Migration 00065 adds `remediation_items.threat_id` (composite key to `threats`, ON DELETE SET NULL; CHECK: only kind `threat_mitigation`) and the verification trigger `fix_submitted`. All are tenant tables with the standard row-level security policy.
+

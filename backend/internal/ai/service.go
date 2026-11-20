@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -17,6 +18,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/monitoring"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
@@ -613,6 +615,19 @@ func (s *Service) OnScanFinished(ctx context.Context, orgID, jobID uuid.UUID) {
 		WHERE q.finding_id = f.id AND q.status = 'queued' AND f.first_scan_job_id = $1`, jobID)
 	if n := tag.RowsAffected(); n > 0 {
 		s.Log.Info("queued findings for AI review", "job_id", jobID, "count", n)
+		// Feedback loop 7 (new findings → AI triage) in the monitoring
+		// feed. PATHOS 3.0 M7 (AI intelligence) hooks in here: the queue
+		// is the single entry point of automated AI review.
+		var repo uuid.UUID
+		_ = s.DB.QueryRow(ctx, `SELECT repository_id FROM scan_jobs WHERE id = $1`, jobID).Scan(&repo)
+		if _, err := monitoring.Record(ctx, s.DB, monitoring.Event{OrgID: orgID, RepositoryID: &repo, Type: monitoring.TypeAITriageQueued,
+			Severity: "info", Title: fmt.Sprintf("%d new finding%s queued for AI triage", n, map[bool]string{true: "", false: "s"}[n == 1]),
+			Summary: "AI review runs with the organization's AI configuration; its conclusions are labelled AI-inferred, never close or " +
+				"approve anything on their own, and secret values are never sent to the model.",
+			EvidenceLabel: monitoring.EvidenceVerified, Evidence: map[string]any{"scan_job_id": jobID, "ai_config_version_id": cv.ID},
+			SubjectType: "scan_job", SubjectID: &jobID, Details: map[string]any{"queued": n, "min_severity": cv.MinSeverity}}); err != nil {
+			s.Log.Warn("monitoring event not recorded", "err", err, "error_code", monitoring.CodeRecordFailed)
+		}
 	}
 }
 
@@ -727,6 +742,7 @@ func (s *Service) review(ctx context.Context, orgID, findingID, cvID uuid.UUID) 
 func findingRelated(ctx context.Context, q db.Querier, findingID uuid.UUID) map[string]any {
 	rows, err := q.Query(ctx, `SELECT n.snapshot_id, n.node_key, n.type FROM findings f
 		JOIN LATERAL (SELECT id FROM codegraph_snapshots s WHERE s.repository_id = f.repository_id AND s.status IN ('ready', 'partial') AND s.storage = 'rows'
+			AND s.kind = 'source'
 			ORDER BY s.created_at DESC LIMIT 1) s ON true
 		JOIN codegraph_nodes n ON n.snapshot_id = s.id
 		WHERE f.id = $1 AND (
@@ -761,13 +777,22 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 	if cv != nil {
 		policy, cvID = cv.ApprovalPolicy, &cv.ID
 	}
+	// Continuous monitoring (PATHOS 3.0 M9, feedback loop 7): automated
+	// triage of new findings never approves anything on its own; every AI
+	// decision waits for a person, whatever the configuration's policy.
+	if source == "automated" {
+		if on, err := monitoring.Enabled(ctx, s.DB, orgID); err == nil && on {
+			policy = "always"
+		}
+	}
 	d := Decide(out, severity, policy)
 	status := "applied"
 	if d.NeedsApproval {
 		status = "pending_approval"
 	}
 	raw, _ := json.Marshal(out)
-	return db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+	id := uuid.Must(uuid.NewV7())
+	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var actor *[16]byte
 		if reviewer != nil {
 			a := [16]byte(*reviewer)
@@ -779,7 +804,6 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 		if _, err := tx.Exec(ctx, `UPDATE ai_reviews SET status = 'superseded' WHERE finding_id = $1 AND status = 'pending_approval'`, findingID); err != nil {
 			return err
 		}
-		id := uuid.Must(uuid.NewV7())
 		if _, err := tx.Exec(ctx, `INSERT INTO ai_reviews (id, organization_id, finding_id, config_version_id, source, provider, model, verdict,
 			confidence, suggested_severity, rationale, remediation, output, transmitted_sha256, input_tokens, output_tokens, status, reviewed_by,
 			evidence_record_id)
@@ -802,6 +826,48 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 			TargetID: findingID.String(), Metadata: map[string]any{"review_id": id, "verdict": out.Verdict, "source": source,
 				"status": status, "transmitted_sha256": sha, "model": resp.Model, "evidence_record_id": evidenceID}})
 	})
+	if err == nil && source == "automated" {
+		s.feedTriageConcluded(ctx, orgID, findingID, id, evidenceID, severity, out, status)
+	}
+	return err
+}
+
+// feedTriageConcluded records the outcome of automated AI triage in the
+// monitoring feed (PATHOS 3.0 M9, feedback loop 7). The event points at the
+// AI evidence record (M7) that holds the prompt, the response and the
+// person's decision; it is labelled AI-inferred. No-op without the
+// continuous_monitoring flag.
+func (s *Service) feedTriageConcluded(ctx context.Context, orgID, findingID, reviewID uuid.UUID, evidenceID *uuid.UUID, severity string, out Output, status string) {
+	on, err := monitoring.Enabled(ctx, s.DB, orgID)
+	if err != nil || !on {
+		return
+	}
+	var repo uuid.UUID
+	var app *uuid.UUID
+	_ = s.DB.QueryRow(ctx, `SELECT f.repository_id, r.application_id FROM findings f JOIN repositories r ON r.id = f.repository_id WHERE f.id = $1`,
+		findingID).Scan(&repo, &app)
+	sev := severity
+	if monitoring.SeverityRank(sev) >= len(monitoring.Severities) {
+		sev = "info"
+	}
+	title := "AI triage concluded \"" + out.Verdict + "\"; a person decides"
+	if status != "pending_approval" {
+		title = "AI triage concluded \"" + out.Verdict + "\""
+	}
+	ev := monitoring.Event{OrgID: orgID, ApplicationID: app, RepositoryID: &repo, Type: monitoring.TypeAITriageConcluded, Severity: sev,
+		Title: title,
+		Summary: "The AI conclusion is stored as an AI evidence record with its prompt and response. It is AI-inferred: " +
+			"a false-positive verdict is never applied until a person approves it.",
+		EvidenceLabel: monitoring.EvidenceAIInferred,
+		Evidence:      map[string]any{"finding_id": findingID, "ai_review_id": reviewID, "evidence_record_id": evidenceID},
+		SubjectType:   "finding", SubjectID: &findingID,
+		Details: map[string]any{"verdict": out.Verdict, "confidence": out.Confidence, "review_status": status}}
+	if repo == uuid.Nil {
+		ev.RepositoryID = nil
+	}
+	if _, err := monitoring.Record(ctx, s.DB, ev); err != nil {
+		s.Log.Warn("monitoring event not recorded", "err", err, "error_code", monitoring.CodeRecordFailed)
+	}
 }
 
 // applyStatus changes a finding's status for an AI decision. Only findings

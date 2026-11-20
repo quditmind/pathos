@@ -308,7 +308,19 @@ func (p *project) extractGo() {
 			}
 			first := strings.SplitN(ip, "/", 2)[0]
 			if !strings.Contains(first, ".") || ip == "C" {
-				continue // standard library
+				// Standard library: not a graph node, but sensitive
+				// packages are recorded on the file (reverse engineering
+				// explains binary-only debug handlers and command
+				// execution with the import line).
+				if sensitiveStdImports[ip] {
+					if n := p.g.Node(f.key); n != nil {
+						prev, _ := n.Attrs["sensitive_imports"].(string)
+						if v := strings.TrimSpace(prev + " " + ip + ":" + strconv.Itoa(line)); len(v) <= 480 {
+							n.Attrs["sensitive_imports"] = v
+						}
+					}
+				}
+				continue
 			}
 			if ck := p.componentForImport("golang", ip); ck != "" {
 				p.g.AddEdge(f.key, "imports", ck, fileLine(f.rel, line, "import \""+ip+"\""))
@@ -487,3 +499,10 @@ func importPathOf(mods []goMod, dir string) string {
 	}
 	return ""
 }
+
+// sensitiveStdImports are standard-library packages whose presence matters
+// for security (debug endpoints, command execution, dynamic loading, weak
+// cryptography): their import lines are recorded on the file node
+// (attribute sensitive_imports: "path:line ...").
+var sensitiveStdImports = map[string]bool{"net/http/pprof": true, "expvar": true, "os/exec": true, "net/http/cgi": true,
+	"plugin": true, "unsafe": true, "syscall": true, "crypto/md5": true, "crypto/sha1": true, "crypto/des": true, "crypto/rc4": true}

@@ -22,6 +22,13 @@ export const nodeTypes = [
   "secret_ref",
   "trust_boundary",
   "application",
+  // Binary graphs (reverse engineering, M10): the artifact, its sections,
+  // functions, imports and the strings they reference.
+  "binary",
+  "binary_function",
+  "import",
+  "string_ref",
+  "section",
 ] as const;
 export type NodeType = (typeof nodeTypes)[number];
 
@@ -41,6 +48,8 @@ export const edgeTypes = [
   "deployed_as",
   "crosses_boundary",
   "owns",
+  // Binary graphs: a function references a string.
+  "references",
 ] as const;
 export type EdgeType = (typeof edgeTypes)[number];
 
@@ -51,10 +60,11 @@ export type Evidence = (typeof evidenceKinds)[number];
 export const severities = ["critical", "high", "medium", "low", "info"] as const;
 export type GraphSeverity = (typeof severities)[number];
 
-export type EvidenceRefKind = "file_line" | "sbom" | "scan" | "registry" | "runtime" | "ai_record";
+/** binary: a file offset in an analysed artifact (reverse engineering). */
+export type EvidenceRefKind = "file_line" | "sbom" | "scan" | "registry" | "runtime" | "ai_record" | "binary";
 export interface EvidenceRef {
   kind: EvidenceRefKind;
-  /** file:line, SBOM or scan id, runtime fact id, AI evidence record id. */
+  /** file:line, SBOM or scan id, runtime fact id, AI evidence record id, binary offset (0x…). */
   ref: string;
   detail?: string;
 }

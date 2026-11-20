@@ -44,6 +44,9 @@ type Service struct {
 	// OnGraphResult receives the output of the CodeGraph discovery tool
 	// (pathos-graph) of a repository execution (package codegraph).
 	OnGraphResult func(ctx context.Context, orgID, jobID uuid.UUID, res GraphResult)
+	// OnREAResult receives the output of the reverse-engineering analysis
+	// (pathos-rea) of an artifact execution (package rea).
+	OnREAResult func(ctx context.Context, orgID, jobID uuid.UUID, res REAResult)
 	// StatusWriter returns the commit status writer of a repository's SCM
 	// connection (pull request checks); nil disables posting.
 	StatusWriter func(ctx context.Context, orgID, repoID uuid.UUID) (scm.StatusWriter, scm.RepoRef, error)
@@ -77,6 +80,14 @@ type GraphResult struct {
 	Version string // tool version
 	Commit  string // the execution's commit
 	Raw     []byte // the graph JSON (pathos.codegraph/v1)
+}
+
+// REAResult is one uploaded reverse-engineering result.
+type REAResult struct {
+	Status  string // succeeded | failed | skipped | timed_out
+	Error   string // redacted tool error
+	Version string // tool version
+	Raw     []byte // the analysis document (pathos.rea/v1)
 }
 
 // Register mounts the user-facing API.

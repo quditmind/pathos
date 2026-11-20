@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
 	"pathos/internal/authz"
+	"pathos/internal/featureflags"
 	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
 )
@@ -63,6 +66,20 @@ type lifecycleCounts struct {
 	PRChecks        int
 	Versions        int
 	Runtime         int
+	// BinaryAnalyses: reverse-engineering analyses (PATHOS 3.0 M10) of
+	// build artifacts of the application's repositories.
+	BinaryAnalyses int
+	// PATHOS 3.0 M4-M9 modules.
+	Snapshots        int
+	ThreatModels     int
+	Threats          int
+	OpenThreats      int
+	RemediationItems int
+	OpenRemediation  int
+	GateDecisions    int
+	FailedGates      int
+	MonitoringEvents int
+	DriftChanges     int
 }
 
 // lifecycleQuery counts, per application, the records of each phase in the
@@ -90,7 +107,20 @@ func lifecycleQuery(p *authz.Principal, where string, args []any) (string, []any
 		` + sub("count(*)", "risk_acceptances ra JOIN findings f ON f.id = ra.finding_id", "f.repository_id") + `,
 		` + sub("count(*)", "pr_checks pc", "pc.repository_id") + `,
 		(SELECT count(*) FROM application_versions v WHERE v.application_id = a.id),
-		(SELECT count(*) FROM runtime_app_mappings m WHERE m.application_id = a.id)
+		(SELECT count(*) FROM runtime_app_mappings m WHERE m.application_id = a.id),
+		` + sub("count(*) FILTER (WHERE ra.status IN ('ready', 'partial'))", "rea_analyses ra", "ra.repository_id") + `,
+		` + sub("count(*)", "(SELECT repository_id FROM codegraph_snapshots WHERE kind = 'source' AND status IN ('ready', 'partial', 'archived')) cs", "cs.repository_id") + `,
+		(SELECT count(DISTINCT tm.lineage_id) FROM threat_models tm WHERE tm.application_id = a.id AND tm.status <> 'archived'),
+		(SELECT count(*) FROM threats t JOIN threat_models tm ON tm.id = t.threat_model_id WHERE tm.application_id = a.id
+		   AND tm.version = (SELECT max(x.version) FROM threat_models x WHERE x.lineage_id = tm.lineage_id)),
+		(SELECT count(*) FROM threats t JOIN threat_models tm ON tm.id = t.threat_model_id WHERE tm.application_id = a.id AND t.status = 'open'
+		   AND tm.version = (SELECT max(x.version) FROM threat_models x WHERE x.lineage_id = tm.lineage_id)),
+		(SELECT count(*) FROM remediation_items i WHERE i.application_id = a.id),
+		(SELECT count(*) FROM remediation_items i WHERE i.application_id = a.id AND i.status NOT IN ('closed', 'wont_fix')),
+		(SELECT count(*) FROM gate_decisions gd WHERE gd.application_id = a.id),
+		(SELECT count(*) FROM gate_decisions gd WHERE gd.application_id = a.id AND gd.outcome IN ('block', 'approval_required')),
+		(SELECT count(*) FROM monitoring_events me WHERE me.application_id = a.id AND me.created_at >= now() - interval '30 days'),
+		(SELECT count(*) FROM architecture_drifts ad WHERE ad.application_id = a.id AND ad.has_changes)
 		FROM applications a WHERE ` + where + ` AND ` + vis
 	all := append(append(append([]any{}, args...), sargs...), vargs...)
 	return q, all
@@ -104,7 +134,7 @@ func plural(n int, one, many string) string {
 }
 
 // buildPhases turns the counts into the nine phases.
-func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
+func buildPhases(c lifecycleCounts, p *authz.Principal, flags map[string]bool) []Phase {
 	findings := p.HasAnywhere(authz.PermFindingsRead)
 	sbom := p.HasAnywhere(authz.PermSBOMRead)
 	ph := func(n int, key, title string) Phase {
@@ -128,18 +158,53 @@ func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
 
 	disc := ph(3, "discover", "Discover")
 	disc.Metrics["components"] = c.Components
-	disc.HasData = c.Components > 0
-	disc.Summary = map[bool]string{true: plural(c.Components, "SBOM component", "SBOM components") + " (CodeGraph arrives in M4)",
-		false: "No SBOM yet; CodeGraph arrives in M4"}[disc.HasData]
+	var parts []string
+	if flags["codegraph"] && findings {
+		disc.Metrics["codegraph_snapshots"] = c.Snapshots
+		if c.Snapshots > 0 {
+			parts = append(parts, plural(c.Snapshots, "CodeGraph snapshot", "CodeGraph snapshots"))
+		}
+	}
+	if c.Components > 0 {
+		parts = append(parts, plural(c.Components, "SBOM component", "SBOM components"))
+	}
+	disc.HasData = len(parts) > 0
+	switch {
+	case disc.HasData:
+		disc.Summary = strings.Join(parts, ", ")
+	case flags["codegraph"]:
+		disc.Summary = "No CodeGraph snapshot or SBOM yet: build CodeGraph or scan a repository"
+	default:
+		disc.Summary = "No SBOM yet (CodeGraph is not enabled for this organization)"
+	}
 	if !sbom {
 		disc.Restricted, disc.HasData, disc.Summary, disc.Metrics = true, false, "You cannot view SBOM data", map[string]int{}
 	}
 	out = append(out, disc)
 
-	out = append(out, Phase{Number: 4, Key: "threat_model", Title: "Threat model", Available: false, Metrics: map[string]int{},
-		Summary: "No threat model data: threat models arrive in M5"})
-	out = append(out, Phase{Number: 5, Key: "reverse_engineering", Title: "Reverse engineering", Available: false, Metrics: map[string]int{},
-		Summary: "No reverse engineering data: binary analysis arrives in M10"})
+	tm := ph(4, "threat_model", "Threat model")
+	switch {
+	case !flags["threat_models"]:
+		tm.Summary = "Threat modelling is not enabled for this organization"
+	case !p.HasAnywhere(authz.PermThreatsRead):
+		tm.Restricted, tm.Summary = true, "You cannot view threat models"
+	default:
+		tm.Metrics["threat_models"], tm.Metrics["threats"], tm.Metrics["open_threats"] = c.ThreatModels, c.Threats, c.OpenThreats
+		tm.HasData = c.ThreatModels > 0
+		tm.Summary = map[bool]string{true: plural(c.ThreatModels, "threat model", "threat models") + ", " + plural(c.OpenThreats, "open threat", "open threats"),
+			false: "No threat model yet"}[tm.HasData]
+	}
+	out = append(out, tm)
+	// Reverse engineering (M10): completed analyses of the application's
+	// build artifacts; viewing them needs findings.read like the workspace.
+	re := ph(5, "reverse_engineering", "Reverse engineering")
+	re.Metrics["binary_analyses"] = c.BinaryAnalyses
+	re.HasData = c.BinaryAnalyses > 0
+	re.Summary = map[bool]string{true: plural(c.BinaryAnalyses, "binary analysis", "binary analyses"), false: "No binary analysis yet"}[re.HasData]
+	if !findings {
+		re.Restricted, re.HasData, re.Summary, re.Metrics = true, false, "You cannot view binary analyses", map[string]int{}
+	}
+	out = append(out, re)
 
 	assess := ph(6, "assess", "Assess")
 	assess.Metrics["scans"], assess.Metrics["findings"], assess.Metrics["open_findings"] = c.Scans, c.Findings, c.OpenFindings
@@ -171,9 +236,28 @@ func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
 
 	rem := ph(8, "remediate", "Remediate & gate")
 	rem.Metrics["fix_pull_requests"], rem.Metrics["risk_acceptances"], rem.Metrics["pull_request_checks"] = c.FixPRs, c.RiskAcceptances, c.PRChecks
-	rem.HasData = c.FixPRs > 0 || c.RiskAcceptances > 0 || c.PRChecks > 0
-	rem.Summary = map[bool]string{true: plural(c.FixPRs, "fix pull request", "fix pull requests") + ", " + plural(c.RiskAcceptances, "risk acceptance", "risk acceptances") +
-		", " + plural(c.PRChecks, "pull request check", "pull request checks"), false: "No fixes, gates or risk decisions yet"}[rem.HasData]
+	var rp []string
+	if flags["remediation_workspace"] && p.HasAnywhere(authz.PermRemediationRead) {
+		rem.Metrics["remediation_items"], rem.Metrics["open_remediation_items"] = c.RemediationItems, c.OpenRemediation
+		rem.Metrics["gate_decisions"], rem.Metrics["failed_gate_decisions"] = c.GateDecisions, c.FailedGates
+		if c.RemediationItems > 0 {
+			rp = append(rp, plural(c.OpenRemediation, "open remediation item", "open remediation items"))
+		}
+		if c.GateDecisions > 0 {
+			rp = append(rp, plural(c.GateDecisions, "gate decision", "gate decisions")+" ("+strconv.Itoa(c.FailedGates)+" failed)")
+		}
+	}
+	if c.FixPRs > 0 {
+		rp = append(rp, plural(c.FixPRs, "fix pull request", "fix pull requests"))
+	}
+	if c.RiskAcceptances > 0 {
+		rp = append(rp, plural(c.RiskAcceptances, "risk acceptance", "risk acceptances"))
+	}
+	if c.PRChecks > 0 {
+		rp = append(rp, plural(c.PRChecks, "pull request check", "pull request checks"))
+	}
+	rem.HasData = len(rp) > 0
+	rem.Summary = map[bool]string{true: strings.Join(rp, ", "), false: "No remediation items, gate decisions, fixes or risk decisions yet"}[rem.HasData]
 	if !findings {
 		rem.Restricted, rem.HasData, rem.Summary, rem.Metrics = true, false, "You cannot view findings", map[string]int{}
 	}
@@ -181,16 +265,31 @@ func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
 
 	rep := ph(9, "report", "Report & monitor")
 	rep.Metrics["versions"], rep.Metrics["runtime_mappings"] = c.Versions, c.Runtime
-	rep.HasData = c.Versions > 0 || c.Runtime > 0
-	rep.Summary = map[bool]string{true: plural(c.Versions, "release version", "release versions") + ", " + plural(c.Runtime, "runtime mapping", "runtime mappings"),
-		false: "No release versions or runtime mappings yet"}[rep.HasData]
+	var mp []string
+	if flags["continuous_monitoring"] && findings {
+		rep.Metrics["monitoring_events"], rep.Metrics["drift_changes"] = c.MonitoringEvents, c.DriftChanges
+		if c.MonitoringEvents > 0 {
+			mp = append(mp, plural(c.MonitoringEvents, "monitoring event", "monitoring events")+" in 30 days")
+		}
+		if c.DriftChanges > 0 {
+			mp = append(mp, plural(c.DriftChanges, "architecture drift", "architecture drifts"))
+		}
+	}
+	if c.Versions > 0 {
+		mp = append(mp, plural(c.Versions, "release version", "release versions"))
+	}
+	if c.Runtime > 0 {
+		mp = append(mp, plural(c.Runtime, "runtime mapping", "runtime mappings"))
+	}
+	rep.HasData = len(mp) > 0
+	rep.Summary = map[bool]string{true: strings.Join(mp, ", "), false: "No monitoring events, release versions or runtime mappings yet"}[rep.HasData]
 	out = append(out, rep)
 	return out
 }
 
-func toLifecycle(c lifecycleCounts, p *authz.Principal) AppLifecycle {
+func toLifecycle(c lifecycleCounts, p *authz.Principal, flags map[string]bool) AppLifecycle {
 	l := AppLifecycle{ID: c.ID, Key: c.Key, Name: c.Name, OnboardingStatus: c.Status, Criticality: c.Criticality, LastScanAt: c.LastScan,
-		Phases: buildPhases(c, p)}
+		Phases: buildPhases(c, p, flags)}
 	for _, ph := range l.Phases {
 		if ph.HasData {
 			l.PhasesWithData++
@@ -209,9 +308,13 @@ func (s *Service) lifecycleRows(ctx context.Context, p *authz.Principal, where s
 	if err != nil {
 		return nil, err
 	}
+	flags, err := featureflags.Load(ctx, s.DB, p.OrganizationID)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]AppLifecycle, 0, len(counts))
 	for _, c := range counts {
-		out = append(out, toLifecycle(c, p))
+		out = append(out, toLifecycle(c, p, flags))
 	}
 	return out, nil
 }

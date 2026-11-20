@@ -46,7 +46,9 @@ BASE = ENV.get("PATHOS_PUBLIC_URL", "https://localhost").rstrip("/")
 ADMIN = ENV.get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "admin@example.com")
 TEMP_PW = ENV.get("PATHOS_BOOTSTRAP_ADMIN_PASSWORD", "")
 NEW_PW = ENV.get("PATHOS_ADMIN_NEW_PASSWORD") or "Smoke-" + TEMP_PW[::-1] + "!9"
-MAILPIT = ENV.get("PATHOS_MAILPIT_URL", "http://127.0.0.1:8025")
+# Mailpit (dev profile): PATHOS_MAILPIT_URL (environment or .env) wins, else
+# the published UI port.
+MAILPIT = (ENV.get("PATHOS_MAILPIT_URL") or f"http://127.0.0.1:{ENV.get('MAILPIT_UI_PORT', '8025')}").rstrip("/")
 
 CTX = ssl.create_default_context()
 CTX.check_hostname = False
@@ -292,10 +294,14 @@ def main():
     online = [w for w in workers.get("items", []) if w["online"]] if s == 200 else []
     check("at least one scan worker online", len(online) >= 1, workers)
     if online:
-        # 15 tools, plus ClamAV when PATHOS_CLAMAV_ADDRESS is set and clamd answers.
-        check("worker reports all tool versions", len(online[0]["scanners"]) in (15, 16) and "licensecheck" in online[0]["scanners"]
-              and "binary-hardening" in online[0]["scanners"] and "pathos-endpoints" in online[0]["scanners"]
-              and "cosign" in online[0]["scanners"], online[0]["scanners"])
+        # The core worker (family images such as worker-graph or worker-rea
+        # report their own tools): at least its 15 tools, plus ClamAV when
+        # PATHOS_CLAMAV_ADDRESS is set and clamd answers. A lower bound, like
+        # the catalogue counts above.
+        cores = [w for w in online if "licensecheck" in w["scanners"]]
+        sc = cores[0]["scanners"] if cores else []
+        check("core worker reports all tool versions", len(sc) >= 15 and all(k in sc for k in ("licensecheck", "binary-hardening", "pathos-endpoints", "cosign")),
+              [(w.get("name"), len(w["scanners"])) for w in online])
     s, fl = admin.api("GET", "/api/v1/findings?category=misconfiguration")
     check("findings filter accepts the misconfiguration category", s == 200, s)
     st, _, _ = anon.req("POST", "/internal/worker/v1/lease", {})
@@ -386,7 +392,7 @@ def main():
         s, _ = admin.api("DELETE", f"/api/v1/schedules/{sch['id']}")
         check("delete schedule -> 204", s == 204, s)
     s, rules = admin.api("GET", "/api/v1/notifications/rules")
-    check("19 built-in notification rules seeded", s == 200 and sum(1 for r in rules["items"] if r["system"]) == 19, s)
+    check("21 built-in notification rules seeded", s == 200 and sum(1 for r in rules["items"] if r["system"]) == 21, s)
     s, smtp = admin.api("GET", "/api/v1/notifications/smtp")
     check("SMTP seeded from environment (Mailpit in dev)", s == 200 and smtp.get("enabled") and smtp.get("host"), smtp)
     s, tst = admin.api("POST", "/api/v1/notifications/smtp/test", {})
@@ -400,9 +406,8 @@ def main():
                 break
             time.sleep(3)
         check("jobs service delivered the test email over SMTP", status == "sent", d.get("last_error") or status)
-        mp = os.environ.get("MAILPIT_URL", f"http://127.0.0.1:{ENV.get('MAILPIT_UI_PORT', '8025')}")
         try:
-            with urllib.request.urlopen(mp + "/api/v1/search?query=" + urllib.parse.quote('subject:"[PATHOS] Test email"'), timeout=5) as r:
+            with urllib.request.urlopen(MAILPIT + "/api/v1/search?query=" + urllib.parse.quote('subject:"[PATHOS] Test email"'), timeout=5) as r:
                 found = json.loads(r.read().decode()).get("messages_count", 0)
             check("test email arrived in Mailpit", found >= 1, found)
         except Exception as e:  # Mailpit only runs with the dev profile

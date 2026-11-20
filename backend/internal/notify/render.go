@@ -80,6 +80,15 @@ type Data struct {
 	Push struct {
 		Ref, Commit string
 	}
+	// Gate is gate.failed: the stage, outcome and the policies that decided.
+	Gate struct {
+		Stage, Outcome, Policies, Commit string
+		PullRequest                      int
+	}
+	// Drift is architecture.drift.
+	Drift struct {
+		Summary, Commit string
+	}
 
 	// Recipient hints for dynamic recipients (not exposed to templates).
 	assignees        []uuid.UUID
@@ -431,6 +440,25 @@ func load(ctx context.Context, q db.Querier, ev eventRow, baseURL string) (*Data
 			d.independent = payloadUUID(p, "independent_reviewer_id")
 		}
 		d.Link = baseURL + "/human-review/reviews/" + ev.SubjectID.String()
+	case "gate.failed":
+		d.Gate.Stage = strings.ReplaceAll(payloadString(p, "stage"), "_", " ")
+		d.Gate.Outcome = strings.ReplaceAll(payloadString(p, "outcome"), "_", " ")
+		d.Gate.Policies = payloadString(p, "policies")
+		d.Gate.Commit = short(payloadString(p, "commit"))
+		d.Gate.PullRequest = payloadInt(p, "pull_request")
+		d.Count = payloadInt(p, "count")
+		d.requester = payloadUUID(p, "requested_by")
+		d.Link = baseURL + "/remediation/gates"
+		if ev.SubjectID != nil {
+			d.Link += "?decision=" + ev.SubjectID.String()
+		}
+	case "architecture.drift":
+		d.Drift.Summary = payloadString(p, "summary")
+		d.Drift.Commit = short(payloadString(p, "commit"))
+		d.Link = baseURL + "/monitoring?tab=drift"
+		if ev.SubjectID != nil {
+			d.Link += "&drift=" + ev.SubjectID.String()
+		}
 	case "worker.offline":
 		d.Worker.Name, d.Worker.Family = payloadString(p, "name"), payloadString(p, "family")
 		if t, err := time.Parse(time.RFC3339Nano, payloadString(p, "last_seen_at")); err == nil {
@@ -494,6 +522,8 @@ func Sample(key, baseURL string) *Data {
 	d.Review.Key, d.Review.Status, d.Review.Disposition, d.Review.Priority = "QD-HR-000042", "in progress", "false positive", "p1"
 	d.Review.DueAt, d.Review.Outcome = "2026-11-19 09:00 UTC", "approved"
 	d.Push.Ref, d.Push.Commit = "main", "9f2c4e1a7b3d"
+	d.Gate.Stage, d.Gate.Outcome, d.Gate.Policies, d.Gate.Commit, d.Gate.PullRequest = "pull request", "block", `"No critical findings"`, "9f2c4e1a7b3d", 42
+	d.Drift.Summary, d.Drift.Commit = "added internet exposure 1, added routes 2", "9f2c4e1a7b3d"
 	if key == "secret.pushed" {
 		d.Findings = []Item{
 			{Title: "AWS access key ID", Severity: "critical", Location: "config/settings.py:12 (commit 9f2c4e1a7b3d)"},

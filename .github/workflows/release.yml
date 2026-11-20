@@ -4,7 +4,8 @@
 #   2. Builds the three images with VERSION=X.Y.Z and pushes them to
 #      ghcr.io/<owner>/{pathos,pathos-proxy,pathos-worker-core}:X.Y.Z (+ X.Y),
 #      then the family worker images (pathos-worker-<family>, built on the
-#      pushed worker-core image by digest).
+#      pushed worker-core image by digest; pathos-worker-rea is a
+#      standalone image and ignores CORE_IMAGE).
 #      Each image carries BuildKit SBOM and max-mode provenance attestations.
 #   3. Signs every image digest with cosign keyless (GitHub OIDC; the
 #      signature identity is this workflow at the release tag).
@@ -125,7 +126,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        family: [sast, iac, sca, dast, mobile, binary, ai, fuzz, graph]
+        family: [sast, iac, sca, dast, mobile, binary, ai, fuzz, graph, rea]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -286,7 +287,7 @@ jobs:
           ## Verify the images
 
           \`\`\`bash
-          for i in pathos pathos-proxy pathos-worker-core pathos-worker-sast pathos-worker-iac pathos-worker-sca pathos-worker-dast pathos-worker-mobile pathos-worker-binary pathos-worker-ai pathos-worker-fuzz; do
+          for i in pathos pathos-proxy pathos-worker-core pathos-worker-sast pathos-worker-iac pathos-worker-sca pathos-worker-dast pathos-worker-mobile pathos-worker-binary pathos-worker-ai pathos-worker-fuzz pathos-worker-graph pathos-worker-rea; do
             cosign verify ghcr.io/${owner}/\$i:${version} \\
               --certificate-identity "https://github.com/${GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/tags/${GITHUB_REF_NAME}" \\
               --certificate-oidc-issuer https://token.actions.githubusercontent.com

@@ -401,6 +401,8 @@ No endpoint suppresses or closes a finding from an AI conclusion alone (existing
 
 Report upgrades extend the existing `/api/v1/reports` and `/api/v1/executive` responses additively (version stamp, new sections). The feed is polled; server-sent events are a later option.
 
+**Implemented in M9** ([API reference](../api-reference/monitoring.md)), with these differences: the feed is `GET /api/v1/monitoring/events` (plus `types`, `summary`, CSV export) and uses `findings.read` scoped by repository instead of a new `monitoring.read` permission (no RBAC catalogue change); events are not acknowledged (they are an audit-like stream; follow-up work happens in the linked page); drift is `GET /api/v1/monitoring/drift` and `/drift/{id}` with stored drift records per snapshot rather than on-request diffs; `GET/PUT /api/v1/monitoring/settings` turns drift alerts on (off by default). The technical report (`/api/v1/ai/reports`, kind technical) and the compliance framework detail gained lifecycle evidence sections; `GET /api/v1/compliance/frameworks/{key}/export` is new. Every download goes through `httpx.Download` (version stamp headers). Codes `PTH-MON-1101`–`1105`, `PTH-REM-1107`, `PTH-REP-1101`.
+
 ### M10: reverse engineering, static tier
 
 | Method and path | Permission | Request | Response | Errors |

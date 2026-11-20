@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/api/client";
+import { setBuildInfo } from "@/lib/buildStamp";
 
 /** GET /api/v1/meta. Unauthenticated callers get product, vendor and version only. */
 export interface Meta {
@@ -32,7 +33,12 @@ export const metaQueryKey = ["meta"] as const;
 export function useMeta() {
   return useQuery({
     queryKey: metaQueryKey,
-    queryFn: () => api<Meta>("/api/v1/meta"),
+    queryFn: () =>
+      api<Meta>("/api/v1/meta").then((m) => {
+        // Client-side exports are stamped with the server's version and build.
+        setBuildInfo(m);
+        return m;
+      }),
     staleTime: 5 * 60_000,
     retry: 1,
   });

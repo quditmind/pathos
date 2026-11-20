@@ -222,7 +222,7 @@ func (s *Service) Build(ctx context.Context, p *authz.Principal, f FindingRef) (
 		g := &Graph{Nodes: []Node{}, Edges: []Edge{}}
 		var sid uuid.UUID
 		err := s.DB.QueryRow(ctx, `SELECT id, status FROM codegraph_snapshots WHERE organization_id = $1 AND repository_id = $2
-			AND status IN ('ready', 'partial') AND storage = 'rows' ORDER BY created_at DESC LIMIT 1`, p.OrganizationID, f.repoID).Scan(&sid, &g.Status)
+			AND status IN ('ready', 'partial') AND storage = 'rows' AND kind = 'source' ORDER BY created_at DESC LIMIT 1`, p.OrganizationID, f.repoID).Scan(&sid, &g.Status)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):
 			g.Note = "the repository has no ready CodeGraph snapshot"

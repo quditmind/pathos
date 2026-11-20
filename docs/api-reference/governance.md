@@ -64,7 +64,8 @@ Policies are evaluated after every scan (before the gate), when pull request sca
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `GET` | `/api/v1/compliance/frameworks` | `findings.read` | Each framework with `repositories_in_scope` and the number of `failing`, `attention` and `passing` controls |
-| `GET` | `/api/v1/compliance/frameworks/{key}` | `findings.read` | Controls with `status`, `open_findings`, `by_severity`, `repositories` |
+| `GET` | `/api/v1/compliance/frameworks/{key}` | `findings.read` | Controls with `status`, `open_findings`, `by_severity`, `repositories`, and `lifecycle_evidence` (PATHOS 3.0 M9): sections `codegraph`, `threat_models`, `remediation`, `gates` for the framework's repositories in scope, each `{ key, title, available, reason?, evidence_label, evidence, metrics }` |
+| `GET` | `/api/v1/compliance/frameworks/{key}/export` | `findings.read` and `findings.export` | `format=json` (default; the framework, controls and lifecycle evidence with `generated_by`) or `csv` (one row per control). Version-stamped download, audited `compliance.export`. `400` `PTH-REP-1101` for another format |
 | `GET` | `/api/v1/findings?control=<framework>:<control>` | `findings.read` | Open findings mapped to a control in the framework's scope |
 
 Frameworks: `owasp_top10_2021`, `owasp_asvs_4` (every repository), `pci_dss_4` (repositories with compliance scope `pci_dss`), `iso_27001_2022` (`iso_27001`), `soc2_2017` (`soc_2`). A control maps findings by category, CWE and malicious packages. Status: `failing` (open critical or high findings), `attention` (other open findings), `passing` (none), `not_applicable` (no repository in scope). Everything is limited to the caller's scope. The mapping is indicative evidence for an assessment, not a compliance verdict.

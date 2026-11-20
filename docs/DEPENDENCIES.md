@@ -140,6 +140,14 @@ Family images extend `worker-core`; their tools are defined by manifests in `wor
 | worker-graph | kin-openapi (with go-openapi jsonpointer and swag/jsonname, santhosh-tekuri/jsonschema v6: Apache-2.0; yaml v4: Apache-2.0/MIT) | 0.153.0 | MIT | Go module |
 | worker-graph | go-pointer, go.yaml.in/yaml/v3, golang.org/x/text | — | MIT; MIT/Apache-2.0; BSD-3-Clause | Go modules |
 | worker-graph | PATHOS graph rules (`workers/graph/rules`) | PATHOS version | Apache-2.0 | Copied read-only; run by the worker-core Opengrep |
+| worker-rea | pathos-rea (reverse-engineering analyser, `workers/rea/analyse`) | PATHOS version | Apache-2.0 | Built from this repository with Go 1.27.4 (standard library only, no cgo) |
+| worker-rea | pathos-worker (the worker agent) | PATHOS version | Apache-2.0 | Built from `backend/` like worker-core (worker-rea does not extend worker-core) |
+| worker-rea | radare2 | 6.2.6 | LGPL-3.0-only | Upstream `.deb` release, SHA-256 pinned; runs as a separate process (no linking) |
+| worker-rea | binwalk | 3.1.0 | MIT | `cargo install --locked` from crates.io (Cargo.lock checksums) in `rust:1.100.0-slim-trixie`, pinned by digest |
+| worker-rea | ILSpy command line (ilspycmd, native linux-x64 build) | 11.2.0.10050 | MIT | NuGet package `ilspycmd.linux-x64`, SHA-256 pinned; default on (`WITH_ILSPY`) |
+| worker-rea (optional, `WITH_GHIDRA=true`) | Ghidra (headless) | 12.2 | Apache-2.0 | Release archive, SHA-256 pinned; documentation, server, debugger and non-Linux natives removed |
+| worker-rea (optional, `WITH_JADX=true`) | Jadx | 1.5.7 | Apache-2.0 | Release archive, SHA-256 pinned |
+| worker-rea (optional, with Ghidra or Jadx) | Eclipse Temurin JDK | 25 | GPL-2.0-only WITH Classpath-exception-2.0 | Copied from `eclipse-temurin:25-jdk-noble`, pinned by digest |
 
 Data: the optional end-of-life feed uses [endoflife.date](https://endoflife.date) data (MIT licence), downloaded at run time when an administrator enables it; nothing from it is shipped.
 

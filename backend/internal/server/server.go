@@ -23,12 +23,14 @@ import (
 	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
 	"pathos/internal/featureflags"
+	"pathos/internal/feedback"
 	"pathos/internal/gates"
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
 	"pathos/internal/inventory"
 	"pathos/internal/mcp"
+	"pathos/internal/monitoring"
 	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/buildinfo"
@@ -40,6 +42,7 @@ import (
 	"pathos/internal/policy"
 	"pathos/internal/posture"
 	"pathos/internal/pushprotect"
+	"pathos/internal/rea"
 	"pathos/internal/releases"
 	"pathos/internal/remediation"
 	"pathos/internal/reporting"
@@ -163,6 +166,10 @@ func Build(d Deps) Handlers {
 	// and successful scans trigger rediscovery (rate-limited).
 	graphSvc := codegraph.NewService(d.DB, az, d.Log, auth.PrincipalFrom, d.Artifacts)
 	scanSvc.OnGraphResult = graphSvc.OnGraphResult
+	// Reverse engineering (flag reverse_engineering): analysis documents
+	// become binary graphs in the CodeGraph store.
+	reaSvc := &rea.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Graph: graphSvc}
+	scanSvc.OnREAResult = reaSvc.OnREAResult
 	// Threat models (flag threat_models): a new snapshot regenerates the
 	// application's threat models in a draft (auto_update).
 	threatSvc := &threatmodel.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc}
@@ -171,6 +178,11 @@ func Build(d Deps) Handlers {
 	// decided by the threat-model module.
 	aiSvc.SubjectAccess = map[string]ai.SubjectAccess{"threat_model": threatSvc.EvidenceAccess, "threat": threatSvc.EvidenceAccess}
 	aiSvc.SubjectReviewers = map[string]ai.SubjectReviewer{"threat_suggestion_item": threatSvc.ReviewSuggestion}
+	// Feedback loops across modules (PATHOS 3.0 M9): after a snapshot the
+	// threat models update (M5 behaviour) and, with continuous_monitoring,
+	// dependency reassessment and drift alerts run and the feed records it.
+	loops := &feedback.Loops{DB: d.DB, Log: d.Log, Threats: threatSvc}
+	graphSvc.OnSnapshotReady = loops.OnSnapshotReady
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -181,6 +193,7 @@ func Build(d Deps) Handlers {
 		if err := runtimectx.LinkAfterScan(ctx, d.DB, orgID); err != nil {
 			d.Log.Warn("runtime linking failed", "job_id", jobID, "err", err)
 		}
+		loops.OnScanFinished(ctx, orgID, jobID) // feed: new findings (flagged)
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
 		graphSvc.OnScanFinished(ctx, orgID, jobID)
@@ -264,6 +277,7 @@ func Build(d Deps) Handlers {
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
 	graphSvc.Register(protected)
+	reaSvc.Register(protected)
 	threatSvc.Register(protected)
 	// Cross-phase correlation (M7, ai_intelligence flag).
 	(&correlation.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, ThreatAccess: threatSvc.EvidenceAccess}).Register(protected)
@@ -278,6 +292,7 @@ func Build(d Deps) Handlers {
 	connSvc.Register(protected)
 	remSvc.Register(protected)
 	(&gates.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&monitoring.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&featureflags.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)

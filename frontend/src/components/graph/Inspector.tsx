@@ -30,6 +30,7 @@ const refKindLabel: Record<EvidenceRef["kind"], string> = {
   registry: "Inventory record",
   runtime: "Runtime",
   ai_record: "AI evidence record",
+  binary: "Binary offset",
 };
 
 function RefLine({ r, refHref }: { r: EvidenceRef; refHref: (r: EvidenceRef) => string | undefined }) {
