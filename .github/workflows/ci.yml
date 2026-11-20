@@ -238,10 +238,22 @@ jobs:
         run: docker compose up -d --wait --wait-timeout 600
       - name: Smoke test
         run: python3 scripts/smoke-test.py
+      # CodeGraph and threat-model browser tests against the real discovery
+      # worker: start worker-graph (image built above) and seed an
+      # application holding this repository (git archive HEAD, ~11 MB zip);
+      # e2e.sh then passes E2E_CODEGRAPH_APP to codegraph.spec.ts, and
+      # threatmodels.spec.ts runs because a graph worker is online. Discovery
+      # of the PATHOS tree takes ~30 s on 2 CPUs / 1 GiB; the whole addition
+      # is estimated at +3-5 min (CONTRIBUTING.md, Tests).
+      - name: Start the CodeGraph worker
+        run: docker compose --profile graph up -d --wait --wait-timeout 300 worker-graph
+      - name: Seed the e2e CodeGraph application (this repository)
+        run: python3 scripts/seed-e2e-app.py --github-env
       - name: Browser tests (Playwright)
         run: scripts/e2e.sh
         env:
           CI: "true"
+          E2E_CODEGRAPH_WAIT_S: "600"
       - name: Image scan (Trivy) and DAST baseline (ZAP)
         run: scripts/security-scan.sh --no-code
         env:
