@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"pathos/internal/ai"
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/lifecycle"
 	"pathos/internal/org"
 	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/httpx"
@@ -39,6 +41,10 @@ type Facts struct {
 	New30        int              `json:"new_last_30_days"`
 	TopFindings  []FindingRef     `json:"riskiest_findings"`
 	Applications []map[string]any `json:"riskiest_applications"`
+	// Lifecycle (technical reports, PATHOS 3.0 M9): CodeGraph, threat
+	// models, remediation and gates for the scope, each section stating
+	// its evidence and whether it is available.
+	Lifecycle []lifecycle.Section `json:"lifecycle,omitempty"`
 }
 
 // Narrative is the AI-written part.
@@ -251,6 +257,16 @@ func (s *Service) createReport(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	if req.Kind == "technical" {
+		cond, sargs, _, err := s.scopeCond(ctx, p, req.ScopeType, req.ScopeID)
+		if err == nil {
+			fa.Lifecycle, err = lifecycle.Sections(ctx, s.DB, p, lifecycle.Scope{OrgID: p.OrganizationID, RepoCond: cond, Args: sargs})
+		}
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+	}
 	rep := Report{ID: uuid.Must(uuid.NewV7()), Kind: req.Kind, ScopeType: req.ScopeType, ScopeID: req.ScopeID, Facts: fa, CreatedAt: time.Now()}
 	rep.Title = map[string]string{"technical": "Technical security report", "executive": "Executive security summary"}[req.Kind] + ": " + fa.Scope
 	var res ai.GenerateResult
@@ -438,6 +454,23 @@ func Markdown(rep Report) string {
 		}
 		b.WriteString("\n")
 	}
+	for _, sec := range f.Lifecycle {
+		fmt.Fprintf(&b, "## %s\n\n_Evidence (%s): %s_\n\n", sec.Title, sec.EvidenceLabel, sec.Evidence)
+		if !sec.Available {
+			fmt.Fprintf(&b, "Not available: %s.\n\n", sec.Reason)
+			continue
+		}
+		b.WriteString("| Measure | Value |\n|---|---|\n")
+		keys := make([]string, 0, len(sec.Metrics))
+		for k := range sec.Metrics {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			fmt.Fprintf(&b, "| %s | %d |\n", strings.ReplaceAll(k, "_", " "), sec.Metrics[k])
+		}
+		b.WriteString("\n")
+	}
 	if rep.NarrativeError != "" {
 		fmt.Fprintf(&b, "_%s_\n", rep.NarrativeError)
 	}
@@ -451,8 +484,7 @@ func (s *Service) reportMarkdown(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="pathos-%s-report-%s.md"`, rep.Kind, rep.CreatedAt.Format("2006-01-02")))
+	httpx.Download(w, "text/markdown; charset=utf-8", fmt.Sprintf("pathos-%s-report-%s.md", rep.Kind, rep.CreatedAt.Format("2006-01-02")))
 	_, _ = w.Write([]byte(Markdown(rep)))
 }
 

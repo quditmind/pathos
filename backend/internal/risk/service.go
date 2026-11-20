@@ -270,7 +270,8 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			               AND (v.id = f.cve OR v.aliases @> ARRAY[f.cve])),
 			       `+MaliciousExpr+`,
 			       f.category = 'secrets' AND f.secret_validation_status = 'active',
-			       f.runtime_status, f.runtime_exposed, f.runtime_privileged, f.runtime_alert, f.runtime_context
+			       f.runtime_status, f.runtime_exposed, f.runtime_privileged, f.runtime_alert, f.runtime_context,
+			       f.repository_id, f.risk_score::float8, f.kev, f.epss_percentile::float8, f.risk_scored_at IS NOT NULL, f.cve
 			FROM batch JOIN findings f ON f.id = batch.id
 			JOIN repositories r ON r.id = f.repository_id
 			LEFT JOIN applications a ON a.id = r.application_id
@@ -289,6 +290,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			exploit       bool
 			osvExploit    bool
 			malicious     bool
+			prev          rescore
 		}
 		var list []upd
 		for rows.Next() {
@@ -299,7 +301,8 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			if err := rows.Scan(&u.id, &in.Status, &in.Severity, &in.HumanSeverity, &in.CVSS, &u.epss, &u.epssPct, &u.kev, &u.kevDue,
 				&in.ExploitAvailable, &repoCrit, &appCrit, &in.Exposure, &in.Reachability, &in.ReachabilityMethod, &in.Confidence, &in.HumanDisposition,
 				&in.FixAvailable, &in.Compensating, &u.osvExploit, &in.Malicious, &in.SecretActive,
-				&in.RuntimeStatus, &in.RuntimeExposed, &in.RuntimePrivileged, &in.RuntimeAlert, &rtCtx); err != nil {
+				&in.RuntimeStatus, &in.RuntimeExposed, &in.RuntimePrivileged, &in.RuntimeAlert, &rtCtx,
+				&u.prev.repo, &u.prev.score, &u.prev.kev, &u.prev.epssPct, &u.prev.scored, &u.prev.cve); err != nil {
 				rows.Close()
 				return err
 			}
@@ -316,6 +319,7 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 			in.ExploitAvailable = in.ExploitAvailable || u.kev || u.osvExploit
 			u.exploit = in.ExploitAvailable
 			u.malicious = in.Malicious
+			u.prev.severity = in.Severity
 			u.res = Compute(in, m.Weights)
 			u.res.Version = m.Version
 			list = append(list, u)
@@ -335,7 +339,17 @@ func Recompute(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID, limit i
 		if n == 0 {
 			return nil
 		}
-		return tx.SendBatch(ctx, b).Close()
+		if err := tx.SendBatch(ctx, b).Close(); err != nil {
+			return err
+		}
+		changes := make([]rescore, 0, len(list))
+		for _, u := range list {
+			c := u.prev
+			c.id = u.id
+			c.newScore, c.newKEV, c.newEPSS = u.res.Score, u.kev, u.epssPct
+			changes = append(changes, c)
+		}
+		return recordRescores(ctx, tx, orgID, changes)
 	})
 	return n, err
 }

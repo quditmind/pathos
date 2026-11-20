@@ -188,9 +188,11 @@ type Item struct {
 	AffectedFiles    []string         `json:"affected_files"`
 	FixPullRequest   *FixPRRef        `json:"fix_pull_request"`
 	LastVerification *VerificationRef `json:"last_verification"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
-	ClosedAt         *time.Time       `json:"closed_at"`
+	// Threat is the M5 threat a threat_mitigation item mitigates (M9).
+	Threat    *ThreatRef `json:"threat"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	ClosedAt  *time.Time `json:"closed_at"`
 }
 
 // fixPRExpr is the item's fix pull request: the one linked by hand, else
@@ -210,11 +212,14 @@ const itemSelect = `SELECT i.id, i.title, i.kind, i.status, i.priority, i.reposi
 	          WHERE x.item_id = i.id AND f.file_path <> ''), '{}'),
 	fp.id, fp.status, fp.pr_url, fp.kind, fp.created_at,
 	lv.id, lv.status, lv.result, lv.created_at,
-	i.created_at, i.updated_at, i.closed_at
+	i.created_at, i.updated_at, i.closed_at,
+	th.id, th.title, th.severity, th.status, tm.id, tm.title, tm.version
 	FROM remediation_items i
 	LEFT JOIN repositories r ON r.id = i.repository_id
 	LEFT JOIN applications a ON a.id = i.application_id
 	LEFT JOIN users u ON u.id = i.owner_id
+	LEFT JOIN threats th ON th.id = i.threat_id
+	LEFT JOIN threat_models tm ON tm.id = th.threat_model_id
 	LEFT JOIN fix_pull_requests fp ON fp.id = ` + fixPRExpr + `
 	LEFT JOIN LATERAL (SELECT v.id, v.status, v.result, v.created_at FROM remediation_verifications v WHERE v.item_id = i.id
 	                   ORDER BY v.created_at DESC LIMIT 1) lv ON true`
@@ -225,12 +230,23 @@ func scanItem(row pgx.Row) (Item, error) {
 	var fpStatus, fpURL, fpKind, lvStatus *string
 	var fpAt, lvAt *time.Time
 	var lvResult *string
+	var thID, tmID *uuid.UUID
+	var thTitle, thSev, thStatus, tmTitle *string
+	var tmVersion *int
 	err := row.Scan(&it.ID, &it.Title, &it.Kind, &it.Status, &it.Priority, &it.RepositoryID, &it.RepositoryName, &it.ApplicationID,
 		&it.ApplicationName, &it.OwnerID, &it.OwnerEmail, &it.DueAt, &it.DueSource, &it.RootCause, &it.FindingCount, &it.OpenFindingCount,
 		&it.TopSeverity, &it.AffectedFiles, &fpID, &fpStatus, &fpURL, &fpKind, &fpAt, &lvID, &lvStatus, &lvResult, &lvAt,
-		&it.CreatedAt, &it.UpdatedAt, &it.ClosedAt)
+		&it.CreatedAt, &it.UpdatedAt, &it.ClosedAt, &thID, &thTitle, &thSev, &thStatus, &tmID, &tmTitle, &tmVersion)
 	if err != nil {
 		return it, err
+	}
+	if thID != nil && tmID != nil {
+		v := 0
+		if tmVersion != nil {
+			v = *tmVersion
+		}
+		it.Threat = &ThreatRef{ID: *thID, Title: deref(thTitle), Severity: deref(thSev), Status: deref(thStatus), ThreatModelID: *tmID,
+			ThreatModelTitle: deref(tmTitle), ThreatModelVersion: v}
 	}
 	if fpID != nil {
 		it.FixPullRequest = &FixPRRef{ID: *fpID, Status: deref(fpStatus), PRURL: deref(fpURL), Kind: deref(fpKind), CreatedAt: derefTime(fpAt)}
@@ -315,6 +331,13 @@ func listFilter(p *authz.Principal, q map[string][]string) ([]string, []any, err
 			}
 			add("i."+k+" = $%d", id)
 		}
+	}
+	if v := get("threat_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			return nil, nil, httpx.BadRequest("invalid threat_id")
+		}
+		add("i.threat_id = $%d", id)
 	}
 	if get("unassigned") == "true" {
 		where = append(where, "i.owner_id IS NULL")
@@ -423,6 +446,9 @@ type createInput struct {
 	DueAt     *time.Time `json:"due_at"`
 	Priority  string     `json:"priority"`
 	RootCause string     `json:"root_cause"`
+	// ThreatID links the items to an M5 threat (kind threat_mitigation);
+	// without finding_ids it creates one application-level item.
+	ThreatID *uuid.UUID `json:"threat_id"`
 }
 
 type findingRow struct {
@@ -467,6 +493,33 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	in.Title, in.RootCause = strings.TrimSpace(in.Title), strings.TrimSpace(in.RootCause)
+	if in.ThreatID != nil && len(in.FindingIDs) == 0 && len(in.Title) <= 300 && len(in.RootCause) <= 4000 &&
+		(in.Priority == "" || slices.Contains(Priorities, in.Priority)) {
+		id, err := s.createForThreat(ctx, p, in)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		it, err := scanItem(s.DB.QueryRow(ctx, itemSelect+" WHERE i.id = $1", id))
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		httpx.WriteJSON(w, http.StatusCreated, map[string]any{"items": []Item{it}})
+		return
+	}
+	var threat *threatInfo
+	if in.ThreatID != nil {
+		t, err := s.loadThreat(ctx, s.DB, p, *in.ThreatID)
+		if err != nil {
+			s.fail(w, r, err)
+			return
+		}
+		if in.Kind == "" {
+			in.Kind = "threat_mitigation"
+		}
+		threat = &t
+	}
 	switch {
 	case len(in.FindingIDs) == 0 || len(in.FindingIDs) > 500:
 		err = httpx.BadRequest("finding_ids: 1 to 500 findings")
@@ -518,6 +571,14 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 		if !strings.Contains(openFindingStatuses, "'"+f.status+"'") {
 			s.fail(w, r, httpx.BadRequest("finding "+f.id.String()+" is not open ("+f.status+")"))
 			return
+		}
+	}
+	if threat != nil {
+		for _, f := range fs {
+			if err := checkThreatLink(*threat, f.appID, in.Kind); err != nil {
+				s.fail(w, r, err)
+				return
+			}
 		}
 	}
 	if in.Mode == "group" && len(repos) > 1 {
@@ -591,9 +652,13 @@ func (s *Service) create(w http.ResponseWriter, r *http.Request) {
 			if in.DueAt != nil {
 				due, source = in.DueAt, "manual"
 			}
+			var threatID *uuid.UUID
+			if threat != nil {
+				threatID = &threat.ID
+			}
 			if _, err := tx.Exec(ctx, `INSERT INTO remediation_items (id, organization_id, application_id, repository_id, title, kind, priority,
-				root_cause, owner_id, due_at, due_source, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-				id, p.OrganizationID, first.appID, first.repoID, title, kind, prio, in.RootCause, in.OwnerID, due, source, p.UserID); err != nil {
+				root_cause, owner_id, due_at, due_source, created_by, threat_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+				id, p.OrganizationID, first.appID, first.repoID, title, kind, prio, in.RootCause, in.OwnerID, due, source, p.UserID, threatID); err != nil {
 				return err
 			}
 			for _, f := range g {
@@ -678,6 +743,8 @@ type patchInput struct {
 	Priority         *string    `json:"priority"`
 	RootCause        *string    `json:"root_cause"`
 	FixPullRequestID *uuid.UUID `json:"fix_pull_request_id"`
+	// ThreatID links (uuid) or unlinks (null) an M5 threat (M9).
+	ThreatID optionalUUID `json:"threat_id"`
 }
 
 func (s *Service) patch(w http.ResponseWriter, r *http.Request) {
@@ -795,9 +862,24 @@ func (s *Service) applyPatch(ctx context.Context, p *authz.Principal, before Ite
 		}
 		add("fix_pull_request_id", *in.FixPullRequestID)
 	}
+	if in.ThreatID.Set {
+		if in.ThreatID.Value == nil {
+			add("threat_id", nil)
+		} else {
+			t, err := s.loadThreat(ctx, s.DB, p, *in.ThreatID.Value)
+			if err != nil {
+				return err
+			}
+			if err := checkThreatLink(t, before.ApplicationID, before.Kind); err != nil {
+				return err
+			}
+			add("threat_id", t.ID)
+		}
+	}
 	if len(meta) == 0 {
 		return nil
 	}
+	submitted := in.Status != nil && *in.Status == "fix_submitted" && before.Status != "fix_submitted"
 	return db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		args := append(args, p.OrganizationID)
 		tag, err := tx.Exec(ctx, `UPDATE remediation_items SET `+strings.Join(set, ", ")+fmt.Sprintf(" WHERE id = $1 AND organization_id = $%d", len(args)), args...)
@@ -810,8 +892,14 @@ func (s *Service) applyPatch(ctx context.Context, p *authz.Principal, before Ite
 		if tag.RowsAffected() == 0 {
 			return httpx.ErrNotFound
 		}
-		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
-			Action: "remediation_item.update", TargetType: "remediation_item", TargetID: before.ID.String(), Metadata: meta})
+		if err := audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+			Action: "remediation_item.update", TargetType: "remediation_item", TargetID: before.ID.String(), Metadata: meta}); err != nil {
+			return err
+		}
+		if submitted {
+			return s.verifySubmitted(ctx, tx, p, before.ID)
+		}
+		return nil
 	})
 }
 

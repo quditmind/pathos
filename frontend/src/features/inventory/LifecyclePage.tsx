@@ -28,18 +28,32 @@ function phaseLink(a: AppLifecycle, p: Phase, hub: boolean, children: ReactNode)
       );
     case "discover":
       return hub ? (
-        <Link to="/applications/$id" params={{ id: a.id }} search={{ tab: "sbom" } as never} className={cls} aria-label={label}>{children}</Link>
+        <Link to="/applications/$id" params={{ id: a.id }} search={{ tab: (p.metrics?.codegraph_snapshots ?? 0) > 0 ? "codegraph" : "sbom" } as never} className={cls} aria-label={label}>{children}</Link>
       ) : (
         <Link to="/sbom" className={cls} aria-label={label}>{children}</Link>
+      );
+    case "threat_model":
+      return hub ? (
+        <Link to="/applications/$id" params={{ id: a.id }} search={{ tab: "threat-model" } as never} className={cls} aria-label={label}>{children}</Link>
+      ) : (
+        <Link to="/threat-models" search={{ application: a.id } as never} className={cls} aria-label={label}>{children}</Link>
       );
     case "assess":
       return <Link to="/findings" search={{ application_id: a.id } as never} className={cls} aria-label={label}>{children}</Link>;
     case "validate":
       return <Link to="/ai" className={cls} aria-label={label}>{children}</Link>;
     case "remediate":
-      return <Link to="/risk" className={cls} aria-label={label}>{children}</Link>;
+      return (p.metrics?.remediation_items ?? 0) > 0 ? (
+        <Link to="/remediation" search={{ application_id: a.id } as never} className={cls} aria-label={label}>{children}</Link>
+      ) : (
+        <Link to="/risk" className={cls} aria-label={label}>{children}</Link>
+      );
     case "report":
-      return <Link to="/applications/$id/versions" params={{ id: a.id }} className={cls} aria-label={label}>{children}</Link>;
+      return (p.metrics?.monitoring_events ?? 0) > 0 || (p.metrics?.drift_changes ?? 0) > 0 ? (
+        <Link to="/monitoring" search={{ application_id: a.id } as never} className={cls} aria-label={label}>{children}</Link>
+      ) : (
+        <Link to="/applications/$id/versions" params={{ id: a.id }} className={cls} aria-label={label}>{children}</Link>
+      );
   }
   return children;
 }
@@ -64,7 +78,7 @@ export function LifecyclePage() {
     <>
       <PageHeader
         title="Lifecycle overview"
-        description="Every application and which of the nine lifecycle phases already hold real data. Phases without data say so; threat models are not built yet."
+        description="Every application and which of the nine lifecycle phases already hold real data. Phases without data say so; hover a cell for its counts."
       />
       {data.isError && <ErrorPanel error={data.error} onVerify={() => data.refetch()} />}
       <Card>
@@ -141,7 +155,7 @@ export function LifecyclePage() {
       <p className="mt-3 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-success-soft" aria-hidden /> Has data</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded border border-dashed border-border" aria-hidden /> No data yet</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-surface-muted" aria-hidden /> Not available yet (M5)</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-surface-muted" aria-hidden /> Not available (module not enabled)</span>
       </p>
     </>
   );

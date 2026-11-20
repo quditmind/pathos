@@ -83,9 +83,11 @@ async function fixtureApp(request: APIRequestContext): Promise<{ appId: string; 
 
 /**
  * Generation needs a real CodeGraph build, so an online discovery worker
- * (worker-graph, Compose profile `graph`). The CI stack does not start that
- * profile: the test is skipped there with the reason; the integration test
- * TestThreatModels covers generation from a stored snapshot in CI.
+ * (worker-graph, Compose profile `graph`). CI starts the graph worker and
+ * seeds an application (scripts/seed-e2e-app.py --github-env), so generation
+ * runs there; on a stack without an online graph worker the test is skipped
+ * with the reason (TestThreatModels also covers generation from a stored
+ * snapshot).
  */
 async function graphWorkerOnline(request: APIRequestContext): Promise<boolean> {
   const r = await request.get("/api/v1/workers");

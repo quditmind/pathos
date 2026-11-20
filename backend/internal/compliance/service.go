@@ -2,15 +2,21 @@ package compliance
 
 import (
 	"context"
+	"encoding/csv"
+	"encoding/json"
 	"errors"
 	"log/slog"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/lifecycle"
 	"pathos/internal/org"
+	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/httpx"
 )
 
@@ -25,6 +31,7 @@ type Service struct {
 func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/compliance/frameworks", s.list)
 	mux.HandleFunc("GET /api/v1/compliance/frameworks/{key}", s.get)
+	mux.HandleFunc("GET /api/v1/compliance/frameworks/{key}/export", s.export)
 }
 
 // ControlStatus is a control with the open findings mapped to it.
@@ -51,6 +58,10 @@ type Summary struct {
 	Attention      int             `json:"attention"`
 	Passing        int             `json:"passing"`
 	Controls       []ControlStatus `json:"controls,omitempty"`
+	// LifecycleEvidence (PATHOS 3.0 M9): CodeGraph, threat models,
+	// remediation and gates for the framework's repositories, each section
+	// stating its evidence (framework detail and export only).
+	LifecycleEvidence []lifecycle.Section `json:"lifecycle_evidence,omitempty"`
 }
 
 func (s *Service) evaluate(ctx context.Context, p *authz.Principal, f Framework, withControls bool) (Summary, error) {
@@ -144,24 +155,79 @@ func (s *Service) list(w http.ResponseWriter, r *http.Request) {
 		items = append(items, sum)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items,
-		"note": "Indicative mapping of open findings to controls; it is evidence for an assessment, not a compliance verdict."})
+		"note": complianceNote})
 }
 
-func (s *Service) get(w http.ResponseWriter, r *http.Request) {
+func (s *Service) detail(r *http.Request) (*authz.Principal, Summary, error) {
 	p, err := s.principal(r)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, Summary{}, err
 	}
 	f, ok := Lookup(r.PathValue("key"))
 	if !ok {
-		s.fail(w, r, httpx.ErrNotFound)
-		return
+		return nil, Summary{}, httpx.ErrNotFound
 	}
 	sum, err := s.evaluate(r.Context(), p, f, true)
+	if err != nil {
+		return nil, sum, err
+	}
+	// The framework's repositories in the caller's scope.
+	scope, sargs := org.ScopeSQL(authz.FilterFor(p, authz.PermFindingsRead), "r.id", "r.business_unit_id", "r.country_id", 2)
+	if f.ScopeKey != "" {
+		sargs = append(sargs, f.ScopeKey)
+		scope += " AND EXISTS (SELECT 1 FROM repository_compliance_scopes cs WHERE cs.repository_id = r.id AND cs.scope_key = $" + strconv.Itoa(len(sargs)+1) + ")"
+	}
+	sum.LifecycleEvidence, err = lifecycle.Sections(r.Context(), s.DB, p, lifecycle.Scope{OrgID: p.OrganizationID, RepoCond: scope, Args: sargs})
+	return p, sum, err
+}
+
+func (s *Service) get(w http.ResponseWriter, r *http.Request) {
+	_, sum, err := s.detail(r)
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
 	httpx.WriteJSON(w, http.StatusOK, sum)
 }
+
+// export: GET /api/v1/compliance/frameworks/{key}/export?format=json|csv,
+// a version-stamped compliance report (findings.export).
+func (s *Service) export(w http.ResponseWriter, r *http.Request) {
+	format := r.URL.Query().Get("format")
+	if format == "" {
+		format = "json"
+	}
+	if format != "json" && format != "csv" {
+		s.fail(w, r, httpx.E(http.StatusBadRequest, "unsupported_format", "format must be json or csv").WithDiag("PTH-REP-1101"))
+		return
+	}
+	p, sum, err := s.detail(r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	if !p.HasAnywhere(authz.PermFindingsExport) {
+		s.fail(w, r, httpx.ErrForbidden.WithDiag("PTH-REP-1001"))
+		return
+	}
+	now := time.Now().UTC()
+	_ = audit.Write(r.Context(), s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
+		Action: "compliance.export", TargetType: "compliance_framework", TargetID: sum.Key, Metadata: map[string]any{"format": format}})
+	name := "pathos-compliance-" + sum.Key + "-" + now.Format("20060102")
+	if format == "json" {
+		httpx.Download(w, "application/json", name+".json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"generated_by": buildinfo.Stamp(now), "pathos_version": buildinfo.Version,
+			"pathos_build": buildinfo.Commit, "generated_at": now, "note": complianceNote, "framework": sum})
+		return
+	}
+	httpx.Download(w, "text/csv; charset=utf-8", name+".csv")
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"control", "title", "status", "open_findings", "critical", "high", "medium", "low", "repositories"})
+	for _, c := range sum.Controls {
+		_ = cw.Write([]string{c.ID, c.Title, c.Status, strconv.Itoa(c.Open), strconv.Itoa(c.BySeverity["critical"]), strconv.Itoa(c.BySeverity["high"]),
+			strconv.Itoa(c.BySeverity["medium"]), strconv.Itoa(c.BySeverity["low"]), strconv.Itoa(c.Repositories)})
+	}
+	cw.Flush()
+}
+
+const complianceNote = "Indicative mapping of open findings to controls; it is evidence for an assessment, not a compliance verdict."

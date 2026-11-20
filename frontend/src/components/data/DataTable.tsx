@@ -3,6 +3,7 @@ import * as DM from "@radix-ui/react-dropdown-menu";
 import { Check, Columns3, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Alert, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
+import { stampedFileName } from "@/lib/buildStamp";
 import { cn } from "@/lib/utils";
 
 export interface Column<T> {
@@ -133,8 +134,8 @@ export function DataTable<T>({
               variant="ghost"
               size="sm"
               disabled={!rows.length}
-              onClick={() => download(`${exportName}-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(columns.filter((c) => !hidden.has(c.id) || c.exportAlways), rows))}
-              title="Export loaded rows as CSV"
+              onClick={() => download(stampedFileName(exportName, "csv"), toCsv(columns.filter((c) => !hidden.has(c.id) || c.exportAlways), rows))}
+              title="Export loaded rows as CSV (the file name carries the PATHOS version and build)"
             >
               <Download /> Export
             </Button>

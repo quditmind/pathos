@@ -49,6 +49,17 @@ export interface VerificationRef {
   created_at: string;
 }
 
+/** The threat a threat-mitigation item addresses (PATHOS 3.0 M9). */
+export interface ThreatRef {
+  id: string;
+  title: string;
+  severity: Severity;
+  status: string;
+  threat_model_id: string;
+  threat_model_title: string;
+  threat_model_version: number;
+}
+
 export interface RemediationItem {
   id: string;
   title: string;
@@ -71,6 +82,8 @@ export interface RemediationItem {
   affected_files: string[];
   fix_pull_request: FixPRRef | null;
   last_verification: VerificationRef | null;
+  /** Linked threat (threat_mitigation items); absent from servers before M9. */
+  threat?: ThreatRef | null;
   created_at: string;
   updated_at: string;
   closed_at: string | null;
@@ -149,10 +162,12 @@ export interface ItemFilters {
   /** Items of one application (the application profile's Remediation tab links here). */
   application_id?: string;
   overdue?: string;
+  /** Items addressing one threat (the threat detail links here). */
+  threat_id?: string;
   q?: string;
   sort?: string;
 }
-export const filterKeys: (keyof ItemFilters)[] = ["status", "owner_id", "unassigned", "priority", "repository_id", "application_id", "overdue", "q", "sort"];
+export const filterKeys: (keyof ItemFilters)[] = ["status", "owner_id", "unassigned", "priority", "repository_id", "application_id", "overdue", "threat_id", "q", "sort"];
 
 // --- gates --------------------------------------------------------------------
 
@@ -343,6 +358,8 @@ export interface ItemPatch {
   priority?: Priority;
   root_cause?: string;
   fix_pull_request_id?: string;
+  /** Link a threat of the item's application (uuid) or unlink (null); threat_mitigation items only. */
+  threat_id?: string | null;
 }
 
 export function useUpdateItem(id: string) {
@@ -376,6 +393,52 @@ export function useCreateItems() {
     mutationFn: (body: { finding_ids: string[]; mode: "per_finding" | "group"; title?: string }) =>
       api<{ items: RemediationItem[] }>("/api/v1/remediation/items", { method: "POST", body }),
     onSuccess: () => void qc.invalidateQueries({ queryKey: remKeys.all }),
+  });
+}
+
+/** Creates one application-level threat-mitigation item for a threat (finding_ids may be empty). */
+export function useCreateThreatItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { threat_id: string; title: string }) =>
+      api<{ items?: RemediationItem[] } & Partial<RemediationItem>>("/api/v1/remediation/items", {
+        method: "POST",
+        body: { ...body, kind: "threat_mitigation", finding_ids: [], mode: "group" },
+      }).then((r) => (Array.isArray(r.items) ? r.items[0] : (r as RemediationItem))),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: remKeys.all });
+      void qc.invalidateQueries({ queryKey: ["threat-models"] });
+    },
+  });
+}
+
+/** Threat models of an application and their threats, for the link picker (no graph code: plain fetches). */
+export interface PickerModel {
+  id: string;
+  title: string;
+  version: number;
+  status: string;
+}
+export interface PickerThreat {
+  id: string;
+  title: string;
+  severity: Severity;
+  status: string;
+}
+export function usePickerModels(applicationId: string | null, enabled: boolean) {
+  return useQuery({
+    enabled: enabled && !!applicationId,
+    queryKey: ["remediation", "threat-picker", "models", applicationId ?? ""],
+    queryFn: () => api<unknown>(`/api/v1/threat-models${qs({ application_id: applicationId ?? undefined })}`).then((r) => itemsOf<PickerModel>(r)),
+    retry: false,
+  });
+}
+export function usePickerThreats(modelId: string, enabled: boolean) {
+  return useQuery({
+    enabled: enabled && !!modelId,
+    queryKey: ["remediation", "threat-picker", "threats", modelId],
+    queryFn: () => api<unknown>(`/api/v1/threat-models/${encodeURIComponent(modelId)}/threats`).then((r) => itemsOf<PickerThreat>(r)),
+    retry: false,
   });
 }
 

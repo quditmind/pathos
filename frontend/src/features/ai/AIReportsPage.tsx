@@ -9,6 +9,7 @@ import { RepoFilter } from "@/features/review/shared";
 import { useApplications } from "@/features/repos/api";
 import { formatDateTime } from "@/lib/utils";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { LifecycleEvidence, lifecycleSections } from "@/features/reporting/LifecycleEvidence";
 
 interface Report {
   id: string;
@@ -124,6 +125,7 @@ export function AIReportsPage() {
               ) : r.narrative_error ? <Alert tone="warning">{r.narrative_error}</Alert> : null}
               <h3 className="font-semibold">Figures</h3>
               <FactsTable f={r.facts} />
+              {r.kind === "technical" && <LifecycleEvidence sections={lifecycleSections(r.facts?.lifecycle)} />}
             </div>
           )}
         </Card>

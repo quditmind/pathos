@@ -14,6 +14,8 @@ import (
 
 	"pathos/internal/authz"
 	"pathos/internal/codegraph"
+	"pathos/internal/featureflags"
+	"pathos/internal/gates"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/threatmodel/frameworks"
@@ -316,7 +318,50 @@ func (s *Service) getThreat(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"threat": t, "events": evs})
+	items, err := s.remediationItems(ctx, p, t.ID)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"threat": t, "events": evs, "remediation_items": items})
+}
+
+// RemediationRef is a remediation item that mitigates a threat (PATHOS
+// 3.0 M9 link; the item side is internal/remediation).
+type RemediationRef struct {
+	ID       uuid.UUID `json:"id"`
+	Title    string    `json:"title"`
+	Status   string    `json:"status"`
+	Priority string    `json:"priority"`
+}
+
+// remediationItems lists the items linked to a threat that the caller may
+// read; empty without the remediation workspace or remediation.read.
+func (s *Service) remediationItems(ctx context.Context, p *authz.Principal, threatID uuid.UUID) ([]RemediationRef, error) {
+	out := []RemediationRef{}
+	if !p.HasAnywhere(authz.PermRemediationRead) {
+		return out, nil
+	}
+	if on, err := featureflags.Enabled(ctx, s.DB, p.OrganizationID, gates.Flag); err != nil || !on {
+		return out, err
+	}
+	args := []any{p.OrganizationID, threatID}
+	vis, vargs := gates.VisibilitySQL(p, authz.PermRemediationRead, "i.application_id", len(args)+1)
+	// #nosec G202 -- vis is built from placeholders
+	rows, err := s.DB.Query(ctx, `SELECT i.id, i.title, i.status, i.priority FROM remediation_items i LEFT JOIN repositories r ON r.id = i.repository_id
+		WHERE i.organization_id = $1 AND i.threat_id = $2 AND `+vis+` ORDER BY i.created_at`, append(args, vargs...)...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var x RemediationRef
+		if err := rows.Scan(&x.ID, &x.Title, &x.Status, &x.Priority); err != nil {
+			return nil, err
+		}
+		out = append(out, x)
+	}
+	return out, rows.Err()
 }
 
 type linkRequest struct {
