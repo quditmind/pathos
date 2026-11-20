@@ -13,7 +13,7 @@ A threat model lists what can go wrong in an application and what is done about 
 
 Every threat answers five questions: **what is the evidence**, **which method found it**, **how severe is it**, **how confident is PATHOS**, and **what is the mitigation**.
 
-Threat models are a new module. An administrator turns them on with the **threat_models** feature flag (Administration → Feature flags). Until then the sidebar item **Threat models** (group *4 · Threat model*) is shown as a roadmap item and the pages and API answer "feature disabled" (`PTH-PLAT-1007`). Threat models need a CodeGraph, so the **codegraph** flag should be on too.
+Threat models are a new module. An administrator turns them on with the **threat_models** feature flag (Administration → Feature flags). Until then the sidebar item **Threat models** (group *4 · Threat model*) is shown disabled with an **Off** badge ("not enabled") and the pages and API answer "feature disabled" (`PTH-PLAT-1007`). Threat models need a CodeGraph, so the **codegraph** flag should be on too.
 
 ## Creating a threat model
 

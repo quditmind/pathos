@@ -18,7 +18,7 @@ PATHOS uses AI in several places: AI review of findings, Human Eye assistance, A
 
 The rule behind all of it: **an AI conclusion is labelled *AI-inferred* and only proposes.** AI never closes, suppresses or accepts anything by itself: a person decides, in triage, in Human Eye, in the AI review approval or on the record.
 
-The pages and the API are a new module: an administrator turns them on with the **ai_intelligence** feature flag (Administration → Feature flags). Until then the sidebar item **AI evidence log** (group *7 · Validate & intelligence*) is shown as a roadmap item. Evidence records are written whatever the flag, so the history is complete when you turn it on.
+The pages and the API are a new module: an administrator turns them on with the **ai_intelligence** feature flag (Administration → Feature flags). Until then the sidebar item **AI evidence log** (group *7 · Validate & intelligence*) is shown disabled with an **Off** badge ("not enabled"). Evidence records are written whatever the flag, so the history is complete when you turn it on.
 
 ## AI evidence log
 

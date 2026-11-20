@@ -22,7 +22,7 @@ All endpoints are under `/api/v1` and follow the [common conventions](index.md#a
 Without a session or token, only the product, vendor and backend version are returned:
 
 ```json
-{ "product": "PATHOS", "vendor": "Quditmind", "version": "3.0.0" }
+{ "product": "PATHOS", "vendor": "Quditmind", "version": "3.0.1" }
 ```
 
 With a session or API token (any role), the response adds the build, the API version, the organization's feature flags and the live worker registry:
@@ -31,16 +31,16 @@ With a session or API token (any role), the response adds the build, the API ver
 {
   "product": "PATHOS",
   "vendor": "Quditmind",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "commit": "f3c5efd0123456789abcdef0123456789abcdef0",
   "build_date": "2026-11-20T10:00:00Z",
   "api_version": "v1",
   "feature_flags": { "connectors": false, "onboarding": false, "codegraph": false, "threat_models": false,
                      "reverse_engineering": false, "remediation_workspace": false, "continuous_monitoring": false, "lifecycle_overview": false, "scan_profile_tiers": false },
   "workers": [
-    { "name": "worker-core-1", "family": "core", "version": "3.0.0", "scanners": { "opengrep": "1.12.1", "trivy": "0.67.2" }, "online": true }
+    { "name": "worker-core-1", "family": "core", "version": "3.0.1", "scanners": { "opengrep": "1.12.1", "trivy": "0.67.2" }, "online": true }
   ],
-  "scanner_packs": [ { "family": "core", "version": "3.0.0" } ]
+  "scanner_packs": [ { "family": "core", "version": "3.0.1" } ]
 }
 ```
 

@@ -128,7 +128,7 @@ export function SystemStatusDialog({ open, onOpenChange }: { open: boolean; onOp
                 );
               })
           )}
-          <Row name="Connectors" health="unknown" detail="Connector health arrives with the Connectors module (roadmap phase 1)." />
+          <Row name="Connectors" health="unknown" detail="Not summarised here: the Connectors page (feature flag connectors) shows the health check of each connection." />
           {!canAI ? (
             <Row name="AI providers" health="unknown" detail="Needs the ai.review or ai.configure permission." />
           ) : providers.isPending ? (

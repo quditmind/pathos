@@ -96,7 +96,7 @@ export type NavItem = {
   /**
    * Feature flag of the module (server-side, default off). An item with a
    * route and a flag is a link only while the flag is on; otherwise it shows
-   * disabled with its phase.
+   * disabled as "not enabled" with an "Off" badge.
    */
   flag?: FeatureFlag;
   /** Sub-heading shown above the item when it changes within a group. */
@@ -246,7 +246,7 @@ export const installationItem: NavItem = { label: "Organizations", to: "/install
 
 /**
  * The item as rendered: a flagged item keeps its route only while its flag
- * is on (otherwise it is a roadmap item, disabled with its phase); an
+ * is on (otherwise it is shown disabled, "not enabled"); an
  * enabled flagged item drops its phase badge.
  */
 export function navTarget(it: NavItem, flags: Record<string, boolean>): NavItem {
@@ -324,6 +324,12 @@ export function AppShell({ children }: { children: ReactNode }) {
                   // A flagged module is a link only while its flag is on for this organization.
                   const it = navTarget(item, flags);
                   const isLive = !!it.to;
+                  // A built module whose flag is off says so; only items without a
+                  // route are still roadmap items.
+                  const off = !isLive && !!item.flag && !!item.to;
+                  const why = off
+                    ? "not enabled. An administrator turns it on in Administration › Feature flags"
+                    : `arrives in roadmap phase ${it.phase}`;
                   const active =
                     isLive &&
                     it.to &&
@@ -343,7 +349,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                       {!collapsed && <span className="flex-1 truncate">{it.label}</span>}
                       {!collapsed && it.phase && !isLive && (
                         <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground" aria-hidden>
-                          Phase {it.phase}
+                          {off ? "Off" : `Phase ${it.phase}`}
                         </span>
                       )}
                     </>
@@ -356,9 +362,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                           {content}
                         </Link>
                       ) : (
-                        <div className={cls} title={`${it.label}: arrives in roadmap phase ${it.phase}`} aria-disabled="true" role="link">
+                        <div className={cls} title={`${it.label}: ${why}`} aria-disabled="true" role="link">
                           {content}
-                          <span className="sr-only">{`${collapsed ? it.label + ", " : ""}arrives in roadmap phase ${it.phase}`}</span>
+                          <span className="sr-only">{`${collapsed ? it.label + ", " : ""}${why}`}</span>
                         </div>
                       )}
                     </div>

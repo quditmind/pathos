@@ -5,7 +5,7 @@ group: home
 order: 2
 version: "3.0"
 updated: 2026-11-20
-summary: The top bar (brand, version, search, notifications, Help, theme, user menu), the sidebar grouped by the nine lifecycle phases, roadmap items, feature flags, and the shared page states.
+summary: The top bar (brand, version, search, notifications, Help, theme, user menu), the sidebar grouped by the nine lifecycle phases, feature flags, and the shared page states.
 ---
 # The PATHOS shell: brand header, version and navigation
 
@@ -52,13 +52,13 @@ Every page keeps its address from earlier versions; bookmarks and links keep wor
 
 ### Modules behind a feature flag
 
-Every lifecycle module is built. Items marked *(flag …)* open only while that feature flag is on for your organization; while it is off they are shown dimmed with a **Phase N** label and cannot be opened (hover over one to read its phase). Nothing behind them is simulated.
+Every lifecycle module is built. Items marked *(flag …)* open only while that feature flag is on for your organization; while it is off they are shown dimmed with an **Off** label and cannot be opened (hover over one to read "not enabled" and where an administrator turns it on). Nothing behind them is simulated.
 
 ### Feature flags
 
 New modules are switched on per organization with **feature flags**, which are off by default. The web app reads the flags of your organization from `GET /api/v1/meta`. A page behind a flag that is off says so, names the flag and who can turn it on (an administrator with the `settings.manage` permission).
 
-Administrators with `settings.manage` switch flags under **Administration › Feature flags**: each flag shows the module it gates, the roadmap milestone that delivers it and its last change. Every change is recorded in the audit log. A flag opens a module only once that module is built; until then its menu item stays disabled. **Connectors** (`connectors`, milestone M2) is built: its menu item opens [Connectors](connectors.md) while the flag is on and stays disabled with its phase while it is off.
+Administrators with `settings.manage` switch flags under **Administration › Feature flags**: each flag shows the module it gates, the roadmap milestone that delivers it and its last change. Every change is recorded in the audit log. Turning a flag on opens its module for the organization; while it is off, the module's menu item stays disabled with an **Off** label. For example, **Connectors** (`connectors`) opens [Connectors](connectors.md) while the flag is on.
 
 ## Page states
 
@@ -85,4 +85,4 @@ The shell can be used with the keyboard alone: Tab moves through the sidebar and
 | The version chip shows `v?` | The web app could not read `GET /api/v1/meta`. Reload; if it persists, check **Help › System status** and the error code in the error panel of the failing page. |
 | The banner "A newer PATHOS version is available" keeps coming back | Your browser or a proxy caches the old web app. Reload with the cache bypassed (Ctrl+Shift+R), or ask your administrator to check the cache headers of the proxy in front of PATHOS. |
 | A menu item I used to have is gone | Pages only moved between groups. Search for it with Ctrl+K; if it is still missing, your role lacks the permission the page needs. |
-| A roadmap item cannot be opened | It is not built yet; it opens when its roadmap phase ships and an administrator enables its feature flag. |
+| A menu item is disabled and shows **Off** | Its module's feature flag is off for your organization. An administrator turns it on under **Administration › Feature flags**. |
