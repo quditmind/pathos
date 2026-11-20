@@ -4,6 +4,12 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Security
+- Worker image dependencies patched (Dependabot alerts on the worker manifests; the deliberately vulnerable fixtures under `benchmarks/` and `e2e/tests/fixtures-data/` are unchanged):
+  - worker-sca: package.json `overrides` pin body-parser 2.4.0 (CVE-2026-111181; an optional cdxgen dependency that `npm ci --omit=optional` does not install), glob 14.0.6 (CVE-2026-118773) and minimatch 11.0.9 (CVE-2026-118764) for cdxgen and its `@npmcli` helpers; no cdxgen release ships them yet. The copies bundled inside npm 12.2.3 itself stay at glob 13.0.6 and minimatch 10.2.5 until npm ships a release with them.
+  - worker-dast: tornado 6.5.10 → 6.6.1 (CVE-2026-116577, CVE-2026-116578, CVE-2026-115927, CVE-2026-126347), installed with `--no-deps` over mitmproxy 12.3.1's `tornado<=6.5.10` pin; only mitmproxy's interactive UIs import tornado, and Wapiti uses mitmproxy's core only.
+  - worker-sast and worker-mobile: PyJWT 2.14.0 → 2.15.1 (CVE-2026-101918, CVE-2026-102275) and the OpenTelemetry packages 1.37.0 / 0.58b0 → 1.45.2 / 0.66b2 (opentelemetry-api CVE-2026-114603, CVE-2026-126360), plus opentelemetry-exporter-http-transport and opentelemetry-exporter-otlp-common, which the 1.45 OTLP exporter needs; installed with `--no-deps` over semgrep 1.172.0's pins, like the existing mcp and PyJWT overrides.
+
 ### PATHOS 3.0 M7 — AI security intelligence
 
 Behind the `ai_intelligence` feature flag (off by default) for the new API and pages; AI evidence records are written for every AI call whatever the flag. Migrations 00058–00060 are additive (four new tables, nullable link columns, a foreign key on `threats.ai_evidence_id`, the threat event `ai_accepted`).
