@@ -166,6 +166,14 @@ test("the CodeGraph of an application renders with evidence on every edge, in al
 test("API & endpoints opens the api view; the context graph still works", async ({ page, request }) => {
   await setFlag(request, true);
   const app = await pickApp(request);
+  // The view switcher appears only once the application has a built graph
+  // (otherwise the page shows its empty state). CI without the graph
+  // worker has none: skip with the reason unless an app was seeded.
+  if (!process.env.E2E_CODEGRAPH_APP) {
+    const snaps = ((await (await request.get(`/api/v1/codegraph/applications/${app.id}/snapshots`)).json()).snapshots ?? []) as Snapshot[];
+    test.skip(!snaps.some((s) => s.status === "ready" || s.status === "partial"),
+      "no built CodeGraph: start the graph profile and set E2E_CODEGRAPH_APP to run this test");
+  }
   await page.goto("/api-endpoints");
   await expect(page.getByRole("heading", { level: 1, name: "API & endpoints" })).toBeVisible();
   await page.getByRole("combobox", { name: "Application" }).selectOption(app.id);
