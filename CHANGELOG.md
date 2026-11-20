@@ -325,9 +325,7 @@ Proof and scale: optional multi-tenancy, benchmarks, performance fixes and a Jet
 - **Performance with large datasets** (measured with 1 million findings, [details](docs/PERFORMANCE.md)): keyset and covering indexes for the findings list and its summary (migration 00038, built concurrently): default list 1.9 s → 6 ms; worker *complete* 1.6 s → 0.13 s (scan ingest 4–6 → 22–40 jobs/s with 8–16 workers), because the Human Eye auto-queue no longer reads every open finding after each scan unless the *new findings* trigger is on; risk re-scoring 459 → about 2,900 findings/s (OSV alias lookups use the GIN index, batches come from the `risk_dirty` index, batch size 500 instead of 2,000); dashboard 6.9 s → 2.4 s (shared passes over open findings, hashed distinct counts, four queries at a time); executive report trend in one pass; SBOM inventory no longer quadratic, with an index for its open-vulnerability counts (timed out at 120 s with 1 million and with 10 million findings → about 8 s). PostgreSQL JIT is turned off for PATHOS connections (`jit` in the database URL overrides it). Responses are unchanged.
 
 ### Fixed
-- **Sandbox e2e scripts** (`workers/fuzz/test/sandbox-e2e.sh`, `workers/rea/test/rea-e2e.sh`) wait until the stand-in egress and API listeners accept connections before starting the worker (CI flake: "control: egress:3128 not reachable from the worker: connection refused").
 ### Fixed
-- **Sandbox e2e scripts** (`workers/fuzz/test/sandbox-e2e.sh`, `workers/rea/test/rea-e2e.sh`) wait until the stand-in egress and API listeners accept connections before starting the worker (CI flake: "control: egress:3128 not reachable from the worker: connection refused").
 - The worker API answered `500` instead of `404` for a job id it does not know.
 - worker-sca: **pip-audit reported nothing** (and the run counted as succeeded) when two `requirements*.txt` files pinned the same package; it now runs once per requirements file. **npm, yarn, pnpm and Composer audit read only the root lockfile**; they now audit every lockfile outside `node_modules`, `vendor` and the other skipped directories, and each finding is located in its lockfile. The reports of per-file runs are stored in a PATHOS envelope (`{"pathos_reports": [{"file", "report"}]}`) that the import parsers read.
 - worker-sca: a tool run that fails (an exit status other than "vulnerabilities found", or no valid report) now fails the tool, with the file and the tool's error, instead of counting as success with fewer or no findings; this applies to every `pathos-sca` tool (also cargo-audit, bundler-audit, GuardDog and govulncheck, which accepted partial failures).
@@ -416,7 +414,6 @@ PATHOS 2.0 covers 25 scan types with eight opt-in family worker images, tool man
 - Import detection tries tool-specific formats before the generic CSV format, and `{"findings": [...]}` reports are taken as PATHOS findings JSON only when they have no other fields, so Amazon Inspector and Dalfox reports, which also have a `findings` array, are recognised.
 
 ### Fixed
-- **Sandbox e2e scripts** (`workers/fuzz/test/sandbox-e2e.sh`, `workers/rea/test/rea-e2e.sh`) wait until the stand-in egress and API listeners accept connections before starting the worker (CI flake: "control: egress:3128 not reachable from the worker: connection refused").
 - Reports of manifest tools parsed with an import parser are stored without their secret values, like imported reports; TruffleHog's `SecretParts` field is removed as well.
 
 ## [1.1.1] — 2026-11-19
@@ -515,7 +512,6 @@ First stable release: the platform phases P1–P8 of 0.9.0 plus the ten ASPM pha
 - MFA for existing users: `PATHOS_REQUIRE_MFA=true` now also makes every existing account without an authenticator enrol at its next sign-in (hourly, idempotent). The Users page shows each user's two-factor status and has a **Require MFA** action (audited).
 
 ### Fixed
-- **Sandbox e2e scripts** (`workers/fuzz/test/sandbox-e2e.sh`, `workers/rea/test/rea-e2e.sh`) wait until the stand-in egress and API listeners accept connections before starting the worker (CI flake: "control: egress:3128 not reachable from the worker: connection refused").
 - Build-artifact uploads were never malware-scanned in the default stack: `PATHOS_CLAMAV_*` reached only the `jobs` service, but artifacts are scanned by `api`. Both services now get the settings.
 - Request IDs are 24 random letters instead of hex, so security scanners no longer mistake one for a payment card number (random DAST "PII Disclosure" failures).
 - `POST /api/v1/scm-connections/{id}/resync` returns `404` for an unknown connection instead of `502`.
