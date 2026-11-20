@@ -22,3 +22,5 @@ intrusive: false
 requires_build: false
 default_enabled: false
 parser: import:eslint
+# Skipped (not failed) on repositories without these files.
+requires_files: ["*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts"]

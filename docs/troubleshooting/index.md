@@ -19,14 +19,14 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 |---|---|---|
 | `PLAT` | [Platform](plat.md) | 23 |
 | `AUTH` | [Authentication and access](auth.md) | 18 |
-| `CONN` | [Connections](conn.md) | 60 |
+| `CONN` | [Connections](conn.md) | 62 |
 | `SYNC` | [Synchronisation](sync.md) | 7 |
-| `ONB` | [Onboarding and imports](onb.md) | 12 |
+| `ONB` | [Onboarding and imports](onb.md) | 18 |
 | `DISC` | [Discovery](disc.md) | 7 |
 | `GRAPH` | [CodeGraph](graph.md) | 5 |
 | `TM` | [Threat modelling](tm.md) | 14 |
 | `REA` | [Reverse engineering](rea.md) | 12 |
-| `SCAN` | [Scanning](scan.md) | 10 |
+| `SCAN` | [Scanning](scan.md) | 11 |
 | `WORK` | [Workers](work.md) | 6 |
 | `AI` | [AI](ai.md) | 21 |
 | `GATE` | [Security gates](gate.md) | 10 |

@@ -7,6 +7,7 @@ import { useSession } from "@/features/auth/session";
 import { providerCategory, useProviders } from "@/features/settings/scmApi";
 import { cn } from "@/lib/utils";
 import { useConnections } from "../api";
+import { PublicUrlImport } from "./PublicUrlImport";
 
 function SourceCard({
   to,
@@ -112,6 +113,7 @@ export function ImportLandingPage() {
           accent="bg-warning-soft text-warning"
         />
       </div>
+      <PublicUrlImport canManage={can("repos.manage")} />
       <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-4">
         <div className="flex items-start gap-3">
           <FileSpreadsheet className="mt-0.5 size-5 text-muted-foreground" aria-hidden />

@@ -162,7 +162,7 @@ func (s *Service) putFixSettings(w http.ResponseWriter, r *http.Request) {
 			RETURNING source_type`, p.OrganizationID, id, req.Enabled, req.Grouping).Scan(&source); err != nil {
 			return err
 		}
-		if req.Enabled && source == "upload" {
+		if req.Enabled && (source == "upload" || source == "git") {
 			return httpx.BadRequest("uploaded repositories have no SCM connection to open pull requests in")
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
@@ -245,8 +245,8 @@ func (s *Service) eligibility(ctx context.Context, f fixFinding) FixEligibility 
 		e.Reason = "fix pull requests are available for dependency (SCA) findings"
 	case f.TargetScan:
 		e.Reason = "this finding comes from a scan target, not from the repository's source"
-	case f.RepoSource == "upload":
-		e.Reason = "uploaded repositories have no SCM connection to open pull requests in"
+	case f.RepoSource == "upload" || f.RepoSource == "git":
+		e.Reason = "uploaded and anonymous repositories have no SCM connection to open pull requests in"
 	case !f.RepoEnabled:
 		e.Reason = "fix pull requests are not enabled for this repository (repository settings)"
 	case f.Status != "open" && f.Status != "in_progress" && f.Status != "needs_review":

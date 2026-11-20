@@ -33,6 +33,8 @@ export interface RegistryConnection {
   username: string;
   max_tags: number;
   allow_private: boolean;
+  /** Private CA bundle (PEM) added to the system trust store for this registry. */
+  ca_bundle_pem?: string;
   enabled: boolean;
   sync_interval_minutes: number;
   sync_requested_at: string | null;

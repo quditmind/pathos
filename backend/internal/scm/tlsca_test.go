@@ -2,6 +2,7 @@ package scm
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/pem"
 	"errors"
 	"net"
@@ -208,5 +209,43 @@ func TestConnectorCatalogCAField(t *testing.T) {
 	}
 	if has(Providers(), GitHubEnterprise) {
 		t.Fatal("ConnectorCatalog must not modify the shared catalogue")
+	}
+}
+
+// A server behind a private CA: without the bundle the request fails with
+// an untrusted certificate; with it, it succeeds. Verification is never
+// disabled and TLS 1.2 is the minimum.
+func TestClientWithCA(t *testing.T) {
+	srv, caPEM := privateCAServer(t, func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
+	get := func(c *http.Client) error {
+		req, _ := http.NewRequestWithContext(context.Background(), "GET", srv.URL, nil)
+		resp, err := c.Do(req)
+		if err == nil {
+			resp.Body.Close()
+		}
+		return err
+	}
+	plain := loopback(NetPolicy{}.Client())
+	if err := get(plain); err == nil || !strings.Contains(err.Error(), "certificate") {
+		t.Fatalf("a private CA must not be trusted by default: %v", err)
+	}
+	c, err := NetPolicy{}.ClientWithCA(caPEM)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tr := c.Transport.(*http.Transport)
+	if tr.TLSClientConfig.InsecureSkipVerify || tr.TLSClientConfig.MinVersion < tls.VersionTLS12 || tr.TLSClientConfig.RootCAs == nil {
+		t.Fatalf("TLS configuration: %+v", tr.TLSClientConfig)
+	}
+	if err := get(loopback(c)); err != nil {
+		t.Fatalf("with the CA bundle: %v", err)
+	}
+	if _, err := (NetPolicy{}).ClientWithCA("-----BEGIN PRIVATE KEY-----\nMIIB\n-----END PRIVATE KEY-----\n"); !errors.Is(err, ErrCABundle) {
+		t.Errorf("private key bundle: %v", err)
+	}
+	// The policy still applies with a bundle (loopback is always blocked).
+	c2, _ := NetPolicy{}.ClientWithCA(caPEM)
+	if err := get(c2); !errors.Is(err, ErrBlockedAddress) {
+		t.Errorf("blocked address with a CA client: %v", err)
 	}
 }

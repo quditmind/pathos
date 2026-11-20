@@ -4,7 +4,7 @@ section: troubleshooting
 order: 110
 version: "1.0"
 updated: 2026-11-20
-summary: Scan execution, result and SBOM imports, artifacts and custom rules (10 codes, PTH-SCAN-*)
+summary: Scan execution, result and SBOM imports, artifacts and custom rules (11 codes, PTH-SCAN-*)
 ---
 
 # Troubleshooting: Scanning
@@ -27,6 +27,7 @@ Scan execution, result and SBOM imports, artifacts and custom rules.
 | [PTH-SCAN-1008](#PTH-SCAN-1008) | Source snapshot not available | warning |
 | [PTH-SCAN-1009](#PTH-SCAN-1009) | Custom rules invalid | warning |
 | [PTH-SCAN-1010](#PTH-SCAN-1010) | No SBOM or component inventory yet | info |
+| [PTH-SCAN-1101](#PTH-SCAN-1101) | Profile tools did not run: no worker has them | warning |
 
 <a id="PTH-SCAN-1001"></a>
 
@@ -364,4 +365,39 @@ Scan execution, result and SBOM imports, artifacts and custom rules.
 **Verify**
 
 1. The SBOM export downloads.
+
+
+<a id="PTH-SCAN-1101"></a>
+
+## PTH-SCAN-1101: Profile tools did not run: no worker has them
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | configuration |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Raised in | internal/scans/ingest.go (MissingToolsMessage) |
+
+**What it means.** Tools of the scan profile were skipped because no online worker provides them (the worker reported "scanner not available in this worker image"). The execution is partial, or failed when nothing ran, instead of succeeding without that coverage.
+
+**Confirmed cause.** No online worker advertised the listed tools when the execution ran. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The family worker image that provides the tools is not started (Compose profile not enabled)
+2. That worker is stopped, unhealthy or cannot reach the API
+3. A tool wrapper is refused by the worker (for example a group-writable script mounted into the image)
+
+**Impact.** Nothing the missing tools cover was scanned; their earlier findings are not auto-resolved.
+
+**How to fix**
+
+1. Start the family worker that provides the tools (Administration → Scanners & workers shows which worker has which tool).
+2. Or remove the tools from the scan profile.
+3. Check the worker's log for refused tools.
+
+**Verify**
+
+1. A new execution of the profile is succeeded with every tool run.
 

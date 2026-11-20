@@ -24,6 +24,10 @@ func (e *SourceUnavailable) Error() string { return e.Message }
 
 func unavailable(code, msg string) error { return &SourceUnavailable{Code: code, Message: msg} }
 
+// errAnonymousSource: anonymous (token-less) repositories have no SCM
+// connection to read files or history through.
+var errAnonymousSource = unavailable("anonymous", "This repository was imported anonymously (public, no token): the source view and history need an SCM connection.")
+
 // SourceRef identifies the exact source a scan analysed: the commit for SCM
 // repositories or the snapshot for uploaded ones. Never a branch head.
 type SourceRef struct {
@@ -40,6 +44,9 @@ func (s *Service) ReadSourceFile(ctx context.Context, orgID, repoID uuid.UUID, r
 	t, err := loadSyncTarget(ctx, s.DB, orgID, repoID)
 	if err != nil {
 		return nil, "", err
+	}
+	if t.ConnID == nil && t.SourceType == "git" {
+		return nil, "", errAnonymousSource
 	}
 	if t.ConnID == nil {
 		return s.snapshotFile(ctx, orgID, ref, path)
@@ -67,6 +74,9 @@ func (s *Service) SourceHistory(ctx context.Context, orgID, repoID uuid.UUID, co
 	if err != nil {
 		return nil, err
 	}
+	if t.ConnID == nil && t.SourceType == "git" {
+		return nil, errAnonymousSource
+	}
 	if t.ConnID == nil {
 		return nil, unavailable("no_history", "Uploaded repositories have no commit history.")
 	}
@@ -90,6 +100,9 @@ func (s *Service) BranchHead(ctx context.Context, orgID, repoID uuid.UUID, branc
 	t, err := loadSyncTarget(ctx, s.DB, orgID, repoID)
 	if err != nil {
 		return scm.Commit{}, err
+	}
+	if t.ConnID == nil && t.SourceType == "git" {
+		return scm.Commit{}, errAnonymousSource
 	}
 	if t.ConnID == nil {
 		return scm.Commit{}, unavailable("no_history", "Uploaded repositories have no branches.")

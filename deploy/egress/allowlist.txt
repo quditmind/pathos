@@ -5,6 +5,11 @@
 .githubusercontent.com
 dev.azure.com
 .visualstudio.com
+# GitLab.com and Bitbucket Cloud (SCM connections and anonymous public
+# repository imports, 2.2.2). Self-hosted servers and other git hosts used
+# with "import by URL" go in a conf.d override.
+.gitlab.com
+.bitbucket.org
 # Trivy vulnerability database
 mirror.gcr.io
 ghcr.io

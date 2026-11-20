@@ -2,6 +2,7 @@ package scm
 
 import (
 	"crypto/sha256"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
@@ -13,7 +14,8 @@ import (
 	"time"
 )
 
-// Per-connection private certificate authority (PATHOS 3.0, M2).
+// Per-connection private certificate authority (PATHOS 3.0, M2; backported to 2.2.2 for registry
+// connections, outbound webhooks and ticket connections).
 //
 // Self-hosted servers (GitHub Enterprise Server, GitLab self-managed,
 // Bitbucket Data Center, Generic Git, Vault) are often served with a
@@ -149,4 +151,36 @@ func NormalizeBaseURL(provider, raw string) string {
 		}
 	}
 	return strings.TrimRight(u.String(), "/")
+}
+
+// Diagnostic codes of private CA bundles (2.2.2): registry connections,
+// outbound webhooks and ticket connections (catalogue_conn_ca.go).
+const (
+	// DiagCABundleInvalid: the ca_bundle_pem given is not a PEM bundle of
+	// certificates (or contains a private key).
+	DiagCABundleInvalid = "PTH-CONN-1701"
+	// DiagCAUntrusted: the server's certificate chain is not trusted; add
+	// the issuing private CA to the connection's ca_bundle_pem.
+	DiagCAUntrusted = "PTH-CONN-1702"
+)
+
+// UntrustedCertificate reports whether err is a TLS verification failure
+// caused by an unknown certificate authority.
+func UntrustedCertificate(err error) bool {
+	var ua x509.UnknownAuthorityError
+	var cv *tls.CertificateVerificationError
+	if errors.As(err, &cv) {
+		return errors.As(cv.Err, &ua) || strings.Contains(cv.Err.Error(), "unknown authority")
+	}
+	return errors.As(err, &ua) || strings.Contains(err.Error(), "certificate signed by unknown authority")
+}
+
+// WithCAHint adds the corrective action to an untrusted-certificate error
+// (anything else is returned unchanged).
+func WithCAHint(err error) error {
+	if err == nil || !UntrustedCertificate(err) {
+		return err
+	}
+	return fmt.Errorf("%s: the server certificate is issued by a CA that is not trusted; add the private CA bundle (PEM) "+
+		"to the connection's ca_bundle_pem: %w", DiagCAUntrusted, err)
 }

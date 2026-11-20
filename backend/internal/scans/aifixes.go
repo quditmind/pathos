@@ -298,8 +298,8 @@ func (s *Service) aiFixEligibility(ctx context.Context, orgID uuid.UUID, f aiFix
 		e.Reason = "AI fixes are available for SAST, secrets and IaC findings"
 	case f.TargetScan:
 		e.Reason = "this finding comes from a scan target, not from the repository's source"
-	case f.RepoSource == "upload":
-		e.Reason = "uploaded repositories have no SCM connection to check out and verify a fix"
+	case f.RepoSource == "upload" || f.RepoSource == "git":
+		e.Reason = "uploaded and anonymous repositories have no SCM connection to check out and verify a fix"
 	case f.Status != "open" && f.Status != "in_progress" && f.Status != "needs_review":
 		e.Reason = "the finding is not open"
 	case f.File == "" || !scm.ValidRepoPath(f.File):

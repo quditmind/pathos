@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -329,6 +330,9 @@ func TestCheckers(t *testing.T) {
 		{"jira cloud id", &Env{Tickets: fakeTickets{err: tickets.ErrCloudID}}, target("jira", nil), StatusFailing, "PTH-CONN-1205", ""},
 		{"servicenow 403", &Env{Tickets: fakeTickets{err: &tickets.HTTPError{Status: 403}}}, target("servicenow", nil), StatusFailing, "PTH-CONN-1210", ""},
 		{"servicenow 429", &Env{Tickets: fakeTickets{err: &tickets.HTTPError{Status: 429}}}, target("servicenow", nil), StatusFailing, "PTH-CONN-1211", ""},
+		// A private CA the connection does not trust yet (2.2.2 CA bundles): the fix is the connection's own bundle.
+		{"jira untrusted CA", &Env{Tickets: fakeTickets{err: fmt.Errorf("jira unreachable: %w", scm.WithCAHint(&url.Error{Op: "Get", URL: "https://jira.internal", Err: x509.UnknownAuthorityError{}}))}},
+			target("jira", nil), StatusFailing, "PTH-CONN-1702", ""},
 
 		{"webhook never delivered", &Env{Notify: fakeNotify{wh: WebhookCheck{Format: "json"}}}, target("webhook", nil), StatusUnknown, "", ""},
 		{"webhook ok", &Env{Notify: fakeNotify{wh: WebhookCheck{Format: "json", LastStatus: "succeeded", LastAt: &now}}}, target("webhook", nil), StatusHealthy, "", ""},
@@ -353,6 +357,8 @@ func TestCheckers(t *testing.T) {
 		{"cluster old", &Env{Runtime: fakeRuntime{c: ClusterCheck{ServerVersion: "v1.30.1", Readable: []string{"Pod"}}}}, target("kubernetes", nil), StatusDegraded, "PTH-CONN-1513", ""},
 		{"cluster 401", &Env{Runtime: fakeRuntime{cErr: &runtimectx.APIError{Status: 401}}}, target("kubernetes", nil), StatusFailing, "PTH-CONN-1007", ""},
 		{"registry ok", &Env{Runtime: fakeRuntime{r: RegistryCheck{Repository: "library/alpine", Tags: 1}}}, target("container_registry", nil), StatusHealthy, "", ""},
+		{"registry untrusted CA", &Env{Runtime: fakeRuntime{rErr: &url.Error{Op: "Get", URL: "https://registry.internal/v2/", Err: x509.UnknownAuthorityError{}}}},
+			target("container_registry", nil), StatusFailing, "PTH-CONN-1702", ""},
 		{"docker hub limit", &Env{Runtime: fakeRuntime{rErr: &runtimectx.RegistryError{Status: 429}}}, target("container_registry", map[string]string{"host": "https://registry-1.docker.io"}), StatusFailing, "PTH-CONN-1502", ""},
 
 		{"ai ok", &Env{AI: fakeAI{n: 3}}, target("ai_provider", nil), StatusHealthy, "", ""},

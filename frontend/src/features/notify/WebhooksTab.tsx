@@ -19,6 +19,8 @@ export interface WebhookEndpoint {
   min_severity: string | null;
   allow_private: boolean;
   enabled: boolean;
+  /** Private CA bundle (PEM) added to the system trust store for this endpoint. */
+  ca_bundle_pem?: string;
   created_at: string;
   last_status: string | null;
   last_delivery_at: string | null;
@@ -48,6 +50,7 @@ function WebhookDialog({ open, onClose, hook, onCreated }: { open: boolean; onCl
   const [minSev, setMinSev] = useState("");
   const [allowPrivate, setAllowPrivate] = useState(false);
   const [sign, setSign] = useState(true);
+  const [caBundle, setCaBundle] = useState("");
   useEffect(() => {
     if (!open) return;
     setName(hook?.name ?? "");
@@ -57,12 +60,14 @@ function WebhookDialog({ open, onClose, hook, onCreated }: { open: boolean; onCl
     setMinSev(hook?.min_severity ?? "");
     setAllowPrivate(hook?.allow_private ?? false);
     setSign(true);
+    setCaBundle(hook?.ca_bundle_pem ?? "");
   }, [open, hook]);
   const save = useMutation({
     mutationFn: () =>
       api<{ webhook: WebhookEndpoint; signing_secret?: string } | WebhookEndpoint>(hook ? `/api/v1/notifications/webhooks/${hook.id}` : "/api/v1/notifications/webhooks", {
         method: hook ? "PUT" : "POST",
-        body: { name, format, url: url || undefined, events: selected, min_severity: minSev || null, allow_private: allowPrivate, enabled: hook?.enabled ?? true, sign },
+        body: { name, format, url: url || undefined, events: selected, min_severity: minSev || null, allow_private: allowPrivate, enabled: hook?.enabled ?? true,
+          sign: format === "json" && sign, ca_bundle_pem: caBundle },
       }),
     onSuccess: (r) => {
       void qc.invalidateQueries({ queryKey: ["webhooks"] });
@@ -125,8 +130,16 @@ function WebhookDialog({ open, onClose, hook, onCreated }: { open: boolean; onCl
             {!hook && format === "json" && (
               <label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[var(--primary)]" checked={sign} onChange={(e) => setSign(e.target.checked)} /> Sign requests (HMAC-SHA256)</label>
             )}
+            {format !== "json" && (
+              <div className="text-[12px] text-muted-foreground">{formatLabel[format]} cannot verify signatures: deliveries are not signed. Keep the URL secret.</div>
+            )}
             <label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[var(--primary)]" checked={allowPrivate} onChange={(e) => setAllowPrivate(e.target.checked)} /> Allow an internal (private network) address</label>
           </div>
+        </div>
+        <div>
+          <Label htmlFor="wh-ca" hint="(optional; PEM certificates of a private CA, added to the system trust store for this endpoint only)">Private CA bundle</Label>
+          <textarea id="wh-ca" className="min-h-20 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-[color:var(--ring)]"
+            value={caBundle} onChange={(e) => setCaBundle(e.target.value)} placeholder="-----BEGIN CERTIFICATE-----" />
         </div>
       </div>
     </Dialog>

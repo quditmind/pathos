@@ -25,5 +25,11 @@ cat > "$conf" <<XML
 </psalm>
 XML
 cd "$src"
-exec /usr/bin/php -d memory_limit=2G /opt/pathos/sast/bin/psalm --config="$conf" --root="$src" --taint-analysis --no-cache \
-  --no-progress --threads=1 --output-format=json --report="$2" --report-show-info=false
+# Psalm chooses the report format from the file name's extension, so it
+# writes to report.json in the temporary directory, copied to <report>
+# (the worker's output name has no .json extension).
+status=0
+/usr/bin/php -d memory_limit=2G /opt/pathos/sast/bin/psalm --config="$conf" --root="$src" --taint-analysis --no-cache \
+  --no-progress --threads=1 --output-format=json --report="$3/report.json" --report-show-info=false || status=$?
+if [ -f "$3/report.json" ]; then cp "$3/report.json" "$2"; fi
+exit "$status"

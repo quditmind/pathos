@@ -51,6 +51,24 @@ func TestSelfHostedRequestShape(t *testing.T) {
 		t.Errorf("response: %+v", resp)
 	}
 
+	// Without a limit in the request (finding reviews), a bounded default is
+	// sent: a small local model otherwise generates until its context is full.
+	got = nil
+	if _, err := p.Review(context.Background(), Request{Model: "m", System: "s", User: "u", Schema: map[string]any{"type": "object"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got["max_tokens"] != float64(defaultSelfHostedOutputTokens) {
+		t.Errorf("self-hosted default output limit: %v", got["max_tokens"])
+	}
+	oai, _ := New(Config{Kind: OpenAI, BaseURL: srv.URL + "/v1", APIKey: "k"})
+	got = nil
+	if _, err := oai.Review(context.Background(), Request{Model: "m", System: "s", User: "u", Schema: map[string]any{"type": "object"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got["max_completion_tokens"] != float64(defaultOutputTokens) || got["max_tokens"] != nil {
+		t.Errorf("OpenAI default output limit: %v", got)
+	}
+
 	withKey, _ := New(Config{Kind: SelfHosted, BaseURL: srv.URL + "/v1", APIKey: "local-secret"})
 	_ = withKey.Validate(context.Background(), "m")
 	if auth != "Bearer local-secret" {

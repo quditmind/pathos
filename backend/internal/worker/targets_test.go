@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -25,14 +26,17 @@ func TestNucleiArgs(t *testing.T) {
 		t.Error("URL scans must not fuzz")
 	}
 	// Without intrusive testing authorization, API scans never fuzz.
-	safe := strings.Join(nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example"}, "/o", "/w/openapi.yaml"), " ")
-	if strings.Contains(safe, "-dast") || !strings.Contains(safe, "-etags dos,intrusive,bruteforce,fuzz") || !strings.Contains(safe, "-im openapi") {
-		t.Errorf("API scans without the intrusive flag must not fuzz: %s", safe)
+	// Nuclei loads no ordinary template for an OpenAPI input ("no templates
+	// provided for scan"), so these scans read the operation URL list.
+	safe := strings.Join(nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example"}, "/o", "/w/api-urls.txt"), " ")
+	if strings.Contains(safe, "-dast") || !strings.Contains(safe, "-etags dos,intrusive,bruteforce,fuzz") || strings.Contains(safe, "-im openapi") ||
+		!strings.Contains(safe, "-l /w/api-urls.txt") {
+		t.Errorf("API scans without the intrusive flag must not fuzz and must scan the URL list: %s", safe)
 	}
 	api := nucleiArgs(&JobTarget{Kind: "api", Reference: "https://api.example", RateLimit: 500, AuthType: "basic", Username: "u", Password: "p",
 		IntrusiveAuthorized: true}, "/o", "/w/openapi.yaml")
 	joined = strings.Join(api, " ")
-	for _, want := range []string{"-l /w/openapi.yaml", "-im openapi", "-dast", "-rl 20", "-H Authorization: Basic dTpw"} {
+	for _, want := range []string{"-l /w/openapi.yaml", "-im openapi", "-dast", "-skip-format-validation", "-rl 20", "-H Authorization: Basic dTpw"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("api args missing %q: %s", want, joined)
 		}
@@ -130,5 +134,19 @@ func TestWorkflowFiles(t *testing.T) {
 	}
 	if workflowFiles("") != nil {
 		t.Error("no source, no files")
+	}
+}
+
+func TestRegistryDenied(t *testing.T) {
+	trivy := errors.New(`trivy exited with 1: 2026-11-19T19:28:24Z	FATAL	Fatal error	run error: image scan error: unable to get the image ID: ` +
+		`Get "https://production.cloudfront.docker.com/registry-v2/docker/registry/v2/blobs/sha256/ab/data?x=1": Forbidden`)
+	err := registryDenied(trivy)
+	if err == nil || !strings.Contains(err.Error(), "the egress proxy denied access to production.cloudfront.docker.com") ||
+		!strings.Contains(err.Error(), "allowlist.txt") {
+		t.Fatalf("got %v", err)
+	}
+	other := errors.New("trivy exited with 1: MANIFEST_UNKNOWN")
+	if registryDenied(other) != other || registryDenied(nil) != nil {
+		t.Error("other errors are returned unchanged")
 	}
 }

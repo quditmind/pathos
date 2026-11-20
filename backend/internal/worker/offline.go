@@ -58,10 +58,15 @@ func grypeEnv(cacheDir string, offline bool) []string {
 	return env
 }
 
-// osvArgs returns OSV-Scanner's offline flags and environment.
+// osvArgs returns OSV-Scanner's flags and environment. Transitive
+// dependency resolution is always off (--no-resolve): it downloads parent
+// POMs and other manifests from package registries (repo.maven.apache.org,
+// …) that the egress allowlist does not include, and OSV-Scanner then fails
+// the whole scan (exit 127) for every Maven project with a remote parent.
+// It would also fetch artifacts named by untrusted repository content.
 func osvArgs(cacheDir string, offline bool) ([]string, []string) {
 	if !offline {
-		return nil, nil
+		return []string{"--no-resolve"}, nil
 	}
-	return []string{"--offline-vulnerabilities"}, []string{"OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=" + filepath.Join(cacheDir, "osv")}
+	return []string{"--no-resolve", "--offline-vulnerabilities"}, []string{"OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY=" + filepath.Join(cacheDir, "osv")}
 }

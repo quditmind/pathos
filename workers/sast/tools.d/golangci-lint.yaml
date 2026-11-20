@@ -25,3 +25,5 @@ intrusive: false
 requires_build: false
 default_enabled: false
 parser: import:golangci-lint
+# Skipped (not failed) on repositories without these files.
+requires_files: ["*.go"]

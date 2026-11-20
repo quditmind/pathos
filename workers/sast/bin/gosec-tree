@@ -1,12 +1,173 @@
-#!/bin/sh
-# Runs gosec on every Go package of a directory tree (gosec walks the tree
-# itself, including multi-module repositories) and writes its JSON report.
-#   gosec-tree <directory> <report> <tmp>
-# Exit status: 0 (gosec -no-fail), other values on errors.
-set -eu
-if [ "${1:-}" = "--version" ]; then exec /opt/pathos/sast/bin/gosec -version; fi
-[ "$#" -eq 3 ] && [ -d "$1" ] && [ -d "$3" ] || { echo "usage: gosec-tree <directory> <report> <tmp>" >&2; exit 2; }
-go_tmp="$3"
-. /opt/pathos/sast/bin/go-env
-cd "$1"
-exec /opt/pathos/sast/bin/gosec -fmt=json -out="$2" -no-fail -quiet -exclude-dir=testdata ./...
+#!/opt/pathos/sast/bin/python -I
+"""Runs gosec on every Go package of a directory tree and writes one JSON
+report (gosec's own format).
+
+    gosec-tree <directory> <report> <tmp>
+    gosec-tree --version
+
+The image's Go toolchain runs offline (see go-env): modules that are not
+vendored are not downloaded; their packages are reported as errors in the
+report, not as findings.
+
+Memory (VALIDATION_REPORT O4): gosec type-checks everything it is given at
+once, and `gosec ./...` was OOM-killed at the 4 GB worker limit on
+mid-size repositories (alertmanager, gitlab-cli). The tree is therefore
+scanned in chunks: per Go module, the module's root package and each
+top-level directory separately (at most GOSEC_CHUNK_DIRS directories per
+run, default 1), with GOMEMLIMIT set below the container's memory limit so
+the garbage collector works harder before the kernel kills the process.
+The reports are merged. A chunk that still runs out of memory or fails is
+skipped and named; the other chunks' findings are kept and the exit status
+is 3 (the scan shows gosec as failed, the execution as partial).
+
+Exit status: 0 when every chunk ran (gosec -no-fail), 3 when a chunk
+failed, 2 on usage errors.
+"""
+import json
+import os
+import subprocess
+import sys
+
+SAST = "/opt/pathos/sast"
+GOSEC = SAST + "/bin/gosec"
+GOROOT = SAST + "/go"
+SKIP_DIRS = {".git", "vendor", "testdata", "node_modules", "third_party", ".venv"}
+
+
+def log(msg):
+    print("gosec-tree: " + msg, file=sys.stderr, flush=True)
+
+
+def go_env(tmp):
+    """The environment of go-env: the image's toolchain, offline."""
+    e = dict(os.environ)
+    e.update({
+        "GOROOT": GOROOT, "PATH": GOROOT + "/bin:" + e.get("PATH", ""), "GOTOOLCHAIN": "local", "GOPROXY": "off",
+        "GOSUMDB": "off", "GOENV": "off", "GOTELEMETRY": "off", "CGO_ENABLED": "0", "GOFLAGS": "-buildvcs=false",
+        "GOCACHE": os.path.join(tmp, "go-build"), "GOPATH": os.path.join(tmp, "gopath"),
+        "GOMODCACHE": os.path.join(tmp, "gopath", "pkg", "mod"),
+    })
+    for d in (e["GOCACHE"], e["GOMODCACHE"]):
+        os.makedirs(d, exist_ok=True)
+    limit = memory_limit()
+    if limit and "GOMEMLIMIT" not in os.environ:
+        e["GOMEMLIMIT"] = str(int(limit * 0.7))
+    return e
+
+
+def memory_limit():
+    """The cgroup memory limit in bytes, or 0 when unlimited/unknown."""
+    for path in ("/sys/fs/cgroup/memory.max", "/sys/fs/cgroup/memory/memory.limit_in_bytes"):
+        try:
+            with open(path) as f:
+                v = f.read().strip()
+        except OSError:
+            continue
+        if v.isdigit() and int(v) < (1 << 50):
+            return int(v)
+    return 0
+
+
+def has_go(d, recursive):
+    for root, dirs, files in os.walk(d):
+        dirs[:] = [x for x in dirs if x not in SKIP_DIRS and not x.startswith(".")]
+        if any(f.endswith(".go") for f in files):
+            return True
+        if not recursive:
+            return False
+    return False
+
+
+def modules(root):
+    """Directories with a go.mod (or the root when there is none)."""
+    out = []
+    for d, dirs, files in os.walk(root):
+        dirs[:] = sorted(x for x in dirs if x not in SKIP_DIRS and not x.startswith("."))
+        if "go.mod" in files:
+            out.append(d)
+    return out or [root]
+
+
+def chunks(root, per_run):
+    """(module directory, [package patterns]) to scan, in order."""
+    mods = modules(root)
+    out = []
+    for m in mods:
+        nested = {x for x in mods if x != m and x.startswith(m + os.sep)}
+        if has_go(m, recursive=False):
+            out.append((m, ["."]))
+        subdirs = []
+        for name in sorted(os.listdir(m)):
+            p = os.path.join(m, name)
+            if name in SKIP_DIRS or name.startswith(".") or not os.path.isdir(p) or os.path.islink(p) or p in nested:
+                continue
+            if has_go(p, recursive=True):
+                subdirs.append("./" + name + "/...")
+        for i in range(0, len(subdirs), per_run):
+            out.append((m, subdirs[i:i + per_run]))
+    return out
+
+
+def merge(reports):
+    issues, seen = [], set()
+    errors, stats = {}, {"files": 0, "lines": 0, "nosec": 0, "found": 0}
+    version = ""
+    for r in reports:
+        for it in r.get("Issues") or []:
+            key = (it.get("file"), it.get("line"), it.get("column"), it.get("rule_id"))
+            if key in seen:
+                continue
+            seen.add(key)
+            issues.append(it)
+        for k, v in (r.get("Golang errors") or {}).items():
+            errors.setdefault(k, v)
+        for k in stats:
+            stats[k] += int((r.get("Stats") or {}).get(k) or 0)
+        version = version or r.get("GosecVersion", "")
+    stats["found"] = len(issues)
+    return {"Golang errors": errors, "Issues": issues, "Stats": stats, "GosecVersion": version}
+
+
+def main(argv):
+    if argv[1:2] == ["--version"]:
+        os.execv(GOSEC, [GOSEC, "-version"])
+    if len(argv) != 4 or not os.path.isdir(argv[1]) or not os.path.isdir(argv[3]):
+        print("usage: gosec-tree <directory> <report> <tmp>", file=sys.stderr)
+        return 2
+    src, report, tmp = os.path.realpath(argv[1]), argv[2], argv[3]
+    env = go_env(tmp)
+    try:
+        per_run = max(1, int(os.environ.get("GOSEC_CHUNK_DIRS", "1")))
+    except ValueError:
+        per_run = 1
+    plan = chunks(src, per_run)
+    reports, failed = [], []
+    for i, (cwd, patterns) in enumerate(plan):
+        out = os.path.join(tmp, "gosec-%d.json" % i)
+        rc = subprocess.run([GOSEC, "-fmt=json", "-out=" + out, "-no-fail", "-quiet", "-exclude-dir=testdata"] + patterns,
+                            cwd=cwd, env=env, stdin=subprocess.DEVNULL).returncode
+        name = os.path.relpath(os.path.join(cwd, patterns[0]), src) if patterns != ["."] else (os.path.relpath(cwd, src) or ".")
+        if rc != 0:
+            why = "out of memory (killed)" if rc in (-9, 137) else "exit %d" % rc
+            failed.append("%s: %s" % (name, why))
+            log("%s failed: %s" % (name, why))
+            continue
+        if not os.path.exists(out):
+            continue  # -quiet: gosec writes no report when it found nothing
+        try:
+            with open(out, encoding="utf-8") as f:
+                reports.append(json.load(f))
+        except (OSError, ValueError) as err:
+            failed.append("%s: unreadable report (%s)" % (name, err))
+    with open(report, "w", encoding="utf-8") as f:
+        json.dump(merge(reports), f)
+    if failed:
+        more = "" if len(failed) == 1 else " (and %d more)" % (len(failed) - 1)
+        log("%d of %d package groups were not scanned: %s%s; raise PATHOS_WORKER_MEMORY for worker-sast to scan them"
+            % (len(failed), len(plan), failed[0], more))
+        return 3
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))
