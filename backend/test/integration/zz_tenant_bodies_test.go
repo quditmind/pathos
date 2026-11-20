@@ -501,6 +501,9 @@ var writeFixtures = map[string]map[string]any{
 	"POST /api/v1/remediation/items/bulk":          {"status": nil, "priority": "high", "clear_owner": nil},
 	"POST /api/v1/remediation/items/{id}/verify":   {"scan_job_id": nil},
 	"POST /api/v1/remediation/views":               {"filters": map[string]any{"status": "open"}},
+	// AI evidence (M7).
+	"POST /api/v1/ai/evidence/{id}/review":    {"decision": "accepted", "note": "isolation probe"},
+	"POST /api/v1/threat-models/{id}/suggest": {"max_threats": 1},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

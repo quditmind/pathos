@@ -33,6 +33,7 @@ import (
 
 	"github.com/redis/go-redis/v9"
 
+	"pathos/internal/ai"
 	"pathos/internal/auth"
 	"pathos/internal/authz"
 	"pathos/internal/codegraph"
@@ -277,6 +278,13 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Error("CodeGraph retention failed", "err", err)
 		} else if n > 0 {
 			log.Info("archived CodeGraph snapshots past retention", "count", n)
+		}
+		// AI evidence: purge redacted prompts and responses past each
+		// organization's retention (default 180 days).
+		if n, err := ai.Retain(ctx, pool); err != nil {
+			log.Error("AI evidence retention failed", "err", err, "error_code", "PTH-AI-1205")
+		} else if n > 0 {
+			log.Info("purged AI evidence payloads past retention", "count", n)
 		}
 	}
 	// Minimal health listener for container health checks.

@@ -125,6 +125,13 @@ func (c *chatCompletions) Review(ctx context.Context, req Request) (Response, er
 		// Deterministic triage; local servers otherwise default to sampling.
 		body["temperature"] = 0
 	}
+	if req.Temperature != nil {
+		body["temperature"] = *req.Temperature
+	}
+	if req.Seed != nil && c.kind == SelfHosted {
+		// Ollama, vLLM and llama.cpp accept a seed (evidence replay).
+		body["seed"] = *req.Seed
+	}
 	var out ccResponse
 	if err := c.post(ctx, body, &out); err != nil {
 		return Response{}, err

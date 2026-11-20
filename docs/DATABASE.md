@@ -394,6 +394,7 @@ Vulnerable functions named by OSV records are kept in `intel_vulns.affected[].sy
 - Execution logs and stage events (`scan_job_logs`, `scan_job_events`) are pruned after `PATHOS_SCAN_LOG_RETENTION_DAYS`.
 - Executions, results, `findings`, `finding_occurrences`, `finding_status_history`, `ai_reviews` and `audit_logs` are not pruned.
 - CodeGraph snapshots beyond each organization's `keep_snapshots` (default 10 per repository) are archived ([CodeGraph](#codegraph-migrations-0004900051)).
+- AI evidence payloads (the redacted prompt and response) are deleted after the organization's AI evidence retention (default 180 days); the record rows stay until their finding is deleted ([AI evidence](#ai-evidence-migrations-0005800060)).
 
 ## Findings list indexes (migration 00038)
 
@@ -496,3 +497,17 @@ The framework reference data (ATT&CK, CAPEC, CWE, D3FEND) is not in the database
 | `gate_exceptions` | Exceptions and approvals: `kind`, `gate_id`, `decision_id`, `repository_id`/`application_id`, `scope` (`{commit_sha?, pull_request?}`), `reason`, `status` (`requested`, `approved`, `rejected`, `expired`, `revoked`), `requested_by`, `decided_by`, `decision_note`, `expires_at`. CHECK `gate_exceptions_four_eyes`: `decided_by <> requested_by` |
 
 All are tenant tables with the standard row-level security policy and composite `(organization_id, id)` keys (the migrations add the unique keys the referenced tables lacked). Other columns: `security_policies.managed_by` (`''` or `repository_pr_gate`) and `managed_repository_id`; `pr_checks.gate_mode` and `gate_decision_id`; `repositories.pr_gate_mode` (`block`, `warn` or NULL) with CHECK `repositories_pr_gate_mode_required` (pull request checks cannot be enabled without a choice). Migration 00057 (decision C6) gave every repository with pull request checks enabled `pr_gate_mode` with its previous behaviour and, for thresholds other than `none`, a managed policy and gate (keys from PostgreSQL 18's `uuidv7()`).
+
+## AI evidence (migrations 00058–00060)
+
+AI security intelligence of PATHOS 3.0 M7 ([PATHOS_AI_SECURITY_INTELLIGENCE.md](aspm/PATHOS_AI_SECURITY_INTELLIGENCE.md), [ADR-008](aspm/PATHOS_ARCHITECTURE_DECISION_RECORDS.md#adr-008-ai-evidence-record-and-reproducibility)). Every table carries `organization_id` with the standard row-level security policy.
+
+| Table | Contents |
+|---|---|
+| `ai_evidence_records` | One row per AI call (and per AI review submitted through MCP, and per suggested threat): `task`, `operation`, `subject_kind`/`subject_id`, `finding_id` (cascade: deleted with the finding), `related` (references only: findings, CodeGraph nodes and edges by snapshot and key, threats, components), `parent_id` (a threat-suggestion item's call), `config_version_id`, `provider`, `provider_location` (`local`, `cloud`, `user`), `model`, `model_reported`, `model_digest`, `prompt_template`, `parameters`, `deterministic`, `sent_code`, `input_sha256`, `response_sha256`, `steps`, `conclusion`, `verdict`, `confidence`, `status` (`succeeded`, `invalid_output`, `failed`, `disabled`), `error_code`, tokens, `review_decision` (`pending`, `accepted`, `rejected`, `not_required`), `reviewer_id`, `reviewed_at`, `review_note`, `replay_of`, `comparison`, `payload_expires_at`, `payload_purged_at`, `requested_by`. The trigger `ai_evidence_immutable` refuses any change except the review (once, from pending) and the purge |
+| `ai_evidence_payloads` | The redacted system and user prompt, schema, request parameters and raw response of a record, as one envelope-encrypted JSON document (`ciphertext`, `wrapped_dek`, `key_version`; AAD bound to the record id), deleted at the end of the retention |
+| `ai_evidence_settings` | Per organization (no row: default): `retention_days` (1–3650, default 180), `store_payloads` |
+| `ai_task_assignments` | Model per task: `(organization_id, task)` → `configuration_id` (cascade with the configuration) |
+
+Link columns (nullable, `ON DELETE SET NULL`): `ai_reviews.evidence_record_id`, `ai_fix_proposals.evidence_record_id`, `ai_messages.evidence_record_id`, `ai_reports.evidence_record_id`, `human_review_recommendations.evidence_record_id`. `threats.ai_evidence_id` now references `ai_evidence_records` (the M5 reserved AI path), and `threat_events.action` accepts `ai_accepted`.
+

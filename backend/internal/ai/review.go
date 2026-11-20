@@ -224,16 +224,20 @@ type Decision struct {
 	NewStatus string
 }
 
-// Decide applies the approval policy and the critical guardrail: an AI
-// "false positive" never closes a Critical finding; it goes to a human.
+// Decide applies the approval policy and the guardrails: an AI "false
+// positive" never closes a Critical finding (it goes to a human as needs
+// review), and never closes any finding silently: whatever the policy, a
+// false-positive conclusion only proposes the change and a person decides
+// (PATHOS 3.0 M7, "no silent suppression"). The policy governs the other
+// verdicts (needs review raises attention and may apply directly).
 func Decide(out Output, findingSeverity, policy string) Decision {
 	var d Decision
 	switch out.Verdict {
 	case FalsePositive:
-		d.NewStatus = "false_positive"
 		if findingSeverity == "critical" {
 			return Decision{NeedsApproval: true, NewStatus: "needs_review"}
 		}
+		return Decision{NeedsApproval: true, NewStatus: "false_positive"}
 	case NeedsReview:
 		d.NewStatus = "needs_review"
 	}

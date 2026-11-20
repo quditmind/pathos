@@ -260,7 +260,9 @@ func (s *Service) createReport(w http.ResponseWriter, r *http.Request) {
 	case s.AI == nil || !p.HasAnywhere(authz.PermAIReview):
 		rep.NarrativeError = "AI narrative needs an AI provider and the ai.review permission; the report has the figures only"
 	default:
-		res, err = s.AI.Generate(ctx, p.OrganizationID, reportSystem, "Write the "+req.Kind+" report narrative from the figures in the evidence.", fa,
+		actx := ai.WithSubject(ctx, ai.Subject{Kind: "report", ID: &rep.ID, RequestedBy: &p.UserID,
+			Related: map[string]any{"scope_type": req.ScopeType, "scope_id": req.ScopeID}})
+		res, err = s.AI.Generate(actx, p.OrganizationID, ai.TaskReport, reportSystem, "Write the "+req.Kind+" report narrative from the figures in the evidence.", fa,
 			narrativeSchema(), 2500)
 		if err == nil {
 			rep.Narrative, err = validNarrative(res.JSON)
@@ -272,7 +274,7 @@ func (s *Service) createReport(w http.ResponseWriter, r *http.Request) {
 				s.Log.Warn("report narrative failed", "err", err, "error_code", "PTH-REP-1002", "ai_error_code", ai.DiagCode(err))
 				rep.NarrativeError = "the AI narrative could not be generated; the report has the figures only"
 			}
-			res = ai.GenerateResult{}
+			res = ai.GenerateResult{EvidenceID: res.EvidenceID}
 		}
 	}
 	rep.Model = res.Model
@@ -283,9 +285,9 @@ func (s *Service) createReport(w http.ResponseWriter, r *http.Request) {
 		narr = b
 	}
 	if _, err := s.DB.Exec(ctx, `INSERT INTO ai_reports (id, organization_id, kind, scope_type, scope_id, title, facts, narrative, provider, model,
-		input_tokens, output_tokens, narrative_error, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
+		input_tokens, output_tokens, narrative_error, created_by, evidence_record_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		rep.ID, p.OrganizationID, rep.Kind, rep.ScopeType, rep.ScopeID, clip(rep.Title, 300), factsJSON, narr, res.Provider, res.Model,
-		res.InputTokens, res.OutputTokens, rep.NarrativeError, p.UserID); err != nil {
+		res.InputTokens, res.OutputTokens, rep.NarrativeError, p.UserID, nullID(res.EvidenceID)); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -452,4 +454,11 @@ func (s *Service) reportMarkdown(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="pathos-%s-report-%s.md"`, rep.Kind, rep.CreatedAt.Format("2006-01-02")))
 	_, _ = w.Write([]byte(Markdown(rep)))
+}
+
+func nullID(id uuid.UUID) *uuid.UUID {
+	if id == uuid.Nil {
+		return nil
+	}
+	return &id
 }

@@ -47,7 +47,13 @@ async function readySnapshot(request: APIRequestContext, appId: string): Promise
   if (!snaps.some((s) => s.status === "ready" || s.status === "partial")) {
     if (!snaps.some((s) => s.status === "queued" || s.status === "building")) {
       const r = await request.post(`${base}/build`, { data: {}, headers: { "X-CSRF-Token": await csrf(request) } });
-      expect(r.status(), await r.text()).toBe(202);
+      const body = await r.text();
+      // Without a graph worker (the stack runs without the graph profile)
+      // the real build cannot run: skip with the reason, unless a seeded
+      // application was named explicitly (then the stack must have one).
+      test.skip(r.status() !== 202 && !process.env.E2E_CODEGRAPH_APP && body.includes("PTH-DISC-1001"),
+        "no CodeGraph worker online: start the graph profile and set E2E_CODEGRAPH_APP to run the real build");
+      expect(r.status(), body).toBe(202);
     }
     const deadline = Date.now() + Number(process.env.E2E_CODEGRAPH_WAIT_S || 900) * 1000;
     while (Date.now() < deadline) {
@@ -160,6 +166,14 @@ test("the CodeGraph of an application renders with evidence on every edge, in al
 test("API & endpoints opens the api view; the context graph still works", async ({ page, request }) => {
   await setFlag(request, true);
   const app = await pickApp(request);
+  // The view switcher appears only once the application has a built graph
+  // (otherwise the page shows its empty state). CI without the graph
+  // worker has none: skip with the reason unless an app was seeded.
+  if (!process.env.E2E_CODEGRAPH_APP) {
+    const snaps = ((await (await request.get(`/api/v1/codegraph/applications/${app.id}/snapshots`)).json()).snapshots ?? []) as Snapshot[];
+    test.skip(!snaps.some((s) => s.status === "ready" || s.status === "partial"),
+      "no built CodeGraph: start the graph profile and set E2E_CODEGRAPH_APP to run this test");
+  }
   await page.goto("/api-endpoints");
   await expect(page.getByRole("heading", { level: 1, name: "API & endpoints" })).toBeVisible();
   await page.getByRole("combobox", { name: "Application" }).selectOption(app.id);

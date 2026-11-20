@@ -56,6 +56,7 @@ type lifecycleCounts struct {
 	OpenFindings    int
 	Findings        int
 	AIReviews       int
+	AIEvidence      int
 	HumanReviews    int
 	FixPRs          int
 	RiskAcceptances int
@@ -83,6 +84,7 @@ func lifecycleQuery(p *authz.Principal, where string, args []any) (string, []any
 		` + sub("count(*) FILTER (WHERE f.status IN ('open', 'in_progress', 'needs_review'))", "findings f", "f.repository_id") + `,
 		` + sub("count(*)", "findings f", "f.repository_id") + `,
 		` + sub("count(*)", "ai_reviews ar JOIN findings f ON f.id = ar.finding_id", "f.repository_id") + `,
+		` + sub("count(*)", "ai_evidence_records e JOIN findings f ON f.id = e.finding_id", "f.repository_id") + `,
 		` + sub("count(*)", "human_reviews h", "h.repository_id") + `,
 		` + sub("count(*)", "fix_pull_requests x", "x.repository_id") + `,
 		` + sub("count(*)", "risk_acceptances ra JOIN findings f ON f.id = ra.finding_id", "f.repository_id") + `,
@@ -153,9 +155,15 @@ func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
 
 	val := ph(7, "validate", "Validate & intelligence")
 	val.Metrics["ai_reviews"], val.Metrics["human_reviews"] = c.AIReviews, c.HumanReviews
-	val.HasData = c.AIReviews > 0 || c.HumanReviews > 0
+	// AI evidence records (PATHOS 3.0 M7) of the application's findings:
+	// one per AI decision or conclusion, written whatever the flag.
+	val.Metrics["ai_evidence_records"] = c.AIEvidence
+	val.HasData = c.AIReviews > 0 || c.HumanReviews > 0 || c.AIEvidence > 0
 	val.Summary = map[bool]string{true: plural(c.AIReviews, "AI review", "AI reviews") + ", " + plural(c.HumanReviews, "human review", "human reviews"),
 		false: "No AI or human reviews yet"}[val.HasData]
+	if c.AIEvidence > 0 {
+		val.Summary += ", " + plural(c.AIEvidence, "AI evidence record", "AI evidence records")
+	}
 	if !findings {
 		val.Restricted, val.HasData, val.Summary, val.Metrics = true, false, "You cannot view findings", map[string]int{}
 	}

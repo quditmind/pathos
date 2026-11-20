@@ -2,8 +2,6 @@ package ai
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -25,25 +23,22 @@ type GenerateResult struct {
 	SHA256          string
 	InputTokens     int64
 	OutputTokens    int64
+	// EvidenceID is the AI evidence record of the call.
+	EvidenceID uuid.UUID
 }
 
 // maxGeneratePayload bounds what is sent (after redaction).
 const maxGeneratePayload = 60000
 
-// Generate runs one request; see GenerateResult.
-func (s *Service) Generate(ctx context.Context, orgID uuid.UUID, system, task string, payload any, schema map[string]any, maxTokens int) (GenerateResult, error) {
-	cv, err := defaultConfig(ctx, s.DB, orgID)
-	if err != nil {
-		return GenerateResult{}, ErrNotConfigured
-	}
-	pvs, err := s.loadProviders(ctx, orgID, &cv.ProviderID)
-	if err != nil || len(pvs) == 0 {
-		return GenerateResult{}, ErrNotConfigured
-	}
-	prov, err := s.provider(ctx, orgID, pvs[0])
+// Generate runs one request for aiTask (TaskAnalyst, TaskReport) with the
+// task's configuration (model per task); see GenerateResult. The call
+// writes an AI evidence record (subject from WithSubject).
+func (s *Service) Generate(ctx context.Context, orgID uuid.UUID, aiTask, system, task string, payload any, schema map[string]any, maxTokens int) (GenerateResult, error) {
+	rc, err := s.resolve(ctx, orgID, aiTask)
 	if err != nil {
 		return GenerateResult{}, err
 	}
+	cv := rc.CV
 	extra, _ := CompilePatterns(cv.RedactionPatterns)
 	body, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -58,16 +53,17 @@ func (s *Service) Generate(ctx context.Context, orgID uuid.UUID, system, task st
 	if s := strings.TrimSpace(cv.Instructions); s != "" {
 		system += "\n\nOrganization guidance (from PATHOS administrators, trusted):\n" + s
 	}
-	h := sha256.New()
-	h.Write([]byte(system))
-	h.Write([]byte{0})
-	h.Write([]byte(user))
+	op := map[string]string{TaskAnalyst: "analyst_answer", TaskReport: "report_narrative"}[aiTask]
+	if op == "" {
+		op = "generate"
+	}
 	cctx, cancel := context.WithTimeout(ctx, 6*time.Minute)
 	defer cancel()
-	resp, err := prov.Review(cctx, Request{Model: cv.Model, Effort: cv.Effort, System: system, User: user, Schema: schema, MaxOutputTokens: maxTokens})
+	resp, _, eid, err := s.invoke(cctx, orgID, rc, callSpec{Task: aiTask, Operation: op, Template: "generate@1", System: system, User: user,
+		Schema: schema, Effort: cv.Effort, MaxTokens: maxTokens, Subject: subjectFrom(ctx, aiTask), Review: ReviewNotRequired})
 	if err != nil {
-		return GenerateResult{}, err
+		return GenerateResult{EvidenceID: eid}, err
 	}
-	return GenerateResult{JSON: resp.JSON, Provider: pvs[0].Kind, Model: resp.Model, ConfigVersionID: cv.ID, SHA256: hex.EncodeToString(h.Sum(nil)),
-		InputTokens: resp.InputTokens, OutputTokens: resp.OutputTokens}, nil
+	return GenerateResult{JSON: resp.JSON, Provider: rc.PV.Kind, Model: resp.Model, ConfigVersionID: cv.ID, SHA256: sha256Hex(system, user),
+		InputTokens: resp.InputTokens, OutputTokens: resp.OutputTokens, EvidenceID: eid}, nil
 }

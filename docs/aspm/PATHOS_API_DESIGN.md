@@ -113,7 +113,7 @@ Added to `backend/internal/authz/catalog.go` and synced at start-up (`backend/in
 | `connectors.read`, `connectors.manage` | Connectors | M2 | `manage` yes |
 | `graph.read` | Discover | M4 | no (repository scope, like `findings.read`) |
 | `threatmodels.read`, `threatmodels.edit`, `threatmodels.approve` | Threat model | M5 | no |
-| `ai.evidence.read` | AI & MCP | M7 | no |
+| `ai.evidence.read` (built as `ai.evidence_read`) | AI & MCP | M7 | no |
 | `remediation.read`, `remediation.manage` | Remediate | M8 | no |
 | `gates.manage`, `gates.approve_exception` | Remediate | M8 | `manage` yes |
 | `monitoring.read` | Report & monitor | M9 | no |
@@ -368,6 +368,8 @@ M6 builds on existing endpoints: `GET /api/v1/scanners`, `GET /api/v1/scan-types
 | `GET /api/v1/findings/{id}/correlation` | `findings.read` | — | Related findings (existing logic of `GET /findings/{id}/related`), CodeGraph nodes, threats, runtime facts, each with its evidence label | `404` |
 
 No endpoint suppresses or closes a finding from an AI conclusion alone (existing guardrail: AI never overrides a human decision and never closes a critical, [ARCHITECTURE.md §6](../ARCHITECTURE.md#6-ai-review-architecture)).
+
+**Built in M7 (2026-11-20)**, [API reference](../api-reference/ai-evidence.md). Differences: the permission is `ai.evidence_read`; review permissions are `ai.review` (findings; an AI review awaiting approval also needs `findings.triage`) and `threats.manage` (threat suggestions; the M5 build named the threat permissions `threats.*`); replay answers `201` synchronously; added `PUT /api/v1/ai/evidence-settings`, `POST /api/v1/findings/{id}/correlation/explain` and `POST /api/v1/threat-models/{id}/suggest`; `GET /api/v1/ai/task-assignments` returns every task with its effective configuration, and `PUT` takes `{assignments: {task: configuration_id|null}}`. Since M7 an AI false-positive verdict always waits for a person, whatever the approval policy.
 
 ### M8: remediation and gates
 

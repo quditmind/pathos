@@ -94,6 +94,7 @@ type AssistResult struct {
 	SHA256          string
 	InputTokens     int64
 	OutputTokens    int64
+	EvidenceID      uuid.UUID
 }
 
 // ErrNotConfigured means no default AI configuration exists.
@@ -183,37 +184,35 @@ func ValidateAssist(raw []byte) (AssistOutput, error) {
 	return out, nil
 }
 
-// Assist asks the organization's default AI configuration for a
+// Assist asks the triage task's AI configuration (model per task) for a
 // suggestion. sendCode is the Human Eye setting; the configuration's own
-// send_code_context must also allow it.
+// send_code_context must also allow it. The call writes an AI evidence
+// record (subject from WithSubject).
 func (s *Service) Assist(ctx context.Context, orgID uuid.UUID, kind string, in AssistInput, sendCode bool) (AssistResult, error) {
-	cv, err := defaultConfig(ctx, s.DB, orgID)
-	if err != nil {
-		return AssistResult{}, ErrNotConfigured
-	}
-	pvs, err := s.loadProviders(ctx, orgID, &cv.ProviderID)
-	if err != nil || len(pvs) == 0 {
-		return AssistResult{}, ErrNotConfigured
-	}
-	prov, err := s.provider(ctx, orgID, pvs[0])
+	rc, err := s.resolve(ctx, orgID, TaskFindingValidation)
 	if err != nil {
 		return AssistResult{}, err
 	}
+	cv := rc.CV
 	extra, _ := CompilePatterns(cv.RedactionPatterns)
-	system, user, sha, err := AssistPrompt(kind, in, cv.Instructions, sendCode && cv.SendCodeContext, extra)
+	withCode := sendCode && cv.SendCodeContext
+	system, user, sha, err := AssistPrompt(kind, in, cv.Instructions, withCode, extra)
 	if err != nil {
 		return AssistResult{}, err
 	}
+	sentCode := withCode && in.Evidence.Category != "secrets" && (in.SourceExcerpt != "" || in.Evidence.CodeContext != "")
 	cctx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer cancel()
-	resp, err := prov.Review(cctx, Request{Model: cv.Model, Effort: cv.Effort, System: system, User: user, Schema: AssistSchema()})
+	resp, _, eid, err := s.invoke(cctx, orgID, rc, callSpec{Task: TaskFindingValidation, Operation: "assist:" + kind, Template: "assist@1",
+		System: system, User: user, Schema: AssistSchema(), Effort: cv.Effort, SentCode: sentCode,
+		Subject: subjectFrom(ctx, TaskFindingValidation), Review: ReviewNotRequired})
 	if err != nil {
-		return AssistResult{}, err
+		return AssistResult{EvidenceID: eid}, err
 	}
 	out, err := ValidateAssist(resp.JSON)
 	if err != nil {
-		return AssistResult{}, err
+		return AssistResult{EvidenceID: eid}, err
 	}
-	return AssistResult{Output: out, Provider: pvs[0].Kind, Model: resp.Model, ConfigVersionID: cv.ID, SHA256: sha,
-		InputTokens: resp.InputTokens, OutputTokens: resp.OutputTokens}, nil
+	return AssistResult{Output: out, Provider: rc.PV.Kind, Model: resp.Model, ConfigVersionID: cv.ID, SHA256: sha,
+		InputTokens: resp.InputTokens, OutputTokens: resp.OutputTokens, EvidenceID: eid}, nil
 }

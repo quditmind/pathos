@@ -115,7 +115,7 @@ Repository topics: PATHOS does not read topics from the providers yet; topic rul
 
 ## Lifecycle overview
 
-**Home › Lifecycle overview** (`/lifecycle`) lists every application you can see and, for each of the nine phases, whether PATHOS holds real data: repositories (Connect), registration (Inventory), SBOM components (Discover), scans and findings (Assess), AI and human reviews (Validate), fix pull requests, risk acceptances and pull request checks (Remediate), release versions and runtime mappings (Report & monitor). A cell links to the data when there is some. Threat model and Reverse engineering show *not available yet*. Phases that need a permission you lack show a lock.
+**Home › Lifecycle overview** (`/lifecycle`) lists every application you can see and, for each of the nine phases, whether PATHOS holds real data: repositories (Connect), registration (Inventory), SBOM components (Discover), scans and findings (Assess), AI and human reviews and AI evidence records (Validate), fix pull requests, risk acceptances and pull request checks (Remediate), release versions and runtime mappings (Report & monitor). A cell links to the data when there is some. Threat model and Reverse engineering show *not available yet*. Phases that need a permission you lack show a lock.
 
 ## Troubleshooting
 

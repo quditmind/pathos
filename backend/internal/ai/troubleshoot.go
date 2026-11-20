@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 // TroubleshootSystemPrompt is the system prompt of AI troubleshooting
@@ -47,10 +46,11 @@ type TroubleshootOutput struct {
 
 // TroubleshootResult is the answer with its provenance.
 type TroubleshootResult struct {
-	Output   TroubleshootOutput
-	Provider string
-	Model    string
-	SHA256   string
+	Output     TroubleshootOutput
+	Provider   string
+	Model      string
+	SHA256     string
+	EvidenceID uuid.UUID
 }
 
 // TroubleshootSchema is the JSON schema of the answer.
@@ -94,36 +94,16 @@ func ValidateTroubleshoot(raw []byte) (TroubleshootOutput, error) {
 	return out, nil
 }
 
-// troubleshootConfig picks the configuration for troubleshooting: a
-// configuration on a self-hosted (local) model first, otherwise the
-// organization's default configuration.
-func (s *Service) troubleshootConfig(ctx context.Context, orgID uuid.UUID) (ConfigVersion, error) {
-	cv, err := scanCV(s.DB.QueryRow(ctx, cvSelect+` JOIN ai_configurations c ON c.current_version_id = v.id
-		JOIN ai_providers p ON p.id = v.provider_id AND p.organization_id = c.organization_id
-		WHERE c.organization_id = $1 AND c.archived_at IS NULL AND p.archived_at IS NULL AND (p.kind = 'self_hosted' OR c.is_default)
-		ORDER BY (p.kind = 'self_hosted') DESC, c.is_default DESC, c.created_at LIMIT 1`, orgID))
-	if errors.Is(err, pgx.ErrNoRows) {
-		return cv, ErrNotConfigured
-	}
-	return cv, err
-}
-
-// Troubleshoot asks the model for troubleshooting steps. The input is
-// redacted with the built-in and the configuration's patterns and fenced
-// as untrusted data.
+// Troubleshoot asks the troubleshooting task's model for steps (without
+// the M7 flag: a self-hosted configuration first, else the default). The
+// input is redacted with the built-in and the configuration's patterns and
+// fenced as untrusted data. The call writes an AI evidence record.
 func (s *Service) Troubleshoot(ctx context.Context, orgID uuid.UUID, in TroubleshootInput) (TroubleshootResult, error) {
-	cv, err := s.troubleshootConfig(ctx, orgID)
+	rc, err := s.resolve(ctx, orgID, TaskTroubleshooting)
 	if err != nil {
 		return TroubleshootResult{}, err
 	}
-	pvs, err := s.loadProviders(ctx, orgID, &cv.ProviderID)
-	if err != nil || len(pvs) == 0 {
-		return TroubleshootResult{}, ErrNotConfigured
-	}
-	prov, err := s.provider(ctx, orgID, pvs[0])
-	if err != nil {
-		return TroubleshootResult{}, err
-	}
+	cv := rc.CV
 	extra, _ := CompilePatterns(cv.RedactionPatterns)
 	body, err := json.MarshalIndent(in, "", "  ")
 	if err != nil {
@@ -139,17 +119,22 @@ func (s *Service) Troubleshoot(ctx context.Context, orgID uuid.UUID, in Troubles
 	if g := strings.TrimSpace(cv.Instructions); g != "" {
 		system += "\n\nOrganization guidance (from PATHOS administrators, trusted):\n" + g
 	}
+	sub := subjectFrom(ctx, TaskTroubleshooting)
+	if sub.Related == nil {
+		sub.Related = map[string]any{"error_code": in.Code}
+	}
 	cctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	resp, err := prov.Review(cctx, Request{Model: cv.Model, Effort: "low", System: system, User: user, Schema: TroubleshootSchema(), MaxOutputTokens: 1500})
+	resp, _, eid, err := s.invoke(cctx, orgID, rc, callSpec{Task: TaskTroubleshooting, Operation: "troubleshoot", Template: "troubleshooting@1",
+		System: system, User: user, Schema: TroubleshootSchema(), Effort: "low", MaxTokens: 1500, Subject: sub, Review: ReviewNotRequired})
 	if err != nil {
-		return TroubleshootResult{}, err
+		return TroubleshootResult{EvidenceID: eid}, err
 	}
 	out, err := ValidateTroubleshoot(resp.JSON)
 	if err != nil {
-		return TroubleshootResult{}, err
+		return TroubleshootResult{EvidenceID: eid}, err
 	}
-	return TroubleshootResult{Output: out, Provider: pvs[0].Kind, Model: resp.Model, SHA256: sha256Hex(system, user)}, nil
+	return TroubleshootResult{Output: out, Provider: rc.PV.Kind, Model: resp.Model, SHA256: sha256Hex(system, user), EvidenceID: eid}, nil
 }
 
 // sha256Hex is the prompt hash recorded with AI answers.

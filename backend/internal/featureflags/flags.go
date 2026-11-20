@@ -40,6 +40,7 @@ var Known = []Flag{
 	{"onboarding", "Combined connect, register, classify and inventory onboarding flow", "M3"},
 	{"codegraph", "CodeGraph: discovery worker, graph store and views", "M4"},
 	{"threat_models", "Threat modelling on CodeGraph (STRIDE, attack paths)", "M5"},
+	{"ai_intelligence", "AI security intelligence: AI evidence log and replay, model per task, cross-phase correlation, AI threat suggestions", "M7"},
 	{"reverse_engineering", "Reverse engineering workspace (static tier)", "M10"},
 	{"remediation_workspace", "Remediation workspace and gates", "M8"},
 	{"continuous_monitoring", "Continuous monitoring feed and architecture drift", "M9"},

@@ -2,8 +2,10 @@ import { Badge } from "@/components/ui/primitives";
 import { evidenceLabel, statusLabel, type ChangeState, type ModelStatus, type Threat } from "./api";
 
 /** Rule 5 label of a threat: verified, observed, AI-inferred, or "imported/manual, unverified". */
-export function EvidenceLabel({ threat }: { threat: Pick<Threat, "evidence_type" | "method" | "label"> }) {
-  const text = evidenceLabel(threat);
+export function EvidenceLabel({ threat }: { threat: Pick<Threat, "evidence_type" | "method" | "label"> & Partial<Pick<Threat, "ai_review">> }) {
+  let text = evidenceLabel(threat);
+  // M7: an AI-suggested threat stays a proposal until a person accepts it.
+  if (threat.method === "ai") text = threat.ai_review === "accepted" ? "AI-inferred · accepted" : "AI-inferred (awaiting decision)";
   const tone = threat.evidence_type === "verified" ? "success" : threat.evidence_type === "observed" ? "primary" : "warning";
   return (
     <Badge tone={tone} className="font-semibold">

@@ -35,6 +35,10 @@ type Request struct {
 	Schema map[string]any
 	// MaxOutputTokens bounds the response.
 	MaxOutputTokens int
+	// Temperature and Seed make an answer repeatable where the provider
+	// honours them (self-hosted servers); nil leaves the provider default.
+	Temperature *float64
+	Seed        *int
 }
 
 // Response is the raw provider result before validation.

@@ -320,7 +320,13 @@ func (s *Service) ask(w http.ResponseWriter, r *http.Request) {
 		prior = append(prior, map[string]string{"role": m.Role, "content": clip(m.Content, 1500)})
 	}
 	payload := map[string]any{"question": q, "earlier_in_this_conversation": prior, "data": cctx}
-	res, err := s.AI.Generate(ctx, p.OrganizationID, analystSystem, "Answer the question in the evidence from the data in the evidence.", payload, answerSchema(), 2000)
+	ctxIDs := []string{}
+	for _, f := range cctx.Findings {
+		ctxIDs = append(ctxIDs, f.ID.String())
+	}
+	actx := ai.WithSubject(ctx, ai.Subject{Kind: "conversation", ID: &id, RequestedBy: &p.UserID, Related: map[string]any{"findings": ctxIDs}})
+	res, err := s.AI.Generate(actx, p.OrganizationID, ai.TaskAnalyst, analystSystem, "Answer the question in the evidence from the data in the evidence.", payload,
+		answerSchema(), 2000)
 	if err != nil {
 		if !errors.Is(err, ai.ErrNotConfigured) && !errors.Is(err, ai.ErrRateLimited) && !errors.Is(err, ai.ErrRefused) {
 			s.Log.Warn("analyst answer failed", "err", err)
@@ -365,9 +371,9 @@ func (s *Service) ask(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO ai_messages (id, organization_id, conversation_id, role, content, citations, follow_ups, context_sha256,
-			context_findings, provider, model, input_tokens, output_tokens) VALUES ($1, $2, $3, 'assistant', $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+			context_findings, provider, model, input_tokens, output_tokens, evidence_record_id) VALUES ($1, $2, $3, 'assistant', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
 			uuid.Must(uuid.NewV7()), p.OrganizationID, id, answer, cites, follow, res.SHA256, len(cctx.Findings), res.Provider, res.Model,
-			res.InputTokens, res.OutputTokens); err != nil {
+			res.InputTokens, res.OutputTokens, res.EvidenceID); err != nil {
 			return err
 		}
 		title := conv.Title
