@@ -63,6 +63,9 @@ type lifecycleCounts struct {
 	PRChecks        int
 	Versions        int
 	Runtime         int
+	// BinaryAnalyses: reverse-engineering analyses (PATHOS 3.0 M10) of
+	// build artifacts of the application's repositories.
+	BinaryAnalyses int
 }
 
 // lifecycleQuery counts, per application, the records of each phase in the
@@ -90,7 +93,8 @@ func lifecycleQuery(p *authz.Principal, where string, args []any) (string, []any
 		` + sub("count(*)", "risk_acceptances ra JOIN findings f ON f.id = ra.finding_id", "f.repository_id") + `,
 		` + sub("count(*)", "pr_checks pc", "pc.repository_id") + `,
 		(SELECT count(*) FROM application_versions v WHERE v.application_id = a.id),
-		(SELECT count(*) FROM runtime_app_mappings m WHERE m.application_id = a.id)
+		(SELECT count(*) FROM runtime_app_mappings m WHERE m.application_id = a.id),
+		` + sub("count(*) FILTER (WHERE ra.status IN ('ready', 'partial'))", "rea_analyses ra", "ra.repository_id") + `
 		FROM applications a WHERE ` + where + ` AND ` + vis
 	all := append(append(append([]any{}, args...), sargs...), vargs...)
 	return q, all
@@ -138,8 +142,16 @@ func buildPhases(c lifecycleCounts, p *authz.Principal) []Phase {
 
 	out = append(out, Phase{Number: 4, Key: "threat_model", Title: "Threat model", Available: false, Metrics: map[string]int{},
 		Summary: "No threat model data: threat models arrive in M5"})
-	out = append(out, Phase{Number: 5, Key: "reverse_engineering", Title: "Reverse engineering", Available: false, Metrics: map[string]int{},
-		Summary: "No reverse engineering data: binary analysis arrives in M10"})
+	// Reverse engineering (M10): completed analyses of the application's
+	// build artifacts; viewing them needs findings.read like the workspace.
+	re := ph(5, "reverse_engineering", "Reverse engineering")
+	re.Metrics["binary_analyses"] = c.BinaryAnalyses
+	re.HasData = c.BinaryAnalyses > 0
+	re.Summary = map[bool]string{true: plural(c.BinaryAnalyses, "binary analysis", "binary analyses"), false: "No binary analysis yet"}[re.HasData]
+	if !findings {
+		re.Restricted, re.HasData, re.Summary, re.Metrics = true, false, "You cannot view binary analyses", map[string]int{}
+	}
+	out = append(out, re)
 
 	assess := ph(6, "assess", "Assess")
 	assess.Metrics["scans"], assess.Metrics["findings"], assess.Metrics["open_findings"] = c.Scans, c.Findings, c.OpenFindings

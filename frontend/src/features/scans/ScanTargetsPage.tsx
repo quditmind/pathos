@@ -82,6 +82,8 @@ export interface ScanTarget {
   scanners: string[];
   /** An artifact's signature or Sigstore bundle was uploaded. */
   has_signature?: boolean;
+  /** An artifact's provenance attestation (Sigstore bundle) was uploaded. */
+  has_provenance?: boolean;
   /** Latest signature verification evidence (image and artifact targets). */
   last_verification?: SignatureVerification | null;
   created_by: string | null;
@@ -181,6 +183,8 @@ interface FormState {
   signature: SignatureConfig;
   /** Artifact signature or Sigstore bundle text; undefined = unchanged. */
   signature_material?: string;
+  /** Artifact provenance attestation (Sigstore bundle); undefined = unchanged. */
+  provenance_material?: string;
   /** Manifest tools that also run for the target. */
   tools: string[];
   intrusive_authorized: boolean;
@@ -240,6 +244,10 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
   const onFile = async (file: File | undefined) => {
     if (file) set({ signature_material: (await file.text()).trim() });
   };
+  const onProvenance = async (file: File | undefined) => {
+    if (file) set({ provenance_material: (await file.text()).trim() });
+  };
+  const artifact = kind === "artifact" || kind === "mobile-app";
   return (
     <fieldset className="rounded-md border border-border p-3">
       <legend className="px-1 text-[12px] font-medium">Signature verification (Sigstore cosign)</legend>
@@ -258,6 +266,15 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
             <Select id="sig-att" className="w-full" value={s.attestation ?? ""} onChange={(e) => setS({ attestation: e.target.value })}>
               <option value="">None</option>
               {attestationTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+            </Select>
+          </div>
+        )}
+        {s.mode && artifact && (
+          <div>
+            <Label htmlFor="sig-att" hint="(optional)">Build provenance to verify</Label>
+            <Select id="sig-att" className="w-full" value={s.attestation ?? ""} onChange={(e) => setS({ attestation: e.target.value })}>
+              <option value="">None</option>
+              {attestationTypes.filter((t) => t.startsWith("slsaprovenance")).map((t) => <option key={t} value={t}>{t}</option>)}
             </Select>
           </div>
         )}
@@ -292,7 +309,7 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
         <div className="mt-3 space-y-1.5">
           <label className="flex items-start gap-2 text-[12.5px]">
             <input type="checkbox" className="mt-0.5 accent-[var(--primary)]" checked={!!s.require} onChange={(e) => setS({ require: e.target.checked })} />
-            <span>Require a valid signature{kind === "image" && s.attestation ? " and attestation" : ""}: otherwise a high-severity finding is created and the security gate fails.</span>
+            <span>Require a valid signature{s.attestation ? " and attestation" : ""}: otherwise a high-severity finding is created and the security gate fails.</span>
           </label>
           {s.mode === "key" && (
             <label className="flex items-start gap-2 text-[12.5px]">
@@ -308,6 +325,15 @@ function SignatureFields({ f, set, kind, target }: { f: FormState; set: (p: Part
             Signature (base64) or Sigstore bundle (.sigstore.json)
           </Label>
           <input id="sig-file" type="file" accept=".sig,.json,.bundle,.txt" onChange={(e) => void onFile(e.target.files?.[0])}
+            className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
+        </div>
+      )}
+      {s.mode && artifact && s.attestation && (
+        <div className="mt-3">
+          <Label htmlFor="prov-file" hint={target?.has_provenance && f.provenance_material === undefined ? "(uploaded; choose a file to replace)" : "(cosign attest-blob --bundle output)"}>
+            Provenance attestation (Sigstore bundle, .sigstore.json)
+          </Label>
+          <input id="prov-file" type="file" accept=".json,.bundle" onChange={(e) => void onProvenance(e.target.files?.[0])}
             className="block text-[12.5px] file:mr-2 file:rounded-md file:border file:border-border file:bg-surface file:px-2 file:py-1" />
         </div>
       )}
@@ -446,6 +472,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         fd.set("name", f.name);
         fd.set("file", file!);
         if ((f.kind === "artifact" || f.kind === "mobile-app") && f.signature_material) fd.set("signature", f.signature_material);
+        if ((f.kind === "artifact" || f.kind === "mobile-app") && f.provenance_material) fd.set("provenance", f.provenance_material);
         const created = await uploadTarget(f.kind, fd);
         // The verification policy is set right after the upload.
         if (signature) return api<ScanTarget>(`/api/v1/scan-targets/${created.id}`, { method: "PUT", body: { config: { signature } } });
@@ -474,6 +501,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         body.intrusive_authorization_note = f.intrusive_note;
       }
       if ((f.kind === "artifact" || f.kind === "mobile-app") && f.signature_material !== undefined) body.signature_material = f.signature_material;
+      if ((f.kind === "artifact" || f.kind === "mobile-app") && f.provenance_material !== undefined) body.provenance_material = f.provenance_material;
       if (target) return api<ScanTarget>(`/api/v1/scan-targets/${target.id}`, { method: "PUT", body });
       return api<ScanTarget>("/api/v1/scan-targets", { method: "POST", body: { ...body, repository_id: f.repository_id, kind: f.kind } });
     },

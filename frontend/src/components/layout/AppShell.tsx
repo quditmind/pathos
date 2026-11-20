@@ -159,7 +159,7 @@ export const groups: NavGroup[] = [
   },
   {
     label: "5 · Reverse engineering",
-    items: [{ label: "Binary analysis", icon: <Binary />, phase: 10, flag: "reverse_engineering" }],
+    items: [{ label: "Binary analysis", to: "/reverse-engineering", icon: <Binary />, perm: "findings.read", phase: 10, flag: "reverse_engineering" }],
   },
   {
     label: "6 · Assess",
@@ -222,7 +222,7 @@ export const groups: NavGroup[] = [
       { label: "Secret validation", to: "/admin/secret-validation", icon: <KeyRound />, perm: "settings.manage" },
       { label: "Review configurations", to: "/human-review/configurations", icon: <Settings2 />, perm: "reviews.read" },
       { label: "AI settings", to: "/admin/ai", icon: <Cpu />, perm: "ai.configure" },
-      { label: "Reverse engineering tools", icon: <Microscope />, phase: 10, flag: "reverse_engineering" },
+      { label: "Reverse engineering tools", to: "/configurations/reverse-engineering", icon: <Microscope />, perm: "scanners.read", phase: 10, flag: "reverse_engineering" },
     ],
   },
   {

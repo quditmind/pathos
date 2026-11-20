@@ -116,6 +116,11 @@ func verifySignature(ctx context.Context, run runner, offline bool, in RunInput,
 		if file == "" {
 			return fail("error", "the artifact file is not available")
 		}
+		if sc.Attestation != "" {
+			// SLSA provenance of the artifact (cosign attest-blob),
+			// verified independently of the detached signature.
+			rep.Attestation = verifyBlobAttestation(ctx, run, env, flags, sc.Attestation, tg.ProvenanceMaterial, file, dir)
+		}
 		if strings.TrimSpace(tg.SignatureMaterial) == "" {
 			return fail("unsigned", "no signature or Sigstore bundle was uploaded with the artifact")
 		}
@@ -166,6 +171,45 @@ func verifySignature(ctx context.Context, run runner, offline bool, in RunInput,
 		rep.Attestation = a
 	}
 	return rep
+}
+
+// verifyBlobAttestation verifies an artifact's provenance attestation (a
+// Sigstore bundle from cosign attest-blob) with cosign
+// verify-blob-attestation and the target's key or identity policy.
+func verifyBlobAttestation(ctx context.Context, run runner, env, flags []string, typ, material, file, dir string) *scanners.AttestationResult {
+	a := &scanners.AttestationResult{Type: typ}
+	if strings.TrimSpace(material) == "" {
+		a.Status, a.Detail = "missing", "no provenance attestation was uploaded with the artifact"
+		return a
+	}
+	bundle := filepath.Join(dir, "provenance.sigstore.json")
+	if err := os.WriteFile(bundle, []byte(material), 0o600); err != nil {
+		a.Status, a.Detail = "error", truncateStr(err.Error(), 1000)
+		return a
+	}
+	args := append(append([]string{"verify-blob-attestation", "--bundle", bundle, "--type", typ}, flags...), file)
+	if _, stderr, err := run(ctx, env, args...); err != nil {
+		st, msg := classifyCosign(stderr, err)
+		switch {
+		case st == "unsigned":
+			a.Status = "missing"
+		case st == "invalid":
+			a.Status = "invalid"
+		default:
+			a.Status = "error"
+		}
+		a.Detail = truncateStr(msg, 1000)
+		return a
+	}
+	a.Status = "verified"
+	var b struct {
+		DSSEEnvelope json.RawMessage `json:"dsseEnvelope"`
+	}
+	var env1 bytes.Buffer
+	if json.Unmarshal([]byte(material), &b) == nil && json.Compact(&env1, b.DSSEEnvelope) == nil {
+		a.PredicateType, a.BuilderID, a.SourceRepo = parseAttestation(env1.Bytes())
+	}
+	return a
 }
 
 // classifyCosign maps cosign's error output to unsigned, invalid or error.

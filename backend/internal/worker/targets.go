@@ -50,6 +50,8 @@ type JobTarget struct {
 	// uploaded signature or Sigstore bundle of an artifact.
 	Signature         *SignatureConfig `json:"signature,omitempty"`
 	SignatureMaterial string           `json:"signature_material,omitempty"`
+	// ProvenanceMaterial is the artifact's provenance attestation bundle.
+	ProvenanceMaterial string `json:"provenance_material,omitempty"`
 	// IntrusiveAuthorized: intrusive testing of this target was
 	// authorized; intrusive tools are skipped otherwise.
 	IntrusiveAuthorized bool `json:"intrusive_authorized,omitempty"`
@@ -93,6 +95,11 @@ func (a *Agent) prepareTarget(ctx context.Context, job Job, dir string) (string,
 	case "sbom":
 		return a.fetchTargetFile(ctx, job, filepath.Join(dir, "target.sbom.json"))
 	case "artifact", "mobile-app":
+		if job.Kind == JobKindREA {
+			// Reverse engineering analyses the artifact as uploaded
+			// (pathos-rea extracts firmware itself, in the sandbox).
+			return a.fetchTargetFile(ctx, job, filepath.Join(dir, reaInputName(t.FileName)))
+		}
 		return a.prepareArtifact(ctx, job, dir)
 	case "llm-endpoint":
 		if err := checkReachable(ctx, t.Reference); err != nil {

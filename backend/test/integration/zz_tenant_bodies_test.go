@@ -244,6 +244,7 @@ var refTables = map[string]string{
 	"configuration_id": "ai_configurations", "role_id": "roles", "ticket_connection_id": "ticket_connections",
 	"rule_id": "custom_rules", "policy_id": "security_policies", "upload_id": "source_uploads",
 	"conversation_id": "ai_conversations", "classification_id": "asset_classifications", "oauth_app_id": "scm_oauth_apps",
+	"source_snapshot_id": "codegraph_snapshots",
 }
 
 func jsonName(f *ast.Field) (string, bool) {
@@ -504,6 +505,9 @@ var writeFixtures = map[string]map[string]any{
 	// AI evidence (M7).
 	"POST /api/v1/ai/evidence/{id}/review":    {"decision": "accepted", "note": "isolation probe"},
 	"POST /api/v1/threat-models/{id}/suggest": {"max_threats": 1},
+	// Reverse engineering (M10).
+	"POST /api/v1/rea/artifacts/{id}/authorizations": {"reason": "isolation probe authorisation"},
+	"POST /api/v1/rea/drafts/{id}/dismiss":           {"reason": "isolation probe"},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

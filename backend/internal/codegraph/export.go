@@ -193,7 +193,7 @@ func Retain(ctx context.Context, pool *pgxpool.Pool, store objstore.Store) (int,
 		       row_number() OVER (PARTITION BY s.repository_id, s.status = 'failed' ORDER BY s.created_at DESC) AS rn,
 		       COALESCE(cs.keep_snapshots, 10) AS keep
 		FROM codegraph_snapshots s LEFT JOIN codegraph_settings cs ON cs.organization_id = s.organization_id
-		WHERE s.status IN ('ready', 'partial', 'failed')) x
+		WHERE s.status IN ('ready', 'partial', 'failed') AND s.kind = 'source') x
 		WHERE rn > keep AND storage = 'rows' ORDER BY id LIMIT 200`)
 	if err != nil {
 		return 0, err

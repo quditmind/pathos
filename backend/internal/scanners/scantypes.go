@@ -264,7 +264,10 @@ var CheckKinds = []CheckKind{
 	{ID: "threat-modelling", Name: "Threat modelling", Phase: 4, ScanTypes: []string{},
 		Tools: []KindTool{pathosEngine("PATHOS STRIDE engine"), pathosEngine("PATHOS attack paths & blast radius"), gap("OWASP pytm"),
 			gap("OWASP Threat Dragon (format)"), gap("Threagile"), gap("MITRE ATT&CK"), gap("MITRE CAPEC"), gap("MITRE CWE"), gap("MITRE D3FEND"), gap("LINDDUN")}},
-	{ID: "reverse-engineering", Name: "Reverse engineering", Phase: 5, ScanTypes: []string{},
+	// PATHOS 3.0 M10: pathos-rea (worker-rea, static tier) runs radare2,
+	// binwalk and ILSpy (Ghidra and Jadx when built in) on build artifacts;
+	// it runs no scan type (its own queue lane), so it is named here.
+	{ID: "reverse-engineering", Name: "Reverse engineering", Phase: 5, ScanTypes: []string{}, Extra: []string{PathosREA},
 		Tools: []KindTool{gap("radare2"), gap("Joern"), gap("Ghidra (headless)"), gap("angr"), gap("Jadx"), gap("ILSpy (ilspycmd)"), gap("binwalk"),
 			later(gap("Frida")), later(gap("Tracee")), later(gap("Qiling"))}},
 	{ID: "sast-deep", Name: "SAST: deep engines", Phase: 6, ScanTypes: []string{"sast", "configuration", "crypto"},

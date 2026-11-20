@@ -7,6 +7,9 @@
 # password change exactly like scripts/smoke-test.py). The HTML report goes
 # to e2e/playwright-report/. E2E_CODEGRAPH_APP (application id or name) and
 # E2E_CODEGRAPH_WAIT_S are passed to e2e/tests/codegraph.spec.ts.
+# scripts/seed-e2e-app.py seeds an application holding this repository and
+# prints its id (E2E_CODEGRAPH_APP); it needs `docker compose --profile graph
+# up -d worker-graph` for the build (CONTRIBUTING.md, Tests).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -16,6 +19,9 @@ email="$(envval PATHOS_BOOTSTRAP_ADMIN_EMAIL)"
 pw="$(envval PATHOS_BOOTSTRAP_ADMIN_PASSWORD)"
 new="${PATHOS_ADMIN_NEW_PASSWORD:-Smoke-$(echo "$pw" | rev)!9}"
 url="$(envval PATHOS_PUBLIC_URL)"
+# Our own build for the reverse-engineering test (Docker is not available
+# inside the Playwright container).
+if [ -z "${E2E_SKIP_REA_BUILD:-}" ]; then "$ROOT/scripts/e2e-rea-build.sh"; fi
 exec docker run --rm --network host --ipc=host -u "$(id -u):$(id -g)" -e HOME=/tmp -e CI="${CI:-}" \
   -e PATHOS_URL="${url:-https://localhost}" -e E2E_EMAIL="$email" -e E2E_PASSWORD="$pw" -e E2E_NEW_PASSWORD="$new" \
   -e E2E_CODEGRAPH_APP="${E2E_CODEGRAPH_APP:-}" -e E2E_CODEGRAPH_WAIT_S="${E2E_CODEGRAPH_WAIT_S:-}" \

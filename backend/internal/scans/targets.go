@@ -127,6 +127,9 @@ type ScanTarget struct {
 	Scanners                   []string   `json:"scanners"`
 	// HasSignature: an artifact's signature or Sigstore bundle was uploaded.
 	HasSignature bool `json:"has_signature"`
+	// HasProvenance: an artifact's provenance attestation (Sigstore bundle)
+	// was uploaded.
+	HasProvenance bool `json:"has_provenance"`
 	// LastVerification is the latest signature verification evidence.
 	LastVerification *SignatureVerification `json:"last_verification"`
 	CreatedBy        *string                `json:"created_by"`
@@ -156,7 +159,8 @@ const targetSelect = `
 	       (SELECT jsonb_build_object('status', sv.status, 'mode', sv.mode, 'required', sv.required, 'attestation_status', sv.attestation_status,
 	                                  'details', sv.details, 'scan_job_id', sv.scan_job_id, 'verified_at', sv.created_at)
 	          FROM signature_verifications sv WHERE sv.scan_target_id = t.id ORDER BY sv.created_at DESC LIMIT 1),
-	       COALESCE(NULLIF(iu.display_name, ''), iu.email), t.intrusive_authorized_at, t.intrusive_authorization_note
+	       COALESCE(NULLIF(iu.display_name, ''), iu.email), t.intrusive_authorized_at, t.intrusive_authorization_note,
+	       t.provenance_material IS NOT NULL
 	FROM scan_targets t
 	JOIN repositories r ON r.id = t.repository_id
 	LEFT JOIN users au ON au.id = t.authorized_by
@@ -169,7 +173,8 @@ func scanTarget(row pgx.Row) (ScanTarget, error) {
 	err := row.Scan(&t.ID, &t.RepositoryID, &t.RepositoryName, &t.Kind, &t.Name, &t.Reference, &t.EgressHost, &cfg,
 		&t.SBOMFormat, &t.SBOMComponents, &t.SBOMSize, &t.AuthType, &t.AuthUsername, &t.AuthHeaderName, &t.HasSecret,
 		&t.AuthorizedBy, &t.AuthorizedAt, &t.AuthorizationNote, &t.Enabled, &t.CreatedBy, &t.CreatedAt, &t.UpdatedAt,
-		&t.OpenFindings, &last, &t.HasSignature, &verification, &t.IntrusiveAuthorizedBy, &t.IntrusiveAuthorizedAt, &t.IntrusiveAuthorizationNote)
+		&t.OpenFindings, &last, &t.HasSignature, &verification, &t.IntrusiveAuthorizedBy, &t.IntrusiveAuthorizedAt, &t.IntrusiveAuthorizationNote,
+		&t.HasProvenance)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, errNotFound
 	}
@@ -426,6 +431,9 @@ type targetRequest struct {
 	// SignatureMaterial is an artifact's detached signature (base64) or
 	// Sigstore bundle (JSON); "" removes it.
 	SignatureMaterial *string `json:"signature_material"`
+	// ProvenanceMaterial is an artifact's provenance attestation (a Sigstore
+	// bundle from cosign attest-blob); "" removes it.
+	ProvenanceMaterial *string `json:"provenance_material"`
 }
 
 var (
@@ -510,8 +518,8 @@ func (f *targetFields) apply(req targetRequest) error {
 	if f.config.Signature != nil && f.config.Signature.Mode != "" && f.kind != "image" && !artifactKind(f.kind) {
 		return httpx.BadRequest("signature verification applies to container image, artifact and mobile app targets")
 	}
-	if f.config.Signature != nil && f.config.Signature.Attestation != "" && f.kind != "image" {
-		return httpx.BadRequest("attestations are verified for container image targets")
+	if a := f.config.Signature; a != nil && a.Attestation != "" && f.kind != "image" && !(artifactKind(f.kind) && strings.HasPrefix(a.Attestation, "slsaprovenance")) {
+		return httpx.BadRequest("attestations are verified for container image targets, and SLSA provenance for artifact and mobile app targets")
 	}
 	if f.config.Nuclei {
 		return httpx.BadRequest("nuclei applies to declared endpoint verification only")
@@ -714,6 +722,16 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	if req.ProvenanceMaterial != nil && !artifactKind(cur.Kind) {
+		s.fail(w, r, httpx.BadRequest("a provenance attestation can be attached to artifact and mobile app targets only"))
+		return
+	}
+	if req.ProvenanceMaterial != nil {
+		if err := ValidProvenanceMaterial(*req.ProvenanceMaterial); err != nil {
+			s.fail(w, r, httpx.BadRequest(err.Error()))
+			return
+		}
+	}
 	if err := f.apply(req); err != nil {
 		s.fail(w, r, err)
 		return
@@ -771,6 +789,15 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 		}
+		if req.ProvenanceMaterial != nil {
+			var mat *string
+			if v := strings.TrimSpace(*req.ProvenanceMaterial); v != "" {
+				mat = &v
+			}
+			if _, err := tx.Exec(ctx, `UPDATE scan_targets SET provenance_material = $2 WHERE id = $1`, id, mat); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_targets SET name = $2, reference = $3, egress_host = $4, config = $5, api_spec = $6,
 			auth_type = $7, auth_username = $8, auth_header_name = $9, secret_id = $10, authorization_note = $11, enabled = $12,
 			authorized_by = CASE WHEN $13 THEN $14::uuid ELSE authorized_by END,
@@ -786,7 +813,8 @@ func (s *Service) updateTarget(w http.ResponseWriter, r *http.Request) {
 			Action: "scan_target.update", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"name": f.name, "reference": f.reference, "enabled": f.enabled, "reauthorized": reauth,
 				"credential_changed": req.AuthSecret != nil, "signature": signatureAudit(f.config.Signature),
-				"signature_material_changed": req.SignatureMaterial != nil, "tools": f.config.Tools}}); err != nil {
+				"signature_material_changed": req.SignatureMaterial != nil, "provenance_material_changed": req.ProvenanceMaterial != nil,
+				"tools": f.config.Tools}}); err != nil {
 			return err
 		}
 		if setIntrusive != nil && (*setIntrusive != (cur.IntrusiveAuthorizedAt != nil) || (*setIntrusive && req.IntrusiveAuthorizationNote != nil)) {
@@ -1082,6 +1110,9 @@ type LeasedTarget struct {
 	// Signature verification policy and an artifact's signature material.
 	Signature         *SignatureConfig `json:"signature,omitempty"`
 	SignatureMaterial string           `json:"signature_material,omitempty"`
+	// ProvenanceMaterial is an artifact's provenance attestation bundle
+	// (sent when the policy verifies an attestation).
+	ProvenanceMaterial string `json:"provenance_material,omitempty"`
 	// IntrusiveAuthorized: intrusive testing of the target is authorized
 	// (workers skip intrusive tools otherwise).
 	IntrusiveAuthorized bool `json:"intrusive_authorized,omitempty"`
@@ -1092,15 +1123,16 @@ type LeasedTarget struct {
 func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uuid.UUID, job *LeasedJob) error {
 	var t LeasedTarget
 	var cfgRaw []byte
-	var spec, material *string
+	var spec, material, provenance *string
 	var secretID *uuid.UUID
 	var repoID uuid.UUID
 	var scope []string
 	if err := tx.QueryRow(ctx, `SELECT kind, reference, api_spec, sbom_sha256, sbom_size, auth_type, auth_username, auth_header_name,
-		secret_id, config, artifact_name, signature_material, repository_id, authorized_scope, intrusive_authorized_at IS NOT NULL
+		secret_id, config, artifact_name, signature_material, repository_id, authorized_scope, intrusive_authorized_at IS NOT NULL,
+		provenance_material
 		FROM scan_targets WHERE organization_id = $1 AND id = $2`, orgID, targetID).
 		Scan(&t.Kind, &t.Reference, &spec, &t.SHA256, &t.Size, &t.AuthType, &t.Username, &t.HeaderName, &secretID, &cfgRaw, &t.FileName,
-			&material, &repoID, &scope, &t.IntrusiveAuthorized); err != nil {
+			&material, &repoID, &scope, &t.IntrusiveAuthorized, &provenance); err != nil {
 		return err
 	}
 	if spec != nil {
@@ -1116,6 +1148,9 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 		t.Signature = cfg.Signature
 		if material != nil {
 			t.SignatureMaterial = *material
+		}
+		if provenance != nil && cfg.Signature.Attestation != "" && artifactKind(t.Kind) {
+			t.ProvenanceMaterial = *provenance
 		}
 	}
 	if t.Kind == "endpoints" {
@@ -1237,8 +1272,11 @@ func (s *Service) createUploadedArtifact(w http.ResponseWriter, r *http.Request,
 		}
 		if part.FormName() != "file" {
 			limit := int64(4096)
-			if part.FormName() == "signature" {
+			switch part.FormName() {
+			case "signature":
 				limit = maxSignatureMaterial + 1
+			case "provenance":
+				limit = maxProvenanceMaterial + 1
 			}
 			b, _ := io.ReadAll(io.LimitReader(part, limit))
 			form[part.FormName()] = strings.TrimSpace(string(b))
@@ -1291,6 +1329,14 @@ func (s *Service) createUploadedArtifact(w http.ResponseWriter, r *http.Request,
 		}
 		material = &v
 	}
+	var provenance *string
+	if v := form["provenance"]; v != "" {
+		if err := ValidProvenanceMaterial(v); err != nil {
+			s.fail(w, r, httpx.BadRequest(err.Error()))
+			return
+		}
+		provenance = &v
+	}
 	// Malware scan (clamd) of the uploaded file, when configured.
 	malware := "not_configured"
 	if s.ClamAVAddress != "" {
@@ -1328,14 +1374,16 @@ func (s *Service) createUploadedArtifact(w http.ResponseWriter, r *http.Request,
 	digest := hex.EncodeToString(h.Sum(nil))
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `INSERT INTO scan_targets (id, organization_id, repository_id, kind, name, reference, artifact_name, artifact_key,
-			artifact_gzip, sbom_sha256, sbom_size, created_by, signature_material) VALUES ($1, $2, $3, $13, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID, material, kind); err != nil {
+			artifact_gzip, sbom_sha256, sbom_size, created_by, signature_material, provenance_material)
+			VALUES ($1, $2, $3, $13, $4, $5, $6, $7, $8, $9, $10, $11, $12, $14)`,
+			id, p.OrganizationID, repoID, name, fileName+" ("+digest[:12]+")", fileName, key, inline, digest, size, p.UserID, material, kind,
+			provenance); err != nil {
 			return err
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "scan_target.create", TargetType: "scan_target", TargetID: id.String(),
 			Metadata: map[string]any{"kind": kind, "name": name, "file_name": fileName, "sha256": digest, "size": size, "repository_id": repoID,
-				"malware_scan": malware, "signature_attached": material != nil}})
+				"malware_scan": malware, "signature_attached": material != nil, "provenance_attached": provenance != nil}})
 	})
 	if err != nil {
 		if key != nil && s.Artifacts != nil {

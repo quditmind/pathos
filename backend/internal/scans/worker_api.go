@@ -370,7 +370,8 @@ type LeasedJob struct {
 	SecretValidation *SecretValidationLease `json:"secret_validation,omitempty"`
 	// Kind is "codegraph" for CodeGraph discovery executions: the worker
 	// runs only the graph tool and skips change detection and the source
-	// inventories (they belong to scans).
+	// inventories (they belong to scans). "rea" for reverse-engineering
+	// executions: only pathos-rea runs, on the raw artifact.
 	Kind string `json:"kind,omitempty"`
 }
 
@@ -403,6 +404,14 @@ const routingCondition = `(
 	                 AND NOT EXISTS (SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(q.config_snapshot->'scanners') = 'array' THEN q.config_snapshot->'scanners' ELSE '[]' END) e(s)
 	                                 WHERE (e.s->>'key' LIKE 'plugin-%' OR e.s->>'key' = ANY($4::text[]))
 	                                   AND NOT (ow.scanners ? (e.s->>'key')))))`
+
+// reaLaneCondition (part of the lease query: $2 leasing worker) keeps
+// reverse-engineering executions (trigger "rea") in their own lane: only a
+// worker that advertises pathos-rea (worker-rea, whose analyser runs in its
+// sandbox runner) leases them, and such a worker leases nothing else. There
+// is no fallback to other workers: an artifact is never parsed outside the
+// sandbox. They also neither wait for nor block the repository's scans.
+const reaLaneCondition = `((q.trigger = 'rea') = COALESCE((SELECT lw.scanners FROM workers lw WHERE lw.id = $2) ? 'pathos-rea', false))`
 
 // RequeueExpired returns expired leases to the queue (or fails them). The
 // lease handler and the scheduler both call it, so jobs held by a dead worker
@@ -439,7 +448,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			WHERE j.id = (
 			  SELECT q.id FROM scan_jobs q
 			  WHERE q.organization_id = $1 AND q.status = 'queued'
-			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running')
+			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running'
+			                    AND (x.trigger = 'rea') = (q.trigger = 'rea'))
+			    AND `+reaLaneCondition+`
 			    AND `+routingCondition+`
 			  ORDER BY q.priority DESC, q.queued_at FOR UPDATE SKIP LOCKED LIMIT 1)
 			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id, j.trigger`,
@@ -460,8 +471,8 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		job.Public = visibility == "public"
-		if trigger == "codegraph" {
-			job.Kind = "codegraph"
+		if trigger == "codegraph" || trigger == "rea" {
+			job.Kind = trigger
 		}
 		if snapshotID != nil {
 			var src JobSource
@@ -479,6 +490,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		job.TimeoutSeconds, job.Exclusions, job.Scanners = v.TimeoutSeconds, v.Exclusions, v.Scanners
 		if targetID != nil {
 			connID, snapshotID = nil, nil
+			if job.Kind == "rea" {
+				return s.leaseREA(ctx, tx, wk.orgID, *targetID, &job)
+			}
 			return s.leaseTarget(ctx, tx, wk.orgID, *targetID, &job)
 		}
 		// Target scanners (image, DAST) never run against a repository.

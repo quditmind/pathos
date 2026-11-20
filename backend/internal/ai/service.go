@@ -727,6 +727,7 @@ func (s *Service) review(ctx context.Context, orgID, findingID, cvID uuid.UUID) 
 func findingRelated(ctx context.Context, q db.Querier, findingID uuid.UUID) map[string]any {
 	rows, err := q.Query(ctx, `SELECT n.snapshot_id, n.node_key, n.type FROM findings f
 		JOIN LATERAL (SELECT id FROM codegraph_snapshots s WHERE s.repository_id = f.repository_id AND s.status IN ('ready', 'partial') AND s.storage = 'rows'
+			AND s.kind = 'source'
 			ORDER BY s.created_at DESC LIMIT 1) s ON true
 		JOIN codegraph_nodes n ON n.snapshot_id = s.id
 		WHERE f.id = $1 AND (

@@ -64,7 +64,7 @@ export function LifecyclePage() {
     <>
       <PageHeader
         title="Lifecycle overview"
-        description="Every application and which of the nine lifecycle phases already hold real data. Phases without data say so; threat models and reverse engineering are not built yet."
+        description="Every application and which of the nine lifecycle phases already hold real data. Phases without data say so; threat models are not built yet."
       />
       {data.isError && <ErrorPanel error={data.error} onVerify={() => data.refetch()} />}
       <Card>
@@ -141,7 +141,7 @@ export function LifecyclePage() {
       <p className="mt-3 flex flex-wrap gap-3 text-[12px] text-muted-foreground">
         <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-success-soft" aria-hidden /> Has data</span>
         <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded border border-dashed border-border" aria-hidden /> No data yet</span>
-        <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-surface-muted" aria-hidden /> Not available yet (M5, M10)</span>
+        <span className="inline-flex items-center gap-1"><span className="inline-block size-3 rounded bg-surface-muted" aria-hidden /> Not available yet (M5)</span>
       </p>
     </>
   );

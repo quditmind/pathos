@@ -127,7 +127,8 @@ describe("sidebar regroup (prompt §5)", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
     // application; M4: CodeGraph, API & endpoints; M5: Threat models; M7: AI
-    // evidence log; M8: Remediation workspace) carry their route and still their phase and flag.
+    // evidence log; M8: Remediation workspace; M10: Binary analysis, Reverse
+    // engineering tools) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
@@ -135,16 +136,14 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["Binary analysis", "/reverse-engineering", "reverse_engineering"],
       ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Reverse engineering tools", "/configurations/reverse-engineering", "reverse_engineering"],
     ]);
     // Not-yet-built modules have no route at all.
     expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
-      [
-        "Binary analysis",
-        "Continuous monitoring",
-        "Reverse engineering tools",
-      ].sort(),
+      ["Continuous monitoring"].sort(),
     );
     expect(groups.flatMap((g) => g.items).filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       roadmap.filter((i) => !i.to).map((i) => i.label).sort(),
@@ -191,8 +190,10 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["Binary analysis", "/reverse-engineering", "reverse_engineering"],
       ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Reverse engineering tools", "/configurations/reverse-engineering", "reverse_engineering"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
   });
@@ -221,6 +222,33 @@ describe("sidebar regroup (prompt §5)", () => {
     );
     const nav = await screen.findByRole("navigation", { name: "Main" });
     expect(await within(nav).findByRole("link", { name: "Threat models" })).toHaveAttribute("href", "/threat-models");
+  });
+
+  it("reverse-engineering items are links only while the reverse_engineering flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { reverse_engineering: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read", "scanners.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "Binary analysis" })).toHaveAttribute("href", "/reverse-engineering");
+    expect(within(nav).getByRole("link", { name: "Reverse engineering tools" })).toHaveAttribute("href", "/configurations/reverse-engineering");
+  });
+
+  it("reverse-engineering items stay disabled roadmap items while the flag is off", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { reverse_engineering: false } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read", "scanners.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const item = within(nav).getByText("Binary analysis").closest("[aria-disabled]");
+    expect(item).toHaveAttribute("title", "Binary analysis: arrives in roadmap phase 10");
+    expect(within(nav).queryByRole("link", { name: "Binary analysis" })).toBeNull();
   });
 
   it("renders roadmap items disabled with their phase", async () => {

@@ -344,6 +344,7 @@
     "pathos-depcheck": "supply-chain",
     "pathos-endpoints": "web-api",
     "pathos-graph": "discovery",
+    "pathos-rea": "reverse-engineering",
     "pathos-reach": "dependencies",
     "phpstan": "sast-language",
     "pip-audit": "dependencies",
@@ -649,6 +650,11 @@
     {
       "key": "pathos-graph",
       "name": "PATHOS CodeGraph discovery (pathos-graph)",
+      "first_party": true
+    },
+    {
+      "key": "pathos-rea",
+      "name": "PATHOS reverse engineering (pathos-rea)",
       "first_party": true
     },
     {
