@@ -386,7 +386,7 @@ def main():
         s, _ = admin.api("DELETE", f"/api/v1/schedules/{sch['id']}")
         check("delete schedule -> 204", s == 204, s)
     s, rules = admin.api("GET", "/api/v1/notifications/rules")
-    check("19 built-in notification rules seeded", s == 200 and sum(1 for r in rules["items"] if r["system"]) == 19, s)
+    check("21 built-in notification rules seeded", s == 200 and sum(1 for r in rules["items"] if r["system"]) == 21, s)
     s, smtp = admin.api("GET", "/api/v1/notifications/smtp")
     check("SMTP seeded from environment (Mailpit in dev)", s == 200 and smtp.get("enabled") and smtp.get("host"), smtp)
     s, tst = admin.api("POST", "/api/v1/notifications/smtp/test", {})
