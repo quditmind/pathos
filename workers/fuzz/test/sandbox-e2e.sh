@@ -48,6 +48,14 @@ for port in (3128, 8081):
 ' >/dev/null
 docker network connect --alias api "$P-api" "$P-services"
 docker start "$P-services" >/dev/null
+# Wait until both listeners accept connections: the test's control step
+# fails if it dials them before the server threads are up.
+for i in $(seq 1 60); do
+  docker exec "$P-services" /opt/pathos/fuzz/bin/python -c 'import socket
+for p in (3128, 8081): socket.create_connection(("127.0.0.1", p), 1).close()' 2>/dev/null && break
+  [ "$i" -eq 60 ] && { echo "FAIL: services did not start listening"; docker logs "$P-services"; exit 1; }
+  sleep 0.5
+done
 docker volume create --driver local --opt type=tmpfs --opt device=tmpfs \
   --opt o=size=2g,uid=10001,gid=10001,mode=0750 "$P-sandbox" >/dev/null
 
