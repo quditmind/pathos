@@ -337,6 +337,14 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	defer rep.close()
 	rep.logf("info", "job started on worker %s (ref %s, %d scanners, timeout %ds)", a.cfg.Name, job.Ref, len(job.Scanners), job.TimeoutSeconds)
 	finish := func(failure, commitSHA string) {
+		if parent.Err() != nil {
+			// The worker is stopping (SIGTERM): hand the job back instead
+			// of reporting partial results as a finished scan (O9).
+			rep.logf("warn", "worker %s is stopping; returning the job to the queue", a.cfg.Name)
+			rep.close()
+			a.release(job, "worker "+a.cfg.Name+" stopped (SIGTERM) before the scan finished")
+			return
+		}
 		if failure != "" {
 			rep.logf("error", "job failed: %s", failure)
 		} else {
@@ -445,6 +453,7 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		rep.event("source", "", "started", fmt.Sprintf("cloning %s (%s, %s)", job.FullName, target, mode))
 		rep.logf("info", "cloning %s, ref %s (%s clone)", job.FullName, target, mode)
 		var err error
+		anonymous := job.Credential == nil
 		commit, err = clone(ctx, job, src, gitDir, a.cfg.MaxRepoBytes)
 		if err != nil && job.Public && job.Credential != nil && ctx.Err() == nil {
 			// An expired or wrong credential should not block scanning public
@@ -459,6 +468,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		if err != nil {
 			job.Credential = nil
 			log.Warn("clone failed", "err", err)
+			if anonymous {
+				err = anonymousCloneError(err)
+			}
 			sourceFailed("clone failed: " + err.Error())
 			return
 		}
@@ -495,11 +507,16 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 		if stop {
 			return
 		}
+		if parent.Err() != nil {
+			break // shutting down: finish releases the job
+		}
 		tool, ok := a.tools[js.Key]
 		res := ResultUpload{Scanner: js.Key}
 		start := time.Now()
 		rep.event("scanner", js.Key, "started", "")
 		if !ok {
+			// The API makes the execution partial on this exact text
+			// (scans.ToolUnavailable, VALIDATION_REPORT O15).
 			res.Status, res.Error = "skipped", "scanner not available in this worker image"
 		} else {
 			res.Version, _ = tool.Version(ctx)
@@ -521,7 +538,9 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 					sbomPath = outFile
 				}
 			}
-			if res.Status == "succeeded" || res.Status == "failed" {
+			// A failed or timed-out tool's report is uploaded too: the API
+			// keeps the findings of a partial report (a stopped Nuclei run).
+			if res.Status == "succeeded" || res.Status == "failed" || res.Status == "timed_out" {
 				// #nosec G304 -- report path is created by the worker in its job directory
 				if data, err := os.ReadFile(outFile); err == nil && len(data) > 0 {
 					res.ContentType = "application/json"
@@ -557,6 +576,10 @@ func (a *Agent) runJob(parent context.Context, job Job) {
 	mu.Lock()
 	stop := cancelled
 	mu.Unlock()
+	if parent.Err() != nil {
+		finish("", commit)
+		return
+	}
 	if !stop && job.Target == nil && job.Kind != JobKindCodeGraph {
 		// Import inventory for dependency reachability (reads source only).
 		inv := collectImports(src)
@@ -633,7 +656,35 @@ func orderScanners(in []JobScanner) []JobScanner {
 
 // complete reports the job outcome. commitSHA is the commit actually
 // scanned (empty for snapshots or when unknown).
+// detachedTimeout bounds the calls a stopping worker still makes (Docker
+// gives a container 10 s after SIGTERM by default).
+const detachedTimeout = 8 * time.Second
+
+// release returns a job to the queue when the worker stops in the middle of
+// it (SIGTERM during an upgrade or restart). The call does not use the
+// cancelled job context. An API without the release endpoint (before
+// 2.2.2) gets the job reported as failed instead, so the execution never
+// waits for the lease to expire.
+func (a *Agent) release(job Job, reason string) {
+	ctx, cancel := context.WithTimeout(context.Background(), detachedTimeout)
+	defer cancel()
+	_, err := a.call(ctx, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/release", a.token, map[string]string{"reason": reason}, nil)
+	var ae *apiError
+	if errors.As(err, &ae) && (ae.Status == http.StatusNotFound || ae.Status == http.StatusMethodNotAllowed) {
+		_, err = a.call(ctx, http.MethodPost, "/internal/worker/v1/jobs/"+job.JobID+"/complete", a.token,
+			map[string]string{"status": "failed", "error": reason + "; retry the execution"}, nil)
+	}
+	if err != nil {
+		a.log.Error("releasing the job on shutdown failed; it is requeued when its lease expires", "job_id", job.JobID, "err", err)
+		return
+	}
+	a.log.Info("job released on shutdown", "job_id", job.JobID)
+}
+
 func (a *Agent) complete(ctx context.Context, job Job, failure, commitSHA string) {
+	// Reported even if ctx was cancelled meanwhile.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 30*time.Second)
+	defer cancel()
 	body := map[string]string{"status": "succeeded"}
 	if failure != "" {
 		body = map[string]string{"status": "failed", "error": failure}

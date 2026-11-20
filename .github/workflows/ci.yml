@@ -61,6 +61,14 @@ jobs:
       - run: go test -race -count=1 ./...
       # The worker-sca wrapper (stand-in tools; no image needed).
       - run: python3 -I ../workers/sca/test/test_pathos_sca.py
+      # The worker-fuzz wrapper (stand-in go binary).
+      - run: python3 -I ../workers/fuzz/test/test_pathos_fuzz.py
+      # gosec-tree (stand-in gosec): chunked scans, OOM handling.
+      - run: python3 -I ../workers/sast/test/test_gosec_tree.py
+      # tflint-tree (stand-in tflint): module errors reported, issues kept.
+      - run: python3 -I ../workers/iac/test/test_tflint_tree.py
+      # pathos-ai garak runner (stand-in garak): one failing probe keeps the others.
+      - run: python3 -I ../workers/ai/test/test_pathos_ai.py
       # The CLI (unit-tested above) must build for every release platform.
       - name: Build the pathos CLI (linux, darwin, windows; amd64, arm64)
         run: |

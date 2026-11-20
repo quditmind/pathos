@@ -6,9 +6,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
+	"net/http"
 	"net/http/httptest"
 	"os"
+	"pathos/internal/vuln"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +40,8 @@ func TestMobileAndLLMTargets(t *testing.T) {
 	kr, _ := crypto.NewKeyring(map[int][]byte{1: testKey})
 	svc := &scans.Service{DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}}, Log: log,
 		Principal: auth.PrincipalFrom, BootstrapToken: bootstrap, OrgID: orgID, Secrets: &secrets.Store{Keys: kr}}
-	h := &scanHarness{t: t, api: newMux(svc.Register), internal: svc.InternalHandler()}
+	vsvc := &vuln.Service{DB: appPool, Authz: svc.Authz, Log: log, Principal: auth.PrincipalFrom}
+	h := &scanHarness{t: t, api: newMux(func(m *http.ServeMux) { svc.Register(m); vsvc.Register(m) }), internal: svc.InternalHandler()}
 	admin := reviewUser(t, "platform_admin")
 	repo := createRepo(t, "mob-"+uuid.NewString()[:6])
 	tag := uuid.NewString()[:6]
@@ -235,6 +239,13 @@ func TestMobileAndLLMTargets(t *testing.T) {
 	}
 	if s, a, ty := counts(); s == 0 || a != 3 || ty != "framework,machine-learning-model,service" {
 		t.Fatalf("inventory after Syft and AI-BOM: %d %d %s", s, a, ty)
+	}
+	// The SBOM download is Syft's SBOM, not the AI-BOM uploaded after it
+	// (which was returned before: a CycloneDX file without the packages).
+	if code, sbom := h.user(admin, "GET", "/api/v1/repositories/"+repo.String()+"/sbom", nil); code != 200 {
+		t.Fatalf("SBOM download: %d", code)
+	} else if comps, _ := sbom["components"].([]any); len(comps) == 0 || strings.Contains(fmt.Sprint(comps), "aibom:") {
+		t.Errorf("SBOM download returned the AI-BOM instead of Syft's SBOM: %v", comps)
 	}
 	var aiFindingsRepo int
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM scan_results WHERE scan_job_id = $1 AND scanner_key = 'ai-bom' AND findings_count = 0 AND status = 'succeeded'`,

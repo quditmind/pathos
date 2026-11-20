@@ -17,6 +17,7 @@ import (
 
 	"pathos/internal/authz"
 	"pathos/internal/scanners"
+	"pathos/internal/scm"
 	"pathos/internal/tickets"
 )
 
@@ -304,6 +305,9 @@ func checkTicket(ctx context.Context, env *Env, t Target) Result {
 	var he *tickets.HTTPError
 	isHTTP := errors.As(err, &he)
 	switch {
+	case scm.UntrustedCertificate(err):
+		// The connection takes a private CA bundle (2.2.2): name that fix.
+		code = scm.DiagCAUntrusted
 	case errors.Is(err, tickets.ErrCloudID):
 		code = "PTH-CONN-1205"
 	case t.Kind == "jira" && strings.Contains(err.Error(), "project ") && isHTTP && he.Status == http.StatusNotFound:
@@ -488,7 +492,11 @@ func checkRegistry(ctx context.Context, env *Env, t Target) Result {
 	}
 	if err != nil {
 		code := ""
-		if Classify(err) == "PTH-CONN-1010" && strings.Contains(t.Meta["host"], "docker.io") {
+		switch {
+		case scm.UntrustedCertificate(err):
+			// The registry connection takes a private CA bundle (2.2.2).
+			code = scm.DiagCAUntrusted
+		case Classify(err) == "PTH-CONN-1010" && strings.Contains(t.Meta["host"], "docker.io"):
 			code = "PTH-CONN-1502"
 		}
 		res := failed("authentication", err, code)

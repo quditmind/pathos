@@ -55,7 +55,7 @@ var connEntries = []Entry{
 		ProbableCauses: []string{"A server certificate issued by a private certificate authority that is neither in the connection's CA bundle nor in the trust store of the api and jobs images", "A TLS-inspecting proxy", "An expired certificate or a host name mismatch"},
 		Impact:         "No request reaches the provider.",
 		Actions: []string{"For an SCM connection (GitHub Enterprise Server, GitLab self-managed, Bitbucket Data Center, Azure DevOps Server, Generic Git), add the private CA certificate(s) as the connection's CA bundle (PEM): the connection's card on SCM connections (also inside Connectors) → Private CA bundle → Add or Replace CA bundle. It applies to that connection and its clones only.",
-			"For other connectors, install the private CA in the trust store of the api and jobs containers.", "Renew the provider's certificate if it expired.", "Use the provider's exact host name in the base URL."},
+			"For a registry connection, an outbound webhook or a Jira/ServiceNow connection, add the CA as that connection's Private CA bundle (Runtime, Notifications › Webhooks, Integrations); such connections report PTH-CONN-1702.", "For other connectors, install the private CA in the trust store of the api and jobs containers.", "Renew the provider's certificate if it expired.", "Use the provider's exact host name in the base URL."},
 		Verify: []string{"Test connection succeeds.", "The connection shows the CA certificate's subject, expiry and SHA-256 fingerprint."},
 		AIHelp: true,
 		Source: "internal/scm/http.go (transportError: x509)",

@@ -55,7 +55,8 @@ export function ProfilesPage() {
   );
 }
 
-const blank: ProfileSettings = { severity_threshold: "info", exclusions: [], timeout_seconds: 1800, sbom: true, fail_on_critical: false, retention_days: 90, scanners: [] };
+const blank: ProfileSettings = { severity_threshold: "info", exclusions: [], timeout_seconds: 1800, sbom: true, fail_on_critical: false, retention_days: 90, scanners: [],
+  secret_default_exclusions: true, secret_exclusions: [] };
 
 function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; onClose: () => void; readOnly: boolean }) {
   const isNew = id === "new";
@@ -66,6 +67,7 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
   const [note, setNote] = useState("");
   const [st, setSt] = useState<ProfileSettings>(blank);
   const [excl, setExcl] = useState("");
+  const [secretExcl, setSecretExcl] = useState("");
   useEffect(() => {
     const p: ScanProfile | undefined = profile.data;
     const base = p ? p.current : { ...blank, scanners: (catalog.data ?? []).filter((s) => s.default_enabled).map((s) => ({ key: s.key })) };
@@ -74,6 +76,7 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
     setNote("");
     setSt({ ...base, scanners: base.scanners.map((s) => ({ key: s.key })) });
     setExcl(base.exclusions.join("\n"));
+    setSecretExcl((base.secret_exclusions ?? []).join("\n"));
   }, [profile.data, id, catalog.data]);
 
   const save = useScanMutation((body: unknown) =>
@@ -90,6 +93,8 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
     save.mutate(
       { ...(isNew || name !== profile.data?.name ? { name } : {}), description: desc, change_note: note, ...st,
         exclusions: excl.split("\n").map((s) => s.trim()).filter(Boolean),
+        secret_default_exclusions: st.secret_default_exclusions ?? true,
+        secret_exclusions: secretExcl.split("\n").map((s) => s.trim()).filter(Boolean),
         scanners: st.scanners.filter((s) => s.key !== "syft") },
       { onSuccess: onClose },
     );
@@ -145,6 +150,15 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
           <div>
             <Label htmlFor="pf-ex" hint="(one glob per line, e.g. vendor/** or **/*_test.go)">Exclusions</Label>
             <textarea id="pf-ex" rows={4} value={excl} onChange={(e) => setExcl(e.target.value)} className="w-full rounded-md border border-border bg-surface p-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-ring" />
+          </div>
+          <div>
+            <label className="flex items-center gap-2">
+              <input type="checkbox" className="accent-[var(--primary)]" checked={st.secret_default_exclusions ?? true}
+                onChange={(e) => setSt({ ...st, secret_default_exclusions: e.target.checked })} />
+              Ignore secret findings in vendored dependencies, test fixtures, lockfiles and minified files
+            </label>
+            <Label htmlFor="pf-sex" hint="(one glob per line; applies to secret findings only)">Additional secret exclusions</Label>
+            <textarea id="pf-sex" rows={2} value={secretExcl} onChange={(e) => setSecretExcl(e.target.value)} className="w-full rounded-md border border-border bg-surface p-2 font-mono text-[12px] focus-visible:outline-2 focus-visible:outline-ring" />
           </div>
           {!isNew && !readOnly && <div><Label htmlFor="pf-note" hint="(recorded in the version history)">Change note</Label><Input id="pf-note" value={note} onChange={(e) => setNote(e.target.value)} /></div>}
           {profile.data?.history && profile.data.history.length > 0 && (

@@ -92,15 +92,17 @@ func listSources(ctx context.Context, q db.Querier, env *Env, orgID uuid.UUID) (
 	}
 
 	if err := collect(`SELECT c.id, c.kind, c.name, c.base_url, c.auth_type, c.allow_private, c.enabled, c.config,
-		(SELECT max(t.synced_at) FROM finding_tickets t WHERE t.connection_id = c.id)
+		(SELECT max(t.synced_at) FROM finding_tickets t WHERE t.connection_id = c.id), c.ca_bundle_pem <> ''
 		FROM ticket_connections c WHERE c.organization_id = $1`, func(r pgx.Rows) (sourceRow, error) {
 		var id uuid.UUID
 		var kind, name, base, auth string
-		var private, enabled bool
+		var private, enabled, ca bool
 		var cfg []byte
 		var synced *time.Time
-		err := r.Scan(&id, &kind, &name, &base, &auth, &private, &enabled, &cfg, &synced)
-		meta := map[string]string{"host": HostOf(base), "auth_method": auth, "allow_private": yesNo(private)}
+		err := r.Scan(&id, &kind, &name, &base, &auth, &private, &enabled, &cfg, &synced, &ca)
+		// ca_bundle_set: the connection's private CA bundle (2.2.2; the PEM
+		// and its certificates stay on the ticket connection).
+		meta := map[string]string{"host": HostOf(base), "auth_method": auth, "allow_private": yesNo(private), "ca_bundle_set": yesNo(ca)}
 		var c struct {
 			TokenType string `json:"token_type"`
 			Table     string `json:"table"`
@@ -119,15 +121,15 @@ func listSources(ctx context.Context, q db.Querier, env *Env, orgID uuid.UUID) (
 	}
 
 	if err := collect(`SELECT w.id, w.format, w.name, w.url_host, w.signing_secret_id IS NOT NULL, w.trigger_auth_secret_id IS NOT NULL, w.allow_private, w.enabled,
-		(SELECT max(d.delivered_at) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id)
+		(SELECT max(d.delivered_at) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id), w.ca_bundle_pem <> ''
 		FROM outbound_webhooks w WHERE w.organization_id = $1`, func(r pgx.Rows) (sourceRow, error) {
 		var id uuid.UUID
 		var format, name, host string
-		var signed, auth, private, enabled bool
+		var signed, auth, private, enabled, ca bool
 		var last *time.Time
-		err := r.Scan(&id, &format, &name, &host, &signed, &auth, &private, &enabled, &last)
+		err := r.Scan(&id, &format, &name, &host, &signed, &auth, &private, &enabled, &last, &ca)
 		kind := map[string]string{"json": "webhook", "slack": "slack", "teams": "teams"}[format]
-		meta := map[string]string{"host": "https://" + host, "format": format, "allow_private": yesNo(private)}
+		meta := map[string]string{"host": "https://" + host, "format": format, "allow_private": yesNo(private), "ca_bundle_set": yesNo(ca)}
 		switch format {
 		case "json":
 			meta["signed"] = yesNo(signed)
@@ -159,16 +161,16 @@ func listSources(ctx context.Context, q db.Querier, env *Env, orgID uuid.UUID) (
 		return nil, err
 	}
 
-	if err := collect(`SELECT id, name, base_url, auth_type, allow_private, enabled, last_sync_at, cardinality(repositories)
+	if err := collect(`SELECT id, name, base_url, auth_type, allow_private, enabled, last_sync_at, cardinality(repositories), ca_bundle_pem <> ''
 		FROM registry_connections WHERE organization_id = $1`, func(r pgx.Rows) (sourceRow, error) {
 		var id uuid.UUID
 		var name, base, auth string
-		var private, enabled bool
+		var private, enabled, ca bool
 		var last *time.Time
 		var repos int
-		err := r.Scan(&id, &name, &base, &auth, &private, &enabled, &last, &repos)
+		err := r.Scan(&id, &name, &base, &auth, &private, &enabled, &last, &repos, &ca)
 		meta := map[string]string{"host": HostOf(base), "auth_method": auth, "allow_private": yesNo(private), "repositories": strconv.Itoa(repos),
-			"api_version": "OCI Distribution v2"}
+			"api_version": "OCI Distribution v2", "ca_bundle_set": yesNo(ca)}
 		return sourceRow{Kind: "container_registry", Table: "registry_connections", Key: id.String(), Name: name, Enabled: enabled, LastSyncAt: last, Meta: meta}, err
 	}, orgID); err != nil {
 		return nil, err

@@ -4,7 +4,7 @@ section: troubleshooting
 order: 103
 version: "1.0"
 updated: 2026-11-20
-summary: SCM providers, ticketing, e-mail, outbound webhooks and inbound webhooks: reachability, certificates, credentials, scopes and rate limits (60 codes, PTH-CONN-*)
+summary: SCM providers, ticketing, e-mail, outbound webhooks and inbound webhooks: reachability, certificates, credentials, scopes and rate limits (62 codes, PTH-CONN-*)
 ---
 
 # Troubleshooting: Connections
@@ -77,6 +77,8 @@ SCM providers, ticketing, e-mail, outbound webhooks and inbound webhooks: reacha
 | [PTH-CONN-1606](#PTH-CONN-1606) | Referenced secret or key not found | error |
 | [PTH-CONN-1607](#PTH-CONN-1607) | Reference outside the allowed Vault path prefix | error |
 | [PTH-CONN-1608](#PTH-CONN-1608) | No Vault/OpenBao connection for secret references | error |
+| [PTH-CONN-1701](#PTH-CONN-1701) | Private CA bundle is not valid | warning |
+| [PTH-CONN-1702](#PTH-CONN-1702) | Server certificate not trusted: add the private CA bundle | error |
 
 <a id="PTH-CONN-1001"></a>
 
@@ -210,9 +212,10 @@ SCM providers, ticketing, e-mail, outbound webhooks and inbound webhooks: reacha
 **How to fix**
 
 1. For an SCM connection (GitHub Enterprise Server, GitLab self-managed, Bitbucket Data Center, Azure DevOps Server, Generic Git), add the private CA certificate(s) as the connection's CA bundle (PEM): the connection's card on SCM connections (also inside Connectors) → Private CA bundle → Add or Replace CA bundle. It applies to that connection and its clones only.
-2. For other connectors, install the private CA in the trust store of the api and jobs containers.
-3. Renew the provider's certificate if it expired.
-4. Use the provider's exact host name in the base URL.
+2. For a registry connection, an outbound webhook or a Jira/ServiceNow connection, add the CA as that connection's Private CA bundle (Runtime, Notifications › Webhooks, Integrations); such connections report PTH-CONN-1702.
+3. For other connectors, install the private CA in the trust store of the api and jobs containers.
+4. Renew the provider's certificate if it expired.
+5. Use the provider's exact host name in the base URL.
 
 **Verify**
 
@@ -2070,4 +2073,74 @@ SCM providers, ticketing, e-mail, outbound webhooks and inbound webhooks: reacha
 **Verify**
 
 1. Run the health check of the connector that uses the reference.
+
+
+<a id="PTH-CONN-1701"></a>
+
+## PTH-CONN-1701: Private CA bundle is not valid
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | 400 |
+| AI help | not offered |
+| Raised in | internal/scm/tlsca.go, internal/runtimectx/api.go, internal/notify/webhooks.go, internal/tickets/service.go |
+
+**What it means.** The ca_bundle_pem of a registry connection, outbound webhook or ticket connection must be one or more PEM CERTIFICATE blocks (at most 20 certificates, 64 KiB). Anything else is refused: a private key, another PEM type, text that does not parse.
+
+**Confirmed cause.** The submitted bundle is not a PEM bundle of certificates (the message names the problem). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. A private key or a key-and-certificate file was pasted
+2. The certificate is in DER (binary) form
+3. The PEM block was truncated when copying
+
+**Impact.** The connection was not saved; the stored bundle, if any, is unchanged.
+
+**How to fix**
+
+1. Paste only the CA certificate(s), each between -----BEGIN CERTIFICATE----- and -----END CERTIFICATE-----. Never paste a private key.
+2. Convert a DER certificate with `openssl x509 -inform der -in ca.cer -out ca.pem`.
+
+**Verify**
+
+1. The connection shows each certificate's subject, expiry and SHA-256 fingerprint; compare the fingerprints with the customer's PKI.
+
+
+<a id="PTH-CONN-1702"></a>
+
+## PTH-CONN-1702: Server certificate not trusted: add the private CA bundle
+
+| | |
+|---|---|
+| Severity | error |
+| Category | connectivity |
+| HTTP status | none (background work and logs) |
+| AI help | not offered |
+| Raised in | internal/scm/tlsca.go (WithCAHint), internal/connectors/classify.go |
+
+**What it means.** A registry connection, outbound webhook (Slack, Teams, JSON) or ticket connection (Jira, ServiceNow) failed TLS verification because the server certificate is issued by a certificate authority that neither the system trust store nor the connection's CA bundle contains. Verification is never turned off.
+
+**Confirmed cause.** The server's certificate chain ends at an unknown certificate authority. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The server uses a certificate from the customer's private CA
+2. The connection's CA bundle holds a different (or an intermediate-only) certificate
+3. A TLS-inspecting proxy re-signs the traffic
+
+**Impact.** No request reaches the server: registry tags are not synchronised, webhook deliveries fail, tickets are not created or updated.
+
+**How to fix**
+
+1. Add the issuing CA certificate (PEM) as the connection's Private CA bundle: Runtime (registry connections), Notifications › Webhooks, or Integrations (Jira, ServiceNow); each connection's card in Connectors links to its page.
+2. Include the root CA (and the intermediate if the server does not send it).
+3. For a TLS-inspecting proxy, add the proxy's CA.
+
+**Verify**
+
+1. Test connection (or Send test for a webhook) succeeds.
+2. Connectors shows ca_bundle_set yes for the connection.
 

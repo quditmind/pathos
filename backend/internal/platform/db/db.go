@@ -130,6 +130,11 @@ func InTx(ctx context.Context, pool *pgxpool.Pool, fn func(pgx.Tx) error) error 
 func Migrate(ctx context.Context, pool *pgxpool.Pool, log *slog.Logger) error {
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	defer sqlDB.Close()
+	// An upgrade from 2.2.x first releases the migration versions both
+	// lines used (reconcile22.go).
+	if err := reconcile22(ctx, sqlDB, log); err != nil {
+		return err
+	}
 	provider, err := newProvider(sqlDB)
 	if err != nil {
 		return err

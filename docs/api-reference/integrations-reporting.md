@@ -16,7 +16,7 @@ All endpoints follow the [common conventions](index.md#authentication). API toke
 | Method | Path | Permission | Description |
 |---|---|---|---|
 | `GET` | `/api/v1/ticket-connections` | `findings.triage` or `settings.manage` | Connections (triage users see id, kind, name only) |
-| `POST` | `/api/v1/ticket-connections` | `settings.manage` (org-wide) | `{ kind: jira\|servicenow, name, base_url, auth_type: basic\|bearer, username, secret, config, allow_private? }` |
+| `POST` | `/api/v1/ticket-connections` | `settings.manage` (org-wide) | `{ kind: jira\|servicenow, name, base_url, auth_type: basic\|bearer, username, secret, config, allow_private?, ca_bundle_pem? }`; `ca_bundle_pem` (2.2.2) is a [private CA bundle](runtime.md#private-ca-bundles) |
 | `PUT` / `DELETE` | `/api/v1/ticket-connections/{id}` | `settings.manage` (org-wide) | Update (`secret` optional) / delete (links removed; tickets stay in the tracker) |
 | `POST` | `/api/v1/ticket-connections/{id}/test` | `settings.manage` (org-wide) | Checks credentials (and the Jira project) → `{ ok, identity, error? }` |
 | `GET` | `/api/v1/findings/{id}/tickets` | `findings.read` | Linked tickets with remote status |

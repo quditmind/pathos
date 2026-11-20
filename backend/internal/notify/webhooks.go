@@ -43,19 +43,23 @@ var webhookBackoff = []time.Duration{time.Minute, 5 * time.Minute, 30 * time.Min
 // Webhook is an endpoint as returned by the API (the URL is never shown
 // again after creation; only its host).
 type Webhook struct {
-	ID           uuid.UUID  `json:"id"`
-	Name         string     `json:"name"`
-	Format       string     `json:"format"`
-	Host         string     `json:"host"`
-	Signed       bool       `json:"signed"`
-	Events       []string   `json:"events"`
-	MinSeverity  *string    `json:"min_severity"`
-	AllowPrivate bool       `json:"allow_private"`
-	Enabled      bool       `json:"enabled"`
-	CreatedAt    time.Time  `json:"created_at"`
-	LastStatus   *string    `json:"last_status"`
-	LastAt       *time.Time `json:"last_delivery_at"`
-	Failed24h    int        `json:"failed_24h"`
+	ID           uuid.UUID `json:"id"`
+	Name         string    `json:"name"`
+	Format       string    `json:"format"`
+	Host         string    `json:"host"`
+	Signed       bool      `json:"signed"`
+	Events       []string  `json:"events"`
+	MinSeverity  *string   `json:"min_severity"`
+	AllowPrivate bool      `json:"allow_private"`
+	Enabled      bool      `json:"enabled"`
+	// CABundlePEM is the private CA bundle added to the system trust store
+	// for this endpoint ("" = system trust store only).
+	CABundlePEM    string       `json:"ca_bundle_pem"`
+	CACertificates []scm.CACert `json:"ca_certificates"`
+	CreatedAt      time.Time    `json:"created_at"`
+	LastStatus     *string      `json:"last_status"`
+	LastAt         *time.Time   `json:"last_delivery_at"`
+	Failed24h      int          `json:"failed_24h"`
 	// TriggerAuth (Teams): the Microsoft Entra app used for Workflows
 	// triggers restricted to the tenant (the client secret is never
 	// returned); null when the trigger is open to anyone.
@@ -63,7 +67,7 @@ type Webhook struct {
 }
 
 const webhookSelect = `SELECT w.id, w.name, w.format, w.url_host, w.signing_secret_id IS NOT NULL, w.events, w.min_severity, w.allow_private,
-	w.enabled, w.created_at,
+	w.enabled, w.ca_bundle_pem, w.created_at,
 	(SELECT d.status FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id AND d.status <> 'pending' ORDER BY d.created_at DESC LIMIT 1),
 	(SELECT max(d.delivered_at) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id),
 	(SELECT count(*) FROM outbound_webhook_deliveries d WHERE d.endpoint_id = w.id AND d.status = 'failed' AND d.created_at > now() - interval '24 hours'),
@@ -73,13 +77,17 @@ const webhookSelect = `SELECT w.id, w.name, w.format, w.url_host, w.signing_secr
 func scanWebhook(r pgx.Row) (Webhook, error) {
 	var w Webhook
 	var ta []byte
-	err := r.Scan(&w.ID, &w.Name, &w.Format, &w.Host, &w.Signed, &w.Events, &w.MinSeverity, &w.AllowPrivate, &w.Enabled, &w.CreatedAt,
+	err := r.Scan(&w.ID, &w.Name, &w.Format, &w.Host, &w.Signed, &w.Events, &w.MinSeverity, &w.AllowPrivate, &w.Enabled, &w.CABundlePEM, &w.CreatedAt,
 		&w.LastStatus, &w.LastAt, &w.Failed24h, &ta)
 	if err == nil && len(ta) > 0 {
 		var t TriggerAuth
 		if json.Unmarshal(ta, &t) == nil && t.ClientID != "" {
 			w.TriggerAuth = &t
 		}
+	}
+	_, w.CACertificates, _ = scm.ParseCABundle(w.CABundlePEM, time.Now())
+	if w.CACertificates == nil {
+		w.CACertificates = []scm.CACert{}
 	}
 	return w, err
 }
@@ -101,11 +109,37 @@ type webhookInput struct {
 	MinSeverity  *string  `json:"min_severity"`
 	AllowPrivate bool     `json:"allow_private"`
 	Enabled      *bool    `json:"enabled"`
-	// Sign (json format): generate a signing secret, returned once.
+	// Sign (json format): generate a signing secret, returned once. Slack
+	// and Teams cannot verify signatures: the request is accepted with a
+	// warning and the deliveries are not signed.
 	Sign bool `json:"sign"`
 	// TriggerAuth (teams format): authenticate to a Workflows trigger
 	// restricted to the tenant. Omitted: unchanged; tenant_id "": removed.
 	TriggerAuth *TriggerAuthInput `json:"trigger_auth"`
+	// CABundlePEM: private CA bundle (PEM certificates). On update, absent
+	// keeps the stored bundle and "" removes it.
+	CABundlePEM *string `json:"ca_bundle_pem"`
+}
+
+// caBundleInput validates an optional CA bundle field.
+func caBundleInput(v *string) (string, error) {
+	if v == nil {
+		return "", nil
+	}
+	b := strings.TrimSpace(*v)
+	if _, _, err := scm.ParseCABundle(b, time.Now()); err != nil {
+		return "", httpx.BadRequest("ca_bundle_pem: " + err.Error()).WithDiag(scm.DiagCABundleInvalid)
+	}
+	return b, nil
+}
+
+// signingWarning explains why a requested signature is not applied.
+func signingWarning(in webhookInput) []string {
+	if in.Sign && in.Format != "json" {
+		return []string{"Signing is available only for the JSON format: Slack and Teams incoming webhooks cannot verify a signature, " +
+			"so deliveries to this endpoint are not signed. Keep the webhook URL secret instead."}
+	}
+	return []string{}
 }
 
 func (in *webhookInput) validate(update bool) (*url.URL, error) {
@@ -191,6 +225,11 @@ func (s *Service) createWebhook(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	caBundle, err := caBundleInput(in.CABundlePEM)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	if s.Secrets == nil {
 		s.fail(w, r, httpx.E(http.StatusConflict, "secrets_unavailable", "the secrets store is not configured"))
 		return
@@ -213,8 +252,8 @@ func (s *Service) createWebhook(w http.ResponseWriter, r *http.Request) {
 			signID = &sid
 		}
 		if _, err := tx.Exec(r.Context(), `INSERT INTO outbound_webhooks (id, organization_id, name, format, url_secret_id, url_host, signing_secret_id,
-			events, min_severity, allow_private, enabled, created_by) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-			id, p.OrganizationID, in.Name, in.Format, urlID, u.Host, signID, in.Events, in.MinSeverity, in.AllowPrivate, enabled, p.UserID); err != nil {
+			events, min_severity, allow_private, enabled, created_by, ca_bundle_pem) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+			id, p.OrganizationID, in.Name, in.Format, urlID, u.Host, signID, in.Events, in.MinSeverity, in.AllowPrivate, enabled, p.UserID, caBundle); err != nil {
 			if db.IsUniqueViolation(err) {
 				return httpx.Conflict("a webhook with this name already exists")
 			}
@@ -226,7 +265,7 @@ func (s *Service) createWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		return s.auditWrite(r.Context(), tx, p, "webhook.create", "webhook", id.String(),
 			map[string]any{"name": in.Name, "format": in.Format, "host": u.Host, "events": in.Events, "signed": signing != "", "allow_private": in.AllowPrivate,
-				"trigger_auth": auth})
+				"trigger_auth": auth, "sign_requested": in.Sign, "ca_bundle": caBundle != ""})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -237,7 +276,7 @@ func (s *Service) createWebhook(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	out := map[string]any{"webhook": wh}
+	out := map[string]any{"webhook": wh, "warnings": signingWarning(in)}
 	if signing != "" {
 		out["signing_secret"] = signing // shown once
 	}
@@ -265,6 +304,11 @@ func (s *Service) updateWebhook(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	caBundle, err := caBundleInput(in.CABundlePEM)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
 	err = db.InTx(r.Context(), s.DB, func(tx pgx.Tx) error {
 		var urlID uuid.UUID
 		var host string
@@ -286,8 +330,9 @@ func (s *Service) updateWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		enabled := in.Enabled == nil || *in.Enabled
 		if _, err := tx.Exec(r.Context(), `UPDATE outbound_webhooks SET name = $3, format = $4, url_host = $5, events = $6, min_severity = $7,
-			allow_private = $8, enabled = $9, updated_at = now() WHERE organization_id = $1 AND id = $2`,
-			p.OrganizationID, id, in.Name, in.Format, host, in.Events, in.MinSeverity, in.AllowPrivate, enabled); err != nil {
+			allow_private = $8, enabled = $9, ca_bundle_pem = CASE WHEN $10 THEN $11 ELSE ca_bundle_pem END, updated_at = now()
+			WHERE organization_id = $1 AND id = $2`,
+			p.OrganizationID, id, in.Name, in.Format, host, in.Events, in.MinSeverity, in.AllowPrivate, enabled, in.CABundlePEM != nil, caBundle); err != nil {
 			if db.IsUniqueViolation(err) {
 				return httpx.Conflict("a webhook with this name already exists")
 			}
@@ -299,7 +344,7 @@ func (s *Service) updateWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 		return s.auditWrite(r.Context(), tx, p, "webhook.update", "webhook", id.String(),
 			map[string]any{"name": in.Name, "format": in.Format, "host": host, "events": in.Events, "url_changed": u != nil, "enabled": enabled,
-				"trigger_auth": auth})
+				"trigger_auth": auth, "ca_bundle_changed": in.CABundlePEM != nil})
 	})
 	if err != nil {
 		s.fail(w, r, err)
@@ -425,17 +470,30 @@ func (s *Service) testWebhook(w http.ResponseWriter, r *http.Request) {
 // HTTPOverride replaces the network-policy client (tests only).
 var HTTPOverride *http.Client
 
-func (s *Service) webhookClient(ep endpoint) *http.Client {
+func (s *Service) webhookClient(ep endpoint) *http.Client { return endpointClient(ep) }
+
+// endpointClient applies the network policy and the endpoint's private CA
+// bundle (added to the system trust store; verification stays on, TLS 1.2
+// minimum).
+func endpointClient(ep endpoint) *http.Client {
 	if HTTPOverride != nil {
 		return HTTPOverride
 	}
-	return scm.NetPolicy{AllowPrivate: ep.allowPrivate}.Client()
+	pol := scm.NetPolicy{AllowPrivate: ep.allowPrivate}
+	c, err := pol.ClientWithCA(ep.caBundle)
+	if err != nil {
+		// A stored bundle was validated on save; fall back to the system
+		// trust store (never to an unverified connection).
+		return pol.Client()
+	}
+	return c
 }
 
 type endpoint struct {
 	id                   uuid.UUID
 	format, url, signing string
 	allowPrivate         bool
+	caBundle             string
 	// Teams trigger authentication (nil: open trigger, no header).
 	trigger                   *TriggerAuth
 	triggerSecret, triggerKey string
@@ -445,8 +503,8 @@ func loadEndpoint(ctx context.Context, q db.Querier, store *secrets.Store, orgID
 	ep := endpoint{id: id}
 	var urlID uuid.UUID
 	var signID *uuid.UUID
-	if err := q.QueryRow(ctx, `SELECT format, url_secret_id, signing_secret_id, allow_private FROM outbound_webhooks WHERE organization_id = $1 AND id = $2`,
-		orgID, id).Scan(&ep.format, &urlID, &signID, &ep.allowPrivate); err != nil {
+	if err := q.QueryRow(ctx, `SELECT format, url_secret_id, signing_secret_id, allow_private, ca_bundle_pem FROM outbound_webhooks WHERE organization_id = $1 AND id = $2`,
+		orgID, id).Scan(&ep.format, &urlID, &signID, &ep.allowPrivate, &ep.caBundle); err != nil {
 		return ep, err
 	}
 	if store == nil {
@@ -602,7 +660,7 @@ func sendWebhook(ctx context.Context, c *http.Client, ep endpoint, deliveryID uu
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return 0, err
+		return 0, scm.WithCAHint(err)
 	}
 	defer resp.Body.Close()
 	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 64<<10))
@@ -678,13 +736,7 @@ func (d *Dispatcher) sendOneWebhook(ctx context.Context) (done, ok bool, err err
 					data.EventLabel = def.Label
 				}
 			}
-			{
-				client := HTTPOverride
-				if client == nil {
-					client = scm.NetPolicy{AllowPrivate: ep.allowPrivate}.Client()
-				}
-				status, sendErr = sendWebhook(ctx, client, ep, id, key, created, data)
-			}
+			status, sendErr = sendWebhook(ctx, endpointClient(ep), ep, id, key, created, data)
 		}
 		attempts++
 		var st *int

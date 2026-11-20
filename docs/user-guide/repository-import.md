@@ -231,6 +231,21 @@ Details: [Authentication methods](authentication.md#azure-devops).
 
 ---
 
+## D. Public repository by URL (no token)
+
+For **public** repositories you do not need an SCM connection. On **Repositories → Import repositories**, the card **Public repository by URL** (labelled *Anonymous · no token*) takes a URL:
+
+- `https://github.com/owner/repository`
+- `https://gitlab.com/group/subgroup/project`
+- `https://bitbucket.org/workspace/repository`
+- `https://dev.azure.com/organization/project/_git/repository` (public Azure DevOps projects)
+- any other `https://` git URL (a self-hosted server that serves the repository without a login)
+
+1. Paste the URL and select **Check**. PATHOS asks the provider anonymously whether the repository is public and shows its name and default branch.
+2. Select **Import and scan**. The repository is registered and its first scan is queued.
+
+The repository is listed with an **anonymous** badge. It is cloned read-only, without credentials. A private, internal or missing repository is refused (*PTH-ONB-1102*): import it through an SCM connection with a token instead. If the repository later becomes private, **Sync** marks it and no further scan runs. Pull request checks, fix pull requests, AI fixes and the source view need an SCM connection and are not available for anonymous repositories. Hosts other than GitHub, Azure DevOps, GitLab.com and Bitbucket Cloud must be on the workers' egress allowlist (ask your administrator). API: [import a public repository by URL](../api-reference/repositories.md#import-a-public-repository-by-url).
+
 ## What happens to duplicates
 
 | Situation | Result |

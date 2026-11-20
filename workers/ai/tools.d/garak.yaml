@@ -5,6 +5,9 @@
 # model or dataset downloads). Requires the target's authorization and
 # intrusive testing flag. garak's report (JSON Lines) is parsed with the
 # garak import parser: one finding per probe and detector that succeeded.
+# 2.2.2: each probe runs in its own garak run, so a read timeout of a slow
+# model loses only that probe (the tool is then partial); the request
+# timeout is GARAK_REQUEST_TIMEOUT seconds (default 180).
 name: garak
 display_name: garak
 category: ai

@@ -2,9 +2,15 @@
 # dependencies (archives, lockfiles, manifests) against the NVD. The NVD data
 # is downloaded into the worker's cache volume: the NVD's yearly data feeds
 # (https://nvd.nist.gov) without an API key, the NVD API
-# (https://services.nvd.nist.gov) with one. The key is optional and off by
-# default: NVD_API_KEY in /etc/pathos/sca.env (mounted read-only by the
-# operator; the worker does not pass its own environment to tools).
+# (https://services.nvd.nist.gov) with one. An NVD API key is a PREREQUISITE
+# in practice (2.2.2): NVD_API_KEY in /etc/pathos/sca.env (mounted read-only
+# by the operator; the worker does not pass its own environment to tools).
+# The wrapper updates the NVD data separately (at most every
+# NVD_MAX_AGE_HOURS, default 6) with connection/read timeouts and a hard
+# limit (DEPENDENCY_CHECK_UPDATE_TIMEOUT, default 1200 s) under a lock in
+# the cache, then scans offline (DEPENDENCY_CHECK_SCAN_TIMEOUT, default
+# 1800 s). A stalled update falls back to the cached data: the report is
+# kept and the result is partial with the cause. Not in any default profile.
 # Analyzers that run package managers or contact other services are off.
 name: dependency-check
 display_name: OWASP Dependency-Check

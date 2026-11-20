@@ -89,6 +89,12 @@ func (f *fakeAPI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(202)
 		_, _ = io.WriteString(w, `{"items":[{"repository_id":"`+repoUUID+`","job_id":"`+jobUUID+`","coalesced":false}]}`)
 	case r.Method == "GET" && r.URL.Path == "/api/v1/scans":
+		// A newer container image (scan target) execution of the same
+		// repository: gate --repo must evaluate the repository's own scan.
+		if r.URL.Query().Get("asset_type") != "repository" {
+			_, _ = io.WriteString(w, `{"items":[{"id":"image-target-scan","status":"failed","asset_type":"image"},{"id":"running-one","status":"running"},{"id":"`+jobUUID+`","status":"succeeded"}]}`)
+			return
+		}
 		_, _ = io.WriteString(w, `{"items":[{"id":"running-one","status":"running"},{"id":"`+jobUUID+`","status":"succeeded"}]}`)
 	case r.Method == "GET" && r.URL.Path == "/api/v1/scans/"+jobUUID:
 		f.polls++

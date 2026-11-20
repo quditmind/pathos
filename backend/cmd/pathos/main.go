@@ -532,6 +532,18 @@ func sourceStore(cfg *config.Config, keys *crypto.Keyring, log *slog.Logger) (re
 		}
 		st.TempDir = cfg.ImportWorkDir
 		log.Info("source snapshots stored in object storage", "bucket", cfg.S3Bucket, "prefix", cfg.SourceS3Prefix)
+		// Objects written to disk before object storage was enabled stay
+		// readable from the sources volume (new ones go to S3 only).
+		if cfg.SourceStoreDir != "" {
+			if fi, err := os.Stat(cfg.SourceStoreDir); err == nil && fi.IsDir() {
+				disk, err := sourcestore.NewFS(cfg.SourceStoreDir, keys)
+				if err != nil {
+					return nil, fmt.Errorf("PATHOS_SOURCE_STORE_DIR: %w", err)
+				}
+				log.Info("source snapshots written before object storage was enabled are read from disk", "dir", cfg.SourceStoreDir)
+				return sourcestore.Fallback{Primary: st, Secondary: disk}, nil
+			}
+		}
 		return st, nil
 	}
 	if cfg.SourceStoreDir == "" {

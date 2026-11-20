@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"pathos/internal/ingest"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -164,6 +165,24 @@ func checkReachable(ctx context.Context, target string) error {
 	return nil
 }
 
+// deniedGetRe matches a Go HTTP client error for a request the egress proxy
+// refused (Squid answers CONNECT with 403 Forbidden).
+var deniedGetRe = regexp.MustCompile(`Get "https?://([A-Za-z0-9.-]+)(?::\d+)?[^"]*": Forbidden`)
+
+// registryDenied explains a registry request the egress proxy refused
+// (Trivy only reports "Forbidden"), naming the host to allow. Registries
+// use several hosts (Docker Hub: index.docker.io, auth.docker.io and a
+// CDN), so each refused one is reported in turn.
+func registryDenied(err error) error {
+	if err == nil {
+		return nil
+	}
+	if m := deniedGetRe.FindStringSubmatch(err.Error()); m != nil {
+		return fmt.Errorf("%w (%s)", egressDenied(m[1]), lastLine(err.Error()))
+	}
+	return err
+}
+
 func egressDenied(host string) error {
 	return fmt.Errorf("the egress proxy denied access to %s: add it to deploy/egress/allowlist.txt "+
 		"(private addresses also need an override in deploy/egress/conf.d) and restart the egress service", host)
@@ -243,10 +262,18 @@ func nucleiArgs(t *JobTarget, out, specFile string) []string {
 	switch t.Kind {
 	case "api":
 		if t.IntrusiveAuthorized {
-			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-t", filepath.Join(nucleiTemplates, "dast"),
+			// -skip-format-validation: an operation with a required
+			// parameter that has no example otherwise stops Nuclei
+			// ("Found 2 missing parameters", exit 1, and it tries to write
+			// required_openapi_params.yaml to the read-only working
+			// directory); with it, Nuclei fills the parameters and fuzzes.
+			args = append(args, "-l", specFile, "-im", "openapi", "-dast", "-skip-format-validation", "-t", filepath.Join(nucleiTemplates, "dast"),
 				"-etags", "dos,intrusive,bruteforce")
 		} else {
-			args = append(args, "-l", specFile, "-im", "openapi", "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
+			// specFile is the URL list from apiOperationURLs here: Nuclei
+			// runs its ordinary templates only on URL inputs, not on an
+			// OpenAPI input.
+			args = append(args, "-l", specFile, "-t", filepath.Join(nucleiTemplates, "http")+","+filepath.Join(nucleiTemplates, "ssl"),
 				"-etags", "dos,intrusive,bruteforce,fuzz")
 		}
 	case "endpoints":
@@ -314,16 +341,31 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 					return "", err
 				}
 			}
-			args := append([]string{"image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
-				"--output", in.Out, "--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
-			_, err := command(ctx, env, []int{0}, bin, append(args, in.Target.Reference)...)
-			return "", err
+			args := append(append([]string{"image", "--image-src", "remote", "--scanners", "vuln", "--format", "sarif",
+				"--output", in.Out}, trivyCacheArgs(cache("trivy"))...), append([]string{"--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)...)
+			tmpEnv, err := trivyTempEnv(cache("trivy"))
+			if err != nil {
+				return "", err
+			}
+			env = append(env, tmpEnv...)
+			err = withTrivyDB(ctx, bin, cache("trivy"), cfg.Offline, func(extra []string) error {
+				_, err := command(ctx, env, []int{0}, bin, append(append(args, extra...), in.Target.Reference)...)
+				return err
+			})
+			return "", registryDenied(err)
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api" && in.Target.Kind != "endpoints") {
 				return "only runs for web application, API and declared endpoint targets", nil
 			}
-			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, in.TargetFile)...); err != nil {
+			list := in.TargetFile
+			if in.Target.Kind == "api" && !in.Target.IntrusiveAuthorized {
+				list = filepath.Join(filepath.Dir(in.Out), "api-urls.txt")
+				if err := writeAPIURLList(in.Target.Reference, in.TargetFile, list); err != nil {
+					return "", err
+				}
+			}
+			if _, err := command(ctx, []string{"HOME=/tmp/home"}, []int{0}, bin, nucleiArgs(in.Target, in.Out, list)...); err != nil {
 				return "", err
 			}
 			// No findings: an empty JSONL report.

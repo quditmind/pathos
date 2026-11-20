@@ -388,8 +388,21 @@ func TestNotifications(t *testing.T) {
 		if _, err := disp.DispatchEvents(ctx); err != nil {
 			t.Fatal(err)
 		}
-		if _, _, err := disp.SendPending(ctx); err != nil {
-			t.Fatal(err)
+		// SendPending claims 25 due e-mails per call across all
+		// organizations; drain the outbox like the jobs service's repeated
+		// runs do, so e-mails queued by earlier tests (the whole suite
+		// shares one database) cannot hold back this test's messages.
+		for range 100 {
+			if _, _, err := disp.SendPending(ctx); err != nil {
+				t.Fatal(err)
+			}
+			var due int
+			if err := ownerPool.QueryRow(ctx, `SELECT count(*) FROM notifications WHERE status = 'pending' AND channel = 'email' AND next_attempt_at <= now()`).Scan(&due); err != nil {
+				t.Fatal(err)
+			}
+			if due == 0 {
+				break
+			}
 		}
 	}
 	orgScope := authz.Scope{Type: authz.ScopeOrganization, ID: orgID}
