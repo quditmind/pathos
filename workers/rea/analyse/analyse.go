@@ -451,6 +451,11 @@ func analyse(ctx context.Context, cfg Config, input, tmp string) (*Doc, error) {
 			case errors.Is(err, errTimeout):
 				ts.Status, ts.Detail = "timed_out", "extraction stopped at its time budget"
 				d.Firmware = fw
+			case errors.Is(err, errBinwalkIncomplete):
+				// What it did find is real and kept; the run is not reported
+				// as a success.
+				ts.Status, ts.Detail = "failed", clip(err.Error(), 500)
+				d.Firmware = fw
 			case err != nil:
 				ts.Status, ts.Detail = "failed", clip(err.Error(), 500)
 			default:

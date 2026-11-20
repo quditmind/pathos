@@ -1,0 +1,43 @@
+--- a/src/main.rs
++++ b/src/main.rs
+@@ -145,12 +145,21 @@
+     target_files.insert(target_files.len(), binwalker.base_target_file.clone());
+ 
+     /*
++     * Jobs handed to the pool whose results have not been received yet.
++     * ThreadPool::active_count() is not usable here: it only counts a job once a pool
++     * thread has picked it up, and stops counting it right after the job sent its
++     * results, so the loop below could end with a job still queued or a result still
++     * in the channel (and exit successfully with nothing analyzed or logged).
++     */
++    let mut pending_jobs: usize = 0;
++
++    /*
+      * Main loop.
+      * Loop until all pending thread jobs are complete and there are no more files in the queue.
+      */
+-    while !target_files.is_empty() || workers.active_count() > 0 {
++    while !target_files.is_empty() || pending_jobs > 0 {
+         // If there are files waiting to be analyzed and there is at least one free thread in the pool
+-        if !target_files.is_empty() && workers.active_count() < workers.max_count() {
++        if !target_files.is_empty() && pending_jobs < workers.max_count() {
+             // Get the next file path from the target_files queue
+             let target_file = target_files
+                 .pop_front()
+@@ -164,6 +173,7 @@
+                 cliargs.extract,
+                 worker_tx.clone(),
+             );
++            pending_jobs += 1;
+         }
+ 
+         // Don't spin CPU cycles if there is no backlog of files to analyze
+@@ -185,6 +195,8 @@
+ 
+         // Get response from a worker thread, if any
+         if let Ok(results) = worker_rx.try_recv() {
++            pending_jobs -= 1;
++
+             // Keep a tally of how many files have been analyzed
+             file_count += 1;
+ 

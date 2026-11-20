@@ -20,7 +20,7 @@
 # scanners are needed): it is Debian trixie with the pathos-worker agent
 # built from this repository with the same build metadata as worker-core.
 # Every download is pinned: images by digest, radare2, Ghidra, Jadx and
-# ilspycmd by version and SHA-256, binwalk by crate version and Cargo.lock
+# ilspycmd by version and SHA-256, binwalk by crate version, SHA-256 and Cargo.lock
 # (crates.io checksums, cargo install --locked).
 
 # The worker agent (as in workers/core/Dockerfile).
@@ -48,16 +48,27 @@ RUN --mount=type=cache,target=/root/.cache/go-build set -eux; \
     CGO_ENABLED=0 go build -trimpath -buildvcs=false -ldflags "-s -w -X main.Version=${VERSION}" -o /out/pathos-rea .; \
     /out/pathos-rea version
 
-# binwalk 3 (Rust, MIT) from crates.io with its locked dependencies.
+# binwalk 3 (Rust, MIT) from crates.io with its locked dependencies. The
+# crate is pinned by its crates.io SHA-256 and patched before the build:
+# binwalk 3.1.0's main loop waits on ThreadPool::active_count(), which does
+# not count a job that no pool thread has picked up yet nor a result still in
+# the channel, so on a busy CPU it could exit 0 with nothing analysed, logged
+# or extracted (binwalk-worker-pool-race.patch; upstream main still has it).
 FROM rust:1.100.0-slim-trixie@sha256:6f14b2b4b278ec0d50aa1d69541c304ce0f95e0f6268487aa9924af1c2e9aebe AS binwalk
 ARG BINWALK=3.1.0
-RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libfontconfig1-dev liblzma-dev libbz2-dev zlib1g-dev \
+ARG BINWALK_SHA256=99d5dc70f5021c55624f098adae4d1de9c1c07d000475664704b675aad7e0811
+RUN apt-get update && apt-get install -y --no-install-recommends pkg-config libfontconfig1-dev liblzma-dev libbz2-dev zlib1g-dev curl patch \
     && rm -rf /var/lib/apt/lists/*
+COPY workers/rea/binwalk-worker-pool-race.patch /tmp/binwalk.patch
 RUN --mount=type=cache,target=/usr/local/cargo/registry set -eux; \
-    cargo install --locked binwalk --version "${BINWALK}" --root /out; \
+    curl -fsSL -o /tmp/binwalk.crate "https://static.crates.io/crates/binwalk/binwalk-${BINWALK}.crate"; \
+    echo "${BINWALK_SHA256}  /tmp/binwalk.crate" | sha256sum -c -; \
+    mkdir /tmp/binwalk; tar -xzf /tmp/binwalk.crate -C /tmp/binwalk --strip-components 1; \
+    patch -d /tmp/binwalk -p1 --forward < /tmp/binwalk.patch; \
+    cargo install --locked --path /tmp/binwalk --root /out; \
     /out/bin/binwalk -V | grep -q "${BINWALK}"; \
     mkdir -p /out/licenses; \
-    cp "$(ls -d /usr/local/cargo/registry/src/*/binwalk-${BINWALK})/LICENSE" /out/licenses/binwalk-LICENSE
+    cp /tmp/binwalk/LICENSE /out/licenses/binwalk-LICENSE
 
 # The JDK for the optional Ghidra and Jadx (Eclipse Temurin 25, GPL-2.0
 # with Classpath Exception); copied only when one of them is built in.
