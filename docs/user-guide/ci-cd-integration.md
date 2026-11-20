@@ -29,7 +29,7 @@ All three use the **`pathos` command-line tool**. Ready-made templates wrap it f
 Download the binary for your platform (Linux, macOS or Windows; amd64 or arm64) from the PATHOS release on GitHub. Each release has a `checksums.txt` with the SHA-256 of every binary, signed with Sigstore cosign (keyless, by the release workflow):
 
 ```bash
-v=2.2.0
+v=3.0.0
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/pathos_${v}_linux_amd64
 curl -fsSLO https://github.com/quditmind/pathos/releases/download/v$v/checksums.txt
 sha256sum -c --ignore-missing checksums.txt
@@ -64,7 +64,7 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 | `pathos gate --stage ide\|pre-commit\|pull-request\|ci\|release\|deploy (--repo R \| --application UUID) [--commit SHA] [--scan UUID] [--pull-request N]` | Asks the organization's [security gates](remediation.md#security-gates) of a stage for a decision (PATHOS 3.0, flag `remediation_workspace`). Exit 1 on *block* or *approval required*; 0 on *pass*, *warn* or *exception applied*. `--fail-on`, `--scope` and `--allow-partial` do not apply |
 | `pathos findings [--repo R] [--severity critical,high] [--status open] [--category C] [--scanner KEY] [--limit 100] [--output table\|json]` | Lists findings |
 | `pathos sbom export --repo R [--format cyclonedx\|spdx] [--output FILE]` | Downloads the repository's SBOM |
-| `pathos version` | Prints the CLI version and build, e.g. `Quditmind PATHOS v2.2.0 (build 0123456789ab, 2026-11-20T10:00:00Z)` (also `pathos --version`) |
+| `pathos version` | Prints the CLI version and build, e.g. `Quditmind PATHOS v3.0.0 (build 0123456789ab, 2026-11-20T10:00:00Z)` (also `pathos --version`) |
 
 ### The gate
 
@@ -99,7 +99,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - run: semgrep scan --json --output semgrep.json   # any supported scanner
-      - uses: quditmind/pathos/integrations/github-action@v2.2.0
+      - uses: quditmind/pathos/integrations/github-action@v3.0.0
         with:
           url: https://pathos.example.com
           token: ${{ secrets.PATHOS_TOKEN }}
@@ -127,12 +127,12 @@ Include the template and extend its hidden jobs:
 
 ```yaml
 include:
-  - remote: https://raw.githubusercontent.com/quditmind/pathos/v2.2.0/integrations/gitlab/pathos.gitlab-ci.yml
+  - remote: https://raw.githubusercontent.com/quditmind/pathos/v3.0.0/integrations/gitlab/pathos.gitlab-ci.yml
 
 variables:
   PATHOS_URL: https://pathos.example.com
   PATHOS_REPOSITORY: acme/payments-api
-  PATHOS_CLI_VERSION: "2.2.0"
+  PATHOS_CLI_VERSION: "3.0.0"
   # PATHOS_TOKEN: masked, protected CI/CD variable
 
 pathos-import:
@@ -161,7 +161,7 @@ steps:
     parameters:
       url: https://pathos.example.com
       repository: acme/payments-api
-      cliVersion: "2.2.0"
+      cliVersion: "3.0.0"
       importFile: semgrep.json
       failOn: high
 ```

@@ -1,7 +1,7 @@
 // Package buildinfo holds the version and build metadata of every PATHOS
 // binary (API, pathosctl, worker, CLI). The values are set at build time:
 //
-//	-ldflags "-X pathos/internal/platform/buildinfo.Version=2.2.0
+//	-ldflags "-X pathos/internal/platform/buildinfo.Version=3.0.0
 //	          -X pathos/internal/platform/buildinfo.Commit=<git sha>
 //	          -X pathos/internal/platform/buildinfo.BuildDate=<RFC 3339 UTC>"
 //
@@ -42,13 +42,13 @@ func ShortCommit() string {
 }
 
 // Banner is the one-line version string of the CLI and pathosctl:
-// "Quditmind PATHOS v2.2.0 (build 0123456789ab, 2026-11-20T10:00:00Z)".
+// "Quditmind PATHOS v3.0.0 (build 0123456789ab, 2026-11-20T10:00:00Z)".
 func Banner() string {
 	return fmt.Sprintf("%s %s v%s (build %s, %s)", Vendor, Product, Version, ShortCommit(), BuildDate)
 }
 
 // Stamp is the provenance line of every export:
-// "Quditmind PATHOS v2.2.0 · build 0123456789ab · generated 2026-11-20T10:00:00Z".
+// "Quditmind PATHOS v3.0.0 · build 0123456789ab · generated 2026-11-20T10:00:00Z".
 func Stamp(now time.Time) string {
 	return fmt.Sprintf("%s %s v%s · build %s · generated %s", Vendor, Product, Version, ShortCommit(), now.UTC().Format(time.RFC3339))
 }

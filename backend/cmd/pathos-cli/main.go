@@ -20,7 +20,7 @@ import (
 
 // The version, commit and build date are set at build time in
 // pathos/internal/platform/buildinfo (-ldflags "-X
-// pathos/internal/platform/buildinfo.Version=2.2.0 ...").
+// pathos/internal/platform/buildinfo.Version=3.0.0 ...").
 
 // Exit codes.
 const (

@@ -3,14 +3,14 @@
 # against the release's sha256 checksums (and, when cosign is installed,
 # the keyless signature of the checksum file).
 #
-#   PATHOS_CLI_VERSION   release version, e.g. 2.2.0 (required)
+#   PATHOS_CLI_VERSION   release version, e.g. 3.0.0 (required)
 #   PATHOS_CLI_REPO      GitHub repository of the release (default quditmind/pathos)
 #   PATHOS_CLI_DIR       install directory (default ./.pathos-cli)
 #
 # Prints the path of the installed binary on the last line.
 set -eu
 
-version="${PATHOS_CLI_VERSION:?set PATHOS_CLI_VERSION, e.g. 2.2.0}"
+version="${PATHOS_CLI_VERSION:?set PATHOS_CLI_VERSION, e.g. 3.0.0}"
 version="${version#v}"
 repo="${PATHOS_CLI_REPO:-quditmind/pathos}"
 dir="${PATHOS_CLI_DIR:-./.pathos-cli}"
