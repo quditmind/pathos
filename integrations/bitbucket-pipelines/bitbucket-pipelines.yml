@@ -11,7 +11,7 @@
 # (https://support.atlassian.com/bitbucket-cloud/docs/variables-and-secrets/):
 #   PATHOS_URL          https://pathos.example.com
 #   PATHOS_REPOSITORY   acme/payments-api (name, Repository ID or UUID in PATHOS)
-#   PATHOS_CLI_VERSION  2.2.0             (pin the CLI release)
+#   PATHOS_CLI_VERSION  3.0.0             (pin the CLI release)
 #   PATHOS_TOKEN        SECURED variable: a PATHOS REST API token
 #                       (read and write for import/scan, read for the gate)
 # Optional: PATHOS_FAIL_ON (none|low|medium|high|critical, default none),

@@ -4,6 +4,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [3.0.0] — 2026-11-20
+
+PATHOS 3.0: the nine-phase application security lifecycle (milestones M0–M10, sections below), the 2.2.1–2.2.3 fixes, and patched worker image dependencies. Every new module is behind a feature flag, off by default; with all flags off 3.0 behaves like 2.2.3 and keeps every page and URL. Upgrading from 2.2.x is supported (migrations 00043–00067, additive; see *PATHOS 2.2.1–2.2.3 brought forward into 3.0*).
+
 ### Security
 - Worker image dependencies patched (Dependabot alerts on the worker manifests; the deliberately vulnerable fixtures under `benchmarks/` and `e2e/tests/fixtures-data/` are unchanged):
   - worker-sca: package.json `overrides` pin body-parser 2.4.0 (CVE-2026-111181; an optional cdxgen dependency that `npm ci --omit=optional` does not install), glob 14.0.6 (CVE-2026-118773) and minimatch 11.0.9 (CVE-2026-118764) for cdxgen and its `@npmcli` helpers; no cdxgen release ships them yet. The copies bundled inside npm 12.2.3 itself stay at glob 13.0.6 and minimatch 10.2.5 until npm ships a release with them.
