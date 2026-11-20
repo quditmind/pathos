@@ -330,7 +330,8 @@ var OutsideKinds = []CheckKind{
 
 func init() {
 	for i := range CheckKinds {
-		CheckKinds[i].Extra = append(CheckKinds[i].Extra, kindExtraTools(CheckKinds[i])...)
+		// Never nil (the API returns extra_tools as a list).
+		CheckKinds[i].Extra = append(append([]string{}, CheckKinds[i].Extra...), kindExtraTools(CheckKinds[i])...)
 	}
 	for i := range OutsideKinds {
 		OutsideKinds[i].Extra = kindExtraTools(OutsideKinds[i])

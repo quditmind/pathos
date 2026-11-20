@@ -59,9 +59,13 @@ test("profile, classification, tags and lifecycle with the flags on", async ({ p
     await expect(page).toHaveURL(new RegExp(`/applications/${id}$`));
     await expect(page.getByRole("heading", { level: 1, name: `E2E Payments ${sfx}` })).toBeVisible();
     await expect(page.getByRole("list", { name: "Lifecycle progress" }).getByRole("listitem")).toHaveCount(9);
-    for (const t of ["CodeGraph", "Threat model", "Remediation"]) {
+    for (const t of ["Threat model", "Remediation"]) {
       await expect(page.getByRole("tab", { name: new RegExp(`^${t}`) })).toHaveAttribute("aria-disabled", "true");
     }
+    // CodeGraph (M4) is a live tab: the panel inside checks the codegraph flag.
+    await page.getByRole("tab", { name: "CodeGraph" }).click();
+    await expect(page).toHaveURL(/tab=codegraph/);
+    await expect(page.getByRole("tabpanel", { name: "CodeGraph" })).toBeVisible();
     await page.goto(`/applications?app=${id}`);
     await expect(page.getByRole("dialog", { name: `Edit E2E Payments ${sfx}` })).toBeVisible();
 

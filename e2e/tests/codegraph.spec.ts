@@ -4,7 +4,7 @@ import type { APIRequestContext, Page } from "@playwright/test";
 // PATHOS 3.0 M4 CodeGraph (flag `codegraph`): sidebar items behind the flag,
 // the CodeGraph of an application built by the real graph worker, every edge
 // with evidence, the 15 views, inspector, list view, and light and dark
-// screenshots (screenshots/out/codegraph, copied to ~/.cache/pathos-m4u-screens).
+// screenshots (screenshots/out/codegraph, copied to ~/.cache/pathos-m4-screens).
 //
 // The application: E2E_CODEGRAPH_APP (id or name), else the first one with
 // a repository. A build is requested when no snapshot is ready yet and the
@@ -45,7 +45,7 @@ async function readySnapshot(request: APIRequestContext, appId: string): Promise
       const r = await request.post(`${base}/build`, { data: {}, headers: { "X-CSRF-Token": await csrf(request) } });
       expect(r.status(), await r.text()).toBe(202);
     }
-    const deadline = Date.now() + Number(process.env.E2E_CODEGRAPH_WAIT_S ?? 900) * 1000;
+    const deadline = Date.now() + Number(process.env.E2E_CODEGRAPH_WAIT_S || 900) * 1000;
     while (Date.now() < deadline) {
       snaps = await list();
       if (snaps.some((s) => s.status === "ready" || s.status === "partial")) break;
@@ -82,7 +82,7 @@ test("CodeGraph sidebar items stay roadmap items while the flag is off", async (
 });
 
 test("the CodeGraph of an application renders with evidence on every edge, in all 15 views", async ({ page, request }) => {
-  test.setTimeout(Number(process.env.E2E_CODEGRAPH_WAIT_S ?? 900) * 1000 + 300_000);
+  test.setTimeout(Number(process.env.E2E_CODEGRAPH_WAIT_S || 900) * 1000 + 300_000);
   await setFlag(request, true);
   const app = await pickApp(request);
   const snap = await readySnapshot(request, app.id);

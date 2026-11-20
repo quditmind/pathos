@@ -205,7 +205,7 @@ export function CodeGraphPanel({
                 {current.node_count} nodes · {current.edge_count ?? 0} edges
               </span>
             )}
-            {current.status === "partial" && <span className="text-warning">Partial build: some engines did not finish.</span>}
+            {current.status === "partial" && <span className="text-warning">Partial build: the repository exceeded the discovery limits; the graph shows what was found.</span>}
           </>
         ) : (
           <span>No finished graph yet.</span>

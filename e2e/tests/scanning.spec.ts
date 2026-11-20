@@ -40,13 +40,13 @@ test("Assess and Configurations navigation sections", async ({ page }) => {
   await expect(page).toHaveURL(/\/configurations\/scanners/);
 });
 
-test("scan details shows six tabs for an existing execution", async ({ page, request }) => {
+test("scan details shows seven tabs for an existing execution", async ({ page, request }) => {
   const r = await request.get("/api/v1/scans");
   const items = r.ok() ? ((await r.json()) as { items: { id: string }[] }).items : [];
   test.skip(!items.length, "no scan executions in this environment");
   await page.goto(`/scans/${items[0]!.id}`);
   const tabs = page.getByRole("tab");
-  await expect(tabs).toHaveText(["Overview", "Findings", "Execution Logs", "Stages", "Configuration", "History"]);
+  await expect(tabs).toHaveText(["Overview", "Findings", "Material changes", "Execution Logs", "Stages", "Configuration", "History"]);
   await page.getByRole("tab", { name: "Configuration" }).click();
   await expect(page).toHaveURL(/tab=configuration/);
   await expect(page.getByText(/Snapshot — read-only/)).toBeVisible();

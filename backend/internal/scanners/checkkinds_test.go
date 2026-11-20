@@ -45,6 +45,12 @@ func TestCheckKinds(t *testing.T) {
 			t.Errorf("%s lists more than %d catalogued tools", k.ID, ToolsPerKind)
 		}
 	}
+	// extra_tools is a JSON list, never null.
+	for _, k := range append(append([]CheckKind{}, CheckKinds...), OutsideKinds...) {
+		if k.Extra == nil {
+			t.Errorf("%s: Extra is nil", k.ID)
+		}
+	}
 	// Every catalogued tool that a worker image runs belongs to a kind.
 	for _, sc := range append(append([]Scanner{}, Catalog...), SyftUtility) {
 		if sc.AdapterAvailable && len(KindsOfTool(sc.Key)) == 0 {
