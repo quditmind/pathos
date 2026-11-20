@@ -47,6 +47,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Dashboard and global search](dashboard-and-search.md) | Security dashboard KPIs and charts, top-bar search |
 | [Human Eye reviews](human-reviews.md) | Manual review queue, assessments, decisions, evidence and reports |
 | [AI providers, finding reviews and MCP](ai-and-mcp.md) | AI providers and configurations, AI reviews, MCP server registry, the PATHOS MCP endpoint |
+| [AI evidence, model per task and correlation](ai-evidence.md) | AI evidence records of every AI decision (read, review, reproduce), model per task, evidence retention, a finding's cross-phase correlation and AI explanation, AI threat suggestions (feature flag `ai_intelligence`) |
 | [AI Security Analyst, reports and usage](ai-analyst.md) | Analyst conversations, AI-written reports, AI usage |
 
 **Governance and administration**

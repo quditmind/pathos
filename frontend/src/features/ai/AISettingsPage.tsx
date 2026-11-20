@@ -8,6 +8,7 @@ import { Alert, Card, EmptyState, Input, Label, PageHeader, Select, Skeleton } f
 import { useAIConfigs, useAIMutation, useAIProviders } from "./api";
 import { FINDING_CATEGORIES, categoryName } from "@/lib/findingCategories";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { ModelPerTask } from "./ModelPerTask";
 
 const kindLabel = { anthropic: "Anthropic (Claude)", openai: "OpenAI", xai: "xAI (Grok)", self_hosted: "Self-hosted (Ollama, vLLM, LM Studio…)" };
 
@@ -48,6 +49,7 @@ export function AISettingsPage() {
       )}
       <h2 className="mb-2 text-[13px] font-semibold">Review configuration</h2>
       {providers.data?.length ? <ConfigEditor config={def} providers={providers.data} /> : <p className="text-[13px] text-muted-foreground">Add a provider first.</p>}
+      <ModelPerTask configs={configs.data ?? []} />
       <ProviderDialog open={adding} onOpenChange={setAdding} />
     </>
   );
@@ -133,7 +135,7 @@ function ConfigEditor({ config, providers }: { config?: AIConfiguration; provide
             <Select id="c-approval" className="w-full" value={f.approval_policy} onChange={(e) => setF({ ...f, approval_policy: e.target.value as "always" })}>
               <option value="always">Always</option>
               <option value="false_positives">Only false positives</option>
-              <option value="never">Never (Critical still requires approval)</option>
+              <option value="never">Never (false positives and Critical still require approval)</option>
             </Select></div>
         </div>
         <label className="flex items-center gap-2"><input type="checkbox" className="accent-[var(--primary)]" checked={f.auto_review} onChange={(e) => setF({ ...f, auto_review: e.target.checked })} /> Review new findings automatically after each scan</label>

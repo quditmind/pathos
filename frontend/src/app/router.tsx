@@ -225,6 +225,9 @@ const vulnRoute = createRoute({ getParentRoute: () => appRoute, path: "/vulnerab
 const suppressionRoute = createRoute({ getParentRoute: () => appRoute, path: "/suppression-rules", component: SuppressionRulesPage });
 const analystRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/analyst", component: AnalystPage });
 const aiReportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/reports", component: AIReportsPage });
+// AI evidence log (M7, flag `ai_intelligence`).
+const AIEvidencePage = lazyRouteComponent(() => import("@/features/ai/AIEvidencePage"), "AIEvidencePage");
+const aiEvidenceRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/evidence", component: AIEvidencePage });
 const aiUsageRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/ai-usage", component: AIUsagePage });
 const graphRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/graph", component: ContextGraphPage, validateSearch: validateGraphSearch });
 // CodeGraph (M4, flag `codegraph`; the application hub tab embeds CodeGraphPanel).
@@ -290,7 +293,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, remediationRoute, remediationItemRoute, gatesRoute, gateExceptionsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, threatModelsRoute, threatModelRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, remediationRoute, remediationItemRoute, gatesRoute, gateExceptionsRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, threatModelsRoute, threatModelRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiEvidenceRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

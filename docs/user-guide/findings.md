@@ -51,6 +51,13 @@ Select a finding to open its details panel:
 - **Introduced by** (code, secret and IaC findings): the commit that introduced the line, with the author's name and date, from `git blame` of the scanned commit. Repositories cloned without history show **Unknown (shallow clone)**; enable full history to record it. See [Commit-based tracking](security-scanning.md#commit-based-tracking).
 - Two further types exist besides scanner results: **End of life** (a runtime, framework or image no longer supported, see [End of life](supply-chain.md#end-of-life)) and **Supply chain (signatures)** (a required signature that could not be verified, see [Signature and provenance verification](supply-chain.md#signature-and-provenance-verification)).
 
+## AI evidence and correlation
+
+With the **ai_intelligence** feature flag on, the finding drawer has two more sections ([AI security intelligence](ai-security-intelligence.md)):
+
+- **AI evidence**: every AI answer about the finding (AI reviews, Human Eye suggestions, fix proposals, correlation explanations) with its model, where it ran, its reasoning steps, conclusion, confidence and reviewer. Each is labelled **AI-inferred** until a person accepts it, and you can **Reproduce** it. An AI *false positive* or *not exploitable* conclusion is a proposal only: the finding changes when a person decides.
+- **Correlation**: the CodeGraph elements at the finding, the threat-model threats linked to it, its SBOM components, its runtime context and related findings, joined without AI, each with its evidence label; **Explain with AI** adds an AI-inferred explanation and priority.
+
 ## AI-proposed fixes
 
 For SAST, secrets and IaC findings, **Propose fix** in the finding's details asks the organization's AI provider for a code change. Nothing an AI model writes is offered as ready until PATHOS has checked it.

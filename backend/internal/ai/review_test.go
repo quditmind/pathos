@@ -84,8 +84,10 @@ func TestDecideGuardrail(t *testing.T) {
 	if d := Decide(fp, "critical", "never"); !d.NeedsApproval || d.NewStatus != "needs_review" {
 		t.Errorf("critical false positive must go to a human: %+v", d)
 	}
-	if d := Decide(fp, "medium", "never"); d.NeedsApproval || d.NewStatus != "false_positive" {
-		t.Errorf("policy never applies directly: %+v", d)
+	// No silent suppression (M7): a false positive is never applied
+	// without a person, whatever the policy.
+	if d := Decide(fp, "medium", "never"); !d.NeedsApproval || d.NewStatus != "false_positive" {
+		t.Errorf("policy never must still ask a person for a false positive: %+v", d)
 	}
 	if d := Decide(fp, "medium", "false_positives"); !d.NeedsApproval {
 		t.Error("false_positives policy requires approval for FP verdicts")

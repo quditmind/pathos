@@ -13,6 +13,8 @@ import { useQuery } from "@tanstack/react-query";
 import { FindingTickets } from "@/features/integrations/IntegrationsPage";
 import { FindingFixPR } from "@/features/fixprs/FixPRPanel";
 import { FindingAIFix } from "@/features/aifix/AIFixPanel";
+import { AIEvidencePanel } from "@/features/ai/AIEvidencePanel";
+import { CorrelationSection } from "@/features/ai/CorrelationSection";
 import { api } from "@/api/client";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/features/auth/session";
@@ -297,6 +299,8 @@ function FindingDrawer({ id, onClose }: { id?: string; onClose: () => void }) {
             </div>
           )}
           <AISection id={d.id} />
+          <CorrelationSection findingId={d.id} />
+          <AIEvidencePanel findingId={d.id} />
           <div>
             <h3 className="mb-2 text-[13px] font-semibold">Sightings</h3>
             <ul className="divide-y divide-border rounded-md border border-border">

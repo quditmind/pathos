@@ -503,7 +503,10 @@ func (s *Service) requestAIFix(w http.ResponseWriter, r *http.Request) {
 	}
 	// The provider call can take minutes (self-hosted models on CPU): it
 	// runs in the background and the UI polls the proposal.
-	go s.generateAIFix(context.WithoutCancel(ctx), p.OrganizationID, fixID, f.ID, in)
+	fid := f.ID
+	actx := ai.WithSubject(context.WithoutCancel(ctx), ai.Subject{Kind: "finding", ID: &fid, FindingID: &fid, RequestedBy: &p.UserID,
+		Related: map[string]any{"findings": []string{fid.String()}, "ai_fix_id": fixID.String(), "file": f.File, "commit": f.Commit}})
+	go s.generateAIFix(actx, p.OrganizationID, fixID, f.ID, in)
 	out, err := scanAIFix(s.DB.QueryRow(ctx, `SELECT `+aiFixCols+` WHERE x.id = $1`, fixID))
 	if err != nil {
 		s.fail(w, r, err)
@@ -551,10 +554,10 @@ func (s *Service) generateAIFix(ctx context.Context, orgID, fixID, findingID uui
 		stepsJSON, _ := json.Marshal(steps)
 		if _, err := s.DB.Exec(ctx, `UPDATE ai_fix_proposals SET status = $2, failure_reason = $3, provider = $4, model = $5, config_version_id = $6,
 			transmitted_sha256 = $7, input_tokens = $8, output_tokens = $9, summary = $10, diff = $11, changed_files = $12, steps = $13, updated_at = now(),
-			finished_at = CASE WHEN $2 IN ('failed', 'rejected') THEN now() END WHERE id = $1 AND status = 'generating'`,
+			finished_at = CASE WHEN $2 IN ('failed', 'rejected') THEN now() END, evidence_record_id = $14 WHERE id = $1 AND status = 'generating'`,
 			fixID, status, cleanText(truncate(reason, 2000)), res.Provider, cleanText(truncate(res.Model, 200)), nullUUID(res.ConfigVersionID), res.SHA256,
 			res.InputTokens, res.OutputTokens, cleanText(truncate(res.Proposal.Summary, 8000)), cleanText(truncate(res.Proposal.Diff, 40000)), files,
-			stepsJSON); err != nil {
+			stepsJSON, nullUUID(res.EvidenceID)); err != nil {
 			s.Log.Error("AI fix not recorded", "ai_fix_id", fixID, "err", err)
 		}
 		action := map[string]string{"queued": "ai_fix.proposed", "rejected": "ai_fix.rejected", "failed": "ai_fix.failed"}[status]

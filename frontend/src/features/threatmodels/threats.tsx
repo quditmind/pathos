@@ -4,6 +4,7 @@ import { ShieldHalf } from "lucide-react";
 import { SeverityBadge } from "@/components/data/Severity";
 import { defaultRefHref, EvidenceChip } from "@/components/graph";
 import { Button } from "@/components/ui/button";
+import { AIEvidencePanel } from "@/features/ai/AIEvidencePanel";
 import { Dialog } from "@/components/ui/dialog";
 import { ErrorPanel } from "@/components/ui/error-panel";
 import { Badge, Card, Input, Label, Select, Table, Td, Th } from "@/components/ui/primitives";
@@ -426,7 +427,11 @@ export function ThreatDetail({ threatId, model, onClose }: { threatId?: string; 
               </ul>
             ) : null}
             {t.evidence_type === "unverified" && <p className="text-warning">Not linked to evidence yet: link CodeGraph elements or findings below.</p>}
+            {t.method === "ai" && t.ai_review !== "accepted" && (
+              <p className="text-warning">AI-suggested: accept or reject it in the AI evidence below. The version cannot be submitted while it awaits a decision.</p>
+            )}
           </Section>
+          <AIEvidencePanel threatId={t.id} />
           {t.findings?.length ? (
             <Section title="Findings">
               <ul className="space-y-1">

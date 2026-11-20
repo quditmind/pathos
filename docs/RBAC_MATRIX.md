@@ -82,6 +82,7 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `ai.review` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `ai.fix` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
+| `ai.evidence_read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `remediation.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `remediation.manage` |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |  |
@@ -99,6 +100,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 ### Verifying a fix (`remediation.manage`, `scans.run`, item owner)
 
 "Verify fix" on a remediation item queues a targeted rescan (the findings' own scanners on the item's affected files only). It needs `remediation.manage` and `scans.run` on the item's repository, **except for the item's assigned owner**, who may verify their own item with `remediation.read` alone. A developer can therefore prove the fix of an item assigned to them; other developers cannot queue rescans. The item page shows the button from the server's `can_request_verification`.
+
+### AI evidence records (`ai.evidence_read`)
+
+`ai.evidence_read` (PATHOS 3.0 M7, `ai_intelligence` flag) lets a user read AI evidence records: model, prompt and response (redacted), reasoning steps, conclusion, reviewer. It is in the read-only set, so every built-in role has it, and a record is shown only with read access to its subject: `findings.read` on the finding's repository, `threats.read` on the threat model, or for troubleshooting, chat and report records being the requester or holding `ai.configure` organization-wide. Accepting, rejecting and replaying need `ai.review` on the finding's repository (an AI review awaiting approval also `findings.triage`) or `threats.manage` for threat suggestions; model per task and evidence retention need `ai.configure`. See [AI security intelligence](user-guide/ai-security-intelligence.md#permissions).
 
 ## Organizations and installation administrators (multi-tenancy)
 

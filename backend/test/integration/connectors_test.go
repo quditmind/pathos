@@ -175,6 +175,9 @@ func TestConnectorsHub(t *testing.T) {
 	kr, _ := crypto.NewKeyring(map[int][]byte{1: testKey})
 	h := &connHarness{t: t, org: o.ID, octx: tenant.WithOrg(ctx, o.ID), store: &secrets.Store{Keys: kr}}
 	h.admin = principalForOrg(o.ID, authz.RoleSuperAdmin)
+	// The administrator is a real user of the organization: AI calls write
+	// an evidence record whose requester references users (PATHOS 3.0 M7).
+	h.exec(`INSERT INTO users (id, organization_id, email, status) VALUES ($1, $2, $3, 'active')`, h.admin.UserID, o.ID, h.admin.Email)
 	plain := &http.Client{Timeout: 10 * time.Second}
 
 	// --- local fakes -----------------------------------------------------

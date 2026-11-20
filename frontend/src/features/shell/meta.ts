@@ -20,6 +20,7 @@ export type FeatureFlag =
   | "onboarding"
   | "codegraph"
   | "threat_models"
+  | "ai_intelligence"
   | "reverse_engineering"
   | "remediation_workspace"
   | "continuous_monitoring"

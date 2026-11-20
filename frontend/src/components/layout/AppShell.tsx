@@ -71,6 +71,7 @@ import {
   Microscope,
   ToggleRight,
   Rocket,
+  ScrollText,
 } from "lucide-react";
 import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
@@ -177,6 +178,7 @@ export const groups: NavGroup[] = [
       { label: "AI Security Analyst", to: "/ai/analyst", icon: <MessagesSquare />, perm: "ai.review" },
       { label: "AI reviews", to: "/ai", icon: <Bot />, perm: "findings.read" },
       { label: "AI reports", to: "/ai/reports", icon: <FileText />, perm: "findings.read" },
+      { label: "AI evidence log", to: "/ai/evidence", icon: <ScrollText />, perm: "ai.evidence_read", phase: 7, flag: "ai_intelligence" },
       { label: "Human Eye overview", to: "/human-review", icon: <UserCheck />, perm: "reviews.read", section: "Human Eye" },
       { label: "Review queue", to: "/human-review/queue", icon: <ListChecks />, perm: "reviews.read", section: "Human Eye" },
       { label: "Assessments", to: "/human-review/assessments", icon: <ClipboardCheck />, perm: "reviews.read", section: "Human Eye" },

@@ -10,7 +10,7 @@ Threat modelling (milestone M5, phase 4 of the lifecycle) turns an application's
 
 In scope: a deterministic STRIDE rule engine over CodeGraph snapshots (one per repository of the application); attack paths and blast radius brought in as threats and links; mappings to MITRE ATT&CK, CAPEC, CWE and D3FEND from bundled, pinned and checksum-verified data, plus LINDDUN category names; versioned, editable models with an approval workflow; regeneration that keeps human edits; the architecture feedback loop (a new snapshot regenerates a draft); import and export (OWASP Threat Dragon v2 JSON both ways, PATHOS JSON both ways, a pytm model description and Markdown out); the API behind the `threat_models` flag; the web pages and the application hub panel.
 
-Out of scope: AI-suggested threats (no endpoint: the AI evidence record table of ADR-008 does not exist yet; the schema reserves `method = 'ai'` and `evidence_type = 'ai_inferred'`, which require an AI evidence record id); LINDDUN generation (no data-flow rule can tell that a flow carries personal data yet, so LINDDUN threats are manual or imported); pytm and Threagile import (pytm models are Python programs, which PATHOS never runs; Threagile YAML is not supported); TLS checks on data-store connections (CodeGraph does not record connection TLS settings).
+AI-suggested threats arrived with M7 (`POST /api/v1/threat-models/{id}/suggest`, [PATHOS_AI_SECURITY_INTELLIGENCE.md](PATHOS_AI_SECURITY_INTELLIGENCE.md)): `method = 'ai'`, `evidence_type = 'ai_inferred'`, an AI evidence record per threat, a person's acceptance before submission. Out of scope: LINDDUN generation (no data-flow rule can tell that a flow carries personal data yet, so LINDDUN threats are manual or imported); pytm and Threagile import (pytm models are Python programs, which PATHOS never runs; Threagile YAML is not supported); TLS checks on data-store connections (CodeGraph does not record connection TLS settings).
 
 ## Architecture
 
@@ -160,4 +160,4 @@ Prototype behind the flag: engine, rules, attack paths, mappings, versions, revi
 
 ## Future improvements
 
-AI-suggested threats behind review once the AI evidence record exists (M7); LINDDUN rules once CodeGraph can tag personal data; data-store TLS evidence; authentication middleware detection from framework routing (decorators, route groups); remediation items linked to threats (M8).
+LINDDUN rules once CodeGraph can tag personal data; data-store TLS evidence; authentication middleware detection from framework routing (decorators, route groups); remediation items linked to threats (M8).
