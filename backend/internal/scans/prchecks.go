@@ -15,11 +15,11 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/gates"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/logging"
-	"pathos/internal/policy"
 	"pathos/internal/scanners"
 	"pathos/internal/scm"
 )
@@ -42,9 +42,14 @@ func (s *Service) onPullRequest(ctx context.Context, orgID, repoID uuid.UUID, ev
 	}
 	var enabled bool
 	var gate string
-	if err := s.DB.QueryRow(ctx, `SELECT pr_checks_enabled, pr_gate_severity FROM repositories WHERE id = $1 AND organization_id = $2`,
-		repoID, orgID).Scan(&enabled, &gate); err != nil || !enabled {
+	var mode *string
+	if err := s.DB.QueryRow(ctx, `SELECT pr_checks_enabled, pr_gate_severity, pr_gate_mode FROM repositories WHERE id = $1 AND organization_id = $2`,
+		repoID, orgID).Scan(&enabled, &gate, &mode); err != nil || !enabled {
 		return
+	}
+	gateMode := ""
+	if mode != nil {
+		gateMode = *mode
 	}
 	var checkID uuid.UUID
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
@@ -54,11 +59,11 @@ func (s *Service) onPullRequest(ctx context.Context, orgID, repoID uuid.UUID, ev
 		}
 		// One check per execution; a newer push to the PR while it is
 		// queued moves the queued execution (and its check) to the new head.
-		return tx.QueryRow(ctx, `INSERT INTO pr_checks (id, organization_id, repository_id, scan_job_id, pull_request, head_ref, head_sha, gate_severity)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		return tx.QueryRow(ctx, `INSERT INTO pr_checks (id, organization_id, repository_id, scan_job_id, pull_request, head_ref, head_sha, gate_severity, gate_mode)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 			ON CONFLICT (scan_job_id) DO UPDATE SET head_ref = EXCLUDED.head_ref, head_sha = EXCLUDED.head_sha,
-			  gate_severity = EXCLUDED.gate_severity, status_posted = '' RETURNING id`,
-			uuid.Must(uuid.NewV7()), orgID, repoID, res.JobID, ev.PullRequest, truncate(ev.Ref, 255), ev.CommitSHA, gate).Scan(&checkID)
+			  gate_severity = EXCLUDED.gate_severity, gate_mode = EXCLUDED.gate_mode, status_posted = '' RETURNING id`,
+			uuid.Must(uuid.NewV7()), orgID, repoID, res.JobID, ev.PullRequest, truncate(ev.Ref, 255), ev.CommitSHA, gate, gateMode).Scan(&checkID)
 	})
 	if err != nil {
 		if !errors.Is(err, ErrNotScannable) {
@@ -106,9 +111,9 @@ func insertPRFindings(ctx context.Context, tx pgx.Tx, jobID uuid.UUID, fs []scan
 // the gate and records the check result.
 func finalizePR(ctx context.Context, tx pgx.Tx, orgID, jobID, repoID uuid.UUID, status, workerErr string, bad []string, job *Job) error {
 	var checkID uuid.UUID
-	var gate string
+	var gate, headSHA string
 	var pr int
-	if err := tx.QueryRow(ctx, `SELECT id, gate_severity, pull_request FROM pr_checks WHERE scan_job_id = $1`, jobID).Scan(&checkID, &gate, &pr); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT id, gate_severity, pull_request, head_sha FROM pr_checks WHERE scan_job_id = $1`, jobID).Scan(&checkID, &gate, &pr, &headSHA); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE pr_findings pf SET is_new = false, existing_finding_id = f.id
@@ -141,26 +146,21 @@ func finalizePR(ctx context.Context, tx pgx.Tx, orgID, jobID, repoID uuid.UUID, 
 	if err := rows.Err(); err != nil {
 		return err
 	}
-	blocking := 0
-	if gate != "none" {
-		for _, sv := range severityOrder {
-			blocking += bySev[sv]
-			if sv == gate {
-				break
-			}
-		}
-	}
-	checkStatus, summary := prOutcome(status, gate, newCount, blocking, bySev)
-	// Security policies that the new findings violate.
+	// The gate decision (internal/gates): the repository's managed pull
+	// request gate (its threshold in block or warn mode, decision C6),
+	// the organization's pull_request gates and the security policies with
+	// the block action. Nothing blocks without a policy (rule 7).
+	checkStatus, summary := prOutcome(status, gate, newCount, 0, bySev)
+	var decisionID *uuid.UUID
 	if status != "failed" {
-		pols, err := policy.EvaluatePR(ctx, tx, orgID, checkID)
+		repo := repoID
+		dec, err := gates.Evaluate(ctx, tx, gates.Input{OrgID: orgID, Stage: gates.StagePullRequest, RepositoryID: &repo,
+			PRCheckID: &checkID, ScanJobID: &jobID, CommitSHA: headSHA, PullRequest: pr})
 		if err != nil {
 			return err
 		}
-		if len(pols) > 0 {
-			checkStatus = "failed"
-			summary = truncate("Blocked by policy "+strings.Join(pols, ", ")+": "+strings.TrimPrefix(strings.TrimPrefix(summary, "Passed: "), "Blocked: "), 500)
-		}
+		decisionID = &dec.ID
+		checkStatus, summary = prDecisionOutcome(status, gate, newCount, bySev, dec)
 	}
 	errText := logging.RedactString(truncate(workerErr, 2000))
 	if errText == "" && len(bad) > 0 {
@@ -168,7 +168,7 @@ func finalizePR(ctx context.Context, tx pgx.Tx, orgID, jobID, repoID uuid.UUID, 
 	}
 	sevJSON, _ := json.Marshal(bySev)
 	if _, err := tx.Exec(ctx, `UPDATE pr_checks SET status = $2, new_findings = $3, new_by_severity = $4, existing_findings = $5,
-		summary = $6, finished_at = now() WHERE id = $1`, checkID, checkStatus, newCount, sevJSON, existing, summary); err != nil {
+		summary = $6, finished_at = now(), gate_decision_id = $7 WHERE id = $1`, checkID, checkStatus, newCount, sevJSON, existing, summary, decisionID); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL,
@@ -207,6 +207,52 @@ func prOutcome(scanStatus, gate string, newCount, blocking int, bySev map[string
 		return "error", "Incomplete scan: " + detail + suffix
 	}
 	return "passed", "Passed: " + detail
+}
+
+// prDecisionOutcome turns a gate decision into the check's status and
+// summary, keeping the wording of the checks before the gates engine:
+// "Blocked: … (gate: high and above)" for the repository's threshold and
+// "Blocked by policy …" for other policies.
+func prDecisionOutcome(scanStatus, gate string, newCount int, bySev map[string]int, dec gates.Decision) (string, string) {
+	threshold := 0
+	var blockedBy, approvalBy, warnBy, exceptedBy []string
+	for _, g := range dec.Gates {
+		switch {
+		case g.Managed && g.Effect == gates.OutcomeBlock:
+			threshold = g.Count
+		case g.Effect == gates.OutcomeBlock:
+			blockedBy = appendUnique(blockedBy, g.Policy.Name)
+		case g.Effect == gates.OutcomeApproval:
+			approvalBy = appendUnique(approvalBy, g.Policy.Name)
+		case g.Effect == gates.OutcomeWarn:
+			warnBy = appendUnique(warnBy, g.Policy.Name)
+		case g.Effect == gates.OutcomeExceptionApplied:
+			exceptedBy = appendUnique(exceptedBy, g.Policy.Name)
+		}
+	}
+	checkStatus, summary := prOutcome(scanStatus, gate, newCount, threshold, bySev)
+	rest := func() string { return strings.TrimPrefix(strings.TrimPrefix(summary, "Passed: "), "Blocked: ") }
+	switch {
+	case len(blockedBy) > 0:
+		checkStatus, summary = "failed", truncate("Blocked by policy "+strings.Join(blockedBy, ", ")+": "+rest(), 500)
+	case checkStatus == "failed":
+	case len(approvalBy) > 0:
+		checkStatus, summary = "failed", truncate("Approval required by policy "+strings.Join(approvalBy, ", ")+": "+rest(), 500)
+	case checkStatus == "passed" && len(warnBy) > 0:
+		summary = truncate("Passed with warnings (policy "+strings.Join(warnBy, ", ")+"): "+rest(), 500)
+	case checkStatus == "passed" && len(exceptedBy) > 0:
+		summary = truncate("Passed by approved exception (policy "+strings.Join(exceptedBy, ", ")+"): "+rest(), 500)
+	}
+	return checkStatus, summary
+}
+
+func appendUnique(list []string, v string) []string {
+	for _, x := range list {
+		if x == v {
+			return list
+		}
+	}
+	return append(list, v)
 }
 
 // postPRStatus posts the final status of the check of a finished job.
@@ -279,6 +325,8 @@ type PRCheck struct {
 	HeadSHA         string         `json:"head_sha"`
 	Status          string         `json:"status"`
 	GateSeverity    string         `json:"gate_severity"`
+	GateMode        string         `json:"gate_mode"`
+	GateDecisionID  *uuid.UUID     `json:"gate_decision_id"`
 	NewFindings     int            `json:"new_findings"`
 	NewBySeverity   map[string]int `json:"new_by_severity"`
 	ExistingFinding int            `json:"existing_findings"`
@@ -316,7 +364,7 @@ func (s *Service) registerPRChecks(mux *http.ServeMux) {
 
 const prCheckSelect = `SELECT c.id, c.repository_id, COALESCE(NULLIF(r.display_name, ''), r.full_name), c.scan_job_id, j.status, c.pull_request,
 	c.head_ref, c.head_sha, c.status, c.gate_severity, c.new_findings, c.new_by_severity, c.existing_findings, c.summary,
-	c.status_posted, c.status_error, c.created_at, c.finished_at
+	c.status_posted, c.status_error, c.created_at, c.finished_at, c.gate_mode, c.gate_decision_id
 	FROM pr_checks c JOIN repositories r ON r.id = c.repository_id JOIN scan_jobs j ON j.id = c.scan_job_id`
 
 func scanPRCheck(row pgx.Row) (PRCheck, error) {
@@ -324,7 +372,7 @@ func scanPRCheck(row pgx.Row) (PRCheck, error) {
 	var sev []byte
 	err := row.Scan(&c.ID, &c.RepositoryID, &c.RepositoryName, &c.ScanJobID, &c.ScanStatus, &c.PullRequest, &c.HeadRef, &c.HeadSHA,
 		&c.Status, &c.GateSeverity, &c.NewFindings, &sev, &c.ExistingFinding, &c.Summary, &c.StatusPosted, &c.StatusError,
-		&c.CreatedAt, &c.FinishedAt)
+		&c.CreatedAt, &c.FinishedAt, &c.GateMode, &c.GateDecisionID)
 	if err == nil {
 		c.NewBySeverity = map[string]int{}
 		_ = json.Unmarshal(sev, &c.NewBySeverity)
@@ -451,6 +499,13 @@ func (s *Service) repostPRCheck(w http.ResponseWriter, r *http.Request) {
 type prSettings struct {
 	Enabled      bool   `json:"enabled"`
 	GateSeverity string `json:"gate_severity"`
+	// GateMode is the explicit choice (decision C6): block the pull
+	// request or warn only. Required to enable pull request checks.
+	GateMode *string `json:"gate_mode"`
+	// PolicyID and GateID are the managed security policy and gate that
+	// carry the threshold (read-only).
+	PolicyID *uuid.UUID `json:"policy_id"`
+	GateID   *uuid.UUID `json:"gate_id"`
 	// Webhooks reports whether the repository's connection can deliver
 	// pull request events.
 	Source string `json:"source_type"`
@@ -469,11 +524,17 @@ func (s *Service) getPRSettings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var st prSettings
-	if err := s.DB.QueryRow(ctx, `SELECT pr_checks_enabled, pr_gate_severity, source_type FROM repositories WHERE organization_id = $1 AND id = $2`,
-		p.OrganizationID, id).Scan(&st.Enabled, &st.GateSeverity, &st.Source); err != nil {
+	if err := s.DB.QueryRow(ctx, `SELECT pr_checks_enabled, pr_gate_severity, pr_gate_mode, source_type FROM repositories WHERE organization_id = $1 AND id = $2`,
+		p.OrganizationID, id).Scan(&st.Enabled, &st.GateSeverity, &st.GateMode, &st.Source); err != nil {
 		s.fail(w, r, err)
 		return
 	}
+	g, err := gates.RepositoryPRGate(ctx, s.DB, p.OrganizationID, id)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	st.PolicyID, st.GateID = g.PolicyID, g.GateID
 	httpx.WriteJSON(w, http.StatusOK, st)
 }
 
@@ -500,18 +561,48 @@ func (s *Service) putPRSettings(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, httpx.BadRequest("gate_severity must be critical, high, medium, low or none"))
 		return
 	}
+	if req.GateMode != nil && *req.GateMode != "block" && *req.GateMode != "warn" {
+		s.fail(w, r, httpx.BadRequest("gate_mode must be block or warn"))
+		return
+	}
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var source string
-		if err := tx.QueryRow(ctx, `UPDATE repositories SET pr_checks_enabled = $3, pr_gate_severity = $4 WHERE organization_id = $1 AND id = $2
-			RETURNING source_type`, p.OrganizationID, id, req.Enabled, req.GateSeverity).Scan(&source); err != nil {
+		var mode *string
+		if err := tx.QueryRow(ctx, `SELECT source_type, pr_gate_mode FROM repositories WHERE organization_id = $1 AND id = $2 FOR UPDATE`,
+			p.OrganizationID, id).Scan(&source, &mode); err != nil {
 			return err
+		}
+		if req.GateMode != nil {
+			mode = req.GateMode
 		}
 		if req.Enabled && source == "upload" {
 			return httpx.BadRequest("uploaded repositories have no pull requests")
 		}
+		// Decision C6: no default that blocks. Enabling needs an explicit
+		// block or warn; a "none" threshold cannot block, so it is report
+		// only (warn) without a choice.
+		if req.Enabled && mode == nil {
+			if req.GateSeverity != "none" {
+				return gates.ErrPRModeRequired
+			}
+			warn := "warn"
+			mode = &warn
+		}
+		if _, err := tx.Exec(ctx, `UPDATE repositories SET pr_checks_enabled = $3, pr_gate_severity = $4, pr_gate_mode = $5
+			WHERE organization_id = $1 AND id = $2`, p.OrganizationID, id, req.Enabled, req.GateSeverity, mode); err != nil {
+			return err
+		}
+		m := ""
+		if mode != nil {
+			m = *mode
+		}
+		g, err := gates.SyncRepositoryPRGate(ctx, tx, p.OrganizationID, id, req.Enabled, m, req.GateSeverity, &p.UserID)
+		if err != nil {
+			return err
+		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 			Action: "repository.pr_checks", TargetType: "repository", TargetID: id.String(),
-			Metadata: map[string]any{"enabled": req.Enabled, "gate_severity": req.GateSeverity}})
+			Metadata: map[string]any{"enabled": req.Enabled, "gate_severity": req.GateSeverity, "gate_mode": m, "policy_id": g.PolicyID, "gate_id": g.GateID}})
 	})
 	if err != nil {
 		s.fail(w, r, err)

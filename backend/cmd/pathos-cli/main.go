@@ -39,7 +39,8 @@ Usage:
 Commands:
   import       upload a results file (or an SBOM with --sbom) to a repository
   scan         start a scan of a repository and follow it
-  gate         evaluate the security gate of a scan (exit 1 when it fails)
+  gate         evaluate the security gate of a scan, or with --stage the
+               organization's gates of a stage (exit 1 when it blocks)
   findings     list findings
   sbom export  download a repository's SBOM
   version      print the version

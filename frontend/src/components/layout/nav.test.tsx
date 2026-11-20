@@ -126,7 +126,8 @@ describe("sidebar regroup (prompt §5)", () => {
   it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
-    // application; M4: CodeGraph, API & endpoints; M5: Threat models) carry their route and still their phase and flag.
+    // application; M4: CodeGraph, API & endpoints; M5: Threat models; M8:
+    // Remediation workspace) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
@@ -134,13 +135,13 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["Remediation workspace", "/remediation", "remediation_workspace"],
     ]);
     // Not-yet-built modules have no route at all.
     expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       [
         "Binary analysis",
         "Continuous monitoring",
-        "Remediation workspace",
         "Reverse engineering tools",
       ].sort(),
     );
@@ -189,6 +190,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["Remediation workspace", "/remediation", "remediation_workspace"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
   });
@@ -248,7 +250,22 @@ describe("sidebar regroup (prompt §5)", () => {
     const link = await within(nav).findByRole("link", { name: "Connectors" });
     expect(link).toHaveAttribute("href", "/connectors");
     expect(within(nav).queryByText("arrives in roadmap phase 2")).not.toBeInTheDocument();
+    // Other roadmap items stay disabled (Remediation workspace too while its flag is off).
+    expect(within(nav).getByText("Remediation workspace").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     // Other roadmap items stay disabled.
     expect(within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("makes the Remediation workspace a link only while the remediation_workspace flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { remediation_workspace: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const link = await within(nav).findByRole("link", { name: "Remediation workspace" });
+    expect(link).toHaveAttribute("href", "/remediation");
   });
 });

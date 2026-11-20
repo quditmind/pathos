@@ -80,6 +80,10 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/human-review/reviews/$id": g("human-review"),
 
   // Remediate & gate
+  "/remediation": g("remediation", "remediation-workspace"),
+  "/remediation/items/$id": g("remediation", "fix-verification"),
+  "/remediation/gates": g("remediation", "security-gates"),
+  "/remediation/exceptions": g("remediation", "exceptions-and-approvals"),
   "/admin/policies": g("policies-and-compliance"),
   "/sbom/policies": g("releases-and-vex"),
   "/pull-requests": g("supply-chain", "pull-request-checks"),

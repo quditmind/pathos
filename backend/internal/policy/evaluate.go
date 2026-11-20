@@ -15,20 +15,24 @@ import (
 type Policy struct {
 	ID         uuid.UUID
 	Name       string
+	Version    int
 	Conditions Conditions
 	Actions    Actions
 }
 
+// enabledPolicies returns the enabled policies that act on findings by
+// themselves. Policies managed by a repository's pull request settings
+// (managed_by, PATHOS 3.0 M8) act only through their security gate.
 func enabledPolicies(ctx context.Context, q db.Querier, orgID uuid.UUID) ([]Policy, error) {
-	rows, err := q.Query(ctx, `SELECT id, name, conditions, actions FROM security_policies
-		WHERE organization_id = $1 AND enabled ORDER BY created_at`, orgID)
+	rows, err := q.Query(ctx, `SELECT id, name, version, conditions, actions FROM security_policies
+		WHERE organization_id = $1 AND enabled AND managed_by = '' ORDER BY created_at`, orgID)
 	if err != nil {
 		return nil, err
 	}
 	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (Policy, error) {
 		var p Policy
 		var c, a []byte
-		if err := r.Scan(&p.ID, &p.Name, &c, &a); err != nil {
+		if err := r.Scan(&p.ID, &p.Name, &p.Version, &c, &a); err != nil {
 			return p, err
 		}
 		if err := json.Unmarshal(c, &p.Conditions); err != nil {
@@ -119,7 +123,7 @@ func Evaluate(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, repoID *uuid.UUID
 // detected by a scan execution violate (the execution's gate fails).
 func Blocking(ctx context.Context, tx pgx.Tx, jobID uuid.UUID) ([]string, error) {
 	rows, err := tx.Query(ctx, `SELECT DISTINCT p.name FROM policy_violations v
-		JOIN security_policies p ON p.id = v.policy_id AND p.enabled AND (p.actions->>'block')::boolean
+		JOIN security_policies p ON p.id = v.policy_id AND p.enabled AND p.managed_by = '' AND (p.actions->>'block')::boolean
 		JOIN findings f ON f.id = v.finding_id
 		WHERE f.first_scan_job_id = $1 AND v.resolved_at IS NULL ORDER BY 1`, jobID)
 	if err != nil {
@@ -133,11 +137,29 @@ func Blocking(ctx context.Context, tx pgx.Tx, jobID uuid.UUID) ([]string, error)
 // Policies with branch-only conditions (risk, reachability, age, exploit
 // availability) do not apply to pull requests.
 func EvaluatePR(ctx context.Context, tx pgx.Tx, orgID, checkID uuid.UUID) ([]string, error) {
+	hits, err := EvaluatePRPolicies(ctx, tx, orgID, checkID)
+	var names []string
+	for _, h := range hits {
+		names = append(names, h.Name)
+	}
+	return names, err
+}
+
+// PolicyHit is a blocking policy that findings violate.
+type PolicyHit struct {
+	ID      uuid.UUID
+	Name    string
+	Version int
+}
+
+// EvaluatePRPolicies is EvaluatePR returning the violated blocking
+// policies with their ids and versions (gate decisions record them).
+func EvaluatePRPolicies(ctx context.Context, tx pgx.Tx, orgID, checkID uuid.UUID) ([]PolicyHit, error) {
 	pols, err := enabledPolicies(ctx, tx, orgID)
 	if err != nil {
 		return nil, err
 	}
-	var blocking []string
+	var blocking []PolicyHit
 	for _, p := range pols {
 		if p.Conditions.BranchOnly() {
 			continue
@@ -154,7 +176,7 @@ func EvaluatePR(ctx context.Context, tx pgx.Tx, orgID, checkID uuid.UUID) ([]str
 			return nil, fmt.Errorf("policy %q: %w", p.Name, err)
 		}
 		if tag.RowsAffected() > 0 && p.Actions.Block {
-			blocking = append(blocking, p.Name)
+			blocking = append(blocking, PolicyHit{ID: p.ID, Name: p.Name, Version: p.Version})
 		}
 	}
 	return blocking, nil
@@ -169,4 +191,20 @@ func RestoreSLA(ctx context.Context, tx pgx.Tx, policyID uuid.UUID) error {
 		                FROM sla_policies p WHERE p.organization_id = f.organization_id AND p.severity = f.severity)
 		FROM policy_violations v WHERE v.policy_id = $1 AND v.finding_id = f.id AND v.resolved_at IS NULL`, policyID)
 	return err
+}
+
+// BlockingPolicies is Blocking with the policies' ids and versions (gate
+// decisions record them).
+func BlockingPolicies(ctx context.Context, tx pgx.Tx, jobID uuid.UUID) ([]PolicyHit, error) {
+	rows, err := tx.Query(ctx, `SELECT DISTINCT p.id, p.name, p.version FROM policy_violations v
+		JOIN security_policies p ON p.id = v.policy_id AND p.enabled AND p.managed_by = '' AND (p.actions->>'block')::boolean
+		JOIN findings f ON f.id = v.finding_id
+		WHERE f.first_scan_job_id = $1 AND v.resolved_at IS NULL ORDER BY 2`, jobID)
+	if err != nil {
+		return nil, err
+	}
+	return pgx.CollectRows(rows, func(r pgx.CollectableRow) (PolicyHit, error) {
+		var h PolicyHit
+		return h, r.Scan(&h.ID, &h.Name, &h.Version)
+	})
 }

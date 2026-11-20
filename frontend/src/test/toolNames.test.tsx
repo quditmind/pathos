@@ -19,7 +19,10 @@
  * inspector), whose discovery engines report versions, errors and evidence;
  * and the PATHOS 3.0 M5 threat models (the list, the hub tab, the model's
  * threats, threat detail, diagram and versions), whose evidence copies
- * CodeGraph evidence and attack-path findings.
+ * CodeGraph evidence and attack-path findings; and the PATHOS 3.0 M8
+ * remediation workspace (the list, the item with its guidance and fix
+ * verifications, gates and decisions, exceptions, and the hub tab), whose
+ * verifications re-run the findings' own engines.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -51,6 +54,10 @@ import { CodeGraphIndexPage } from "@/features/codegraph/CodeGraphPage";
 import { mockReactFlowDom } from "@/components/graph/testing";
 import { ThreatModelsPage } from "@/features/threatmodels/ThreatModelsPage";
 import { ThreatModelView } from "@/features/threatmodels/ThreatModelPage";
+import { RemediationPage } from "@/features/remediation/RemediationPage";
+import { RemediationItemPage } from "@/features/remediation/ItemDetailPage";
+import { GatesPage } from "@/features/remediation/GatesPage";
+import { ExceptionsPage } from "@/features/remediation/ExceptionsPage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -573,6 +580,90 @@ describe("rule 3 on the PATHOS 3.0 M5 threat models", () => {
     const detail = await screen.findByTestId("threat-detail");
     expect(await within(detail).findByText(/engine:pathos\.graph\.route\.chi/)).toBeInTheDocument();
     expect(within(detail).getByText("no authentication function")).toBeInTheDocument();
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M8 remediation workspace and gates (example fixture data, test only) ---
+
+const remItem = {
+  id: "i1", title: "SQL injection in the orders API (test fixture)", kind: "code_fix", status: "in_progress", priority: "high",
+  repository_id: "r1", repository_name: "example/payments-api", application_id: "a1", application_name: "Payments Platform",
+  owner_id: "u2", owner_email: "bob@example.com", due_at: "2026-12-01T00:00:00Z", due_source: "sla", overdue: false, root_cause: "",
+  finding_count: 2, open_finding_count: 1, top_severity: "high", affected_files: ["api/orders.go"], fix_pull_request: null,
+  last_verification: { id: "ver1", status: "failed", result: null, created_at: "2026-11-19T00:00:00Z" },
+  created_at: "2026-11-18T00:00:00Z", updated_at: "2026-11-18T00:00:00Z", closed_at: null,
+};
+const remVerification = (id: string, over: Record<string, unknown> = {}) => ({
+  id, item_id: "i1", status: "failed", result: null, trigger: "manual", scanner_key: ENGINE_KEYS[0], scanner_version: `${ENGINE_KEYS[0]} 1.2.3`,
+  files: ["api/orders.go"], before: { scan_job_id: "j1", commit: "abcdef1234567890", result_count: 2 }, after: { scan_job_id: null, commit: "", result_count: 0 },
+  findings: [], regressions: [], failure_reason: `the worker reported no results for ${ENGINE_KEYS[0]} (${NOISY})`, requested_by_email: "bob@example.com",
+  created_at: "2026-11-19T00:00:00Z", finished_at: "2026-11-19T00:05:00Z", ...over,
+});
+const remDetail = {
+  ...remItem,
+  findings: [{ id: "f1", title: "SQL injection (test fixture)", severity: "high", status: "open", category: "sast", rule_id: "go.sqli", file_path: "api/orders.go", start_line: 42, scanner_keys: ENGINE_KEYS.slice(0, 4) }],
+  guidance: [{ source: "ai_review", evidence: "ai_inferred", title: "AI review", text: `Bind the order id; ${third[0]!.name} and ${third[1]!.name} both flag the concatenation.` }],
+  fix_prs: [],
+  verifications: [remVerification("ver1"), remVerification("ver2", { status: "completed", result: "still_present", failure_reason: "", after: { scan_job_id: "j2", commit: "1234567890abcdef", result_count: 1 } })],
+  can_verify: false, can_request_verification: true, verify_unavailable_reason: `finding f1 comes only from an imported report (${NOISY})`,
+};
+const remDecision = {
+  id: "d1", stage: "ci", outcome: "block", repository_id: "r1", repository_name: "example/payments-api", application_id: "a1", scan_job_id: "j1",
+  commit_sha: "0123456789abcdef", pull_request: null,
+  gates: [{ id: "g1", name: "No criticals in CI", mode: "block", matched: true, count: 2, effect: "block", policy: { id: "p1", name: "Critical findings", version: 3 } }],
+  policy_ids: ["p1"], reasons: [{ code: "policy_matched", message: `policy "Critical findings" matched 2 finding(s) reported by ${ENGINE_KEYS[1]}; ${NOISY}`, gate_id: "g1", policy_id: "p1", count: 2 }],
+  evidence: { scope: "new", by_severity: { critical: 2 }, finding_ids: ["f1"], scan_job_id: "j1" }, exceptions: [], requested_by_email: "ci@example.com",
+  created_at: "2026-11-19T00:00:00Z", docs_url: "",
+};
+const remRoutes = {
+  ...m3Routes,
+  "GET /api/v1/meta": () => ({ ...flagsOn(), feature_flags: { ...flagsOn().feature_flags, remediation_workspace: true } }),
+  "GET /api/v1/remediation/items": () => ({ items: [remItem], next_cursor: null }),
+  "GET /api/v1/remediation/items/i1": () => remDetail,
+  "GET /api/v1/remediation/views": () => ({ items: [] }),
+  "GET /api/v1/gates": () => ({
+    items: [{ id: "g1", name: "No criticals in CI", stage: "ci", mode: "block", allow_exceptions: true, application_id: null, repository_id: null, enabled: true, managed: false, policy: { id: "p1", name: "Critical findings", version: 3, enabled: true }, created_at: "", updated_at: "" }],
+  }),
+  "GET /api/v1/gates/decisions": () => ({ items: [remDecision] }),
+  "GET /api/v1/gate-exceptions": () => ({
+    items: [{ id: "x1", gate_id: "g1", gate_name: "No criticals in CI", decision_id: "d1", kind: "exception", scope: { repository_id: "r1", commit_sha: "0123456789abcdef" },
+      reason: "Compensating control until the fix ships (test fixture)", status: "requested", requested_by_email: "bob@example.com", decided_by_email: "", decision_note: "",
+      expires_at: "2026-11-26T00:00:00Z", created_at: "2026-11-19T00:00:00Z", decided_at: null, can_decide: true }],
+  }),
+};
+const remPerms = ["repos.read", "findings.read", "remediation.read", "remediation.manage", "gates.manage", "gates.approve_exception", "scans.run"];
+
+describe("rule 3 on the PATHOS 3.0 M8 remediation workspace and gates", () => {
+  it("workspace list and the application profile's Remediation tab", async () => {
+    mockApi(remRoutes);
+    const { unmount } = renderApp(<RemediationPage />, { permissions: remPerms, path: "/remediation" });
+    expect(await screen.findByRole("link", { name: "SQL injection in the orders API (test fixture)" })).toBeInTheDocument();
+    expectNoToolNames();
+    unmount();
+    renderApp(<ApplicationProfile id="a1" />, { path: "/?tab=remediation", permissions: remPerms });
+    expect(await screen.findByRole("link", { name: "SQL injection in the orders API (test fixture)" })).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("item: guidance, the reason verification is unavailable and failed verifications", async () => {
+    mockApi(remRoutes);
+    renderApp(<RemediationItemPage id="i1" />, { permissions: remPerms, path: "/remediation/items/i1" });
+    expect(await screen.findAllByTestId("verification")).toHaveLength(2);
+    expect(screen.getByText(/the worker reported no results for engine/)).toBeInTheDocument();
+    expect(screen.getByTestId("verify-reason")).toHaveTextContent("comes only from an imported report");
+    expectNoToolNames();
+  });
+
+  it("gates, the decision log with its reasons, and exceptions", async () => {
+    mockApi(remRoutes);
+    const { unmount } = renderApp(<GatesPage />, { permissions: remPerms, path: "/remediation/gates?decision=d1" });
+    const d = await screen.findByTestId("decision-detail");
+    expect(within(d).getByText(/matched 2 finding\(s\) reported by engine/)).toBeInTheDocument();
+    expectNoToolNames();
+    unmount();
+    renderApp(<ExceptionsPage />, { permissions: remPerms, path: "/remediation/exceptions" });
+    expect(await screen.findByText(/Compensating control until the fix ships/)).toBeInTheDocument();
     expectNoToolNames();
   });
 });

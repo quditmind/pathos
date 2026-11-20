@@ -41,8 +41,6 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 
 | Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
 |---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
-| Permission | Org-only | super_admin | platform_admin | security_manager | security_analyst | appsec_engineer | independent_reviewer | repository_contributor | application_owner | developer | auditor | viewer |
-|---|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | `dashboard.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `insights.people` | yes | ✓ |  | ✓ |  |  |  |  |  |  |  |  |
 | `users.read` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  | ✓ |  |
@@ -85,6 +83,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `ai.configure` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
 | `ai.fix` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `mcp.manage` | yes | ✓ | ✓ |  |  |  |  |  |  |  |  |  |
+| `remediation.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `remediation.manage` |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ | ✓ |  |  |
+| `gates.manage` | yes | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |  |
+| `gates.approve_exception` |  | ✓ |  | ✓ |  |  | ✓ |  |  |  |  |  |
 
 ### AI-proposed fixes (`ai.fix`)
 
@@ -93,6 +95,10 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 ### Developer attribution (`insights.people`)
 
 `insights.people` shows who introduced and who fixed findings, per git author name, per linked user and per team. It is **organization-only** because data about people is not divided by repository scope, and it is granted only to `super_admin` and `security_manager` by default; grant it through a custom role otherwise. Attribution itself is **off by default**: an administrator with `settings.manage` must enable it (Administration → Developer attribution), and linking git author names to users needs `users.manage`. See [the user guide](user-guide/developer-insights.md).
+
+### Verifying a fix (`remediation.manage`, `scans.run`, item owner)
+
+"Verify fix" on a remediation item queues a targeted rescan (the findings' own scanners on the item's affected files only). It needs `remediation.manage` and `scans.run` on the item's repository, **except for the item's assigned owner**, who may verify their own item with `remediation.read` alone. A developer can therefore prove the fix of an item assigned to them; other developers cannot queue rescans. The item page shows the button from the server's `can_request_verification`.
 
 ## Organizations and installation administrators (multi-tenancy)
 

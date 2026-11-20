@@ -69,6 +69,12 @@ const (
 
 	PermNotificationsManage Permission = "notifications.manage"
 	PermSettingsManage      Permission = "settings.manage"
+
+	// Remediate & gate (PATHOS 3.0 M8).
+	PermRemediationRead    Permission = "remediation.read"
+	PermRemediationManage  Permission = "remediation.manage"
+	PermGatesManage        Permission = "gates.manage"
+	PermGatesApproveExcept Permission = "gates.approve_exception"
 )
 
 // PermissionInfo describes a catalog entry.
@@ -132,6 +138,11 @@ var Permissions = []PermissionInfo{
 	{PermAIConfigure, "AI & MCP", "Manage AI providers and configurations", true},
 	{PermAIFix, "AI & MCP", "Request AI-proposed code fixes for findings (verified by a worker before a pull request can be opened)", false},
 	{PermMCPManage, "AI & MCP", "Manage MCP servers and tool permissions", true},
+
+	{PermRemediationRead, "Remediate & gate", "View remediation items, fix verifications, security gates, gate decisions and exceptions", false},
+	{PermRemediationManage, "Remediate & gate", "Create, assign and update remediation items, verify fixes and request gate exceptions", false},
+	{PermGatesManage, "Remediate & gate", "Create, change and delete security gates (each references a security policy)", true},
+	{PermGatesApproveExcept, "Remediate & gate", "Approve or reject gate exceptions and approvals requested by someone else", false},
 }
 
 // SystemRole is a seeded, immutable role.
@@ -152,7 +163,7 @@ func all() []Permission {
 
 var readOnly = []Permission{
 	PermDashboardRead, PermOrgRead, PermReposRead, PermScannersRead,
-	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead, PermThreatsRead,
+	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead, PermThreatsRead, PermRemediationRead,
 }
 
 func with(base []Permission, extra ...Permission) []Permission {
@@ -172,7 +183,7 @@ var SystemRoles = []SystemRole{
 			PermUsersRead, PermUsersManage, PermTeamsManage, PermRolesRead, PermRolesAssign,
 			PermOrgManage, PermAuditRead, PermSettingsManage, PermNotificationsManage,
 			PermReposManage, PermSCMManage, PermTagsManage, PermAssetsConfigure, PermScannersManage, PermProfilesManage,
-			PermScansRun, PermSchedulesManage, PermAIConfigure, PermMCPManage, PermReviewsAssign, PermReviewsConfigure)},
+			PermScansRun, PermSchedulesManage, PermAIConfigure, PermMCPManage, PermReviewsAssign, PermReviewsConfigure, PermGatesManage)},
 	{"security_manager", "Security Manager",
 		"Owns the security program for a scope: policy, risk acceptance, scheduling, reporting",
 		with(readOnly,
@@ -180,26 +191,26 @@ var SystemRoles = []SystemRole{
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview, PermAIFix,
 			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople,
-			PermThreatsManage, PermThreatsApprove)},
+			PermThreatsManage, PermThreatsApprove, PermRemediationManage, PermGatesManage, PermGatesApproveExcept)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
 		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage)},
+			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage, PermRemediationManage)},
 	{"independent_reviewer", "Independent Reviewer",
 		"Second-level reviewer: validates other analysts' Human Eye decisions before closure",
-		with(readOnly, PermReviewsApprove, PermFindingsExport, PermThreatsApprove)},
+		with(readOnly, PermReviewsApprove, PermFindingsExport, PermThreatsApprove, PermGatesApproveExcept)},
 	{"repository_contributor", "Repository Contributor",
 		"Imports and maintains repositories in scope and runs scans; owners of a repository can also edit its descriptive metadata",
 		with(readOnly, PermReposManage, PermScansRun)},
 	{"application_owner", "Application Owner",
 		"Accountable for applications in scope: views posture, assigns and triages findings",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermThreatsManage)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermThreatsManage, PermRemediationManage)},
 	{"developer", "Developer",
 		"Views and remediates findings on assigned repositories",
-		with(readOnly, PermFindingsTriage)},
+		with(readOnly, PermFindingsTriage, PermRemediationManage)},
 	{"auditor", "Auditor",
 		"Read-only access to everything including the audit log and user list",
 		with(readOnly, PermUsersRead, PermRolesRead, PermAuditRead, PermFindingsExport)},

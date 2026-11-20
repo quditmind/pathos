@@ -63,6 +63,9 @@ type Service struct {
 	// finding's file for its context. Either nil disables AI fixes.
 	AIFix      AIFixer
 	ReadSource SourceFileFunc
+	// WorkerRoutes mounts other modules' routes on the authenticated
+	// worker API (remediation fix verification, PATHOS 3.0 M8).
+	WorkerRoutes []func(mux *http.ServeMux)
 }
 
 var errNotFound = errors.New("not found")
