@@ -16,9 +16,11 @@ import (
 //   - digest: the running digest equals the digest pinned in the target's
 //     reference or a digest the target's scans resolved to (Trivy
 //     repoDigests). Content-addressed, so exact.
-//   - tag: same registry, repository and tag, and either the running
-//     digest is unknown (no running pod) or no scan has recorded the
-//     target's digest yet. Weaker: the tag may have moved.
+//   - tag: same registry, repository and tag, a scan of the target has
+//     succeeded (it recorded the scanned digest), and the running digest
+//     is unknown (no running pod). Weaker: the tag may have moved. A target
+//     that was never scanned successfully is not linked by tag (2.2.2,
+//     VALIDATION_REPORT O10): nothing says what its findings describe.
 //
 // A running digest that differs from every recorded digest of the target
 // is not linked: the findings belong to another build.
@@ -33,11 +35,8 @@ func MatchTarget(running, target ImageRef, scanned []string) (basis, detail stri
 	if !SameRepository(running, target) || target.Tag == "" || running.Tag != target.Tag {
 		return "", "", false
 	}
-	switch {
-	case running.Digest == "":
+	if running.Digest == "" && len(known) > 0 {
 		return "tag", "same tag " + target.Tag + "; the running digest is not known (no running pod)", true
-	case len(known) == 0:
-		return "tag", "same tag " + target.Tag + "; the scanned digest is not recorded yet (scan the target again for an exact match)", true
 	}
 	return "", "", false
 }

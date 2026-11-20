@@ -46,6 +46,13 @@ type ProfileSettings struct {
 	FailOnCritical    bool             `json:"fail_on_critical"`
 	RetentionDays     int              `json:"retention_days"`
 	Scanners          []ProfileScanner `json:"scanners"`
+	// SecretDefaultExclusions drops secret findings in vendored
+	// dependencies, test fixtures, lockfiles and minified files
+	// (scanners.DefaultSecretExclusions); absent on input means true.
+	SecretDefaultExclusions *bool `json:"secret_default_exclusions"`
+	// SecretExclusions are further glob patterns whose secret findings are
+	// dropped (other categories are unaffected).
+	SecretExclusions []string `json:"secret_exclusions"`
 }
 
 // ProfileVersion is one immutable version.
@@ -137,6 +144,7 @@ func (s *Service) listScanners(w http.ResponseWriter, r *http.Request) {
 const versionSelect = `
 	SELECT v.id, v.version, v.change_note, COALESCE(NULLIF(u.display_name, ''), u.email), v.created_at,
 	       v.severity_threshold, v.exclusions, v.timeout_seconds, v.sbom, v.fail_on_critical, v.retention_days,
+	       v.secret_default_exclusions, v.secret_exclusions,
 	       COALESCE((SELECT json_agg(json_build_object('key', ps.scanner_key, 'config', ps.config) ORDER BY c.sort_order)
 	                 FROM profile_scanners ps JOIN scanner_catalog c ON c.key = ps.scanner_key
 	                 WHERE ps.profile_version_id = v.id), '[]')
@@ -146,7 +154,7 @@ func scanVersion(row pgx.Row) (ProfileVersion, error) {
 	var v ProfileVersion
 	var sc []byte
 	err := row.Scan(&v.ID, &v.Version, &v.ChangeNote, &v.CreatedBy, &v.CreatedAt, &v.SeverityThreshold, &v.Exclusions,
-		&v.TimeoutSeconds, &v.SBOM, &v.FailOnCritical, &v.RetentionDays, &sc)
+		&v.TimeoutSeconds, &v.SBOM, &v.FailOnCritical, &v.RetentionDays, &v.SecretDefaultExclusions, &v.SecretExclusions, &sc)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return v, errNotFound
 	}
@@ -312,9 +320,25 @@ func (req *profileRequest) validate() error {
 	if st.RetentionDays < 7 || st.RetentionDays > 3650 {
 		return httpx.BadRequest("retention_days must be between 7 and 3650")
 	}
-	if len(st.Exclusions) > 100 {
+	if len(st.Exclusions) > 100 || len(st.SecretExclusions) > 100 {
 		return httpx.BadRequest("at most 100 exclusions")
 	}
+	if st.SecretDefaultExclusions == nil {
+		on := true
+		st.SecretDefaultExclusions = &on
+	}
+	secretClean := []string{}
+	for _, e := range st.SecretExclusions {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			continue
+		}
+		if len(e) > 200 || strings.Contains(e, "..") || strings.HasPrefix(e, "/") {
+			return httpx.BadRequest("secret_exclusions must be relative glob patterns (no '..', no leading '/')")
+		}
+		secretClean = append(secretClean, e)
+	}
+	st.SecretExclusions = secretClean
 	clean := []string{}
 	for _, e := range st.Exclusions {
 		e = strings.TrimSpace(e)
@@ -386,10 +410,11 @@ func (req *profileRequest) validate() error {
 func insertVersion(ctx context.Context, tx pgx.Tx, orgID, profileID uuid.UUID, version int, st ProfileSettings, note string, by *uuid.UUID) (uuid.UUID, error) {
 	id := uuid.Must(uuid.NewV7())
 	if _, err := tx.Exec(ctx, `INSERT INTO scan_profile_versions (id, organization_id, profile_id, version, severity_threshold,
-		exclusions, timeout_seconds, sbom, fail_on_critical, retention_days, change_note, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+		exclusions, timeout_seconds, sbom, fail_on_critical, retention_days, change_note, created_by, secret_default_exclusions, secret_exclusions)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 		id, orgID, profileID, version, st.SeverityThreshold, nonNilStrings(st.Exclusions), st.TimeoutSeconds, st.SBOM,
-		st.FailOnCritical, st.RetentionDays, note, by); err != nil {
+		st.FailOnCritical, st.RetentionDays, note, by, st.SecretDefaultExclusions == nil || *st.SecretDefaultExclusions,
+		nonNilStrings(st.SecretExclusions)); err != nil {
 		return id, err
 	}
 	for _, ps := range st.Scanners {
@@ -407,7 +432,7 @@ func DefaultSettings() ProfileSettings {
 	st := ProfileSettings{SeverityThreshold: "info", TimeoutSeconds: 1800, SBOM: true, RetentionDays: 90,
 		Exclusions: []string{"node_modules/**", "vendor/**", "**/testdata/**"}}
 	for _, sc := range scanners.Catalog {
-		if sc.DefaultEnabled {
+		if sc.DefaultEnabled && !scanners.NotRecommended[sc.Key] {
 			st.Scanners = append(st.Scanners, ProfileScanner{Key: sc.Key, Config: json.RawMessage("{}")})
 		}
 	}

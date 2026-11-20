@@ -295,9 +295,16 @@ func Tools(cfg Config) map[string]Tool {
 					return "", err
 				}
 			}
-			args := append([]string{"fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out,
-				"--cache-dir", cache("trivy"), "--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)
-			_, err := command(ctx, nil, []int{0}, bin, append(args, dir)...)
+			args := append(append([]string{"fs", "--scanners", "vuln", "--format", "sarif", "--output", in.Out},
+				trivyCacheArgs(cache("trivy"))...), append([]string{"--quiet", "--skip-version-check", "--timeout", "20m"}, trivyOffline(cfg.Offline)...)...)
+			env, err := trivyTempEnv(cache("trivy"))
+			if err != nil {
+				return "", err
+			}
+			err = withTrivyDB(ctx, bin, cache("trivy"), cfg.Offline, func(extra []string) error {
+				_, err := command(ctx, env, []int{0}, bin, append(append(args, extra...), dir)...)
+				return err
+			})
 			if err != nil {
 				return "", err
 			}
@@ -491,6 +498,21 @@ func clone(ctx context.Context, job Job, dst, gitDir string, maxBytes int64) (st
 		}
 	}
 	return commit, nil
+}
+
+// anonymousCloneError explains a refused anonymous clone (a repository
+// imported by URL without a token that is no longer public). The worker
+// never retries with a credential.
+func anonymousCloneError(err error) error {
+	msg := strings.ToLower(err.Error())
+	for _, m := range []string{"could not read username", "authentication failed", "terminal prompts disabled",
+		"returned error: 401", "returned error: 403", "repository not found", "access denied"} {
+		if strings.Contains(msg, m) {
+			return fmt.Errorf("PTH-ONB-1102: the server refused an anonymous clone; the repository is private or no longer exists. "+
+				"Anonymous scans work only for public repositories; import it through an SCM connection with a token (%w)", err)
+		}
+	}
+	return err
 }
 
 // gitHead returns the full commit ID checked out in dir.

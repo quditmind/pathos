@@ -1,0 +1,67 @@
+#!/usr/local/bin/python3 -I
+"""Runs TFLint recursively on a directory and writes its JSON report to
+standard output (the manifest's output).
+
+    tflint-tree <directory>
+    tflint-tree --version
+
+TFLint reports problems with a module (for example Terraform 0.11 syntax
+it cannot load) inside its JSON output, on standard output, and exits 1:
+the scan showed "exit status 1" and no message, and lost the issues of the
+modules that did load (terragoat, VALIDATION_REPORT O8). Now the report
+with those issues is always written, the module errors are printed on
+standard error (the last line summarises them), and the exit status is 3
+when a module could not be checked (the scan shows TFLint as failed and
+keeps its findings), 0 otherwise.
+"""
+import json
+import os
+import re
+import subprocess
+import sys
+
+TFLINT = "/opt/pathos/iac/bin/tflint"
+CONFIG = "/opt/pathos/iac/tflint.hcl"
+ANSI = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def summary(message):
+    """First meaningful line of a TFLint error message, without colours."""
+    text = ANSI.sub("", message)
+    lines = [l.strip() for l in text.splitlines() if l.strip()]
+    first = lines[0] if lines else "unknown error"
+    detail = next((l for l in lines[1:] if l.startswith("Failed to load") or ": " in l), "")
+    return (first + ("; " + detail if detail else ""))[:400]
+
+
+def main(argv):
+    if argv[1:] == ["--version"]:
+        os.execv(TFLINT, [TFLINT, "--version"])
+    if len(argv) != 2 or not os.path.isdir(argv[1]):
+        print("usage: tflint-tree <directory>", file=sys.stderr)
+        return 2
+    run = subprocess.run([TFLINT, "--chdir=" + argv[1], "--recursive", "--config=" + CONFIG, "--format=json", "--force", "--no-color"],
+                         stdout=subprocess.PIPE, stdin=subprocess.DEVNULL, check=False)
+    try:
+        report = json.loads(run.stdout or b"{}")
+    except ValueError:
+        sys.stderr.write(run.stdout.decode(errors="replace")[-2000:])
+        print("tflint-tree: TFLint exited with status %d without a JSON report" % run.returncode, file=sys.stderr)
+        return run.returncode or 3
+    sys.stdout.write(json.dumps({"issues": report.get("issues") or [], "errors": report.get("errors") or []}))
+    sys.stdout.flush()
+    errors = report.get("errors") or []
+    if run.returncode == 0 and not errors:
+        return 0
+    for e in errors:
+        print("tflint-tree: " + summary(e.get("message", "")), file=sys.stderr)
+    if not errors:
+        print("tflint-tree: TFLint exited with status %d" % run.returncode, file=sys.stderr)
+        return run.returncode or 3
+    print("tflint-tree: %d module(s) could not be checked (first: %s); the issues of the other modules are kept"
+          % (len(errors), summary(errors[0].get("message", ""))), file=sys.stderr)
+    return 3
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv))

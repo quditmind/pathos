@@ -845,3 +845,41 @@ func mavenPURL(purl string) (group, artifact string, ok bool) {
 	}
 	return group, artifact, true
 }
+
+// DefaultSecretExclusions are the paths whose secret findings are dropped
+// unless a profile turns them off (2.2.2, VALIDATION_REPORT O6): vendored
+// dependencies, test fixtures, lockfiles and minified or generated files.
+// Their "secrets" are third-party test data, integrity hashes or
+// high-entropy minified code; Talisman alone reported 3,430 such findings
+// on one repository.
+var DefaultSecretExclusions = []string{
+	// Vendored and installed dependencies
+	"**/node_modules/**", "**/bower_components/**", "**/vendor/**", "**/third_party/**", "**/third-party/**",
+	"**/.venv/**", "**/venv/**", "**/site-packages/**", "**/Pods/**", "**/.yarn/**",
+	// Test fixtures and snapshots
+	"**/testdata/**", "**/fixtures/**", "**/__fixtures__/**", "**/__snapshots__/**", "**/*.snap",
+	"**/test/resources/**", "**/tests/resources/**",
+	// Lockfiles (integrity hashes, checksums)
+	"**/package-lock.json", "**/npm-shrinkwrap.json", "**/yarn.lock", "**/pnpm-lock.yaml", "**/go.sum", "**/Cargo.lock",
+	"**/composer.lock", "**/Gemfile.lock", "**/poetry.lock", "**/Pipfile.lock", "**/uv.lock", "**/packages.lock.json",
+	"**/gradle.lockfile", "**/Podfile.lock", "**/mix.lock", "**/pubspec.lock", "**/flake.lock",
+	// Minified, bundled and source-map files
+	"**/*.min.js", "**/*.min.mjs", "**/*.min.css", "**/*-min.js", "**/*.js.map", "**/*.css.map", "**/*.map",
+}
+
+// SecretExcluded reports whether a secret finding at path is dropped:
+// by the default patterns (when useDefaults) or by the profile's own
+// secret exclusions.
+func SecretExcluded(path string, useDefaults bool, extra []string) bool {
+	if path == "" {
+		return false
+	}
+	return (useDefaults && Excluded(path, DefaultSecretExclusions)) || Excluded(path, extra)
+}
+
+// NotRecommended are tools never put in a default or recommended profile
+// (an administrator can still add them to a profile of their own):
+// Talisman flagged 33 of 39 look-alike files in the secrets benchmark and
+// produced thousands of low "base64/hex content" findings per repository in
+// the 2.2 validation (VALIDATION_REPORT O6).
+var NotRecommended = map[string]bool{"talisman": true}

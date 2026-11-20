@@ -339,8 +339,8 @@ func (s *Service) putSettings(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		if req.Enabled && !cur.Supported {
-			if cur.Source == "upload" {
-				return httpx.BadRequest("uploaded repositories receive no pushes")
+			if cur.Source == "upload" || cur.Source == "git" {
+				return httpx.BadRequest("uploaded and anonymous repositories receive no push events")
 			}
 			return httpx.BadRequest("push-event scanning is available for GitHub, GitHub Enterprise Server and GitLab; use the pre-receive hook for other servers")
 		}

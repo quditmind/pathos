@@ -39,7 +39,14 @@ func TestOfflineMode(t *testing.T) {
 	if env := grypeEnv(dir, false); slices.Contains(env, "GRYPE_DB_AUTO_UPDATE=false") {
 		t.Error("online grype updates its database")
 	}
-	if f, e := osvArgs(dir, true); f[0] != "--offline-vulnerabilities" || e[0] != "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY="+filepath.Join(dir, "osv") {
+	if f, e := osvArgs(dir, true); !slices.Contains(f, "--offline-vulnerabilities") || e[0] != "OSV_SCANNER_LOCAL_DB_CACHE_DIRECTORY="+filepath.Join(dir, "osv") {
 		t.Errorf("osv: %v %v", f, e)
+	}
+	// Transitive resolution contacts package registries outside the
+	// egress allowlist and fails the scan; it is off online and offline.
+	for _, off := range []bool{false, true} {
+		if f, _ := osvArgs(dir, off); !slices.Contains(f, "--no-resolve") {
+			t.Errorf("osv offline=%v: transitive resolution must be disabled: %v", off, f)
+		}
 	}
 }

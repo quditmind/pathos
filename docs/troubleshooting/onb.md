@@ -4,7 +4,7 @@ section: troubleshooting
 order: 105
 version: "1.0"
 updated: 2026-11-20
-summary: Repository import jobs, source uploads and asset registration (12 codes, PTH-ONB-*)
+summary: Repository import jobs, source uploads and asset registration (18 codes, PTH-ONB-*)
 ---
 
 # Troubleshooting: Onboarding and imports
@@ -29,6 +29,12 @@ Repository import jobs, source uploads and asset registration.
 | [PTH-ONB-1010](#PTH-ONB-1010) | Mandatory application tags missing | warning |
 | [PTH-ONB-1011](#PTH-ONB-1011) | Application name already exists | info |
 | [PTH-ONB-1012](#PTH-ONB-1012) | Repository belongs to another application | info |
+| [PTH-ONB-1101](#PTH-ONB-1101) | Repository URL not accepted for anonymous import | warning |
+| [PTH-ONB-1102](#PTH-ONB-1102) | Repository is not public | warning |
+| [PTH-ONB-1103](#PTH-ONB-1103) | Provider rate limit for anonymous requests reached | warning |
+| [PTH-ONB-1104](#PTH-ONB-1104) | Provider not reachable for anonymous import | error |
+| [PTH-ONB-1105](#PTH-ONB-1105) | Repository already imported anonymously | info |
+| [PTH-ONB-1106](#PTH-ONB-1106) | Repository host address not allowed | warning |
 
 <a id="PTH-ONB-1001"></a>
 
@@ -428,4 +434,208 @@ Repository import jobs, source uploads and asset registration.
 **Verify**
 
 1. Save to inventory succeeds; moved repositories appear in the audit log as repository.application_move.
+
+
+<a id="PTH-ONB-1101"></a>
+
+## PTH-ONB-1101: Repository URL not accepted for anonymous import
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | validation |
+| HTTP status | 400 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous.go |
+
+**What it means.** Import repositories → Public repository by URL (POST /api/v1/repositories/import-url) accepts only an https:// repository URL without credentials, query or fragment.
+
+**Confirmed cause.** The URL is not an https:// repository URL, or it contains a user name, password or token, a query string or a fragment. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. An ssh:// or git@host: clone URL was pasted
+2. A clone URL with an embedded token (https://user:token@host/...)
+3. A browser URL with ?tab=... or #readme
+
+**Impact.** Nothing was imported.
+
+**How to fix**
+
+1. Paste the repository's HTTPS address, for example https://github.com/owner/repo.
+2. Never put a credential in the URL: private repositories are imported through an SCM connection with a token (Connectors → SCM).
+
+**Verify**
+
+1. The import is accepted and the repository is listed with the anonymous badge.
+
+
+<a id="PTH-ONB-1102"></a>
+
+## PTH-ONB-1102: Repository is not public
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | authorization |
+| HTTP status | 422 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous.go, internal/repos/anonymous_import.go, internal/worker/tools.go, internal/scans/jobs.go |
+
+**What it means.** The provider answered the anonymous request as for a private, internal or missing repository (providers answer these the same way to an anonymous caller). Raised at import, by a sync of an anonymous repository that turned private (sync status permission_denied) and by a worker whose anonymous clone was refused.
+
+**Confirmed cause.** The provider refuses anonymous access to the repository. Shown as confirmed only when the failing check proves it; otherwise use the probable causes.
+
+**Probable causes**
+
+1. The repository is private or internal
+2. The URL has a typo or the repository was renamed, moved or deleted
+3. The repository was made private after it was imported
+
+**Impact.** The repository is not imported, or an anonymous repository that turned private is no longer scanned.
+
+**How to fix**
+
+1. Open the URL in a private browser window: if it asks to sign in, the repository is not public.
+2. Import private repositories through an SCM connection with a token (Connectors → SCM, then Import repositories).
+3. Correct the URL if the repository was renamed or moved.
+
+**Verify**
+
+1. Sync of the repository succeeds, or the import through the SCM connection completes.
+
+
+<a id="PTH-ONB-1103"></a>
+
+## PTH-ONB-1103: Provider rate limit for anonymous requests reached
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | capacity |
+| HTTP status | 429 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous.go |
+
+**What it means.** The provider's rate limit for anonymous API requests was reached (GitHub: 60 requests per hour per IP address). error.details.retry_after_seconds says when to retry, when the provider tells.
+
+**Confirmed cause.** The provider answered with its rate-limit response to an anonymous request. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. Many anonymous imports or syncs from the same egress IP address
+2. Other clients behind the same NAT or proxy use the provider anonymously
+
+**Impact.** The import or sync was not done; nothing else is affected.
+
+**How to fix**
+
+1. Wait the time in retry_after_seconds and try again.
+2. For regular use, create an SCM connection with a token: authenticated requests have a much higher limit.
+
+**Verify**
+
+1. The import or sync succeeds after the wait.
+
+
+<a id="PTH-ONB-1104"></a>
+
+## PTH-ONB-1104: Provider not reachable for anonymous import
+
+| | |
+|---|---|
+| Severity | error |
+| Category | connectivity |
+| HTTP status | 502 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous.go |
+
+**What it means.** The provider API or the git server (git smart HTTP) could not be reached to check that the repository is public.
+
+**Confirmed cause.** The request to the provider failed (DNS, connection, TLS or timeout; named in the message). Shown as confirmed only when the failing check proves it; otherwise use the probable causes.
+
+**Probable causes**
+
+1. The API container has no route to the provider (egress proxy or firewall)
+2. The git host is not on the egress allowlist
+3. A provider outage
+4. A git server whose certificate is issued by a private CA
+
+**Impact.** Nothing was imported.
+
+**How to fix**
+
+1. Check that the API can reach the host (egress proxy and allowlist: deploy/egress/allowlist.txt).
+2. Retry later if the provider reports an outage.
+3. For a self-hosted git server with a private CA, use a Generic Git SCM connection with its CA bundle instead.
+
+**Verify**
+
+1. The import succeeds.
+
+
+<a id="PTH-ONB-1105"></a>
+
+## PTH-ONB-1105: Repository already imported anonymously
+
+| | |
+|---|---|
+| Severity | info |
+| Category | conflict |
+| HTTP status | 409 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous_import.go |
+
+**What it means.** An active anonymous repository with the same clone URL already exists in the organization (error.details.repository_id names it).
+
+**Confirmed cause.** The organization already has an active anonymous repository with this clone URL. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The repository was imported before, possibly by someone else
+2. The same URL was submitted twice
+
+**Impact.** No second repository was created.
+
+**How to fix**
+
+1. Open the existing repository (error.details.repository_id) and scan or sync it.
+2. Archive the existing one first if a fresh import is really needed.
+
+**Verify**
+
+1. The repository list shows one anonymous repository for the URL.
+
+
+<a id="PTH-ONB-1106"></a>
+
+## PTH-ONB-1106: Repository host address not allowed
+
+| | |
+|---|---|
+| Severity | warning |
+| Category | security |
+| HTTP status | 400 |
+| AI help | not offered |
+| Raised in | internal/repos/anonymous.go, internal/scm/safehttp.go |
+
+**What it means.** The repository host is, or resolves to, a loopback, link-local or reserved address, or a private address while private networks are not allowed for SCM requests.
+
+**Confirmed cause.** The host's address is blocked by the outbound network policy. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. A self-hosted git server on an internal network
+2. DNS returns an internal address for the host name
+
+**Impact.** No request was sent to the host; nothing was imported.
+
+**How to fix**
+
+1. Import repositories of internal git servers through an SCM connection (Generic Git) with "Allow private network".
+2. An administrator can allow private networks for SCM requests installation-wide (PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true); loopback and link-local addresses stay blocked.
+
+**Verify**
+
+1. The import is accepted.
 

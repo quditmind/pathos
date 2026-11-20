@@ -120,3 +120,46 @@ sleep 5; echo "slow 4.5.6"
 		}
 	}
 }
+
+func TestRequiresFiles(t *testing.T) {
+	dir := t.TempDir()
+	write := func(p string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(dir, p)), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dir, p), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("README.md")
+	write("node_modules/lib/index.js") // dependencies do not count
+	write(".git/hooks/x.go")
+	if hasMatchingFile(dir, []string{"*.js", "*.go"}) {
+		t.Fatal("files under node_modules and .git must not count")
+	}
+	write("src/deep/app.ts")
+	if !hasMatchingFile(dir, []string{"*.js", "*.ts"}) || hasMatchingFile(dir, []string{"*.php"}) {
+		t.Fatal("pattern match")
+	}
+	if err := os.Symlink("/etc/passwd", filepath.Join(dir, "link.php")); err == nil && hasMatchingFile(dir, []string{"*.php"}) {
+		t.Fatal("symbolic links must not count")
+	}
+
+	def := PluginDef{Name: "gosec-like", Category: "sast", Command: "/bin/true", Args: []string{"{source}", "{output}"},
+		RequiresFiles: []string{"*.go"}}
+	if err := def.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	tool := pluginTool{def: def}
+	msg, err := tool.Run(context.Background(), RunInput{Src: dir, Out: filepath.Join(t.TempDir(), "out")})
+	if err != nil || !strings.Contains(msg, "no matching files") {
+		t.Fatalf("a repository without Go files skips the tool: %q %v", msg, err)
+	}
+	for _, bad := range [][]string{{"src/*.go"}, {"["}, {""}} {
+		d := PluginDef{Name: "bad", Category: "sast", Command: "/bin/true", Args: []string{"{source}"}, RequiresFiles: bad}
+		if d.Validate() == nil {
+			t.Errorf("requires_files %q must be rejected", bad)
+		}
+	}
+}

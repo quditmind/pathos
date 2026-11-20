@@ -40,8 +40,9 @@ def script(path, body):
 
 
 # pip-audit stand-in: like pip-audit 2.10, it refuses a package listed in
-# two -r files of one run (exit 1, no report) and fails on a file named
-# in FAIL_ON; otherwise it writes a JSON report and exits 1 (vulnerable).
+# two -r files of one run (exit 1, no report), refuses unpinned or wildcard
+# requirements and fails on the package "brokenpkg"; otherwise it writes a
+# JSON report and exits 1 (vulnerable).
 PIP_AUDIT = r'''
 import json, sys
 args = sys.argv[1:]
@@ -49,11 +50,14 @@ reqs = [args[i + 1] for i, a in enumerate(args) if a == "-r"]
 out = args[args.index("-o") + 1]
 seen, deps = set(), []
 for r in reqs:
-    if "broken" in r:
-        print("ERROR:pip_audit._cli:Connection refused", file=sys.stderr)
-        sys.exit(1)
     for line in open(r):
         name, _, version = line.strip().partition("==")
+        if name == "brokenpkg":
+            print("ERROR:pip_audit._cli:Connection refused", file=sys.stderr)
+            sys.exit(1)
+        if not version or "*" in version:
+            print("ERROR:pip_audit._cli:requirement %s is not pinned" % name, file=sys.stderr)
+            sys.exit(1)
         if name.lower() in seen:
             print("ERROR:pip_audit._cli:package %s has duplicate requirements" % name, file=sys.stderr)
             sys.exit(1)
@@ -118,13 +122,178 @@ class WrapperTest(unittest.TestCase):
 
     def test_pip_audit_error_fails(self):
         self.put("ok/requirements.txt", "jinja2==2.11.2\n")
-        self.put("broken/requirements.txt", "urllib3==1.26.4\n")
+        self.put("broken/requirements.txt", "brokenpkg==1.0\n")
         code, rep, err = self.call(self.mod.pip_audit)
         self.assertEqual(code, 3, "an error is a failed run, never success without findings")
         self.assertIn("broken/requirements.txt", err[-1])
         self.assertIn("Connection refused", err[-1])
         # The report of the run that worked is kept.
         self.assertEqual([r["file"] for r in rep["pathos_reports"]], ["ok/requirements.txt"])
+
+    def test_pip_audit_unpinned_requirements(self):
+        # Seen on InsecureBankv2 ("flask") and a Bitbucket pipe ("boto3==1.37.*"):
+        # pip-audit refused the whole file and the scanner failed.
+        self.put("requirements.txt", "# app\nflask\nboto3==1.37.*\nPyYAML==5.3.1 --hash=sha256:abc \\\n    --hash=sha256:def\n"
+                 "requests[socks] == 2.25.0 ; python_version >= '3.8'  # pinned\n-r other.txt\n-e git+https://x/y.git#egg=y\n")
+        self.put("only-unpinned/requirements.txt", "django>=3\n")
+        code, rep, err = self.call(self.mod.pip_audit)
+        self.assertEqual(code, 0, err)
+        by_file = {r["file"]: r["report"]["dependencies"] for r in rep["pathos_reports"]}
+        self.assertEqual([d["name"] for d in by_file["requirements.txt"]], ["PyYAML", "requests[socks] "])
+        self.assertEqual(by_file["only-unpinned/requirements.txt"], [])
+        self.assertTrue(any("2 requirement(s) without an exact version" in e for e in err), err)
+
+    def test_cdxgen_home_inside_its_temporary_directory(self):
+        # cdxgen reads ~/.gradle and ~/.m2 for Gradle and Maven projects; the
+        # Node.js permission model allows reads only of the repository, the
+        # tool and its temporary directory, so HOME must point inside it.
+        script(self.mod.NODE, r'''
+import json, os, sys
+args = sys.argv[1:]
+out = args[args.index("-o") + 1]
+allowed = [a.split("=", 1)[1] for a in args if a.startswith("--allow-fs-read=")]
+home = os.environ["HOME"]
+json.dump({"bomFormat": "CycloneDX", "home": home, "gradle": os.environ.get("GRADLE_USER_HOME", ""),
+           "home_readable": any(home.startswith(a.rstrip("/")) for a in allowed)}, open(out, "w"))
+''')
+        code, rep, err = self.call(self.mod.cdxgen)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(rep["home_readable"], rep)
+        self.assertTrue(rep["gradle"].startswith(rep["home"]), rep)
+
+    def test_govulncheck_module_without_packages(self):
+        # alertmanager's internal/tools module only has files with a
+        # "tools" build tag: govulncheck exits 1 with "no packages matched".
+        script(os.path.join(self.mod.BIN, "govulncheck"), r'''
+import json, sys
+args = sys.argv[1:]
+mod = args[args.index("-C") + 1]
+if mod.endswith("tools"):
+    print("govulncheck: no packages matched the provided patterns", file=sys.stderr)
+    sys.exit(1)
+print(json.dumps({"config": {"protocol_version": "v1.0.0"}}))
+''')
+        self.put("go.mod", "module example.com/app\n")
+        self.put("internal/tools/go.mod", "module example.com/tools\n")
+        code, _, err = self.call(self.mod.govulncheck)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(any("no Go packages to check" in e for e in err), err)
+
+    # Dependency-Check stand-in: --updateonly creates the H2 database (or
+    # stalls / fails as DC_MODE says); a scan records its arguments.
+    DC = r'''
+import json, os, sys, time
+args = sys.argv[1:]
+data = args[args.index("--data") + 1]
+mode = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "mode")).read().strip()
+log = os.path.join(os.path.dirname(os.path.abspath(__file__)), "calls")
+with open(log, "a") as f:
+    f.write(json.dumps(args) + "\n")
+if "--updateonly" in args:
+    if mode == "stall":
+        open(os.path.join(data, "odc.update.lock"), "w").close()
+        time.sleep(60)
+    if mode == "fail":
+        sys.exit(13)
+    open(os.path.join(data, "odc.mv.db"), "w").write("db")
+    sys.exit(0)
+json.dump({"args": args, "dependencies": []}, open(args[args.index("--out") + 1], "w"))
+'''
+
+    def dc(self, mode):
+        dc = os.path.join(self.mod.SCA, "dependency-check", "bin")
+        os.makedirs(dc, exist_ok=True)
+        script(os.path.join(dc, "dependency-check.sh"), self.DC)
+        with open(os.path.join(dc, "mode"), "w") as f:
+            f.write(mode)
+        return os.path.join(dc, "calls")
+
+    def dc_calls(self, path):
+        with open(path) as f:
+            return [json.loads(l) for l in f]
+
+    def test_dependency_check_uses_the_egress_proxy(self):
+        # Java ignores HTTPS_PROXY; without --proxyserver the NVD download
+        # failed with UnknownHostException on every repository.
+        calls = self.dc("ok")
+        os.environ["HTTPS_PROXY"] = "http://egress:3128"
+        try:
+            code, rep, err = self.call(self.mod.dependency_check)
+        finally:
+            del os.environ["HTTPS_PROXY"]
+        self.assertEqual(code, 0, err)
+        update, scan = self.dc_calls(calls)
+        self.assertIn("--updateonly", update)
+        self.assertIn("--proxyserver egress --proxyport 3128", " ".join(update))
+        # Stalled downloads end: connection and read timeouts.
+        self.assertIn("--readtimeout", update)
+        self.assertIn("--connectiontimeout", update)
+        # The scan never downloads.
+        self.assertIn("--noupdate", rep["args"])
+        self.assertNotIn("--proxyserver", rep["args"])
+
+    def test_dependency_check_recent_data_is_not_updated(self):
+        calls = self.dc("ok")
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        self.assertEqual(sum("--updateonly" in c for c in self.dc_calls(calls)), 1, "one update within NVD_MAX_AGE_HOURS")
+
+    def test_dependency_check_stalled_update_is_stopped(self):
+        # O17: the Java process sat at 0 % CPU for 30+ minutes after
+        # creating odc.update.lock. A stalled update is now stopped at its
+        # limit and the scan uses the cached data (partial result).
+        calls = self.dc("ok")
+        self.assertEqual(self.call(self.mod.dependency_check)[0], 0)
+        os.utime(os.path.join(self.cache, "pathos-nvd-updated"), (0, 0))  # data is old
+        self.dc("stall")
+        os.environ["DEPENDENCY_CHECK_UPDATE_TIMEOUT"] = "2"
+        try:
+            import time
+            t0 = time.monotonic()
+            code, rep, err = self.call(self.mod.dependency_check)
+            took = time.monotonic() - t0
+        finally:
+            del os.environ["DEPENDENCY_CHECK_UPDATE_TIMEOUT"]
+        self.assertLess(took, 30, "the stalled update must be stopped at its limit")
+        self.assertEqual(code, 3, "a stale database is a partial result")
+        self.assertIsNotNone(rep, "the report from the cached data is kept")
+        self.assertIn("did not finish within 2 s", err[-1])
+        self.assertIn("cached NVD data", err[-1])
+        self.assertIn("NVD_API_KEY", err[-1])
+        # A later run finds the stale odc.update.lock and removes it.
+        self.dc("ok")
+        code, _, err = self.call(self.mod.dependency_check)
+        self.assertEqual(code, 0, err)
+        self.assertTrue(any("stale odc.update.lock" in e for e in err), err)
+
+    def test_dependency_check_without_nvd_data_names_the_prerequisite(self):
+        self.dc("fail")
+        code, rep, err = self.call_noreport(self.mod.dependency_check)
+        self.assertEqual(code, 3)
+        self.assertIn("no NVD data", err[-1])
+        self.assertIn("NVD_API_KEY", err[-1])
+
+    def test_dependency_check_waits_for_another_worker_at_most_the_lock_timeout(self):
+        import fcntl
+        self.dc("ok")
+        os.makedirs(self.cache, exist_ok=True)
+        held = open(os.path.join(self.cache, "pathos-dc.lock"), "a+")
+        fcntl.flock(held, fcntl.LOCK_EX)
+        os.environ["DEPENDENCY_CHECK_LOCK_TIMEOUT"] = "1"
+        try:
+            code, _, err = self.call_noreport(self.mod.dependency_check)
+        finally:
+            del os.environ["DEPENDENCY_CHECK_LOCK_TIMEOUT"]
+            held.close()
+        self.assertEqual(code, 3)
+        self.assertIn("no NVD data", err[-1])
+        self.assertIn("another worker", err[-1])
+
+    def call_noreport(self, fn):
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            code = fn(self.src, self.out, self.cache)
+        return code, None, err.getvalue().strip().splitlines()
 
     def test_npm_audit_every_lockfile(self):
         self.put("package-lock.json", "{}")

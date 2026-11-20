@@ -2,6 +2,7 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"net/http/cgi"
 	"net/http/httptest"
 	"os"
@@ -68,5 +69,16 @@ func TestShallowCloneReportsCommit(t *testing.T) {
 	}
 	if b, _ := os.ReadFile(filepath.Join(src, "a.txt")); string(b) != "2" {
 		t.Fatalf("working tree %q", b)
+	}
+}
+
+func TestAnonymousCloneError(t *testing.T) {
+	err := anonymousCloneError(errors.New("fatal: could not read Username for 'https://github.com': terminal prompts disabled"))
+	if !strings.Contains(err.Error(), "PTH-ONB-1102") {
+		t.Errorf("refused anonymous clone: %v", err)
+	}
+	other := errors.New("fatal: unable to access: Could not resolve host")
+	if anonymousCloneError(other) != other {
+		t.Error("network errors are not reported as private repositories")
 	}
 }

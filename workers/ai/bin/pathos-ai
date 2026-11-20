@@ -90,16 +90,26 @@ def modelscan(source, artifact, output, tmp):
 
 
 def garak(target, output, tmp):
+    """garak, one run per probe of the spec (VALIDATION_REPORT O18): a read
+    timeout of a slow model aborted the whole run without a report. Now a
+    failing probe loses only its own run, the reports of the others are
+    combined, and the tool exits 3 (partial) naming the probes that failed.
+    GARAK_REQUEST_TIMEOUT (manifest env, seconds, default 180) is the
+    per-request timeout for slow or CPU-hosted models."""
     t, headers = load_target(target)
     env = base_env(tmp)
     hdrs = {"Content-Type": "application/json"}
     for name, value in headers.items():
         hdrs[name] = "$KEY"  # garak substitutes REST_API_KEY
         env["REST_API_KEY"] = value
+    try:
+        timeout = max(10, int(os.environ.get("GARAK_REQUEST_TIMEOUT") or 180))
+    except ValueError:
+        timeout = 180
     opts = {"rest": {"RestGenerator": {
         "name": t["model"], "uri": t["url"], "method": "post", "headers": hdrs,
         "req_template_json_object": {"model": t["model"], "messages": [{"role": "user", "content": "$INPUT"}]},
-        "response_json": True, "response_json_field": "$.choices[0].message.content", "request_timeout": 60,
+        "response_json": True, "response_json_field": "$.choices[0].message.content", "request_timeout": timeout,
     }}}
     opt_file = os.path.join(tmp, "garak-generator.json")
     with open(opt_file, "w") as f:
@@ -109,13 +119,31 @@ def garak(target, output, tmp):
     cfg_file = os.path.join(tmp, "garak-config.json")
     with open(cfg_file, "w") as f:
         json.dump({"run": {"soft_probe_prompt_cap": max(1, int(os.environ.get("GARAK_PROMPT_CAP") or 256))}}, f)
-    args = [os.path.join(BIN, "python"), "-m", "garak", "--config", cfg_file, "--target_type", "rest.RestGenerator", "--generator_option_file", opt_file,
-            "--spec", GARAK_SPEC, "--generations", "1", "--parallel_attempts", "1", "--report_prefix", "pathos", "--narrow_output"]
-    p = subprocess.run(args, cwd=tmp, env=env, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
-    report = os.path.join(env["XDG_DATA_HOME"], "garak", "garak_runs", "pathos.report.jsonl")
-    if p.returncode != 0 or not os.path.isfile(report):
-        raise SystemExit("garak exited with status %d without a report" % p.returncode)
-    shutil.copyfile(report, output)
+    probes = [p.strip() for p in GARAK_SPEC.split(",") if p.strip()]
+    runs = os.path.join(env["XDG_DATA_HOME"], "garak", "garak_runs")
+    failed, combined = [], 0
+    with open(output, "wb") as out:
+        for i, probe in enumerate(probes):
+            prefix = "pathos-%d" % i
+            args = [os.path.join(BIN, "python"), "-m", "garak", "--config", cfg_file, "--target_type", "rest.RestGenerator",
+                    "--generator_option_file", opt_file, "--spec", probe, "--generations", "1", "--parallel_attempts", "1",
+                    "--report_prefix", prefix, "--narrow_output"]
+            p = subprocess.run(args, cwd=tmp, env=env, stdin=subprocess.DEVNULL, stdout=sys.stderr, check=False)
+            report = os.path.join(runs, prefix + ".report.jsonl")
+            if os.path.isfile(report):
+                with open(report, "rb") as f:
+                    data = f.read()
+                if data:
+                    out.write(data if data.endswith(b"\n") else data + b"\n")
+                    combined += 1
+            if p.returncode != 0:
+                failed.append("%s (exit %d)" % (probe, p.returncode))
+    if combined == 0:
+        raise SystemExit("garak produced no report; failed probes: %s" % ", ".join(failed or probes))
+    if failed:
+        print("garak: %d of %d probes failed (kept the results of the others): %s; a slow model may need a longer "
+              "GARAK_REQUEST_TIMEOUT" % (len(failed), len(probes), ", ".join(failed)), file=sys.stderr)
+        return 3
     return 0
 
 

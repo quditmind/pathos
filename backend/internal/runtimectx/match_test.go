@@ -63,12 +63,14 @@ func TestMatchTarget(t *testing.T) {
 		{"scanned digest", "ghcr.io/acme/shop:1.0", []string{digWeb}, running, "digest"},
 		{"pinned target digest", "ghcr.io/acme/shop@" + digWeb, nil, running, "digest"},
 		{"digest across a mirror name", "mirror.example.com/acme/shop:1.0", []string{digWeb}, running, "digest"},
-		{"tag, digest not recorded yet", "ghcr.io/acme/shop:1.0", nil, running, "tag"},
+		{"tag, never scanned successfully (O10)", "ghcr.io/acme/shop:1.0", nil, running, ""},
+		{"tag, never scanned, no running digest", "ghcr.io/acme/shop:1.0", nil, ref(t, "ghcr.io/acme/shop:1.0"), ""},
 		{"tag moved: another build", "ghcr.io/acme/shop:1.0", []string{digWebOld}, running, ""},
 		{"other tag", "ghcr.io/acme/shop:2.0", nil, running, ""},
 		{"other repository", "ghcr.io/acme/other:1.0", nil, running, ""},
 		{"no running digest (scaled to zero)", "ghcr.io/acme/shop:1.0", []string{digWebOld}, ref(t, "ghcr.io/acme/shop:1.0"), "tag"},
-		{"docker hub library", "nginx:1.25", nil, ref(t, "docker.io/library/nginx:1.25@"+digDB), "tag"},
+		{"docker hub library", "nginx:1.25", []string{digDB}, ref(t, "docker.io/library/nginx:1.25@"+digDB), "digest"},
+		{"docker hub library, no running digest", "nginx:1.25", []string{digDB}, ref(t, "docker.io/library/nginx:1.25"), "tag"},
 	}
 	for _, c := range cases {
 		basis, detail, ok := MatchTarget(c.run, ref(t, c.target), c.scanned)

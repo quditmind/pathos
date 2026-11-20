@@ -45,6 +45,8 @@ type linkImage struct {
 }
 
 type imageTarget struct {
+	// Built: the target is marked as built from its repository's code.
+	Built    bool
 	ID       uuid.UUID
 	RepoID   uuid.UUID
 	Ref      ImageRef
@@ -133,7 +135,8 @@ func Link(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) error {
 
 	// Image scan targets with the digests their scans resolved to.
 	rows, err = pool.Query(ctx, `SELECT t.id, t.repository_id, t.reference,
-		COALESCE((SELECT array_agg(d.digest ORDER BY d.digest) FROM image_scan_digests d WHERE d.scan_target_id = t.id), '{}')
+		COALESCE((SELECT array_agg(d.digest ORDER BY d.digest) FROM image_scan_digests d WHERE d.scan_target_id = t.id), '{}'),
+		COALESCE(t.config->>'built_from_repository', '') = 'true'
 		FROM scan_targets t JOIN repositories r ON r.id = t.repository_id
 		WHERE t.organization_id = $1 AND t.kind = 'image' AND r.archived_at IS NULL`, orgID)
 	if err != nil {
@@ -141,7 +144,7 @@ func Link(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) error {
 	}
 	targets, err := pgx.CollectRows(rows, func(r pgx.CollectableRow) (imageTarget, error) {
 		var t imageTarget
-		err := r.Scan(&t.ID, &t.RepoID, &t.RefText, &t.Digests)
+		err := r.Scan(&t.ID, &t.RepoID, &t.RefText, &t.Digests, &t.Built)
 		t.Ref, t.Parsable = ParseImageRef(t.RefText)
 		return t, err
 	})
@@ -190,7 +193,18 @@ func Link(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) error {
 		}
 	}
 	rows.Close()
+	// An image scan target is attached to a repository record for
+	// ownership; that does not mean the image is built from the
+	// repository's code (VALIDATION_REPORT O10: one image target marked all
+	// 2,608 code findings of kubernetes-goat as deployed and exposed). Only
+	// targets marked built_from_repository count for the repository's code
+	// findings; the OCI source label (above) links without the mark.
+	builtTarget := map[uuid.UUID]bool{}
 	for _, t := range targets {
+		if !t.Built {
+			continue
+		}
+		builtTarget[t.ID] = true
 		if !slices.Contains(repoImages[t.RepoID], t.RefText) && len(repoImages[t.RepoID]) < 50 {
 			repoImages[t.RepoID] = append(repoImages[t.RepoID], t.RefText)
 		}
@@ -245,7 +259,11 @@ func Link(ctx context.Context, pool *pgxpool.Pool, orgID uuid.UUID) error {
 			}
 			if basis, detail, ok := MatchTarget(im.Ref, t.Ref, t.Digests); ok {
 				tid, rid := t.ID, t.RepoID
-				deploys = append(deploys, deployRow{im.WorkloadID, im.ID, &tid, &rid, basis, "image scan target " + t.RefText + ": " + detail})
+				var repo *uuid.UUID
+				if builtTarget[t.ID] {
+					repo = &rid
+				}
+				deploys = append(deploys, deployRow{im.WorkloadID, im.ID, &tid, repo, basis, "image scan target " + t.RefText + ": " + detail})
 			}
 		}
 		if im.Ref.Digest == "" {

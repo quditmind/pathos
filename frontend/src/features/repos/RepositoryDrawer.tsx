@@ -59,7 +59,7 @@ export function RepositoryDrawer({ id, onClose }: { id?: string; onClose: () => 
       open={!!id}
       onOpenChange={(o) => !o && onClose()}
       title={r ? r.display_name || r.full_name : "Repository"}
-      description={r ? `${r.full_name} · ${r.source_type === "upload" ? "Uploaded" : r.scm_connection_name} · ${r.visibility}` : undefined}
+      description={r ? `${r.full_name} · ${r.source_type === "upload" ? "Uploaded" : r.source_type === "git" ? "Anonymous (public URL, no token)" : r.scm_connection_name} · ${r.visibility}` : undefined}
     >
       {!r ? (
         repo.isError ? (

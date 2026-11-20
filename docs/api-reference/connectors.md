@@ -148,7 +148,7 @@ The list item plus:
 }
 ```
 
-- `metadata` is the non-secret description of the connection: host (scheme and host only), authentication method name, API version, `allow_private`, and kind-specific facts (for example `webhook_verification` for GitLab, `token_type` for Jira, `trigger_auth` for Teams).
+- `metadata` is the non-secret description of the connection: host (scheme and host only), authentication method name, API version, `allow_private`, and kind-specific facts (for example `webhook_verification` for GitLab, `token_type` for Jira, `trigger_auth` for Teams). `ca_bundle_set` (`yes`/`no`) says whether an SCM connection, registry connection, outbound webhook or ticket connection has a private CA bundle; the PEM and its certificates stay on the connection's own API. A check of a registry or ticket connection that fails on an untrusted certificate reports `PTH-CONN-1702`.
 - `config` is the stored configuration of a kind stored in the registry (`{}` for existing kinds).
 - `credential.set` says whether a credential is stored (registry kinds); the value is never returned.
 - `last_check.error` is the full [error envelope](index.md#errors) of a failing or degraded check, `null` when the check passed. `steps[].status` is `pass`, `warn`, `fail` or `skipped`. Messages are redacted: URLs are reduced to scheme and host, e-mail addresses and token-shaped strings removed.

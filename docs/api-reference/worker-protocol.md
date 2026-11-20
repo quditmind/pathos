@@ -173,11 +173,17 @@ Only for jobs whose lease carried `secret_validation`. After the scanners, the a
 | `output_gzip` | The raw tool output, gzip-compressed and base64-encoded. |
 | `parser` | Manifest tools whose output is not SARIF: `{ "kind": "import", "format": "bandit" }` or `{ "kind": "jsonmap", "jsonmap": { … } }` ([jsonmap](scan-types-and-tools.md#jsonmap)). Refused (`400`) for built-in tools and for invalid parsers. |
 
+A `failed` or `timed_out` result may carry `output_gzip` too (2.2.2): the findings of such a partial report are stored, the result keeps its status, the execution is `partial`, and nothing the tool covers is auto-resolved. A `skipped` result whose `error` starts with `scanner not available in this worker image` makes the execution `partial` (`failed` when nothing ran) with `PTH-SCAN-1101`.
+
 The output is parsed into findings at once; the tool's original output is stored with its parser, so findings can be located in it later. Response `{ "findings": n }`. A decompressed output over the size limit returns `413 too_large`.
 
 ### Complete
 
 `POST /internal/worker/v1/jobs/{id}/complete` with `{ status: "succeeded" | "failed", error, commit_sha }`. `commit_sha` (the commit actually scanned) is stored when it is a full SHA. PATHOS finalizes the job (new and fixed findings, security gate, policies), then posts pull request statuses or starts follow-up work (AI review, Human Eye queue). Response `{ "status": "<final job status>" }`.
+
+### Release (2.2.2)
+
+`POST /internal/worker/v1/jobs/{id}/release` with `{ "reason": "worker w1 stopped (SIGTERM) before the scan finished" }`. A worker that is stopping (SIGTERM during an upgrade or restart) hands its running job back instead of reporting partial results: the job returns to the queue (`status` `queued`, for any worker), or is failed when it has used its attempts or the same scan is queued again. An execution event records the reason. Response `{ "status": "queued" | "failed" }`; `409` when the job is no longer leased by this worker. The worker makes the call with its own short timeout, not with the cancelled job context; against an API without this endpoint it reports the job as failed.
 
 ### Fix jobs
 

@@ -504,7 +504,7 @@ var monEntries = []Entry{
 
 // catalogue is every entry.
 var catalogue = concat(platEntries, authEntries, connEntries, connM2Entries, connKindEntries, syncEntries, onbEntries, discEntries, graphEntries, tmEntries, reaEntries, scanEntries, workEntries,
-	gateEntries, aiEntries, remEntries, repEntries, monEntries, m9Entries)
+	gateEntries, aiEntries, remEntries, repEntries, monEntries, m9Entries, entries22x)
 
 func concat(parts ...[]Entry) []Entry {
 	var out []Entry

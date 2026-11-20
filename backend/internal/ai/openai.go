@@ -30,6 +30,28 @@ func (c *chatCompletions) maxTokensField() string {
 	return "max_completion_tokens"
 }
 
+// Default output limits when a request sets none (finding reviews and the
+// analyst assistant). Without one, OpenAI-compatible servers generate until
+// the context is full: a small local model that never closes its JSON ran
+// for minutes (Ollama shifting its 4096-token context) until the 3-minute
+// request timeout, and the review was retried. Anthropic's default is set
+// in anthropic.go.
+const (
+	defaultOutputTokens           = 16000
+	defaultSelfHostedOutputTokens = 4096
+)
+
+// outputLimit is the max tokens to request: the request's, else the default.
+func (c *chatCompletions) outputLimit(n int) int {
+	switch {
+	case n > 0:
+		return n
+	case c.kind == SelfHosted:
+		return defaultSelfHostedOutputTokens
+	}
+	return defaultOutputTokens
+}
+
 func (c *chatCompletions) client() *http.Client {
 	if c.cfg.HTTP != nil {
 		return c.cfg.HTTP
@@ -118,9 +140,7 @@ func (c *chatCompletions) Review(ctx context.Context, req Request) (Response, er
 			"json_schema": map[string]any{"name": "finding_review", "strict": true, "schema": req.Schema},
 		},
 	}
-	if req.MaxOutputTokens > 0 {
-		body[c.maxTokensField()] = req.MaxOutputTokens
-	}
+	body[c.maxTokensField()] = c.outputLimit(req.MaxOutputTokens)
 	if c.kind == SelfHosted {
 		// Deterministic triage; local servers otherwise default to sampling.
 		body["temperature"] = 0

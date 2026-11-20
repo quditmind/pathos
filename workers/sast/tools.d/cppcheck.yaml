@@ -23,3 +23,5 @@ intrusive: false
 requires_build: false
 default_enabled: false
 parser: import:cppcheck
+# Skipped (not failed) on repositories without these files.
+requires_files: ["*.c", "*.cc", "*.cpp", "*.cxx", "*.c++", "*.h", "*.hh", "*.hpp", "*.hxx"]
