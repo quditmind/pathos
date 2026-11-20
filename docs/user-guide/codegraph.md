@@ -11,7 +11,7 @@ summary: The CodeGraph of an application — modules, functions, calls, routes, 
 
 The **CodeGraph** shows an application as one graph: what its repositories contain (modules, files, classes, functions), how they are connected (calls and imports), what they expose (routes and API operations), what they touch (data stores, queues, secrets, external services), how they are deployed (containers, Kubernetes and Terraform resources), what they depend on (SBOM components) and the trust boundaries around them. Every edge says **how PATHOS knows it**. The graph is the base for threat modelling and for seeing which code a finding sits in and what can reach it.
 
-The CodeGraph is behind the feature flag `codegraph` (off by default). An administrator turns it on under **Administration › Feature flags**. Until then the sidebar items **CodeGraph** and **API & endpoints** show "arrives in roadmap phase 4", the application profile's CodeGraph tab says the module is not enabled, and the API answers "feature disabled" (`PTH-PLAT-1007`).
+The CodeGraph is behind the feature flag `codegraph` (off by default). An administrator turns it on under **Administration › Feature flags**. Until then the sidebar items **CodeGraph** and **API & endpoints** are shown disabled with an **Off** badge ("not enabled"), the application profile's CodeGraph tab says the module is not enabled, and the API answers "feature disabled" (`PTH-PLAT-1007`).
 
 Open it from **3 · Discover › CodeGraph** and choose an application, or go to `/codegraph/<application id>`. The same screen is the **CodeGraph** tab of the application profile.
 

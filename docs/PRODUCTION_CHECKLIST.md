@@ -4,7 +4,7 @@ A practical checklist for deploying PATHOS 2.2 (2.2.2 or later recommended) to a
 
 ## 1. Before you start
 
-- [ ] **Release.** Install a tagged release from the signed GHCR images rather than a local build: `PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/` and `PATHOS_VERSION=3.0.0` (or later) in `.env`, then `deploy/scripts/upgrade.sh --pull` ([OPERATIONS.md](OPERATIONS.md#installing-a-release-signed-images)). **(validated)**
+- [ ] **Release.** Install a tagged release from the signed GHCR images rather than a local build: `PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/` and `PATHOS_VERSION=3.0.1` (or later) in `.env`, then `deploy/scripts/upgrade.sh --pull` ([OPERATIONS.md](OPERATIONS.md#installing-a-release-signed-images)). **(validated)**
 - [ ] **Verify the images** with `cosign verify …` before the first start and after every upgrade (same section).
 - [ ] **Releases after 2.2.0.** Check that the fixes listed in [VALIDATION_REPORT.md §6](VALIDATION_REPORT.md#6-bugs-found-and-fixed) are in the release you deploy. In 2.2.0 every family-worker scan ends *partial*, the SBOM download is empty, and API targets cannot be scanned without the intrusive flag. 2.2.2 fixes most open issues of [§9](VALIDATION_REPORT.md#9-open-issues-and-their-status-222) (anonymous public repositories, concurrent imports and target scans, private CAs, Dependency-Check stalls, secret noise); its migrations 00043 and 00044 are additive.
 - [ ] **Host.** Docker Engine with the Compose plugin, `linux/amd64`. The host must not run other Compose projects that use the project name `pathos`. The images are tagged `pathos:<version>`, so two local builds of different trees overwrite each other's `:dev` images; use release images or distinct `PATHOS_VERSION` values.

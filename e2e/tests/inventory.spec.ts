@@ -32,7 +32,7 @@ test("M3 pages are off until their flags are on", async ({ page }) => {
   await page.goto("/lifecycle");
   await expect(page.getByText("The lifecycle overview is not enabled")).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Main" });
-  await expect(nav.getByText("Lifecycle overview").locator("xpath=ancestor::*[@aria-disabled='true'][1]")).toHaveAttribute("title", /arrives in roadmap phase 3/);
+  await expect(nav.getByText("Lifecycle overview").locator("xpath=ancestor::*[@aria-disabled='true'][1]")).toHaveAttribute("title", /Lifecycle overview: not enabled/);
   // The API answers PTH-PLAT-1007 (404) while the flag is off.
   const r = await api(page, "GET", "/api/v1/onboarding");
   expect(r.status).toBe(404);

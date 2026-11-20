@@ -117,7 +117,7 @@ test("flag off: the old pages are unchanged and list every action", async ({ pag
   await page.goto("/connectors");
   await expect(page.getByText("Connectors is not enabled")).toBeVisible();
   // The menu item stays disabled.
-  await expect(page.getByRole("navigation", { name: "Main" }).getByTitle("Connectors: arrives in roadmap phase 2")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Main" }).getByTitle("Connectors: not enabled. An administrator turns it on in Administration › Feature flags")).toBeVisible();
 });
 
 test("flag on: every SCM connections action works inside the hub", async ({ page }) => {

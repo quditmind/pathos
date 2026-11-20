@@ -4,6 +4,12 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [3.0.1] — 2026-11-21
+
+### Fixed
+- **Sidebar wording for modules that are switched off**: a built module whose feature flag is off was shown as "arrives in roadmap phase N", as if it were not built. It now shows an **Off** label and "not enabled. An administrator turns it on in Administration › Feature flags". The Feature flags page note and the System status Connectors row no longer refer to roadmap phases.
+- User guide: the CodeGraph, threat-model, AI security intelligence and navigation pages describe the **Off** label instead of roadmap items.
+
 ## [3.0.0] — 2026-11-21
 
 PATHOS 3.0: the nine-phase application security lifecycle (milestones M0–M10, sections below), the 2.2.1–2.2.3 fixes, and patched worker image dependencies. Every new module is behind a feature flag, off by default; with all flags off 3.0 behaves like 2.2.3 and keeps every page and URL. Upgrading from 2.2.x is supported (migrations 00043–00067, additive; see *PATHOS 2.2.1–2.2.3 brought forward into 3.0*).

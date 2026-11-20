@@ -125,7 +125,7 @@ export function FeatureFlagsPage() {
         )}
       </Card>
       <p className="mt-3 text-[12px] text-muted-foreground">
-        A flag only opens a module once that module is built; until then its menu item stays disabled with its roadmap phase.
+        Turning a flag on opens its module for this organization. While a flag is off, the module's menu item stays disabled and shows "Off".
       </p>
     </>
   );

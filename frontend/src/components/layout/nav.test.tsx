@@ -179,7 +179,7 @@ describe("sidebar regroup (prompt §5)", () => {
     );
     const nav = await screen.findByRole("navigation", { name: "Main" });
     const item = within(nav).getByText("CodeGraph").closest("[aria-disabled]");
-    expect(item).toHaveAttribute("title", "CodeGraph: arrives in roadmap phase 4");
+    expect(item).toHaveAttribute("title", "CodeGraph: not enabled. An administrator turns it on in Administration › Feature flags");
     expect(within(nav).queryByRole("link", { name: "CodeGraph" })).toBeNull();
   });
 
@@ -212,7 +212,7 @@ describe("sidebar regroup (prompt §5)", () => {
     const nav = await screen.findByRole("navigation", { name: "Main" });
     expect(await within(nav).findByRole("link", { name: "Onboard an application" })).toHaveAttribute("href", "/onboarding");
     const life = within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")!;
-    expect(life).toHaveAttribute("title", "Lifecycle overview: arrives in roadmap phase 3");
+    expect(life).toHaveAttribute("title", "Lifecycle overview: not enabled. An administrator turns it on in Administration › Feature flags");
   });
 
   it("Threat models is a link only while the threat_models flag is on", async () => {
@@ -250,7 +250,7 @@ describe("sidebar regroup (prompt §5)", () => {
     );
     const nav = await screen.findByRole("navigation", { name: "Main" });
     const item = within(nav).getByText("Binary analysis").closest("[aria-disabled]");
-    expect(item).toHaveAttribute("title", "Binary analysis: arrives in roadmap phase 10");
+    expect(item).toHaveAttribute("title", "Binary analysis: not enabled. An administrator turns it on in Administration › Feature flags");
     expect(within(nav).queryByRole("link", { name: "Binary analysis" })).toBeNull();
   });
 
@@ -266,8 +266,8 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(within(nav).queryByRole("link", { name: /^Connectors/ })).toBeInTheDocument();
     const connectors = within(nav).getByText("Connectors").closest("[aria-disabled]")!;
     expect(connectors).toHaveAttribute("aria-disabled", "true");
-    expect(connectors).toHaveAttribute("title", "Connectors: arrives in roadmap phase 2");
-    expect(within(connectors as HTMLElement).getByText("arrives in roadmap phase 2")).toBeInTheDocument();
+    expect(connectors).toHaveAttribute("title", "Connectors: not enabled. An administrator turns it on in Administration › Feature flags");
+    expect(within(connectors as HTMLElement).getByText("not enabled. An administrator turns it on in Administration › Feature flags")).toBeInTheDocument();
     expect(within(nav).getByRole("link", { name: "Repositories" })).toHaveAttribute("href", "/repositories");
   });
 
@@ -282,8 +282,9 @@ describe("sidebar regroup (prompt §5)", () => {
     const nav = await screen.findByRole("navigation", { name: "Main" });
     const link = await within(nav).findByRole("link", { name: "Connectors" });
     expect(link).toHaveAttribute("href", "/connectors");
-    expect(within(nav).queryByText("arrives in roadmap phase 2")).not.toBeInTheDocument();
-    // Other roadmap items stay disabled (Remediation workspace too while its flag is off).
+    expect(link).not.toHaveAttribute("aria-disabled");
+    expect(within(link).queryByText(/not enabled/)).not.toBeInTheDocument();
+    // Modules whose flags are off stay disabled (Remediation workspace too).
     expect(within(nav).getByText("Remediation workspace").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
     // Other roadmap items stay disabled.
     expect(within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")).toHaveAttribute("aria-disabled", "true");
@@ -324,7 +325,7 @@ describe("sidebar regroup (prompt §5)", () => {
     );
     const nav = await screen.findByRole("navigation", { name: "Main" });
     const item = within(nav).getByText("AI evidence log").closest("[aria-disabled]");
-    expect(item).toHaveAttribute("title", "AI evidence log: arrives in roadmap phase 7");
+    expect(item).toHaveAttribute("title", "AI evidence log: not enabled. An administrator turns it on in Administration › Feature flags");
     expect(within(nav).queryByRole("link", { name: "AI evidence log" })).toBeNull();
   });
 });
