@@ -190,9 +190,9 @@ type Item struct {
 	LastVerification *VerificationRef `json:"last_verification"`
 	// Threat is the M5 threat a threat_mitigation item mitigates (M9).
 	Threat    *ThreatRef `json:"threat"`
-	CreatedAt        time.Time        `json:"created_at"`
-	UpdatedAt        time.Time        `json:"updated_at"`
-	ClosedAt         *time.Time       `json:"closed_at"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
+	ClosedAt  *time.Time `json:"closed_at"`
 }
 
 // fixPRExpr is the item's fix pull request: the one linked by hand, else

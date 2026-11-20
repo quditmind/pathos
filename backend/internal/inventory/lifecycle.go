@@ -66,16 +66,16 @@ type lifecycleCounts struct {
 	Versions        int
 	Runtime         int
 	// PATHOS 3.0 M4-M9 modules.
-	Snapshots          int
-	ThreatModels       int
-	Threats            int
-	OpenThreats        int
-	RemediationItems   int
-	OpenRemediation    int
-	GateDecisions      int
-	FailedGates        int
-	MonitoringEvents   int
-	DriftChanges       int
+	Snapshots        int
+	ThreatModels     int
+	Threats          int
+	OpenThreats      int
+	RemediationItems int
+	OpenRemediation  int
+	GateDecisions    int
+	FailedGates      int
+	MonitoringEvents int
+	DriftChanges     int
 }
 
 // lifecycleQuery counts, per application, the records of each phase in the

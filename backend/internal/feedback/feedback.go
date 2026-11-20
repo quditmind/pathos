@@ -293,7 +293,7 @@ func (l *Loops) OnScanFinished(ctx context.Context, orgID, jobID uuid.UUID) {
 		Title:         fmt.Sprintf("%d new finding%s", n, map[bool]string{true: "", false: "s"}[n == 1]),
 		Summary:       "A " + trigger + " scan reported findings that were not known before.",
 		EvidenceLabel: monitoring.EvidenceVerified, Evidence: map[string]any{"scan_job_id": jobID, "commit": commit},
-		SubjectType:   "scan_job", SubjectID: &jobID, Details: map[string]any{"by_severity": bySev, "trigger": trigger}}); err != nil {
+		SubjectType: "scan_job", SubjectID: &jobID, Details: map[string]any{"by_severity": bySev, "trigger": trigger}}); err != nil {
 		l.Log.Warn("monitoring event not recorded", "err", err, "error_code", monitoring.CodeRecordFailed)
 	}
 }

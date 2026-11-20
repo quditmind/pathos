@@ -100,7 +100,7 @@ func recordFinished(ctx context.Context, tx pgx.Tx, orgID, itemID, vid uuid.UUID
 		EvidenceLabel: monitoring.EvidenceVerified,
 		Evidence:      map[string]any{"verification_id": vid, "commit": afterCommit},
 		SubjectType:   "remediation_item", SubjectID: &item,
-		Details:       map[string]any{"status": status, "result": result, "regressions": regressions}})
+		Details: map[string]any{"status": status, "result": result, "regressions": regressions}})
 	return err
 }
 

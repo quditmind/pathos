@@ -455,7 +455,7 @@ func developerFeedback(ctx context.Context, tx pgx.Tx, in Input, d *Decision) er
 		EvidenceLabel: monitoring.EvidenceVerified,
 		Evidence:      map[string]any{"gate_decision_id": d.ID, "policy_ids": d.PolicyIDs, "commit": d.CommitSHA, "scan_job_id": d.ScanJobID},
 		SubjectType:   "gate_decision", SubjectID: &did,
-		Details:       map[string]any{"stage": d.Stage, "outcome": d.Outcome, "by_severity": d.Evidence.BySeverity, "pull_request": pr}})
+		Details: map[string]any{"stage": d.Stage, "outcome": d.Outcome, "by_severity": d.Evidence.BySeverity, "pull_request": pr}})
 	return err
 }
 
