@@ -5,3 +5,8 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 
 Third-party components (scanners, container images, libraries) keep their own
 licenses; see docs/DEPENDENCIES.md and docs/SCANNER_CATALOG.md.
+
+The web application bundles elkjs (Eclipse Layout Kernel for JavaScript,
+https://github.com/kieler/elkjs), unmodified, under the Eclipse Public
+License 2.0 (it is also offered under GPL-3.0-or-later). Its source code is
+available from the npm package elkjs@0.12.1 and the repository above.

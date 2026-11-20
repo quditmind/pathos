@@ -115,6 +115,8 @@ Each repository shows:
 
 Select a node to open it. The graph opens from **Application posture** and **Blast radius** too.
 
+With the `codegraph` feature flag on, the same ownership information is the **Ownership** layer and view of the [CodeGraph](codegraph.md#views). This page and its URL (`/posture/graph`) stay as they are.
+
 ## Dependencies of a repository
 
 A repository's **Dependencies** tab (Repositories → open a repository) shows its latest SBOM as a dependency graph:

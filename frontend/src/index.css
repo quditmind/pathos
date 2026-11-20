@@ -33,6 +33,10 @@
   --sev-medium: #b7791f;
   --sev-low: #52667a;
   --sev-info: #7a8594;
+  /* Graph evidence (rule 5, design): verified green, observed blue, AI-inferred purple. */
+  --evidence-verified: var(--success);
+  --evidence-observed: var(--primary);
+  --evidence-ai: #7c3aed;
 }
 
 .dark {
@@ -57,6 +61,7 @@
   --success-soft: #12301f;
   --warning: #e7b14c;
   --warning-soft: #33270f;
+  --evidence-ai: #b79cf7;
 }
 
 @theme inline {

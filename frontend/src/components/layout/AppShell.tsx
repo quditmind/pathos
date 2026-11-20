@@ -140,10 +140,10 @@ export const groups: NavGroup[] = [
   {
     label: "3 · Discover",
     items: [
-      { label: "CodeGraph", icon: <Waypoints />, phase: 4, flag: "codegraph" },
+      { label: "CodeGraph", to: "/codegraph", icon: <Waypoints />, perm: "findings.read", phase: 4, flag: "codegraph" },
       { label: "Context graph", to: "/posture/graph", icon: <Network />, perm: "findings.read" },
       { label: "Runtime", to: "/runtime", icon: <Ship />, perm: "findings.read" },
-      { label: "API & endpoints", icon: <Webhook />, phase: 4, flag: "codegraph" },
+      { label: "API & endpoints", to: "/api-endpoints", icon: <Webhook />, perm: "findings.read", phase: 4, flag: "codegraph" },
       { label: "SBOM inventory", to: "/sbom", icon: <Package />, perm: "sbom.read" },
       { label: "Component portfolio", to: "/portfolio", icon: <PackageSearch />, perm: "sbom.read" },
     ],
