@@ -576,17 +576,10 @@ func (s *Service) runReport(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = audit.Write(r.Context(), s.DB, audit.Entry{OrganizationID: p.OrganizationID, ActorID: &p.UserID, ActorEmail: p.Email,
 		Action: "report.export", TargetType: "report", TargetID: id.String(), Metadata: map[string]any{"rows": len(res.Rows)}})
-	name := strings.Map(func(c rune) rune {
-		if c < 0x20 || c == '"' || c == '\\' || c == '/' {
-			return '_'
-		}
-		return c
-	}, rp.Name)
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`.csv"`)
 	// CSV consumers (spreadsheets, scripts) expect the header row first, so
-	// the version stamp travels in a response header, not in the file.
-	w.Header().Set("X-PATHOS-Generated-By", res.GeneratedBy)
+	// the version stamp travels in the response headers, not in the file.
+	httpx.Download(w, "text/csv; charset=utf-8", rp.Name+".csv")
+	w.Header().Set(httpx.HeaderGeneratedBy, res.GeneratedBy)
 	cw := csv.NewWriter(w)
 	_ = cw.Write(res.Columns)
 	for _, row := range res.Rows {

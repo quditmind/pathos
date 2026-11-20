@@ -139,9 +139,8 @@ func (s *Service) export(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", ctype)
-	w.Header().Set("Content-Disposition", `attachment; filename="`+fileName(m.Title, m.Version, ext)+`"`)
-	w.Header().Set("X-PATHOS-Generated-By", ex.GeneratedBy)
+	httpx.Download(w, ctype, fileName(m.Title, m.Version, ext))
+	w.Header().Set(httpx.HeaderGeneratedBy, ex.GeneratedBy)
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(body)
 }

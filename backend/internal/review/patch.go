@@ -197,9 +197,7 @@ func (s *Service) downloadPatch(w http.ResponseWriter, r *http.Request) {
 		Code string `json:"code"`
 	}
 	_ = json.Unmarshal(content, &out)
-	w.Header().Set("Content-Type", "text/x-diff; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.patch"`, v.Key, rid.String()[:8]))
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	httpx.Download(w, "text/x-diff; charset=utf-8", fmt.Sprintf("%s-%s.patch", v.Key, rid.String()[:8]))
 	_, _ = w.Write([]byte(out.Code))
 }
 

@@ -74,9 +74,7 @@ func (s *Service) writeVEX(w http.ResponseWriter, r *http.Request, p *authz.Prin
 	if subjectVersion != "" {
 		name += "-" + safeFilename(subjectVersion)
 	}
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Content-Disposition", `attachment; filename="`+name+ext+`"`)
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	httpx.Download(w, ct, name+ext)
 	// #nosec G705 -- a JSON document served as an attachment with a JSON content type and nosniff, never rendered as HTML
 	_, _ = w.Write(out)
 }

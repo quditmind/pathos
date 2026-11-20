@@ -449,7 +449,6 @@ func (s *Service) reportMarkdown(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", "text/markdown; charset=utf-8")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="pathos-%s-report-%s.md"`, rep.Kind, rep.CreatedAt.Format("2006-01-02")))
+	httpx.Download(w, "text/markdown; charset=utf-8", fmt.Sprintf("pathos-%s-report-%s.md", rep.Kind, rep.CreatedAt.Format("2006-01-02")))
 	_, _ = w.Write([]byte(Markdown(rep)))
 }
