@@ -127,7 +127,7 @@ describe("sidebar regroup (prompt §5)", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
     // application; M4: CodeGraph, API & endpoints; M5: Threat models; M8:
-    // Remediation workspace) carry their route and still their phase and flag.
+    // Remediation workspace; M9: Continuous monitoring) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
@@ -136,12 +136,12 @@ describe("sidebar regroup (prompt §5)", () => {
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Continuous monitoring", "/monitoring", "continuous_monitoring"],
     ]);
     // Not-yet-built modules have no route at all.
     expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       [
         "Binary analysis",
-        "Continuous monitoring",
         "Reverse engineering tools",
       ].sort(),
     );
@@ -191,6 +191,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Continuous monitoring", "/monitoring", "continuous_monitoring"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
   });

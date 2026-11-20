@@ -9,6 +9,9 @@ import { ErrorPanel } from "@/components/ui/error-panel";
 import { Badge, Card, Input, Label, Select, Table, Td, Th } from "@/components/ui/primitives";
 import { EmptyStateCard, LoadingSkeleton } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
+import { useSession } from "@/features/auth/session";
+import { useCreateThreatItem } from "@/features/remediation/api";
+import { useFeatureFlag } from "@/features/shell/meta";
 import { formatDateTime } from "@/lib/utils";
 import {
   categoryLabel,
@@ -25,6 +28,7 @@ import {
   useUpdateThreat,
   type Threat,
   type ThreatModel,
+  type ThreatRemediationItem,
   type ThreatPatch,
   type ThreatSeverity,
   type ThreatStatus,
@@ -291,6 +295,70 @@ function LinkPanel({ threat, editable, defaultRepo }: { threat: Threat; editable
   );
 }
 
+const remStatusLabel: Record<string, string> = {
+  open: "Open",
+  planned: "Planned",
+  in_progress: "In progress",
+  fix_submitted: "Fix submitted",
+  verifying: "Verifying",
+  closed: "Closed (verified)",
+  wont_fix: "Won't fix",
+};
+
+/**
+ * Remediation items addressing the threat (PATHOS 3.0 M9), and "Create
+ * remediation item" for remediation.manage; shown while the
+ * remediation_workspace flag is on and the caller has remediation.read.
+ */
+export function ThreatRemediation({ threat, items }: { threat: Threat; items: ThreatRemediationItem[] }) {
+  const on = useFeatureFlag("remediation_workspace");
+  const { can } = useSession();
+  const create = useCreateThreatItem();
+  if (!on || !can("remediation.read")) return null;
+  return (
+    <Section title="Remediation items">
+      {items.length ? (
+        <ul className="space-y-1" aria-label="Remediation items for this threat">
+          {items.map((i) => (
+            <li key={i.id} className="flex flex-wrap items-center gap-2">
+              <Link to="/remediation/items/$id" params={{ id: i.id }} className="text-primary underline">
+                {i.title}
+              </Link>
+              <Badge>{remStatusLabel[i.status] ?? i.status}</Badge>
+              <span className="text-[11.5px] text-muted-foreground capitalize">{i.priority}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">No remediation item tracks this threat yet.</p>
+      )}
+      {items.length > 1 && (
+        <Link to="/remediation" search={{ threat_id: threat.id } as never} className="text-[12px] text-primary underline">
+          Open these items in the remediation workspace
+        </Link>
+      )}
+      {can("remediation.manage") && (
+        <div>
+          <Button
+            size="sm"
+            variant="secondary"
+            disabled={create.isPending}
+            onClick={() =>
+              create.mutate(
+                { threat_id: threat.id, title: `Mitigate: ${threat.title}`.slice(0, 300) },
+                { onSuccess: () => toast.success("Remediation item created for the threat.") },
+              )
+            }
+          >
+            Create remediation item
+          </Button>
+        </div>
+      )}
+      {create.isError && <ErrorPanel error={create.error} title="Could not create the remediation item" />}
+    </Section>
+  );
+}
+
 /** Threat detail drawer: evidence with links into CodeGraph and findings, reasons, mappings, edits, history. */
 export function ThreatDetail({ threatId, model, onClose }: { threatId?: string; model: ThreatModel; onClose: () => void }) {
   const q = useThreat(threatId);
@@ -454,6 +522,7 @@ export function ThreatDetail({ threatId, model, onClose }: { threatId?: string; 
               </ul>
             </Section>
           ) : null}
+          <ThreatRemediation threat={t} items={q.data.remediation_items} />
           <EditPanel key={`${t.id}:${t.updated_at}`} threat={t} editable={editable} />
           <LinkPanel threat={t} editable={editable} />
           {editable && (t.method === "manual" || t.method === "imported") && (

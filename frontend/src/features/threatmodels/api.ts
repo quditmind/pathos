@@ -220,6 +220,14 @@ export interface Threat {
   updated_at?: string;
 }
 
+/** A remediation item addressing a threat (GET /api/v1/threats/{id}, PATHOS 3.0 M9). */
+export interface ThreatRemediationItem {
+  id: string;
+  title: string;
+  status: string;
+  priority: string;
+}
+
 export interface ThreatEvent {
   id: string;
   action: string;
@@ -367,9 +375,13 @@ export function useThreat(id: string | undefined) {
   return useQuery({
     queryKey: tmKeys.threat(id ?? ""),
     queryFn: () =>
-      api<{ threat?: Threat; events?: ThreatEvent[] } & Partial<Threat>>(`/api/v1/threats/${enc(id!)}`).then((r) => ({
+      api<{ threat?: Threat & { remediation_items?: ThreatRemediationItem[] }; events?: ThreatEvent[]; remediation_items?: ThreatRemediationItem[] } & Partial<Threat>>(
+        `/api/v1/threats/${enc(id!)}`,
+      ).then((r) => ({
         threat: displayThreat((r.threat ?? r) as Threat),
         events: (r.events ?? []).map(displayEvent),
+        // M9: remediation items addressing the threat (empty without remediation.read or the remediation_workspace flag).
+        remediation_items: (r.remediation_items ?? r.threat?.remediation_items ?? []).map((i) => ({ ...i, title: redactToolNames(i.title ?? "") })),
       })),
     enabled: !!id,
   });

@@ -98,6 +98,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/posture/benchmark": g("posture", "benchmarking"),
   "/compliance": g("policies-and-compliance"),
   "/insights/developers": g("developer-insights"),
+  "/monitoring": g("monitoring"),
 
   // Configurations
   "/configurations/scan-profiles": g("security-scanning"),

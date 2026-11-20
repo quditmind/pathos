@@ -18,6 +18,8 @@ import {
   priorities,
   statusLabel,
   useItem,
+  usePickerModels,
+  usePickerThreats,
   useUpdateItem,
   useVerify,
   type ItemDetail,
@@ -119,6 +121,7 @@ function Detail({ item }: { item: ItemDetail }) {
       </div>
       <div className="min-w-0 space-y-4">
         <Tracking item={item} manage={manage} />
+        <ThreatLink item={item} manage={manage} />
         <Card className="p-4">
           <h3 className="mb-2 text-[13px] font-semibold">Fix pull requests</h3>
           {item.fix_prs.length ? (
@@ -143,6 +146,148 @@ function Detail({ item }: { item: ItemDetail }) {
         </Card>
       </div>
     </div>
+  );
+}
+
+const threatStatusText: Record<string, string> = { open: "Open", mitigated: "Mitigated", accepted: "Accepted", not_applicable: "Not applicable" };
+
+/**
+ * The threat a threat-mitigation item addresses (PATHOS 3.0 M9): title,
+ * severity, status, model and version, a link into the threat model; people
+ * with remediation.manage link or unlink a threat of the item's application.
+ */
+function ThreatLink({ item, manage }: { item: ItemDetail; manage: boolean }) {
+  const update = useUpdateItem(item.id);
+  const [picking, setPicking] = useState(false);
+  const [model, setModel] = useState("");
+  const [threat, setThreat] = useState("");
+  const [confirmUnlink, setConfirmUnlink] = useState(false);
+  const isMitigation = item.kind === "threat_mitigation";
+  const t = item.threat ?? null;
+  const models = usePickerModels(item.application_id, picking);
+  const threats = usePickerThreats(model, picking);
+  if (!t && !isMitigation) return null;
+  return (
+    <Card className="space-y-2 p-4 text-[13px]" data-testid="item-threat">
+      <h3 className="text-[13px] font-semibold">Threat</h3>
+      {t ? (
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <Link to="/threat-models/$modelId" params={{ modelId: t.threat_model_id }} search={{ threat: t.id } as never} className="font-medium text-primary hover:underline">
+              {redactToolNames(t.title)}
+            </Link>
+            <SeverityBadge value={t.severity} />
+            <Badge>{threatStatusText[t.status] ?? t.status}</Badge>
+          </div>
+          <p className="text-[12px] text-muted-foreground">
+            {redactToolNames(t.threat_model_title)} · version {t.threat_model_version}
+          </p>
+        </div>
+      ) : (
+        <p className="text-[12px] text-muted-foreground">No threat linked. Link the threat this item mitigates so the threat model shows the work in progress.</p>
+      )}
+      {manage && isMitigation && (
+        <div className="space-y-2">
+          {!item.application_id ? (
+            <p className="text-[12px] text-muted-foreground">The item belongs to no application, so there is no threat model to link from.</p>
+          ) : picking ? (
+            <div className="space-y-2 rounded-md border border-border p-2">
+              <div>
+                <Label htmlFor="rem-threat-model">Threat model</Label>
+                <Select
+                  id="rem-threat-model"
+                  value={model}
+                  onChange={(e) => {
+                    setModel(e.target.value);
+                    setThreat("");
+                  }}
+                  className="w-full"
+                >
+                  <option value="">{models.isPending ? "Loading…" : models.data?.length ? "Choose a threat model…" : "No threat model for this application"}</option>
+                  {(models.data ?? []).map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {redactToolNames(m.title)} · v{m.version} ({m.status.replace(/_/g, " ")})
+                    </option>
+                  ))}
+                </Select>
+                {models.isError && <ErrorPanel error={models.error} title="Threat models could not be loaded" />}
+              </div>
+              {model && (
+                <div>
+                  <Label htmlFor="rem-threat">Threat</Label>
+                  <Select id="rem-threat" value={threat} onChange={(e) => setThreat(e.target.value)} className="w-full">
+                    <option value="">{threats.isPending ? "Loading…" : threats.data?.length ? "Choose a threat…" : "This model has no threats"}</option>
+                    {(threats.data ?? []).map((x) => (
+                      <option key={x.id} value={x.id}>
+                        [{x.severity}] {redactToolNames(x.title)}
+                      </option>
+                    ))}
+                  </Select>
+                  {threats.isError && <ErrorPanel error={threats.error} title="Threats could not be loaded" />}
+                </div>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  disabled={!threat || update.isPending}
+                  onClick={() =>
+                    update.mutate(
+                      { threat_id: threat },
+                      {
+                        onSuccess: () => {
+                          toast.success("Threat linked to the item");
+                          setPicking(false);
+                          setModel("");
+                          setThreat("");
+                        },
+                      },
+                    )
+                  }
+                >
+                  Link threat
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => setPicking(false)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button size="sm" variant="secondary" onClick={() => setPicking(true)}>
+                {t ? "Change threat" : "Link a threat"}
+              </Button>
+              {t && (
+                <Button size="sm" variant="ghost" onClick={() => setConfirmUnlink(true)}>
+                  Unlink
+                </Button>
+              )}
+            </div>
+          )}
+          {update.error && <ErrorPanel error={update.error} title="The threat link was not changed" />}
+        </div>
+      )}
+      <ConfirmDialog
+        open={confirmUnlink}
+        onOpenChange={setConfirmUnlink}
+        title="Unlink the threat"
+        confirmLabel="Unlink"
+        pending={update.isPending}
+        error={update.error?.message}
+        onConfirm={() =>
+          update.mutate(
+            { threat_id: null },
+            {
+              onSuccess: () => {
+                toast.success("Threat unlinked from the item");
+                setConfirmUnlink(false);
+              },
+            },
+          )
+        }
+      >
+        The item stops tracking “{t ? redactToolNames(t.title) : ""}”. The threat and the item are not deleted; the change is recorded in the audit log.
+      </ConfirmDialog>
+    </Card>
   );
 }
 
