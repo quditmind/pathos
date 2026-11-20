@@ -80,6 +80,10 @@ func (s *Service) begin(r *http.Request, perm authz.Permission) (*authz.Principa
 	if err := featureflags.Require(r.Context(), s.DB, p.OrganizationID, Flag); err != nil {
 		return nil, err
 	}
+	org := p.OrganizationID
+	if err := FillCommits(r.Context(), s.DB, &org); err != nil {
+		s.Log.Warn("drift commit evidence not completed", "err", err, "error_code", CodeRecordFailed)
+	}
 	if !p.HasAnywhere(perm) {
 		return nil, authz.ErrForbidden
 	}

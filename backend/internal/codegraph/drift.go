@@ -378,7 +378,7 @@ func (s *Service) recordDrift(ctx context.Context, ref snapshotRef) {
 	app, repo, did := ref.AppID, ref.RepoID, d.ID
 	if _, err := monitoring.Record(ctx, s.DB, monitoring.Event{OrgID: ref.OrgID, ApplicationID: &app, RepositoryID: &repo,
 		Type: monitoring.TypeArchitectureDrift, Severity: d.Severity, Title: DriftTitle(d, repoName),
-		Summary:       fmt.Sprintf("CodeGraph snapshot of commit %s compared with the previous snapshot (commit %s).", shortSHA(d.ToCommit), shortSHA(d.FromCommit)),
+		Summary:       "The new CodeGraph snapshot was compared with the previous snapshot of the repository (commit " + shortSHA(d.FromCommit) + "); the evidence names both snapshots and commits.",
 		EvidenceLabel: monitoring.EvidenceVerified,
 		Evidence: map[string]any{"from_snapshot_id": d.FromSnapshotID, "to_snapshot_id": d.ToSnapshotID, "from_commit": d.FromCommit,
 			"commit": d.ToCommit, "drift_id": d.ID},

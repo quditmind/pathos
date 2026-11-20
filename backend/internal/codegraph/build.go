@@ -261,6 +261,10 @@ func Reconcile(ctx context.Context, q db.Querier, orgID *uuid.UUID) error {
 	if err != nil {
 		return err
 	}
+	// Drift records and feed events get the commit (M9).
+	if err := monitoring.FillCommits(ctx, q, orgID); err != nil {
+		return err
+	}
 	// The execution was deleted (retention): nothing will arrive.
 	_, err = q.Exec(ctx, `UPDATE codegraph_snapshots s SET status = 'failed', error_code = $2, finished_at = now(),
 		error = 'the discovery execution no longer exists'

@@ -236,6 +236,21 @@ func LoadSettings(ctx context.Context, q db.Querier, orgID uuid.UUID) (Settings,
 	return st, nil
 }
 
+// FillCommits completes the commit evidence of drift records and their
+// feed events once the discovery execution reported its commit (the
+// worker reports it with the completion, after the graph upload).
+func FillCommits(ctx context.Context, q db.Querier, orgID *uuid.UUID) error {
+	if _, err := q.Exec(ctx, `UPDATE architecture_drifts d SET to_commit = s.commit_sha FROM codegraph_snapshots s
+		WHERE s.id = d.to_snapshot_id AND d.to_commit = '' AND s.commit_sha <> '' AND ($1::uuid IS NULL OR d.organization_id = $1)`, orgID); err != nil {
+		return err
+	}
+	_, err := q.Exec(ctx, `UPDATE monitoring_events e SET evidence = jsonb_set(e.evidence, '{commit}', to_jsonb(s.commit_sha))
+		FROM codegraph_snapshots s WHERE e.event_type IN ('architecture.drift', 'dependency.changed', 'threat_model.updated', 'threat_model.review_needed')
+		  AND ($1::uuid IS NULL OR e.organization_id = $1) AND COALESCE(e.evidence->>'commit', '') = ''
+		  AND s.id::text = COALESCE(e.evidence->>'to_snapshot_id', e.evidence->>'snapshot_id') AND s.commit_sha <> ''`, orgID)
+	return err
+}
+
 // Prune deletes events older than the retention (jobs role). Drift rows
 // follow their snapshots.
 func Prune(ctx context.Context, q db.Querier, days int) (int64, error) {
