@@ -195,8 +195,9 @@ test("a threat model generated from the CodeGraph: evidence, review and export",
 
   // Submit for review; the author cannot approve.
   const m = (await (await request.get(`/api/v1/threat-models/${modelId}`)).json()).model;
+  // On a re-run the model is already in review: the approval panel is on the Threats tab either way.
+  await page.getByRole("tab", { name: "Threats" }).click();
   if (m.status === "draft") {
-    await page.getByRole("tab", { name: "Threats" }).click();
     await page.getByRole("button", { name: /Submit for review/ }).click();
     const confirm = page.getByRole("dialog").getByRole("button", { name: /Submit/ });
     if (await confirm.isVisible({ timeout: 2000 }).catch(() => false)) await confirm.click();
