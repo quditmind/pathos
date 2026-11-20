@@ -1,0 +1,38 @@
+[
+  {
+    "framework": "attack",
+    "title": "MITRE ATT&CK Enterprise",
+    "release": "20.1",
+    "url": "https://raw.githubusercontent.com/mitre-attack/attack-stix-data/master/enterprise-attack/enterprise-attack-20.1.json",
+    "sha256": "539a843a7b53ed9749740b2123dddae3726b1a4831841c32aca740b011b910b5",
+    "licence": "MITRE ATT&CK Terms of Use (https://attack.mitre.org/resources/legal-and-branding/terms-of-use/): non-exclusive, royalty-free licence for research, development and commercial purposes, provided MITRE's copyright designation and this licence are reproduced in any copy",
+    "notice": "MITRE ATT&CK® © 2026 The MITRE Corporation. This work is reproduced and distributed with the permission of The MITRE Corporation (https://attack.mitre.org/resources/legal-and-branding/terms-of-use/)."
+  },
+  {
+    "framework": "capec",
+    "title": "MITRE CAPEC",
+    "release": "3.9",
+    "url": "https://capec.mitre.org/data/xml/capec_v3.9.xml",
+    "sha256": "70279a2dff0cb0ad79e546adb07828335a704ad5210e047e09e986172fc9e34d",
+    "licence": "CAPEC Terms of Use (https://capec.mitre.org/about/termsofuse.html): non-exclusive, royalty-free licence for research, development and commercial purposes, provided MITRE's copyright designation and this licence are reproduced in any copy",
+    "notice": "CAPEC™ © 2007–2026 The MITRE Corporation. Reproduced under the CAPEC Terms of Use (https://capec.mitre.org/about/termsofuse.html). CAPEC is a trademark of The MITRE Corporation."
+  },
+  {
+    "framework": "cwe",
+    "title": "MITRE CWE",
+    "release": "5.0",
+    "url": "https://cwe.mitre.org/data/xml/cwec_v5.0.xml.zip",
+    "sha256": "bcda44c9abf61ff977f50c3c6649eea5a97a7b0626b0396c2c3ec4bfb973a3dc",
+    "licence": "CWE Terms of Use (https://cwe.mitre.org/about/termsofuse.html): non-exclusive, royalty-free licence for research, development and commercial purposes, on condition that MITRE's copyright designation and this licence are reproduced in any copy",
+    "notice": "CWE™ © 2006–2026 The MITRE Corporation. Reproduced under the CWE Terms of Use (https://cwe.mitre.org/about/termsofuse.html). CWE is a trademark of The MITRE Corporation."
+  },
+  {
+    "framework": "d3fend",
+    "title": "MITRE D3FEND",
+    "release": "1.6.0",
+    "url": "https://d3fend.mitre.org/ontologies/d3fend/1.6.0/d3fend.json",
+    "sha256": "e1546d432c6aa64d45b62dd9e9484b0774ae84de7ff3605ff9dd4e20278957bf",
+    "licence": "MIT License (https://github.com/d3fend/d3fend-ontology/blob/develop/LICENSE.md)",
+    "notice": "MITRE D3FEND™ Copyright (c) 2022 The MITRE Corporation, MIT License (https://github.com/d3fend/d3fend-ontology)."
+  }
+]

@@ -126,13 +126,14 @@ describe("sidebar regroup (prompt §5)", () => {
   it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
-    // application; M4: CodeGraph, API & endpoints) carry their route and still their phase and flag.
+    // application; M4: CodeGraph, API & endpoints; M5: Threat models) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
       ["Onboard an application", "/onboarding", "onboarding"],
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
+      ["Threat models", "/threat-models", "threat_models"],
     ]);
     // Not-yet-built modules have no route at all.
     expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
@@ -141,7 +142,6 @@ describe("sidebar regroup (prompt §5)", () => {
         "Continuous monitoring",
         "Remediation workspace",
         "Reverse engineering tools",
-        "Threat models",
       ].sort(),
     );
     expect(groups.flatMap((g) => g.items).filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
@@ -188,6 +188,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["Onboard an application", "/onboarding", "onboarding"],
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
+      ["Threat models", "/threat-models", "threat_models"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
   });
@@ -204,6 +205,18 @@ describe("sidebar regroup (prompt §5)", () => {
     expect(await within(nav).findByRole("link", { name: "Onboard an application" })).toHaveAttribute("href", "/onboarding");
     const life = within(nav).getByText("Lifecycle overview").closest("[aria-disabled]")!;
     expect(life).toHaveAttribute("title", "Lifecycle overview: arrives in roadmap phase 3");
+  });
+
+  it("Threat models is a link only while the threat_models flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { threat_models: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["threats.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "Threat models" })).toHaveAttribute("href", "/threat-models");
   });
 
   it("renders roadmap items disabled with their phase", async () => {

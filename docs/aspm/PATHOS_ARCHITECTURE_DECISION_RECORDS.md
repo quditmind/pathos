@@ -235,6 +235,8 @@ Data ships with the build and in the offline bundle; no online fetch is needed (
 
 **Status.** Proposed, needs owner approval.
 
+**Implementation (M5, 2026-11-20).** Built as option 1 behind the `threat_models` flag ([PATHOS_THREAT_MODELLING.md](PATHOS_THREAT_MODELLING.md)). Licence terms re-checked on 2026-11-20: ATT&CK, CAPEC and CWE terms of use as quoted above (CAPEC verified on capec.mitre.org: same form as CWE), D3FEND MIT; notices in `NOTICE` and exports. Decisions taken in the build, for owner confirmation: (1) the reference data is **embedded in the API binary** (about 1 MB of JSON extracted from pinned, SHA-256-verified releases by `make threat-frameworks`) instead of the global `framework_entries` / `framework_relations` tables of the database design, so no global table needs isolation classification and air-gapped installs need no data load; (2) permissions are `threats.read`, `threats.manage` and `threats.approve` (the lead's M5 brief) instead of the API design's `threatmodels.read/edit/approve`; (3) LINDDUN threats are manual or imported only (no rule can tell personal data yet); (4) no AI suggestion endpoint yet (no AI evidence record table); `method = 'ai'` and `evidence_type = 'ai_inferred'` are reserved and require an AI evidence record id; (5) imported threats without evidence are stored as `evidence_type = 'unverified'` with `method = 'imported'` (label "imported, unverified", assessment §8.6) and block submission until linked or set not applicable; (6) import is a JSON request (`document` field, 10 MB) rather than multipart; pytm is export-only and Threagile is not supported; (7) generation is synchronous (`200`), not `202`.
+
 ---
 
 ### ADR-008: AI evidence record and reproducibility

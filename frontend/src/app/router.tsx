@@ -85,6 +85,7 @@ import { ConnectorsPage } from "@/features/connectors/ConnectorsPage";
 import { validateConnectorsSearch } from "@/features/connectors/model";
 import { IntegrationsRoute, ScmConnectionsRoute } from "@/features/connectors/redirects";
 import { validateCodeGraphSearch } from "@/features/codegraph/search";
+import { validateThreatModelSearch, validateThreatModelsSearch } from "@/features/threatmodels/search";
 
 function Authenticated() {
   const me = useMe();
@@ -225,6 +226,11 @@ const ApiEndpointsPage = lazyRouteComponent(() => import("@/features/codegraph/C
 const codegraphRoute = createRoute({ getParentRoute: () => appRoute, path: "/codegraph", component: CodeGraphHomePage });
 const codegraphAppRoute = createRoute({ getParentRoute: () => appRoute, path: "/codegraph/$appId", component: CodeGraphPage, validateSearch: validateCodeGraphSearch });
 const apiEndpointsRoute = createRoute({ getParentRoute: () => appRoute, path: "/api-endpoints", component: ApiEndpointsPage });
+// Threat models (M5, flag `threat_models`; the application hub tab embeds ThreatModelPanel).
+const ThreatModelsPage = lazyRouteComponent(() => import("@/features/threatmodels/ThreatModelsPage"), "ThreatModelsPage");
+const ThreatModelPage = lazyRouteComponent(() => import("@/features/threatmodels/ThreatModelPage"), "ThreatModelPage");
+const threatModelsRoute = createRoute({ getParentRoute: () => appRoute, path: "/threat-models", component: ThreatModelsPage, validateSearch: validateThreatModelsSearch });
+const threatModelRoute = createRoute({ getParentRoute: () => appRoute, path: "/threat-models/$modelId", component: ThreatModelPage, validateSearch: validateThreatModelSearch });
 const customRulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/custom-rules", component: CustomRulesPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
@@ -275,7 +281,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, threatModelsRoute, threatModelRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

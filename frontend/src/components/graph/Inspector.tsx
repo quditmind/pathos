@@ -98,9 +98,11 @@ export interface InspectorProps {
   onExpand?: (id: string) => void;
   onClose: () => void;
   extra?: ReactNode;
+  /** What `finding_counts` count (default "findings"). */
+  countsNoun?: string;
 }
 
-export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailKey = [], refHref = defaultRefHref, onTrace, onExpand, onClose, extra }: InspectorProps) {
+export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailKey = [], refHref = defaultRefHref, onTrace, onExpand, onClose, extra, countsNoun = "findings" }: InspectorProps) {
   const id = node?.id ?? aggregate?.id;
   const detail = useQuery({
     queryKey: ["graph-node-detail", ...detailKey, id],
@@ -206,7 +208,7 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
         </p>
       )}
       <section>
-        <h4 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Open findings</h4>
+        <h4 className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Open {countsNoun}</h4>
         <div className="flex flex-wrap gap-1">
           {severities.filter((s) => (n.finding_counts?.[s] ?? 0) > 0).map((s) => (
             <span key={s} className="inline-flex items-center gap-1 text-[12px]">

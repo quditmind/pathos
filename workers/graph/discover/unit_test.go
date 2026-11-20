@@ -141,3 +141,12 @@ func TestImageService(t *testing.T) {
 		}
 	}
 }
+
+func TestURLScheme(t *testing.T) {
+	for in, want := range map[string]string{"https://api.example.net/x": "https", "HTTP://legacy.example.net": "http",
+		"wss://ws.example.net": "wss", "ftp://x.example.net": ""} {
+		if got := urlScheme(in); got != want {
+			t.Errorf("urlScheme(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

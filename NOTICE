@@ -10,3 +10,46 @@ The web application bundles elkjs (Eclipse Layout Kernel for JavaScript,
 https://github.com/kieler/elkjs), unmodified, under the Eclipse Public
 License 2.0 (it is also offered under GPL-3.0-or-later). Its source code is
 available from the npm package elkjs@0.12.1 and the repository above.
+
+Threat modelling reference data (backend/internal/threatmodel/frameworks/data,
+extracted from pinned releases; see docs/aspm/PATHOS_THREAT_MODELLING.md):
+
+MITRE ATT&CK® (Enterprise, release 20.1)
+© 2026 The MITRE Corporation. This work is reproduced and distributed with the
+permission of The MITRE Corporation. Licence: the MITRE Corporation (MITRE)
+hereby grants you a non-exclusive, royalty-free license to use ATT&CK® for
+research, development, and commercial purposes. Any copy you make for such
+purposes is authorized provided that you reproduce MITRE's copyright
+designation and this license in any such copy.
+(https://attack.mitre.org/resources/legal-and-branding/terms-of-use/)
+
+Common Attack Pattern Enumeration and Classification (CAPEC™, release 3.9)
+© 2007–2026 The MITRE Corporation. The MITRE Corporation (MITRE) hereby grants
+you a non-exclusive, royalty-free license to use CAPEC for research,
+development, and commercial purposes. Any copy you make for such purposes is
+authorized provided that you reproduce MITRE's copyright designation and this
+license in any such copy. CAPEC is a trademark of The MITRE Corporation.
+(https://capec.mitre.org/about/termsofuse.html)
+
+Common Weakness Enumeration (CWE™, release 5.0)
+© 2006–2026 The MITRE Corporation. The MITRE Corporation hereby grants you a
+non-exclusive, royalty-free license to use CWE for research, development, and
+commercial purposes. Any copy you make for such purposes is authorized on the
+condition that you reproduce MITRE's copyright designation and this license in
+any such copy. CWE is a trademark of The MITRE Corporation.
+(https://cwe.mitre.org/about/termsofuse.html)
+
+MITRE D3FEND™ (release 1.6.0), Copyright (c) 2022 The MITRE Corporation,
+MIT License (https://github.com/d3fend/d3fend-ontology/blob/develop/LICENSE.md):
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions: The above copyright notice and this
+permission notice shall be included in all copies or substantial portions of
+the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED.
+
+LINDDUN (https://linddun.org, DistriNet, KU Leuven): only the seven category
+names are cited; no LINDDUN text is included (no licence is stated).

@@ -481,6 +481,15 @@ var writeFixtures = map[string]map[string]any{
 	"PATCH /api/v1/tag-categories/{id}/framework": {"color": "#336699", "mandatory_asset_types": nil},
 	"POST /api/v1/onboarding":                     {"mode": "link", "application": nil},
 	"POST /api/v1/tag-assignments/bulk":           {"target_type": "application", "ids": []any{"@applications"}, "add_tag_ids": []any{"@tags"}, "remove_tag_ids": nil},
+	// Threat models (M5).
+	"POST /api/v1/threat-models": {"generate": false, "repository_id": nil},
+	"POST /api/v1/threat-models/import": {"format": "threat_dragon", "repository_id": nil, "document": map[string]any{"summary": map[string]any{"title": "iso-probe"},
+		"detail": map[string]any{"diagrams": []any{map[string]any{"cells": []any{}}}}}},
+	"POST /api/v1/threat-models/{id}/threats": {"category": "spoofing", "severity": "high", "confidence": nil, "element_keys": nil, "mappings": nil},
+	"PATCH /api/v1/threats/{id}": {"severity": "low", "status": nil, "reason": "isolation probe", "owner_id": nil, "link": nil,
+		"mappings_add": nil, "mappings_remove": nil, "unlink_findings": nil, "title": nil, "description": nil, "clear_owner": nil},
+	"POST /api/v1/threat-models/{id}/reject":   {"decision": "changes_requested", "note": "isolation probe"},
+	"POST /api/v1/threat-models/{id}/generate": {"engines": nil},
 }
 
 // controlSkip lists creates whose control request (with A's parents)

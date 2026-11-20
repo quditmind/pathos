@@ -48,6 +48,12 @@ const (
 
 	PermSBOMRead Permission = "sbom.read"
 
+	// Threat modelling (PATHOS 3.0 M5). Approving is separate from
+	// editing: an approver is never the author of the version.
+	PermThreatsRead    Permission = "threats.read"
+	PermThreatsManage  Permission = "threats.manage"
+	PermThreatsApprove Permission = "threats.approve"
+
 	PermReviewsRead      Permission = "reviews.read"
 	PermReviewsAssess    Permission = "reviews.assess"
 	PermReviewsAssign    Permission = "reviews.assign"
@@ -112,6 +118,9 @@ var Permissions = []PermissionInfo{
 	{PermFindingsAcceptRisk, "Findings", "Approve accepted-risk and false-positive decisions", false},
 	{PermFindingsExport, "Findings", "Export findings", false},
 	{PermSBOMRead, "Findings", "View SBOMs and component inventory", false},
+	{PermThreatsRead, "Threat model", "View threat models, threats, their evidence and versions", false},
+	{PermThreatsManage, "Threat model", "Create, generate, edit, import and submit threat models; change threats with a reason", false},
+	{PermThreatsApprove, "Threat model", "Approve, reject or request changes on threat models in review (never one's own)", false},
 
 	{PermReviewsRead, "Human Eye", "View the review queue, completed assessments and review reports", false},
 	{PermReviewsAssess, "Human Eye", "Perform assessments: investigate, upload evidence, comment and submit review decisions", false},
@@ -143,7 +152,7 @@ func all() []Permission {
 
 var readOnly = []Permission{
 	PermDashboardRead, PermOrgRead, PermReposRead, PermScannersRead,
-	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead,
+	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead, PermThreatsRead,
 }
 
 func with(base []Permission, extra ...Permission) []Permission {
@@ -170,23 +179,24 @@ var SystemRoles = []SystemRole{
 			PermUsersRead, PermRolesRead, PermRolesAssign, PermAuditRead,
 			PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
 			PermFindingsTriage, PermFindingsAcceptRisk, PermFindingsExport, PermAIReview, PermAIFix,
-			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople)},
+			PermReviewsAssess, PermReviewsAssign, PermReviewsApprove, PermReviewsConfigure, PermInsightsPeople,
+			PermThreatsManage, PermThreatsApprove)},
 	{"security_analyst", "Security Analyst",
 		"Triages findings, runs scans and AI reviews",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage)},
 	{"appsec_engineer", "AppSec Engineer",
 		"Tunes scanners and profiles, onboards repositories, triages findings",
 		with(readOnly, PermReposManage, PermTagsManage, PermProfilesManage, PermScansRun, PermSchedulesManage,
-			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess)},
+			PermFindingsTriage, PermFindingsExport, PermAIReview, PermAIFix, PermReviewsAssess, PermThreatsManage)},
 	{"independent_reviewer", "Independent Reviewer",
 		"Second-level reviewer: validates other analysts' Human Eye decisions before closure",
-		with(readOnly, PermReviewsApprove, PermFindingsExport)},
+		with(readOnly, PermReviewsApprove, PermFindingsExport, PermThreatsApprove)},
 	{"repository_contributor", "Repository Contributor",
 		"Imports and maintains repositories in scope and runs scans; owners of a repository can also edit its descriptive metadata",
 		with(readOnly, PermReposManage, PermScansRun)},
 	{"application_owner", "Application Owner",
 		"Accountable for applications in scope: views posture, assigns and triages findings",
-		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport)},
+		with(readOnly, PermScansRun, PermFindingsTriage, PermFindingsExport, PermThreatsManage)},
 	{"developer", "Developer",
 		"Views and remediates findings on assigned repositories",
 		with(readOnly, PermFindingsTriage)},
