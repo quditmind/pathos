@@ -9,5 +9,10 @@
     "pnpm": "11.28.12",
     "retire": "6.1.1",
     "yarn": "1.22.22"
+  },
+  "overrides": {
+    "body-parser": "2.4.0",
+    "glob": "14.0.6",
+    "minimatch": "11.0.9"
   }
 }
