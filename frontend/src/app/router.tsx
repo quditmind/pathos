@@ -1,6 +1,6 @@
 import { HelpDocPage, HelpHomePage, validateHelpSearch } from "@/features/help/HelpPages";
 import { TroubleshootingPage, validateTroubleshootingSearch } from "@/features/help/TroubleshootingPage";
-import { createRootRoute, createRoute, createRouter, Outlet, redirect } from "@tanstack/react-router";
+import { createRootRoute, createRoute, createRouter, lazyRouteComponent, Outlet, redirect } from "@tanstack/react-router";
 import { ApiError, loginUrl } from "@/api/client";
 import type { AuditRecord, UserStatus } from "@/api/types";
 import { AppShell } from "@/components/layout/AppShell";
@@ -84,6 +84,7 @@ import { LifecyclePage } from "@/features/inventory/LifecyclePage";
 import { ConnectorsPage } from "@/features/connectors/ConnectorsPage";
 import { validateConnectorsSearch } from "@/features/connectors/model";
 import { IntegrationsRoute, ScmConnectionsRoute } from "@/features/connectors/redirects";
+import { validateCodeGraphSearch } from "@/features/codegraph/search";
 
 function Authenticated() {
   const me = useMe();
@@ -216,6 +217,14 @@ const analystRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/an
 const aiReportsRoute = createRoute({ getParentRoute: () => appRoute, path: "/ai/reports", component: AIReportsPage });
 const aiUsageRoute = createRoute({ getParentRoute: () => appRoute, path: "/admin/ai-usage", component: AIUsagePage });
 const graphRoute = createRoute({ getParentRoute: () => appRoute, path: "/posture/graph", component: ContextGraphPage, validateSearch: validateGraphSearch });
+// CodeGraph (M4, flag `codegraph`; the application hub tab embeds CodeGraphPanel).
+// Lazy: React Flow and the ELK worker load only with these pages (ADR-005).
+const CodeGraphHomePage = lazyRouteComponent(() => import("@/features/codegraph/CodeGraphPage"), "CodeGraphHomePage");
+const CodeGraphPage = lazyRouteComponent(() => import("@/features/codegraph/CodeGraphPage"), "CodeGraphPage");
+const ApiEndpointsPage = lazyRouteComponent(() => import("@/features/codegraph/CodeGraphPage"), "ApiEndpointsPage");
+const codegraphRoute = createRoute({ getParentRoute: () => appRoute, path: "/codegraph", component: CodeGraphHomePage });
+const codegraphAppRoute = createRoute({ getParentRoute: () => appRoute, path: "/codegraph/$appId", component: CodeGraphPage, validateSearch: validateCodeGraphSearch });
+const apiEndpointsRoute = createRoute({ getParentRoute: () => appRoute, path: "/api-endpoints", component: ApiEndpointsPage });
 const customRulesRoute = createRoute({ getParentRoute: () => appRoute, path: "/configurations/custom-rules", component: CustomRulesPage });
 const findingsRoute = createRoute({ getParentRoute: () => appRoute, path: "/findings", component: FindingsPage, validateSearch: validateFindingSearch });
 
@@ -266,7 +275,7 @@ const helpDocRoute = createRoute({ getParentRoute: () => appRoute, path: "/help/
 const routeTree = rootRoute.addChildren([
   loginRoute,
   appRoute.addChildren([helpRoute, troubleshootingRoute, helpDocRoute, overviewRoute, usersRoute, orgRoute, auditRoute, reposRoute, importRoute, csvImportRoute, onboardingRoute, importsRoute, importJobRoute, assetSettingsRoute, appsRoute, scmRoute, connectorsRoute, tagsRoute,
-    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
+    scansRoute, scanOverviewRoute, scanCompareRoute, scanDetailsRoute, profilesRoute, oldProfilesRoute, scannersRoute, scanCoverageRoute, oldScannersRoute, importResultsRoute, scanTargetsRoute, prChecksRoute, customRulesRoute, postureRoute, coverageRoute, unmanagedRoute, benchmarkRoute, blastRoute, graphRoute, codegraphRoute, codegraphAppRoute, apiEndpointsRoute, attackRoute, vulnRoute, suppressionRoute, analystRoute, aiReportsRoute, aiUsageRoute, findingsRoute, schedulesRoute, notifyRoute, riskRoute, sbomRoute, appProfileRoute, onboardingFlowRoute, lifecycleRoute, appVersionsRoute, vexRoute, portfolioRoute, componentPoliciesRoute, policiesRoute, devInsightsRoute, attributionRoute, secretValidationRoute, runtimeRoute, riskIntelRoute, aiRoute, aiSettingsRoute, mcpRoute, tokensRoute, installationOrgsRoute, featureFlagsRoute, securitySettingsRoute, complianceRoute, integrationsRoute, executiveRoute, reportsRoute,
     hrOverviewRoute, hrQueueRoute, hrAssessmentsRoute, hrAssignmentsRoute, hrReportsRoute, hrConfigRoute, hrWorkspaceRoute]),
 ]);
 

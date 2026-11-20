@@ -1,0 +1,269 @@
+{
+    "$schema": "http://cyclonedx.org/schema/bom-1.7.schema.json",
+    "bomFormat": "CycloneDX",
+    "specVersion": "1.7",
+    "serialNumber": "urn:uuid:33351b7c-3fe4-4f13-b904-0f06f7031885",
+    "version": 1,
+    "metadata": {
+        "timestamp": "2026-11-19T21:40:10Z",
+        "tools": {
+            "components": [
+                {
+                    "type": "application",
+                    "author": "anchore",
+                    "name": "syft",
+                    "version": "1.57.1"
+                }
+            ]
+        },
+        "component": {
+            "bom-ref": "dfcd457ff0b35452",
+            "type": "file",
+            "name": "/src"
+        }
+    },
+    "components": [
+        {
+            "bom-ref": "pkg:pypi/fastapi@0.115.0?package-id=99817abab03f09b5",
+            "type": "library",
+            "name": "fastapi",
+            "version": "0.115.0",
+            "cpe": "cpe:2.3:a:python-fastapi:python-fastapi:0.115.0:*:*:*:*:*:*:*",
+            "purl": "pkg:pypi/fastapi@0.115.0",
+            "properties": [
+                {
+                    "name": "syft:package:foundBy",
+                    "value": "python-package-cataloger"
+                },
+                {
+                    "name": "syft:package:language",
+                    "value": "python"
+                },
+                {
+                    "name": "syft:package:type",
+                    "value": "python"
+                },
+                {
+                    "name": "syft:package:metadataType",
+                    "value": "python-pip-requirements-entry"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python-fastapi:python_fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_fastapi:python-fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_fastapi:python_fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:fastapi:python-fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:fastapi:python_fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python-fastapi:fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_fastapi:fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:python-fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:python_fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:fastapi:fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:fastapi:0.115.0:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:location:0:path",
+                    "value": "/requirements.txt"
+                }
+            ]
+        },
+        {
+            "bom-ref": "pkg:golang/github.com/go-chi/chi/v5@v5.0.12?package-id=86dca50cc026ff1f",
+            "type": "library",
+            "name": "github.com/go-chi/chi/v5",
+            "version": "v5.0.12",
+            "cpe": "cpe:2.3:a:go-chi:chi\\/v5:v5.0.12:*:*:*:*:*:*:*",
+            "purl": "pkg:golang/github.com/go-chi/chi/v5@v5.0.12",
+            "properties": [
+                {
+                    "name": "syft:package:foundBy",
+                    "value": "go-module-file-cataloger"
+                },
+                {
+                    "name": "syft:package:language",
+                    "value": "go"
+                },
+                {
+                    "name": "syft:package:type",
+                    "value": "go-module"
+                },
+                {
+                    "name": "syft:package:metadataType",
+                    "value": "go-module-entry"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:go_chi:chi\\/v5:v5.0.12:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:go:chi\\/v5:v5.0.12:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:location:0:path",
+                    "value": "/go.mod"
+                },
+                {
+                    "name": "syft:metadata:h1Digest",
+                    "value": "h1:9euLV5sTrTNTRUU9POmDUvfxyj6LAABLUcEWO+JJb4s="
+                }
+            ]
+        },
+        {
+            "bom-ref": "pkg:golang/github.com/lib/pq@v1.10.9?package-id=b074058fc1097b01",
+            "type": "library",
+            "name": "github.com/lib/pq",
+            "version": "v1.10.9",
+            "cpe": "cpe:2.3:a:lib:pq:v1.10.9:*:*:*:*:*:*:*",
+            "purl": "pkg:golang/github.com/lib/pq@v1.10.9",
+            "properties": [
+                {
+                    "name": "syft:package:foundBy",
+                    "value": "go-module-file-cataloger"
+                },
+                {
+                    "name": "syft:package:language",
+                    "value": "go"
+                },
+                {
+                    "name": "syft:package:type",
+                    "value": "go-module"
+                },
+                {
+                    "name": "syft:package:metadataType",
+                    "value": "go-module-entry"
+                },
+                {
+                    "name": "syft:location:0:path",
+                    "value": "/go.mod"
+                },
+                {
+                    "name": "syft:metadata:h1Digest",
+                    "value": "h1:YXG7RB+JIjhP29X+OtkiDnYaXQwpS4JEWq7dtCCRUEw="
+                }
+            ]
+        },
+        {
+            "bom-ref": "pkg:pypi/redis@5.0.8?package-id=2ba7e9c1f552974a",
+            "type": "library",
+            "name": "redis",
+            "version": "5.0.8",
+            "cpe": "cpe:2.3:a:python-redis:python-redis:5.0.8:*:*:*:*:*:*:*",
+            "purl": "pkg:pypi/redis@5.0.8",
+            "properties": [
+                {
+                    "name": "syft:package:foundBy",
+                    "value": "python-package-cataloger"
+                },
+                {
+                    "name": "syft:package:language",
+                    "value": "python"
+                },
+                {
+                    "name": "syft:package:type",
+                    "value": "python"
+                },
+                {
+                    "name": "syft:package:metadataType",
+                    "value": "python-pip-requirements-entry"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python-redis:python_redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_redis:python-redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_redis:python_redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:python-redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:python_redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python-redis:redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python_redis:redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:cpe23",
+                    "value": "cpe:2.3:a:python:redis:5.0.8:*:*:*:*:*:*:*"
+                },
+                {
+                    "name": "syft:location:0:path",
+                    "value": "/requirements.txt"
+                }
+            ]
+        },
+        {
+            "bom-ref": "3fc5a8d3d86e9790",
+            "type": "file",
+            "name": "/go.mod",
+            "hashes": [
+                {
+                    "alg": "SHA-1",
+                    "content": "c00ca3e371618f0d63a1511e85356a49d9ed4b26"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "df11da3a7b73279f3f9a034a79cac9afd1cf4b77f077ca076f97f39d1472e490"
+                }
+            ]
+        },
+        {
+            "bom-ref": "26ca2b7dc025d550",
+            "type": "file",
+            "name": "/requirements.txt",
+            "hashes": [
+                {
+                    "alg": "SHA-1",
+                    "content": "de0b3f026442983bfcf79dcfff4bb06e2993e243"
+                },
+                {
+                    "alg": "SHA-256",
+                    "content": "0bf3b9266a23f056421c8bafa20fd1d7ac134399c3737ad9eb31decd44d4ff91"
+                }
+            ]
+        }
+    ]
+}

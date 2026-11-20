@@ -35,7 +35,7 @@ Open **1 · Connect › Onboard an application**. The step bar shows the seven s
 4. **Register**: choose **Link to <application ID>** for a candidate, or **Register as new** with a name (suggested from the repository name). Registering creates the application as a **draft** and fills what PATHOS can detect.
 5. **Tag & classify**: fill the gaps. Fields with a green background and the *detected* mark were filled automatically (see [Detected fields](#detected-fields)). **Save as draft** saves at any point.
 6. **Save to inventory**: checks the mandatory fields and tag categories and registers the application. Repositories already in PATHOS without an application join it. A repository that **belongs to another application never moves silently**: see [Repositories of other applications](#repositories-of-other-applications).
-7. **Start discovery**: new repositories are registered through the import pipeline with the application's classification (two extra answers are asked: business region and whether the repository is publicly exposed), and every repository gets its first scan. CodeGraph discovery arrives in M4.
+7. **Start discovery**: new repositories are registered through the import pipeline with the application's classification (two extra answers are asked: business region and whether the repository is publicly exposed), and every repository gets its first scan. When the CodeGraph module is on (flag `codegraph`) and a graph worker is online, the application's [CodeGraph](codegraph.md) is built after that scan.
 
 To continue a draft later, open it from **Applications** (status *Onboarding: N of M fields*) or from its profile (**Continue onboarding**).
 
@@ -93,7 +93,7 @@ Select an application name on **Applications** to open its profile (`/applicatio
 | Repositories | Repositories of the application and those still in onboarding |
 | Classification & tags | The classification form with detected fields and tags |
 | Versions | Release versions (the existing versions page) |
-| CodeGraph | Arrives in M4 (disabled) |
+| CodeGraph | The application's [CodeGraph](codegraph.md) (views, inspector, path tracing, snapshots); "not enabled" while the `codegraph` flag is off |
 | Threat model | Arrives in M5 (disabled) |
 | Findings | Open findings of the application's repositories, with the kind of check; **Open in Findings** applies the application filter |
 | SBOM & components | Components of the application's repositories |

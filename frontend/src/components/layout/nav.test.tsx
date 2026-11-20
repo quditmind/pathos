@@ -126,18 +126,18 @@ describe("sidebar regroup (prompt §5)", () => {
   it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
-    // application) carry their route and still their phase and flag.
+    // application; M4: CodeGraph, API & endpoints) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
       ["Onboard an application", "/onboarding", "onboarding"],
+      ["CodeGraph", "/codegraph", "codegraph"],
+      ["API & endpoints", "/api-endpoints", "codegraph"],
     ]);
     // Not-yet-built modules have no route at all.
     expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       [
-        "API & endpoints",
         "Binary analysis",
-        "CodeGraph",
         "Continuous monitoring",
         "Remediation workspace",
         "Reverse engineering tools",
@@ -153,12 +153,41 @@ describe("sidebar regroup (prompt §5)", () => {
     }
   });
 
+  it("CodeGraph items are links only while the codegraph flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { codegraph: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "CodeGraph" })).toHaveAttribute("href", "/codegraph");
+    expect(within(nav).getByRole("link", { name: "API & endpoints" })).toHaveAttribute("href", "/api-endpoints");
+  });
+
+  it("CodeGraph items stay disabled roadmap items while the flag is off", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { codegraph: false } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const item = within(nav).getByText("CodeGraph").closest("[aria-disabled]");
+    expect(item).toHaveAttribute("title", "CodeGraph: arrives in roadmap phase 4");
+    expect(within(nav).queryByRole("link", { name: "CodeGraph" })).toBeNull();
+  });
+
   it("every flagged module with a route carries a phase and a flag", () => {
     const flagged = groups.flatMap((g) => g.items).filter((i) => i.to && i.flag);
     expect(flagged.map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
       ["Onboard an application", "/onboarding", "onboarding"],
+      ["CodeGraph", "/codegraph", "codegraph"],
+      ["API & endpoints", "/api-endpoints", "codegraph"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
   });

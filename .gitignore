@@ -9,6 +9,8 @@
 # Build output
 /backend/bin/
 /frontend/dist/
+/frontend/bench/dist/
+/e2e/perf/results/
 node_modules/
 coverage/
 *.test

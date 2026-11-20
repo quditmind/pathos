@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
 import { ArrowLeft, Boxes, ExternalLink, GitBranch, Package, ShieldAlert, Sparkles } from "lucide-react";
@@ -34,7 +35,7 @@ export const profileTabs = [
   { key: "repositories", label: "Repositories" },
   { key: "classification", label: "Classification & tags" },
   { key: "versions", label: "Versions" },
-  { key: "codegraph", label: "CodeGraph", arrives: "M4" },
+  { key: "codegraph", label: "CodeGraph" },
   { key: "threat-model", label: "Threat model", arrives: "M5" },
   { key: "findings", label: "Findings" },
   { key: "sbom", label: "SBOM & components" },
@@ -42,6 +43,9 @@ export const profileTabs = [
   { key: "activity", label: "Activity & audit" },
 ] as const;
 export type ProfileTab = (typeof profileTabs)[number]["key"];
+
+// The CodeGraph tab (M4) loads React Flow lazily, like the /codegraph route; the panel checks the codegraph flag.
+const CodeGraphPanel = lazy(() => import("@/features/codegraph/CodeGraphPanel").then((m) => ({ default: m.CodeGraphPanel })));
 
 export function validateProfileSearch(s: Record<string, unknown>): { tab?: ProfileTab } {
   const t = profileTabs.find((x) => x.key === s.tab && !("arrives" in x));
@@ -147,6 +151,11 @@ export function ApplicationProfile({ id }: { id: string }) {
         {tab === "repositories" && <RepositoriesTab a={a} />}
         {tab === "classification" && <ClassificationTab a={a} />}
         {tab === "versions" && <ApplicationVersionsPage appId={a.id} embedded />}
+        {tab === "codegraph" && (
+          <Suspense fallback={<LoadingSkeleton rows={6} label="Loading CodeGraph" />}>
+            <CodeGraphPanel applicationId={id} applicationName={a.name} />
+          </Suspense>
+        )}
         {tab === "findings" && <FindingsTab a={a} />}
         {tab === "sbom" && <SbomTab a={a} />}
         {tab === "activity" && <ActivityTab a={a} />}

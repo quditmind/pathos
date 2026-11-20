@@ -170,6 +170,8 @@ The lifecycle release extends the existing stack (Go API and jobs, PostgreSQL 18
 
 **Status.** Proposed; the decision is final only after measurement.
 
+**Measurement (M4 UI, 2026-11-20).** Run with the plan above (`scripts/graph-bench.sh`, details and numbers in [PERFORMANCE.md](../PERFORMANCE.md#graph-rendering)). React Flow rendering meets the budget; **ELK layered does not**: 4.5 s for 500 nodes and 28.6 s for 1,000 (Node, cold, trust boundaries as containers), and it did not finish 2,000 nodes within 120 s in Chromium. Applied mitigation, beyond the four listed: the worker uses ELK only up to 250 nodes and 500 edges and a linear-time layered layout above (`frontend/src/components/graph/fastLayout.ts`). Result for 2,000 nodes and 2,998 edges: p95 774 ms from data received to placed and fitted (p95 3.3 s with CPU throttling ×4). Cytoscape was not needed for rendering. Licences verified: `@xyflow/react` 12.12.1 MIT; `elkjs` 0.12.1 is **EPL-2.0 OR GPL-3.0-or-later** (package `LICENSE.md` and SPDX headers; used under EPL-2.0 and listed in `NOTICE`; 0.13.0 is deprecated on npm). Open for the owner: the reference client, and whether server-side cached positions (mitigation 3) should replace the client fallback layout for large views.
+
 ---
 
 ### ADR-006: CodeGraph discovery engines
@@ -202,6 +204,8 @@ The lifecycle release extends the existing stack (Go API and jobs, PostgreSQL 18
 - Licence and maintenance of each engine are re-verified in the M4 PR (prompt §7).
 
 **Consequences.** One new worker family image and one more Compose profile. Memory: tier 1 fits the default 4 GB worker; Joern needs an operator choice for large repositories. Not measured yet: build time and graph size for the PATHOS repository.
+
+**M4 outcome (measured 2026-11-20, owner approval still pending).** Tier 1 is built in `worker-graph` ([PATHOS_CODEGRAPH_ARCHITECTURE.md](PATHOS_CODEGRAPH_ARCHITECTURE.md#discovery-engines)); calls come from the engine's own Go and tree-sitter resolution rather than `pathos-reach` output. On the PATHOS repository discovery takes about 9 s and under 1 GiB (10,750 nodes, 27,173 edges). Joern (tier 2) is not included in M4: see [Decisions](PATHOS_CODEGRAPH_ARCHITECTURE.md#decisions).
 
 **Status.** Proposed, needs owner approval.
 
@@ -391,8 +395,8 @@ Nothing in this file is implemented. Every "Context" paragraph describes existin
 
 ## Known limitations
 
-- The 2 s graph budget (ADR-005) and the CodeGraph volume (ADR-004, ADR-006) are not measured.
-- Licence statements for CAPEC, elkjs and LINDDUN still need verification (ADR-005, ADR-007).
+- The CodeGraph volume (ADR-004, ADR-006) is not measured; the 2 s graph budget was measured in M4 (ADR-005).
+- Licence statements for CAPEC and LINDDUN still need verification (ADR-007); elkjs was verified in M4 (ADR-005).
 - ADR-011 and ADR-013 cannot be completed without owner decisions.
 
 ## Future improvements

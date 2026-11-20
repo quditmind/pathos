@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 """Run the PATHOS Opengrep rules against their test fixtures.
 
-Fixtures live in workers/rules-tests/. A comment line
+Two packs are tested: the finding rules (workers/rules, fixtures in
+workers/rules-tests/) and the CodeGraph rules (workers/graph/rules,
+fixtures in workers/graph/rules-tests/; graph facts, not findings).
+`--pack rules|graph` runs one of them. A comment line
 
     # ruleid: <rule id>      (or // ruleid: ...)
 
@@ -26,8 +29,16 @@ import subprocess
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RULES = os.path.join(ROOT, "workers", "rules")
-FIXTURES = os.path.join(ROOT, "workers", "rules-tests")
+PACKS = {
+    # name: (rules dir, fixtures dir, rule file filter, rule id marker)
+    "rules": (os.path.join(ROOT, "workers", "rules"), os.path.join(ROOT, "workers", "rules-tests"),
+              lambda f: f.startswith("pathos-") and f.endswith(".yml") and f != "pathos-baseline.yml", "pathos."),
+    "graph": (os.path.join(ROOT, "workers", "graph", "rules"), os.path.join(ROOT, "workers", "graph", "rules-tests"),
+              lambda f: f.startswith("graph-") and f.endswith(".yaml"), "pathos-graph-"),
+}
+RULES = FIXTURES = None
+RULE_FILTER = None
+MARKER = "pathos."
 ANNOT = re.compile(r"^\s*(?:#|//|/\*)\s*(ruleid|ok):\s*([\w.-]+(?:\s*,\s*[\w.-]+)*)")
 COMMENT = re.compile(r"^\s*(#|//|/\*|\*)")
 
@@ -58,8 +69,7 @@ def run_opengrep():
     # Every PATHOS rule pack with fixtures: the framework configuration
     # rules and the crypto, database, AI and CI/CD packs (the baseline rules
     # have no fixtures).
-    rule_files = sorted(f for f in os.listdir(RULES)
-                        if f.startswith("pathos-") and f.endswith(".yml") and f != "pathos-baseline.yml")
+    rule_files = sorted(f for f in os.listdir(RULES) if RULE_FILTER(f))
     binary = os.environ.get("OPENGREP") or shutil.which("opengrep")
     if binary:
         cmd = [binary, "scan", "--json", "--quiet", "--disable-version-check"]
@@ -83,8 +93,8 @@ def run_opengrep():
     got = set()
     for r in doc.get("results", []):
         rid = r["check_id"]
-        if "pathos." in rid:
-            rid = rid[rid.index("pathos."):]
+        if MARKER in rid:
+            rid = rid[rid.index(MARKER):]
         path = os.path.normpath(r["path"])
         if os.path.isabs(path):
             path = os.path.relpath(path, FIXTURES)
@@ -93,6 +103,21 @@ def run_opengrep():
 
 
 def main():
+    global RULES, FIXTURES, RULE_FILTER, MARKER
+    packs = list(PACKS)
+    if len(sys.argv) == 3 and sys.argv[1] == "--pack" and sys.argv[2] in PACKS:
+        packs = [sys.argv[2]]
+    elif len(sys.argv) > 1:
+        sys.exit("usage: test-opengrep-rules.py [--pack rules|graph]")
+    status = 0
+    for name in packs:
+        RULES, FIXTURES, RULE_FILTER, MARKER = PACKS[name]
+        print("== %s pack (%s)" % (name, os.path.relpath(RULES, ROOT)))
+        status |= run_pack()
+    return status
+
+
+def run_pack():
     want, forbid = expectations()
     got, errors = run_opengrep()
     missing = sorted(w for w in want if w not in got)

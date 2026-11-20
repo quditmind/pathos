@@ -1,0 +1,165 @@
+# PATHOS CodeGraph rules: Go. These rules do not produce findings: the
+# graph worker (pathos-graph) turns each match into a route, data access,
+# queue or outbound call of the code graph. metadata.pathos_graph says what
+# a match means; the message carries the values separated by "|".
+rules:
+  # --------------------------------------------------------------- routes
+  - id: pathos-graph-go-route-nethttp
+    languages: [go]
+    severity: INFO
+    message: "route|ANY|$PATH|$HANDLER"
+    metadata: {pathos_graph: {kind: route, framework: "net/http|gorilla/mux|chi"}}
+    pattern-either:
+      - pattern: http.HandleFunc("$PATH", $HANDLER)
+      - pattern: http.Handle("$PATH", $HANDLER)
+      - pattern: $MUX.HandleFunc("$PATH", $HANDLER)
+      - pattern: $MUX.Handle("$PATH", $HANDLER)
+  - id: pathos-graph-go-route-chi
+    languages: [go]
+    severity: INFO
+    message: "route|$METHOD|$PATH|$HANDLER"
+    metadata: {pathos_graph: {kind: route, framework: chi, requires_import: "go-chi/chi"}}
+    patterns:
+      - pattern: $R.$METHOD("$PATH", $HANDLER)
+      - metavariable-regex: {metavariable: $METHOD, regex: ^(Get|Post|Put|Delete|Patch|Head|Options|Connect|Trace)$}
+  - id: pathos-graph-go-route-gin-echo
+    languages: [go]
+    severity: INFO
+    message: "route|$METHOD|$PATH|$HANDLER"
+    metadata: {pathos_graph: {kind: route, framework: "echo|fiber|gin", requires_import: "gin-gonic/gin|labstack/echo|gofiber/fiber"}}
+    patterns:
+      - pattern-either:
+          - pattern: $R.$METHOD("$PATH", ..., $HANDLER)
+      - metavariable-regex: {metavariable: $METHOD, regex: ^(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS|Any|Get|Post|Put|Delete|Patch|All)$}
+  # ---------------------------------------------------------- data access
+  - id: pathos-graph-go-db-sql-read
+    languages: [go]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: read}}
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$M("$SQL", ...)
+          - pattern: $DB.$M($CTX, "$SQL", ...)
+          - pattern: $DB.$M($CTX, $TX, "$SQL", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(Query|QueryRow|QueryContext|QueryRowContext|Exec|ExecContext|Prepare|PrepareContext|Get|GetContext|Select|SelectContext|NamedExec|NamedExecContext|NamedQuery|MustExec|Raw|SendBatch|CopyFrom)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(select|with|show|explain)\b}
+  - id: pathos-graph-go-db-sql-write
+    languages: [go]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: write}}
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$M("$SQL", ...)
+          - pattern: $DB.$M($CTX, "$SQL", ...)
+          - pattern: $DB.$M($CTX, $TX, "$SQL", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(Query|QueryRow|QueryContext|QueryRowContext|Exec|ExecContext|Prepare|PrepareContext|Get|GetContext|Select|SelectContext|NamedExec|NamedExecContext|NamedQuery|MustExec|Raw|SendBatch|CopyFrom)$}
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(insert|update|delete|merge|upsert|create|alter|drop|truncate|call|copy|lock|refresh)\b}
+  - id: pathos-graph-go-db-gorm
+    languages: [go]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql, requires_import: "gorm.io/gorm"}}
+    patterns:
+      - pattern: $DB.$M(...)
+      - metavariable-regex: {metavariable: $M, regex: ^(Find|First|Last|Take|Create|CreateInBatches|Save|Updates|Update|UpdateColumn|Delete|Pluck|Count|Scan|FirstOrCreate|FirstOrInit)$}
+  - id: pathos-graph-go-db-redis
+    languages: [go]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: redis, requires_import: "redis/go-redis|go-redis/redis|valkey-io/valkey-go"}}
+    patterns:
+      - pattern: $C.$M($CTX, ...)
+      - pattern-not: $C.$M("...", ...)
+      - pattern-not: http.$M(...)
+      - metavariable-regex: {metavariable: $M, regex: ^(Get|Set|SetNX|SetEx|Del|Exists|Expire|Incr|IncrBy|Decr|HGet|HSet|HGetAll|HDel|LPush|RPush|LPop|RPop|LRange|SAdd|SMembers|SRem|ZAdd|ZRange|ZRem|MGet|MSet|Eval|EvalSha|Keys|Scan|TxPipelined|Pipelined)$}
+  - id: pathos-graph-go-db-mongo
+    languages: [go]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: mongodb, requires_import: "go.mongodb.org/mongo-driver"}}
+    patterns:
+      - pattern: $C.$M($CTX, ...)
+      - pattern-not: $C.$M("...", ...)
+      - metavariable-regex: {metavariable: $M, regex: ^(Find|FindOne|InsertOne|InsertMany|UpdateOne|UpdateMany|ReplaceOne|DeleteOne|DeleteMany|Aggregate|CountDocuments|FindOneAndUpdate|FindOneAndDelete|BulkWrite)$}
+  # --------------------------------------------------------------- queues
+  - id: pathos-graph-go-queue-publish
+    languages: [go]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_publish, technology: nats, requires_import: "nats-io/nats.go"}}
+    patterns:
+      - pattern-either:
+          - pattern: $NC.Publish("$TOPIC", ...)
+          - pattern: $NC.Request("$TOPIC", ...)
+  - id: pathos-graph-go-queue-consume
+    languages: [go]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_consume, technology: nats, requires_import: "nats-io/nats.go"}}
+    patterns:
+      - pattern-either:
+          - pattern: $NC.Subscribe("$TOPIC", ...)
+          - pattern: $NC.QueueSubscribe("$TOPIC", ...)
+  - id: pathos-graph-go-queue-kafka-publish
+    languages: [go]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_publish, technology: kafka, requires_import: "segmentio/kafka-go|confluent-kafka-go|IBM/sarama|Shopify/sarama"}}
+    pattern-either:
+      - pattern: '$W.WriteMessages(...)'
+      - pattern: '$P.Produce(...)'
+      - pattern: '$P.SendMessage(...)'
+      - pattern: 'kafka.Writer{..., Topic: "$TOPIC", ...}'
+  - id: pathos-graph-go-queue-kafka-consume
+    languages: [go]
+    severity: INFO
+    message: "queue|$TOPIC"
+    metadata: {pathos_graph: {kind: queue_consume, technology: kafka, requires_import: "segmentio/kafka-go|confluent-kafka-go|IBM/sarama|Shopify/sarama"}}
+    pattern-either:
+      - pattern: '$R.ReadMessage(...)'
+      - pattern: '$R.FetchMessage(...)'
+      - pattern: '$C.SubscribeTopics(...)'
+      - pattern: 'kafka.ReaderConfig{..., Topic: "$TOPIC", ...}'
+  - id: pathos-graph-go-queue-amqp
+    languages: [go]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_publish, technology: rabbitmq, requires_import: "amqp091-go|streadway/amqp"}}
+    pattern-either:
+      - pattern: $CH.Publish($EX, "$Q", ...)
+      - pattern: $CH.PublishWithContext($CTX, $EX, "$Q", ...)
+  - id: pathos-graph-go-queue-amqp-consume
+    languages: [go]
+    severity: INFO
+    message: "queue|$Q"
+    metadata: {pathos_graph: {kind: queue_consume, technology: rabbitmq, requires_import: "amqp091-go|streadway/amqp"}}
+    pattern: $CH.Consume("$Q", ...)
+  - id: pathos-graph-go-queue-sqs
+    languages: [go]
+    severity: INFO
+    message: "queue|$M"
+    metadata: {pathos_graph: {kind: queue_publish, technology: sqs, requires_import: "service/sqs"}}
+    pattern: $C.SendMessage($CTX, ...)
+  - id: pathos-graph-go-queue-sqs-consume
+    languages: [go]
+    severity: INFO
+    message: "queue|$M"
+    metadata: {pathos_graph: {kind: queue_consume, technology: sqs, requires_import: "service/sqs"}}
+    pattern: $C.ReceiveMessage($CTX, ...)
+  # ------------------------------------------------------- outbound HTTP
+  - id: pathos-graph-go-http-call
+    languages: [go]
+    severity: INFO
+    message: "http|$URL"
+    metadata: {pathos_graph: {kind: external_call}}
+    patterns:
+      - pattern-either:
+          - pattern: http.Get("$URL")
+          - pattern: http.Post("$URL", ...)
+          - pattern: http.Head("$URL")
+          - pattern: http.NewRequest($M, "$URL", ...)
+          - pattern: http.NewRequestWithContext($CTX, $M, "$URL", ...)
+          - pattern: $C.Get("$URL")
+      - metavariable-regex: {metavariable: $URL, regex: ^https?://}

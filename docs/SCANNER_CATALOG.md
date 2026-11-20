@@ -165,7 +165,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | **Implemented** (`worker-dast` manifest, API targets, intrusive) |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
-Count: **98 catalogued scanner integrations**, 81 of which a PATHOS worker image runs (worker-core and the family images); the others are optional, licence-restricted or bring-your-own, and their reports can be imported. The family packs add their entries in `backend/internal/scanners/catalog_<family>.go`. Built-in checks (endpoint verification, cosign, endoflife.date, the AI-BOM) and the supporting utilities below come on top. Separately, [result imports](api-reference/result-imports.md) read 232 report formats from 207 tools. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
+Count: **99 catalogued scanner integrations**, 82 of which a PATHOS worker image runs (worker-core and the family images); the others are optional, licence-restricted or bring-your-own, and their reports can be imported. The family packs add their entries in `backend/internal/scanners/catalog_<family>.go`. Built-in checks (endpoint verification, cosign, endoflife.date, the AI-BOM) and the supporting utilities below come on top. Separately, [result imports](api-reference/result-imports.md) read 232 report formats from 207 tools. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
 
 ## Supporting utilities (not counted as scanners)
 
@@ -735,6 +735,15 @@ Not shipped:
 | garak model-based detectors and dataset probes, full garak dependency set | Need PyTorch/Transformers (several GB) or downloads at run time |
 | promptfoo `redteam generate` plugins | Need a generator model or promptfoo's remote generation service |
 | binwalk (firmware extraction) | Not evaluated in this pack; CVE Binary Tool extracts common archive and package formats itself |
+
+## Family image: CodeGraph discovery (worker-graph)
+
+`worker-graph` (Compose profile `graph`) extends `worker-core` with one tool, `pathos-graph` (PATHOS CodeGraph discovery, Apache-2.0, manifest `workers/graph/tools.d/pathos-graph.yaml`). It builds a repository's code graph (`pathos.codegraph/v1`), not findings, and is not a kind of check: it covers no scan type and cannot be added to a scan profile; CodeGraph builds run it through a system profile ([CodeGraph](user-guide/codegraph.md)).
+
+- Go is parsed with the Go parser; Java, Python, JavaScript/TypeScript/TSX, C#, PHP and Ruby with tree-sitter; languages with go-enry; OpenAPI and Swagger with kin-openapi.
+- Routes (net/http, chi, gin/echo/fiber, Spring, Flask, FastAPI, Django, Express, Fastify, Koa, NestJS, ASP.NET, Laravel, Rails, Sinatra), database and ORM access, queues and outbound HTTP calls come from the PATHOS graph rules (`workers/graph/rules`, ids `pathos-graph-*`, fixtures in `workers/graph/rules-tests`, tested by `scripts/test-opengrep-rules.py --pack graph`), run by the worker-core Opengrep; SBOM components from Syft; containers and infrastructure from Dockerfiles, Compose, Kubernetes and Terraform.
+- Reads source only, never builds or runs code, `network: none`, timeout 30 minutes, off by default. Image size 1.82 GB (worker-core 1.77 GB); Trivy gate passed on 2026-11-20 (0 fixable high or critical vulnerabilities).
+- Joern (code property graph, ADR-006 tier 2) is not included ([decision](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md#decisions)).
 
 ## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
 

@@ -14,10 +14,13 @@
  * PATHOS 3.0 M2/M3 pages are covered too: the Connectors hub (with the real
  * connector kinds catalogue, frontend/src/test/fixtures/connectorKinds.json,
  * kept current by a Go test in backend/internal/connectors), the application
- * profile hub tabs, the lifecycle overview and the onboarding flow.
+ * profile hub tabs, the lifecycle overview and the onboarding flow; and the
+ * PATHOS 3.0 M4 CodeGraph (the hub tab, the graph, its list view and the node
+ * inspector), whose discovery engines report versions, errors and evidence.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Finding, ScanFinding, ScanJob } from "@/api/types";
 import { mockApi, renderApp } from "@/test/harness";
 import { CATALOG_TOOLS, TOOL_NAME_TERMS, findingCheckLabel, redactToolNames } from "@/lib/checkKinds";
@@ -40,6 +43,9 @@ import { LifecyclePage } from "@/features/inventory/LifecyclePage";
 import { OnboardingFlowPage } from "@/features/inventory/OnboardingFlowPage";
 import type { ApplicationProfile as AppProfile, AppLifecycle, Phase } from "@/features/inventory/api";
 import connectorKinds from "@/test/fixtures/connectorKinds.json";
+import { CodeGraphPanel } from "@/features/codegraph/CodeGraphPanel";
+import { CodeGraphIndexPage } from "@/features/codegraph/CodeGraphPage";
+import { mockReactFlowDom } from "@/components/graph/testing";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -374,5 +380,90 @@ describe("scan profile kinds", () => {
     expect(screen.getByText(/No online worker runs a selected tool for: Secrets/)).toBeInTheDocument();
     expect(screen.getByText("no runnable tool")).toBeInTheDocument();
     expect(screen.getByText("not in repository scans")).toBeInTheDocument();
+  });
+});
+
+// --- PATHOS 3.0 M4: CodeGraph (example fixture data, test only) -------------------
+
+const CG = "/api/v1/codegraph/applications/a1";
+const cgSnap = (id: string, status: string, created_at: string) => ({
+  id, application_id: "a1", repository_id: "r1", repository_name: "example/payments-api", ref: "main", commit_sha: `${id}0000000000000000`,
+  trigger: "scan", status, node_count: 4, edge_count: 3, created_at, finished_at: created_at, storage: "rows",
+  engines: Object.fromEntries(ENGINE_KEYS.slice(0, 6).map((k) => [k, "1.0.0"])),
+  stats: { engines_failed: ENGINE_KEYS.slice(0, 3) },
+  error_code: status === "failed" ? "PTH-DISC-1002" : "",
+  error: status === "failed" ? `discovery failed: ${NOISY}` : "",
+});
+const cgGraph = {
+  snapshot_id: "s1", view: "architecture", focus: "", depth: 1, limit: 500, base_snapshot_id: null, truncated: false,
+  nodes: [
+    { id: "n-route", key: "route:POST /pay", type: "route", label: "POST /example/pay", layer: "api", attrs: { file: "api/pay.go", line: 12, technology: "chi", detected_by: "opengrep", framework: "net/http" }, finding_counts: { high: 1 } },
+    { id: "n-fn", key: "fn:go:pay.Charge", type: "function", label: "Charge()", layer: "code", parent: "n-route", group: "agg:dir:api", attrs: { file: "api/pay.go", line: 30, language: "Go", engine: "semgrep-ce" } },
+    { id: "n-db", key: "datastore:postgres", type: "datastore", label: "example-db", layer: "data", attrs: { technology: "PostgreSQL", source: `rule match (${NOISY})` } },
+    { id: "n-lib", key: "component:pkg:golang/example.com/lib", type: "component", label: "example.com/lib", layer: "dependency", attrs: { purl: "pkg:golang/example.com/lib@1.2.0", source: "syft" } },
+  ],
+  edges: [
+    { id: "e1", source: "n-route", target: "n-fn", type: "calls", evidence: "verified", count: 1, evidence_refs: [{ kind: "scan", ref: "opengrep:pathos.graph.route.chi", detail: "route rule matched by Opengrep" }] },
+    { id: "e2", source: "n-fn", target: "n-db", type: "writes", evidence: "verified", count: 1, evidence_refs: [{ kind: "file_line", ref: "api/pay.go:41", detail: `db.Exec (found by ${third[0]!.name})` }] },
+    { id: "e:agg", source: "n-fn", target: "n-lib", type: "depends_on", evidence: "verified", count: 3, evidence_refs: [{ kind: "sbom", ref: "pkg:golang/example.com/lib@1.2.0", detail: "listed by syft and trivy-fs" }] },
+  ],
+  aggregated: [{ id: "agg:dir:api", label: "api", count: 40, child_types: { function: 40 }, finding_counts: { high: 1 } }],
+};
+const cgRoutes = {
+  ...m3Routes,
+  "GET /api/v1/meta": () => ({ ...flagsOn(), feature_flags: { ...flagsOn().feature_flags, codegraph: true } }),
+  "GET /api/v1/applications": () => ({ items: [{ id: "a1", name: "Payments Platform" }] }),
+  "GET /api/v1/codegraph/views": () => ({ views: [], node_types: [], edge_types: [], layers: [], evidence_types: [], evidence_ref_kinds: [] }),
+  "GET /api/v1/codegraph/settings": () => ({ auto_rebuild: true, min_interval_minutes: 60, keep_snapshots: 10 }),
+  [`GET ${CG}/snapshots`]: () => ({ snapshots: [cgSnap("s2", "failed", "2026-11-20T10:00:00Z"), cgSnap("s1", "ready", "2026-11-19T10:00:00Z")] }),
+  [`GET ${CG}/snapshots/s1/graph`]: () => cgGraph,
+  [`GET ${CG}/snapshots/s1/nodes/n-route`]: () => ({
+    node: cgGraph.nodes[0],
+    ancestors: [], children: { count: 1, types: { function: 1 } },
+    edges_out: [{ ...cgGraph.edges[0], other: { id: "n-fn", type: "function", label: "Charge()" } }], edges_in: [], edges_out_total: 1, edges_in_total: 0,
+    finding_counts: { high: 1 }, rollup_finding_counts: { high: 1 },
+    findings: [{ id: "f1", title: "Example SQL injection (test fixture)", severity: "high", status: "open", rule_id: "trivy-config-example", file_path: "api/pay.go", start_line: 12 }],
+    source_links: [{ file: "api/pay.go", line: 12, url: "https://example.invalid/example/payments-api/blob/s1/api/pay.go#L12" }],
+  }),
+  [`POST ${CG}/build`]: () => ({ snapshots: [], errors: [{ repository_id: "r1", code: "PTH-DISC-1002", message: `pathos-graph could not start: ${NOISY}` }] }),
+};
+
+describe("rule 3 on the PATHOS 3.0 M4 CodeGraph", () => {
+  it("application profile: CodeGraph tab, with a failed build", async () => {
+    mockReactFlowDom();
+    mockApi(cgRoutes);
+    renderApp(<ApplicationProfile id="a1" />, { path: "/?tab=codegraph", permissions: ["repos.read", "findings.read", "findings.export", "scans.run"] });
+    expect(await screen.findByRole("heading", { name: "Payments Platform" })).toBeInTheDocument();
+    expect(await screen.findByText(/The last CodeGraph build failed \(PTH-DISC-1002\)/)).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /^POST \/example\/pay, Route/ })).toBeInTheDocument();
+    // Build errors come back with tool names in their messages.
+    await userEvent.click(screen.getByRole("button", { name: "Rebuild" }));
+    expect(await screen.findByText(/Some repositories were not queued/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("CodeGraph graph, inspector and list view", async () => {
+    mockReactFlowDom();
+    mockApi(cgRoutes);
+    renderApp(<CodeGraphPanel applicationId="a1" applicationName="Payments Platform" />, { permissions: ["findings.read", "findings.export", "scans.run"] });
+    fireEvent.click(await screen.findByRole("button", { name: /^POST \/example\/pay, Route/ }));
+    const insp = screen.getByLabelText("Node inspector");
+    expect(await within(insp).findByRole("link", { name: "Example SQL injection (test fixture)" })).toBeInTheDocument();
+    await within(insp).findAllByText(/pathos\.graph\.route\.chi/);
+    expectNoToolNames();
+    await userEvent.click(screen.getByRole("button", { name: "List view" }));
+    expect(await screen.findByText(/Relationships \(/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("CodeGraph and API & endpoints pages", async () => {
+    mockApi(cgRoutes);
+    const { unmount } = renderApp(<CodeGraphIndexPage />, { permissions: ["findings.read", "settings.manage"] });
+    await screen.findByRole("heading", { name: "CodeGraph settings" });
+    expectNoToolNames();
+    unmount();
+    renderApp(<CodeGraphIndexPage view="api" />, { permissions: ["findings.read"] });
+    await screen.findByRole("option", { name: "Payments Platform" });
+    expectNoToolNames();
   });
 });

@@ -1,0 +1,49 @@
+# Example shop deployment (test fixture).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shop-api
+  namespace: shop
+spec:
+  replicas: 2
+  selector:
+    matchLabels: {app: shop-api}
+  template:
+    metadata:
+      labels: {app: shop-api}
+    spec:
+      containers:
+        - name: api
+          image: example/shop-api:1.0
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef: {name: shop-db, key: url}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop-api
+  namespace: shop
+spec:
+  selector: {app: shop-api}
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: shop
+  namespace: shop
+spec:
+  rules:
+    - host: shop.example.net
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: shop-api
+                port: {number: 80}

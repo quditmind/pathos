@@ -12,6 +12,8 @@ export default defineConfig({
   define: { __PATHOS_BUNDLE_VERSION__: JSON.stringify(pkg.version) },
   resolve: { alias: { "@": "/src" } },
   build: { sourcemap: false, target: "es2022" },
+  // The graph layout worker (ELK) is an ES module worker.
+  worker: { format: "es" },
   server: {
     // The Help Center bundles Markdown from ../docs.
     fs: { allow: [".."] },
