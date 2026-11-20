@@ -74,6 +74,8 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `threats.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `threats.manage` |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  |  |  |
 | `threats.approve` |  | ✓ |  | ✓ |  |  | ✓ |  |  |  |  |  |
+| `rea.run` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
+| `rea.authorize` |  | ✓ |  | ✓ |  |  |  |  |  |  |  |  |
 | `reviews.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `reviews.assess` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `reviews.assign` |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |  |

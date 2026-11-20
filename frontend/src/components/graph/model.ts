@@ -35,6 +35,11 @@ export const nodeTypeLabel: Record<NodeType, string> = {
   secret_ref: "Secret reference",
   trust_boundary: "Trust boundary",
   application: "Application",
+  binary: "Binary",
+  binary_function: "Binary function",
+  import: "Import",
+  string_ref: "String",
+  section: "Section",
 };
 
 export const layerLabel: Record<Layer, string> = {
@@ -59,6 +64,7 @@ export const edgeTypeLabel: Record<EdgeType, string> = {
   deployed_as: "deployed as",
   crosses_boundary: "crosses boundary",
   owns: "owns",
+  references: "references",
 };
 
 /**

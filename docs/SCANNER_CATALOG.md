@@ -165,7 +165,7 @@ Legend: **Use** = include in catalog. **Opt** = optional / restricted. **Excl** 
 | 51 | Schemathesis | API fuzzing (OpenAPI) | MIT | active | Use (target URL) | **Implemented** (`worker-dast` manifest, API targets, intrusive) |
 | 52 | kube-bench | K8s CIS (cluster) | Apache-2.0 (*unverified*) | *unverified* | Opt | Cluster target, not repo |
 
-Count: **99 catalogued scanner integrations**, 82 of which a PATHOS worker image runs (worker-core and the family images); the others are optional, licence-restricted or bring-your-own, and their reports can be imported. The family packs add their entries in `backend/internal/scanners/catalog_<family>.go`. Built-in checks (endpoint verification, cosign, endoflife.date, the AI-BOM) and the supporting utilities below come on top. Separately, [result imports](api-reference/result-imports.md) read 232 report formats from 207 tools. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
+Count: **100 catalogued scanner integrations**, 83 of which a PATHOS worker image runs (worker-core and the family images); the others are optional, licence-restricted or bring-your-own, and their reports can be imported. The family packs add their entries in `backend/internal/scanners/catalog_<family>.go`. Built-in checks (endpoint verification, cosign, endoflife.date, the AI-BOM) and the supporting utilities below come on top. Separately, [result imports](api-reference/result-imports.md) read 232 report formats from 207 tools. Licence policy evaluation (`license-policy` in a finding's *Detected by*) runs on the server against the SBOM inventory; it is a finding source, not a catalogued scanner.
 
 ## Supporting utilities (not counted as scanners)
 
@@ -447,7 +447,7 @@ Import formats are listed under a scan type when their default category is the t
 
 ## Kinds of check (PATHOS 3.0 M6)
 
-The build prompt (§7) groups security testing into **20 kinds of check of about 10 tools each**. PATHOS keeps its 25 scan types (decision C8): a kind of check is a display grouping of scan types, defined with the scan-type registry in `backend/internal/scanners/scantypes.go` (`CheckKinds`) and served by `GET /api/v1/scan-types` (`kinds`). Every scan type belongs to exactly one kind; AI / LLM and manual review stay outside the 20 kinds and are shown under their own names. Outside Configurations › Scan profiles, Configurations › Scanners & workers and Import results, the UI shows the kind of check and "confirmed by N engines" instead of tool names (rule 3, decision C5; see [Findings](user-guide/findings.md)).
+The build prompt (§7) groups security testing into **20 kinds of check of about 10 tools each**. PATHOS keeps its 25 scan types (decision C8): a kind of check is a display grouping of scan types, defined with the scan-type registry in `backend/internal/scanners/scantypes.go` (`CheckKinds`) and served by `GET /api/v1/scan-types` (`kinds`). Every scan type belongs to exactly one kind; AI / LLM and manual review stay outside the 20 kinds and are shown under their own names. Outside Configurations › Scan profiles, Configurations › Scanners & workers, Configurations › Reverse engineering tools and Import results, the UI shows the kind of check and "confirmed by N engines" instead of tool names (rule 3, decision C5; see [Findings](user-guide/findings.md)).
 
 "Catalogued" counts the §7 tools that are in the scanner catalog; a catalogued tool is runnable when a shipped worker image or manifest runs it and a worker advertising it is online. **No tool was added in this milestone**: the tools on the gap list arrive as worker-pack pull requests, each with its licence evidence re-checked.
 
@@ -734,7 +734,7 @@ Not shipped:
 | apktool | Not needed: jadx produces the Java sources and resources mobsfscan and APKLeaks read |
 | garak model-based detectors and dataset probes, full garak dependency set | Need PyTorch/Transformers (several GB) or downloads at run time |
 | promptfoo `redteam generate` plugins | Need a generator model or promptfoo's remote generation service |
-| binwalk (firmware extraction) | Not evaluated in this pack; CVE Binary Tool extracts common archive and package formats itself |
+| binwalk (firmware extraction) | Not in this pack; it is part of the reverse-engineering family (worker-rea) below |
 
 ## Family image: CodeGraph discovery (worker-graph)
 
@@ -744,6 +744,26 @@ Not shipped:
 - Routes (net/http, chi, gin/echo/fiber, Spring, Flask, FastAPI, Django, Express, Fastify, Koa, NestJS, ASP.NET, Laravel, Rails, Sinatra), database and ORM access, queues and outbound HTTP calls come from the PATHOS graph rules (`workers/graph/rules`, ids `pathos-graph-*`, fixtures in `workers/graph/rules-tests`, tested by `scripts/test-opengrep-rules.py --pack graph`), run by the worker-core Opengrep; SBOM components from Syft; containers and infrastructure from Dockerfiles, Compose, Kubernetes and Terraform.
 - Reads source only, never builds or runs code, `network: none`, timeout 30 minutes, off by default. Image size 1.82 GB (worker-core 1.77 GB); Trivy gate passed on 2026-11-20 (0 fixable high or critical vulnerabilities).
 - Joern (code property graph, ADR-006 tier 2) is not included ([decision](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md#decisions)).
+
+## Family image: reverse engineering, static tier (worker-rea)
+
+`worker-rea` (Compose profile `rea`, feature flag `reverse_engineering`) runs one analysis, `pathos-rea` (PATHOS, Apache-2.0, `workers/rea/analyse`). It is not a kind of check and cannot be added to a scan profile: reverse-engineering analyses of uploaded build artifacts run in their own queue lane. Its output is normalised facts (`pathos.rea/v1`), stored as a binary graph in the CodeGraph store, not findings.
+
+| Tool | Licence | Version | In the default image | Used for |
+|---|---|---|---|---|
+| radare2 | LGPL-3.0 | 6.2.6 | yes | Triage (format, sections, imports, exports, strings), function analysis, call and data references, disassembly |
+| binwalk | MIT | 3.1.0 | yes | Firmware signatures and recursive extraction (built-in extractors) |
+| ILSpy (ilspycmd) | MIT | 11.2.0.10050 | yes (`WITH_ILSPY`, about 20 MB, native build) | .NET assemblies: types and methods, decompiled C# |
+| Ghidra (headless) | Apache-2.0 | 12.2 | no (`WITH_GHIDRA=true`, 1.43 GB image) | Decompiled pseudo-C and Ghidra's call graph |
+| Jadx | Apache-2.0 | 1.5.7 | no (`WITH_JADX=true`; fails the Trivy gate, see below) | Android packages and Java archives: classes, methods, decompiled Java |
+
+- Go binaries are read with Go's own debug packages (exact symbol names from the pclntab, build information, linked packages); ELF, PE and Mach-O headers, sections and their entropy, dynamic imports and exports likewise.
+- Secrets in strings and code (cloud and SCM keys, tokens, private keys, credentials in URLs, password assignments, high-entropy tokens) are redacted inside the sandbox, before the document leaves it.
+- Isolation: the artifact is never executed. `pathos-rea` and every tool run only in `worker-rea-sandbox` (network none, UID 10002, read-only root filesystem, no capabilities, CPU, memory and pids limits); each tool also gets its own time budget and an address-space limit (radare2, binwalk) or heap limit (JVM, .NET). radare2 runs in its sandbox mode (`cfg.sandbox`: no shell commands, no file writes). The worker is on the internal `worker-api` network only. Tested by `workers/rea/test/rea-e2e.sh` (own C and Go builds and a firmware blob analysed in the built image; isolation probe).
+- Image size 253 MB (default). Trivy gate passed on 2026-11-20 (0 fixable high or critical vulnerabilities).
+- With `WITH_GHIDRA=true`: 1.43 GB (Ghidra 12.2 needs JDK 25). The Ghidra Server service wrapper (an outdated Netty) is removed and Ghidra's Guava 32.1.3 is replaced by 33.7.2 (Maven Central, SHA-256 pinned); Trivy gate passed on 2026-11-20. Measured in a 4 GB, 2-CPU sandbox runner with a 3 GB analysis memory limit: 7 s for a 16 KB C program, 177 s for a 10 MB Go service (7,264 functions, decompiled pseudo-C of the application's functions). It therefore stays optional.
+- With `WITH_JADX=true`: Jadx 1.5.7 bundles Guava 31.1 inside its single `jadx-*-all.jar` (CVE-2026-102554, fixable only upstream), so that image fails the Trivy gate; Jadx stays optional and off until a fixed release.
+- Not included: angr (Python, several GB of dependencies and high memory use) and Joern (a 1.8 GB distribution; ADR-006 left it out of CodeGraph too). The sandbox tier (Frida, Tracee, Qiling) arrives after 3.0.
 
 ## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
 

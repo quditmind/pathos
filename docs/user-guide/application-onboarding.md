@@ -100,7 +100,7 @@ Select an application name on **Applications** to open its profile (`/applicatio
 | Remediation | The application's [remediation items](remediation.md#remediation-workspace) (open, overdue and unassigned counts; status, priority, owner, due date and last verification) with **Open in the remediation workspace**, which filters the workspace to the application; "not enabled" while the `remediation_workspace` flag is off |
 | Activity & audit | Tag changes, and audit entries of the application and its repositories for people with the audit log permission |
 
-The **lifecycle progress strip** shows the nine phases and which of them hold real data for the application. Phases without data say so; Threat model and Reverse engineering are not available yet.
+The **lifecycle progress strip** shows the nine phases and which of them hold real data for the application. Phases without data say so; Threat model is not available yet. Reverse engineering counts the completed [binary analyses](reverse-engineering.md) of the application's build artifacts.
 
 ## Tag framework
 

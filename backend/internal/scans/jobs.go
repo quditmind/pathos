@@ -42,7 +42,9 @@ func (s *Service) registerJobs(mux *http.ServeMux) {
 // Trigger priorities: interactive requests jump ahead of automation.
 var priorities = map[string]int{"emergency": 100, "manual": 70, "merge": 60, "pull_request": 55, "push": 50, "onboarding": 40, "schedule": 30,
 	// CodeGraph discovery (rediscovery after scans): after the scans.
-	"codegraph": 20}
+	"codegraph": 20,
+	// Reverse engineering: its own lane (worker-rea workers only).
+	"rea": 20}
 
 // ErrNotScannable means the repository is archived or scanning is disabled.
 var ErrNotScannable = errors.New("repository is archived or scanning is disabled")

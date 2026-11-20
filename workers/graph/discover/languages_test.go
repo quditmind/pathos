@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 // One small sample project per tree-sitter language (testdata/<lang>):
 // classes, functions, imports and calls resolved through imports, typed
@@ -80,4 +84,27 @@ func TestGoOnly(t *testing.T) {
 		}
 	}
 	gi.wantEdges(t, "fn:go:cmd/api.main|calls|fn:go:internal/httpapi.New")
+}
+
+func TestSensitiveStdImports(t *testing.T) {
+	dir := t.TempDir()
+	write := func(rel, body string) {
+		p := filepath.Join(dir, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", "module example.com/svc\n\ngo 1.22\n")
+	write("cmd/server/main.go", "package main\n\nimport (\n\t\"net/http\"\n\t_ \"net/http/pprof\"\n\t\"os/exec\"\n)\n\nfunc main() {\n\t_ = exec.Command\n\t_ = http.ListenAndServe(\":8080\", nil)\n}\n")
+	gi := index(discoverFixture(t, dir, false))
+	n := gi.nodes["file:cmd/server/main.go"]
+	if n == nil {
+		t.Fatal("file node missing")
+	}
+	if got, _ := n.Attrs["sensitive_imports"].(string); got != "net/http/pprof:5 os/exec:6" {
+		t.Errorf("sensitive_imports = %q", got)
+	}
 }

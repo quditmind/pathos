@@ -40,6 +40,7 @@ import (
 	"pathos/internal/policy"
 	"pathos/internal/posture"
 	"pathos/internal/pushprotect"
+	"pathos/internal/rea"
 	"pathos/internal/releases"
 	"pathos/internal/remediation"
 	"pathos/internal/reporting"
@@ -163,6 +164,10 @@ func Build(d Deps) Handlers {
 	// and successful scans trigger rediscovery (rate-limited).
 	graphSvc := codegraph.NewService(d.DB, az, d.Log, auth.PrincipalFrom, d.Artifacts)
 	scanSvc.OnGraphResult = graphSvc.OnGraphResult
+	// Reverse engineering (flag reverse_engineering): analysis documents
+	// become binary graphs in the CodeGraph store.
+	reaSvc := &rea.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, Graph: graphSvc}
+	scanSvc.OnREAResult = reaSvc.OnREAResult
 	// Threat models (flag threat_models): a new snapshot regenerates the
 	// application's threat models in a draft (auto_update).
 	threatSvc := &threatmodel.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc}
@@ -264,6 +269,7 @@ func Build(d Deps) Handlers {
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
 	graphSvc.Register(protected)
+	reaSvc.Register(protected)
 	threatSvc.Register(protected)
 	// Cross-phase correlation (M7, ai_intelligence flag).
 	(&correlation.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, ThreatAccess: threatSvc.EvidenceAccess}).Register(protected)

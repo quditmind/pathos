@@ -1,7 +1,8 @@
 /**
  * Rule 3 (build prompt §1, decision C5): scanner tool names appear only on
- * Configurations › Scan profiles, Configurations › Scanners & workers and
- * Import results. Everywhere else the UI names the kind of check and
+ * Configurations › Scan profiles, Configurations › Scanners & workers,
+ * Configurations › Reverse engineering tools (M10, ADR-009) and Import
+ * results. Everywhere else the UI names the kind of check and
  * "confirmed by N engines".
  *
  * This test renders the main pages with EXAMPLE FIXTURE DATA (labelled, not

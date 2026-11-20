@@ -59,7 +59,10 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	reachTool := scanners.IsReachabilityTool(up.Scanner)
 	// pathos-graph output is a CodeGraph (stored by OnGraphResult), not findings.
 	graphTool := scanners.IsGraphTool(up.Scanner)
-	if up.Status == "succeeded" && !sbomTool && !reachTool && !graphTool && len(raw) > 0 {
+	// pathos-rea output is a reverse-engineering document (stored by
+	// OnREAResult as a binary graph), not findings.
+	reaTool := scanners.IsREATool(up.Scanner)
+	if up.Status == "succeeded" && !sbomTool && !reachTool && !graphTool && !reaTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -136,7 +139,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint, scanners.PathosReach:
 				ct = "application/json"
 			}
-			if graphTool {
+			if graphTool || reaTool {
 				ct = "application/json"
 			}
 			if sbomTool {
@@ -149,7 +152,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			// Manifest tools with another parser: the parser is kept with
 			// the tool's original output.
 			var parser []byte
-			if up.Parser != nil && !graphTool {
+			if up.Parser != nil && !graphTool && !reaTool {
 				ct = scanners.ToolContentType(*up.Parser)
 				parser, _ = json.Marshal(up.Parser)
 			}
@@ -265,6 +268,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		// (PTH-GRAPH codes), not the result upload.
 		s.OnGraphResult(context.WithoutCancel(ctx), orgID, jobID, GraphResult{Status: up.Status, Error: errText,
 			Version: up.Version, Commit: commit, Raw: raw})
+	}
+	if err == nil && reaTool && s.OnREAResult != nil && targetID != nil {
+		// Like the graph: stored in its own transaction after the result
+		// row; a document that cannot be stored fails the analysis
+		// (PTH-REA codes), not the upload.
+		s.OnREAResult(context.WithoutCancel(ctx), orgID, jobID, REAResult{Status: up.Status, Error: errText,
+			Version: up.Version, Raw: raw})
 	}
 	return len(findings) + licenseFindings, err
 }
@@ -448,9 +458,10 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		if pr != nil {
 			return finalizePR(ctx, tx, orgID, jobID, repoID, status, workerErr, bad, &job)
 		}
-		if trigger == "codegraph" {
-			// CodeGraph discovery: no findings, inventory or gate; the
-			// graph itself was stored when its result arrived.
+		if trigger == "codegraph" || trigger == "rea" {
+			// CodeGraph discovery and reverse engineering: no findings,
+			// inventory or gate; the graph itself was stored when its
+			// result arrived.
 			errText := logging.RedactString(truncate(workerErr, 2000))
 			if errText == "" && len(bad) > 0 {
 				errText = "scanners failed: " + joinSorted(bad)

@@ -146,23 +146,29 @@ type Snapshot struct {
 	StartedAt      *time.Time     `json:"started_at"`
 	FinishedAt     *time.Time     `json:"finished_at"`
 	ArchivedAt     *time.Time     `json:"archived_at"`
-	objectKey      *string
-	orgID          uuid.UUID
+	// Kind is "source" (discovery) or "binary" (reverse engineering).
+	Kind      string `json:"kind"`
+	objectKey *string
+	orgID     uuid.UUID
 }
 
 const snapshotSelect = `SELECT s.id, s.application_id, s.repository_id, COALESCE(NULLIF(r.display_name, ''), r.full_name), s.scan_job_id,
 	s.ref, s.commit_sha, s.trigger, s.status, s.storage, s.node_count, s.edge_count, s.engines, s.stats, s.error_code, s.error,
-	s.created_at, s.started_at, s.finished_at, s.archived_at, s.object_key, s.organization_id
+	s.created_at, s.started_at, s.finished_at, s.archived_at, s.object_key, s.organization_id, s.kind
 	FROM codegraph_snapshots s JOIN repositories r ON r.id = s.repository_id`
 
 func scanSnapshot(row pgx.Row) (Snapshot, error) {
 	var sn Snapshot
 	var engines, stats []byte
-	err := row.Scan(&sn.ID, &sn.ApplicationID, &sn.RepositoryID, &sn.RepositoryName, &sn.ScanJobID, &sn.Ref, &sn.CommitSHA, &sn.Trigger,
+	var appID *uuid.UUID // NULL for binary snapshots of repositories without an application
+	err := row.Scan(&sn.ID, &appID, &sn.RepositoryID, &sn.RepositoryName, &sn.ScanJobID, &sn.Ref, &sn.CommitSHA, &sn.Trigger,
 		&sn.Status, &sn.Storage, &sn.NodeCount, &sn.EdgeCount, &engines, &stats, &sn.ErrorCode, &sn.Error, &sn.CreatedAt,
-		&sn.StartedAt, &sn.FinishedAt, &sn.ArchivedAt, &sn.objectKey, &sn.orgID)
+		&sn.StartedAt, &sn.FinishedAt, &sn.ArchivedAt, &sn.objectKey, &sn.orgID, &sn.Kind)
 	if err != nil {
 		return sn, err
+	}
+	if appID != nil {
+		sn.ApplicationID = *appID
 	}
 	_ = json.Unmarshal(engines, &sn.Engines)
 	_ = json.Unmarshal(stats, &sn.Stats)
@@ -175,7 +181,7 @@ func (s *Service) snapshot(ctx context.Context, p *authz.Principal, appID uuid.U
 	if err := Reconcile(ctx, s.DB, &p.OrganizationID); err != nil {
 		return Snapshot{}, err
 	}
-	sn, err := scanSnapshot(s.DB.QueryRow(ctx, snapshotSelect+` WHERE s.organization_id = $1 AND s.application_id = $2 AND s.id = $3`,
+	sn, err := scanSnapshot(s.DB.QueryRow(ctx, snapshotSelect+` WHERE s.organization_id = $1 AND s.application_id = $2 AND s.id = $3 AND s.kind = 'source'`,
 		p.OrganizationID, appID, sid))
 	if err != nil {
 		return sn, err
@@ -431,7 +437,7 @@ func (s *Service) listSnapshots(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	expr, args := org.ScopeSQL(f, "r.id", "r.business_unit_id", "r.country_id", 6)
-	rows, err := s.DB.Query(ctx, snapshotSelect+` WHERE s.organization_id = $1 AND s.application_id = $2
+	rows, err := s.DB.Query(ctx, snapshotSelect+` WHERE s.organization_id = $1 AND s.application_id = $2 AND s.kind = 'source'
 		AND ($3::uuid IS NULL OR s.repository_id = $3) AND ($4 = '' OR s.status = $4) AND `+expr+`
 		ORDER BY s.created_at DESC LIMIT $5`, append([]any{p.OrganizationID, appID, repoID, status, limit}, args...)...)
 	if err != nil {
@@ -568,14 +574,21 @@ func parseList(v string) []string {
 
 // parseViewParams reads view, focus, depth, layers, filters and limit.
 func parseViewParams(q url.Values) (viewDef, viewParams, error) {
+	return parseViewParamsIn(q, Views, NodeTypes, "architecture")
+}
+
+// parseViewParamsIn parses view parameters against a set of views (the
+// 15 source views or the binary views) and node types.
+func parseViewParamsIn(q url.Values, views []viewDef, nodeTypes []string, defaultView string) (viewDef, viewParams, error) {
 	name := q.Get("view")
 	if name == "" {
-		name = "architecture"
+		name = defaultView
 	}
-	def, ok := ViewByName(name)
-	if !ok {
-		return def, viewParams{}, errBadQuery("unknown view " + strconv.Quote(name))
+	i := slices.IndexFunc(views, func(v viewDef) bool { return v.Name == name })
+	if i < 0 {
+		return viewDef{}, viewParams{}, errBadQuery("unknown view " + strconv.Quote(name))
 	}
+	def := views[i]
 	p := viewParams{focus: q.Get("focus"), depth: 1, limit: defaultLimit}
 	var err error
 	if v := q.Get("depth"); v != "" {
@@ -603,7 +616,7 @@ func parseViewParams(q url.Values) (viewDef, viewParams, error) {
 		}
 		switch k {
 		case "type", "kind":
-			if !slices.Contains(NodeTypes, v) {
+			if !slices.Contains(nodeTypes, v) {
 				return def, p, errBadQuery("unknown node type " + strconv.Quote(v))
 			}
 			p.types = append(p.types, v)
@@ -634,13 +647,8 @@ func parseViewParams(q url.Values) (viewDef, viewParams, error) {
 }
 
 func (s *Service) graph(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	p, sn, err := s.loadFor(r)
 	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if err := ready(sn); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -649,18 +657,29 @@ func (s *Service) graph(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	sk, err := s.skeleton(ctx, sn.ID)
+	out, err := s.graphOf(r.Context(), p, sn, def, vp, r.URL.Query().Get("compare"))
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// graphOf computes a view of a ready snapshot (source or binary).
+func (s *Service) graphOf(ctx context.Context, p *authz.Principal, sn Snapshot, def viewDef, vp viewParams, compare string) (map[string]any, error) {
+	if err := ready(sn); err != nil {
+		return nil, err
+	}
+	sk, err := s.skeleton(ctx, sn.ID)
+	if err != nil {
+		return nil, err
+	}
 	var base *skeleton
 	var baseID *uuid.UUID
 	if def.change {
-		base, baseID, err = s.changeBase(ctx, p, sn, r.URL.Query().Get("compare"))
+		base, baseID, err = s.changeBase(ctx, p, sn, compare)
 		if err != nil {
-			s.fail(w, r, err)
-			return
+			return nil, err
 		}
 		if base != nil {
 			vp.diff = diff(base, sk)
@@ -670,13 +689,11 @@ func (s *Service) graph(w http.ResponseWriter, r *http.Request) {
 	}
 	res, err := sk.compute(def, vp)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
 	}
 	out, err := s.render(ctx, sn.ID, sk, res)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
 	}
 	if def.change {
 		for _, j := range res.removed {
@@ -696,9 +713,9 @@ func (s *Service) graph(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"snapshot_id": sn.ID, "view": def.Name, "focus": vp.focus, "depth": vp.depth,
+	return map[string]any{"snapshot_id": sn.ID, "view": def.Name, "focus": vp.focus, "depth": vp.depth,
 		"limit": vp.limit, "nodes": out.Nodes, "edges": out.Edges, "aggregated": out.Aggregated, "truncated": out.Truncated,
-		"base_snapshot_id": baseID})
+		"base_snapshot_id": baseID}, nil
 }
 
 // changeBase picks the base snapshot of change_impact: compare=<id>, else
@@ -723,7 +740,7 @@ func (s *Service) changeBase(ctx context.Context, p *authz.Principal, sn Snapsho
 		}
 		bid = id
 	} else {
-		err := s.DB.QueryRow(ctx, `SELECT id FROM codegraph_snapshots WHERE organization_id = $1 AND repository_id = $2
+		err := s.DB.QueryRow(ctx, `SELECT id FROM codegraph_snapshots WHERE organization_id = $1 AND repository_id = $2 AND kind = 'source'
 			AND created_at < $3 AND status IN ('ready', 'partial') AND storage = 'rows' ORDER BY created_at DESC LIMIT 1`,
 			p.OrganizationID, sn.RepositoryID, sn.CreatedAt).Scan(&bid)
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -754,6 +771,9 @@ func (s *Service) render(ctx context.Context, snapshotID uuid.UUID, sk *skeleton
 			continue
 		}
 		label := strings.TrimPrefix(strings.TrimPrefix(u.group, "dir:"), "type:")
+		for _, pfx := range []string{"pkg:", "section:", "lib:"} { // binary graphs
+			label = strings.TrimPrefix(label, pfx)
+		}
 		if strings.HasPrefix(u.group, "type:") {
 			label += " (all)"
 		}
@@ -897,13 +917,8 @@ func (s *Service) fetchRefs(ctx context.Context, snapshotID uuid.UUID, sk *skele
 // --- inspector -----------------------------------------------------------------
 
 func (s *Service) node(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
 	_, sn, err := s.loadFor(r)
 	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	if err := ready(sn); err != nil {
 		s.fail(w, r, err)
 		return
 	}
@@ -912,20 +927,30 @@ func (s *Service) node(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	sk, err := s.skeleton(ctx, sn.ID)
+	out, err := s.nodeOf(r.Context(), sn, nid)
 	if err != nil {
 		s.fail(w, r, err)
 		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, out)
+}
+
+// nodeOf is the node inspector of a ready snapshot (source or binary).
+func (s *Service) nodeOf(ctx context.Context, sn Snapshot, nid uuid.UUID) (map[string]any, error) {
+	if err := ready(sn); err != nil {
+		return nil, err
+	}
+	sk, err := s.skeleton(ctx, sn.ID)
+	if err != nil {
+		return nil, err
 	}
 	i, ok := sk.byID[nid]
 	if !ok {
-		s.fail(w, r, errNotFound)
-		return
+		return nil, errNotFound
 	}
 	nodes, err := s.fetchNodes(ctx, sn.ID, sk, []int32{i})
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
 	}
 	n := sk.nodes[i]
 	type brief struct {
@@ -961,8 +986,7 @@ func (s *Service) node(w http.ResponseWriter, r *http.Request) {
 	}
 	refs, err := s.fetchRefs(ctx, sn.ID, sk, sample, maxRefsPerEdge)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, err
 	}
 	mk := func(list []int32, outgoing bool) []rel {
 		res := []rel{}
@@ -977,21 +1001,20 @@ func (s *Service) node(w http.ResponseWriter, r *http.Request) {
 		}
 		return res
 	}
-	findings, err := s.nodeFindings(ctx, sn, nodes[0])
-	if err != nil {
-		s.fail(w, r, err)
-		return
+	findings, links := []findingBrief{}, []sourceLink{}
+	if sn.Kind != KindBinary {
+		if findings, err = s.nodeFindings(ctx, sn, nodes[0]); err != nil {
+			return nil, err
+		}
+		if links, err = s.sourceLinks(ctx, sn, nodes[0], refs); err != nil {
+			return nil, err
+		}
 	}
-	links, err := s.sourceLinks(ctx, sn, nodes[0], refs)
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"node": nodes[0], "ancestors": ancestors,
+	return map[string]any{"node": nodes[0], "ancestors": ancestors,
 		"children":  map[string]any{"count": len(sk.childs[i]), "types": childTypes},
 		"edges_out": mk(sk.out[i], true), "edges_in": mk(sk.in[i], false),
 		"edges_out_total": len(sk.out[i]), "edges_in_total": len(sk.in[i]),
-		"finding_counts": nodes[0].FindingCounts, "rollup_finding_counts": rollup, "findings": findings, "source_links": links})
+		"finding_counts": nodes[0].FindingCounts, "rollup_finding_counts": rollup, "findings": findings, "source_links": links}, nil
 }
 
 type findingBrief struct {

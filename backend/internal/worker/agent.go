@@ -94,6 +94,10 @@ func New(cfg Config, log *slog.Logger) *Agent {
 			sandbox = s
 		}
 	}
+	// Reverse engineering (worker-rea image): pathos-rea runs only in the
+	// sandbox runner. Other images lack the binary, so the tool's version
+	// check fails and it is not advertised.
+	tools[REAKey] = reaTool{sandbox: sandbox}
 	// First-party manifests first. Neither kind can replace a built-in
 	// tool, and operator plugin keys (plugin-<category>-<name>) never
 	// collide with first-party ones (catalog keys).
@@ -229,6 +233,9 @@ func (a *Agent) Run(ctx context.Context) error {
 		case status == http.StatusOK:
 			a.runJob(ctx, job)
 			continue
+		case a.cfg.Family == JobKindREA:
+			// The reverse-engineering lane runs nothing else: it has no
+			// route to SCM hosts or the egress proxy.
 		default:
 			// No scan waiting: fix pull request jobs (manifest edits).
 			if a.tryFix(ctx) {
@@ -281,6 +288,8 @@ type Job struct {
 	SecretValidation *SecretValidationConfig `json:"secret_validation,omitempty"`
 	// Kind is "codegraph" for CodeGraph discovery: only the graph tool
 	// runs; change detection and the source inventories are skipped.
+	// "rea" for reverse engineering: only pathos-rea runs, on the raw
+	// artifact.
 	Kind string `json:"kind,omitempty"`
 }
 
@@ -298,7 +307,8 @@ type JobCredential struct {
 	CABundle string `json:"ca_bundle,omitempty"`
 }
 
-// JobKindCodeGraph marks CodeGraph discovery executions.
+// JobKindCodeGraph marks CodeGraph discovery executions (JobKindREA,
+// rea.go, marks reverse-engineering executions).
 const JobKindCodeGraph = "codegraph"
 
 // JobSource identifies a non-Git source for a job.

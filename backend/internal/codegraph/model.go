@@ -55,7 +55,10 @@ var RefKinds = []string{"file_line", "sbom", "scan", "registry", "runtime", "ai_
 
 // refEvidence is the evidence type each reference kind proves.
 var refEvidence = map[string]string{"file_line": EvidenceVerified, "sbom": EvidenceVerified, "scan": EvidenceVerified,
-	"registry": EvidenceVerified, "runtime": EvidenceObserved, "ai_record": EvidenceAIInferred}
+	"registry": EvidenceVerified, "runtime": EvidenceObserved, "ai_record": EvidenceAIInferred,
+	// binary: a file offset in an analysed artifact (binary graphs only,
+	// binary.go; never accepted in a discovery document).
+	"binary": EvidenceVerified}
 
 // defaultLayer is the layer of a node type when the document gives none.
 var defaultLayer = map[string]string{"repository": "ownership", "application": "ownership", "module": "code", "file": "code",
