@@ -81,6 +81,20 @@ async function fixtureApp(request: APIRequestContext): Promise<{ appId: string; 
   return { appId: app!.id, repoId: repos[0]?.id ?? "" };
 }
 
+/**
+ * Generation needs a real CodeGraph build, so an online discovery worker
+ * (worker-graph, Compose profile `graph`). The CI stack does not start that
+ * profile: the test is skipped there with the reason; the integration test
+ * TestThreatModels covers generation from a stored snapshot in CI.
+ */
+async function graphWorkerOnline(request: APIRequestContext): Promise<boolean> {
+  const r = await request.get("/api/v1/workers");
+  if (!r.ok()) return false;
+  const body = await r.json();
+  const items = (Array.isArray(body) ? body : (body.items ?? [])) as { family?: string; online?: boolean; revoked_at?: string | null; scanners?: Record<string, string> }[];
+  return items.some((w) => w.online && !w.revoked_at && (w.family === "graph" || Object.keys(w.scanners ?? {}).includes("pathos-graph")));
+}
+
 async function readySnapshot(request: APIRequestContext, appId: string) {
   const base = `/api/v1/codegraph/applications/${appId}`;
   const list = async () => ((await (await request.get(`${base}/snapshots`)).json()).snapshots ?? []) as { id: string; status: string; error?: string }[];
@@ -129,6 +143,7 @@ test("Threat models stays a roadmap item while the flag is off", async ({ page, 
 
 test("a threat model generated from the CodeGraph: evidence, review and export", async ({ page, request }) => {
   test.setTimeout(900_000);
+  test.skip(!(await graphWorkerOnline(request)), "no online CodeGraph discovery worker (Compose profile graph): start it to run the generated threat-model test");
   await setFlags(request, { codegraph: true, threat_models: true });
   const { appId } = await fixtureApp(request);
   await readySnapshot(request, appId);
