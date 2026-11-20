@@ -496,3 +496,16 @@ The framework reference data (ATT&CK, CAPEC, CWE, D3FEND) is not in the database
 | `gate_exceptions` | Exceptions and approvals: `kind`, `gate_id`, `decision_id`, `repository_id`/`application_id`, `scope` (`{commit_sha?, pull_request?}`), `reason`, `status` (`requested`, `approved`, `rejected`, `expired`, `revoked`), `requested_by`, `decided_by`, `decision_note`, `expires_at`. CHECK `gate_exceptions_four_eyes`: `decided_by <> requested_by` |
 
 All are tenant tables with the standard row-level security policy and composite `(organization_id, id)` keys (the migrations add the unique keys the referenced tables lacked). Other columns: `security_policies.managed_by` (`''` or `repository_pr_gate`) and `managed_repository_id`; `pr_checks.gate_mode` and `gate_decision_id`; `repositories.pr_gate_mode` (`block`, `warn` or NULL) with CHECK `repositories_pr_gate_mode_required` (pull request checks cannot be enabled without a choice). Migration 00057 (decision C6) gave every repository with pull request checks enabled `pr_gate_mode` with its previous behaviour and, for thresholds other than `none`, a managed policy and gate (keys from PostgreSQL 18's `uuidv7()`).
+
+## Continuous monitoring and architecture drift (migrations 00064–00065)
+
+PATHOS 3.0 M9 (flag `continuous_monitoring`; migrations 00058–00063 belong to M7 and M10).
+
+| Table | Purpose |
+|---|---|
+| `monitoring_events` | The feed: `event_type` (`rediscovery.queued`, `dependency.changed`, `architecture.drift`, `threat_model.updated`, `threat_model.review_needed`, `risk.rescored`, `fix.verification_queued`, `fix.verified`, `gate.failed`, `findings.new`, `ai.triage_queued`), `feedback_loop` (1–7), `severity`, `title`, `summary`, `evidence_label` (`verified`, `observed`, `ai_inferred`), `evidence` (references), `subject_type`/`subject_id`, `details`, optional `application_id`/`repository_id`. Written only while the flag is on; never updated (except the commit of drift evidence once known); pruned after 365 days by the jobs role |
+| `architecture_drifts` | One row per new CodeGraph snapshot: `from_snapshot_id` (NULL for a baseline; SET NULL when that snapshot is deleted), `to_snapshot_id` (unique), `from_commit`, `to_commit`, `severity`, `has_changes`, `counts`, `items` (at most 500, with evidence), `truncated` |
+| `monitoring_settings` | Per organization: `drift_alerts` (default false), `drift_alert_min_severity` (default `high`) |
+
+Migration 00065 adds `remediation_items.threat_id` (composite key to `threats`, ON DELETE SET NULL; CHECK: only kind `threat_mitigation`) and the verification trigger `fix_submitted`. All are tenant tables with the standard row-level security policy.
+

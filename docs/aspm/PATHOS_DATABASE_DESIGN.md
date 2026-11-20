@@ -734,6 +734,8 @@ Each is an explicit, opt-in setting, but none is a policy object. Options: (a) t
 
 ### Monitoring feed (M9)
 
+**Implemented in M9 (migrations 00064–00065), differences from the design below:** `monitoring_events` is a plain table (not partitioned; a yearly prune in the jobs role keeps it bounded) keyed by UUIDv7 `id` with `event_type` naming the lifecycle feedback loops (`rediscovery.queued`, `dependency.changed`, `architecture.drift`, `threat_model.updated`, `threat_model.review_needed`, `risk.rescored`, `fix.verification_queued`, `fix.verified`, `gate.failed`, `findings.new`, `ai.triage_queued`) and `feedback_loop`; no `dedup_key` (each writer records once per source event) and no acknowledgement. `architecture_drifts` stores one comparison per snapshot with its items and evidence, and `monitoring_settings` the drift alert switch. `remediation_items.threat_id` replaces the planned `remediation_item_threats` (one threat per item). See [DATABASE.md](../DATABASE.md#continuous-monitoring-and-architecture-drift-migrations-0006400065).
+
 **Existing (Partial):** `notification_events` (`00006`) is a delivery queue (`processed_at`), not a readable feed. Material changes (`material_changes`, `00028`), runtime facts (`00035`), feed runs (`intel_feed_runs`) and policy violations each record their own events.
 
 ```sql

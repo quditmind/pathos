@@ -55,6 +55,7 @@ How the context is built:
 - `new_last_30_days`, `fixed_last_90_days`, `mean_days_to_fix`, `fixed_within_sla_percent`
 - `repositories`, `scan_coverage_percent`
 - `riskiest_findings`, `riskiest_applications`
+- `lifecycle` (technical reports, PATHOS 3.0 M9): sections `codegraph`, `threat_models`, `remediation`, `gates`, each `{ key, title, available, reason?, evidence_label, evidence, metrics }` for the report's scope. `evidence` states where the figures come from; `available: false` with a `reason` when the module's flag is off or the author lacks the permission (`threats.read`, `remediation.read`). The Markdown export has one section per entry.
 
 `narrative` is `{ summary, key_risks[], recommendations[] }`, written from `facts` only. It is `null` with a `narrative_error` explanation when AI is unavailable or disabled for the request.
 

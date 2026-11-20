@@ -167,6 +167,18 @@ On a *block* or *approval required* decision, **Request exception** (or **Reques
 
 Someone with `gates.approve_exception` who is **not the requester** approves or rejects it (`PTH-GATE-1103`); only a pending request can be decided (`PTH-GATE-1104`). An approved exception turns later decisions for the same scope into *exception applied* until it expires or is revoked. Requests, approvals, rejections and revocations are written to the audit log.
 
+## Threat mitigations
+
+*PATHOS 3.0 M9.* An item of kind **Threat mitigation** can be linked to the threat it mitigates in the application's threat model:
+
+- On a threat (Threat models → model → threat), **Create remediation item** opens an item for it (title "Mitigate: …", priority from the threat's severity). The threat lists its items.
+- On a threat mitigation item, **Link threat** picks a model and a threat of the same application; **Unlink** removes the link.
+- The workspace filters by threat (`?threat_id=`).
+
+An item created from a threat alone has no findings to rescan, so it is closed by linking findings and verifying them, or marked *won't fix*.
+
+**Fix submitted → verification** (with Continuous monitoring on): marking an item *fix submitted* queues the targeted rescan right away, unless its fix pull request is still open (then the rescan runs when it is merged). Both appear in [Continuous monitoring](monitoring.md).
+
 ## Troubleshooting
 
 | Code | Meaning | Fix |
@@ -185,4 +197,5 @@ Someone with `gates.approve_exception` who is **not the requester** approves or 
 | `PTH-GATE-1105` | The gate or policy is managed by a repository's pull request settings | Change it in Pull request checks → Repository settings |
 | `PTH-GATE-1106` | Enabling pull request checks needs Block or Warn | Choose Block the pull request or Warn only |
 | `PTH-GATE-1107` | Evidence incomplete: the scan has not finished or did not succeed | Wait for the scan, or fix the failed scan and evaluate again |
+| `PTH-REM-1107` | The threat cannot be linked (another application, not visible, or the item is not a threat mitigation) | Pick a threat of the item's application, or create the item from the threat |
 | `PTH-GATE-1108` | The policy is used by security gates and cannot be deleted | Delete or re-point those gates first, or disable the policy |
