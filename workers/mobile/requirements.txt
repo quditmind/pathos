@@ -6,8 +6,13 @@
 #
 # Patched dependencies (as in workers/sast): mobsfscan 1.2.0 pins semgrep
 # 1.172.0, which pins mcp==1.23.3 and pyjwt~=2.13.0 (fixable HIGH/CRITICAL
-# CVEs). They are installed at mcp 1.30.0 and PyJWT 2.14.0 instead; neither
-# is used by `semgrep scan`, which is all mobsfscan runs.
+# CVEs). They are installed at mcp 1.30.0 and PyJWT 2.15.1 instead; neither
+# is used by `semgrep scan`, which is all mobsfscan runs. The OpenTelemetry
+# packages semgrep pins at ~=1.37.0 / ~=0.58b0 (opentelemetry-api <= 1.45.1
+# has medium advisories) are installed as one consistent set at
+# 1.45.2 / 0.66b2 instead, including opentelemetry-exporter-http-transport
+# and opentelemetry-exporter-otlp-common, which the 1.45 OTLP HTTP exporter
+# requires (see workers/sast/requirements.txt).
 alembic==1.20.1 \
     --hash=sha256:9970712cfb81ea26c8658d378aaa5b8f6ff9146e5bb111d70497c164016cf598
 androguard==4.1.4 \
@@ -116,26 +121,30 @@ networkx==3.7 \
     --hash=sha256:e3fd2c13a7814cee3746340d8d7f8598a67f16a58bf47fb7f8793fab6efca1b0
 numpy==2.5.5 \
     --hash=sha256:824025655df929268bfe6b47ed91a00d14209a6f760847cf150be446829e1ce4
-opentelemetry-api==1.37.0 \
-    --hash=sha256:accf2024d3e89faec14302213bc39550ec0f4095d1cf5ca688e1bfb1c8612f47
-opentelemetry-exporter-otlp-proto-common==1.37.0 \
-    --hash=sha256:53038428449c559b0c564b8d718df3314da387109c4d36bd1b94c9a641b0292e
-opentelemetry-exporter-otlp-proto-http==1.37.0 \
-    --hash=sha256:54c42b39945a6cc9d9a2a33decb876eabb9547e0dcb49df090122773447f1aef
-opentelemetry-instrumentation==0.58b0 \
-    --hash=sha256:50f97ac03100676c9f7fc28197f8240c7290ca1baa12da8bfbb9a1de4f34cc45
-opentelemetry-instrumentation-requests==0.58b0 \
-    --hash=sha256:672a0be0bb5b52bea0c11820b35e27edcf4cd22d34abe4afc59a92a80519f8a8
-opentelemetry-instrumentation-threading==0.58b0 \
-    --hash=sha256:eacc072881006aceb5b9b6831bcdce718c67ef6f31ac0b32bd6a23a94d979b4a
-opentelemetry-proto==1.37.0 \
-    --hash=sha256:8ed8c066ae8828bbf0c39229979bdf583a126981142378a9cbe9d6fd5701c6e2
-opentelemetry-sdk==1.37.0 \
-    --hash=sha256:8f3c3c22063e52475c5dbced7209495c2c16723d016d39287dfc215d1771257c
-opentelemetry-semantic-conventions==0.58b0 \
-    --hash=sha256:5564905ab1458b96684db1340232729fce3b5375a06e140e8904c78e4f815b28
-opentelemetry-util-http==0.58b0 \
-    --hash=sha256:6c6b86762ed43025fbd593dc5f700ba0aa3e09711aedc36fd48a13b23d8cb1e7
+opentelemetry-api==1.45.2 \
+    --hash=sha256:2cbd737377e710ee740d261c94e93fa0f08e6d037c18f17513cc0a2d94479a34
+opentelemetry-exporter-http-transport==0.66b2 \
+    --hash=sha256:fd5f5b490c099acda1cd7b909d5e8981436bf18cc8c6098d302d114c271720e9
+opentelemetry-exporter-otlp-common==0.66b2 \
+    --hash=sha256:ace86efb75489f925f1ef809856ae5f0c7db534e4afdc624530222228b1236a5
+opentelemetry-exporter-otlp-proto-common==1.45.2 \
+    --hash=sha256:af483b24217028892f017096731b794b196b785025d2e6808874720fd0b05a80
+opentelemetry-exporter-otlp-proto-http==1.45.2 \
+    --hash=sha256:6e4d025138829d0ee57946930c2ccad6491ad4d92a958e9c7eea69278fe60cfc
+opentelemetry-instrumentation==0.66b2 \
+    --hash=sha256:fa9ccfdab147a14af8107d19ef0a7b5015675273c5adced7a1fc38f28b42ec4c
+opentelemetry-instrumentation-requests==0.66b2 \
+    --hash=sha256:b0ba903a0bd7ebb234c8b32d3d957efc4061ba8571916558dc3f3dcdabb5e5e1
+opentelemetry-instrumentation-threading==0.66b2 \
+    --hash=sha256:647480ef889595d577fea66d0cfcec395cf5d89888bbe05ca9919355797c85a3
+opentelemetry-proto==1.45.2 \
+    --hash=sha256:03a7ca1b43f89fd5b965d5975902bb2515c0c86e2428b456836e9a6149c6235a
+opentelemetry-sdk==1.45.2 \
+    --hash=sha256:ff974ea70ee4f1d51e2ec152db37c2b626c7bf82bb3f7d86114fd8704e7199c6
+opentelemetry-semantic-conventions==0.66b2 \
+    --hash=sha256:4cbe61e5f9275d57ab31708446e7938ef4291ebbe6a7fca6f7a629c5acae87d8
+opentelemetry-util-http==0.66b2 \
+    --hash=sha256:c4bb5d6744e60353bcaa3e325bc529a1515346b51cb4d9c8e5b730579337e06d
 packaging==26.3 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
 parso==0.8.7 \
@@ -176,8 +185,8 @@ pydot==4.0.1 \
     --hash=sha256:869c0efadd2708c0be1f916eb669f3d664ca684bc57ffb7ecc08e70d5e93fee6
 Pygments==2.21.0 \
     --hash=sha256:2363c69b61c4a97c838da3b130dcd6468f4848992b21a82f2a63ec34377137d9
-PyJWT==2.14.0 \
-    --hash=sha256:ad0cef71c756a56e74863c2919cf0985f72decbcfcb550ee2f422e7c62b5eedc
+PyJWT==2.15.1 \
+    --hash=sha256:42d59d631f7768a1028a64c7ff581a9bf7519804daf91fc5b6c56e30eec5e193
 pyparsing==3.3.3 \
     --hash=sha256:ece8c00a69cf01b45d0b1dedabb469c90d8caf996d4fda40f147627a122849a4
 python-dotenv==1.2.4 \
