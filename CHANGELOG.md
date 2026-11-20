@@ -4,6 +4,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Fixed
+- **binwalk in `worker-rea` could exit successfully having analysed nothing** (flaky "Reverse-engineering sandbox" CI step: `firmware: entries []`, binwalk "succeeded" in 7 ms). binwalk 3.1.0's main loop waits on `ThreadPool::active_count()`, which does not count a job no pool thread has picked up yet nor a result still in the channel; on a busy CPU it exited 0 before analysing the input, or before analysing files it had extracted, without logging them. The image now builds binwalk 3.1.0 from the crate pinned by its crates.io SHA-256 with `workers/rea/binwalk-worker-pool-race.patch` (the loop counts the jobs whose results it has not received). Under CPU contention the unpatched binary lost results in 8 of 500 runs at 2 CPUs and 254 of 500 at 1 CPU (205 with no analysis at all); the patched one in none of 1,000. With the sandbox runner sharing its CPUs with busy loops, `rea-e2e.sh` reproduced the CI failure with the old image (1 of 8 runs) and passed 25 of 25 runs with the fixed one.
+- **pathos-rea no longer reports an incomplete binwalk run as a success**: a run without an analysis of the input in binwalk's log, or with extracted files queued for recursive analysis but never analysed, is reported as binwalk `failed` with the reason (what it did find is kept), never as `succeeded` with empty results. binwalk's log is parsed as binwalk 3.1.0 actually writes it (`[{a}],{b}],{c}]`: it opens the log in append mode); before, only the first analysis was read.
+
 ### PATHOS 3.0 M9 — Reporting and monitoring
 
 Migrations 00064–00065 are additive: new tenant tables `monitoring_events`, `architecture_drifts` and `monitoring_settings` (standard row-level security policy), the column `remediation_items.threat_id` and the verification trigger `fix_submitted`. The feed, drift, drift alerts and the new feedback-loop behaviour are behind the `continuous_monitoring` feature flag (off by default); with the flag off every module behaves as in M8.

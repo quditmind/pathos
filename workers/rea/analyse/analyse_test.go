@@ -221,4 +221,57 @@ func TestParseBinwalkLog(t *testing.T) {
 	if len(parseBinwalkLog([]byte(`[{"Analysis":{"file_map":[]}},{"Analysis":{"file_map":[]}}]`))) != 2 {
 		t.Fatal("a valid array must parse too")
 	}
+	// What binwalk 3.1.0 actually writes for a recursive run (append mode).
+	if as := parseBinwalkLog([]byte("[\n{\"Analysis\":{\"file_path\":\"/x/a\"}}\n],\n{\"Analysis\":{\"file_path\":\"/x/b\"}}\n],\n{\"Analysis\":{\"file_path\":\"/x/c\"}}\n]")); len(as) != 3 || as[2].Analysis.FilePath != "/x/c" {
+		t.Fatalf("binwalk 3.1.0 log: parsed %+v", as)
+	}
+}
+
+// A recursive binwalk run that ended before analysing what it extracted is
+// detected from its log and the extraction directory (binwalk 3.1.0 could
+// exit 0 early on a busy CPU, see workers/rea/binwalk-worker-pool-race.patch).
+func TestUnanalysedExtractions(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, data string) {
+		p := filepath.Join(root, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(data), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("fw.bin", "input")
+	write("fw.bin.extracted/40/decompressed.bin", "tar")
+	write("fw.bin.extracted/40/decompressed.bin.extracted/0/bin/app", "elf")
+	write("fw.bin.extracted/40/decompressed.bin.extracted/0/empty", "")
+	write("fw.bin.extracted/90/raw", "not to be recursed into")
+	log := func(entries ...string) []bwAnalysis {
+		return parseBinwalkLog([]byte("[\n" + strings.Join(entries, "\n],\n") + "\n]")) // as binwalk 3.1.0 writes it
+	}
+	top := `{"Analysis":{"file_path":"` + root + `/fw.bin","file_map":[{"id":"a","name":"gzip"},{"id":"c","name":"raw"}],"extractions":{` +
+		`"a":{"success":true,"output_directory":"` + root + `/fw.bin.extracted/40"},` +
+		`"c":{"success":true,"do_not_recurse":true,"output_directory":"` + root + `/fw.bin.extracted/90"}}}}`
+	tar := `{"Analysis":{"file_path":"` + root + `/fw.bin.extracted/40/decompressed.bin","file_map":[{"id":"b","name":"tarball"}],"extractions":{` +
+		`"b":{"success":true,"output_directory":"` + root + `/fw.bin.extracted/40/decompressed.bin.extracted/0"}}}}`
+	app := `{"Analysis":{"file_path":"` + root + `/fw.bin.extracted/40/decompressed.bin.extracted/0/bin/app","file_map":[],"extractions":{}}}`
+	rt, err := os.OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rt.Close()
+	for _, c := range []struct {
+		name string
+		as   []bwAnalysis
+		want int
+	}{
+		{"complete", log(top, tar, app), 0},
+		{"leaf result lost", log(top, tar), 1},
+		{"tar result lost", log(top), 2}, // the tar and what its run extracted
+		{"nothing logged", nil, 0},
+	} {
+		if got := unanalysedExtractions(rt, c.as); got != c.want {
+			t.Errorf("%s: %d unanalysed, want %d", c.name, got, c.want)
+		}
+	}
 }
