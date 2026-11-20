@@ -368,8 +368,11 @@ func (p *project) applyOpengrep(data []byte, src string) (int, error) {
 				continue
 			}
 			key := "ext:" + host
-			p.g.AddNode(key, "external_service", host, "", map[string]any{"host": host, "technology": "https"})
-			p.g.AddEdge(p.enclosing(rel, ln), "calls", key, fileLine(rel, ln, "HTTP call to "+host))
+			// The scheme is TLS evidence for threat modelling (rule
+			// TM-I-001): https and wss are encrypted, http and ws are not.
+			scheme := urlScheme(parts[1])
+			p.g.AddNode(key, "external_service", host, "", map[string]any{"host": host, "technology": scheme, "scheme": scheme})
+			p.g.AddEdge(p.enclosing(rel, ln), "calls", key, fileLine(rel, ln, strings.ToUpper(scheme)+" call to "+host))
 			p.boundary("tb:external-network", "External network")
 			p.g.AddEdge(key, "crosses_boundary", "tb:external-network", fileLine(rel, ln, "outbound call to "+host))
 			n++
@@ -458,6 +461,14 @@ func datastoreLabel(tech string) string {
 }
 
 var urlRe = regexp.MustCompile(`^(?i)(https?|wss?)://([^/?#\s"']+)`)
+
+// urlScheme is the lower-case scheme of an http(s) or ws(s) URL.
+func urlScheme(u string) string {
+	if m := urlRe.FindStringSubmatch(strings.TrimSpace(u)); m != nil {
+		return strings.ToLower(m[1])
+	}
+	return ""
+}
 
 func urlHost(u string) string {
 	m := urlRe.FindStringSubmatch(strings.TrimSpace(u))

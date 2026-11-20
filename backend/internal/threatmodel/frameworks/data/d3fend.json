@@ -1,0 +1,1643 @@
+{
+ "framework": "d3fend",
+ "title": "MITRE D3FEND",
+ "release": "1.6.0",
+ "source": "https://d3fend.mitre.org/ontologies/d3fend/1.6.0/d3fend.json",
+ "sha256": "e1546d432c6aa64d45b62dd9e9484b0774ae84de7ff3605ff9dd4e20278957bf",
+ "licence": "MIT License (https://github.com/d3fend/d3fend-ontology/blob/develop/LICENSE.md)",
+ "notice": "MITRE D3FEND™ Copyright (c) 2022 The MITRE Corporation, MIT License (https://github.com/d3fend/d3fend-ontology).",
+ "entries": [
+  {
+   "id": "D3-AA",
+   "name": "Agent Authentication",
+   "summary": "Agent authentication is the process of verifying the identities of agents to ensure they are authorized and trustworthy participants within a system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AgentAuthentication/"
+  },
+  {
+   "id": "D3-ABPI",
+   "name": "Application-based Process Isolation",
+   "summary": "Application code which prevents its own subroutines from accessing intra-process / internal memory space.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Application-basedProcessIsolation/"
+  },
+  {
+   "id": "D3-ACA",
+   "name": "Active Certificate Analysis",
+   "summary": "Actively collecting PKI certificates by connecting to the server and downloading its server certificates for analysis.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ActiveCertificateAnalysis/"
+  },
+  {
+   "id": "D3-ACH",
+   "name": "Application Configuration Hardening",
+   "summary": "Modifying an application's configuration to reduce its attack surface.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ApplicationConfigurationHardening/"
+  },
+  {
+   "id": "D3-AEM",
+   "name": "Application Exception Monitoring",
+   "summary": "Monitoring the failures of system counters and timers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ApplicationExceptionMonitoring/"
+  },
+  {
+   "id": "D3-AH",
+   "name": "Application Hardening",
+   "summary": "Application Hardening makes an executable application more resilient to a class of exploits which either introduce new code or execute unwanted existing code. These techniques may be applied at compile-time or on an application binary.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ApplicationHardening/"
+  },
+  {
+   "id": "D3-AI",
+   "name": "Asset Inventory",
+   "summary": "Asset inventorying identifies and records the organization's assets and enriches each inventory item with knowledge about their vulnerabilities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AssetInventory/"
+  },
+  {
+   "id": "D3-AL",
+   "name": "Account Locking",
+   "summary": "The process of temporarily disabling user accounts on a system or domain.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AccountLocking/"
+  },
+  {
+   "id": "D3-ALLM",
+   "name": "Active Logical Link Mapping",
+   "summary": "Active logical link mapping sends and receives network traffic as a means to map the whole data link layer, where the links represent logical data flows rather than physical connection",
+   "url": "https://d3fend.mitre.org/technique/d3f:ActiveLogicalLinkMapping/"
+  },
+  {
+   "id": "D3-AM",
+   "name": "Access Modeling",
+   "summary": "Access modeling captures and records the access permissions granted to identities (e.g., administrators, users, groups, systems) and optionally includes details on how these identities are stored, managed, and shared across systems.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AccessModeling/"
+  },
+  {
+   "id": "D3-AMED",
+   "name": "Access Mediation",
+   "summary": "Access mediation is the process of granting or denying specific requests to: 1) obtain and use information and related information processing services; and 2) enter specific physical facilities (e.g., Federal buildings, military establishments, border crossing entrances).",
+   "url": "https://d3fend.mitre.org/technique/d3f:AccessMediation/"
+  },
+  {
+   "id": "D3-ANAA",
+   "name": "Administrative Network Activity Analysis",
+   "summary": "Detection of unauthorized use of administrative network protocols by analyzing network activity against a baseline.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AdministrativeNetworkActivityAnalysis/"
+  },
+  {
+   "id": "D3-ANCI",
+   "name": "Authentication Cache Invalidation",
+   "summary": "Removing tokens or credentials from an authentication cache to prevent further user associated account accesses.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AuthenticationCacheInvalidation/"
+  },
+  {
+   "id": "D3-ANET",
+   "name": "Authentication Event Thresholding",
+   "summary": "Collecting authentication events, creating a baseline user profile, and determining whether authentication events are consistent with the baseline profile.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AuthenticationEventThresholding/"
+  },
+  {
+   "id": "D3-APA",
+   "name": "Access Policy Administration",
+   "summary": "Access policy administration is the systematic process of defining, implementing, and managing access control policies that dictate user permissions to resources.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AccessPolicyAdministration/"
+  },
+  {
+   "id": "D3-APCA",
+   "name": "Application Protocol Command Analysis",
+   "summary": "Analyzing application protocol level remote commands to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ApplicationProtocolCommandAnalysis/"
+  },
+  {
+   "id": "D3-APLM",
+   "name": "Active Physical Link Mapping",
+   "summary": "Active physical link mapping sends and receives network traffic as a means to map the physical layer.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ActivePhysicalLinkMapping/"
+  },
+  {
+   "id": "D3-APM",
+   "name": "Application Performance Monitoring",
+   "summary": "Monitoring the count and duration of the application or program cycle.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ApplicationPerformanceMonitoring/"
+  },
+  {
+   "id": "D3-ARMA",
+   "name": "ARMA Model",
+   "summary": "Autoregressive-moving-average (ARMA) models provide a parsimonious description of a (weakly) stationary stochastic process in terms of two polynomials, one for the autoregression (AR) and the second for the moving average (MA).",
+   "url": "https://d3fend.mitre.org/technique/d3f:ARMA_Model/"
+  },
+  {
+   "id": "D3-AVE",
+   "name": "Asset Vulnerability Enumeration",
+   "summary": "Asset vulnerability enumeration enriches inventory items with knowledge identifying their vulnerabilities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AssetVulnerabilityEnumeration/"
+  },
+  {
+   "id": "D3-AZET",
+   "name": "Authorization Event Thresholding",
+   "summary": "Collecting authorization events, creating a baseline user profile, and determining whether authorization events are consistent with the baseline profile.",
+   "url": "https://d3fend.mitre.org/technique/d3f:AuthorizationEventThresholding/"
+  },
+  {
+   "id": "D3-BA",
+   "name": "Bootloader Authentication",
+   "summary": "Cryptographically authenticating the bootloader software before system boot.",
+   "url": "https://d3fend.mitre.org/technique/d3f:BootloaderAuthentication/"
+  },
+  {
+   "id": "D3-BAN",
+   "name": "Biometric Authentication",
+   "summary": "Using biological measures in order to authenticate a user.",
+   "url": "https://d3fend.mitre.org/technique/d3f:BiometricAuthentication/"
+  },
+  {
+   "id": "D3-BDI",
+   "name": "Broadcast Domain Isolation",
+   "summary": "Broadcast isolation restricts the number of computers a host can contact on their LAN.",
+   "url": "https://d3fend.mitre.org/technique/d3f:BroadcastDomainIsolation/"
+  },
+  {
+   "id": "D3-BMA",
+   "name": "Bus Message Authentication",
+   "summary": "Applies cryptographic primitives to individual bus frames to verify the sender's identity and ensure the integrity of the data payload.",
+   "url": "https://d3fend.mitre.org/technique/d3f:BusMessageAuthentication/"
+  },
+  {
+   "id": "D3-BSE",
+   "name": "Byte Sequence Emulation",
+   "summary": "Analyzing sequences of bytes and determining if they likely represent malicious shellcode.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ByteSequenceEmulation/"
+  },
+  {
+   "id": "D3-CA",
+   "name": "Certificate Analysis",
+   "summary": "Analyzing Public Key Infrastructure certificates to detect if they have been misconfigured or spoofed using both network traffic, certificate fields and third-party logs.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CertificateAnalysis/"
+  },
+  {
+   "id": "D3-CAA",
+   "name": "Connection Attempt Analysis",
+   "summary": "Analyzing failed connections in a network to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ConnectionAttemptAnalysis/"
+  },
+  {
+   "id": "D3-CBAN",
+   "name": "Certificate-based Authentication",
+   "summary": "Requiring a digital certificate in order to authenticate a user.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Certificate-basedAuthentication/"
+  },
+  {
+   "id": "D3-CCSA",
+   "name": "Credential Compromise Scope Analysis",
+   "summary": "Determining which credentials may have been compromised by analyzing the user logon history of a particular system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialCompromiseScopeAnalysis/"
+  },
+  {
+   "id": "D3-CDP",
+   "name": "Change Default Password",
+   "summary": "Changing the default password means replacing the factory-set credentials with a strong, unique password before the device is deployed, preventing unauthorized access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ChangeDefaultPassword/"
+  },
+  {
+   "id": "D3-CE",
+   "name": "Credential Eviction",
+   "summary": "Credential Eviction techniques disable or remove compromised credentials from a computer network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialEviction/"
+  },
+  {
+   "id": "D3-CERO",
+   "name": "Certificate Rotation",
+   "summary": "Certificate rotation involves replacing digital certificates and their private keys to maintain cryptographic integrity and trust, mitigating key compromise risks and ensuring continuous secure communications.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CertificateRotation/"
+  },
+  {
+   "id": "D3-CF",
+   "name": "Content Filtering",
+   "summary": "Content Filtering techniques aid in the process of analyzing an input file for malicious or erroneous content and outputting a sanitized version.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentFiltering/"
+  },
+  {
+   "id": "D3-CFC",
+   "name": "Content Format Conversion",
+   "summary": "Content format conversion is mechanical transformation from one format to another which may be normalization or specifically flattening.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentFormatConversion/"
+  },
+  {
+   "id": "D3-CFI",
+   "name": "Control Flow Integrity",
+   "summary": "Enforcing legal control flow transfers during application process execution.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ControlFlowIntegrity/"
+  },
+  {
+   "id": "D3-CH",
+   "name": "Credential Hardening",
+   "summary": "Credential Hardening techniques modify system or network properties in order to protect system or network/domain credentials.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialHardening/"
+  },
+  {
+   "id": "D3-CHN",
+   "name": "Connected Honeynet",
+   "summary": "A decoy service, system, or environment, that is connected to the enterprise network, and simulates or emulates certain functionality to the network, without exposing full access to a production system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ConnectedHoneynet/"
+  },
+  {
+   "id": "D3-CI",
+   "name": "Configuration Inventory",
+   "summary": "Configuration inventory identifies and records the configuration of software and hardware and their components throughout the organization.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ConfigurationInventory/"
+  },
+  {
+   "id": "D3-CIA",
+   "name": "Container Image Analysis",
+   "summary": "Analyzing a Container Image with respect to a set of policies.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContainerImageAnalysis/"
+  },
+  {
+   "id": "D3-CM",
+   "name": "Content Modification",
+   "summary": "Modify content that does not comply with policy.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentModification/"
+  },
+  {
+   "id": "D3-CNE",
+   "name": "Content Excision",
+   "summary": "Removing specific, potentially malicious, parts of content",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentExcision/"
+  },
+  {
+   "id": "D3-CNR",
+   "name": "Content Rebuild",
+   "summary": "Rebuild the file according to the spec so any unreferenced components or objects are removed.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentRebuild/"
+  },
+  {
+   "id": "D3-CNS",
+   "name": "Content Substitution",
+   "summary": "Modifies specific digital content information by replacing it with something else.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentSubstitution/"
+  },
+  {
+   "id": "D3-CP",
+   "name": "Certificate Pinning",
+   "summary": "Persisting either a server's X.509 certificate or their public key and comparing that to server's presented identity to allow for greater client confidence in the remote server's identity for SSL connections.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CertificatePinning/"
+  },
+  {
+   "id": "D3-CQ",
+   "name": "Content Quarantine",
+   "summary": "Transfer content that does not comply with policy to a quarantine zone.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentQuarantine/"
+  },
+  {
+   "id": "D3-CR",
+   "name": "Credential Revocation",
+   "summary": "Deleting a set of credentials permanently to prevent them from being used to authenticate.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialRevocation/"
+  },
+  {
+   "id": "D3-CRO",
+   "name": "Credential Rotation",
+   "summary": "Credential rotation is a security procedure in which authentication credentials, such as passwords, API keys, or certificates, are regularly changed or replaced to minimize the risk of unauthorized access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialRotation/"
+  },
+  {
+   "id": "D3-CS",
+   "name": "Credential Scrubbing",
+   "summary": "The systematic removal of hard-coded credentials from source code to prevent accidental exposure and unauthorized access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialScrubbing/"
+  },
+  {
+   "id": "D3-CSPP",
+   "name": "Client-server Payload Profiling",
+   "summary": "Comparing client-server request and response payloads to a baseline profile to identify outliers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Client-serverPayloadProfiling/"
+  },
+  {
+   "id": "D3-CTS",
+   "name": "Credential Transmission Scoping",
+   "summary": "Limiting the transmission of a credential to a scoped set of relying parties.",
+   "url": "https://d3fend.mitre.org/technique/d3f:CredentialTransmissionScoping/"
+  },
+  {
+   "id": "D3-CV",
+   "name": "Content Validation",
+   "summary": "Verify and validate contents complies with policy",
+   "url": "https://d3fend.mitre.org/technique/d3f:ContentValidation/"
+  },
+  {
+   "id": "D3-DA",
+   "name": "Dynamic Analysis",
+   "summary": "Executing or opening a file in a synthetic \"sandbox\" environment to determine if the file is a malicious program or if the file exploits another program such as a document reader.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DynamicAnalysis/"
+  },
+  {
+   "id": "D3-DAM",
+   "name": "Domain Account Monitoring",
+   "summary": "Monitoring the existence of or changes to Domain User Accounts.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DomainAccountMonitoring/"
+  },
+  {
+   "id": "D3-DCE",
+   "name": "Dead Code Elimination",
+   "summary": "Removing unreachable or \"dead code\" from compiled source code.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DeadCodeElimination/"
+  },
+  {
+   "id": "D3-DE",
+   "name": "Decoy Environment",
+   "summary": "A Decoy Environment comprises hosts and networks for the purposes of deceiving an attacker.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyEnvironment/"
+  },
+  {
+   "id": "D3-DEM",
+   "name": "Data Exchange Mapping",
+   "summary": "Data exchange mapping identifies and models the organization's intended design for the flows of the data types, formats, and volumes between systems at the application layer.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DataExchangeMapping/"
+  },
+  {
+   "id": "D3-DENCR",
+   "name": "Disk Encryption",
+   "summary": "Encrypting a hard disk partition to prevent cleartext access to a file system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DiskEncryption/"
+  },
+  {
+   "id": "D3-DF",
+   "name": "Decoy File",
+   "summary": "A file created for the purposes of deceiving an adversary.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyFile/"
+  },
+  {
+   "id": "D3-DI",
+   "name": "Data Inventory",
+   "summary": "Data inventorying identifies and records the schemas, formats, volumes, and locations of data stored and used on the organization's architecture.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DataInventory/"
+  },
+  {
+   "id": "D3-DKE",
+   "name": "Disk Erasure",
+   "summary": "Disk Erasure is the process of securely deleting all data on a disk to ensure that it cannot be recovered by any means.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DiskErasure/"
+  },
+  {
+   "id": "D3-DKF",
+   "name": "Disk Formatting",
+   "summary": "Disk Formatting is the process of preparing a data storage device, such as a hard drive, solid-state drive, or USB flash drive, for initial use.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DiskFormatting/"
+  },
+  {
+   "id": "D3-DKP",
+   "name": "Disk Partitioning",
+   "summary": "Disk Partitioning is the process of dividing a disk into multiple distinct sections, known as partitions.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DiskPartitioning/"
+  },
+  {
+   "id": "D3-DLIC",
+   "name": "Driver Load Integrity Checking",
+   "summary": "Ensuring the integrity of drivers loaded during initialization of the operating system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DriverLoadIntegrityChecking/"
+  },
+  {
+   "id": "D3-DLV",
+   "name": "Domain Logic Validation",
+   "summary": "Validation of variable state in the context of the domain application.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DomainLogicValidation/"
+  },
+  {
+   "id": "D3-DNL",
+   "name": "Directional Network Link",
+   "summary": "Enforce one-way network communication by preventing two-way communication.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DirectionalNetworkLink/"
+  },
+  {
+   "id": "D3-DNR",
+   "name": "Decoy Network Resource",
+   "summary": "Deploying a network resource for the purposes of deceiving an adversary.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyNetworkResource/"
+  },
+  {
+   "id": "D3-DNRA",
+   "name": "Domain Name Reputation Analysis",
+   "summary": "Analyzing the reputation of a domain name.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DomainNameReputationAnalysis/"
+  },
+  {
+   "id": "D3-DNSAL",
+   "name": "DNS Allowlisting",
+   "summary": "Permitting only approved domains and their subdomains to be resolved.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DNSAllowlisting/"
+  },
+  {
+   "id": "D3-DNSCE",
+   "name": "DNS Cache Eviction",
+   "summary": "Flushing DNS to clear any IP addresses or other DNS records from the cache.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DNSCacheEviction/"
+  },
+  {
+   "id": "D3-DNSDL",
+   "name": "DNS Denylisting",
+   "summary": "Blocking DNS Network Traffic based on criteria such as IP address, domain name, or DNS query type.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DNSDenylisting/"
+  },
+  {
+   "id": "D3-DNSTA",
+   "name": "DNS Traffic Analysis",
+   "summary": "Analysis of domain name metadata, including name and DNS records, to determine whether the domain is likely to resolve to an undesirable host.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DNSTrafficAnalysis/"
+  },
+  {
+   "id": "D3-DO",
+   "name": "Decoy Object",
+   "summary": "A Decoy Object is created and deployed for the purposes of deceiving attackers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyObject/"
+  },
+  {
+   "id": "D3-DP",
+   "name": "Decoy Persona",
+   "summary": "Establishing a fake online identity to misdirect, deceive, and or interact with adversaries.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyPersona/"
+  },
+  {
+   "id": "D3-DPLM",
+   "name": "Direct Physical Link Mapping",
+   "summary": "Direct physical link mapping creates a physical link map by direct observation and recording of the physical network links.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DirectPhysicalLinkMapping/"
+  },
+  {
+   "id": "D3-DPR",
+   "name": "Decoy Public Release",
+   "summary": "Issuing publicly released media to deceive adversaries.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyPublicRelease/"
+  },
+  {
+   "id": "D3-DQSA",
+   "name": "Database Query String Analysis",
+   "summary": "Analyzing database queries to detect SQL Injection.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DatabaseQueryStringAnalysis/"
+  },
+  {
+   "id": "D3-DRA",
+   "name": "Disable Remote Access",
+   "summary": "Limiting access to a computing device which is not required through or from a non-organization-controlled network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DisableRemoteAccess/"
+  },
+  {
+   "id": "D3-DRT",
+   "name": "Domain Registration Takedown",
+   "summary": "The process of performing a takedown of the attacker's domain registration infrastructure.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DomainRegistrationTakedown/"
+  },
+  {
+   "id": "D3-DST",
+   "name": "Decoy Session Token",
+   "summary": "An authentication token created for the purposes of deceiving an adversary.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoySessionToken/"
+  },
+  {
+   "id": "D3-DTP",
+   "name": "Domain Trust Policy",
+   "summary": "Restricting inter-domain trust by modifying domain configuration.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DomainTrustPolicy/"
+  },
+  {
+   "id": "D3-DUC",
+   "name": "Decoy User Credential",
+   "summary": "A Credential created for the purpose of deceiving an adversary.",
+   "url": "https://d3fend.mitre.org/technique/d3f:DecoyUserCredential/"
+  },
+  {
+   "id": "D3-EAL",
+   "name": "Executable Allowlisting",
+   "summary": "Using a digital signature to authenticate a file before opening.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ExecutableAllowlisting/"
+  },
+  {
+   "id": "D3-EBWSAM",
+   "name": "Endpoint-based Web Server Access Mediation",
+   "summary": "Endpoint-based web server access mediation regulates web server access directly from user endpoints by implementing mechanisms such as client-side certificates and endpoint security software to authenticate devices and ensure compliant access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Endpoint-basedWebServerAccessMediation/"
+  },
+  {
+   "id": "D3-EDL",
+   "name": "Executable Denylisting",
+   "summary": "Blocking the execution of files on a host in accordance with defined application policy rules.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ExecutableDenylisting/"
+  },
+  {
+   "id": "D3-EF",
+   "name": "Email Filtering",
+   "summary": "Filtering incoming email traffic based on specific criteria.",
+   "url": "https://d3fend.mitre.org/technique/d3f:EmailFiltering/"
+  },
+  {
+   "id": "D3-EFA",
+   "name": "Emulated File Analysis",
+   "summary": "Emulating instructions in a file looking for specific patterns.",
+   "url": "https://d3fend.mitre.org/technique/d3f:EmulatedFileAnalysis/"
+  },
+  {
+   "id": "D3-EHB",
+   "name": "Endpoint Health Beacon",
+   "summary": "Monitoring the security status of an endpoint by sending periodic messages with health status, where absence of a response may indicate that the endpoint has been compromised.",
+   "url": "https://d3fend.mitre.org/technique/d3f:EndpointHealthBeacon/"
+  },
+  {
+   "id": "D3-EHPV",
+   "name": "Exception Handler Pointer Validation",
+   "summary": "Validates that a referenced exception handler pointer is a valid exception handler.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ExceptionHandlerPointerValidation/"
+  },
+  {
+   "id": "D3-EI",
+   "name": "Execution Isolation",
+   "summary": "Execution Isolation techniques prevent application processes from accessing non-essential system resources, such as memory, devices, or files.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ExecutionIsolation/"
+  },
+  {
+   "id": "D3-ELM",
+   "name": "Electronic Lock Monitoring",
+   "summary": "Monitoring electronic lock and door hardware states and access events (e.g., locked/unlocked, access granted/denied, door forced/held, tamper) to detect and respond to unauthorized entry.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ElectronicLockMonitoring/"
+  },
+  {
+   "id": "D3-EMH",
+   "name": "Electromagnetic Radiation Hardening",
+   "summary": "The application of physical and material-level design measures to electronic systems, components, or facilities to reduce their susceptibility to damage or disruption from electromagnetic threats.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ElectromagneticRadiationHardening/"
+  },
+  {
+   "id": "D3-EPL",
+   "name": "Physical Locking",
+   "summary": "Employ a mechanical locking device for securing moveable portions of physical barriers (e.g., doors, gates, drawers) in a secured position.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PhysicalLocking/"
+  },
+  {
+   "id": "D3-ER",
+   "name": "Email Removal",
+   "summary": "The email removal technique deletes email files from system storage.",
+   "url": "https://d3fend.mitre.org/technique/d3f:EmailRemoval/"
+  },
+  {
+   "id": "D3-ET",
+   "name": "Encrypted Tunnels",
+   "summary": "Encrypted encapsulation of routable network traffic.",
+   "url": "https://d3fend.mitre.org/technique/d3f:EncryptedTunnels/"
+  },
+  {
+   "id": "D3-FA",
+   "name": "File Analysis",
+   "summary": "File Analysis is an analytic process to determine a file's status. For example: virus, trojan, benign, malicious, trusted, unauthorized, sensitive, etc.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileAnalysis/"
+  },
+  {
+   "id": "D3-FAPA",
+   "name": "File Access Pattern Analysis",
+   "summary": "Analyzing the files accessed by a process to identify unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileAccessPatternAnalysis/"
+  },
+  {
+   "id": "D3-FBA",
+   "name": "Firmware Behavior Analysis",
+   "summary": "Analyzing the behavior of embedded code in firmware and looking for anomalous behavior and suspicious activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FirmwareBehaviorAnalysis/"
+  },
+  {
+   "id": "D3-FC",
+   "name": "File Carving",
+   "summary": "Identifying and extracting files from network application protocols through the use of network stream reassembly software.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileCarving/"
+  },
+  {
+   "id": "D3-FCA",
+   "name": "File Creation Analysis",
+   "summary": "Analyzing the properties of file create system call invocations.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileCreationAnalysis/"
+  },
+  {
+   "id": "D3-FCDC",
+   "name": "File Content Decompression Checking",
+   "summary": "Checking if compressed or encoded data sections can be successfully decompressed or decoded. Can follow with further analysis with semantic knowledge",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileContentDecompressionChecking/"
+  },
+  {
+   "id": "D3-FCOA",
+   "name": "File Content Analysis",
+   "summary": "Employing a pattern matching algorithm to statically analyze the content of files.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileContentAnalysis/"
+  },
+  {
+   "id": "D3-FCR",
+   "name": "File Content Rules",
+   "summary": "Employing a pattern matching rule language to analyze the content of files.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileContentRules/"
+  },
+  {
+   "id": "D3-FE",
+   "name": "File Encryption",
+   "summary": "Encrypting a file using a cryptographic key.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileEncryption/"
+  },
+  {
+   "id": "D3-FEMC",
+   "name": "Firmware Embedded Monitoring Code",
+   "summary": "Monitoring code is injected into firmware for integrity monitoring of firmware and firmware data.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FirmwareEmbeddedMonitoringCode/"
+  },
+  {
+   "id": "D3-FEV",
+   "name": "File Eviction",
+   "summary": "File eviction techniques delete files from system storage.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileEviction/"
+  },
+  {
+   "id": "D3-FFV",
+   "name": "File Format Verification",
+   "summary": "Verifying that a file conforms to its expected format specifications",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileFormatVerification/"
+  },
+  {
+   "id": "D3-FH",
+   "name": "File Hashing",
+   "summary": "Employing file hash comparisons to detect known malware.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileHashing/"
+  },
+  {
+   "id": "D3-FHRA",
+   "name": "File Hash Reputation Analysis",
+   "summary": "Analyzing the reputation of a file hash.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileHashReputationAnalysis/"
+  },
+  {
+   "id": "D3-FIM",
+   "name": "File Integrity Monitoring",
+   "summary": "Detecting any suspicious changes to files in a computer system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileIntegrityMonitoring/"
+  },
+  {
+   "id": "D3-FISV",
+   "name": "File Internal Structure Verification",
+   "summary": "The process of checking specific static values within a file, such as file signatures or magic numbers, to ensure they match the expected values defined by the file format specification.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileInternalStructureVerification/"
+  },
+  {
+   "id": "D3-FMBV",
+   "name": "File Magic Byte Verification",
+   "summary": "Utilizing the magic number to verify the file",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileMagicByteVerification/"
+  },
+  {
+   "id": "D3-FMCV",
+   "name": "File Metadata Consistency Validation",
+   "summary": "The process of validating the consistency between a file's metadata and its actual content, ensuring that elements like declared lengths, pointers, and checksums accurately describe the file's content.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileMetadataConsistencyValidation/"
+  },
+  {
+   "id": "D3-FMVV",
+   "name": "File Metadata Value Verification",
+   "summary": "The process of checking specific static values within a file, such as file signatures or magic numbers, to ensure they match the expected values defined by the file format specification.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FileMetadataValueVerification/"
+  },
+  {
+   "id": "D3-FRDDL",
+   "name": "Forward Resolution Domain Denylisting",
+   "summary": "Blocking a lookup based on the query's domain name value.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ForwardResolutionDomainDenylisting/"
+  },
+  {
+   "id": "D3-FRIDL",
+   "name": "Forward Resolution IP Denylisting",
+   "summary": "Blocking a DNS lookup's answer's IP address value.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ForwardResolutionIPDenylisting/"
+  },
+  {
+   "id": "D3-FV",
+   "name": "Firmware Verification",
+   "summary": "Cryptographically verifying firmware integrity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:FirmwareVerification/"
+  },
+  {
+   "id": "D3-HBPI",
+   "name": "Hardware-based Process Isolation",
+   "summary": "Preventing one process from writing to the memory space of another process through hardware based address manager implementations.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Hardware-basedProcessIsolation/"
+  },
+  {
+   "id": "D3-HBWP",
+   "name": "Hardware-based Write Protection",
+   "summary": "Physical methods of preventing data from being written to computer storage.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Hardware-basedWriteProtection/"
+  },
+  {
+   "id": "D3-HCI",
+   "name": "Hardware Component Inventory",
+   "summary": "Hardware component inventorying identifies and records the hardware items in the organization's architecture.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HardwareComponentInventory/"
+  },
+  {
+   "id": "D3-HD",
+   "name": "Homoglyph Detection",
+   "summary": "Comparing strings using a variety of techniques to determine if a deceptive or malicious string is being presented to a user.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HomoglyphDetection/"
+  },
+  {
+   "id": "D3-HDDL",
+   "name": "Hierarchical Domain Denylisting",
+   "summary": "Blocking the resolution of any subdomain of a specified domain name.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HierarchicalDomainDenylisting/"
+  },
+  {
+   "id": "D3-HDL",
+   "name": "Homoglyph Denylisting",
+   "summary": "Blocking DNS queries that are deceptively similar to legitimate domain names.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HomoglyphDenylisting/"
+  },
+  {
+   "id": "D3-HR",
+   "name": "Host Reboot",
+   "summary": "Initiating a host's reboot sequence to terminate all running processes.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HostReboot/"
+  },
+  {
+   "id": "D3-HS",
+   "name": "Host Shutdown",
+   "summary": "Initiating a host's shutdown sequence to terminate all running processes.",
+   "url": "https://d3fend.mitre.org/technique/d3f:HostShutdown/"
+  },
+  {
+   "id": "D3-IAA",
+   "name": "Identifier Activity Analysis",
+   "summary": "Taking known malicious identifiers and determining if they are present in a system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IdentifierActivityAnalysis/"
+  },
+  {
+   "id": "D3-IBCA",
+   "name": "Indirect Branch Call Analysis",
+   "summary": "Analyzing vendor specific branch call recording in order to detect ROP style attacks.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IndirectBranchCallAnalysis/"
+  },
+  {
+   "id": "D3-ID",
+   "name": "Identifier Analysis",
+   "summary": "Analyzing identifier artifacts such as IP address, domain names, or URL(I)s.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IdentifierAnalysis/"
+  },
+  {
+   "id": "D3-IDA",
+   "name": "Input Device Analysis",
+   "summary": "Operating system level mechanisms to prevent abusive input device exploitation.",
+   "url": "https://d3fend.mitre.org/technique/d3f:InputDeviceAnalysis/"
+  },
+  {
+   "id": "D3-IHN",
+   "name": "Integrated Honeynet",
+   "summary": "The practice of setting decoys in a production environment to entice interaction from attackers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IntegratedHoneynet/"
+  },
+  {
+   "id": "D3-IOPR",
+   "name": "IO Port Restriction",
+   "summary": "Limiting access to computer input/output (IO) ports to restrict unauthorized devices.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IOPortRestriction/"
+  },
+  {
+   "id": "D3-IPCTA",
+   "name": "IPC Traffic Analysis",
+   "summary": "Analyzing standard inter process communication (IPC) protocols to detect deviations from normal protocol activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IPCTrafficAnalysis/"
+  },
+  {
+   "id": "D3-IPRA",
+   "name": "IP Reputation Analysis",
+   "summary": "Analyzing the reputation of an IP address.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IPReputationAnalysis/"
+  },
+  {
+   "id": "D3-IRA",
+   "name": "Identifier Reputation Analysis",
+   "summary": "Analyzing the reputation of an identifier.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IdentifierReputationAnalysis/"
+  },
+  {
+   "id": "D3-IRV",
+   "name": "Integer Range Validation",
+   "summary": "Ensuring that an integer is within a valid range.",
+   "url": "https://d3fend.mitre.org/technique/d3f:IntegerRangeValidation/"
+  },
+  {
+   "id": "D3-ISVA",
+   "name": "Inbound Session Volume Analysis",
+   "summary": "Analyzing inbound network session or connection attempt volume.",
+   "url": "https://d3fend.mitre.org/technique/d3f:InboundSessionVolumeAnalysis/"
+  },
+  {
+   "id": "D3-ITF",
+   "name": "Inbound Traffic Filtering",
+   "summary": "Restricting network traffic originating from untrusted networks destined towards a private host or enclave.",
+   "url": "https://d3fend.mitre.org/technique/d3f:InboundTrafficFiltering/"
+  },
+  {
+   "id": "D3-JFAPA",
+   "name": "Job Function Access Pattern Analysis",
+   "summary": "Detecting anomalies in user access patterns by comparing user access activity to behavioral profiles that categorize users by role such as job title, function, department.",
+   "url": "https://d3fend.mitre.org/technique/d3f:JobFunctionAccessPatternAnalysis/"
+  },
+  {
+   "id": "D3-KBPI",
+   "name": "Kernel-based Process Isolation",
+   "summary": "Using kernel-level capabilities to isolate processes.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Kernel-basedProcessIsolation/"
+  },
+  {
+   "id": "D3-LAM",
+   "name": "Local Account Monitoring",
+   "summary": "Analyzing local user accounts to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:LocalAccountMonitoring/"
+  },
+  {
+   "id": "D3-LAMED",
+   "name": "LAN Access Mediation",
+   "summary": "LAN access mediation encompasses the application of strict access control policies, systematic verification of devices, and authentication mechanisms to govern connectivity to a Local Area Network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:LANAccessMediation/"
+  },
+  {
+   "id": "D3-LFAM",
+   "name": "Local File Access Mediation",
+   "summary": "Local file access mediation is the process of an operating system granting or denying a specific access request to a local file.",
+   "url": "https://d3fend.mitre.org/technique/d3f:LocalFileAccessMediation/"
+  },
+  {
+   "id": "D3-LFP",
+   "name": "Local File Permissions",
+   "summary": "Local file permissions is the systematic process of defining, implementing, and managing access control policies that dictate user permissions for accessing files on a local system through the configuration of operating system functionality.",
+   "url": "https://d3fend.mitre.org/technique/d3f:LocalFilePermissions/"
+  },
+  {
+   "id": "D3-LLM",
+   "name": "Logical Link Mapping",
+   "summary": "Logical link mapping creates a model of existing or previous node-to-node connections using network-layer data or metadata.",
+   "url": "https://d3fend.mitre.org/technique/d3f:LogicalLinkMapping/"
+  },
+  {
+   "id": "D3-MA",
+   "name": "Message Analysis",
+   "summary": "Analyzing email or instant message content to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MessageAnalysis/"
+  },
+  {
+   "id": "D3-MAN",
+   "name": "Message Authentication",
+   "summary": "Authenticating the sender of a message and ensuring message integrity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MessageAuthentication/"
+  },
+  {
+   "id": "D3-MBSV",
+   "name": "Memory Block Start Validation",
+   "summary": "Ensuring that a pointer accurately references the beginning of a designated memory block.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MemoryBlockStartValidation/"
+  },
+  {
+   "id": "D3-MBT",
+   "name": "Memory Boundary Tracking",
+   "summary": "Analyzing a call stack for return addresses which point to unexpected memory locations.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MemoryBoundaryTracking/"
+  },
+  {
+   "id": "D3-MENCR",
+   "name": "Message Encryption",
+   "summary": "Encrypting a message body using a cryptographic key.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MessageEncryption/"
+  },
+  {
+   "id": "D3-MFA",
+   "name": "Multi-factor Authentication",
+   "summary": "Requiring proof of two or more pieces of evidence in order to authenticate a user.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Multi-factorAuthentication/"
+  },
+  {
+   "id": "D3-MH",
+   "name": "Message Hardening",
+   "summary": "The application of security controls to user-to-user and system-to-system communications so messages remain confidential, unaltered, and verifiable while resisting injection, replay, and tampering.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MessageHardening/"
+  },
+  {
+   "id": "D3-MSM",
+   "name": "Motion Sensor Monitoring",
+   "summary": "Monitoring events from motion detectors (e.g., passive IR, microwave, dual-technology) to detect presence or movement within protected areas.",
+   "url": "https://d3fend.mitre.org/technique/d3f:MotionSensorMonitoring/"
+  },
+  {
+   "id": "D3-NAM",
+   "name": "Network Access Mediation",
+   "summary": "Network access mediation is the control method for authorizing access to a system by a user (or a process acting on behalf of a user) communicating through a network, including a local area network, a wide area network, and the Internet.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkAccessMediation/"
+  },
+  {
+   "id": "D3-NI",
+   "name": "Network Isolation",
+   "summary": "Network Isolation techniques prevent network hosts from accessing non-essential system network resources.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkIsolation/"
+  },
+  {
+   "id": "D3-NM",
+   "name": "Network Mapping",
+   "summary": "Network mapping encompasses the techniques to identify and model the physical layer, network layer, and data exchange layers of the organization's network and their physical location, and determine allowed pathways through that network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkMapping/"
+  },
+  {
+   "id": "D3-NNI",
+   "name": "Network Node Inventory",
+   "summary": "Network node inventorying identifies and records all the network nodes (hosts, routers, switches, firewalls, etc.) in the organization's architecture.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkNodeInventory/"
+  },
+  {
+   "id": "D3-NPC",
+   "name": "Null Pointer Checking",
+   "summary": "Checking if a pointer is NULL.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NullPointerChecking/"
+  },
+  {
+   "id": "D3-NRAM",
+   "name": "Network Resource Access Mediation",
+   "summary": "Control of access to organizational systems and services by users or processes over a network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkResourceAccessMediation/"
+  },
+  {
+   "id": "D3-NTA",
+   "name": "Network Traffic Analysis",
+   "summary": "Analyzing intercepted or summarized computer network traffic to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkTrafficAnalysis/"
+  },
+  {
+   "id": "D3-NTCD",
+   "name": "Network Traffic Community Deviation",
+   "summary": "Establishing baseline communities of network hosts and identifying statistically divergent inter-community communication.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkTrafficCommunityDeviation/"
+  },
+  {
+   "id": "D3-NTF",
+   "name": "Network Traffic Filtering",
+   "summary": "Restricting network traffic originating from any location.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkTrafficFiltering/"
+  },
+  {
+   "id": "D3-NTPM",
+   "name": "Network Traffic Policy Mapping",
+   "summary": "Network traffic policy mapping identifies and models the allowed pathways of data at the network, transport, and/or application levels.",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkTrafficPolicyMapping/"
+  },
+  {
+   "id": "D3-NTSA",
+   "name": "Network Traffic Signature Analysis",
+   "summary": "Analyzing network traffic and compares it to known signatures",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkTrafficSignatureAnalysis/"
+  },
+  {
+   "id": "D3-NVA",
+   "name": "Network Vulnerability Assessment",
+   "summary": "Network vulnerability assessment relates all the vulnerabilities of a network's components in the context of their configuration and interdependencies and can also include assessing risk emerging from the network's design as a whole, not just the sum of individual network node or network segment…",
+   "url": "https://d3fend.mitre.org/technique/d3f:NetworkVulnerabilityAssessment/"
+  },
+  {
+   "id": "D3-OAM",
+   "name": "Operational Activity Mapping",
+   "summary": "Operational activity mapping identifies activities of the organization and the organization's suborganizations, groups, roles, and individuals that carry out the activities and then establishes the dependencies of the activities on the systems and people that perform those activities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperationalActivityMapping/"
+  },
+  {
+   "id": "D3-ODM",
+   "name": "Operational Dependency Mapping",
+   "summary": "Operational dependency mapping identifies and models the dependencies of the organization's activities on each other and on the organization's performers (people, systems, and services.) This may include modeling the higher- and lower-level activities of an organization forming a hierarchy, or…",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperationalDependencyMapping/"
+  },
+  {
+   "id": "D3-OE",
+   "name": "Object Eviction",
+   "summary": "Terminate or remove an object from a host machine. This is the broadest class for object eviction.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ObjectEviction/"
+  },
+  {
+   "id": "D3-OLV",
+   "name": "Operational Logic Validation",
+   "summary": "Validation of variable state in the context of the control logic of the operational application.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperationalLogicValidation/"
+  },
+  {
+   "id": "D3-OM",
+   "name": "Organization Mapping",
+   "summary": "Organization mapping identifies and models the people, roles, and groups with an organization and the relations between them.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OrganizationMapping/"
+  },
+  {
+   "id": "D3-OMM",
+   "name": "Operating Mode Monitoring",
+   "summary": "Detects operating modes such as Program, Run, Remote, or Stop.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperatingModeMonitoring/"
+  },
+  {
+   "id": "D3-OPM",
+   "name": "Operational Process Monitoring",
+   "summary": "Monitoring physical parameters and operator actions related to an operational environment.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperationalProcessMonitoring/"
+  },
+  {
+   "id": "D3-OPR",
+   "name": "Operating Mode Restriction",
+   "summary": "Restricting unauthorized changes to the operating mode prevents devices from switching into inappropriate or vulnerable states during normal use.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperatingModeRestriction/"
+  },
+  {
+   "id": "D3-ORA",
+   "name": "Operational Risk Assessment",
+   "summary": "Operational risk assessment identifies and models the vulnerabilities of, and risks to, an organization's activities individually and as a whole.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperationalRiskAssessment/"
+  },
+  {
+   "id": "D3-OSM",
+   "name": "Operating System Monitoring",
+   "summary": "The operating system software, for D3FEND's purposes, includes the kernel and its process management functions, hardware drivers, initialization or boot logic. It also includes and other key system daemons and their configuration.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OperatingSystemMonitoring/"
+  },
+  {
+   "id": "D3-OTF",
+   "name": "Outbound Traffic Filtering",
+   "summary": "Restricting network traffic originating from a private host or enclave destined towards untrusted networks.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OutboundTrafficFiltering/"
+  },
+  {
+   "id": "D3-OTP",
+   "name": "One-time Password",
+   "summary": "A one-time password is valid for only one user authentication.",
+   "url": "https://d3fend.mitre.org/technique/d3f:One-timePassword/"
+  },
+  {
+   "id": "D3-OVAR",
+   "name": "OT Variable Access Restriction",
+   "summary": "Assign read/write access controls on designated registers or data tags to prevent unauthorized writes.",
+   "url": "https://d3fend.mitre.org/technique/d3f:OTVariableAccessRestriction/"
+  },
+  {
+   "id": "D3-PA",
+   "name": "Process Analysis",
+   "summary": "Process Analysis consists of observing a running application process and analyzing it to watch for certain behaviors or conditions which may indicate adversary activity. Analysis can occur inside of the process or through a third-party monitoring application.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessAnalysis/"
+  },
+  {
+   "id": "D3-PAM",
+   "name": "Physical Access Mediation",
+   "summary": "Physical access mediation is the process of granting or denying specific requests to enter specific physical facilities (e.g., Federal buildings, military establishments, border crossing entrances.)",
+   "url": "https://d3fend.mitre.org/technique/d3f:PhysicalAccessMediation/"
+  },
+  {
+   "id": "D3-PAN",
+   "name": "Pointer Authentication",
+   "summary": "Comparing the cryptographic hash or derivative of a pointer's value to an expected value.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PointerAuthentication/"
+  },
+  {
+   "id": "D3-PBWSAM",
+   "name": "Proxy-based Web Server Access Mediation",
+   "summary": "Proxy-based web server access mediation focuses on the regulation of web server access through intermediary proxy servers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Proxy-basedWebServerAccessMediation/"
+  },
+  {
+   "id": "D3-PCA",
+   "name": "Passive Certificate Analysis",
+   "summary": "Collecting host certificates from network traffic or other passive sources like a certificate transparency log and analyzing them for unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PassiveCertificateAnalysis/"
+  },
+  {
+   "id": "D3-PCSV",
+   "name": "Process Code Segment Verification",
+   "summary": "Comparing the \"text\" or \"code\" memory segments to a source of truth.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessCodeSegmentVerification/"
+  },
+  {
+   "id": "D3-PE",
+   "name": "Process Eviction",
+   "summary": "Process eviction techniques terminate or remove running process.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessEviction/"
+  },
+  {
+   "id": "D3-PEH",
+   "name": "Physical Enclosure Hardening",
+   "summary": "Physical changes to a computer enclosure which reduce the ability for agents or the environment to affect the contained computer system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PhysicalEnclosureHardening/"
+  },
+  {
+   "id": "D3-PFV",
+   "name": "Peripheral Firmware Verification",
+   "summary": "Cryptographically verifying peripheral firmware integrity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PeripheralFirmwareVerification/"
+  },
+  {
+   "id": "D3-PH",
+   "name": "Platform Hardening",
+   "summary": "Hardening components of a Platform with the intention of making them more difficult to exploit. Platforms includes components such as: * BIOS UEFI Subsystems * Hardware security devices such as Trusted Platform Modules * Boot process logic or code * Kernel software components",
+   "url": "https://d3fend.mitre.org/technique/d3f:PlatformHardening/"
+  },
+  {
+   "id": "D3-PHAM",
+   "name": "Physical Access Monitoring",
+   "summary": "Monitoring the physical access of a specified environment through detection, recording, reviewing, and logging of who/what enters and exists areas.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PhysicalAccessMonitoring/"
+  },
+  {
+   "id": "D3-PHDURA",
+   "name": "Per Host Download-Upload Ratio Analysis",
+   "summary": "Detecting anomalies that indicate malicious activity by comparing the amount of data downloaded versus data uploaded by a host.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PerHostDownload-UploadRatioAnalysis/"
+  },
+  {
+   "id": "D3-PLA",
+   "name": "Process Lineage Analysis",
+   "summary": "Identification of suspicious processes executing on an end-point device by examining the ancestry and siblings of a process, and the associated metadata of each node on the tree, such as process execution, duration, and order relative to siblings and ancestors.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessLineageAnalysis/"
+  },
+  {
+   "id": "D3-PLLM",
+   "name": "Passive Logical Link Mapping",
+   "summary": "Passive logical link mapping only listens to network traffic as a means to map the whole data link layer, where the links represent logical data flows rather than physical connections.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PassiveLogicalLinkMapping/"
+  },
+  {
+   "id": "D3-PLM",
+   "name": "Physical Link Mapping",
+   "summary": "Physical link mapping identifies and models the link connectivity of the network devices within a physical network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PhysicalLinkMapping/"
+  },
+  {
+   "id": "D3-PM",
+   "name": "Platform Monitoring",
+   "summary": "Monitoring platform components such as operating systems software, hardware devices, or firmware.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PlatformMonitoring/"
+  },
+  {
+   "id": "D3-PMAD",
+   "name": "Protocol Metadata Anomaly Detection",
+   "summary": "Collecting network communication protocol metadata and identifying statistical outliers.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProtocolMetadataAnomalyDetection/"
+  },
+  {
+   "id": "D3-PR",
+   "name": "Password Rotation",
+   "summary": "Password rotation is a security policy that mandates the periodic change of user account passwords to mitigate the risk of unauthorized access due to compromised credentials.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PasswordRotation/"
+  },
+  {
+   "id": "D3-PS",
+   "name": "Process Suspension",
+   "summary": "Suspending a running process on a computer system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessSuspension/"
+  },
+  {
+   "id": "D3-PSA",
+   "name": "Process Spawn Analysis",
+   "summary": "Analyzing spawn arguments or attributes of a process to detect processes that are unauthorized.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessSpawnAnalysis/"
+  },
+  {
+   "id": "D3-PSEP",
+   "name": "Process Segment Execution Prevention",
+   "summary": "Preventing execution of any address in a memory region other than the code segment.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessSegmentExecutionPrevention/"
+  },
+  {
+   "id": "D3-PSM",
+   "name": "Proximity Sensor Monitoring",
+   "summary": "Monitoring events from proximity sensors that indicate a credential or tagged asset is within the sensor’s read range or a defined zone. Common enabling technologies include RFID, Bluetooth Low Energy (BLE), and Ultra-Wideband (UWB).",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProximitySensorMonitoring/"
+  },
+  {
+   "id": "D3-PSMD",
+   "name": "Process Self-Modification Detection",
+   "summary": "Detects processes that modify, change, or replace their own code at runtime.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessSelf-ModificationDetection/"
+  },
+  {
+   "id": "D3-PT",
+   "name": "Process Termination",
+   "summary": "Terminating a running application process on a computer system.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ProcessTermination/"
+  },
+  {
+   "id": "D3-PUM",
+   "name": "Platform Uptime Monitoring",
+   "summary": "Monitor the amount of time since the last power cycle or restart.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PlatformUptimeMonitoring/"
+  },
+  {
+   "id": "D3-PV",
+   "name": "Pointer Validation",
+   "summary": "Ensuring that a pointer variable has the required properties for use.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PointerValidation/"
+  },
+  {
+   "id": "D3-PWA",
+   "name": "Password Authentication",
+   "summary": "Password authentication is a security mechanism used to verify the identity of a user or entity attempting to access a system or resource by requiring the input of a secret string of characters, known as a password, that is associated with the user or entity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:PasswordAuthentication/"
+  },
+  {
+   "id": "D3-RA",
+   "name": "Restore Access",
+   "summary": "Restoring an entity's access to resources.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreAccess/"
+  },
+  {
+   "id": "D3-RAM",
+   "name": "Routing Access Mediation",
+   "summary": "Routing access mediation is a network security approach that manages and controls access at the network layer using VPNs, tunneling protocols, firewall rules, and traffic inspection to ensure secure and efficient data routing.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RoutingAccessMediation/"
+  },
+  {
+   "id": "D3-RAPA",
+   "name": "Resource Access Pattern Analysis",
+   "summary": "Analyzing the resources accessed by a user to identify unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ResourceAccessPatternAnalysis/"
+  },
+  {
+   "id": "D3-RC",
+   "name": "Restore Configuration",
+   "summary": "Restoring an software configuration.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreConfiguration/"
+  },
+  {
+   "id": "D3-RD",
+   "name": "Restore Database",
+   "summary": "Restoring the data in a database.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreDatabase/"
+  },
+  {
+   "id": "D3-RDI",
+   "name": "Restore Disk Image",
+   "summary": "Restoring a previously captured disk image a hard drive.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreDiskImage/"
+  },
+  {
+   "id": "D3-RE",
+   "name": "Restore Email",
+   "summary": "Restoring an email for an entity to access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreEmail/"
+  },
+  {
+   "id": "D3-RF",
+   "name": "Restore File",
+   "summary": "Restoring a file for an entity to access.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreFile/"
+  },
+  {
+   "id": "D3-RFAM",
+   "name": "Remote File Access Mediation",
+   "summary": "Remote file access mediation is the process of managing and securing access to file systems over a network to ensure that only authorized users or processes can interact with remote files.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RemoteFileAccessMediation/"
+  },
+  {
+   "id": "D3-RFS",
+   "name": "RF Shielding",
+   "summary": "Adding physical barriers to a platform to prevent undesired radio interference.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RFShielding/"
+  },
+  {
+   "id": "D3-RFUM",
+   "name": "Remote Firmware Update Monitoring",
+   "summary": "Monitoring of remote firmware update commands to identify unauthorized software installations.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RemoteFirmwareUpdateMonitoring/"
+  },
+  {
+   "id": "D3-RH",
+   "name": "Radiation Hardening",
+   "summary": "Radiation hardening is the process of making electronic components and circuits resistant to damage or malfunction caused by high levels of ionizing radiation.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RadiationHardening/"
+  },
+  {
+   "id": "D3-RIC",
+   "name": "Reissue Credential",
+   "summary": "Issue a new credential to a user which supersedes their old credential.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ReissueCredential/"
+  },
+  {
+   "id": "D3-RKD",
+   "name": "Registry Key Deletion",
+   "summary": "Delete a registry key.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RegistryKeyDeletion/"
+  },
+  {
+   "id": "D3-RN",
+   "name": "Reference Nullification",
+   "summary": "Invalidating all pointers that reference a specific memory block, ensuring that the block cannot be accessed or modified after deallocation.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ReferenceNullification/"
+  },
+  {
+   "id": "D3-RNA",
+   "name": "Restore Network Access",
+   "summary": "Restoring a entity's access to a computer network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreNetworkAccess/"
+  },
+  {
+   "id": "D3-RO",
+   "name": "Restore Object",
+   "summary": "Restoring an object for an entity to access. This is the broadest class for object restoral.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreObject/"
+  },
+  {
+   "id": "D3-RPA",
+   "name": "Relay Pattern Analysis",
+   "summary": "The detection of an internal host relaying traffic between the internal network and the external network.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RelayPatternAnalysis/"
+  },
+  {
+   "id": "D3-RRID",
+   "name": "Reverse Resolution IP Denylisting",
+   "summary": "Blocking a reverse lookup based on the query's IP address value.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ReverseResolutionIPDenylisting/"
+  },
+  {
+   "id": "D3-RS",
+   "name": "Restore Software",
+   "summary": "Restoring software to a host.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreSoftware/"
+  },
+  {
+   "id": "D3-RTA",
+   "name": "RPC Traffic Analysis",
+   "summary": "Monitoring the activity of remote procedure calls in communication traffic to establish standard protocol operations and potential attacker activities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RPCTrafficAnalysis/"
+  },
+  {
+   "id": "D3-RTSD",
+   "name": "Remote Terminal Session Detection",
+   "summary": "Detection of an unauthorized remote live terminal console session by examining network traffic to a network host.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RemoteTerminalSessionDetection/"
+  },
+  {
+   "id": "D3-RUAA",
+   "name": "Restore User Account Access",
+   "summary": "Restoring a user account's access to resources.",
+   "url": "https://d3fend.mitre.org/technique/d3f:RestoreUserAccountAccess/"
+  },
+  {
+   "id": "D3-SAOR",
+   "name": "Segment Address Offset Randomization",
+   "summary": "Randomizing the base (start) address of one or more segments of memory during the initialization of a process.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SegmentAddressOffsetRandomization/"
+  },
+  {
+   "id": "D3-SBV",
+   "name": "Service Binary Verification",
+   "summary": "Analyzing changes in service binary files by comparing to a source of truth.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ServiceBinaryVerification/"
+  },
+  {
+   "id": "D3-SCA",
+   "name": "System Call Analysis",
+   "summary": "Analyzing system calls to determine whether a process is exhibiting unauthorized behavior.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemCallAnalysis/"
+  },
+  {
+   "id": "D3-SCF",
+   "name": "System Call Filtering",
+   "summary": "Controlling access to local computer system resources with kernel-level capabilities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemCallFiltering/"
+  },
+  {
+   "id": "D3-SCH",
+   "name": "Source Code Hardening",
+   "summary": "Hardening source code with the intention of making it more difficult to exploit and less error prone.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SourceCodeHardening/"
+  },
+  {
+   "id": "D3-SCP",
+   "name": "System Configuration Permissions",
+   "summary": "Restricting system configuration modifications to a specific user or group of users.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemConfigurationPermissions/"
+  },
+  {
+   "id": "D3-SDA",
+   "name": "Session Duration Analysis",
+   "summary": "Analyzing the duration of user sessions in order to detect unauthorized activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SessionDurationAnalysis/"
+  },
+  {
+   "id": "D3-SDM",
+   "name": "System Daemon Monitoring",
+   "summary": "Tracking changes to the state or configuration of critical system level processes.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemDaemonMonitoring/"
+  },
+  {
+   "id": "D3-SEA",
+   "name": "Script Execution Analysis",
+   "summary": "Analyzing the execution of a script to detect unauthorized user activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ScriptExecutionAnalysis/"
+  },
+  {
+   "id": "D3-SFA",
+   "name": "System File Analysis",
+   "summary": "Monitoring system files such as authentication databases, configuration files, system logs, and system executables for modification or tampering.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemFileAnalysis/"
+  },
+  {
+   "id": "D3-SFCV",
+   "name": "Stack Frame Canary Validation",
+   "summary": "Comparing a value stored in a stack frame with a known good value in order to prevent or detect a memory segment overwrite.",
+   "url": "https://d3fend.mitre.org/technique/d3f:StackFrameCanaryValidation/"
+  },
+  {
+   "id": "D3-SFV",
+   "name": "System Firmware Verification",
+   "summary": "Cryptographically verifying installed system firmware integrity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemFirmwareVerification/"
+  },
+  {
+   "id": "D3-SHN",
+   "name": "Standalone Honeynet",
+   "summary": "An environment created for the purpose of attracting attackers and eliciting their behaviors that is not connected to any production enterprise systems.",
+   "url": "https://d3fend.mitre.org/technique/d3f:StandaloneHoneynet/"
+  },
+  {
+   "id": "D3-SICA",
+   "name": "System Init Config Analysis",
+   "summary": "Analysis of any system process startup configuration.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemInitConfigAnalysis/"
+  },
+  {
+   "id": "D3-SJA",
+   "name": "Scheduled Job Analysis",
+   "summary": "Analysis of source files, processes, destination files, or destination servers associated with a scheduled job to detect unauthorized use of job scheduling.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ScheduledJobAnalysis/"
+  },
+  {
+   "id": "D3-SMRA",
+   "name": "Sender MTA Reputation Analysis",
+   "summary": "Characterizing the reputation of mail transfer agents (MTA) to determine the security risk in emails.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SenderMTAReputationAnalysis/"
+  },
+  {
+   "id": "D3-SPP",
+   "name": "Strong Password Policy",
+   "summary": "Modifying system configuration to increase password strength.",
+   "url": "https://d3fend.mitre.org/technique/d3f:StrongPasswordPolicy/"
+  },
+  {
+   "id": "D3-SRA",
+   "name": "Sender Reputation Analysis",
+   "summary": "Ascertaining sender reputation based on information associated with a message (e.g. email/instant messaging).",
+   "url": "https://d3fend.mitre.org/technique/d3f:SenderReputationAnalysis/"
+  },
+  {
+   "id": "D3-SSC",
+   "name": "Shadow Stack Comparisons",
+   "summary": "Comparing a call stack in system memory with a shadow call stack maintained by the processor to determine unauthorized shellcode activity.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ShadowStackComparisons/"
+  },
+  {
+   "id": "D3-ST",
+   "name": "Session Termination",
+   "summary": "Forcefully end all active sessions associated with compromised accounts or devices.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SessionTermination/"
+  },
+  {
+   "id": "D3-SU",
+   "name": "Software Update",
+   "summary": "Replacing old software on a computer system component.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SoftwareUpdate/"
+  },
+  {
+   "id": "D3-SVCDM",
+   "name": "Service Dependency Mapping",
+   "summary": "Service dependency mapping determines the services on which each given service relies.",
+   "url": "https://d3fend.mitre.org/technique/d3f:ServiceDependencyMapping/"
+  },
+  {
+   "id": "D3-SWI",
+   "name": "Software Inventory",
+   "summary": "Software inventorying identifies and records the software items in the organization's architecture.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SoftwareInventory/"
+  },
+  {
+   "id": "D3-SYSDM",
+   "name": "System Dependency Mapping",
+   "summary": "System dependency mapping identifies and models the dependencies of system components on each other to carry out their function.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemDependencyMapping/"
+  },
+  {
+   "id": "D3-SYSM",
+   "name": "System Mapping",
+   "summary": "System mapping encompasses the techniques to identify the organization's systems, how they are configured and decomposed into subsystems and components, how they are dependent on one another, and where they are physically located.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemMapping/"
+  },
+  {
+   "id": "D3-SYSVA",
+   "name": "System Vulnerability Assessment",
+   "summary": "System vulnerability assessment relates all the vulnerabilities of a system's components in the context of their configuration and internal dependencies and can also include assessing risk emerging from the system's design as a whole, not just the sum of individual component vulnerabilities.",
+   "url": "https://d3fend.mitre.org/technique/d3f:SystemVulnerabilityAssessment/"
+  },
+  {
+   "id": "D3-TAAN",
+   "name": "Transfer Agent Authentication",
+   "summary": "Validating that server components of a messaging infrastructure are authorized to send a particular message.",
+   "url": "https://d3fend.mitre.org/technique/d3f:TransferAgentAuthentication/"
+  },
+  {
+   "id": "D3-TB",
+   "name": "Token Binding",
+   "summary": "Token binding is a security mechanism used to enhance the protection of tokens, such as cookies or OAuth tokens, by binding them to a specific connection.",
+   "url": "https://d3fend.mitre.org/technique/d3f:TokenBinding/"
+  },
+  {
+   "id": "D3-TBA",
+   "name": "Token-based Authentication",
+   "summary": "Token-based authentication is an authentication protocol where users verify their identity in exchange for a unique access token. Users can then access the website, application, or resource for the life of the token without having to re-enter their credentials.",
+   "url": "https://d3fend.mitre.org/technique/d3f:Token-basedAuthentication/"
+  },
+  {
+   "id": "D3-TBI",
+   "name": "TPM Boot Integrity",
+   "summary": "Assuring the integrity of a platform by demonstrating that the boot process starts from a trusted combination of hardware and software and continues until the operating system has fully booted and applications are running. Sometimes called Static Root of Trust Measurement (STRM).",
+   "url": "https://d3fend.mitre.org/technique/d3f:TPMBootIntegrity/"
+  },
+  {
+   "id": "D3-TL",
+   "name": "Trusted Library",
+   "summary": "A trusted library is a collection of pre-verified and secure code modules or components that are used within software applications to perform specific functions.",
+   "url": "https://d3fend.mitre.org/technique/d3f:TrustedLibrary/"
+  },
+  {
+   "id": "D3-UA",
+   "name": "URL Analysis",
+   "summary": "Determining if a URL is benign or malicious by analyzing the URL or its components.",
+   "url": "https://d3fend.mitre.org/technique/d3f:URLAnalysis/"
+  },
+  {
+   "id": "D3-UAP",
+   "name": "User Account Permissions",
+   "summary": "Restricting a user account's access to resources.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserAccountPermissions/"
+  },
+  {
+   "id": "D3-UBA",
+   "name": "User Behavior Analysis",
+   "summary": "User behavior analytics (\"UBA\") as defined by Gartner, is a cybersecurity process about detection of insider threats, targeted attacks, and financial fraud.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserBehaviorAnalysis/"
+  },
+  {
+   "id": "D3-UDTA",
+   "name": "User Data Transfer Analysis",
+   "summary": "Analyzing the amount of data transferred by a user.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserDataTransferAnalysis/"
+  },
+  {
+   "id": "D3-UGLPA",
+   "name": "User Geolocation Logon Pattern Analysis",
+   "summary": "Monitoring geolocation data of user logon attempts and comparing it to a baseline user behavior profile to identify anomalies in logon location.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserGeolocationLogonPatternAnalysis/"
+  },
+  {
+   "id": "D3-UGPH",
+   "name": "User Group Permissions",
+   "summary": "Access control where access is determined based on attributes associated with users and the objects being accessed.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserGroupPermissions/"
+  },
+  {
+   "id": "D3-ULA",
+   "name": "Unlock Account",
+   "summary": "Restoring a user account's access to resources by unlocking a locked User Account.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UnlockAccount/"
+  },
+  {
+   "id": "D3-URA",
+   "name": "URL Reputation Analysis",
+   "summary": "Analyzing the reputation of a URL.",
+   "url": "https://d3fend.mitre.org/technique/d3f:URLReputationAnalysis/"
+  },
+  {
+   "id": "D3-USICA",
+   "name": "User Session Init Config Analysis",
+   "summary": "Analyzing modifications to user session config files such as .bashrc or .bash_profile.",
+   "url": "https://d3fend.mitre.org/technique/d3f:UserSessionInitConfigAnalysis/"
+  },
+  {
+   "id": "D3-VI",
+   "name": "Variable Initialization",
+   "summary": "Setting variables to a known value before use.",
+   "url": "https://d3fend.mitre.org/technique/d3f:VariableInitialization/"
+  },
+  {
+   "id": "D3-VS",
+   "name": "Video Surveillance",
+   "summary": "Monitoring of physical areas via camera video feeds to deter, detect, and investigate unauthorized access and related security events.",
+   "url": "https://d3fend.mitre.org/technique/d3f:VideoSurveillance/"
+  },
+  {
+   "id": "D3-VTV",
+   "name": "Variable Type Validation",
+   "summary": "Ensuring that a variable has the correct type.",
+   "url": "https://d3fend.mitre.org/technique/d3f:VariableTypeValidation/"
+  },
+  {
+   "id": "D3-WSAA",
+   "name": "Web Session Activity Analysis",
+   "summary": "Monitoring changes in user web session behavior by comparing current web session activity to a baseline behavior profile or a catalog of predetermined malicious behavior.",
+   "url": "https://d3fend.mitre.org/technique/d3f:WebSessionActivityAnalysis/"
+  },
+  {
+   "id": "D3-WSAM",
+   "name": "Web Session Access Mediation",
+   "summary": "Web session access mediation secures user sessions in web applications by employing robust authentication and integrity validation, along with adaptive threat mitigation techniques, to ensure that access to web resources is authorized and protected from session-related attacks.",
+   "url": "https://d3fend.mitre.org/technique/d3f:WebSessionAccessMediation/"
+  }
+ ]
+}

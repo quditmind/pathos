@@ -73,6 +73,8 @@ export interface GraphExplorerProps {
   onRendered?: (m: RenderMetrics) => void;
   /** Canvas height in px (default 640). */
   height?: number;
+  /** What node `finding_counts` count, in the inspector and filters (default "findings"; threat models: "threats"). */
+  countsNoun?: string;
 }
 
 function usePrefersReducedMotion() {
@@ -137,7 +139,7 @@ export function activeFilterCount(f: GraphFilters): number {
   return f.types.length + f.technologies.length + f.evidence.length + (f.hasFindings ? 1 : 0) + (f.minSeverity ? 1 : 0) + (f.internetExposed ? 1 : 0);
 }
 
-function FiltersPanel({ filters, setFilters, types, techs }: { filters: GraphFilters; setFilters: (f: GraphFilters) => void; types: NodeType[]; techs: string[] }) {
+function FiltersPanel({ filters, setFilters, types, techs, countsNoun = "findings" }: { filters: GraphFilters; setFilters: (f: GraphFilters) => void; types: NodeType[]; techs: string[]; countsNoun?: string }) {
   const n = activeFilterCount(filters);
   return (
     <Popover.Root>
@@ -152,7 +154,7 @@ function FiltersPanel({ filters, setFilters, types, techs }: { filters: GraphFil
             <legend className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Security status</legend>
             <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={filters.hasFindings} onChange={(e) => setFilters({ ...filters, hasFindings: e.target.checked })} />
-              Has open findings
+              Has open {countsNoun}
             </label>
             <label className="flex items-center gap-2 text-[12px]">
               <input type="checkbox" checked={filters.internetExposed} onChange={(e) => setFilters({ ...filters, internetExposed: e.target.checked })} />
@@ -497,7 +499,7 @@ function Explorer(props: GraphExplorerProps) {
             {matches.length > 0 && " · Enter for next"}
           </span>
         )}
-        <FiltersPanel filters={filters} setFilters={setFilters} types={presentTypes} techs={techs} />
+        <FiltersPanel filters={filters} setFilters={setFilters} types={presentTypes} techs={techs} countsNoun={props.countsNoun} />
         <div className="flex flex-wrap items-center gap-1" role="group" aria-label="Layers">
           {allLayers.map((l) => (
             <Toggle
@@ -627,6 +629,7 @@ function Explorer(props: GraphExplorerProps) {
             onTrace={(d) => void runTrace(d)}
             onExpand={onExpand}
             onClose={() => select(undefined)}
+            countsNoun={props.countsNoun}
           />
         </Card>
       </div>

@@ -35,8 +35,11 @@ type Service struct {
 	// only their summary).
 	Artifacts objstore.Store
 	// Now is the clock (tests).
-	Now   func() time.Time
-	cache *skeletonCache
+	Now func() time.Time
+	// OnSnapshotReady runs after a snapshot is stored (threat models
+	// regenerate their draft, internal/threatmodel).
+	OnSnapshotReady func(ctx context.Context, orgID, appID, snapshotID uuid.UUID)
+	cache           *skeletonCache
 }
 
 // NewService returns a service with its skeleton cache.

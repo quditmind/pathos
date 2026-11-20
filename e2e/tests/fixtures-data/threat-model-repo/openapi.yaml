@@ -1,0 +1,30 @@
+openapi: 3.0.3
+info:
+  title: Shop API (test fixture)
+  version: 1.0.0
+paths:
+  /api/products/{id}:
+    get:
+      operationId: getProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200": {description: The product}
+  /api/products:
+    post:
+      operationId: addProduct
+      responses:
+        "201": {description: Created}
+  /api/prices/{product_id}:
+    get:
+      operationId: getPrice
+      parameters:
+        - name: product_id
+          in: path
+          required: true
+          schema: {type: integer}
+      responses:
+        "200": {description: The price}

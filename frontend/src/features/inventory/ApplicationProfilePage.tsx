@@ -36,7 +36,7 @@ export const profileTabs = [
   { key: "classification", label: "Classification & tags" },
   { key: "versions", label: "Versions" },
   { key: "codegraph", label: "CodeGraph" },
-  { key: "threat-model", label: "Threat model", arrives: "M5" },
+  { key: "threat-model", label: "Threat model" },
   { key: "findings", label: "Findings" },
   { key: "sbom", label: "SBOM & components" },
   { key: "remediation", label: "Remediation", arrives: "M8" },
@@ -46,6 +46,8 @@ export type ProfileTab = (typeof profileTabs)[number]["key"];
 
 // The CodeGraph tab (M4) loads React Flow lazily, like the /codegraph route; the panel checks the codegraph flag.
 const CodeGraphPanel = lazy(() => import("@/features/codegraph/CodeGraphPanel").then((m) => ({ default: m.CodeGraphPanel })));
+// The Threat model tab (M5) loads with the threat-model pages; the panel checks the threat_models flag.
+const ThreatModelPanel = lazy(() => import("@/features/threatmodels/ThreatModelPanel").then((m) => ({ default: m.ThreatModelPanel })));
 
 export function validateProfileSearch(s: Record<string, unknown>): { tab?: ProfileTab } {
   const t = profileTabs.find((x) => x.key === s.tab && !("arrives" in x));
@@ -154,6 +156,11 @@ export function ApplicationProfile({ id }: { id: string }) {
         {tab === "codegraph" && (
           <Suspense fallback={<LoadingSkeleton rows={6} label="Loading CodeGraph" />}>
             <CodeGraphPanel applicationId={id} applicationName={a.name} />
+          </Suspense>
+        )}
+        {tab === "threat-model" && (
+          <Suspense fallback={<LoadingSkeleton rows={4} label="Loading threat models" />}>
+            <ThreatModelPanel applicationId={id} />
           </Suspense>
         )}
         {tab === "findings" && <FindingsTab a={a} />}

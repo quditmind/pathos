@@ -66,5 +66,8 @@ smoke: ## End-to-end test against the running stack
 docs-errors: ## Regenerate docs/troubleshooting/*.md from the error catalogue (backend/internal/platform/diag)
 	scripts/go.sh run ./cmd/pathos-docgen -out ../docs/troubleshooting
 
+threat-frameworks: ## Update the bundled ATT&CK, CAPEC, CWE and D3FEND data from the pinned, checksum-verified releases (backend/internal/threatmodel/frameworks/sources.json)
+	scripts/go.sh run ./cmd/pathos-frameworks
+
 rbac-matrix: ## Print the RBAC matrix for docs/RBAC_MATRIX.md
 	scripts/go.sh run ./cmd/pathosctl rbac-matrix

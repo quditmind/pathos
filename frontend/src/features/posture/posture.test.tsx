@@ -24,7 +24,7 @@ describe("posture navigation", () => {
     const to = (label: string) => groups.find((x) => x.label === label)!.items.map((i) => i.to).filter(Boolean);
     expect(to("2 · Inventory")).toEqual(expect.arrayContaining(["/posture/unmanaged", "/posture/coverage"]));
     expect(to("3 · Discover")).toContain("/posture/graph");
-    expect(to("4 · Threat model")).toEqual(["/posture/attack-paths", "/posture/blast-radius"]);
+    expect(to("4 · Threat model")).toEqual(["/threat-models", "/posture/attack-paths", "/posture/blast-radius"]);
     expect(to("9 · Report & monitor")).toEqual(expect.arrayContaining(["/posture", "/posture/benchmark", "/compliance"]));
   });
 });

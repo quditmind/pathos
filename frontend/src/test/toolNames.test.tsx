@@ -16,7 +16,10 @@
  * kept current by a Go test in backend/internal/connectors), the application
  * profile hub tabs, the lifecycle overview and the onboarding flow; and the
  * PATHOS 3.0 M4 CodeGraph (the hub tab, the graph, its list view and the node
- * inspector), whose discovery engines report versions, errors and evidence.
+ * inspector), whose discovery engines report versions, errors and evidence;
+ * and the PATHOS 3.0 M5 threat models (the list, the hub tab, the model's
+ * threats, threat detail, diagram and versions), whose evidence copies
+ * CodeGraph evidence and attack-path findings.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -46,6 +49,8 @@ import connectorKinds from "@/test/fixtures/connectorKinds.json";
 import { CodeGraphPanel } from "@/features/codegraph/CodeGraphPanel";
 import { CodeGraphIndexPage } from "@/features/codegraph/CodeGraphPage";
 import { mockReactFlowDom } from "@/components/graph/testing";
+import { ThreatModelsPage } from "@/features/threatmodels/ThreatModelsPage";
+import { ThreatModelView } from "@/features/threatmodels/ThreatModelPage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -464,6 +469,110 @@ describe("rule 3 on the PATHOS 3.0 M4 CodeGraph", () => {
     unmount();
     renderApp(<CodeGraphIndexPage view="api" />, { permissions: ["findings.read"] });
     await screen.findByRole("option", { name: "Payments Platform" });
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M5: threat models (example fixture data, test only) --------------
+
+const TM = "0190b000-0000-7000-8000-0000000000a1";
+const tmModel = {
+  id: TM, lineage_id: TM, version: 2, status: "draft", application_id: "a1", application_name: "Payments Platform",
+  repository_id: "r1", repository_name: "example/payments-api", title: "Payments threat model (test fixture)", summary: "", method: "stride",
+  codegraph_snapshot_ids: ["s1"], generated_at: "2026-11-20T10:00:00Z", created_at: "2026-11-20T10:00:00Z", updated_at: "2026-11-20T10:00:00Z",
+  created_by: { id: "u1", name: "Author" },
+  generation: { engines: ENGINE_KEYS.slice(0, 4), notes: [`example/payments-api: the snapshot is partial (${NOISY})`] },
+  counts: { total: 2, open: 2, mitigated: 0, accepted: 0, not_applicable: 0, by_severity: { high: 1, critical: 1 }, unverified: 0, without_mitigation: 0 },
+  can_edit: true, can_approve: false,
+};
+const tmThreat = (id: string, over: Record<string, unknown> = {}) => ({
+  id, threat_model_id: TM, title: `Unauthenticated route reaches a data store (${id})`, description: "Example threat (test fixture).",
+  category: "spoofing", method: "rule", rule_id: "TM-S-001", rule_version: "1", evidence_type: "verified", severity: "high", confidence: 0.7,
+  status: "open", mitigation: "Require authentication.", change_state: "new",
+  elements: [{ id: "e1", kind: "process", name: "POST /example/pay", codegraph_key: "route:POST /pay" }],
+  evidence: {
+    snapshot_id: "s1", repository_id: "r1", application_id: "a1",
+    rule: { id: "TM-S-001", version: "1", logic: "A route without an authentication function on its path." },
+    nodes: [{ id: "n-route", key: "route:POST /pay", type: "route", label: "POST /example/pay", file: "api/pay.go", line: 12 }],
+    edges: [{ id: "e1", source: "route:POST /pay", target: "fn:go:pay.Charge", type: "calls", evidence: "verified",
+      refs: [{ kind: "scan", ref: "opengrep:pathos.graph.route.chi", detail: `route rule matched (${NOISY})` }] }],
+    absent: ["no authentication function"],
+    exposure: { level: "internet", reasons: [`ingress found by ${third[0]!.name}`] },
+  },
+  ...over,
+});
+const tmThreats = [
+  tmThreat("t1"),
+  tmThreat("t2", {
+    method: "attack_path", rule_id: "TM-AP-001", severity: "critical", category: "elevation_of_privilege",
+    title: `Attack path to a finding confirmed by ${third[1]!.name}`,
+    findings: [{ id: "f1", title: "Example SQL injection (test fixture)", severity: "high", status: "open", cwe: "CWE-89" }],
+    evidence: {
+      attack_path: {
+        entry: "internet", risk: 80,
+        steps: [{ type: "entry", label: "Internet" }, { type: "finding", label: `SQL injection (${ENGINE_KEYS[0]})`, sub: NOISY, link: "/findings?finding=f1" }],
+        reasons: [`exploit confirmed by ${ENGINE_KEYS[1]}`],
+      },
+      runtime: [`deployed (reported by ${ENGINE_KEYS[2]})`],
+    },
+  }),
+];
+const tmRoutes = {
+  ...cgRoutes,
+  "GET /api/v1/meta": () => ({ ...flagsOn(), feature_flags: { ...flagsOn().feature_flags, codegraph: true, threat_models: true } }),
+  "GET /api/v1/threat-models": () => ({ items: [tmModel] }),
+  [`GET /api/v1/threat-models/${TM}`]: () => ({ model: tmModel, elements: [{ id: "e1", kind: "process", name: "POST /example/pay" }], versions: [tmModel] }),
+  [`GET /api/v1/threat-models/${TM}/threats`]: () => ({ items: tmThreats }),
+  "GET /api/v1/threats/t2": () => ({ threat: tmThreats[1], events: [{ id: "ev1", action: "status", from: "open", to: "open", reason: `seen by ${ENGINE_KEYS[3]}`, at: "2026-11-20T10:00:00Z" }] }),
+  [`GET /api/v1/threat-models/${TM}/diagram`]: () => cgGraph,
+  [`GET /api/v1/threat-models/${TM}/versions`]: () => ({
+    items: [tmModel],
+    approvals: [{ id: "ap1", threat_model_id: TM, version: 1, decision: "changes_requested", actor: { id: "u2", name: "Reviewer" }, note: `check the ${third[2]!.name} results`, decided_at: "2026-11-19T10:00:00Z" }],
+  }),
+};
+
+describe("rule 3 on the PATHOS 3.0 M5 threat models", () => {
+  it("threat models list and the application profile's Threat model tab", async () => {
+    mockApi(tmRoutes);
+    const { unmount } = renderApp(<ThreatModelsPage />, { permissions: ["threats.read", "threats.manage"] });
+    expect(await screen.findByRole("link", { name: "Payments threat model (test fixture)" })).toBeInTheDocument();
+    expectNoToolNames();
+    unmount();
+    renderApp(<ApplicationProfile id="a1" />, { path: "/?tab=threat-model", permissions: ["repos.read", "findings.read", "threats.read"] });
+    expect(await screen.findByRole("list", { name: "Top open threats" })).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("threat model: threats, notes and the threat detail with CodeGraph and attack-path evidence", async () => {
+    mockReactFlowDom();
+    mockApi(tmRoutes);
+    renderApp(<ThreatModelView modelId={TM} tab="threats" threat="t2" onNavigate={() => undefined} />, { permissions: ["threats.read", "threats.manage"] });
+    const detail = await screen.findByTestId("threat-detail");
+    expect(await within(detail).findByText(/^SQL injection \(engine\)$/)).toBeInTheDocument();
+    expect(await screen.findAllByTestId("threat-row")).toHaveLength(2);
+    expect(screen.getByText(/the snapshot is partial/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("threat model: diagram and versions", async () => {
+    mockReactFlowDom();
+    mockApi(tmRoutes);
+    const { unmount } = renderApp(<ThreatModelView modelId={TM} tab="diagram" onNavigate={() => undefined} />, { permissions: ["threats.read"] });
+    expect(await screen.findByRole("button", { name: /^POST \/example\/pay, Route/ })).toBeInTheDocument();
+    expectNoToolNames();
+    unmount();
+    renderApp(<ThreatModelView modelId={TM} tab="versions" onNavigate={() => undefined} />, { permissions: ["threats.read"] });
+    expect(await screen.findByText(/changes requested by Reviewer/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("the threat detail shows the evidence of a CodeGraph rule", async () => {
+    mockReactFlowDom();
+    mockApi({ ...tmRoutes, "GET /api/v1/threats/t1": () => ({ threat: tmThreats[0], events: [] }) });
+    renderApp(<ThreatModelView modelId={TM} tab="threats" threat="t1" onNavigate={() => undefined} />, { permissions: ["threats.read"] });
+    const detail = await screen.findByTestId("threat-detail");
+    expect(await within(detail).findByText(/engine:pathos\.graph\.route\.chi/)).toBeInTheDocument();
+    expect(within(detail).getByText("no authentication function")).toBeInTheDocument();
     expectNoToolNames();
   });
 });
