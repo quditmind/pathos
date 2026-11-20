@@ -4,7 +4,7 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
-## [3.0.0] — 2026-11-20
+## [3.0.0] — 2026-11-21
 
 PATHOS 3.0: the nine-phase application security lifecycle (milestones M0–M10, sections below), the 2.2.1–2.2.3 fixes, and patched worker image dependencies. Every new module is behind a feature flag, off by default; with all flags off 3.0 behaves like 2.2.3 and keeps every page and URL. Upgrading from 2.2.x is supported (migrations 00043–00067, additive; see *PATHOS 2.2.1–2.2.3 brought forward into 3.0*).
 
