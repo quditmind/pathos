@@ -29,9 +29,9 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 | `WORK` | [Workers](work.md) | 6 |
 | `AI` | [AI](ai.md) | 11 |
 | `GATE` | [Security gates](gate.md) | 10 |
-| `REM` | [Remediation](rem.md) | 11 |
-| `REP` | [Reporting](rep.md) | 4 |
-| `MON` | [Monitoring](mon.md) | 3 |
+| `REM` | [Remediation](rem.md) | 12 |
+| `REP` | [Reporting](rep.md) | 5 |
+| `MON` | [Monitoring](mon.md) | 8 |
 
 Areas without codes yet: `REA` (Reverse engineering). Their modules are planned; codes are added with them.
 
