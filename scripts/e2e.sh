@@ -7,6 +7,9 @@
 # password change exactly like scripts/smoke-test.py). The HTML report goes
 # to e2e/playwright-report/. E2E_CODEGRAPH_APP (application id or name) and
 # E2E_CODEGRAPH_WAIT_S are passed to e2e/tests/codegraph.spec.ts.
+# scripts/seed-e2e-app.py seeds an application holding this repository and
+# prints its id (E2E_CODEGRAPH_APP); it needs `docker compose --profile graph
+# up -d worker-graph` for the build (CONTRIBUTING.md, Tests).
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"

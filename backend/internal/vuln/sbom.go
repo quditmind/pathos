@@ -336,13 +336,7 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer zr.Close()
-	w.Header().Set("Content-Type", "application/vnd.cyclonedx+json")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+strings.Map(func(r rune) rune {
-		if r == '"' || r == '\\' || r < 0x20 {
-			return '_'
-		}
-		return r
-	}, name)+`.cdx.json"`)
+	httpx.Download(w, "application/vnd.cyclonedx+json", name+".cdx.json")
 	_, _ = io.Copy(w, io.LimitReader(zr, 512<<20))
 }
 
@@ -374,12 +368,6 @@ func (s *Service) exportInventory(w http.ResponseWriter, r *http.Request, repoID
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Content-Disposition", `attachment; filename="`+strings.Map(func(r rune) rune {
-		if r == '"' || r == '\\' || r < 0x20 || r == '/' {
-			return '_'
-		}
-		return r
-	}, name)+ext+`"`)
+	httpx.Download(w, ct, name+ext)
 	_, _ = w.Write(out)
 }

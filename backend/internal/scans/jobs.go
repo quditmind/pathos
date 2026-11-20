@@ -756,9 +756,7 @@ func (s *Service) downloadArtifact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer zr.Close()
-	w.Header().Set("Content-Type", ct)
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s-%s.json"`, scanner, j.ID))
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	httpx.Download(w, ct, fmt.Sprintf("%s-%s.json", scanner, j.ID))
 	_, _ = io.Copy(w, io.LimitReader(zr, 512<<20))
 }
 

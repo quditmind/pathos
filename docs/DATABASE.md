@@ -527,3 +527,15 @@ Static reverse engineering of PATHOS 3.0 M10 ([PATHOS_REVERSE_ENGINEERING.md](as
 | `rea_code` | Code views of selected functions: `node_key`, `tool`, `kind` (`pseudo_c`, `disassembly`, `java`, `csharp`), `body` (≤ 20,000 characters, secrets redacted) |
 | `rea_diff_items` | Source ↔ binary diff: `side` (`binary_only`, `source_only`, `matched`), `kind` (`function`, `package`, `route`, `string`), `name`, `binary_node_key`, `binary_offset`, `tool`, `source_node_key`, `source_file`, `source_line`, `sensitive` and `sensitive_reason`, `evidence` (JSON array of `{evidence, kind, ref, detail}`) |
 | `rea_finding_drafts` | Proposals for sensitive binary-only items: `diff_item_id`, `title`, `description`, `severity`, `rule_id`, `cwe`, `status` (`proposed`, `dismissed`, `created`), `evidence`, `finding_id`, `decided_by`/`_at`, `decision_reason`. Checks: a decided draft names who or when; a created draft has its finding. A finding created from a draft starts as `needs_review` (category `binary`, scanner `pathos-rea`) |
+## Continuous monitoring and architecture drift (migrations 00064–00065)
+
+PATHOS 3.0 M9 (flag `continuous_monitoring`; migrations 00058–00063 belong to M7 and M10).
+
+| Table | Purpose |
+|---|---|
+| `monitoring_events` | The feed: `event_type` (`rediscovery.queued`, `dependency.changed`, `architecture.drift`, `threat_model.updated`, `threat_model.review_needed`, `risk.rescored`, `fix.verification_queued`, `fix.verified`, `gate.failed`, `findings.new`, `ai.triage_queued`, `ai.triage_concluded`), `feedback_loop` (1–7), `severity`, `title`, `summary`, `evidence_label` (`verified`, `observed`, `ai_inferred`), `evidence` (references), `subject_type`/`subject_id`, `details`, optional `application_id`/`repository_id`. Written only while the flag is on; never updated (except the commit of drift evidence once known); pruned after 365 days by the jobs role |
+| `architecture_drifts` | One row per new CodeGraph snapshot: `from_snapshot_id` (NULL for a baseline; SET NULL when that snapshot is deleted), `to_snapshot_id` (unique), `from_commit`, `to_commit`, `severity`, `has_changes`, `counts`, `items` (at most 500, with evidence), `truncated` |
+| `monitoring_settings` | Per organization: `drift_alerts` (default false), `drift_alert_min_severity` (default `high`) |
+
+Migration 00065 adds `remediation_items.threat_id` (composite key to `threats`, ON DELETE SET NULL; CHECK: only kind `threat_mitigation`) and the verification trigger `fix_submitted`. All are tenant tables with the standard row-level security policy.
+

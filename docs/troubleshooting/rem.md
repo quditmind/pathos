@@ -4,7 +4,7 @@ section: troubleshooting
 order: 114
 version: "1.0"
 updated: 2026-11-20
-summary: Fix pull requests and verified AI fixes (11 codes, PTH-REM-*)
+summary: Fix pull requests and verified AI fixes (12 codes, PTH-REM-*)
 ---
 
 # Troubleshooting: Remediation
@@ -28,6 +28,7 @@ Fix pull requests and verified AI fixes.
 | [PTH-REM-1104](#PTH-REM-1104) | Verification already running | info |
 | [PTH-REM-1105](#PTH-REM-1105) | Fix verification failed in the worker | warning |
 | [PTH-REM-1106](#PTH-REM-1106) | Rescan inconclusive | info |
+| [PTH-REM-1107](#PTH-REM-1107) | Threat cannot be linked | info |
 
 <a id="PTH-REM-1001"></a>
 
@@ -403,4 +404,39 @@ Fix pull requests and verified AI fixes.
 **Verify**
 
 1. A verification with result fixed closes the item.
+
+
+<a id="PTH-REM-1107"></a>
+
+## PTH-REM-1107: Threat cannot be linked
+
+| | |
+|---|---|
+| Severity | info |
+| Category | validation |
+| HTTP status | 422 |
+| AI help | not offered |
+| Short codes | `threat_not_linkable` |
+| Raised in | internal/remediation/threats.go |
+
+**What it means.** A remediation item can reference a threat only when the item is a threat mitigation and the threat belongs to a threat model of the item's application.
+
+**Confirmed cause.** The threat does not exist or is not visible, belongs to another application, or the item has another kind (named in the message). Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. The threat model was deleted or regenerated with other threats
+2. The item was created for findings of another application
+3. You lack threats.read for the application
+
+**Impact.** The link was not changed.
+
+**How to fix**
+
+1. Pick a threat from the item's application in the threat picker.
+2. Create a new item from the threat (Threat → Create remediation item).
+
+**Verify**
+
+1. The item shows the linked threat and the threat lists the item.
 

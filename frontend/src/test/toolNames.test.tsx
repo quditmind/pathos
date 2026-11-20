@@ -27,7 +27,11 @@
  * security intelligence (the AI evidence log, the AI evidence panel with
  * its prompt, response and replay comparison, and the cross-phase
  * correlation), whose prompts carry the finding's engine and whose model
- * answers may repeat it.
+ * answers may repeat it; and the PATHOS 3.0 M9 continuous monitoring page (the feed, the drift timeline and drift
+ * detail), the hub's Monitoring card and the remediation item's threat
+ * link, whose event texts and drift evidence quote engine output; and the
+ * lifecycle evidence sections of the compliance report and the technical
+ * AI report.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -67,6 +71,10 @@ import { AIEvidencePage } from "@/features/ai/AIEvidencePage";
 import { AIEvidencePanel } from "@/features/ai/AIEvidencePanel";
 import { CorrelationSection } from "@/features/ai/CorrelationSection";
 import type { Correlation, EvidenceRecord } from "@/features/ai/evidence";
+import { MonitoringPage } from "@/features/monitoring/MonitoringPage";
+import { MonitoringWidget } from "@/features/monitoring/MonitoringWidget";
+import { CompliancePage } from "@/features/compliance/CompliancePage";
+import { AIReportsPage } from "@/features/ai/AIReportsPage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -758,6 +766,99 @@ describe("rule 3 on the PATHOS 3.0 M7 AI security intelligence", () => {
     expect(await screen.findByText(/bucket \(engine\)/)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /Explain with AI/ }));
     expect(await screen.findByTestId("correlation-explanation")).toHaveTextContent("Reachable; engine");
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M9 continuous monitoring (example fixture data, test only) ---
+
+const monEvent = (id: string, i: number) => ({
+  id, type: i % 2 ? "findings.new" : "fix.verified", type_label: i % 2 ? "New findings" : "Fix verification finished", loop: i % 2 ? 7 : 5,
+  severity: "high", title: `${third[i]!.name} reported 3 new findings (test fixture)`, summary: `Rescan by ${ENGINE_KEYS[i]} finished; ${NOISY}`,
+  evidence_label: i % 2 ? "ai_inferred" : "verified", evidence: { scan_job_id: "j1", commit: "abcdef1234567890", verification_id: "ver1", feed: "kev" },
+  application_id: "a1", application_name: "Payments Platform", repository_id: "r1", repository_name: "example/payments-api",
+  subject_type: "scan_job", subject_id: "j1", link: "/scans/j1", details: { engines: ENGINE_KEYS.slice(0, 3) }, created_at: "2026-11-20T10:00:00Z",
+});
+const monDrift = {
+  id: "d1", application_id: "a1", application_name: "Payments Platform", repository_id: "r1", repository_name: "example/payments-api",
+  from_snapshot_id: "s0", to_snapshot_id: "s1", from_commit: "9be010fbbbbbbbbb", to_commit: "a41c9e2aaaaaaaaa", severity: "high", has_changes: true,
+  counts: { added_routes: 1, changed_components: 1 }, created_at: "2026-11-20T10:00:00Z",
+};
+const monRoutes = {
+  ...m3Routes,
+  "GET /api/v1/meta": () => ({ ...flagsOn(), feature_flags: { ...flagsOn().feature_flags, continuous_monitoring: true, remediation_workspace: true } }),
+  "GET /api/v1/monitoring/types": () => ({ items: [{ type: "findings.new", label: "New findings", loop: 7, description: "" }] }),
+  "GET /api/v1/monitoring/summary": () => ({ days: 30, total: 4, by_type: {}, by_severity: { high: 4 }, latest_at: null, drift: { total: 1, with_changes: 1, latest_at: null } }),
+  "GET /api/v1/monitoring/events": () => ({ items: [0, 1, 2, 3].map((i) => monEvent(`e${i}`, i)), next_cursor: null }),
+  "GET /api/v1/monitoring/drift": () => ({ items: [monDrift], next_cursor: null }),
+  "GET /api/v1/monitoring/drift/d1": () => ({
+    ...monDrift, truncated: false,
+    items: [
+      { change: "added", category: "route", key: "route:POST /pay", label: "POST /pay", detail: `found by ${ENGINE_KEYS[2]}`, file: "api/pay.go", evidence_label: "verified",
+        evidence: [{ kind: "file_line", ref: `${ENGINE_KEYS[3]}:api/pay.go:30`, detail: `${third[4]!.name} route extractor`, file: "", line: 0 }] },
+      { change: "changed", category: "component", key: "pkg:lodash", label: "lodash", detail: `4.17.20 → 4.17.21 (${NOISY})`, file: "", evidence_label: "observed",
+        evidence: [{ kind: "sbom", ref: "sbom:lodash", detail: `from ${ENGINE_KEYS[5]}`, file: "", line: 0 }] },
+    ],
+  }),
+};
+const monPerms = ["repos.read", "findings.read", "findings.export", "settings.manage", "remediation.read", "remediation.manage"];
+
+describe("rule 3 on the PATHOS 3.0 M9 continuous monitoring", () => {
+  it("feed and the application profile's Monitoring card", async () => {
+    mockApi(monRoutes);
+    const { unmount } = renderApp(<MonitoringPage />, { permissions: monPerms, path: "/monitoring" });
+    expect(await screen.findAllByTestId("monitoring-event")).toHaveLength(4);
+    expect(screen.getAllByText(/engine reported 3 new findings/).length).toBeGreaterThan(0);
+    expectNoToolNames();
+    unmount();
+    renderApp(<MonitoringWidget applicationId="a1" />, { permissions: monPerms });
+    expect(await screen.findAllByTestId("monitoring-event")).toHaveLength(4);
+    expectNoToolNames();
+  });
+
+  it("drift timeline and drift detail with evidence", async () => {
+    mockApi(monRoutes);
+    renderApp(<MonitoringPage />, { permissions: monPerms, path: "/monitoring?tab=drift&drift=d1" });
+    const d = await screen.findByTestId("drift-detail");
+    expect(within(d).getAllByTestId("drift-item")).toHaveLength(2);
+    expect(within(d).getByText(/found by engine/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+
+  it("remediation item with a linked threat", async () => {
+    mockApi({
+      ...remRoutes,
+      "GET /api/v1/remediation/items/i1": () => ({
+        ...remDetail, kind: "threat_mitigation",
+        threat: { id: "t1", title: `Route found by ${third[0]!.name} reaches the store`, severity: "high", status: "open", threat_model_id: "tm1", threat_model_title: `Model from ${ENGINE_KEYS[1]}`, threat_model_version: 1 },
+      }),
+    });
+    renderApp(<RemediationItemPage id="i1" />, { permissions: remPerms, path: "/remediation/items/i1" });
+    expect(await screen.findByTestId("item-threat")).toHaveTextContent("Route found by engine reaches the store");
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M9 lifecycle evidence (example fixture data, test only) ---
+
+const lcSections = [
+  { key: "codegraph", title: "CodeGraph", available: true, evidence_label: "verified", evidence: `Counted from snapshots built by ${third[0]!.name} and ${ENGINE_KEYS[1]}`, metrics: { snapshots: 3 } },
+  { key: "gates", title: "Security gates", available: false, reason: `No gate decisions yet (${NOISY})`, evidence_label: "verified", evidence: "", metrics: {} },
+];
+
+describe("rule 3 on the PATHOS 3.0 M9 lifecycle evidence", () => {
+  it("compliance report and technical AI report", async () => {
+    const fw = { key: "asvs", name: "ASVS", version: "4", scope_key: "", description: "Example (test fixture).", repositories_in_scope: 1, failing: 0, attention: 0, passing: 0, controls: [], lifecycle_evidence: lcSections };
+    mockApi({ "GET /api/v1/compliance/frameworks": () => ({ items: [fw], note: "" }), "GET /api/v1/compliance/frameworks/asvs": () => fw });
+    const { unmount } = renderApp(<CompliancePage />, { permissions: ["findings.read", "findings.export"], path: "/compliance" });
+    expect(await screen.findAllByTestId("lifecycle-evidence-section")).toHaveLength(2);
+    expectNoToolNames();
+    unmount();
+    const rep = { id: "rp1", kind: "technical", scope_type: "organization", title: "Technical report (test fixture)", facts: { lifecycle: lcSections }, narrative: null, narrative_error: "", model: "", created_by: "", created_at: "2026-11-20T10:00:00Z" };
+    mockApi({ "GET /api/v1/ai/reports": () => ({ items: [rep] }), "GET /api/v1/ai/reports/rp1": () => rep, "GET /api/v1/applications": () => ({ items: [] }) });
+    renderApp(<AIReportsPage />, { permissions: ["findings.read"] });
+    fireEvent.click(await screen.findByRole("button", { name: "Technical report (test fixture)" }));
+    expect(await screen.findAllByTestId("lifecycle-evidence-section")).toHaveLength(2);
     expectNoToolNames();
   });
 });

@@ -173,6 +173,14 @@ function Filters({ search, set }: { search: ItemFilters; set: (p: Partial<ItemFi
             </button>
           </span>
         )}
+        {search.threat_id && (
+          <span className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-0.5 text-[12.5px]">
+            One threat only
+            <button type="button" className="text-primary hover:underline" onClick={() => set({ threat_id: undefined })}>
+              Clear
+            </button>
+          </span>
+        )}
         <label className="flex items-center gap-1.5 text-[13px]">
           <input type="checkbox" className="accent-[var(--primary)]" checked={search.overdue === "true"} onChange={(e) => set({ overdue: e.target.checked ? "true" : undefined })} />
           Overdue only

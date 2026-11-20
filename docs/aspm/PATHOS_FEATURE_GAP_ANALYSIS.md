@@ -479,6 +479,8 @@ What the counts mean in practice:
 
 ### M9 Reporting and monitoring
 
+*Status after M9 (2026-11-20):* L156 upgraded (lifecycle evidence sections, compliance export); L158 Implemented (`/monitoring`, flag `continuous_monitoring`); L159 Implemented (drift per CodeGraph snapshot); L160 Implemented (server downloads through `httpx.Download`, browser exports stamped); L161 Implemented (loops 1–7 of the M9 brief, one integration test each; see [lifecycle › Feedback loops](PATHOS_APPLICATION_SECURITY_LIFECYCLE.md#feedback-loops)); L162 Implemented in M3 and completed in M9 (real counts for CodeGraph, threat models, remediation, gates and monitoring). The rows below are the M0 baseline.
+
 | Capability | Prompt ref | Status | Evidence (code paths) | Milestone | Notes |
 |---|---|---|---|---|---|
 | L156 Technical and compliance reports | M9 | Implemented | `reporting/reports.go` (definitions, preview, run, CSV); `compliance/catalog.go` (5 frameworks: OWASP Top 10 2021, OWASP ASVS 4.0.3, PCI DSS 4.0.1, ISO/IEC 27001:2022 Annex A, SOC 2) | M9 | Upgrade, stamp |
