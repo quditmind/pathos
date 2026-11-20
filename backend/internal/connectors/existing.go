@@ -155,7 +155,7 @@ func init() {
 			OfflineOK: true, Direction: Outbound, ManagedAt: "/admin/mcp", Note: "Approval and per-tool allow lists; no health check yet."},
 		{Kind: "keycloak_sso", Category: "iam_secrets", Label: "Keycloak sign-in and SAML/OIDC SSO", Status: KindExisting, AuthMethods: []string{"oidc", "saml"},
 			OfflineOK: true, Direction: Platform, Note: "Identity providers are configured in Keycloak."},
-		{Kind: "sigstore", Category: "containers", Label: "Sigstore / cosign verification", Status: KindExisting, AuthMethods: []string{"public_key", "keyless"},
+		{Kind: "sigstore", Category: "containers", Label: "Sigstore signature verification", Status: KindExisting, AuthMethods: []string{"public_key", "keyless"},
 			OfflineOK: true, Direction: Outbound, ManagedAt: "/scans/targets", Note: "Keyless verification needs the internet."},
 		{Kind: "deps_dev", Category: "security", Label: "deps.dev package health", Status: KindExisting, AuthMethods: []string{"none"},
 			Direction: Outbound, Note: "Not available offline."},

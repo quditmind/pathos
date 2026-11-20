@@ -14,9 +14,10 @@ export type CompareSearch = {
   profile_id?: string;
   status?: string;
   scanner?: string;
+  kind?: string;
 };
 
-const keys = ["ids", "q", "scan_key", "from", "to", "profile_id", "status", "scanner"] as const;
+const keys = ["ids", "q", "scan_key", "from", "to", "profile_id", "status", "scanner", "kind"] as const;
 
 export const validateCompareSearch = (s: Record<string, unknown>): CompareSearch => {
   const out: CompareSearch = {};

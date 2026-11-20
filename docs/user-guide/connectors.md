@@ -164,12 +164,12 @@ The kinds below appear in the catalogue (`GET /api/v1/connectors/kinds`). *Check
 <a id="container_registry"></a>
 - **Container registries** (`container_registry`) — partial (generic OCI; no ECR, ACR or Artifact Registry token exchange). Checked by the jobs service.
 <a id="sigstore"></a>
-- **Sigstore / cosign** (`sigstore`) — existing, catalogue only (keyless verification needs the internet).
+- **Sigstore signature verification** (`sigstore`) — existing, catalogue only (keyless verification needs the internet).
 
 ### Security
 
 <a id="vulnerability_feed"></a>
-- **Vulnerability and end-of-life feeds** (`vulnerability_feed`): EPSS, CISA KEV, OSV.dev, endoflife.date — existing. One row per feed; the check reads the last run.
+- **Vulnerability and end-of-life feeds** (`vulnerability_feed`): EPSS, CISA KEV, OSV.dev, end-of-life dates — existing. One row per feed; the check reads the last run.
 <a id="deps_dev"></a>
 - **deps.dev** (`deps_dev`) — existing, catalogue only; not available offline.
 <a id="secret_validation"></a>

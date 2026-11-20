@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { CATALOG_TOOLS, redactToolNames, toolCheckLabel } from "@/lib/checkKinds";
 import { Download, ScrollText } from "lucide-react";
 import type { ScanJob, ScanLogLine } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -21,6 +22,11 @@ const levelTone: Record<ScanLogLine["level"], string> = {
 function time(iso: string) {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleTimeString(undefined, { hour12: false }) + "." + String(d.getMilliseconds()).padStart(3, "0");
+}
+
+/** Log sources that are engines are shown as their kind of check (rule 3); platform sources keep their name. */
+function sourceLabel(source: string): string {
+  return CATALOG_TOOLS.some((t) => t.key === source) || /^import-/.test(source) ? toolCheckLabel(source) : redactToolNames(source);
 }
 
 export function logsAsText(lines: ScanLogLine[]): string {
@@ -124,7 +130,7 @@ export function LogsTab({ job, pollMs = 3000 }: { job: ScanJob; pollMs?: number 
         <Select aria-label="Log source" value={source} onChange={(e) => setSource(e.target.value)}>
           <option value="">All sources</option>
           {[...new Set([...sources, ...(source ? [source] : [])])].map((s) => (
-            <option key={s} value={s}>{s}</option>
+            <option key={s} value={s}>{sourceLabel(s)}</option>
           ))}
         </Select>
         <Select aria-label="Minimum level" value={level} onChange={(e) => setLevel(e.target.value)}>
@@ -173,8 +179,8 @@ export function LogsTab({ job, pollMs = 3000 }: { job: ScanJob; pollMs?: number 
               <li key={l.id} data-testid="log-line" className="absolute left-0 flex items-center gap-2 whitespace-pre px-3" style={{ top: (start + i) * ROW, height: ROW }}>
                 <time className="tabular text-muted-foreground" dateTime={l.at}>{time(l.at)}</time>
                 <span className={cn("w-12 rounded px-1 text-center text-[10.5px] font-semibold uppercase", levelTone[l.level])}>{l.level}</span>
-                <span className="w-24 truncate text-muted-foreground" title={l.source}>{l.source}</span>
-                <span>{l.message}</span>
+                <span className="w-24 truncate text-muted-foreground" title={sourceLabel(l.source)}>{sourceLabel(l.source)}</span>
+                <span>{redactToolNames(l.message)}</span>
               </li>
             ))}
           </ol>

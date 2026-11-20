@@ -1259,7 +1259,7 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers"}
 
 func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	t.Helper()
@@ -1280,6 +1280,11 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	cluster := uuid.Must(uuid.NewV7())
 	vexImport := uuid.Must(uuid.NewV7())
 	connector := uuid.Must(uuid.NewV7())
+	// The Quick/Standard/Comprehensive scan profiles (M6, flag
+	// scan_profile_tiers) exist in B, so the tier rows are probed too.
+	if err := scans.EnsureTierProfiles(ctx, ownerPool, org); err != nil {
+		t.Fatal(err)
+	}
 	// The Connectors hub is behind its flag: on for B so its routes reach
 	// the organization checks.
 	if _, err := ownerPool.Exec(ctx, `INSERT INTO feature_flags (id, organization_id, name, enabled) VALUES ($1, $2, 'connectors', true)

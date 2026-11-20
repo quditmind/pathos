@@ -41,7 +41,7 @@ var scmAPIVersion = map[string]string{
 	"azure_devops": "REST 7.1", "azure_devops_server": "REST 7.1",
 }
 
-var feedNames = map[string]string{"epss": "EPSS (FIRST)", "kev": "CISA KEV", "osv": "OSV.dev records", "endoflife": "endoflife.date"}
+var feedNames = map[string]string{"epss": "EPSS (FIRST)", "kev": "CISA KEV", "osv": "OSV.dev records", "endoflife": "End-of-life dates"} // not the tool name (rule 3)
 
 func yesNo(b bool) string {
 	if b {

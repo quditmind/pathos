@@ -28,6 +28,7 @@ import (
 	"pathos/internal/auth"
 	"pathos/internal/authz"
 	"pathos/internal/diagnostics"
+	"pathos/internal/featureflags"
 	"pathos/internal/identity"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
@@ -308,7 +309,7 @@ func TestMetaAndFeatureFlags(t *testing.T) {
 		t.Fatalf("authenticated meta: %d %v", rec.Code, m)
 	}
 	flags := m["feature_flags"].(map[string]any)
-	if len(flags) != 8 {
+	if len(flags) != len(featureflags.Known) {
 		t.Errorf("feature flags: %v", flags)
 	}
 	for k, v := range flags {
@@ -344,7 +345,7 @@ func TestMetaAndFeatureFlags(t *testing.T) {
 		t.Errorf("viewer update: %d", rec.Code)
 	}
 	rec = env.do(env.api, admin.token, "GET", "/api/v1/admin/feature-flags", nil)
-	if items := jsonOf(t, rec)["items"].([]any); rec.Code != 200 || len(items) != 8 || items[0].(map[string]any)["enabled"] != false {
+	if items := jsonOf(t, rec)["items"].([]any); rec.Code != 200 || len(items) != len(featureflags.Known) || items[0].(map[string]any)["enabled"] != false {
 		t.Fatalf("admin list: %d %s", rec.Code, rec.Body)
 	}
 	if rec := env.do(env.api, admin.token, "PUT", "/api/v1/admin/feature-flags", jsonBody(map[string]any{"flags": map[string]bool{"bogus": true}})); rec.Code != 422 {

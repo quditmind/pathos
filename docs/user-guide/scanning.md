@@ -87,14 +87,16 @@ Filter by text (Scan ID, name, repository or Repository ID), repository, Reposit
 
 Select a Scan ID to open the execution. It has seven tabs:
 
+Scan details name **kinds of check**, not scanner tools: tool names appear only in **Configurations → Scan profiles**, **Scanners & workers** and **Import results** ([why](security-scanning.md#tool-names-and-kinds-of-check)). Error texts and log lines show *engine* where a tool name would appear; the downloadable raw reports and log text are unchanged. The **Scans** list filters by **Kind of check**, and a running scan's stage reads *Scanning (Infrastructure as code)*.
+
 | Tab | Shows |
 |---|---|
-| **Overview** | Status and progress, Scan ID, asset (with Repository ID), profile and version, trigger, schedule, retry link, branch and commit (Git) or snapshot (upload), worker, timing, a findings summary, for push and merge scans the **Changes since the previous scanned commit** (new and fixed findings by severity), and the scanner engines with versions, statuses, findings and raw report downloads |
-| **Findings** | The findings this execution observed: severity, title, affected component, engine, evidence (file and line, or package and version), remediation (fixed version) and whether it was new in this execution |
+| **Overview** | Status and progress, Scan ID, asset (with Repository ID), profile and version, trigger, schedule, retry link, branch and commit (Git) or snapshot (upload), worker, timing, a findings summary, for push and merge scans the **Changes since the previous scanned commit** (new and fixed findings by severity), **Progress by kind of check** (for example *Infrastructure as code: 7 of 10 checks finished*), and **Checks by kind**: per kind of check, how many checks succeeded, failed or were skipped, their findings, duration and numbered raw report downloads |
+| **Findings** | The findings this execution observed: severity, title, affected component, kind of check (*confirmed by N engines*), evidence (file and line, or package and version), remediation (fixed version) and whether it was new in this execution |
 | **Material changes** | Security-material changes since the previously scanned commit of the branch (authentication, new endpoints, dependencies, cryptography, infrastructure exposure, secrets handling, CI/CD, sensitive data), each with its rule and explanation; see [Material changes and developer insights](developer-insights.md) |
-| **Execution Logs** | Time-stamped worker and scanner output, filterable by engine and minimum level, live while the scan runs, downloadable as text. Secrets are redacted before they are stored |
-| **Stages** | Queue, source checkout, one row per scanner engine job and results processing, with status, times, duration, scanner version, findings and errors, plus the raw event list |
-| **Configuration** | A read-only snapshot of the profile version used by this execution: scanners and their settings, exclusions, severity threshold, timeout, SBOM, security gate and retention. Later profile edits never change it |
+| **Execution Logs** | Time-stamped worker and scanner output, filterable by source (engines are shown as their kind of check) and minimum level, live while the scan runs, downloadable as text. Secrets are redacted before they are stored |
+| **Stages** | Progress by kind of check, then queue, source checkout, one row per check (named *<kind of check> · check N*) and results processing, with status, times, duration, findings and errors, plus the raw event list |
+| **Configuration** | A read-only snapshot of the profile version used by this execution: its checks by kind of check and their settings, engine versions, exclusions, severity threshold, timeout, SBOM, security gate and retention. Later profile edits never change it |
 | **History** | Earlier executions of the same repository (last 360 days), with **Compare selected** and **Compare with this scan** |
 
 ![Scan details – Overview](images/scan-details-overview.png "Overview tab of a real scan: 337 findings from seven scanner engines")

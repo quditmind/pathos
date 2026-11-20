@@ -181,7 +181,7 @@ The default organization (the first one) can be neither suspended nor deleted. B
 
 ## Feature flags
 
-New PATHOS 3.0 modules (connectors, onboarding, CodeGraph, threat models, reverse engineering, remediation workspace, continuous monitoring, lifecycle overview) are switched on per organization and are **off by default** until their release is approved. Administrators with `settings.manage` list and change them with `GET`/`PUT /api/v1/admin/feature-flags` ([API reference](../api-reference/diagnostics.md#feature-flags)); every change is recorded in the audit log as `feature_flag.update`. A module whose flag is off answers as not available (`PTH-PLAT-1007`).
+New PATHOS 3.0 modules (connectors, onboarding, CodeGraph, threat models, reverse engineering, remediation workspace, continuous monitoring, lifecycle overview, and the Quick, Standard and Comprehensive scan profiles: `scan_profile_tiers`) are switched on per organization and are **off by default** until their release is approved. Administrators with `settings.manage` list and change them with `GET`/`PUT /api/v1/admin/feature-flags` ([API reference](../api-reference/diagnostics.md#feature-flags)); every change is recorded in the audit log as `feature_flag.update`. A module whose flag is off answers as not available (`PTH-PLAT-1007`).
 
 ### Troubleshooting
 

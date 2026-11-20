@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { ChevronDown, ChevronRight, Grid3x3 } from "lucide-react";
-import type { ScanTypeCoverage } from "@/api/types";
+import type { KindCoverage, ScanTypeCoverage } from "@/api/types";
 import { Badge, Card, EmptyState, PageHeader, Select, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { categoryName } from "@/lib/findingCategories";
 import { useScanTypes } from "./api";
@@ -57,6 +57,7 @@ export function ScanCoveragePage() {
             <Card className="p-4"><div className="text-[12px] text-muted-foreground">Import only</div><div className="text-xl font-semibold">{importOnly}</div><div className="text-[12px] text-muted-foreground">results importable in a dedicated format</div></Card>
             <Card className="p-4"><div className="text-[12px] text-muted-foreground">Workers online</div><div className="text-xl font-semibold">{q.data?.workers_online ?? 0}</div><div className="text-[12px] text-muted-foreground"><Link to="/configurations/scanners" className="underline">Scanners &amp; workers</Link></div></Card>
           </div>
+          {!!q.data?.kinds?.length && <KindsCard kinds={q.data.kinds} types={items} />}
           <Card>
             <div className="flex items-center justify-between gap-2 border-b border-border p-3">
               <span className="text-[12px] text-muted-foreground">
@@ -139,5 +140,72 @@ function ScanTypeRows({ t, expanded, st, toggle }: { t: ScanTypeCoverage; expand
         </tr>
       )}
     </>
+  );
+}
+
+const sourceLabel: Record<string, string> = { catalog: "catalogued", feed: "intelligence feed", pathos: "PATHOS engine", gap: "gap list" };
+
+/**
+ * The build prompt's 20 kinds of check (§7) mapped onto the scan types: for
+ * each kind, its 10 tools, which PATHOS catalogues and which a live worker
+ * runs. Tools on the gap list are documented in docs/SCANNER_CATALOG.md.
+ */
+function KindsCard({ kinds, types }: { kinds: KindCoverage[]; types: ScanTypeCoverage[] }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const typeName = (id: string) => types.find((t) => t.id === id)?.name ?? id;
+  const main = kinds.filter((k) => !k.outside_kinds);
+  return (
+    <Card className="mb-3">
+      <div className="border-b border-border p-3">
+        <h2 className="text-[13px] font-semibold">Kinds of check</h2>
+        <p className="text-[12px] text-muted-foreground">
+          The {main.length} kinds of check group the scan types below; outside this page and Scan profiles, Scanners &amp; workers and Import results, PATHOS shows the kind of check instead of tool names.
+        </p>
+      </div>
+      <Table>
+        <thead>
+          <tr><Th>Kind of check</Th><Th>Scan types</Th><Th>Catalogued</Th><Th>Runnable now</Th><Th>Gap list</Th></tr>
+        </thead>
+        <tbody>
+          {kinds.map((k) => {
+            const expanded = !!open[k.id];
+            return (
+              <Fragment key={k.id}>
+                <tr>
+                  <Td>
+                    <button type="button" className="flex items-start gap-1 text-left" onClick={() => setOpen((o) => ({ ...o, [k.id]: !o[k.id] }))} aria-expanded={expanded} aria-label={`${k.name} tools`}>
+                      {expanded ? <ChevronDown className="mt-0.5 size-3.5 shrink-0" /> : <ChevronRight className="mt-0.5 size-3.5 shrink-0" />}
+                      <span className="font-medium">{k.name}</span>
+                      {k.after_v2 && <Badge className="ml-1">after 2.0</Badge>}
+                      {k.outside_kinds && <Badge className="ml-1">outside the 20 kinds</Badge>}
+                    </button>
+                  </Td>
+                  <Td className="text-[12px]">{k.scan_types.length ? k.scan_types.map(typeName).join(", ") : "—"}</Td>
+                  <Td className="tabular text-[12px]">{k.tools.length ? `${k.catalogued} of ${k.tools.length} tools` : "—"}{k.extra_tools.length > 0 && <span className="text-muted-foreground"> (+{k.extra_tools.length} more)</span>}</Td>
+                  <Td className="tabular text-[12px]">{k.runnable}</Td>
+                  <Td className="tabular text-[12px]">{k.gaps}</Td>
+                </tr>
+                {expanded && (
+                  <tr>
+                    <td colSpan={5} className="border-b border-border bg-surface-muted/40 px-3 py-2.5">
+                      <ul className="grid gap-1 sm:grid-cols-2">
+                        {k.tools.map((t, i) => (
+                          <li key={i} className="flex flex-wrap items-center gap-1.5 text-[12px]">
+                            <span className="font-medium">{t.name}</span>
+                            <Badge tone={t.runnable ? "success" : t.source === "gap" ? "neutral" : "warning"}>{t.runnable ? "runnable" : sourceLabel[t.source]}</Badge>
+                            {t.mode && <span className="text-muted-foreground">({t.mode} not wired)</span>}
+                            {t.after_v2 && <Badge>after 2.0</Badge>}
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </Table>
+    </Card>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CHECK_KINDS } from "@/lib/checkKinds";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { ExternalLink, Play, Radar, RotateCcw, Search, Server, Square } from "lucide-react";
 import { api } from "@/api/client";
@@ -14,11 +15,11 @@ import { useRepository } from "@/features/repos/api";
 import { useSchedules } from "@/features/schedule/api";
 import { useDebounced } from "@/lib/useDebounced";
 import { formatDateTime } from "@/lib/utils";
-import { cancelScan, isActive, retryScan, useCatalog, useProfiles, useScanMutation, useScans, useWorkers, type ScanListFilters } from "./api";
+import { cancelScan, isActive, retryScan, useProfiles, useScanMutation, useScans, useWorkers, type ScanListFilters } from "./api";
 import { jobDuration, ScanIdLink, ScanProgress, SeverityBar, statusOptions, triggerLabel } from "./shared";
 import { StartScanDialog } from "./StartScanDialog";
 
-const filterKeys = ["q", "status", "profile_id", "trigger", "scanner", "from", "to", "schedule_id", "repository_id", "repository_key", "asset_type"] as const;
+const filterKeys = ["q", "status", "profile_id", "trigger", "scanner", "kind", "from", "to", "schedule_id", "repository_id", "repository_key", "asset_type"] as const;
 export type ScanSearch = ScanListFilters & { start?: string; job?: string };
 
 export const validateScanSearch = (s: Record<string, unknown>): ScanSearch => {
@@ -122,7 +123,6 @@ export function ScansPage() {
 
   const workers = useWorkers();
   const profiles = useProfiles();
-  const catalog = useCatalog();
   const schedules = useSchedules();
   const online = (workers.data ?? []).filter((w) => w.online).length;
 
@@ -134,7 +134,7 @@ export function ScansPage() {
     { key: "status", label: "Execution status", allLabel: "All statuses", options: statusOptions },
     { key: "profile_id", label: "Scan profile", allLabel: "All profiles", options: (profiles.data ?? []).map((p) => ({ value: p.id, label: p.name })) },
     { key: "trigger", label: "Trigger source", allLabel: "All triggers", options: Object.entries(triggerLabel).map(([value, label]) => ({ value, label })) },
-    { key: "scanner", label: "Scanner", allLabel: "All scanners", options: (catalog.data ?? []).map((s) => ({ value: s.key, label: s.name })) },
+    { key: "kind", label: "Kind of check", allLabel: "All kinds of check", options: CHECK_KINDS.map((k) => ({ value: k.id, label: k.name })) },
     { key: "schedule_id", label: "Schedule", allLabel: "All schedules", options: (schedules.data ?? []).map((s) => ({ value: s.id, label: s.name })) },
     { key: "asset_type", label: "Asset type", allLabel: "All asset types", options: [{ value: "repository", label: "Repository" }, { value: "image", label: "Container image" }, { value: "url", label: "Web application" }, { value: "api", label: "API" }, { value: "sbom", label: "SBOM" }] },
   ];

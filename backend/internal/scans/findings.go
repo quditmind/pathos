@@ -30,34 +30,42 @@ func (s *Service) registerFindings(mux *http.ServeMux) {
 
 // FindingView is the API representation.
 type FindingView struct {
-	ID             uuid.UUID  `json:"id"`
-	RepositoryID   uuid.UUID  `json:"repository_id"`
-	RepositoryName string     `json:"repository_name"`
-	RepositoryKey  string     `json:"repository_key"`
-	Category       string     `json:"category"`
-	ScannerKeys    []string   `json:"scanner_keys"`
-	RuleID         string     `json:"rule_id"`
-	Title          string     `json:"title"`
-	Description    string     `json:"description"`
-	Severity       string     `json:"severity"`
-	CWE            []string   `json:"cwe"`
-	CVE            string     `json:"cve"`
-	CVSS           *float64   `json:"cvss"`
-	PackageName    string     `json:"package_name"`
-	PackageVersion string     `json:"package_version"`
-	FixedVersion   string     `json:"fixed_version"`
-	FilePath       string     `json:"file_path"`
-	StartLine      *int       `json:"start_line"`
-	Status         string     `json:"status"`
-	FirstSeenAt    time.Time  `json:"first_seen_at"`
-	LastSeenAt     time.Time  `json:"last_seen_at"`
-	ResolvedAt     *time.Time `json:"resolved_at"`
-	AssigneeID     *uuid.UUID `json:"assignee_id"`
-	AssigneeName   *string    `json:"assignee_name"`
-	SLADueAt       *time.Time `json:"sla_due_at"`
-	Recurrence     int        `json:"recurrence_count"`
-	AcceptedUntil  *time.Time `json:"accepted_until"`
-	AIStatus       string     `json:"ai_status"`
+	ID             uuid.UUID `json:"id"`
+	RepositoryID   uuid.UUID `json:"repository_id"`
+	RepositoryName string    `json:"repository_name"`
+	RepositoryKey  string    `json:"repository_key"`
+	Category       string    `json:"category"`
+	// ScannerKeys are the engines that reported the finding (kept for
+	// audit; the UI shows KindOfCheck and EnginesCount instead, rule 3).
+	ScannerKeys []string `json:"scanner_keys"`
+	// KindOfCheck is the finding's kind of check (scanners.CheckKinds);
+	// EnginesCount the distinct engines that confirmed it after
+	// de-duplication ("confirmed by N engines").
+	KindOfCheck     string     `json:"kind_of_check"`
+	KindOfCheckName string     `json:"kind_of_check_name"`
+	EnginesCount    int        `json:"engines_count"`
+	RuleID          string     `json:"rule_id"`
+	Title           string     `json:"title"`
+	Description     string     `json:"description"`
+	Severity        string     `json:"severity"`
+	CWE             []string   `json:"cwe"`
+	CVE             string     `json:"cve"`
+	CVSS            *float64   `json:"cvss"`
+	PackageName     string     `json:"package_name"`
+	PackageVersion  string     `json:"package_version"`
+	FixedVersion    string     `json:"fixed_version"`
+	FilePath        string     `json:"file_path"`
+	StartLine       *int       `json:"start_line"`
+	Status          string     `json:"status"`
+	FirstSeenAt     time.Time  `json:"first_seen_at"`
+	LastSeenAt      time.Time  `json:"last_seen_at"`
+	ResolvedAt      *time.Time `json:"resolved_at"`
+	AssigneeID      *uuid.UUID `json:"assignee_id"`
+	AssigneeName    *string    `json:"assignee_name"`
+	SLADueAt        *time.Time `json:"sla_due_at"`
+	Recurrence      int        `json:"recurrence_count"`
+	AcceptedUntil   *time.Time `json:"accepted_until"`
+	AIStatus        string     `json:"ai_status"`
 	// Human Eye outcome (the scanner data above is unchanged by it).
 	HumanReviewID    *uuid.UUID `json:"human_review_id"`
 	HumanReviewKey   *string    `json:"human_review_key"`
@@ -188,6 +196,9 @@ func scanFinding(row pgx.Row) (FindingView, error) {
 	if errors.Is(err, pgx.ErrNoRows) {
 		return f, errNotFound
 	}
+	f.KindOfCheck = scanners.KindOfFinding(f.Category, f.ScannerKeys)
+	f.KindOfCheckName = scanners.KindName(f.KindOfCheck)
+	f.EnginesCount = scanners.EnginesCount(f.ScannerKeys)
 	if err == nil && f.Category == "secrets" {
 		f.SecretValidation = newSecretValidationView(svStatus, svProvider, svIdentity, svAt, svEvidence)
 	}
@@ -249,6 +260,12 @@ func FindingsWhere(p *authz.Principal, q url.Values) ([]string, []any, error) {
 	}
 	if v := q.Get("scanner"); v != "" {
 		add("? = ANY(f.scanner_keys)", v)
+	}
+	if v := q.Get("kind"); v != "" {
+		if _, ok := scanners.LookupKind(v); !ok {
+			return nil, nil, httpx.BadRequest("invalid kind of check")
+		}
+		add("("+scanners.KindSQL("f")+") = ?", v)
 	}
 	if v := q.Get("repository_id"); v != "" {
 		id, err := uuid.Parse(v)

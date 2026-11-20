@@ -3,7 +3,7 @@ import type { Severity } from "@/api/types";
 import { Button } from "@/components/ui/button";
 import { Alert, Card, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
-import { useCatalog as useScannerCatalog } from "@/features/scans/api";
+import { CHECK_KINDS, kindName, kindOfTool, toolKeysOfKind } from "@/lib/checkKinds";
 import { reviewApi, useCatalog, useReviewers, useReviewMutation, useSettings } from "./api";
 import { dispositionLabel, humanize, priorityLabel, severities } from "./shared";
 import type { Disposition, Priority, Settings } from "./types";
@@ -62,6 +62,8 @@ const triggerLabel: Record<string, string> = {
   new_findings: "Every new finding matching the filters",
 };
 const categories = FINDING_CATEGORIES;
+// The Human Eye intake selects kinds of check (rule 3); each kind stores its engines' keys.
+const reviewKinds = CHECK_KINDS.filter((k) => toolKeysOfKind(k.id).length > 0).map((k) => k.id);
 const finalDispositions = (Object.keys(dispositionLabel) as Disposition[]).filter((d) => d !== "needs_more_information");
 
 export function ConfigurationsPage() {
@@ -69,7 +71,6 @@ export function ConfigurationsPage() {
   const editable = canOrgWide("reviews.configure");
   const settings = useSettings();
   const catalog = useCatalog();
-  const scanners = useScannerCatalog();
   const reviewers = useReviewers();
   const [s, setS] = useState<Settings | null>(null);
   const save = useReviewMutation(reviewApi.saveSettings);
@@ -110,12 +111,12 @@ export function ConfigurationsPage() {
             </Select>
           </div>
           <Checks
-            legend="Scanners that may send findings (none selected = all scanners)"
-            options={(scanners.data ?? []).map((x) => x.key)}
-            value={s.auto_scanners}
+            legend="Kinds of check that may send findings (none selected = all)"
+            options={reviewKinds}
+            value={reviewKinds.filter((k) => s.auto_scanners.some((key) => kindOfTool(key) === k))}
             disabled={dis}
-            onChange={(v) => set("auto_scanners", v)}
-            label={(k) => scanners.data?.find((x) => x.key === k)?.name ?? k}
+            onChange={(v) => set("auto_scanners", v.flatMap((k) => toolKeysOfKind(k)))}
+            label={(k) => kindName(k)}
           />
         </Section>
 

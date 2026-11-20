@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { CHECK_KINDS } from "@/lib/checkKinds";
 import { GitCompareArrows, Search, X } from "lucide-react";
 import type { ScanJob } from "@/api/types";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,7 @@ import { Card, Input, Label, Select, Skeleton, Table, Td, Th } from "@/component
 import { JobStatusPill } from "@/components/data/Severity";
 import { useDebounced } from "@/lib/useDebounced";
 import { formatDateTime } from "@/lib/utils";
-import { useCatalog, useProfiles, useScans } from "../api";
+import { useProfiles, useScans } from "../api";
 import { statusOptions } from "../shared";
 import { dateRange, MAX_COMPARE, MIN_COMPARE, type CompareSearch } from "./model";
 import { ErrorPanel } from "@/components/ui/error-panel";
@@ -28,7 +29,6 @@ export function PickerPanel({
   onCompare: () => void;
 }) {
   const profiles = useProfiles();
-  const catalog = useCatalog();
   const range = dateRange(search.from, search.to);
   const [q, setQ] = useState(search.q ?? "");
   const [scanKey, setScanKey] = useState(search.scan_key ?? "");
@@ -52,6 +52,7 @@ export function PickerPanel({
       profile_id: search.profile_id,
       status: search.status,
       scanner: search.scanner,
+      kind: search.kind,
       asset_type: "repository",
     },
     false,
@@ -106,10 +107,10 @@ export function PickerPanel({
             </Select>
           </div>
           <div className="col-span-2">
-            <Label htmlFor="cmp-scanner">Scanner engine</Label>
-            <Select id="cmp-scanner" className="w-full" value={search.scanner ?? ""} onChange={(e) => onFilter({ scanner: e.target.value || undefined })}>
-              <option value="">All engines</option>
-              {(catalog.data ?? []).map((s) => <option key={s.key} value={s.key}>{s.name}</option>)}
+            <Label htmlFor="cmp-scanner">Kind of check</Label>
+            <Select id="cmp-scanner" className="w-full" value={search.kind ?? ""} onChange={(e) => onFilter({ kind: e.target.value || undefined, scanner: undefined })}>
+              <option value="">All kinds of check</option>
+              {CHECK_KINDS.map((k) => <option key={k.id} value={k.id}>{k.name}</option>)}
             </Select>
           </div>
         </div>

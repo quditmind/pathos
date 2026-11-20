@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toolCheckLabel } from "@/lib/checkKinds";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import { ArrowDown, ArrowUp, ClipboardCheck, RefreshCw, UserPlus } from "lucide-react";
 import { SeverityBadge } from "@/components/data/Severity";
@@ -47,12 +48,12 @@ const columns: Col[] = [
       <div className="flex flex-col items-start gap-0.5">
         <SeverityBadge value={r.assessed_severity ?? r.severity} />
         {r.assessed_severity && r.assessed_severity !== r.severity && (
-          <span className="text-[10.5px] text-muted-foreground" title="Scanner severity">scanner: {r.severity}</span>
+          <span className="text-[10.5px] text-muted-foreground" title="Detected severity">detected: {r.severity}</span>
         )}
       </div>
     ),
   },
-  { id: "scanner", header: "Scanner", sort: "scanner", cell: (r) => <span className="text-[12px]">{r.scanner || "—"}</span> },
+  { id: "scanner", header: "Kind of check", sort: "scanner", cell: (r) => <span className="text-[12px]">{toolCheckLabel(r.scanner)}</span> },
   {
     id: "repository",
     header: "Repository",

@@ -19,6 +19,7 @@ import (
 	"pathos/internal/platform/buildinfo"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/scanners"
 	"pathos/internal/scans"
 )
 
@@ -50,7 +51,7 @@ type Report struct {
 }
 
 var (
-	filterKeys = []string{"status", "severity", "category", "scanner", "repository_id", "application_id", "assignee", "sla", "human_review",
+	filterKeys = []string{"status", "severity", "category", "scanner", "kind", "repository_id", "application_id", "assignee", "sla", "human_review",
 		"lifecycle", "kev", "risk_min", "malicious", "control", "target_kind", "q"}
 	groupBys = map[string]struct{ expr, label string }{
 		"severity":      {"f.severity", "Severity"},
@@ -59,9 +60,12 @@ var (
 		"repository":    {"COALESCE(NULLIF(r.display_name, ''), r.full_name)", "Repository"},
 		"application":   {"COALESCE((SELECT a.name FROM applications a WHERE a.id = r.application_id), 'No application')", "Application"},
 		"business_unit": {"COALESCE((SELECT b.name FROM business_units b WHERE b.id = r.business_unit_id), 'No business unit')", "Business unit"},
-		"scanner":       {"f.scanner_keys[1]", "Scanner"},
-		"assignee":      {"COALESCE((SELECT u.email FROM users u WHERE u.id = f.assignee_id), 'Unassigned')", "Assignee"},
-		"cve":           {"COALESCE(f.cve, '—')", "Vulnerability"},
+		// Reports name the kind of check, never the tool (rule 3); the
+		// group id stays "scanner" so saved reports keep working.
+		"scanner":  {scanners.KindNameSQL("f"), "Kind of check"},
+		"kind":     {scanners.KindNameSQL("f"), "Kind of check"},
+		"assignee": {"COALESCE((SELECT u.email FROM users u WHERE u.id = f.assignee_id), 'Unassigned')", "Assignee"},
+		"cve":      {"COALESCE(f.cve, '—')", "Vulnerability"},
 	}
 	columnDefs = map[string]struct{ expr, label string }{
 		"title":      {"f.title", "Title"},
@@ -79,7 +83,11 @@ var (
 		"first_seen": {"to_char(f.first_seen_at, 'YYYY-MM-DD')", "First seen"},
 		"sla_due":    {"COALESCE(to_char(f.sla_due_at, 'YYYY-MM-DD'), '')", "SLA due"},
 		"assignee":   {"COALESCE((SELECT u.email FROM users u WHERE u.id = f.assignee_id), '')", "Assignee"},
-		"scanners":   {"array_to_string(f.scanner_keys, ', ')", "Scanners"},
+		// "scanners" keeps its id for saved reports but shows the kind of
+		// check and the number of engines that confirmed the finding.
+		"scanners":      {scanners.KindNameSQL("f") + " || ' · confirmed by ' || " + scanners.EnginesSQL("f") + "::text || ' engine(s)'", "Kind of check"},
+		"kind_of_check": {scanners.KindNameSQL("f"), "Kind of check"},
+		"engines":       {scanners.EnginesSQL("f") + "::text", "Confirmed by engines"},
 	}
 	defaultColumns = []string{"severity", "title", "repository", "location", "status", "first_seen"}
 	schedules      = map[string]string{"daily": "1 day", "weekly": "7 days", "monthly": "1 month"}

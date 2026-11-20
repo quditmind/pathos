@@ -1,4 +1,5 @@
 import { Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { countsByKind } from "@/lib/checkKinds";
 import type { Severity } from "@/api/types";
 import { severityColor } from "@/components/data/Severity";
 import { Card } from "@/components/ui/primitives";
@@ -64,7 +65,7 @@ export default function OverviewCharts({ data }: { data: Overview }) {
   const byLabel = (rows: Count[], label: (k: string) => string) => rows.map((c) => ({ name: label(c.key), count: c.count }));
   const status = byLabel(data.by_status, (k) => statusLabel[k as ReviewStatus] ?? k);
   const disp = byLabel(data.by_disposition.filter((c) => c.key !== "none"), (k) => dispositionLabel[k as Disposition] ?? k);
-  const scanners = byLabel(data.by_scanner, (k) => (k === "none" || !k ? "Unknown" : k));
+  const scanners = countsByKind(data.by_scanner).map((c) => ({ name: c.label, count: c.count }));
   const workload = data.workload.filter((w) => w.reviewer_id).map((w) => ({ name: w.reviewer_name, Pending: w.pending, "In progress": w.in_progress, Overdue: w.overdue }));
   const trendTotal = data.trend.reduce((n, d) => n + d.created + d.completed, 0);
 
@@ -97,7 +98,7 @@ export default function OverviewCharts({ data }: { data: Overview }) {
         <ChartCard title="Final disposition" table={disp.map((r) => ({ label: r.name, value: r.count }))}>
           <HBars rows={disp} color="var(--primary)" />
         </ChartCard>
-        <ChartCard title="Findings by scanner" table={scanners.map((r) => ({ label: r.name, value: r.count }))}>
+        <ChartCard title="Findings by kind of check" table={scanners.map((r) => ({ label: r.name, value: r.count }))}>
           <HBars rows={scanners} color="var(--primary)" />
         </ChartCard>
       </div>

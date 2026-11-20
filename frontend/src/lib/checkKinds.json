@@ -1,0 +1,806 @@
+{
+  "_note": "Generated from backend/internal/scanners (scantypes.go, catalog*.go): UPDATE_KINDS=1 go test ./internal/scanners -run TestKindsExport",
+  "kinds": [
+    {
+      "id": "discovery",
+      "name": "Discovery \u0026 CodeGraph",
+      "outside": false
+    },
+    {
+      "id": "sbom",
+      "name": "SBOM",
+      "outside": false
+    },
+    {
+      "id": "threat-modelling",
+      "name": "Threat modelling",
+      "outside": false
+    },
+    {
+      "id": "reverse-engineering",
+      "name": "Reverse engineering",
+      "outside": false
+    },
+    {
+      "id": "sast-deep",
+      "name": "SAST: deep engines",
+      "outside": false
+    },
+    {
+      "id": "sast-language",
+      "name": "SAST: language checks",
+      "outside": false
+    },
+    {
+      "id": "secrets",
+      "name": "Secrets",
+      "outside": false
+    },
+    {
+      "id": "dependencies",
+      "name": "Dependency check",
+      "outside": false
+    },
+    {
+      "id": "vulnerability-intelligence",
+      "name": "CVE \u0026 vulnerability intelligence",
+      "outside": false
+    },
+    {
+      "id": "iac",
+      "name": "Infrastructure as code",
+      "outside": false
+    },
+    {
+      "id": "cloud-kubernetes",
+      "name": "Cloud \u0026 Kubernetes posture",
+      "outside": false
+    },
+    {
+      "id": "cicd",
+      "name": "CI/CD pipelines",
+      "outside": false
+    },
+    {
+      "id": "container",
+      "name": "Container images",
+      "outside": false
+    },
+    {
+      "id": "license",
+      "name": "Licence compliance",
+      "outside": false
+    },
+    {
+      "id": "supply-chain",
+      "name": "Supply chain \u0026 integrity",
+      "outside": false
+    },
+    {
+      "id": "malware",
+      "name": "Malware",
+      "outside": false
+    },
+    {
+      "id": "binary",
+      "name": "Binary security",
+      "outside": false
+    },
+    {
+      "id": "mobile",
+      "name": "Mobile apps",
+      "outside": false
+    },
+    {
+      "id": "web-api",
+      "name": "Web app \u0026 API testing",
+      "outside": false
+    },
+    {
+      "id": "fuzzing",
+      "name": "Fuzz testing",
+      "outside": false
+    },
+    {
+      "id": "ai",
+      "name": "AI / LLM",
+      "outside": true
+    },
+    {
+      "id": "manual",
+      "name": "Manual review",
+      "outside": true
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "outside": true
+    }
+  ],
+  "category_kinds": {
+    "ai": "ai",
+    "api": "web-api",
+    "binary": "binary",
+    "cicd": "cicd",
+    "code-quality": "sast-language",
+    "compliance": "cloud-kubernetes",
+    "container": "container",
+    "crypto": "sast-deep",
+    "dast": "web-api",
+    "database": "web-api",
+    "eol": "dependencies",
+    "fuzz": "fuzzing",
+    "iac": "iac",
+    "iast": "web-api",
+    "license": "license",
+    "malware": "malware",
+    "misconfiguration": "sast-deep",
+    "mobile": "mobile",
+    "other": "other",
+    "runtime": "cloud-kubernetes",
+    "sast": "sast-deep",
+    "sbom": "sbom",
+    "sca": "dependencies",
+    "secrets": "secrets",
+    "supply-chain": "supply-chain"
+  },
+  "overrides": [
+    {
+      "kind": "sast-language",
+      "categories": [
+        "sast"
+      ],
+      "tools": [
+        "bandit",
+        "import-sast-bandit",
+        "import-code-quality-bandit",
+        "gosec",
+        "import-sast-gosec",
+        "import-code-quality-gosec",
+        "brakeman",
+        "import-sast-brakeman",
+        "import-code-quality-brakeman",
+        "psalm",
+        "import-sast-psalm",
+        "import-code-quality-psalm",
+        "phpstan",
+        "import-sast-phpstan",
+        "import-code-quality-phpstan",
+        "ruff",
+        "import-sast-ruff",
+        "import-code-quality-ruff",
+        "eslint-security",
+        "import-sast-eslint-security",
+        "import-code-quality-eslint-security",
+        "njsscan",
+        "import-sast-njsscan",
+        "import-code-quality-njsscan",
+        "sobelow",
+        "import-sast-sobelow",
+        "import-code-quality-sobelow",
+        "shellcheck",
+        "import-sast-shellcheck",
+        "import-code-quality-shellcheck",
+        "pmd",
+        "import-sast-pmd",
+        "import-code-quality-pmd",
+        "pylint",
+        "import-sast-pylint",
+        "import-code-quality-pylint",
+        "golangci-lint",
+        "import-sast-golangci-lint",
+        "import-code-quality-golangci-lint"
+      ]
+    },
+    {
+      "kind": "web-api",
+      "categories": [
+        "misconfiguration",
+        "crypto"
+      ],
+      "tools": [
+        "testssl",
+        "sslyze",
+        "nikto",
+        "import-misconfiguration-testssl",
+        "import-misconfiguration-sslyze",
+        "import-misconfiguration-sslscan",
+        "import-crypto-testssl",
+        "import-crypto-sslyze",
+        "import-crypto-sslscan"
+      ]
+    }
+  ],
+  "engine_families": [
+    "trivy",
+    "zap",
+    "trufflehog",
+    "nuclei",
+    "prowler",
+    "hackerone",
+    "twistlock",
+    "sysdig",
+    "kiuwan",
+    "retire"
+  ],
+  "engine_aliases": {
+    "retirejs": "retire"
+  },
+  "import_categories": [
+    "secrets",
+    "sast",
+    "sca",
+    "iac",
+    "container",
+    "license",
+    "dast",
+    "api",
+    "iast",
+    "mobile",
+    "fuzz",
+    "malware",
+    "misconfiguration",
+    "binary",
+    "crypto",
+    "cicd",
+    "ai",
+    "runtime",
+    "compliance",
+    "database",
+    "code-quality",
+    "supply-chain",
+    "other"
+  ],
+  "scan_type_kinds": {
+    "ai": "ai",
+    "api": "web-api",
+    "binary": "binary",
+    "cicd": "cicd",
+    "code-quality": "sast-language",
+    "compliance": "cloud-kubernetes",
+    "configuration": "sast-deep",
+    "container": "container",
+    "crypto": "sast-deep",
+    "dast": "web-api",
+    "database": "web-api",
+    "fuzzing": "fuzzing",
+    "iac": "iac",
+    "iast": "web-api",
+    "license": "license",
+    "license-policy": "license",
+    "malware": "malware",
+    "manual": "manual",
+    "mobile": "mobile",
+    "runtime": "cloud-kubernetes",
+    "sast": "sast-deep",
+    "sbom": "sbom",
+    "sca": "dependencies",
+    "secrets": "secrets",
+    "supply-chain": "supply-chain"
+  },
+  "tool_kinds": {
+    "actionlint": "cicd",
+    "ai-bom": "sbom",
+    "apkleaks": "mobile",
+    "arjun": "web-api",
+    "atheris": "fuzzing",
+    "bandit": "sast-language",
+    "bearer": "sast-deep",
+    "binary-hardening": "binary",
+    "brakeman": "sast-language",
+    "bundler-audit": "dependencies",
+    "capa": "binary",
+    "cargo-audit": "dependencies",
+    "cdxgen": "sbom",
+    "cfn-lint": "iac",
+    "cfn-nag": "iac",
+    "checkov": "iac",
+    "clamav": "malware",
+    "codeql": "sast-deep",
+    "composer-audit": "dependencies",
+    "conftest": "iac",
+    "cosign": "supply-chain",
+    "cppcheck": "sast-deep",
+    "cve-bin-tool": "dependencies",
+    "dalfox": "web-api",
+    "dep-scan": "dependencies",
+    "dependency-check": "dependencies",
+    "detect-secrets": "secrets",
+    "devskim": "sast-deep",
+    "dockle": "container",
+    "endoflife": "vulnerability-intelligence",
+    "eslint-security": "sast-language",
+    "ffuf": "web-api",
+    "flawfinder": "sast-deep",
+    "garak": "ai",
+    "gitleaks": "secrets",
+    "go-fuzz": "fuzzing",
+    "golangci-lint": "sast-language",
+    "gosec": "sast-language",
+    "govulncheck": "dependencies",
+    "grype": "dependencies",
+    "guarddog": "malware",
+    "hadolint": "iac",
+    "horusec": "sast-deep",
+    "infer": "sast-deep",
+    "jazzer": "fuzzing",
+    "kics": "iac",
+    "kingfisher": "secrets",
+    "kube-bench": "cloud-kubernetes",
+    "kube-linter": "iac",
+    "kube-score": "iac",
+    "kubescape": "cloud-kubernetes",
+    "licensecheck": "license",
+    "mobile-app-checks": "mobile",
+    "mobsfscan": "mobile",
+    "modelscan": "ai",
+    "nikto": "web-api",
+    "njsscan": "sast-language",
+    "noseyparker": "secrets",
+    "npm-audit": "dependencies",
+    "nuclei": "web-api",
+    "opengrep": "sast-deep",
+    "osv-scanner": "dependencies",
+    "pathos-depcheck": "supply-chain",
+    "pathos-endpoints": "web-api",
+    "pathos-reach": "dependencies",
+    "phpstan": "sast-language",
+    "pip-audit": "dependencies",
+    "pmd": "sast-deep",
+    "pnpm-audit": "dependencies",
+    "polaris": "cloud-kubernetes",
+    "promptfoo": "ai",
+    "psalm": "sast-language",
+    "pylint": "sast-language",
+    "pysa": "sast-deep",
+    "quark-engine": "mobile",
+    "retirejs": "dependencies",
+    "ruff": "sast-language",
+    "scancode": "license",
+    "schemathesis": "web-api",
+    "scorecard": "supply-chain",
+    "semgrep-ce": "sast-deep",
+    "shellcheck": "sast-language",
+    "sobelow": "sast-language",
+    "spotbugs": "sast-deep",
+    "sqlmap": "web-api",
+    "sslyze": "sast-deep",
+    "syft": "sbom",
+    "talisman": "secrets",
+    "testssl": "web-api",
+    "tflint": "iac",
+    "trivy-config": "iac",
+    "trivy-fs": "dependencies",
+    "trivy-image": "container",
+    "trivy-license": "license",
+    "trufflehog": "secrets",
+    "wapiti": "web-api",
+    "whispers": "secrets",
+    "yara-x": "malware",
+    "yarn-audit": "dependencies",
+    "zap": "web-api",
+    "zap-api-scan": "web-api",
+    "zap-baseline": "web-api",
+    "zizmor": "cicd"
+  },
+  "tools": [
+    {
+      "key": "actionlint",
+      "name": "actionlint"
+    },
+    {
+      "key": "ai-bom",
+      "name": "AI-BOM (AI frameworks, models and LLM APIs)",
+      "first_party": true
+    },
+    {
+      "key": "apkleaks",
+      "name": "APKLeaks"
+    },
+    {
+      "key": "arjun",
+      "name": "Arjun"
+    },
+    {
+      "key": "atheris",
+      "name": "Atheris"
+    },
+    {
+      "key": "bandit",
+      "name": "Bandit"
+    },
+    {
+      "key": "bearer",
+      "name": "Bearer CLI"
+    },
+    {
+      "key": "binary-hardening",
+      "name": "Binary hardening (checksec)",
+      "first_party": true
+    },
+    {
+      "key": "brakeman",
+      "name": "Brakeman"
+    },
+    {
+      "key": "bundler-audit",
+      "name": "bundler-audit"
+    },
+    {
+      "key": "capa",
+      "name": "capa"
+    },
+    {
+      "key": "cargo-audit",
+      "name": "cargo-audit"
+    },
+    {
+      "key": "cdxgen",
+      "name": "cdxgen"
+    },
+    {
+      "key": "cfn-lint",
+      "name": "cfn-lint"
+    },
+    {
+      "key": "cfn-nag",
+      "name": "cfn_nag"
+    },
+    {
+      "key": "checkov",
+      "name": "Checkov"
+    },
+    {
+      "key": "clamav",
+      "name": "ClamAV (repository content)"
+    },
+    {
+      "key": "codeql",
+      "name": "CodeQL"
+    },
+    {
+      "key": "composer-audit",
+      "name": "Composer audit"
+    },
+    {
+      "key": "conftest",
+      "name": "Conftest"
+    },
+    {
+      "key": "cosign",
+      "name": "Sigstore cosign"
+    },
+    {
+      "key": "cppcheck",
+      "name": "cppcheck"
+    },
+    {
+      "key": "cve-bin-tool",
+      "name": "CVE Binary Tool"
+    },
+    {
+      "key": "dalfox",
+      "name": "Dalfox"
+    },
+    {
+      "key": "dep-scan",
+      "name": "OWASP dep-scan"
+    },
+    {
+      "key": "dependency-check",
+      "name": "OWASP Dependency-Check"
+    },
+    {
+      "key": "detect-secrets",
+      "name": "detect-secrets"
+    },
+    {
+      "key": "devskim",
+      "name": "DevSkim"
+    },
+    {
+      "key": "dockle",
+      "name": "Dockle"
+    },
+    {
+      "key": "endoflife",
+      "name": "endoflife.date"
+    },
+    {
+      "key": "eslint-security",
+      "name": "ESLint + eslint-plugin-security"
+    },
+    {
+      "key": "ffuf",
+      "name": "ffuf"
+    },
+    {
+      "key": "flawfinder",
+      "name": "Flawfinder"
+    },
+    {
+      "key": "garak",
+      "name": "garak"
+    },
+    {
+      "key": "gitleaks",
+      "name": "Gitleaks"
+    },
+    {
+      "key": "go-fuzz",
+      "name": "Go native fuzzing"
+    },
+    {
+      "key": "golangci-lint",
+      "name": "golangci-lint (security linters)"
+    },
+    {
+      "key": "gosec",
+      "name": "gosec"
+    },
+    {
+      "key": "govulncheck",
+      "name": "govulncheck"
+    },
+    {
+      "key": "grype",
+      "name": "Grype"
+    },
+    {
+      "key": "guarddog",
+      "name": "GuardDog"
+    },
+    {
+      "key": "hadolint",
+      "name": "Hadolint"
+    },
+    {
+      "key": "horusec",
+      "name": "Horusec"
+    },
+    {
+      "key": "infer",
+      "name": "Infer"
+    },
+    {
+      "key": "jazzer",
+      "name": "Jazzer"
+    },
+    {
+      "key": "kics",
+      "name": "KICS"
+    },
+    {
+      "key": "kingfisher",
+      "name": "Kingfisher"
+    },
+    {
+      "key": "kube-bench",
+      "name": "kube-bench"
+    },
+    {
+      "key": "kube-linter",
+      "name": "KubeLinter"
+    },
+    {
+      "key": "kube-score",
+      "name": "kube-score"
+    },
+    {
+      "key": "kubescape",
+      "name": "Kubescape"
+    },
+    {
+      "key": "licensecheck",
+      "name": "File licences (licensecheck)"
+    },
+    {
+      "key": "mobile-app-checks",
+      "name": "Mobile app configuration checks",
+      "first_party": true
+    },
+    {
+      "key": "mobsfscan",
+      "name": "mobsfscan"
+    },
+    {
+      "key": "modelscan",
+      "name": "ModelScan"
+    },
+    {
+      "key": "nikto",
+      "name": "Nikto"
+    },
+    {
+      "key": "njsscan",
+      "name": "njsscan"
+    },
+    {
+      "key": "noseyparker",
+      "name": "Nosey Parker"
+    },
+    {
+      "key": "npm-audit",
+      "name": "npm audit"
+    },
+    {
+      "key": "nuclei",
+      "name": "Nuclei"
+    },
+    {
+      "key": "opengrep",
+      "name": "Opengrep"
+    },
+    {
+      "key": "osv-scanner",
+      "name": "OSV-Scanner"
+    },
+    {
+      "key": "pathos-depcheck",
+      "name": "PATHOS dependency confusion and typosquatting check",
+      "first_party": true
+    },
+    {
+      "key": "pathos-endpoints",
+      "name": "PATHOS endpoint verification",
+      "first_party": true
+    },
+    {
+      "key": "pathos-reach",
+      "name": "PATHOS function-level reachability (pathos-reach)",
+      "first_party": true
+    },
+    {
+      "key": "phpstan",
+      "name": "PHPStan"
+    },
+    {
+      "key": "pip-audit",
+      "name": "pip-audit"
+    },
+    {
+      "key": "pmd",
+      "name": "PMD"
+    },
+    {
+      "key": "pnpm-audit",
+      "name": "pnpm audit"
+    },
+    {
+      "key": "polaris",
+      "name": "Polaris"
+    },
+    {
+      "key": "promptfoo",
+      "name": "promptfoo"
+    },
+    {
+      "key": "psalm",
+      "name": "Psalm (taint analysis)"
+    },
+    {
+      "key": "pylint",
+      "name": "Pylint (security-relevant checks)"
+    },
+    {
+      "key": "pysa",
+      "name": "Pysa (Pyre)"
+    },
+    {
+      "key": "quark-engine",
+      "name": "Quark-Engine"
+    },
+    {
+      "key": "retirejs",
+      "name": "Retire.js"
+    },
+    {
+      "key": "ruff",
+      "name": "Ruff (S rules)"
+    },
+    {
+      "key": "scancode",
+      "name": "ScanCode Toolkit"
+    },
+    {
+      "key": "schemathesis",
+      "name": "Schemathesis"
+    },
+    {
+      "key": "scorecard",
+      "name": "OpenSSF Scorecard"
+    },
+    {
+      "key": "semgrep-ce",
+      "name": "Semgrep CE"
+    },
+    {
+      "key": "shellcheck",
+      "name": "ShellCheck"
+    },
+    {
+      "key": "sobelow",
+      "name": "Sobelow"
+    },
+    {
+      "key": "spotbugs",
+      "name": "SpotBugs + FindSecBugs"
+    },
+    {
+      "key": "sqlmap",
+      "name": "sqlmap"
+    },
+    {
+      "key": "sslyze",
+      "name": "SSLyze"
+    },
+    {
+      "key": "syft",
+      "name": "Syft"
+    },
+    {
+      "key": "talisman",
+      "name": "Talisman"
+    },
+    {
+      "key": "testssl",
+      "name": "testssl.sh"
+    },
+    {
+      "key": "tflint",
+      "name": "TFLint"
+    },
+    {
+      "key": "trivy-config",
+      "name": "Trivy (config)"
+    },
+    {
+      "key": "trivy-fs",
+      "name": "Trivy (filesystem)"
+    },
+    {
+      "key": "trivy-image",
+      "name": "Trivy (image)"
+    },
+    {
+      "key": "trivy-license",
+      "name": "Trivy (license)"
+    },
+    {
+      "key": "trufflehog",
+      "name": "TruffleHog"
+    },
+    {
+      "key": "wapiti",
+      "name": "Wapiti"
+    },
+    {
+      "key": "whispers",
+      "name": "Whispers"
+    },
+    {
+      "key": "yara-x",
+      "name": "YARA-X"
+    },
+    {
+      "key": "yarn-audit",
+      "name": "yarn audit"
+    },
+    {
+      "key": "zap",
+      "name": "OWASP ZAP full scan"
+    },
+    {
+      "key": "zap-api-scan",
+      "name": "OWASP ZAP API scan"
+    },
+    {
+      "key": "zap-baseline",
+      "name": "OWASP ZAP baseline scan"
+    },
+    {
+      "key": "zizmor",
+      "name": "zizmor"
+    }
+  ]
+}

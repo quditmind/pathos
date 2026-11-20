@@ -91,7 +91,7 @@ export function DashboardPage() {
         ]
       : []),
     { key: "severity", label: "Severity", allLabel: "All severities", options: [], disabled: true, disabledReason: "Available once findings arrive (phase 6)" },
-    { key: "scanner", label: "Scanner", allLabel: "All scanners", options: [], disabled: true, disabledReason: "Available once scanning arrives (phase 4)" },
+    { key: "scanner", label: "Kind of check", allLabel: "All kinds of check", options: [], disabled: true, disabledReason: "Available once scanning arrives (phase 4)" },
   ];
 
   const data = q.data;

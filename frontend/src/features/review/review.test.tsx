@@ -93,7 +93,7 @@ describe("review queue", () => {
     });
     renderApp(<QueuePage />, { permissions: ["reviews.read", "reviews.assign"], path: "/human-review/queue" });
     expect(await screen.findByText("QD-HR-000001")).toBeInTheDocument();
-    for (const h of ["Finding ID", "Vulnerability", "Severity", "Scanner", "Repository", "Application", "Branch", "File path", "Detected", "Reviewer", "Priority", "Review status", "Due"]) {
+    for (const h of ["Finding ID", "Vulnerability", "Severity", "Kind of check", "Repository", "Application", "Branch", "File path", "Detected", "Reviewer", "Priority", "Review status", "Due"]) {
       expect(screen.getByRole("button", { name: `Sort by ${h}` })).toBeInTheDocument();
     }
     expect(screen.getByText("(overdue)")).toBeInTheDocument();

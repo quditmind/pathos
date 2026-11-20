@@ -208,6 +208,8 @@ export const authMethodLabel = (m: string | undefined): string => {
     kubeconfig: "kubeconfig",
     service_account: "Service account",
     hmac: "Signed HMAC secret",
+    // "bearer" is also a scanner's name; rule 3 keeps tool names off this page.
+    bearer: "Token in the Authorization header",
     none: "None",
   };
   return known[m] ?? m.replace(/_/g, " ");

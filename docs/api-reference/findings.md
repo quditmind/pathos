@@ -33,7 +33,9 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `application_id`, `application_name` | The repository's application (`null` without one) |
 | `scan_target_id`, `scan_target_kind`, `scan_target_name` | The [scan target](scan-targets.md) the finding belongs to; `null` for the repository's source code |
 | `category` | `secrets`, `sast`, `sca`, `iac`, `container`, `license`, `dast`, `api`, `iast`, `mobile`, `fuzz`, `malware`, `misconfiguration`, `binary`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database`, `code-quality`, `eol` ([end of life](supply-chain.md#end-of-life)), `supply-chain` ([required signatures](scan-targets.md#signature-verification)), `other`. Which [scan type](scan-types-and-tools.md) uses which category is listed by `GET /api/v1/scan-types` |
-| `scanner_keys` | Every scanner that reported it |
+| `scanner_keys` | Every scanner that reported it (kept for audit; the web app shows the kind of check and the engine count instead, outside the configuration pages) |
+| `kind_of_check`, `kind_of_check_name` | The finding's [kind of check](../user-guide/security-scanning.md#tool-names-and-kinds-of-check) (PATHOS 3.0 M6): the kind of its category, unless every engine that reported it belongs to a more specific kind (SAST language checks such as Bandit and Gosec → `sast-language`; TLS and web scanners' configuration findings → `web-api`). Ids: `discovery`, `sbom`, `threat-modelling`, `reverse-engineering`, `sast-deep`, `sast-language`, `secrets`, `dependencies`, `vulnerability-intelligence`, `iac`, `cloud-kubernetes`, `cicd`, `container`, `license`, `supply-chain`, `malware`, `binary`, `mobile`, `web-api`, `fuzzing`, and outside the 20 kinds `ai`, `manual`, `other` |
+| `engines_count` | Distinct engines that confirmed the finding after de-duplication ("confirmed by N engines"): a tool run by a worker and imported from a report, its SARIF variant and its modes (Trivy filesystem, image, config, licence; ZAP baseline, full, API) count once |
 | `rule_id`, `title`, `description` | As reported |
 | `severity` | `critical`, `high`, `medium`, `low`, `info` (scanner severity) |
 | `cwe`, `cve`, `cvss` | Classification |
@@ -92,6 +94,7 @@ All endpoints are under `/api/v1`, need a browser session, and mutations need `X
 | `severity` | Comma-separated severities |
 | `category` | One category |
 | `scanner` | Reported by this scanner key |
+| `kind` | Findings of this kind of check (`kind_of_check`); `400` (`PTH-PLAT-0002`) for an unknown kind |
 | `repository_id`, `application_id` | UUIDs |
 | `assignee` | `me`, `none` or a user ID |
 | `sla` | `breached` or `due_soon` (due within 7 days); open findings only |

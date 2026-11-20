@@ -7,7 +7,8 @@ import { Dialog } from "@/components/ui/dialog";
 import { Badge, Card, Input, Label, PageHeader, Select, Skeleton } from "@/components/ui/primitives";
 import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
-import { useCatalog, useProfile, useProfiles, useScanMutation } from "./api";
+import { useCatalog, useProfile, useProfileKinds, useProfiles, useScanMutation } from "./api";
+import type { ProfileKind } from "@/api/types";
 import { ErrorPanel } from "@/components/ui/error-panel";
 
 export function ProfilesPage() {
@@ -20,7 +21,7 @@ export function ProfilesPage() {
 
   return (
     <>
-      <PageHeader title="Scan profiles" description="Which scanners run and how. Every change creates a new immutable version; each scan records the version it ran with."
+      <PageHeader title="Scan profiles" description="Which scanners run and how, by kind of check. Quick, Standard and Comprehensive are seeded profiles; New profile creates a custom one. Every change creates a new immutable version; each scan records the version it ran with."
         actions={manage && <Button onClick={() => setEditing("new")}><Plus /> New profile</Button>} />
       {profiles.isPending ? <Skeleton className="h-32" /> : (
         <div className="grid gap-3 lg:grid-cols-2">
@@ -28,7 +29,11 @@ export function ProfilesPage() {
             <Card key={p.id} className="cursor-pointer p-4 hover:border-primary/40" onClick={() => setEditing(p.id)}>
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <div className="flex items-center gap-2 font-semibold">{p.name}{p.is_default && <Badge tone="primary"><Star className="size-3" /> default</Badge>}</div>
+                  <div className="flex items-center gap-2 font-semibold">
+                    {p.name}
+                    {p.is_default && <Badge tone="primary"><Star className="size-3" /> default</Badge>}
+                    {p.template && <Badge>{tierLabel[p.template]}</Badge>}
+                  </div>
                   {p.description && <p className="text-[12px] text-muted-foreground">{p.description}</p>}
                 </div>
                 <span className="tabular text-[12px] text-muted-foreground">v{p.current.version}</span>
@@ -36,6 +41,7 @@ export function ProfilesPage() {
               <div className="mt-3 flex flex-wrap gap-1">
                 {p.current.scanners.map((s) => <Badge key={s.key}>{name(s.key)}</Badge>)}
               </div>
+              <ProfileKindsSummary id={p.id} />
               <div className="mt-3 text-[12px] text-muted-foreground">
                 Threshold {p.current.severity_threshold} · timeout {Math.round(p.current.timeout_seconds / 60)} min · retention {p.current.retention_days} d
                 {p.current.fail_on_critical && " · fails on new critical"} · {p.is_default ? "applies to repositories without a profile" : `${p.repository_count} repositories`}
@@ -109,6 +115,7 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
             <div><Label htmlFor="pf-name">Name</Label><Input id="pf-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={200} /></div>
             <div><Label htmlFor="pf-desc" hint="(optional)">Description</Label><Input id="pf-desc" value={desc} onChange={(e) => setDesc(e.target.value)} /></div>
           </div>
+          {!isNew && id && <ProfileKindsPanel id={id} />}
           <div>
             <div className="mb-1.5 text-[12px] font-medium">Scanners</div>
             <div className="grid gap-1.5 sm:grid-cols-2">
@@ -156,5 +163,71 @@ function ProfileEditor({ id, onClose, readOnly }: { id: string | "new" | null; o
         </fieldset>
       )}
     </Dialog>
+  );
+}
+
+const tierLabel: Record<string, string> = { quick: "Quick", standard: "Standard", comprehensive: "Comprehensive" };
+
+/** Kinds of check of the 20 that a repository profile can cover. */
+const repoKinds = (kinds: ProfileKind[]) => kinds.filter((k) => !k.outside_kinds || k.selected.length > 0);
+
+/** One line per profile card: coverage and the kinds without a runnable tool. */
+function ProfileKindsSummary({ id }: { id: string }) {
+  const q = useProfileKinds(id);
+  if (!q.data) return null;
+  const kinds = repoKinds(q.data.kinds);
+  const covered = kinds.filter((k) => k.selected.length > 0).length;
+  const lacking = kinds.filter((k) => k.lacks_runnable);
+  return (
+    <div className="mt-2 text-[12px]">
+      <span className="text-muted-foreground">{covered} kinds of check covered</span>
+      {lacking.length > 0 && <span className="text-warning"> · {lacking.length} without a runnable tool</span>}
+    </div>
+  );
+}
+
+/**
+ * The profile by kind of check: "N of 10 tools" of the build prompt's §7
+ * list per kind, how many a live worker runs now, and the kinds that lack a
+ * runnable tool. Kinds a repository profile cannot cover (scan targets,
+ * not built yet) are marked so.
+ */
+export function ProfileKindsPanel({ id }: { id: string }) {
+  const q = useProfileKinds(id);
+  if (q.isError) return <ErrorPanel error={q.error} title="Could not load the kinds of check" />;
+  if (!q.data) return <Skeleton className="h-40" />;
+  const kinds = repoKinds(q.data.kinds);
+  const lacking = kinds.filter((k) => k.lacks_runnable);
+  return (
+    <div data-testid="profile-kinds">
+      <div className="mb-1.5 text-[12px] font-medium">Kinds of check</div>
+      {lacking.length > 0 && (
+        <p className="mb-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-[12px]">
+          No online worker runs a selected tool for: {lacking.map((k) => k.name).join(", ")}.
+          {q.data.workers_online === 0 && " No worker is online."}
+        </p>
+      )}
+      <ul className="divide-y divide-border rounded-md border border-border text-[12px]">
+        {kinds.map((k) => (
+          <li key={k.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5">
+            <span>
+              <span className="font-medium">{k.name}</span>
+              {k.selected.length > 0 && <span className="block text-[11.5px] text-muted-foreground">{k.selected.map((t) => t.name).join(", ")}</span>}
+            </span>
+            <span className="flex items-center gap-1.5">
+              {k.outside_kinds ? null : <span className="tabular">{k.listed} of {k.tools_target} tools</span>}
+              {k.selected.length > k.listed && <span className="text-muted-foreground">+{k.selected.length - k.listed} more</span>}
+              {!k.repository_scope ? (
+                <span title="Runs on scan targets, or no worker image runs it in repository scans yet"><Badge>not in repository scans</Badge></span>
+              ) : k.lacks_runnable ? (
+                <Badge tone="warning">{k.selected.length ? "no runnable tool" : "not selected"}</Badge>
+              ) : (
+                <Badge tone="success">{k.runnable} runnable</Badge>
+              )}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

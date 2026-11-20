@@ -117,6 +117,7 @@ Status codes: `202`, `400 invalid_request` (empty list, unknown or archived prof
 | `status` | One status or `active` (queued and running) |
 | `trigger` | `manual`, `schedule`, `push`, `merge`, `pull_request`, `onboarding`, `emergency` |
 | `scanner` | Executions with an engine job of this scanner |
+| `kind` | Executions with an engine job of this kind of check (catalogued tools of the kind and imports recorded under its categories); `400` for an unknown kind |
 | `asset_type` | `repository`, `image`, `url`, `api` or `sbom` |
 | `target_id` | Executions of one scan target |
 | `from`, `to` | `YYYY-MM-DD` (inclusive) or RFC 3339 |
@@ -178,7 +179,13 @@ Status codes: `200`, `400 invalid_request` (bad `fail_on`, `scope` or `allow_par
 
 ### Stages
 
-`GET /api/v1/scans/{id}/stages` → `{ "stages": [...], "events": [...] }`. Permission `scans.read`.
+`GET /api/v1/scans/{id}/stages` → `{ "stages": [...], "events": [...], "kinds": [...] }`. Permission `scans.read`. Scanner stages carry `kind_of_check` and `kind_of_check_name`; `kinds` is the progress by kind of check, in kind order (the web app shows "Infrastructure as code: 7 of 10 checks finished" and never the engine names):
+
+```json
+"kinds": [ { "id": "iac", "name": "Infrastructure as code", "total": 10, "finished": 7, "failed": 1, "running": 2 } ]
+```
+
+`finished` counts succeeded, skipped, cancelled, failed and timed-out engine jobs; `failed` the failed and timed-out ones.
 
 ```json
 {
@@ -212,7 +219,7 @@ At most 1,000 lines per response; at most 5,000 lines are kept per execution. Se
 
 ### Findings of an execution
 
-`GET /api/v1/scans/{id}/findings?severity=&scanner=` → `{ "items": [...] }`. Permission `findings.read` on the repository. Each item is a finding plus `scanner`, `evidence` (`file:line` or `package@version`), `occurrence_commit_sha` and `is_new` (first seen in this execution). At most 1,000, most severe first.
+`GET /api/v1/scans/{id}/findings?severity=&scanner=&kind=` → `{ "items": [...] }`. Permission `findings.read` on the repository. Each item is a finding plus `scanner`, `evidence` (`file:line` or `package@version`), `occurrence_commit_sha` and `is_new` (first seen in this execution). At most 1,000, most severe first.
 
 ### History of the asset
 

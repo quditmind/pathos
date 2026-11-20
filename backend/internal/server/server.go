@@ -198,6 +198,9 @@ func Build(d Deps) Handlers {
 			if err := scans.EnsureDefaultProfile(ctx, d.DB, orgID); err != nil {
 				return err
 			}
+			if err := scans.EnsureTierProfiles(ctx, d.DB, orgID); err != nil {
+				return err
+			}
 			if err := vuln.EnsureDefaults(ctx, d.DB, orgID); err != nil {
 				return err
 			}

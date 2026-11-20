@@ -81,6 +81,34 @@ Results are normalized, de-duplicated, risk-scored and triaged like any other sc
 
 Managing profiles requires `profiles.manage`.
 
+### Quick, Standard, Comprehensive and Custom
+
+Besides **Default**, PATHOS seeds three profiles in every organization. They are shown while the `scan_profile_tiers` feature flag is on (**Administration → Feature flags**; off by default until milestone M6 is approved):
+
+| Profile | Tools |
+|---|---|
+| **Quick** | The fast tools bundled in the core worker, up to 2 per kind of check (for example Gitleaks, Opengrep, Trivy, OSV-Scanner, Grype with Syft, Checkov, actionlint, zizmor, licence and binary-hardening checks). |
+| **Standard** | Up to 6 tools per kind of check, from the tools a PATHOS worker image runs. Fuzz testing and the opt-in ClamAV check are left out. |
+| **Comprehensive** | Every tool a PATHOS worker image runs in repository scans (timeout 2 hours). |
+| **Custom** | Any profile you create with **New profile** (the profile editor). |
+
+- Seeded profiles are ordinary profiles: edit, rename, make default or archive them. PATHOS seeds each one once per organization and never re-creates one you renamed or archived. If a profile of yours is already called *Quick* (or *Standard*, *Comprehensive*), the seeded one is named *Quick (PATHOS)*.
+- Only tools a worker image can run are seeded, and only tools with an unrestricted licence decision (*use*): Semgrep CE (registry rules licence-restricted) and Bearer (Elastic licence) can be added to a custom profile; CodeQL and Brakeman are licence-restricted and cannot.
+- **Kinds of check.** Open a profile to see the 20 kinds of check of the build plan, with **N of 10 tools** per kind (the profile's tools among the kind's ten reference tools), the extra tools of the kind, and a badge: *N runnable* (an online worker runs them now), *no runnable tool* (none of the selected tools is advertised by an online worker; those checks are recorded as *skipped*), *not selected*, or *not in repository scans* (the kind runs on scan targets, such as web application testing, or is not built yet, such as threat modelling). A warning above the list names the kinds without a runnable tool. Each profile card shows how many kinds it covers and how many lack a runnable tool.
+
+### Tool names and kinds of check
+
+Tool names appear only on **Configurations → Scan profiles**, **Configurations → Scanners & workers** (with **Scan coverage**) and **Import results**, where you choose a report format. Everywhere else (findings, finding details, scans and scan details, Human Eye, related findings, dashboards and reports, the Connectors hub, the application profile, the lifecycle overview and onboarding) PATHOS shows the **kind of check** (for example *Infrastructure as code*) and **confirmed by N engines**: the number of different tools whose results were merged into the finding by de-duplication. The same tool run by a worker and imported from a report, or run in several modes (Trivy filesystem, image and configuration scans), counts once. The API keeps the tool fields (`scanner_keys`) for audit. The scanner catalog (`docs/SCANNER_CATALOG.md` in the PATHOS repository) lists the kinds, their tools and the tools not in PATHOS yet.
+
+### Troubleshooting
+
+| Code | Where | Fix |
+|---|---|---|
+| `PTH-PLAT-0002` | Saving a profile, or filtering by an unknown kind of check (`kind=`) | Correct the value named in the message; profiles accept only tools a worker image runs, that scan repositories and whose licence is not restricted. |
+| — | The Quick, Standard and Comprehensive profiles are missing | The `scan_profile_tiers` feature flag is off; an administrator enables it under **Administration → Feature flags** (the profiles exist but are hidden; see also `PTH-PLAT-1007`). |
+| `PTH-PLAT-0004` | A seeded profile answers *not found* | The feature flag is off, or the profile was archived. |
+| — | A kind shows *no runnable tool* | Start the worker image that runs the kind's tools (see [Family workers](#family-workers-and-scanner-plugins)); **Scanners & workers** shows which worker runs which tool. |
+
 ## Custom rules
 
 **Configurations → Custom rules** holds your own Opengrep (Semgrep-syntax) rules: internal APIs, frameworks and coding standards. Managing them requires `profiles.manage` organization-wide.

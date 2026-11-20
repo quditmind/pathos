@@ -38,6 +38,8 @@ Jira (`config`: `project_key`, `issue_type` default `Bug`, `labels`, `token_type
 | `GET` / `PUT` / `DELETE` | `/api/v1/reports/{id}` | owner or `settings.manage` to change | |
 | `GET` | `/api/v1/reports/{id}/run?format=csv` | `findings.read` (`findings.export` for CSV) | Result as JSON or CSV (at most 5,000 rows; cells starting with `= + - @` are prefixed with `'`) |
 
-`filters` are the Findings list query parameters (`status`, `severity`, `category`, `scanner`, `repository_id`, `application_id`, `assignee`, `sla`, `human_review`, `lifecycle`, `kev`, `risk_min`, `malicious`, `control`, `target_kind`, `q`). A report always runs **as the person who opens it**: sharing or scheduling never shows anyone findings outside their own scope. Scheduled reports send the `report.scheduled` notification (a link, no data) to the recipients.
+`filters` are the Findings list query parameters (`status`, `severity`, `category`, `scanner`, `kind`, `repository_id`, `application_id`, `assignee`, `sla`, `human_review`, `lifecycle`, `kev`, `risk_min`, `malicious`, `control`, `target_kind`, `q`). A report always runs **as the person who opens it**: sharing or scheduling never shows anyone findings outside their own scope. Scheduled reports send the `report.scheduled` notification (a link, no data) to the recipients.
+
+Reports name kinds of check, never scanner tools (rule 3, PATHOS 3.0 M6): the `scanner` grouping (also available as `kind`) groups by kind of check, the `scanners` column shows "<kind of check> · confirmed by N engine(s)", and the new columns `kind_of_check` and `engines` show each part. Saved reports that use `scanner` or `scanners` keep working.
 
 Audit actions: `ticket_connection.create`, `ticket_connection.update`, `ticket_connection.delete`, `finding.ticket_create`, `report.create`, `report.update`, `report.delete` and `report.export` (CSV runs).

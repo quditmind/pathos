@@ -101,8 +101,11 @@ type ScanTypeFormat struct {
 
 // ScanTypeCoverage is one scan type with what this deployment provides.
 type ScanTypeCoverage struct {
-	ID            string           `json:"id"`
-	Name          string           `json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
+	// KindOfCheck groups the scan type under one of the 20 kinds of check
+	// (decision C8: a display grouping; no scan type is removed).
+	KindOfCheck   string           `json:"kind_of_check"`
 	Description   string           `json:"description"`
 	Categories    []string         `json:"categories"`
 	Note          string           `json:"note,omitempty"`
@@ -173,7 +176,7 @@ func (s *Service) listScanTypes(w http.ResponseWriter, r *http.Request) {
 
 	items := make([]ScanTypeCoverage, 0, len(scanners.ScanTypes))
 	for _, t := range scanners.ScanTypes {
-		c := ScanTypeCoverage{ID: t.ID, Name: t.Name, Description: t.Description, Categories: t.Categories, Note: t.Note,
+		c := ScanTypeCoverage{ID: t.ID, Name: t.Name, KindOfCheck: scanners.KindOfScanType(t.ID), Description: t.Description, Categories: t.Categories, Note: t.Note,
 			Tools: []ScanTypeTool{}, ImportFormats: formatsOut(scanners.ScanTypeImportFormats(t))}
 		for _, key := range t.Tools {
 			var tool ScanTypeTool
@@ -225,5 +228,55 @@ func (s *Service) listScanTypes(w http.ResponseWriter, r *http.Request) {
 		items = append(items, c)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"items": items, "generic_import_formats": formatsOut(scanners.GenericImportFormats()),
-		"workers_online": workers})
+		"workers_online": workers, "kinds": kindsCoverage(online, eolEnabled)})
+}
+
+// KindToolCoverage is one §7 tool of a kind of check.
+type KindToolCoverage struct {
+	scanners.KindTool
+	Runnable bool `json:"runnable"`
+}
+
+// KindCoverage is one kind of check with its §7 tools and what this
+// deployment can run.
+type KindCoverage struct {
+	ID        string             `json:"id"`
+	Name      string             `json:"name"`
+	Phase     int                `json:"phase"`
+	AfterV2   bool               `json:"after_v2"`
+	Outside   bool               `json:"outside_kinds"`
+	ScanTypes []string           `json:"scan_types"`
+	Tools     []KindToolCoverage `json:"tools"`
+	// Extra are the kind's catalogued tools outside the §7 list.
+	Extra []string `json:"extra_tools"`
+	// Catalogued counts the §7 tools PATHOS catalogues ("N of 10"),
+	// Runnable those an online worker (or the server) runs now, Gaps the
+	// §7 tools on the gap list (docs/SCANNER_CATALOG.md).
+	Catalogued int `json:"catalogued"`
+	Runnable   int `json:"runnable"`
+	Gaps       int `json:"gaps"`
+}
+
+func kindsCoverage(online map[string]*onlineTool, eolEnabled bool) []KindCoverage {
+	out := []KindCoverage{}
+	for i, k := range append(append([]scanners.CheckKind{}, scanners.CheckKinds...), scanners.OutsideKinds...) {
+		kc := KindCoverage{ID: k.ID, Name: k.Name, Phase: k.Phase, AfterV2: k.AfterV2, Outside: i >= len(scanners.CheckKinds),
+			ScanTypes: k.ScanTypes, Tools: []KindToolCoverage{}, Extra: k.Extra}
+		for _, t := range k.Tools {
+			tc := KindToolCoverage{KindTool: t}
+			switch t.Source {
+			case "catalog":
+				kc.Catalogued++
+				tc.Runnable = online[t.Key] != nil || (t.Key == scanners.EndOfLife && eolEnabled)
+			case "gap":
+				kc.Gaps++
+			}
+			if tc.Runnable {
+				kc.Runnable++
+			}
+			kc.Tools = append(kc.Tools, tc)
+		}
+		out = append(out, kc)
+	}
+	return out
 }

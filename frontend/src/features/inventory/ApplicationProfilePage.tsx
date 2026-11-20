@@ -14,6 +14,7 @@ import { useSession } from "@/features/auth/session";
 import { useAppPosture } from "@/features/posture/api";
 import { ApplicationVersionsPage } from "@/features/releases/ApplicationVersionsPage";
 import { useFeatureFlag, useFeatureFlags } from "@/features/shell/meta";
+import { findingCheckLabel, redactToolNames } from "@/lib/checkKinds";
 import { cn, formatDateTime } from "@/lib/utils";
 import {
   fieldLabels,
@@ -46,13 +47,6 @@ export function validateProfileSearch(s: Record<string, unknown>): { tab?: Profi
   const t = profileTabs.find((x) => x.key === s.tab && !("arrives" in x));
   return { tab: t?.key };
 }
-
-/** Kinds of check by finding category (tool names stay out of the UI, prompt §1 rule 3). */
-const checkKind: Record<string, string> = {
-  sast: "Code (SAST)", sca: "Dependencies", secret: "Secrets", secrets: "Secrets", iac: "Infrastructure as code",
-  container: "Container image", dast: "Web app & API", license: "Licence", eol: "End of life", malware: "Malware",
-  binary: "Binary security", cicd: "CI/CD pipeline", mobile: "Mobile app", api: "Web app & API",
-};
 
 /** /applications/$id: the application profile hub (flag "onboarding"). */
 export function ApplicationProfilePage() {
@@ -405,8 +399,7 @@ function FindingsTab({ a }: { a: ApplicationProfile }) {
                   </Link>
                 </Td>
                 <Td className="text-[12px]">
-                  {checkKind[f.category] ?? f.category}
-                  {f.scanner_keys.length > 1 && <span className="ml-1 text-muted-foreground">· confirmed by {f.scanner_keys.length} engines</span>}
+                  {findingCheckLabel(f)}
                 </Td>
                 <Td className="text-[12px]">{f.repository_name}</Td>
                 <Td className="whitespace-nowrap text-[12px] text-muted-foreground">{formatDateTime(f.first_seen_at)}</Td>
@@ -507,9 +500,9 @@ function ActivityTab({ a }: { a: ApplicationProfile }) {
                 <Td className="whitespace-nowrap text-[12px] text-muted-foreground">{formatDateTime(i.at)}</Td>
                 <Td className="text-[12px]">{i.actor || "System"}</Td>
                 <Td className="text-[12.5px]">
-                  {i.kind === "tags" ? <Badge tone="primary">Tags</Badge> : <Badge>Audit</Badge>} <span className="ml-1">{i.summary}</span>
+                  {i.kind === "tags" ? <Badge tone="primary">Tags</Badge> : <Badge>Audit</Badge>} <span className="ml-1">{redactToolNames(i.summary)}</span>
                 </Td>
-                <Td className="text-[12px]">{i.target}</Td>
+                <Td className="text-[12px]">{redactToolNames(i.target)}</Td>
               </tr>
             ))}
           </tbody>

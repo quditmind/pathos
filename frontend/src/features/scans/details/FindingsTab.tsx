@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CHECK_KINDS, findingCheckLabel } from "@/lib/checkKinds";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ShieldCheck } from "lucide-react";
 import type { ScanFinding, ScanJob } from "@/api/types";
@@ -34,7 +35,7 @@ const columns: Column<ScanFinding>[] = [
     csv: (f) => f.title,
   },
   { id: "component", header: "Affected component", className: "max-w-xs truncate font-mono text-[11.5px]", cell: affectedComponent, csv: affectedComponent },
-  { id: "engine", header: "Engine", className: "whitespace-nowrap text-[12px]", cell: (f) => f.scanner || f.scanner_keys.join(", "), csv: (f) => f.scanner },
+  { id: "engine", header: "Kind of check", className: "whitespace-nowrap text-[12px]", cell: (f) => findingCheckLabel(f), csv: (f) => findingCheckLabel(f) },
   { id: "evidence", header: "Evidence", className: "max-w-xs truncate font-mono text-[11.5px]", cell: (f) => <span title={f.evidence}>{f.evidence || "—"}</span>, csv: (f) => f.evidence },
   { id: "new", header: "New", defaultHidden: true, cell: (f) => (f.is_new ? "yes" : "no"), csv: (f) => (f.is_new ? "yes" : "no") },
   {
@@ -56,12 +57,11 @@ const columns: Column<ScanFinding>[] = [
 export function FindingsTab({ job }: { job: ScanJob }) {
   const { can } = useSession();
   const navigate = useNavigate();
-  const [f, setF] = useState<{ severity?: string; scanner?: string; new?: string }>({});
+  const [f, setF] = useState<{ severity?: string; kind?: string; new?: string }>({});
   const allowed = can("findings.read");
-  const findings = useScanFindings(job.id, { severity: f.severity, scanner: f.scanner }, allowed);
+  const findings = useScanFindings(job.id, { severity: f.severity, kind: f.kind }, allowed);
   if (!allowed) return <Alert tone="warning">You need the findings.read permission on this repository to see its findings.</Alert>;
   const rows = (findings.data ?? []).filter((x) => !f.new || x.is_new);
-  const scanners = (job.results ?? []).map((r) => r.scanner_key);
   return (
     <Card>
       <DataTable
@@ -82,7 +82,7 @@ export function FindingsTab({ job }: { job: ScanJob }) {
           <FilterBar
             filters={[
               { key: "severity", label: "Severity", allLabel: "All severities", options: severities.map((s) => ({ value: s, label: s[0]!.toUpperCase() + s.slice(1) })) },
-              { key: "scanner", label: "Engine", allLabel: "All engines", options: scanners.map((s) => ({ value: s, label: s })) },
+              { key: "kind", label: "Kind of check", allLabel: "All kinds of check", options: CHECK_KINDS.map((k) => ({ value: k.id, label: k.name })) },
               { key: "new", label: "New findings", allLabel: "New and existing", options: [{ value: "1", label: "New in this scan" }] },
             ]}
             values={f}

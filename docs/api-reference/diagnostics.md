@@ -36,7 +36,7 @@ With a session or API token (any role), the response adds the build, the API ver
   "build_date": "2026-11-20T10:00:00Z",
   "api_version": "v1",
   "feature_flags": { "connectors": false, "onboarding": false, "codegraph": false, "threat_models": false,
-                     "reverse_engineering": false, "remediation_workspace": false, "continuous_monitoring": false, "lifecycle_overview": false },
+                     "reverse_engineering": false, "remediation_workspace": false, "continuous_monitoring": false, "lifecycle_overview": false, "scan_profile_tiers": false },
   "workers": [
     { "name": "worker-core-1", "family": "core", "version": "2.2.0", "scanners": { "opengrep": "1.12.1", "trivy": "0.67.2" }, "online": true }
   ],
@@ -118,7 +118,7 @@ Errors: 401 `PTH-AUTH-1001`; 400 `PTH-PLAT-0002` (malformed body, too many conte
 
 ## Feature flags
 
-Every module added in PATHOS 3.0 is behind a per-organization flag that is **off by default** until its milestone is approved. Known flags: `connectors`, `onboarding`, `codegraph`, `threat_models`, `reverse_engineering`, `remediation_workspace`, `continuous_monitoring`, `lifecycle_overview`. A module whose flag is off answers 404 with `feature_disabled` (`PTH-PLAT-1007`).
+Every module added in PATHOS 3.0 is behind a per-organization flag that is **off by default** until its milestone is approved. Known flags: `connectors`, `onboarding`, `codegraph`, `threat_models`, `reverse_engineering`, `remediation_workspace`, `continuous_monitoring`, `lifecycle_overview`, `scan_profile_tiers` (M6: the Quick, Standard and Comprehensive scan profiles). A module whose flag is off answers 404 with `feature_disabled` (`PTH-PLAT-1007`).
 
 ### List feature flags
 

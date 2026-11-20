@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { toolCheckLabel } from "@/lib/checkKinds";
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { GitPullRequest, RefreshCw } from "lucide-react";
@@ -168,7 +169,7 @@ function CheckDetail({ id }: { id: string }) {
 function FindingTable({ rows }: { rows: PRFinding[] }) {
   return (
     <Table>
-      <thead><tr><Th>Severity</Th><Th>Finding</Th><Th>Location</Th><Th>Scanner</Th></tr></thead>
+      <thead><tr><Th>Severity</Th><Th>Finding</Th><Th>Location</Th><Th>Kind of check</Th></tr></thead>
       <tbody>
         {rows.map((f) => (
           <tr key={f.id}>
@@ -179,7 +180,7 @@ function FindingTable({ rows }: { rows: PRFinding[] }) {
               {f.policies?.map((p) => <Badge key={p} tone="danger" className="ml-1">policy: {p}</Badge>)}
             </Td>
             <Td className="max-w-64 truncate font-mono text-[11.5px]"><span title={f.file_path}>{f.file_path}{f.start_line ? `:${f.start_line}` : ""}</span></Td>
-            <Td className="text-[12px]">{f.scanner_key}</Td>
+            <Td className="text-[12px]">{toolCheckLabel(f.scanner_key)}</Td>
           </tr>
         ))}
       </tbody>

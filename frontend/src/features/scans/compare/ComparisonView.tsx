@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, type ReactNode } from "react";
+import { keysCheckLabel } from "@/lib/checkKinds";
 import { Info } from "lucide-react";
 import type { Severity } from "@/api/types";
 import { Badge, Card, Select, Skeleton } from "@/components/ui/primitives";
@@ -171,7 +172,7 @@ export function ComparisonView({ ids }: { ids: string[] }) {
                           <SeverityBadge value={f.severity} />
                           <span className="max-w-md truncate font-medium" title={f.title}>{f.title}</span>
                         </div>
-                        {f.scanners.length > 0 && <div className="mt-0.5 text-[11.5px] text-muted-foreground">{f.scanners.join(", ")}</div>}
+                        {f.scanners.length > 0 && <div className="mt-0.5 text-[11.5px] text-muted-foreground">{keysCheckLabel(f.scanners)}</div>}
                       </td>
                       {scans.map((s) => (
                         <td key={s.id} className="border-b border-border px-3 py-2">

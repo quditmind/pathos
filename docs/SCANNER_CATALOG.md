@@ -410,7 +410,7 @@ Not added: Kube-hunter (deprecated); Syft (an SBOM generator: its CycloneDX and 
 
 ## Scan types
 
-PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanners/scantypes.go`): each type has an id, a name, the finding categories its findings are recorded under and the catalog tools that cover it. `GET /api/v1/scan-types` ([API](api-reference/scan-types-and-tools.md)) and the **Scan coverage** page add what a deployment provides: the tools an online worker can run, and the import formats.
+PATHOS reports on 25 scan types, grouped for display into the 20 [kinds of check](#kinds-of-check-pathos-30-m6). The registry is code (`backend/internal/scanners/scantypes.go`): each type has an id, a name, the finding categories its findings are recorded under and the catalog tools that cover it. `GET /api/v1/scan-types` ([API](api-reference/scan-types-and-tools.md)) and the **Scan coverage** page add what a deployment provides: the tools an online worker can run, and the import formats.
 
 | Scan type (id) | Finding categories | Tools in the catalog |
 |---|---|---|
@@ -444,6 +444,158 @@ PATHOS reports on 25 scan types. The registry is code (`backend/internal/scanner
 The finding categories added for these types are `api`, `iast`, `mobile`, `fuzz`, `crypto`, `cicd`, `ai`, `runtime`, `compliance`, `database` and `code-quality` (migration 00029). Configuration findings keep `misconfiguration`.
 
 Import formats are listed under a scan type when their default category is the type's first category, or when the type names them (`ImportFormats` in `scantypes.go`) because their findings keep their own categories. For example API security lists Schemathesis, RESTler and 42Crunch (`api`) and also Nuclei, ZAP, Burp and StackHawk (recorded as `dast`); code-quality security lists PHPStan and ShellCheck (`code-quality`) and the linters and SAST tools whose non-security rules are `code-quality` (Psalm, Ruff, Pylint, golangci-lint, Codacy, SpotBugs, PMD, Cppcheck, Coverity, Klocwork, Polaris); cryptography lists the TLS scanners, whose findings are recorded as `misconfiguration`; compliance and runtime list AWS Security Hub and Security Command Center (posture checks `compliance`, threat detections `runtime`); manual review lists the HackerOne, Bugcrowd and Intigriti exports. Licence, SBOM, malware, binary, licence policy and database security have no specific import format; the generic formats (SARIF, PATHOS findings JSON, CSV) apply to every type.
+
+## Kinds of check (PATHOS 3.0 M6)
+
+The build prompt (§7) groups security testing into **20 kinds of check of about 10 tools each**. PATHOS keeps its 25 scan types (decision C8): a kind of check is a display grouping of scan types, defined with the scan-type registry in `backend/internal/scanners/scantypes.go` (`CheckKinds`) and served by `GET /api/v1/scan-types` (`kinds`). Every scan type belongs to exactly one kind; AI / LLM and manual review stay outside the 20 kinds and are shown under their own names. Outside Configurations › Scan profiles, Configurations › Scanners & workers and Import results, the UI shows the kind of check and "confirmed by N engines" instead of tool names (rule 3, decision C5; see [Findings](user-guide/findings.md)).
+
+"Catalogued" counts the §7 tools that are in the scanner catalog; a catalogued tool is runnable when a shipped worker image or manifest runs it and a worker advertising it is online. **No tool was added in this milestone**: the tools on the gap list arrive as worker-pack pull requests, each with its licence evidence re-checked.
+
+| Kind of check | Phase | Scan types | §7 tools in the catalog (N of 10) | Other catalogued tools of its scan types | Gap list |
+|---|---|---|---|---|---|
+| Discovery & CodeGraph | 3 | — | 1 of 10: Syft | — | 9 |
+| SBOM | 3 | `sbom` | 2 of 10: Syft, cdxgen | AI-BOM (AI frameworks, models and LLM APIs) | 8 |
+| Threat modelling | 4 | — | 0 of 10: PATHOS STRIDE engine (PATHOS), PATHOS attack paths & blast radius (PATHOS) | — | 8 |
+| Reverse engineering | 5 | — | 0 of 10: — | — | 10 |
+| SAST: deep engines | 6 | `sast`, `configuration`, `crypto` | 9 of 10: Opengrep, Semgrep CE, CodeQL, Infer, Pysa, SpotBugs + FindSecBugs, PMD, cppcheck, Flawfinder | Bandit, gosec, Brakeman, Psalm (taint analysis), PHPStan, Ruff (S rules), ESLint + eslint-plugin-security, njsscan, Sobelow, Bearer CLI, Horusec, DevSkim, testssl.sh, SSLyze, Nikto | 1 |
+| SAST: language checks | 6 | `code-quality` | 10 of 10: Bandit, Gosec, Brakeman, Psalm, PHPStan, Ruff (S rules), ESLint + security plugin, njsscan, Sobelow, ShellCheck | PMD, Pylint (security-relevant checks), golangci-lint (security linters) | 0 |
+| Secrets | 6 | `secrets` | 5 of 10: Gitleaks, TruffleHog, detect-secrets, Kingfisher, Talisman | APKLeaks, Nosey Parker, Whispers | 5 |
+| Dependency check | 6 | `sca` | 10 of 10: Trivy (filesystem), OSV-Scanner, Grype, OWASP Dependency-Check, govulncheck, pip-audit, Retire.js, cargo-audit, bundler-audit, OWASP dep-scan | endoflife.date, CVE Binary Tool, PATHOS function-level reachability (pathos-reach), npm audit, yarn audit, pnpm audit, Composer audit | 0 |
+| CVE & vulnerability intelligence | 7 | — | 1 of 10: endoflife.date; OSV.dev (feed), CISA KEV (feed), FIRST EPSS (feed) | — | 6 |
+| Infrastructure as code | 6 | `iac` | 10 of 10: Checkov, KICS, Trivy (config), TFLint, Conftest, Hadolint, KubeLinter, kube-score, cfn-lint, cfn-nag | Kubescape, Polaris | 0 |
+| Cloud & Kubernetes posture | 6 | `compliance`, `runtime` | 3 of 10: Kubescape, kube-bench, Polaris | — | 7 |
+| CI/CD pipelines | 6 | `cicd` | 3 of 10: actionlint, zizmor, OpenSSF Scorecard (CI checks) | Opengrep | 7 |
+| Container images | 6 | `container` | 6 of 10: Trivy (image), Grype, Syft, cosign, Dockle, Hadolint | — | 4 |
+| Licence compliance | 6 | `license`, `license-policy` | 3 of 10: licensecheck (built in), ScanCode Toolkit, Trivy (licence) | — | 7 |
+| Supply chain & integrity | 6 | `supply-chain` | 3 of 10: cosign, OpenSSF Scorecard, GuardDog; deps.dev (feed) | PATHOS dependency confusion and typosquatting check | 6 |
+| Malware | 6 | `malware` | 4 of 10: ClamAV, YARA-X, capa, GuardDog | Quark-Engine | 6 |
+| Binary security | 6 | `binary` | 3 of 10: checksec-style checks (built in), Grype, capa | CVE Binary Tool, YARA-X | 7 |
+| Mobile apps | 6 | `mobile` | 3 of 10: mobsfscan, APKLeaks, Quark-Engine | Mobile app configuration checks | 7 |
+| Web app & API testing | 6 | `dast`, `api`, `iast`, `database` | 7 of 10: Nuclei, OWASP ZAP, Schemathesis, testssl.sh, Wapiti, Nikto, ffuf | PATHOS endpoint verification, OWASP ZAP baseline scan, OWASP ZAP API scan, Dalfox, sqlmap, Arjun, Opengrep | 3 |
+| Fuzz testing (after 2.0) | 6 | `fuzzing` | 3 of 10: Go native fuzzing, Atheris, Jazzer | ffuf, Schemathesis | 7 |
+
+Outside the 20 kinds: **AI / LLM** (`ai`: ModelScan, garak, promptfoo, AI-BOM (AI frameworks, models and LLM APIs), Opengrep) and **Manual review** (`manual`, imports and Human Eye). "(feed)" marks vulnerability intelligence feeds the server already reads; "(PATHOS)" marks PATHOS engines (the attack paths and blast radius views exist; the STRIDE engine is planned for M5).
+
+### Gap list
+
+The §7 tools PATHOS does not have yet. Licence and maintenance status were read on **2026-11-20** from each project's official repository (GitHub REST API `license.spdx_id`, `archived`, latest release and default-branch commit) or official page; the evidence column links what was read. Maintenance: *active* = a commit or release within 12 months, *slow* = 12–24 months, *unmaintained* = over 24 months or archived. Anything that could not be confirmed is marked **unverified**. Where the API gives an old SPDX form (GPL-2.0, GPL-3.0, LGPL-3.0, AGPL-3.0) the -only/-or-later variant was not checked. "Import" names an existing PATHOS import format for the tool's reports.
+
+A tool listed under several kinds (Joern, Jadx, binwalk, Frida, Tracee) has one row, under its first kind. Modes of catalogued tools (for example Trivy's SBOM output) are listed separately below.
+
+| Kind | Tool | Licence (SPDX) | Licence evidence | Latest release | Maintenance | Import | Notes |
+|---|---|---|---|---|---|---|---|
+| Discovery & CodeGraph | [tree-sitter](https://github.com/tree-sitter/tree-sitter) | MIT | [source](https://api.github.com/repos/tree-sitter/tree-sitter) | v0.27.2, 2026-11-07 | active | — |  |
+| Discovery & CodeGraph | [Joern](https://github.com/joernio/joern) | Apache-2.0 | [source](https://api.github.com/repos/joernio/joern) | v4.0.687, 2026-11-19 | active | — | also listed under SAST deep (taint) and reverse engineering |
+| Discovery & CodeGraph | [go-enry](https://github.com/go-enry/go-enry) | Apache-2.0 | [source](https://api.github.com/repos/go-enry/go-enry) | v2.9.6, 2026-04-04 | active | — |  |
+| Discovery & CodeGraph | [scc](https://github.com/boyter/scc) | MIT | [source](https://api.github.com/repos/boyter/scc) | v4.1.0, 2026-09-07 | active | — |  |
+| Discovery & CodeGraph | [Microsoft Application Inspector](https://github.com/microsoft/ApplicationInspector) | MIT | [source](https://api.github.com/repos/microsoft/ApplicationInspector) | v1.10.5, 2026-11-13 | active | — |  |
+| Discovery & CodeGraph | [Universal Ctags](https://github.com/universal-ctags/ctags) | GPL-2.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/universal-ctags/ctags) | v6.2.1, 2025-10-25 | active | — |  |
+| Discovery & CodeGraph | [dependency-cruiser](https://github.com/sverweij/dependency-cruiser) | MIT | [source](https://api.github.com/repos/sverweij/dependency-cruiser) | v18.8.0, 2026-11-16 | active | — |  |
+| Discovery & CodeGraph | [kin-openapi](https://github.com/getkin/kin-openapi) | MIT | [source](https://api.github.com/repos/getkin/kin-openapi) | v0.153.0, 2026-11-07 | active | — |  |
+| SBOM | [Microsoft sbom-tool](https://github.com/microsoft/sbom-tool) | MIT | [source](https://api.github.com/repos/microsoft/sbom-tool) | v4.1.5, 2025-12-15 | active | — |  |
+| SBOM | [cyclonedx-gomod](https://github.com/CycloneDX/cyclonedx-gomod) | Apache-2.0 | [source](https://api.github.com/repos/CycloneDX/cyclonedx-gomod) | v1.12.0, 2026-08-22 | active | — |  |
+| SBOM | [cyclonedx-py](https://github.com/CycloneDX/cyclonedx-python) | Apache-2.0 | [source](https://api.github.com/repos/CycloneDX/cyclonedx-python) | v9.0.0, 2026-11-19 | active | — | new major version |
+| SBOM | [cyclonedx-npm](https://github.com/CycloneDX/cyclonedx-node-npm) | Apache-2.0 | [source](https://api.github.com/repos/CycloneDX/cyclonedx-node-npm) | v7.0.1, 2026-11-13 | active | — |  |
+| SBOM | [CycloneDX Maven plugin](https://github.com/CycloneDX/cyclonedx-maven-plugin) | Apache-2.0 | [source](https://api.github.com/repos/CycloneDX/cyclonedx-maven-plugin) | 2.9.3, 2026-07-31 | active | — |  |
+| SBOM | [CycloneDX CLI](https://github.com/CycloneDX/cyclonedx-cli) | Apache-2.0 | [source](https://api.github.com/repos/CycloneDX/cyclonedx-cli) | v0.33.1, 2026-07-23 | active | — |  |
+| SBOM | [sbomqs](https://github.com/interlynk-io/sbomqs) | Apache-2.0 | [source](https://api.github.com/repos/interlynk-io/sbomqs) | v2.1.3, 2026-10-14 | active | — |  |
+| Threat modelling | [OWASP pytm](https://github.com/OWASP/pytm) | MIT | [source](https://github.com/OWASP/pytm/blob/master/LICENSE) | v1.4.1, 2026-11-01 | active | — |  |
+| Threat modelling | [OWASP Threat Dragon (format)](https://github.com/OWASP/threat-dragon) | Apache-2.0 | [source](https://api.github.com/repos/OWASP/threat-dragon) | v2.6.2, 2026-05-10 | active | — | format only |
+| Threat modelling | [Threagile](https://github.com/Threagile/threagile) | MIT | [source](https://api.github.com/repos/Threagile/threagile) | v0.9.1, 2024-07-30 | active (borderline) | — | pre-1.0, release ~28 months old |
+| Threat modelling | [MITRE ATT&CK](https://github.com/mitre-attack/attack-stix-data) | LicenseRef-MITRE-ATTACK-Terms | [source](https://github.com/mitre-attack/attack-stix-data/blob/master/LICENSE.txt) | v20.1, 2026-11-05 | active | — | royalty-free; reproduce copyright and licence |
+| Threat modelling | [MITRE CAPEC](https://capec.mitre.org/) | LicenseRef-CAPEC-Terms | [source](https://capec.mitre.org/about/termsofuse.html) | CAPEC 3.9 (date unverified) | unverified | — |  |
+| Threat modelling | [MITRE CWE](https://cwe.mitre.org/) | LicenseRef-CWE-Terms | [source](https://cwe.mitre.org/about/termsofuse.html) | CWE 5.0 (date unverified) | unverified | — |  |
+| Threat modelling | [MITRE D3FEND](https://d3fend.mitre.org/) | MIT (ontology code); LicenseRef-D3FEND-Terms (content) | [source](https://d3fend.mitre.org/tou/) | tag 1.6.0 (2026-09-01) | active | — |  |
+| Threat modelling | [LINDDUN](https://linddun.org/) | CC-BY-4.0 (LINDDUN GO cards); other material unverified | [source](https://downloads.linddun.org/linddun-go/default/latest/go.pdf) | n/a (methodology) | unverified | — |  |
+| Reverse engineering | [radare2](https://github.com/radareorg/radare2) | LGPL-3.0 (some plugins GPL) | [source](https://github.com/radareorg/radare2/blob/master/COPYING.md) | 6.2.6, 2026-11-05 | active | — | build `--without-gpl` |
+| Reverse engineering | [Ghidra (headless)](https://github.com/NationalSecurityAgency/ghidra) | Apache-2.0 | [source](https://api.github.com/repos/NationalSecurityAgency/ghidra) | 12.2, 2026-10-22 | active | — |  |
+| Reverse engineering | [angr](https://github.com/angr/angr) | BSD-2-Clause | [source](https://api.github.com/repos/angr/angr) | tag v10.0.7 (2026-11-13) | active | — |  |
+| Reverse engineering | [Jadx](https://github.com/skylot/jadx) | Apache-2.0 | [source](https://api.github.com/repos/skylot/jadx) | v1.5.7, 2026-11-18 | active | — | also listed under mobile |
+| Reverse engineering | [ILSpy (ilspycmd)](https://github.com/icsharpcode/ILSpy) | MIT | [source](https://api.github.com/repos/icsharpcode/ILSpy) | v11.2, 2026-10-27 | active | — |  |
+| Reverse engineering | [binwalk](https://github.com/ReFirmLabs/binwalk) | MIT | [source](https://api.github.com/repos/ReFirmLabs/binwalk) | v3.1.0, 2024-10-31 | active (borderline) | — | also listed under binary |
+| Reverse engineering | [Frida](https://github.com/frida/frida) (after 2.0) | LGPL-2.0-or-later WITH WxWindows-exception-3.1 | [source](https://github.com/frida/frida/blob/main/COPYING) | 17.27.2, 2026-11-19 | active | — |  |
+| Reverse engineering | [Tracee](https://github.com/aquasecurity/tracee) (after 2.0) | Apache-2.0 | [source](https://api.github.com/repos/aquasecurity/tracee) | v0.24.1, 2025-11-19 | active | `tracee` |  |
+| Reverse engineering | [Qiling](https://github.com/qilingframework/qiling) (after 2.0) | GPL-2.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/qilingframework/qiling) | v1.4.11, 2026-09-06 | active | — |  |
+| Secrets | [git-secrets](https://github.com/awslabs/git-secrets) | Apache-2.0 | [source](https://api.github.com/repos/awslabs/git-secrets) | tag 1.3.0 (2019-02-10) | active (barely) | `git-secrets` | no release in ~7 years |
+| Secrets | [secretlint](https://github.com/secretlint/secretlint) | MIT | [source](https://api.github.com/repos/secretlint/secretlint) | v14.0.1, 2026-11-16 | active | — |  |
+| Secrets | [ripsecrets](https://github.com/sirwart/ripsecrets) | MIT | [source](https://api.github.com/repos/sirwart/ripsecrets) | v0.1.11, 2025-05-27 | slow | — | borderline |
+| CVE & vulnerability intelligence | [GitHub Advisory Database](https://github.com/github/advisory-database) | CC-BY-4.0 | [source](https://api.github.com/repos/github/advisory-database) | data repository | active | — | attribution required |
+| CVE & vulnerability intelligence | [NVD](https://nvd.nist.gov/developers/terms-of-use) | unverified | [source](https://nvd.nist.gov/developers/terms-of-use) | service | unverified | — | terms page not readable without JavaScript; NIST general policy: https://www.nist.gov/open/license |
+| CVE & vulnerability intelligence | [CVE List](https://github.com/CVEProject/cvelistV5) | LicenseRef-CVE-Terms-of-Use | [source](https://www.cve.org/Legal/TermsOfUse) | daily snapshots (cve_2026-11-19_2000Z) | active | — | copies must reproduce MITRE's copyright designation and licence |
+| CVE & vulnerability intelligence | [CISA Vulnrichment](https://github.com/cisagov/vulnrichment) | CC0-1.0 | [source](https://api.github.com/repos/cisagov/vulnrichment) | data repository | active | — |  |
+| CVE & vulnerability intelligence | [OpenSSF malicious-packages](https://github.com/ossf/malicious-packages) | Apache-2.0 | [source](https://api.github.com/repos/ossf/malicious-packages) | data repository | active | — | no separate data licence statement |
+| CVE & vulnerability intelligence | [Go vulnerability database](https://github.com/golang/vulndb) | BSD-3-Clause (code), CC-BY-4.0 (entries) | [source](https://github.com/golang/vulndb/blob/master/README.md) | data repository | active | — |  |
+| Cloud & Kubernetes posture | [Prowler](https://github.com/prowler-cloud/prowler) | Apache-2.0 | [source](https://api.github.com/repos/prowler-cloud/prowler) | 5.51.0, 2026-11-19 | active | `prowler-csv` | import format exists |
+| Cloud & Kubernetes posture | [Popeye](https://github.com/derailed/popeye) | Apache-2.0 | [source](https://github.com/derailed/popeye/blob/master/LICENSE) | v0.22.1, 2025-01-28 | slow | — |  |
+| Cloud & Kubernetes posture | [ScoutSuite](https://github.com/nccgroup/ScoutSuite) | GPL-2.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/nccgroup/ScoutSuite) | 5.14.0, 2024-05-10 | unmaintained | `scoutsuite` | † in §7: replace with an equivalent; import format exists |
+| Cloud & Kubernetes posture | [CloudSploit](https://github.com/aquasecurity/cloudsploit) | GPL-3.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/aquasecurity/cloudsploit) | v3.9.0, 2024-09-24 | active | `cloudsploit` | import format exists |
+| Cloud & Kubernetes posture | [Steampipe](https://github.com/turbot/steampipe) | AGPL-3.0 | [source](https://api.github.com/repos/turbot/steampipe) | v2.5.1, 2026-11-17 | active | `steampipe` | AGPL: separate process only; import format exists |
+| Cloud & Kubernetes posture | [Falco](https://github.com/falcosecurity/falco) (after 2.0) | Apache-2.0 | [source](https://api.github.com/repos/falcosecurity/falco) | 0.45.2, 2026-10-29 | active | `falco` | after 2.0; import format exists |
+| CI/CD pipelines | [poutine](https://github.com/boostsecurityio/poutine) | Apache-2.0 | [source](https://api.github.com/repos/boostsecurityio/poutine) | v1.1.6, 2026-05-22 | active | `poutine` | import format exists |
+| CI/CD pipelines | [Legitify](https://github.com/Legit-Labs/legitify) | Apache-2.0 | [source](https://api.github.com/repos/Legit-Labs/legitify) | v1.0.11, 2024-07-09 | unmaintained | `legitify` | import format exists |
+| CI/CD pipelines | [octoscan](https://github.com/synacktiv/octoscan) | GPL-3.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/synacktiv/octoscan) | v0.1.7, 2026-03-30 | active | — |  |
+| CI/CD pipelines | [Raven](https://github.com/CycodeLabs/raven) | Apache-2.0 | [source](https://api.github.com/repos/CycodeLabs/raven) | v1.0.9, 2024-05-01 | slow | — | † in §7 |
+| CI/CD pipelines | [ratchet](https://github.com/sethvargo/ratchet) | Apache-2.0 | [source](https://api.github.com/repos/sethvargo/ratchet) | v0.12.0, 2026-07-18 | active | — |  |
+| CI/CD pipelines | [frizbee](https://github.com/stacklok/frizbee) | Apache-2.0 | [source](https://api.github.com/repos/stacklok/frizbee) | v0.1.12, 2026-11-17 | active | — |  |
+| Container images | [Clair](https://github.com/quay/clair) | Apache-2.0 | [source](https://api.github.com/repos/quay/clair) | v4.9.0, 2025-12-10 | active | `clair` | import format exists |
+| Container images | [Docker Bench for Security](https://github.com/docker/docker-bench-security) | Apache-2.0 | [source](https://api.github.com/repos/docker/docker-bench-security) | v1.6.1, 2023-12-20 | active | — | last release 2023 |
+| Container images | [container-structure-test](https://github.com/GoogleContainerTools/container-structure-test) | Apache-2.0 | [source](https://api.github.com/repos/GoogleContainerTools/container-structure-test) | v1.22.1, 2025-12-16 | active | — |  |
+| Container images | [dive](https://github.com/wagoodman/dive) | MIT | [source](https://api.github.com/repos/wagoodman/dive) | v0.13.1, 2025-03-29 | active | — |  |
+| Licence compliance | [OSS Review Toolkit](https://github.com/oss-review-toolkit/ort) | Apache-2.0 | [source](https://api.github.com/repos/oss-review-toolkit/ort) | 99.1.0, 2026-11-19 | active | — |  |
+| Licence compliance | [FOSSology](https://github.com/fossology/fossology) | GPL-2.0 (-only/-or-later unverified) | [source](https://github.com/fossology/fossology/blob/master/LICENSE) | 4.7.3, 2026-11-14 | active | — |  |
+| Licence compliance | [licensee](https://github.com/licensee/licensee) | MIT | [source](https://api.github.com/repos/licensee/licensee) | v10.1.0, 2026-08-07 | active | — |  |
+| Licence compliance | [askalono](https://github.com/jpeddicord/askalono) | Apache-2.0 | [source](https://api.github.com/repos/jpeddicord/askalono) | 0.5.0, 2024-10-22 | unmaintained (archived) | — | archived repository |
+| Licence compliance | [go-licenses](https://github.com/google/go-licenses) | Apache-2.0 | [source](https://api.github.com/repos/google/go-licenses) | v2.0.1, 2025-09-08 | slow | — | default-branch commits ~14 months old |
+| Licence compliance | [pip-licenses](https://github.com/raimon49/pip-licenses) | MIT | [source](https://api.github.com/repos/raimon49/pip-licenses) | v-5.5.5, 2026-03-28 | active | — |  |
+| Licence compliance | [license-checker](https://github.com/davglass/license-checker) | BSD-3-Clause | [source](https://github.com/davglass/license-checker/blob/master/LICENSE) | tag v25.0.1 (2019-01-10) | unmaintained | — | maintained fork: https://github.com/RSeidelsohn/license-checker-rseidelsohn (BSD-3-Clause, v5.0.1 2026-05-27, active) |
+| Supply chain & integrity | [Rekor](https://github.com/sigstore/rekor) | Apache-2.0 | [source](https://api.github.com/repos/sigstore/rekor) | v1.6.2, 2026-11-18 | active | — |  |
+| Supply chain & integrity | [slsa-verifier](https://github.com/slsa-framework/slsa-verifier) | Apache-2.0 | [source](https://api.github.com/repos/slsa-framework/slsa-verifier) | v2.7.1, 2025-06-27 | active | — | release ~17 months old |
+| Supply chain & integrity | [in-toto](https://github.com/in-toto/in-toto) | Apache-2.0 | [source](https://github.com/in-toto/in-toto/blob/develop/LICENSE) | v3.1.0, 2026-05-04 | active | — |  |
+| Supply chain & integrity | [witness](https://github.com/in-toto/witness) | Apache-2.0 | [source](https://api.github.com/repos/in-toto/witness) | v0.12.0, 2026-07-10 | active | — |  |
+| Supply chain & integrity | [GUAC](https://github.com/guacsec/guac) | Apache-2.0 | [source](https://api.github.com/repos/guacsec/guac) | v1.1.0, 2026-03-13 | active | — |  |
+| Supply chain & integrity | [OpenSSF Package Analysis](https://github.com/ossf/package-analysis) | Apache-2.0 | [source](https://api.github.com/repos/ossf/package-analysis) | rel-38, 2026-05-20 | active | — |  |
+| Malware | [Malcontent](https://github.com/chainguard-dev/malcontent) | Apache-2.0 | [source](https://api.github.com/repos/chainguard-dev/malcontent) | v1.28.2, 2026-11-18 | active | — |  |
+| Malware | [Detect-It-Easy](https://github.com/horsicq/Detect-It-Easy) | MIT | [source](https://api.github.com/repos/horsicq/Detect-It-Easy) | stable release unverified (only pre-releases on GitHub) | active | — |  |
+| Malware | [LOKI](https://github.com/Neo23x0/Loki) | GPL-3.0 | [source](https://api.github.com/repos/Neo23x0/Loki) | v0.51.0, 2023-05-18 | unmaintained (deprecated) | — | README: "LOKI (Python) is now officially deprecated", successor Loki-RS |
+| Malware | [Manalyze](https://github.com/JusticeRage/Manalyze) | GPL-3.0 | [source](https://api.github.com/repos/JusticeRage/Manalyze) | v1.0.0, 2026-07-21 | active | — |  |
+| Malware | [TLSH](https://github.com/trendmicro/tlsh) | Apache-2.0 OR BSD-3-Clause | [source](https://github.com/trendmicro/tlsh/blob/master/LICENSE) | 4.12.1, 2026-01-21 | active | — |  |
+| Binary security | [cwe_checker](https://github.com/fkie-cad/cwe_checker) | LGPL-3.0 (-only/-or-later unverified) | [source](https://api.github.com/repos/fkie-cad/cwe_checker) | v0.9, 2024-08-20 | active | — | release ~27 months old |
+| Binary security | [BinAbsInspector](https://github.com/KeenSecurityLab/BinAbsInspector) | GPL-3.0 | [source](https://api.github.com/repos/KeenSecurityLab/BinAbsInspector) | v0.1, 2022-04-20 | unmaintained | — | † in §7: replace with an equivalent |
+| Binary security | [LIEF](https://github.com/lief-project/LIEF) | Apache-2.0 | [source](https://api.github.com/repos/lief-project/LIEF) | 1.0.0, 2026-07-12 | active | — |  |
+| Binary security | [EMBA](https://github.com/e-m-b-a/emba) (after 2.0) | GPL-3.0 | [source](https://api.github.com/repos/e-m-b-a/emba) | v2.0.5-ice-edt, 2026-11-03 | active | — |  |
+| Mobile apps | [MobSF](https://github.com/MobSF/Mobile-Security-Framework-MobSF) (after 2.0) | GPL-3.0 | [source](https://api.github.com/repos/MobSF/Mobile-Security-Framework-MobSF) | v4.6.9, 2026-11-18 | active | `mobsf` |  |
+| Mobile apps | [apktool](https://github.com/iBotPeaches/Apktool) (after 2.0) | Apache-2.0 | [source](https://api.github.com/repos/iBotPeaches/Apktool) | v3.0.3, 2026-07-20 | active | — |  |
+| Mobile apps | [Androguard](https://github.com/androguard/androguard) (after 2.0) | Apache-2.0 | [source](https://api.github.com/repos/androguard/androguard) | v4.1.4, 2026-06-05 | active | — |  |
+| Mobile apps | [FlowDroid](https://github.com/secure-software-engineering/FlowDroid) (after 2.0) | LGPL-2.1 | [source](https://api.github.com/repos/secure-software-engineering/FlowDroid) | v2.15.1, 2026-02-23 | active | — | -only/-or-later not stated by the API |
+| Mobile apps | [objection](https://github.com/sensepost/objection) (after 2.0) | GPL-3.0 | [source](https://api.github.com/repos/sensepost/objection) | 1.12.5, 2026-06-02 | active | — |  |
+| Web app & API testing | [RESTler](https://github.com/microsoft/restler-fuzzer) | MIT | [source](https://api.github.com/repos/microsoft/restler-fuzzer) | tag v9.3.1 (commit 2025-01-30), no GitHub release | active | `restler` | last tag ~22 months old |
+| Web app & API testing | [Katana](https://github.com/projectdiscovery/katana) | MIT | [source](https://api.github.com/repos/projectdiscovery/katana) | v1.8.0, 2026-10-05 | active | — |  |
+| Web app & API testing | [GraphQL Cop](https://github.com/dolevf/graphql-cop) | MIT | [source](https://api.github.com/repos/dolevf/graphql-cop) | 1.15, 2025-11-07 | slow | — | borderline (~12 months) |
+| Fuzz testing | [ClusterFuzzLite](https://github.com/google/clusterfuzzlite) | Apache-2.0 | [source](https://api.github.com/repos/google/clusterfuzzlite) | moving action tag v1 | active | `clusterfuzzlite` | GitHub Action |
+| Fuzz testing | [AFL++](https://github.com/AFLplusplus/AFLplusplus) | unverified (GitHub metadata says AGPL-3.0; historically Apache-2.0) | [source](https://api.github.com/repos/AFLplusplus/AFLplusplus) | v5.03c, 2026-09-02 | active | — | LICENSE file not read: unverified |
+| Fuzz testing | [libFuzzer](https://github.com/llvm/llvm-project) | Apache-2.0 WITH LLVM-exception | [source](https://github.com/llvm/llvm-project/blob/main/LICENSE.TXT) | llvmorg-23.1.6, 2026-11-17 | active | `libfuzzer` | part of LLVM compiler-rt |
+| Fuzz testing | [Jazzer.js](https://github.com/CodeIntelligenceTesting/jazzer.js) | Apache-2.0 | [source](https://api.github.com/repos/CodeIntelligenceTesting/jazzer.js) | v4.0.0, 2026-04-15 | active | — |  |
+| Fuzz testing | [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz) | Apache-2.0 (MIT dual licence unverified) | [source](https://api.github.com/repos/rust-fuzz/cargo-fuzz) | 0.13.2, 2026-06-09 | active | — |  |
+| Fuzz testing | [boofuzz](https://github.com/jtpereyda/boofuzz) | GPL-2.0 | [source](https://api.github.com/repos/jtpereyda/boofuzz) | v0.4.2, 2023-10-06 | active | — | last release >3 years old |
+| Fuzz testing | [Radamsa](https://gitlab.com/akihe/radamsa) | MIT | [source](https://gitlab.com/akihe/radamsa/-/raw/develop/LICENCE) | v0.7 (2023-11-02) | active | — | last release ~3 years old |
+
+**Modes of catalogued tools** (the tool is catalogued with its licence; the mode the kind needs is not wired yet):
+
+| Kind | Entry | Catalogued as | Mode needed |
+|---|---|---|---|
+| Discovery & CodeGraph | Opengrep (route & DB rules) | Opengrep (`opengrep`, LGPL-2.1) | route and database rules |
+| SBOM | Trivy (SBOM) | Trivy (filesystem) (`trivy-fs`, Apache-2.0) | SBOM output |
+| Secrets | Trivy (secret) | Trivy (filesystem) (`trivy-fs`, Apache-2.0) | secret scanner |
+| Secrets | Opengrep (secret rules) | Opengrep (`opengrep`, LGPL-2.1) | secret rule pack |
+| Cloud & Kubernetes posture | Trivy (Kubernetes) | Trivy (filesystem) (`trivy-fs`, Apache-2.0) | Kubernetes cluster scan |
+| CI/CD pipelines | Checkov (CI policies) | Checkov (`checkov`, Apache-2.0) | CI pipeline policies |
+| Binary security | Trivy (binary) | Trivy (filesystem) (`trivy-fs`, Apache-2.0) | binary scan |
+| Binary security | Syft (binary) | Syft (`syft`, Apache-2.0) | binary cataloguing |
+
+**Licence notes on catalogued tools of the §7 table** (re-checked 2026-11-20): CodeQL — the CLI is under the GitHub CodeQL Terms (free only for OSI-licensed code and research; private code needs GitHub Advanced Security), evidence https://github.com/github/codeql-cli-binaries/blob/main/LICENSE.md, catalog decision *restricted*; Brakeman — Brakeman Public Use License (commercial use, including SaaS and value-added services, needs a commercial licence), evidence https://github.com/presidentbeef/brakeman/blob/main/LICENSE.md, *restricted*; TruffleHog — AGPL-3.0 (https://api.github.com/repos/trufflesecurity/trufflehog), runs as a separate process only; YARA-X — BSD-3-Clause (https://api.github.com/repos/VirusTotal/yara-x), each rule set carries its own licence.
+
+**† entries of §7 that fail the check** and need an equivalent before enabling: ScoutSuite (no release or default-branch commit for about 30 months), BinAbsInspector (no commit since 2024-05), Raven (default-branch commit about 21 months old), LOKI (deprecated by its author in favour of Loki-RS), askalono (archived), license-checker (no commit since 2019; the maintained fork is license-checker-rseidelsohn, BSD-3-Clause, active), Legitify (default-branch commit about 26 months old). Steampipe and TruffleHog are AGPL (separate process only). AFL++'s licence could not be confirmed from its LICENSE file (GitHub metadata reports AGPL-3.0; it has historically been Apache-2.0): unverified. Clair and FOSSology were excluded earlier as server platforms (see [Excluded](#excluded)); they stay on the gap list because §7 names them.
+
 
 ## Adding a tool (tool manifests)
 

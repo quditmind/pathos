@@ -1,4 +1,5 @@
 import { useDeferredValue, useState } from "react";
+import { confirmedBy, enginesCount } from "@/lib/checkKinds";
 import { useQuery } from "@tanstack/react-query";
 import { CheckCircle2, CircleDashed, Clock, MinusCircle, Radar } from "lucide-react";
 import { api } from "@/api/client";
@@ -82,7 +83,7 @@ export function CoveragePage() {
                   {cov.data.categories.map((c) => {
                     const cell = r.cells[c]!;
                     const m = statusMeta[cell.status];
-                    const title = cell.last_at ? `${m.label}: last success ${formatDateTime(cell.last_at)} (${cell.scanners.join(", ")})` : m.label;
+                    const title = cell.last_at ? `${m.label}: last success ${formatDateTime(cell.last_at)} (${confirmedBy(enginesCount(cell.scanners)).replace("confirmed by", "by")})` : m.label;
                     return (
                       <Td key={c} className="text-center">
                         <span className={cn("inline-flex items-center gap-1 text-[11.5px]", m.cls)} title={title} aria-label={`${coverageLabel[c]}: ${title}`}>

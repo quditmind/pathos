@@ -66,7 +66,7 @@ describe("scans list", () => {
   it("renders the new columns and actions by permission", async () => {
     mockApi({
       ...baseRoutes,
-      "GET /api/v1/scans": () => ({ items: [job(), job({ id: "j2", scan_key: "QD-SCAN-000008", status: "failed", progress: 60 }), job({ id: "j3", scan_key: "QD-SCAN-000009", status: "running", progress: 40, stage: "scanning:semgrep", finished_at: null, duration_ms: null })] }),
+      "GET /api/v1/scans": () => ({ items: [job(), job({ id: "j2", scan_key: "QD-SCAN-000008", status: "failed", progress: 60 }), job({ id: "j3", scan_key: "QD-SCAN-000009", status: "running", progress: 40, stage: "scanning:semgrep-ce", finished_at: null, duration_ms: null })] }),
     });
     renderApp(<ScansPage />, { permissions: ["scans.read", "scans.run"] });
     expect(await screen.findByText("QD-SCAN-000007")).toBeInTheDocument();
@@ -74,7 +74,7 @@ describe("scans list", () => {
       expect(screen.getByRole("columnheader", { name: h })).toBeInTheDocument();
     }
     expect(screen.getAllByText("QD-REPO-000042").length).toBeGreaterThan(0);
-    expect(screen.getByText("Scanning (semgrep)")).toBeInTheDocument();
+    expect(screen.getByText("Scanning (SAST: deep engines)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel QD-SCAN-000009" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry QD-SCAN-000008" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Retry QD-SCAN-000007" })).toBeNull();
@@ -201,14 +201,14 @@ describe("configuration tab", () => {
       config_snapshot: {
         profile_id: "p1", profile_name: "Default", profile_version_id: "v3", profile_version: 3, change_note: "Tighter rules", severity_threshold: "low",
         exclusions: ["vendor/**"], timeout_seconds: 1800, sbom: true, fail_on_critical: false, retention_days: 90,
-        scanners: [{ key: "semgrep", config: { rules: ["p/default"] } }, { key: "gitleaks" }], captured_at: "2026-11-01T10:00:00Z",
+        scanners: [{ key: "semgrep-ce", config: { rules: ["p/default"] } }, { key: "gitleaks" }], captured_at: "2026-11-01T10:00:00Z",
       },
     });
     const { container } = renderApp(<ConfigurationTab job={j} />);
     return waitFor(() => {
       expect(screen.getByText(/Snapshot — read-only; profiles are managed in Configurations/)).toBeInTheDocument();
       expect(screen.getByText("Tighter rules")).toBeInTheDocument();
-      expect(screen.getByLabelText("semgrep configuration").textContent).toContain('"p/default"');
+      expect(screen.getByLabelText("SAST: deep engines · check 1 configuration").textContent).toContain('"p/default"');
       expect(container.querySelectorAll("input, select, textarea, button")).toHaveLength(0);
     });
   });
@@ -216,7 +216,8 @@ describe("configuration tab", () => {
 
 describe("helpers", () => {
   it("labels stages", () => {
-    expect(stageLabel("scanning:trivy")).toBe("Scanning (trivy)");
+    // Rule 3: the stage names the kind of check, not the engine.
+    expect(stageLabel("scanning:trivy-fs")).toBe("Scanning (Dependency check)");
     expect(stageLabel("fetching_source")).toBe("Fetching source");
   });
 });
