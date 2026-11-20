@@ -1,3 +1,4 @@
+import { withGeneratedBy } from "@/lib/buildStamp";
 import { getNodesBounds, getViewportForBounds, type Node } from "@xyflow/react";
 
 /** File name stamp: pathos-<what>-<YYYYMMDD-HHMM>.<ext>, with the PATHOS version when known. */
@@ -42,8 +43,9 @@ export async function exportImage(root: HTMLElement, nodes: Node[], format: "png
   downloadUrl(url, name);
 }
 
+/** Downloads JSON; an object gets a top-level "generated_by" version stamp. */
 export function downloadJson(data: unknown, name: string) {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(withGeneratedBy(data), null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   downloadUrl(url, name);
   setTimeout(() => URL.revokeObjectURL(url), 1000);

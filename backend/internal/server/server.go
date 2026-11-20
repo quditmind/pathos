@@ -23,12 +23,14 @@ import (
 	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
 	"pathos/internal/featureflags"
+	"pathos/internal/feedback"
 	"pathos/internal/gates"
 	"pathos/internal/identity"
 	"pathos/internal/insights"
 	"pathos/internal/intel"
 	"pathos/internal/inventory"
 	"pathos/internal/mcp"
+	"pathos/internal/monitoring"
 	"pathos/internal/notify"
 	"pathos/internal/org"
 	"pathos/internal/platform/buildinfo"
@@ -176,6 +178,11 @@ func Build(d Deps) Handlers {
 	// decided by the threat-model module.
 	aiSvc.SubjectAccess = map[string]ai.SubjectAccess{"threat_model": threatSvc.EvidenceAccess, "threat": threatSvc.EvidenceAccess}
 	aiSvc.SubjectReviewers = map[string]ai.SubjectReviewer{"threat_suggestion_item": threatSvc.ReviewSuggestion}
+	// Feedback loops across modules (PATHOS 3.0 M9): after a snapshot the
+	// threat models update (M5 behaviour) and, with continuous_monitoring,
+	// dependency reassessment and drift alerts run and the feed records it.
+	loops := &feedback.Loops{DB: d.DB, Log: d.Log, Threats: threatSvc}
+	graphSvc.OnSnapshotReady = loops.OnSnapshotReady
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -186,6 +193,7 @@ func Build(d Deps) Handlers {
 		if err := runtimectx.LinkAfterScan(ctx, d.DB, orgID); err != nil {
 			d.Log.Warn("runtime linking failed", "job_id", jobID, "err", err)
 		}
+		loops.OnScanFinished(ctx, orgID, jobID) // feed: new findings (flagged)
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
 		graphSvc.OnScanFinished(ctx, orgID, jobID)
@@ -284,6 +292,7 @@ func Build(d Deps) Handlers {
 	connSvc.Register(protected)
 	remSvc.Register(protected)
 	(&gates.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
+	(&monitoring.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&featureflags.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	protected.HandleFunc("/api/", func(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, d.Log, httpx.ErrNotFound)

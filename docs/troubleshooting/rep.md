@@ -4,7 +4,7 @@ section: troubleshooting
 order: 115
 version: "1.0"
 updated: 2026-11-20
-summary: Saved reports, exports, AI analyst reports and developer insights (4 codes, PTH-REP-*)
+summary: Saved reports, exports, AI analyst reports and developer insights (5 codes, PTH-REP-*)
 ---
 
 # Troubleshooting: Reporting
@@ -21,6 +21,7 @@ Saved reports, exports, AI analyst reports and developer insights.
 | [PTH-REP-1002](#PTH-REP-1002) | AI narrative not generated | warning |
 | [PTH-REP-1003](#PTH-REP-1003) | Developer attribution disabled | info |
 | [PTH-REP-1004](#PTH-REP-1004) | Scheduled report could not be queued | error |
+| [PTH-REP-1101](#PTH-REP-1101) | Unsupported export format | info |
 
 <a id="PTH-REP-1001"></a>
 
@@ -147,4 +148,36 @@ Saved reports, exports, AI analyst reports and developer insights.
 **Verify**
 
 1. The next scheduled run is delivered.
+
+
+<a id="PTH-REP-1101"></a>
+
+## PTH-REP-1101: Unsupported export format
+
+| | |
+|---|---|
+| Severity | info |
+| Category | validation |
+| HTTP status | 400 |
+| AI help | not offered |
+| Short codes | `unsupported_format` |
+| Raised in | internal/compliance/service.go |
+
+**What it means.** The compliance report export supports the formats json and csv only.
+
+**Confirmed cause.** The format parameter is not json or csv. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. An edited link or an API client using another format
+
+**Impact.** No file was produced.
+
+**How to fix**
+
+1. Use format=json or format=csv; print the page for a PDF.
+
+**Verify**
+
+1. The export downloads with the X-PATHOS-Generated-By header.
 

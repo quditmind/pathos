@@ -646,9 +646,7 @@ func (s *Service) aiFixReport(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", "application/octet-stream")
-	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="ai-fix-%s-%s.json"`, id, r.PathValue("which")))
-	w.Header().Set("X-Content-Type-Options", "nosniff")
+	httpx.Download(w, "application/octet-stream", fmt.Sprintf("ai-fix-%s-%s.json", id, r.PathValue("which")))
 	_, _ = w.Write(raw)
 }
 

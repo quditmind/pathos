@@ -248,6 +248,26 @@ Values are not stored or shown by PATHOS.
 
 Details: {{.Link}}`,
 	},
+	{
+		Key: "gate.failed", Label: "Security gate failed", Severity: true, Repository: true,
+		Description: "A security gate blocked a stage or required approval under an explicit security policy (developer feedback; needs continuous monitoring). Pull requests also get the check result.",
+		Dynamic:     []string{"requester", "owners"},
+		Subject:     `[PATHOS] Gate {{.Gate.Outcome}} at {{.Gate.Stage}}: {{.Repository}}`,
+		Body: `The {{.Gate.Stage}} gate of {{.Repository}}{{if .Gate.PullRequest}} (pull request #{{.Gate.PullRequest}}){{end}}{{if .Gate.Commit}} at commit {{.Gate.Commit}}{{end}} returned "{{.Gate.Outcome}}" under the security polic{{if eq .Count 1}}y{{else}}ies{{end}} {{.Gate.Policies}}.
+
+{{.Count}} finding{{if ne .Count 1}}s{{end}} matched{{if .Severity}} (highest severity {{.Severity}}){{end}}.
+
+Fix the findings or request an exception: {{.Link}}`,
+	},
+	{
+		Key: "architecture.drift", Label: "Architecture drift", Severity: true, Repository: true,
+		Description: "A new CodeGraph snapshot changed the architecture (routes, external services, datastores, internet exposure, trust-boundary crossings). Sent only when drift alerts are on in Continuous monitoring.",
+		Dynamic:     []string{"owners"},
+		Subject:     `[PATHOS] Architecture drift in {{.Repository}}`,
+		Body: `The CodeGraph of {{.Repository}}{{if .Drift.Commit}} at commit {{.Drift.Commit}}{{end}} changed since the previous snapshot: {{.Drift.Summary}}.
+
+Review the drift and its evidence: {{.Link}}`,
+	},
 }
 
 var testEvent = EventDef{

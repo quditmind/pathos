@@ -127,8 +127,9 @@ describe("sidebar regroup (prompt §5)", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
     // application; M4: CodeGraph, API & endpoints; M5: Threat models; M7: AI
-    // evidence log; M8: Remediation workspace; M10: Binary analysis, Reverse
-    // engineering tools) carry their route and still their phase and flag.
+    // evidence log; M8: Remediation workspace; M9: Continuous monitoring;
+    // M10: Binary analysis, Reverse engineering tools) carry their route and
+    // still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
@@ -139,11 +140,12 @@ describe("sidebar regroup (prompt §5)", () => {
       ["Binary analysis", "/reverse-engineering", "reverse_engineering"],
       ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Continuous monitoring", "/monitoring", "continuous_monitoring"],
       ["Reverse engineering tools", "/configurations/reverse-engineering", "reverse_engineering"],
     ]);
-    // Not-yet-built modules have no route at all.
-    expect(roadmap.filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
-      ["Continuous monitoring"].sort(),
+    // Every lifecycle module is built: none is left without a route.
+    expect(roadmap.filter((i) => !i.to).map((i) => i.label)).toEqual(
+      [],
     );
     expect(groups.flatMap((g) => g.items).filter((i) => !i.to).map((i) => i.label).sort()).toEqual(
       roadmap.filter((i) => !i.to).map((i) => i.label).sort(),
@@ -193,6 +195,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["Binary analysis", "/reverse-engineering", "reverse_engineering"],
       ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
+      ["Continuous monitoring", "/monitoring", "continuous_monitoring"],
       ["Reverse engineering tools", "/configurations/reverse-engineering", "reverse_engineering"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);

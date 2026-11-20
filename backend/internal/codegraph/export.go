@@ -51,8 +51,7 @@ func (s *Service) export(w http.ResponseWriter, r *http.Request) {
 			s.fail(w, r, err)
 			return
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+		httpx.Download(w, "application/json", name)
 		// #nosec G110 -- the archive was written by PATHOS itself (bounded by the store limits)
 		_, _ = io.Copy(w, zr)
 		return
@@ -64,8 +63,7 @@ func (s *Service) export(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	httpx.Download(w, "application/json", name)
 	bw := bufio.NewWriterSize(w, 64<<10)
 	if err := writeExport(ctx, s.DB, sn, bw); err != nil {
 		s.Log.Warn("CodeGraph export interrupted", "snapshot_id", sn.ID, "err", err)
@@ -78,8 +76,9 @@ func (s *Service) export(w http.ResponseWriter, r *http.Request) {
 // (pathos.codegraph.export/v1): the snapshot summary, every node and every
 // edge with all of its evidence references.
 func writeExport(ctx context.Context, q db.Querier, sn Snapshot, w io.Writer) error {
-	head, _ := json.Marshal(map[string]any{"schema": ExportSchema, "pathos_version": buildinfo.Version,
-		"exported_at": time.Now().UTC(), "snapshot": sn})
+	now := time.Now().UTC()
+	head, _ := json.Marshal(map[string]any{"schema": ExportSchema, "pathos_version": buildinfo.Version, "pathos_build": buildinfo.Commit,
+		"generated_by": buildinfo.Stamp(now), "exported_at": now, "snapshot": sn})
 	if _, err := w.Write(head[:len(head)-1]); err != nil {
 		return err
 	}

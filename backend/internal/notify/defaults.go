@@ -62,6 +62,12 @@ var systemRules = []systemRule{
 		Recipients{Dynamic: []string{"assignee"}}},
 	{"secret_pushed", "Secrets pushed to repositories", "secret.pushed", "",
 		Recipients{Roles: []string{"security_manager"}, Dynamic: []string{"owners"}}},
+	// PATHOS 3.0 M9 feedback loops (events emitted only with the
+	// continuous_monitoring flag; drift alerts also need the setting on).
+	{"gate_failed", "Failed security gates (developer feedback)", "gate.failed", "",
+		Recipients{Dynamic: []string{"requester", "owners"}}},
+	{"architecture_drift", "Architecture drift alerts", "architecture.drift", "",
+		Recipients{Roles: []string{"security_manager"}, Dynamic: []string{"owners"}}},
 }
 
 // EnsureDefaults seeds built-in rules and, on first run, SMTP settings from

@@ -172,6 +172,37 @@ describe("lifecycle overview", () => {
     expect(screen.getByText(/Assess: no data yet/)).toBeInTheDocument();
   });
 
+  it("never says a built module arrives later, and shows the M9 metrics", async () => {
+    // Example data for tests only: the 3.0 phases with their new metric keys.
+    const m9 = (p: Phase): Phase =>
+      p.key === "threat_model"
+        ? { ...p, available: true, has_data: true, summary: "1 threat model, 2 open threats", metrics: { threat_models: 1, threats: 3, open_threats: 2 } }
+        : p.key === "remediate"
+          ? { ...p, has_data: true, summary: "2 remediation items", metrics: { remediation_items: 2, open_remediation_items: 1, failed_gate_decisions: 1 } }
+          : p.key === "report"
+            ? { ...p, has_data: true, summary: "4 monitoring events", metrics: { monitoring_events: 4, drift_changes: 1 } }
+            : p.key === "assess"
+              ? { ...p, summary: "" }
+              : p;
+    const app = { ...life, phases: phases.map(m9) };
+    mockApi({ "GET /api/v1/meta": meta({ lifecycle_overview: true, onboarding: true }), "GET /api/v1/lifecycle/overview": () => ({ items: [app], phase_totals: [1, 1, 1, 1, 0, 0, 0, 1, 1], truncated: false }) });
+    const { container, unmount } = renderApp(<LifecyclePage />, { permissions: ["repos.read"] });
+    expect(await screen.findByText(/Threat model: has data\. 1 threat model, 2 open threats\. 1 threat models, 3 threats, 2 open threats/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Payments Platform: Remediate & gate" })).toHaveAttribute("href", "/remediation?application_id=a1");
+    expect(screen.getByRole("link", { name: "Payments Platform: Report & monitor" })).toHaveAttribute("href", "/monitoring?application_id=a1");
+    expect(screen.getByRole("link", { name: "Payments Platform: Threat model" })).toHaveAttribute("href", "/applications/a1?tab=threat-model");
+    // A phase without a server summary still says so honestly.
+    expect(screen.getByText(/Assess: no data yet\. No data yet/)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(/arrives in|\bM5\b|\bM4\b|not built yet/);
+    unmount();
+    const { LifecycleStrip } = await import("./LifecycleStrip");
+    renderApp(<LifecycleStrip phases={app.phases} />);
+    const remediate = await screen.findByRole("list", { name: "Remediate & gate metrics" });
+    expect(remediate).toHaveTextContent("2 remediation items");
+    expect(remediate).toHaveTextContent("1 failed gate decisions");
+    expect(screen.getByRole("list", { name: "Report & monitor metrics" })).toHaveTextContent("4 monitoring events (30 days)");
+  });
+
   it("is off without its flag", async () => {
     mockApi({ "GET /api/v1/meta": meta({}) });
     renderApp(<LifecyclePage />, { permissions: ["repos.read"] });

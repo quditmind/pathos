@@ -30,6 +30,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 
+	"pathos/internal/monitoring"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/policy"
 )
@@ -383,7 +384,79 @@ func Evaluate(ctx context.Context, tx pgx.Tx, in Input) (Decision, error) {
 	if err := insert(ctx, tx, in, &d); err != nil {
 		return d, err
 	}
+	if err := developerFeedback(ctx, tx, in, &d); err != nil {
+		return d, err
+	}
 	return d, nil
+}
+
+// developerFeedback is feedback loop 6 (PATHOS 3.0 M9, flag
+// continuous_monitoring): a decision that blocks or requires approval —
+// which, by rule 7, always names the policies that decided — notifies the
+// developers through the existing channels (event gate.failed: in-app and
+// e-mail rules, outbound webhooks; pull requests also get the check
+// result) and appears in the monitoring feed. A decision without a policy
+// never blocks, so it never produces feedback.
+func developerFeedback(ctx context.Context, tx pgx.Tx, in Input, d *Decision) error {
+	if !d.Blocks() || len(d.PolicyIDs) == 0 {
+		return nil
+	}
+	on, err := monitoring.Enabled(ctx, tx, in.OrgID)
+	if err != nil || !on {
+		return err
+	}
+	var names []string
+	for _, g := range d.Gates {
+		if (g.Effect == OutcomeBlock || g.Effect == OutcomeApproval) && g.Policy.Name != "" && !slices.Contains(names, g.Policy.Name) {
+			names = append(names, g.Policy.Name)
+		}
+	}
+	policies := `"` + strings.Join(names, `", "`) + `"`
+	if len(names) == 0 {
+		policies = fmt.Sprintf("%d", len(d.PolicyIDs))
+	}
+	top := ""
+	for _, sv := range []string{"critical", "high", "medium", "low", "info"} {
+		if d.Evidence.BySeverity[sv] > 0 {
+			top = sv
+			break
+		}
+	}
+	var sev *string
+	if top != "" {
+		sev = &top
+	}
+	pr := 0
+	if d.PullRequest != nil {
+		pr = *d.PullRequest
+	}
+	payload := map[string]any{"stage": d.Stage, "outcome": d.Outcome, "policies": policies, "policy_ids": d.PolicyIDs,
+		"commit": d.CommitSHA, "pull_request": pr, "count": d.Evidence.Total, "decision_id": d.ID}
+	if in.RequestedBy != nil {
+		payload["requested_by"] = *in.RequestedBy
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO notification_events (organization_id, event_key, repository_id, severity, subject_id, payload)
+		VALUES ($1, 'gate.failed', $2, $3, $4, $5)`, in.OrgID, d.RepositoryID, sev, d.ID, payload); err != nil {
+		return err
+	}
+	evSev := top
+	if evSev == "" {
+		evSev = "medium"
+	}
+	where := d.Stage
+	if pr > 0 {
+		where = fmt.Sprintf("pull request #%d", pr)
+	}
+	did := d.ID
+	_, err = monitoring.Record(ctx, tx, monitoring.Event{OrgID: in.OrgID, ApplicationID: d.ApplicationID, RepositoryID: d.RepositoryID,
+		Type: monitoring.TypeGateFailed, Severity: evSev,
+		Title:         fmt.Sprintf("Gate %s at %s (policy %s)", strings.ReplaceAll(d.Outcome, "_", " "), where, policies),
+		Summary:       fmt.Sprintf("%d matching finding(s). Developers were notified in PATHOS and through subscribed webhooks; pull requests also show the check result.", d.Evidence.Total),
+		EvidenceLabel: monitoring.EvidenceVerified,
+		Evidence:      map[string]any{"gate_decision_id": d.ID, "policy_ids": d.PolicyIDs, "commit": d.CommitSHA, "scan_job_id": d.ScanJobID},
+		SubjectType:   "gate_decision", SubjectID: &did,
+		Details: map[string]any{"stage": d.Stage, "outcome": d.Outcome, "by_severity": d.Evidence.BySeverity, "pull_request": pr}})
+	return err
 }
 
 // evidenceSource chooses the findings the gates look at and the security

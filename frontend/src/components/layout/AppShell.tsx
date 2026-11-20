@@ -77,6 +77,7 @@ import { useFeatureFlags, type FeatureFlag } from "@/features/shell/meta";
 import { BrandBlock, PreReleaseIndicator, VersionBanner } from "@/features/shell/Brand";
 import { HelpMenu } from "@/features/shell/HelpMenu";
 import { ShellProvider } from "@/features/shell/ShellProvider";
+import { PrintStamp } from "@/features/shell/PrintStamp";
 import { Toaster } from "@/components/ui/toast";
 import { CommandPalette, useCommandPaletteHotkey } from "./CommandPalette";
 import { NotificationCentre } from "./NotificationCentre";
@@ -207,7 +208,7 @@ export const groups: NavGroup[] = [
       { label: "Benchmarking", to: "/posture/benchmark", icon: <BarChart3 />, perm: "findings.read" },
       { label: "Compliance", to: "/compliance", icon: <ClipboardCheck />, perm: "findings.read" },
       { label: "Developer insights", to: "/insights/developers", icon: <UserRoundSearch />, perm: "insights.people" },
-      { label: "Continuous monitoring", icon: <RadioTower />, phase: 9, flag: "continuous_monitoring" },
+      { label: "Continuous monitoring", to: "/monitoring", icon: <RadioTower />, perm: "findings.read", phase: 9, flag: "continuous_monitoring" },
     ],
   },
   {
@@ -434,6 +435,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} onToggleTheme={() => setDark(!dark)} />
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto max-w-7xl px-6 py-6">{children}</div>
+          <PrintStamp />
         </main>
       </div>
       <Toaster />

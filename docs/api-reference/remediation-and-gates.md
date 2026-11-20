@@ -26,7 +26,7 @@ An item covers one finding or a group of findings of one repository.
 | `GET` | `/api/v1/remediation/items` | `remediation.read` (rows in scope) | List. Query: `status` (comma list, or `active` = not closed or won't fix), `priority`, `owner_id`, `unassigned=true`, `repository_id`, `application_id`, `overdue=true`, `q` (title, root cause, finding title or file), `sort` (`due_at` default, `-due_at`, `priority`, `status`, `created_at`, `-created_at`), `limit` (1–200, default 50), `cursor`. Returns `{ items, next_cursor, total }` |
 | `POST` | `/api/v1/remediation/items` | `remediation.manage` on each finding's repository | `{ finding_ids, mode: "per_finding" \| "group", title?, kind?, owner_id?, due_at?, priority?, root_cause? }` → `201 { items }`. Defaults: kind from the finding category (SCA → `dependency_upgrade`, IaC/container → `configuration`, else `code_fix`), priority from the highest severity, due date from the SLA engine (earliest `sla_due_at`, `due_source: sla`; `manual` when given). Only open findings; a group covers one repository |
 | `GET` | `/api/v1/remediation/items/{id}` | `remediation.read` | Item with `findings`, `guidance`, `fix_prs`, `verifications`, `can_verify`, `verify_unavailable_reason`, `can_request_verification` (whether the caller may request one) |
-| `PATCH` | `/api/v1/remediation/items/{id}` | `remediation.manage` | `{ title?, status?, owner_id?, clear_owner?, due_at?, clear_due?, priority?, root_cause?, fix_pull_request_id? }`. `clear_due` returns the due date to the SLA engine |
+| `PATCH` | `/api/v1/remediation/items/{id}` | `remediation.manage` | `{ title?, status?, owner_id?, clear_owner?, due_at?, clear_due?, priority?, root_cause?, fix_pull_request_id?, threat_id? }`. `clear_due` returns the due date to the SLA engine; `threat_id` links a threat (`null` unlinks, see [threat link](#threat-link)) |
 | `POST` | `/api/v1/remediation/items/bulk` | `remediation.manage` on every item | `{ ids (1–200), owner_id? \| clear_owner?, due_at?, status?, priority? }` → `{ updated }`. All items are checked first; one invalid item fails the request |
 | `POST` | `/api/v1/remediation/items/{id}/verify` | The item's owner (with `remediation.read`), otherwise `remediation.manage` and `scans.run` | `{ scan_job_id? }` → `202` verification. See [Fix verification](#fix-verification) |
 | `GET` | `/api/v1/remediation/items/{id}/verifications` | `remediation.read` | `{ items }`, newest first |
@@ -52,9 +52,22 @@ Errors: `409 finding_already_tracked` (`PTH-REM-1103`) when a finding belongs to
 
 Findings are never changed by a verification (scans resolve them). Unavailable (`409 fix_not_verifiable`, `PTH-REM-1102`): imported-only findings, findings without a file or recorded commit, uploaded repositories or no SCM connection, no open finding (use a scan), a scan that did not succeed. `409 verification_running` (`PTH-REM-1104`) while one is queued or running. A failed rescan (`PTH-REM-1105`) records the redacted reason and changes nothing.
 
-**Verification** fields: `id, item_id, status (queued|running|completed|failed), result (fixed|still_present|regressed|inconclusive|null), trigger (manual|fix_pr_merged|existing_scan), scanner_keys, scanner_versions, files, before {scan_job_id, commit, result_count}, after {scan_job_id, commit, ref, result_count}, findings [{finding_id, rule_id, file, scanner_key, status_before, status_after, reproduced, removed}], regressions [{rule_id, file, line, title}], fix_pull_request_id, failure_reason, requested_by_email, created_at, finished_at`. Finished verifications are immutable (database trigger).
+**Verification** fields: `id, item_id, status (queued|running|completed|failed), result (fixed|still_present|regressed|inconclusive|null), trigger (manual|fix_pr_merged|existing_scan|fix_submitted), scanner_keys, scanner_versions, files, before {scan_job_id, commit, result_count}, after {scan_job_id, commit, ref, result_count}, findings [{finding_id, rule_id, file, scanner_key, status_before, status_after, reproduced, removed}], regressions [{rule_id, file, line, title}], fix_pull_request_id, failure_reason, requested_by_email, created_at, finished_at`. Finished verifications are immutable (database trigger).
+
+**Item marked fix submitted → targeted rescan** (PATHOS 3.0 M9, needs `continuous_monitoring` too). Setting `status: fix_submitted` queues a targeted rescan (`trigger: fix_submitted`) when the item has findings and no fix pull request that is still open (an open one is verified when it is merged); a fix that cannot be verified gets a `failed` verification with the reason. Queued and finished verifications appear in the [monitoring feed](monitoring.md).
 
 **Fix merged → targeted rescan.** The jobs service checks every minute, in organizations with the flag on, for items whose fix pull request was merged after their last verification, and queues a targeted rescan (`trigger: fix_pr_merged`, `fix_pull_request_id`). An item that cannot be rescanned gets a `failed` verification with the reason, so it is not retried until the next merge.
+
+## Threat link
+
+PATHOS 3.0 M9. An item of kind `threat_mitigation` may reference the [threat](threat-models.md) it mitigates; the threat must belong to a threat model of the item's application, and linking needs `threats.read` there.
+
+- `POST /api/v1/remediation/items` with `threat_id`: with `finding_ids` the new items are linked (kind defaults to `threat_mitigation`; the findings must belong to the threat's application); without findings one application-level item is created for the threat (title "Mitigate: …", priority from the threat's severity; `remediation.manage` on the threat model's repository, or on every repository of the application). Such an item has no findings to rescan, so it cannot be closed by a verification.
+- `PATCH /api/v1/remediation/items/{id}` with `threat_id` links or (`null`) unlinks.
+- `GET /api/v1/remediation/items?threat_id=…` filters; items carry `threat: { id, title, severity, status, threat_model_id, threat_model_title, threat_model_version } | null`.
+- `GET /api/v1/threats/{id}` lists the linked items (`remediation_items`).
+
+Errors: `422 threat_not_linkable` (`PTH-REM-1107`): the threat does not exist or is not visible, belongs to another application, or the item is not a threat mitigation. Deleting the threat unlinks the item.
 
 ## Saved views
 

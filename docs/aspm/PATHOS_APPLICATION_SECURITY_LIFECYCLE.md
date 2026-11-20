@@ -254,6 +254,20 @@ How the new codes sit beside the existing slugs is an open ADR ([assessment C4](
 
 The flow design defines seven feedback loops. The M9 milestone is done when all seven are wired and tested.
 
+**Implemented in M9** (flag `continuous_monitoring`; [user guide](../user-guide/monitoring.md), [API](../api-reference/monitoring.md)). The M9 brief numbered the loops differently from the table below; the wiring follows the brief, and each loop has an integration test in `backend/test/integration/m9_monitoring_test.go`:
+
+| Brief loop | Wired in | Target effect | Test |
+|---|---|---|---|
+| 1 New commit → rediscovery | push/merge webhook → scan → `codegraph.OnScanFinished` (rate-limited) | rediscovery queued, `rediscovery.queued` | `TestM9LoopsArchitecture` |
+| 2 Dependency change → SBOM reassessment | `feedback.Loops.OnSnapshotReady` on component changes between snapshots | component policies re-evaluated, dependency findings re-scored, `dependency.changed` | `TestM9LoopsArchitecture` |
+| 3 Architecture change → threat model | drift per snapshot; `threatmodel.AutoUpdate` | new draft version (approved untouched) or `threat_model.review_needed` | `TestM9LoopsArchitecture` |
+| 4 New CVE → risk reassessment | intelligence sync marks findings dirty; `risk.Recompute` compares before and after | re-scored findings, `risk.rescored` | `TestM9LoopRiskRescore` |
+| 5 Fix merged → targeted rescan | M8 merged-fix loop; item marked `fix_submitted` | targeted verification, `fix.verification_queued` / `fix.verified` | `TestM9LoopFixVerification` |
+| 6 Gate failure → developer feedback | `gates.Evaluate` (only decisions with a policy) | PR check (existing), `gate.failed` notification (in-app, e-mail, webhooks), feed | `TestM9LoopGateFeedback` |
+| 7 New findings → AI intelligence | `ai.OnScanFinished` queue → the automated AI review, which writes an M7 AI evidence record (prompt, response, model) linked from the review | queued for AI triage (`ai.triage_queued`); the conclusion is an AI-inferred evidence record pending a person's decision (`ai.triage_concluded`); never auto-approved, a false-positive verdict always waits for a person | `TestM9LoopAITriage` |
+
+Loop 7 of the table below ("verdict → tune rules") is not part of the brief and stays a proposal.
+
 | # | Loop | What exists today | Status | Missing |
 |---|---|---|---|---|
 | 1 | **Gate failed → developer** | PR checks set a commit status and comment on the four SCMs (`scans/prchecks.go`, `scm/status.go:31-35`); blocking policies name themselves in the summary (`prchecks.go:162`); the CLI gate exits 1 (`backend/cmd/pathos-cli/main.go:55`); `policy.violated` and `scan.failed` notifications (`notify/events.go`) | Existing | Gate verdict in the IDE plugins (`ide/vscode`, `ide/jetbrains` show findings only); release and deploy gates (M8) |

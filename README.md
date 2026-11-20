@@ -8,7 +8,7 @@
 >
 > - Keycloak login with TOTP, recovery codes and optional SAML/OIDC single sign-on; scoped RBAC and an audit log.
 > - Repository and asset management for GitHub, GitLab, Bitbucket Cloud and Azure DevOps, plus local uploads and applications.
-> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; eight opt-in family worker images (SAST, IaC, SCA, DAST, mobile, binary, AI and fuzzing) whose tools are added as manifests; a coverage view of 25 scan types; intrusive testing only with per-target authorization.
+> - Isolated scan workers running open-source scanners (Gitleaks, Opengrep, Trivy, Grype, OSV-Scanner, Checkov, zizmor, actionlint, Nuclei) on repositories, container images, web applications, APIs, build artifacts and SBOMs, with de-duplicated findings; ten opt-in family worker images (SAST, IaC, SCA, DAST, mobile, binary, AI, fuzzing, CodeGraph discovery and reverse engineering) whose tools are added as manifests; a coverage view of 25 scan types; intrusive testing only with per-target authorization.
 > - Contextual risk scoring with EPSS, CISA KEV and OSV; reachability, attack paths and posture analytics.
 > - Human Eye manual review, AI review (Anthropic, OpenAI, xAI) with human approval, the AI Security Analyst and an MCP server.
 > - Vulnerability lifecycle: SLAs, risk acceptance, security policies, compliance views, SBOM export and license policy.

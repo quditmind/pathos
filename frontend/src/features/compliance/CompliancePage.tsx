@@ -1,12 +1,14 @@
 import { Link, useNavigate, useSearch } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardCheck } from "lucide-react";
+import { ClipboardCheck, Download } from "lucide-react";
 import { api } from "@/api/client";
 import type { Severity } from "@/api/types";
 import { SeverityBadge } from "@/components/data/Severity";
 import { Badge, Card, EmptyState, PageHeader, Skeleton, Table, Td, Th } from "@/components/ui/primitives";
 import { cn } from "@/lib/utils";
 import { ErrorPanel } from "@/components/ui/error-panel";
+import { useSession } from "@/features/auth/session";
+import { LifecycleEvidence, lifecycleSections } from "@/features/reporting/LifecycleEvidence";
 
 interface ControlStatus {
   id: string;
@@ -30,6 +32,8 @@ interface Summary {
   attention: number;
   passing: number;
   controls?: ControlStatus[];
+  /** PATHOS 3.0 M9: evidence from CodeGraph, threat models, remediation and gates. */
+  lifecycle_evidence?: unknown;
 }
 
 const statusTone = { failing: "danger", attention: "warning", passing: "success", not_applicable: "neutral" } as const;
@@ -37,6 +41,7 @@ const statusLabel = { failing: "Failing", attention: "Attention", passing: "No o
 const sevs: Severity[] = ["critical", "high", "medium", "low", "info"];
 
 function Framework({ fkey }: { fkey: string }) {
+  const { can } = useSession();
   const q = useQuery({ queryKey: ["compliance", fkey], queryFn: () => api<Summary>(`/api/v1/compliance/frameworks/${fkey}`) });
   if (q.isError) return <ErrorPanel error={q.error} />;
   if (q.isPending) return <Skeleton className="h-64" />;
@@ -44,7 +49,24 @@ function Framework({ fkey }: { fkey: string }) {
   return (
     <Card>
       <div className="border-b border-border px-4 py-3">
-        <h2 className="text-[14px] font-semibold">{f.name} {f.version}</h2>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-[14px] font-semibold">{f.name} {f.version}</h2>
+          {can("findings.export") && (
+            <span className="ml-auto flex items-center gap-3 text-[12px] print:hidden">
+              {(["json", "csv"] as const).map((fmt) => (
+                <a
+                  key={fmt}
+                  href={`/api/v1/compliance/frameworks/${encodeURIComponent(f.key)}/export?format=${fmt}`}
+                  download
+                  className="inline-flex items-center gap-1 text-primary hover:underline"
+                  title="Version-stamped download of this framework report"
+                >
+                  <Download className="size-3.5" aria-hidden /> Export {fmt.toUpperCase()}
+                </a>
+              ))}
+            </span>
+          )}
+        </div>
         <p className="text-[12px] text-muted-foreground">
           {f.description} {f.scope_key ? `${f.repositories_in_scope} repositor${f.repositories_in_scope === 1 ? "y" : "ies"} in scope.` : "Applies to every repository."}
         </p>
@@ -79,6 +101,11 @@ function Framework({ fkey }: { fkey: string }) {
             ))}
           </tbody>
         </Table>
+      )}
+      {lifecycleSections(f.lifecycle_evidence).length > 0 && (
+        <div className="border-t border-border p-4">
+          <LifecycleEvidence sections={lifecycleSections(f.lifecycle_evidence)} />
+        </div>
       )}
     </Card>
   );
