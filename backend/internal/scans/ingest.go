@@ -640,9 +640,23 @@ const ToolUnavailable = "scanner not available in this worker image"
 
 // MissingToolsMessage explains tools that no worker could run (PTH-SCAN-1101).
 func MissingToolsMessage(keys []string) string {
-	return fmt.Sprintf("PTH-SCAN-1101: %d tool(s) of the profile did not run because no online worker has them: %s. "+
-		"Start the worker family image that provides them (Administration > Scanners & workers) or remove them from the profile",
-		len(keys), joinSorted(keys))
+	// Rule 3: execution errors name kinds of check, not tools; Scan profiles
+	// and Scanners & workers name the tools.
+	byKind := map[string]int{}
+	for _, k := range keys {
+		name := scanners.KindName(scanners.PrimaryKindOfTool(k))
+		if name == "" {
+			name = "Other"
+		}
+		byKind[name]++
+	}
+	parts := make([]string, 0, len(byKind))
+	for name, n := range byKind {
+		parts = append(parts, fmt.Sprintf("%s (%d)", name, n))
+	}
+	return fmt.Sprintf("PTH-SCAN-1101: %d check(s) of the profile did not run because no online worker provides them: %s. "+
+		"Start the worker family image that provides them (Administration > Scanners & workers shows which) or remove them from the profile (Scan profiles)",
+		len(keys), joinSorted(parts))
 }
 
 // lockRepositoryFindings serializes the writes of results and the
