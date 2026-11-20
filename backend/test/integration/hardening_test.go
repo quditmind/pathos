@@ -129,7 +129,8 @@ func TestMissingFamilyToolsArePartial(t *testing.T) {
 	}
 	ok := map[string]any{"scanner": "grype", "status": "succeeded", "output_gzip": gzB64([]byte(`{"matches":[]}`))}
 	status, msg := run(ok, missing("gosec"), missing("psalm"))
-	if status != "partial" || !strings.Contains(msg, "PTH-SCAN-1101") || !strings.Contains(msg, "gosec, psalm") {
+	if status != "partial" || !strings.Contains(msg, "PTH-SCAN-1101") || !strings.Contains(msg, "2 check(s)") ||
+		strings.Contains(msg, "gosec") || strings.Contains(msg, "psalm") { // kinds of check, not tool names (rule 3)
 		t.Errorf("some family tools missing: %s %q", status, msg)
 	}
 	if status, _ := run(missing("gosec")); status != "failed" {
