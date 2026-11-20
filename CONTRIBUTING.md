@@ -24,6 +24,27 @@ docker compose up -d --wait       # https://localhost
 
 CI (`.github/workflows/ci.yml`) runs all of these on every pull request, starting from a fresh install.
 
+### CodeGraph and threat-model browser tests
+
+`e2e/tests/codegraph.spec.ts` builds the CodeGraph of a real application through the discovery worker, and `e2e/tests/threatmodels.spec.ts` generates a threat model from one. Both need the `graph` Compose profile; without it they skip with the reason. To run them locally:
+
+```bash
+docker compose --profile graph up -d --wait worker-graph
+export E2E_CODEGRAPH_APP=$(python3 scripts/seed-e2e-app.py | tail -1)
+scripts/e2e.sh -g "CodeGraph|threat model"
+```
+
+`scripts/seed-e2e-app.py` signs in like `scripts/smoke-test.py`, creates the application `PATHOS` (`--name` to change it), uploads a zip of this repository (`git archive HEAD`, or `--zip <file>`) as a Local PC source and imports it without a scan. It is idempotent (an application that already has a repository is left alone) and prints the application id on the last line; `--github-env` also appends `E2E_CODEGRAPH_APP=<id>` to `$GITHUB_ENV`. The threat-model test uploads its own fixture (`e2e/tests/fixtures-data/threat-model-repo`) and only needs the worker. `E2E_CODEGRAPH_WAIT_S` (default 900) bounds the wait for the graph build.
+
+The CI `stack` job does this before the browser tests (`E2E_CODEGRAPH_WAIT_S=600`). Measured cost: the archive of HEAD is ~29 MB as tar, ~11.5 MB as zip (~2,300 files); `pathos-graph discover` on it took 23 s with 4 CPUs / 4 GiB and 32 s with 2 CPUs / 1 GiB (1,237 source files, 12,650 nodes, 32,357 edges, 13.6 MB graph), well inside the worker's 4 GiB limit. The worker image is already built in that job, so the addition (worker start, upload and import, graph build, the two specs) is estimated at 3-5 minutes on a GitHub-hosted runner, under the 10-minute budget. If it ever grows past that, remove the two steps before *Browser tests*: both specs then skip again.
+
+`e2e/tests/reverse-engineering.spec.ts` needs the `rea` profile too (worker-rea and its sandbox runner): `scripts/e2e.sh` first compiles and attests the test-data service with `scripts/e2e-rea-build.sh` (set `E2E_SKIP_REA_BUILD=1` to reuse a build), and the spec uploads it with its own CodeGraph fixture, so it does not need `E2E_CODEGRAPH_APP`. The CI `stack` job starts `worker-graph`, `worker-rea` and `worker-rea-sandbox` in one step (`docker compose --profile graph --profile rea up -d --wait worker-graph worker-rea worker-rea-sandbox`); locally:
+
+```bash
+docker compose --profile graph --profile rea up -d --wait worker-graph worker-rea worker-rea-sandbox
+scripts/e2e.sh -g "Binary analysis|own build"
+```
+
 ## Pull requests
 
 - Use one topic per pull request, and link the issue it closes (`Closes #123`).
