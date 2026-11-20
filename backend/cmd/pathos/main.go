@@ -39,6 +39,7 @@ import (
 	"pathos/internal/identity"
 	"pathos/internal/mcp"
 	"pathos/internal/notify"
+	"pathos/internal/monitoring"
 	"pathos/internal/org"
 	"pathos/internal/platform/config"
 	"pathos/internal/platform/crypto"
@@ -277,6 +278,12 @@ func runJobs(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 			log.Error("CodeGraph retention failed", "err", err)
 		} else if n > 0 {
 			log.Info("archived CodeGraph snapshots past retention", "count", n)
+		}
+		// Continuous monitoring feed: events are kept for a year.
+		if n, err := monitoring.Prune(ctx, pool, 365); err != nil {
+			log.Error("monitoring feed retention failed", "err", err, "error_code", "PTH-MON-1105")
+		} else if n > 0 {
+			log.Info("pruned monitoring events past retention", "count", n)
 		}
 	}
 	// Minimal health listener for container health checks.

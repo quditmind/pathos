@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"pathos/internal/featureflags"
+	"pathos/internal/monitoring"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/platform/tenant"
@@ -217,6 +218,17 @@ func (s *Service) rediscover(ctx context.Context, orgID, jobID uuid.UUID) (*Buil
 	})
 	if err != nil {
 		return nil, "", err
+	}
+	// Feedback loop 1 (new commit → rediscovery) in the monitoring feed.
+	app, repo, snap := *appID, repoID, res.SnapshotID
+	if _, err := monitoring.Record(ctx, s.DB, monitoring.Event{OrgID: orgID, ApplicationID: &app, RepositoryID: &repo,
+		Type: monitoring.TypeRediscoveryQueued, Severity: "info",
+		Title:         "CodeGraph rediscovery queued after a scan of commit " + shortSHA(commit),
+		Summary:       "A " + trigger + " scan of " + ref + " finished; the CodeGraph of the repository is rebuilt from the new commit.",
+		EvidenceLabel: monitoring.EvidenceVerified,
+		Evidence:      map[string]any{"scan_job_id": jobID, "commit": commit, "previous_commit": latestCommit, "snapshot_id": res.SnapshotID},
+		SubjectType:   "snapshot", SubjectID: &snap, Details: map[string]any{"trigger": trigger, "ref": ref}}); err != nil {
+		s.Log.Warn("monitoring event not recorded", "err", err, "error_code", monitoring.CodeRecordFailed)
 	}
 	return &res, "", nil
 }
