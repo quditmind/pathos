@@ -30,7 +30,7 @@ import {
   diffStyle,
   type TraceResult,
 } from "./model";
-import { emptyFilters, evidenceKinds, layers as allLayers, severities, type GraphData, type GraphDiff, type GraphFilters, type Layer, type NodeType, type TraceDirection } from "./types";
+import { emptyFilters, evidenceKinds, layers as allLayers, severities, type GraphData, type GraphDiff, type GraphEdge, type GraphFilters, type Layer, type NodeType, type TraceDirection } from "./types";
 
 /** Timings of the first render, reported once per data set (ADR-005 measurement). */
 export interface RenderMetrics {
@@ -49,13 +49,18 @@ export interface GraphExplorerProps {
   diff?: GraphDiff;
   /** Expand an aggregate (lazy: the caller requests focus on its id). */
   onExpand?: (aggregateId: string) => void;
-  /** Server path tracing; falls back to the loaded edges. Returns edge-id paths. */
-  loadPaths?: (from: string, direction: TraceDirection) => Promise<string[][]>;
+  /**
+   * Server path tracing; falls back to the loaded edges. Returns edge-id paths,
+   * optionally with the edges they use (which may lie outside the view).
+   */
+  loadPaths?: (from: string, direction: TraceDirection) => Promise<string[][] | { paths: string[][]; edges?: GraphEdge[] }>;
   loadDetail?: InspectorProps["loadDetail"];
   detailKey?: readonly unknown[];
   refHref?: InspectorProps["refHref"];
   /** JSON export through the API; without it the loaded graph is downloaded. */
   onExportJson?: () => void | Promise<void>;
+  /** Offer the JSON export (default true; false when the user may not export data). */
+  jsonExport?: boolean;
   /** Layers on at start; all by default. */
   initialLayers?: Layer[];
   /** Node to select at start (deep links). */
@@ -209,7 +214,7 @@ function Explorer(props: GraphExplorerProps) {
   );
 
   const merged = useMemo(() => (diff ? mergeDiff(data, diff) : data), [data, diff]);
-  const dIdx = useMemo(() => (diff ? diffIndex(diff) : undefined), [diff]);
+  const dIdx = useMemo(() => (diff ? diffIndex(diff, data) : undefined), [diff, data]);
   const visible = useMemo(() => filterGraph(merged, filters, activeLayers), [merged, filters, activeLayers]);
   const labels = useMemo(() => {
     const m = new Map<string, string>();
@@ -344,7 +349,7 @@ function Explorer(props: GraphExplorerProps) {
         source: e.source,
         target: e.target,
         type: "evidence",
-        data: { evidence: e.evidence, diff: diffS, emphasis },
+        data: { evidence: e.evidence, diff: diffS, emphasis, count: e.count },
         markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
         ariaLabel: edgeAriaLabel(e, labelOf, diffS),
         focusable: true,
@@ -394,8 +399,9 @@ function Explorer(props: GraphExplorerProps) {
       if (!from) return;
       if (loadPaths) {
         try {
-          const paths = await loadPaths(from, direction);
-          setTrace({ from, direction, result: traceFromPaths(merged.edges, paths, from) });
+          const r = await loadPaths(from, direction);
+          const paths = Array.isArray(r) ? r : r.paths;
+          setTrace({ from, direction, result: traceFromPaths(merged.edges, paths, from, Array.isArray(r) ? [] : (r.edges ?? [])) });
           return;
         } catch {
           setTrace({ from, direction, result: tracePaths(merged.edges, from, direction), note: "The server path search failed; showing paths over the loaded graph." });
@@ -530,7 +536,7 @@ function Explorer(props: GraphExplorerProps) {
             </DM.Trigger>
             <DM.Portal>
               <DM.Content align="end" sideOffset={4} className="z-50 min-w-40 rounded-md border border-border bg-surface p-1 shadow-lg">
-                {(["png", "svg", "json"] as const).map((f) => (
+                {(props.jsonExport === false ? (["png", "svg"] as const) : (["png", "svg", "json"] as const)).map((f) => (
                   <DM.Item key={f} onSelect={() => void doExport(f)} className="cursor-pointer rounded px-2 py-1.5 text-[13px] outline-none data-[highlighted]:bg-surface-muted">
                     {f === "png" ? "PNG image" : f === "svg" ? "SVG image" : "JSON (graph data)"}
                   </DM.Item>

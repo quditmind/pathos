@@ -5,6 +5,8 @@ import { ErrorPanel } from "@/components/ui/error-panel";
 import { EmptyStateCard, FeatureDisabled, LoadingSkeleton } from "@/components/ui/states";
 import { useApplications } from "@/features/repos/api";
 import { useFeatureFlags } from "@/features/shell/meta";
+import { useSession } from "@/features/auth/session";
+import { CodeGraphSettingsCard } from "./CodeGraphSettings";
 import { CodeGraphPanel, type CodeGraphState } from "./CodeGraphPanel";
 import type { CodeGraphView } from "./views";
 import type { CodeGraphSearch as Search } from "./search";
@@ -16,6 +18,8 @@ export function CodeGraphPage() {
   const navigate = useNavigate();
   const apps = useApplications();
   const app = apps.data?.find((a) => a.id === appId);
+  // With the application profile hub (M3, flag onboarding) the breadcrumb leads to the profile's CodeGraph tab.
+  const { flags } = useFeatureFlags();
   const state: CodeGraphState = { view: search.view ?? "architecture", snapshot: search.snapshot, compare: search.compare, focus: search.focus, node: search.node };
   const onStateChange = (s: CodeGraphState) =>
     void navigate({
@@ -35,9 +39,15 @@ export function CodeGraphPage() {
             /
           </li>
           <li>
-            <Link to="/applications" search={{ app: appId } as never} className="hover:underline">
-              {app?.name ?? "Application"}
-            </Link>{" "}
+            {flags.onboarding ? (
+              <Link to="/applications/$id" params={{ id: appId }} search={{ tab: "codegraph" } as never} className="hover:underline">
+                {app?.name ?? "Application"}
+              </Link>
+            ) : (
+              <Link to="/applications" search={{ app: appId } as never} className="hover:underline">
+                {app?.name ?? "Application"}
+              </Link>
+            )}{" "}
             /
           </li>
           <li aria-current="page" className="font-semibold text-foreground">
@@ -59,6 +69,7 @@ export function CodeGraphIndexPage({ view }: { view?: CodeGraphView }) {
   const navigate = useNavigate();
   const { flags, isPending } = useFeatureFlags();
   const apps = useApplications();
+  const { can } = useSession();
   const api = view === "api";
   const header = (
     <PageHeader
@@ -104,6 +115,7 @@ export function CodeGraphIndexPage({ view }: { view?: CodeGraphView }) {
           </label>
         </Card>
       )}
+      {!api && can("settings.manage") && <CodeGraphSettingsCard />}
     </>
   );
 }

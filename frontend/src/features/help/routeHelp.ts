@@ -47,7 +47,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/posture/graph": g("posture", "context-graph"),
   "/codegraph": g("codegraph"),
   "/codegraph/$appId": g("codegraph", "views"),
-  "/api-endpoints": g("codegraph", "api--endpoints"),
+  "/api-endpoints": g("codegraph", "api-endpoints"),
   "/runtime": g("runtime"),
   "/sbom": g("supply-chain"),
   "/portfolio": g("releases-and-vex"),

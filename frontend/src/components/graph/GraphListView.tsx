@@ -123,7 +123,10 @@ export function GraphListView({
             {graph.edges.slice(0, edgeLimit).map((e) => (
               <tr key={e.id}>
                 <Td>{labelOf(e.source)}</Td>
-                <Td>{edgeTypeLabel[e.type] ?? e.type}</Td>
+                <Td>
+                  {edgeTypeLabel[e.type] ?? e.type}
+                  {(e.count ?? 1) > 1 && <span className="text-muted-foreground"> ({e.count} connections)</span>}
+                </Td>
                 <Td>{labelOf(e.target)}</Td>
                 <Td><EvidenceChip evidence={e.evidence} /></Td>
                 <Td>

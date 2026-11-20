@@ -253,7 +253,9 @@ const KindOutside = "other"
 // CheckKinds are the 20 kinds of check of the build prompt (§7), in its
 // order. Extra is filled from the scan-type registry at init.
 var CheckKinds = []CheckKind{
-	{ID: "discovery", Name: "Discovery & CodeGraph", Phase: 3, ScanTypes: []string{},
+	// PATHOS 3.0 M4: pathos-graph (CodeGraph discovery, worker-graph) is the
+	// kind's PATHOS engine; it runs no scan type, so it is named here.
+	{ID: "discovery", Name: "Discovery & CodeGraph", Phase: 3, ScanTypes: []string{}, Extra: []string{PathosGraph},
 		Tools: []KindTool{gap("tree-sitter"), gap("Joern"), ct("Syft", Syft), modeGap("Opengrep (route & DB rules)", Opengrep, "route and database rules"),
 			gap("go-enry"), gap("scc"), gap("Microsoft Application Inspector"), gap("Universal Ctags"), gap("dependency-cruiser"), gap("kin-openapi")}},
 	{ID: "sbom", Name: "SBOM", Phase: 3, ScanTypes: []string{"sbom"},
@@ -328,7 +330,7 @@ var OutsideKinds = []CheckKind{
 
 func init() {
 	for i := range CheckKinds {
-		CheckKinds[i].Extra = kindExtraTools(CheckKinds[i])
+		CheckKinds[i].Extra = append(CheckKinds[i].Extra, kindExtraTools(CheckKinds[i])...)
 	}
 	for i := range OutsideKinds {
 		OutsideKinds[i].Extra = kindExtraTools(OutsideKinds[i])

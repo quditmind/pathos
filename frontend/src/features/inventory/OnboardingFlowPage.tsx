@@ -601,7 +601,7 @@ function DiscoveryDone({ o }: { o: Onboarding }) {
     <Card className="space-y-3 p-4">
       <h2 className="text-[14px] font-semibold">Discovery started</h2>
       <p className="text-[13px]">
-        {a.name} is in the inventory. Repositories are being registered and scanned; the profile shows each phase as data arrives. CodeGraph discovery arrives in M4.
+        {a.name} is in the inventory. Repositories are being registered and scanned; the profile shows each phase as data arrives. When the CodeGraph module is on and a graph worker is online, its CodeGraph is built after the first scan.
       </p>
       <ul className="space-y-1 text-[13px]">
         {jobs.map((j) => (

@@ -12,7 +12,7 @@ export type Emphasis = "none" | "match" | "trace" | "dim";
 export type EntityData = { node: GraphNode; diff?: DiffStatus; emphasis: Emphasis };
 export type AggregateData = { aggregate: AggregateNode; emphasis: Emphasis; onExpand?: (id: string) => void };
 export type BoundaryData = { node: GraphNode; diff?: DiffStatus };
-export type EvidenceEdgeData = { evidence: Evidence; diff?: DiffStatus; emphasis: Emphasis };
+export type EvidenceEdgeData = { evidence: Evidence; diff?: DiffStatus; emphasis: Emphasis; /** Stored edges a lifted or aggregated edge stands for. */ count?: number };
 
 export type EntityFlowNode = Node<EntityData, "entity">;
 export type AggregateFlowNode = Node<AggregateData, "aggregate">;
@@ -83,6 +83,8 @@ export const EntityNode = memo(function EntityNode({ data, selected }: NodeProps
 
 export const AggregateNodeView = memo(function AggregateNodeView({ data, selected }: NodeProps<AggregateFlowNode>) {
   const a = data.aggregate;
+  const sev = topSeverity(a);
+  const findings = findingTotal(a);
   return (
     <div
       className={cn(
@@ -90,6 +92,7 @@ export const AggregateNodeView = memo(function AggregateNodeView({ data, selecte
         selected && "bg-primary/10",
         emphasisCls(data.emphasis),
       )}
+      style={sev ? { borderColor: severityColor[sev] } : undefined}
     >
       <Handle type="target" position={Position.Left} className={handleCls} isConnectable={false} />
       <Layers className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -98,6 +101,11 @@ export const AggregateNodeView = memo(function AggregateNodeView({ data, selecte
         <div className="truncate text-[10.5px] text-muted-foreground">
           {a.count} nodes{aggregateSummary(a) ? ` · ${aggregateSummary(a)}` : ""}
         </div>
+        {findings > 0 && (
+          <div className="truncate text-[10.5px] font-medium" style={{ color: severityColor[sev!] }}>
+            {findings} open finding{findings === 1 ? "" : "s"}, highest {sev}
+          </div>
+        )}
       </div>
       {data.onExpand && (
         <button
@@ -133,7 +141,8 @@ export const BoundaryNode = memo(function BoundaryNode({ data }: NodeProps<Bound
 
 export const EvidenceEdge = memo(function EvidenceEdge(props: EdgeProps<EvidenceFlowEdge>) {
   const { sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, markerEnd, selected } = props;
-  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+  const count = data?.count ?? 1;
   const ev = evidenceStyle[data?.evidence ?? "verified"];
   const diffColor = data?.diff && data.diff !== "unchanged" ? diffStyle[data.diff].color : undefined;
   const emphasis = data?.emphasis ?? "none";
@@ -143,6 +152,12 @@ export const EvidenceEdge = memo(function EvidenceEdge(props: EdgeProps<Evidence
       path={path}
       markerEnd={markerEnd}
       interactionWidth={12}
+      label={count > 1 ? `×${count}` : undefined}
+      labelX={labelX}
+      labelY={labelY}
+      labelStyle={{ fontSize: 10, fill: "var(--foreground)" }}
+      labelBgStyle={{ fill: "var(--surface)" }}
+      labelShowBg
       style={{
         stroke: diffColor ?? ev.color,
         strokeWidth: emphasis === "trace" || selected ? 3 : 1.8,

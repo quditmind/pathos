@@ -128,6 +128,20 @@ export function Inspector({ node, aggregate, edges, labelOf, loadDetail, detailK
         <p className="text-[12px] text-muted-foreground">
           {aggregate.count} nodes grouped by the server{aggregateSummary(aggregate) ? `: ${aggregateSummary(aggregate)}` : ""}.
         </p>
+        {severities.some((s) => (aggregate.finding_counts?.[s] ?? 0) > 0) && (
+          <div>
+            <div className="mb-1 text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">Open findings in the group</div>
+            <div className="flex flex-wrap gap-2">
+              {severities
+                .filter((s) => (aggregate.finding_counts?.[s] ?? 0) > 0)
+                .map((s) => (
+                  <span key={s} className="inline-flex items-center gap-1 text-[12px]">
+                    <SeverityBadge value={s} /> {aggregate.finding_counts![s]}
+                  </span>
+                ))}
+            </div>
+          </div>
+        )}
         {onExpand && (
           <Button size="sm" onClick={() => onExpand(aggregate.id)}>
             <Expand /> Expand group

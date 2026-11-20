@@ -91,6 +91,46 @@ describe("graph model", () => {
     expect(diffAsGraph(diff).nodes.map((n) => n.id).sort()).toEqual(["fn", "old", "topic"]);
   });
 
+  it("matches a key-based diff (engine contract) to the head graph's ids", () => {
+    const head = {
+      nodes: [
+        { id: "h-a", key: "fn:a", type: "function" as const, label: "a()", layer: "code" as const },
+        { id: "h-b", key: "fn:b", type: "function" as const, label: "b()", layer: "code" as const },
+      ],
+      edges: [{ id: "h-e1", source: "h-a", target: "h-b", type: "calls" as const, evidence: "observed" as const, evidence_refs: [{ kind: "runtime" as const, ref: "x" }] }],
+      aggregated: [],
+    };
+    const diff: GraphDiff = {
+      added: { nodes: [], edges: [] },
+      // Diff edges carry their key and name their ends by key.
+      removed: {
+        nodes: [{ id: "b-c", key: "fn:c", type: "function", label: "c()", layer: "code" }],
+        edges: [{ id: "b-e2", key: "fn:a|calls|fn:c", source: "fn:a", target: "b-c", source_key: "fn:a", target_key: "fn:c", type: "calls", evidence: "verified", evidence_refs: [] }],
+      },
+      changed: { nodes: [{ id: "x-b", key: "fn:b", type: "function", label: "b()", layer: "code" }], edges: [{ id: "x-e1", key: "fn:a|calls|fn:b", source: "", target: "", type: "calls", evidence: "observed", evidence_refs: [] }] },
+    };
+    const idx = diffIndex(diff, head);
+    expect(idx.nodes.get("h-b")).toBe("changed");
+    expect(idx.edges.get("h-e1")).toBe("changed");
+    const merged = mergeDiff(head, diff);
+    // The removed edge's source is resolved to the head node with key fn:a.
+    expect(merged.edges.find((e) => e.id === "b-e2")).toMatchObject({ source: "h-a", target: "b-c" });
+  });
+
+  it("traces over edges the server sent with the paths", () => {
+    const extra = [{ id: "far", source: "fn", target: "elsewhere", type: "calls" as const, evidence: "verified" as const, evidence_refs: [{ kind: "file_line" as const, ref: "x:1" }] }];
+    const r = traceFromPaths(exampleGraph.edges, [["e2", "far"]], "route", extra);
+    expect([...r.edges].sort()).toEqual(["e2", "far"]);
+    expect(r.nodes.has("elsewhere")).toBe(true);
+  });
+
+  it("names aggregated edges with their connection count", () => {
+    const labelOf = (id: string) => id;
+    expect(edgeAriaLabel({ id: "e:1", source: "a", target: "agg:dir:x", type: "calls", evidence: "verified", count: 4, evidence_refs: [{ kind: "file_line", ref: "a:1" }] }, labelOf)).toBe(
+      "a calls agg:dir:x, evidence Verified, 4 connections",
+    );
+  });
+
   it("names nodes and edges for assistive technology", () => {
     expect(nodeAriaLabel(exampleGraph.nodes[2]!)).toBe("POST /example/payments, Route, 1 open finding, highest critical, internet-exposed");
     expect(nodeAriaLabel(exampleGraph.nodes[6]!, "added")).toBe("example-events, Queue, added");
@@ -331,6 +371,18 @@ describe("GraphExplorer", () => {
     const agg = await screen.findByRole("button", { name: "example/pkg, group of 120 nodes, press Enter to expand" });
     fireEvent.keyDown(agg, { key: "Enter" });
     expect(onExpand).toHaveBeenCalledWith("agg:pkg");
+  });
+
+  it("shows an aggregate's open findings and edges to it with their count", async () => {
+    renderExplorer({
+      data: {
+        ...exampleGraph,
+        aggregated: [{ id: "agg:dir:example/pkg", label: "example/pkg", count: 12, child_types: { function: 12 }, finding_counts: { high: 2 } }],
+        edges: [...exampleGraph.edges, { id: "e:agg", source: "fn", target: "agg:dir:example/pkg", type: "calls", evidence: "verified", count: 5, evidence_refs: [{ kind: "file_line", ref: "example/charge.go:60" }] }],
+      },
+    });
+    expect(await screen.findByText("2 open findings, highest high")).toBeInTheDocument();
+    expect(await screen.findByLabelText("exampleCharge() calls example/pkg, evidence Verified, 5 connections")).toBeInTheDocument();
   });
 
   it("reports render metrics once laid out", async () => {

@@ -8,9 +8,10 @@ import { Alert, Card } from "@/components/ui/primitives";
 import { EmptyStateCard, FeatureDisabled, LoadingSkeleton, PermissionDenied } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
 import { useFeatureFlags, useMeta } from "@/features/shell/meta";
+import { useSession } from "@/features/auth/session";
 import { formatDateTime } from "@/lib/utils";
 import { downloadJson, exportFileName } from "@/components/graph/export";
-import { exportUrl, fetchNodeDetail, fetchPaths, useDiff, useGraph, useRebuild, useSnapshots, type BuildAnswer, type CodeGraphSnapshot } from "./api";
+import { exportUrl, fetchNodeDetail, fetchPaths, useCodeGraphViews, useDiff, useGraph, useRebuild, useSnapshots, type BuildAnswer, type CodeGraphSnapshot } from "./api";
 import { codegraphViews, viewInfo, type CodeGraphView } from "./views";
 
 /** URL or local state of the CodeGraph screen. */
@@ -44,11 +45,15 @@ export function diffFromChangeAttrs(g: GraphData): GraphDiff {
 
 const usable = (s: CodeGraphSnapshot) => s.status === "ready" || s.status === "partial";
 
-/** The 15 views as a toggle group. */
-export function ViewSwitcher({ value, onChange }: { value: CodeGraphView; onChange: (v: CodeGraphView) => void }) {
+/**
+ * The 15 views as a toggle group. With the server's view catalogue
+ * (GET /api/v1/codegraph/views) only the views it serves are offered.
+ */
+export function ViewSwitcher({ value, onChange, available }: { value: CodeGraphView; onChange: (v: CodeGraphView) => void; available?: readonly string[] }) {
+  const shown = available?.length ? codegraphViews.filter((v) => available.includes(v) || v === value) : codegraphViews;
   return (
     <div className="flex gap-1 overflow-x-auto pb-1" role="group" aria-label="CodeGraph views">
-      {codegraphViews.map((v) => (
+      {shown.map((v) => (
         <button
           key={v}
           type="button"
@@ -115,6 +120,11 @@ export function CodeGraphPanel({
   const { flags, isPending: flagsPending } = useFeatureFlags();
   const enabled = flags.codegraph === true;
   const meta = useMeta();
+  const { can } = useSession();
+  // No dead buttons: building needs scans.run, the JSON export findings.export (as on the API).
+  const canBuild = can("scans.run");
+  const canExport = can("findings.export");
+  const viewCatalogue = useCodeGraphViews(enabled);
   const snaps = useSnapshots(applicationId, enabled);
   const rebuild = useRebuild(applicationId);
   const [buildErrors, setBuildErrors] = useState<NonNullable<BuildAnswer["errors"]>>([]);
@@ -136,6 +146,7 @@ export function CodeGraphPanel({
 
   const loadDetail = useCallback((nid: string) => fetchNodeDetail(applicationId, current!.id, nid), [applicationId, current]);
   const loadPaths = useCallback((from: string, dir: "in" | "out") => fetchPaths(applicationId, current!.id, from, dir), [applicationId, current]);
+  const comparedWith = graph.data?.base_snapshot_id ? list.find((s) => s.id === graph.data!.base_snapshot_id) : undefined;
   const onExpand = useCallback((id: string) => setState({ focus: id }), [setState]);
   const onExportJson = useCallback(async () => {
     const data = await api<unknown>(exportUrl(applicationId, current!.id));
@@ -157,11 +168,11 @@ export function CodeGraphPanel({
         if (!r?.errors?.length || r.snapshots?.length) toast.success("CodeGraph build queued. The graph appears when the build finishes.");
       },
     });
-  const rebuildBtn = (
+  const rebuildBtn = canBuild ? (
     <Button size="sm" onClick={doRebuild} disabled={rebuild.isPending || latest?.status === "queued" || latest?.status === "building"}>
       <RefreshCw /> {list.length ? "Rebuild" : "Build CodeGraph"}
     </Button>
-  );
+  ) : null;
 
   if (!list.length) {
     return (
@@ -169,7 +180,7 @@ export function CodeGraphPanel({
         {rebuild.isError && <ErrorPanel error={rebuild.error} title="Could not start the CodeGraph build" />}
         <EmptyStateCard icon={<Waypoints />} title="No CodeGraph yet" action={rebuildBtn}>
           The CodeGraph is built from the application's repositories by the graph worker: files, functions, routes, data stores, components and the edges between them,
-          each with its evidence. Build it now, or it is built after the next scan.
+          each with its evidence. {canBuild ? "Build it now, or it is built after the next scan." : "It is built after the next scan, or by someone who can run scans."}
         </EmptyStateCard>
       </div>
     );
@@ -199,7 +210,7 @@ export function CodeGraphPanel({
         ) : (
           <span>No finished graph yet.</span>
         )}
-        <span className="ml-auto">{rebuildBtn}</span>
+        {rebuildBtn && <span className="ml-auto">{rebuildBtn}</span>}
       </div>
       {rebuild.isError && <ErrorPanel error={rebuild.error} title="Could not start the CodeGraph build" />}
       {buildErrors.length > 0 && (
@@ -209,8 +220,20 @@ export function CodeGraphPanel({
         </Alert>
       )}
       {latest && <BuildStatus snap={latest} />}
-      <ViewSwitcher value={state.view} onChange={(view) => setState({ view, focus: undefined, node: undefined })} />
-      <p className="text-[12px] text-muted-foreground">{info.description}</p>
+      <ViewSwitcher
+        value={state.view}
+        available={viewCatalogue.data?.views?.map((v) => v.name)}
+        onChange={(view) => setState({ view, focus: undefined, node: undefined })}
+      />
+      <p className="text-[12px] text-muted-foreground">
+        {info.description}
+        {isChangeImpact && comparedWith && (
+          <>
+            {" "}
+            Compared with the snapshot of <code>{comparedWith.commit_sha ? comparedWith.commit_sha.slice(0, 12) : comparedWith.id}</code>.
+          </>
+        )}
+      </p>
       {state.focus && (
         <div className="flex items-center gap-2 text-[12px]">
           <span>Showing an expanded group.</span>
@@ -223,7 +246,7 @@ export function CodeGraphPanel({
         <ErrorPanel error={graph.error} title={`Could not load the ${info.label} view`} onVerify={() => graph.refetch()} />
       ) : diff.isError ? (
         <ErrorPanel error={diff.error} title="Could not compare the snapshots" onVerify={() => diff.refetch()} />
-      ) : isChangeImpact && ready.length < 2 ? (
+      ) : isChangeImpact && (ready.length < 2 || graph.data?.base_snapshot_id === null) ? (
         <EmptyStateCard icon={<Waypoints />} title="Nothing to compare yet">
           Change impact needs two finished snapshots. Rebuild after the next commit, or choose a snapshot to compare with.
         </EmptyStateCard>
@@ -247,7 +270,8 @@ export function CodeGraphPanel({
           loadDetail={loadDetail}
           detailKey={["codegraph", applicationId, current.id]}
           loadPaths={loadPaths}
-          onExportJson={onExportJson}
+          onExportJson={canExport ? onExportJson : undefined}
+          jsonExport={canExport}
           exportName={`codegraph-${applicationName ?? applicationId}-${state.view}`}
           version={meta.data?.version}
           toolbar={

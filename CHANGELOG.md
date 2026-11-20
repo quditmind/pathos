@@ -32,6 +32,14 @@ Behind the feature flag `codegraph` (off by default). Needs the CodeGraph API of
 - Graph render benchmark with synthetic test data: `scripts/graph-bench.sh` (Vite build of `frontend/bench`, Playwright in Chromium, `e2e/perf`), results in `e2e/perf/results/graph-render.json`. 2,000 nodes: p95 774 ms (budget 2 s). ELK layered alone missed the budget (28.6 s for 1,000 nodes); ADR-005 records the measurement and the fast layered layout used above 250 nodes.
 - Playwright `e2e/tests/codegraph.spec.ts`: flag off and on, a graph built by the graph worker, evidence on every edge of all 15 views (API), inspector, trace, list view, light and dark screenshots.
 - Dependencies: `@xyflow/react` 12.12.1 (MIT), `elkjs` 0.12.1 (EPL-2.0 OR GPL-3.0-or-later, used under EPL-2.0, listed in `NOTICE`), `html-to-image` 1.11.13 (MIT). The CodeGraph pages, React Flow and the layout worker load lazily.
+- **CodeGraph settings** on `/codegraph` for administrators with `settings.manage` (automatic rediscovery, minimum interval, snapshots kept; `GET`/`PUT /api/v1/codegraph/settings`).
+
+#### Changed
+- The application profile's **CodeGraph** tab (M3 hub) shows the CodeGraph of the application (`CodeGraphPanel`, loaded lazily; it checks the `codegraph` flag) instead of "arrives in M4". The CodeGraph page's breadcrumb leads to the profile while the `onboarding` flag is on.
+- No dead buttons: **Build CodeGraph** and **Rebuild** are shown only with `scans.run`; the JSON export only with `findings.export` (as the API requires).
+- The web client follows the engine's contract: node `key`, `parent` and `group`; edge `count` (lifted and aggregated `e:` edges show "×N" and "N connections" in their accessible name and in the list view); evidence kind `registry` ("Inventory record"); the graph response's `snapshot_id`, `view`, `depth`, `limit` and `base_snapshot_id` (Change impact names the snapshot it compares with); aggregates with their open findings and edges to `agg:` ids; diffs matched by stable keys (removed edges drawn between the right nodes); path tracing over the edges the server returns with the paths; the view switcher offers the views of `GET /api/v1/codegraph/views`.
+- Rule 3: the CodeGraph never names scanner tools. Discovery engine names in build errors, evidence details, rule references and engine-reported attributes read "engine"; the snapshot's engine versions are not shown. The rule-3 test renders the hub's CodeGraph tab, the graph, the list view, the node inspector and the CodeGraph and API & endpoints pages.
+- `pathos-graph` belongs to the *Discovery & CodeGraph* kind of check (M6) and is never seeded into the Quick, Standard or Comprehensive profiles nor counted as selectable there.
 
 ### PATHOS 3.0 M6 — Scan profiles and kinds of check
 

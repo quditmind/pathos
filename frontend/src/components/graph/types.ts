@@ -72,6 +72,8 @@ export interface NodeAttrs {
 
 export interface GraphNode {
   id: string;
+  /** Stable across snapshots (type and qualified name); diffs compare keys. */
+  key?: string;
   type: NodeType;
   label: string;
   attrs?: NodeAttrs;
@@ -79,6 +81,8 @@ export interface GraphNode {
   layer: Layer;
   /** Containment: a trust boundary (or another group) holding this node. */
   parent?: string;
+  /** The server aggregate this node belongs to (`agg:dir:…` or `agg:type:…`). */
+  group?: string;
 }
 
 export interface GraphEdge {
@@ -88,6 +92,17 @@ export interface GraphEdge {
   type: EdgeType;
   evidence: Evidence;
   evidence_refs: EvidenceRef[];
+  /**
+   * Stored edges this edge stands for: 1 for a stored edge, more for a lifted
+   * or aggregated edge (its id starts with `e:` and its evidence_refs are
+   * samples). Absent means 1.
+   */
+  count?: number;
+  /** Stable key (`<source key>|<type>|<target key>`), from diffs and exports. */
+  key?: string;
+  /** Diff edges name their ends by node key. */
+  source_key?: string;
+  target_key?: string;
 }
 
 /** A server-side group standing in for many nodes; expand it by requesting focus on its id. */
@@ -96,6 +111,8 @@ export interface AggregateNode {
   label: string;
   count: number;
   child_types: NodeType[] | Record<string, number>;
+  /** Open findings of the members, by severity. */
+  finding_counts?: Partial<Record<GraphSeverity, number>>;
   layer?: Layer;
   parent?: string;
 }
@@ -105,6 +122,14 @@ export interface GraphData {
   edges: GraphEdge[];
   aggregated?: AggregateNode[];
   truncated?: boolean;
+  /** What the server answered for (graph endpoint). */
+  snapshot_id?: string;
+  view?: string;
+  focus?: string;
+  depth?: number;
+  limit?: number;
+  /** change_impact: the snapshot compared with (null: none before this one). */
+  base_snapshot_id?: string | null;
 }
 
 /** Version compare: what changed between two snapshots. */

@@ -192,9 +192,13 @@ export function tracePaths(edges: GraphEdge[], start: string, direction: TraceDi
   return { nodes, edges: out };
 }
 
-/** Converts a server path answer ({paths: [[edge_id…]]}) into a highlight set. */
-export function traceFromPaths(edges: GraphEdge[], paths: string[][], start: string): TraceResult {
-  const byId = new Map(edges.map((e) => [e.id, e]));
+/**
+ * Converts a server path answer ({paths: [[edge_id…]]}) into a highlight set.
+ * `extra` are the edges the server sent with the paths (they may lie outside
+ * the loaded view).
+ */
+export function traceFromPaths(edges: GraphEdge[], paths: string[][], start: string, extra: GraphEdge[] = []): TraceResult {
+  const byId = new Map([...extra, ...edges].map((e) => [e.id, e]));
   const r: TraceResult = { nodes: new Set([start]), edges: new Set() };
   for (const p of paths)
     for (const id of p) {
@@ -213,12 +217,50 @@ export interface DiffIndex {
   counts: Record<Exclude<DiffStatus, "unchanged">, number>;
 }
 
-export function diffIndex(diff: GraphDiff): DiffIndex {
+/** Node id → stable key of a graph (nodes without a key are left out). */
+export function nodeKeys(g: Pick<GraphData, "nodes">): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const n of g.nodes) if (n.key) m.set(n.id, n.key);
+  return m;
+}
+
+/** Stable key of an edge: its own, or `<source key>|<type>|<target key>` from the node keys. */
+export function edgeKeyOf(e: GraphEdge, keys: Map<string, string>): string | undefined {
+  if (e.key) return e.key;
+  const s = keys.get(e.source);
+  const t = keys.get(e.target);
+  return s && t ? `${s}|${e.type}|${t}` : undefined;
+}
+
+/**
+ * Diff status by id. Diffs compare snapshots by stable keys, so with the head
+ * graph the statuses also reach its elements whose ids differ (stored edges
+ * matched by key; lifted `e:` edges are not stored edges and stay unmarked).
+ */
+export function diffIndex(diff: GraphDiff, head?: GraphData): DiffIndex {
   const nodes = new Map<string, DiffStatus>();
   const edges = new Map<string, DiffStatus>();
+  const headNodeByKey = new Map<string, string>();
+  const headEdgeByKey = new Map<string, string>();
+  if (head) {
+    const keys = nodeKeys(head);
+    for (const [id, k] of keys) headNodeByKey.set(k, id);
+    for (const e of head.edges) {
+      const k = edgeKeyOf(e, keys);
+      if (k) headEdgeByKey.set(k, e.id);
+    }
+  }
   for (const s of ["added", "removed", "changed"] as const) {
-    for (const n of diff[s].nodes) nodes.set(n.id, s);
-    for (const e of diff[s].edges) edges.set(e.id, s);
+    for (const n of diff[s].nodes) {
+      nodes.set(n.id, s);
+      const h = n.key ? headNodeByKey.get(n.key) : undefined;
+      if (h && s !== "removed") nodes.set(h, s);
+    }
+    for (const e of diff[s].edges) {
+      edges.set(e.id, s);
+      const h = e.key ? headEdgeByKey.get(e.key) : undefined;
+      if (h && s !== "removed") edges.set(h, s);
+    }
   }
   const counts = { added: 0, removed: 0, changed: 0 };
   for (const s of ["added", "removed", "changed"] as const) counts[s] = diff[s].nodes.length + diff[s].edges.length;
@@ -230,10 +272,17 @@ export function mergeDiff(head: GraphData, diff: GraphDiff): GraphData {
   const ids = new Set(head.nodes.map((n) => n.id));
   const eids = new Set(head.edges.map((e) => e.id));
   const nodes = [...head.nodes, ...diff.removed.nodes.filter((n) => !ids.has(n.id))];
+  // Removed edges name their ends by key: a removed node, or a head node with that key.
+  const byKey = new Map<string, string>();
+  for (const n of nodes) if (n.key && !byKey.has(n.key)) byKey.set(n.key, n.id);
   const all = new Set(nodes.map((n) => n.id));
   for (const a of head.aggregated ?? []) all.add(a.id);
-  const edges = [...head.edges, ...diff.removed.edges.filter((e) => !eids.has(e.id) && all.has(e.source) && all.has(e.target))];
-  return { ...head, nodes, edges };
+  const end = (id: string, key?: string) => (all.has(id) ? id : (key && byKey.get(key)) || id);
+  const removed = diff.removed.edges
+    .filter((e) => !eids.has(e.id))
+    .map((e) => ({ ...e, source: end(e.source, e.source_key), target: end(e.target, e.target_key) }))
+    .filter((e) => all.has(e.source) && all.has(e.target));
+  return { ...head, nodes, edges: [...head.edges, ...removed] };
 }
 
 /** A diff as a graph on its own (when no head graph is loaded). */
@@ -264,7 +313,8 @@ export function nodeAriaLabel(n: GraphNode, diff?: DiffStatus): string {
 }
 
 export function edgeAriaLabel(e: GraphEdge, labelOf: (id: string) => string, diff?: DiffStatus): string {
-  const s = `${labelOf(e.source)} ${edgeTypeLabel[e.type] ?? e.type} ${labelOf(e.target)}, evidence ${evidenceStyle[e.evidence].label}`;
+  let s = `${labelOf(e.source)} ${edgeTypeLabel[e.type] ?? e.type} ${labelOf(e.target)}, evidence ${evidenceStyle[e.evidence].label}`;
+  if ((e.count ?? 1) > 1) s += `, ${e.count} connections`;
   return diff && diff !== "unchanged" ? `${s}, ${diff}` : s;
 }
 

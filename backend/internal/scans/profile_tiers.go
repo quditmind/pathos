@@ -57,9 +57,10 @@ var optInTools = []string{scanners.ClamAV}
 // mirrors profileRequest.validate, so seeded settings always validate.
 // Tools with decision "optional" (licence-limited, for example Semgrep CE
 // registry rules or Bearer's Elastic licence) are left to the
-// administrator's own choice and never seeded.
+// administrator's own choice and never seeded. The CodeGraph discovery tool
+// (pathos-graph) runs only in CodeGraph builds and is refused in profiles.
 func profileEligible(sc scanners.Scanner) bool {
-	return sc.AdapterAvailable && !sc.Intrusive && sc.Network != "target" && !sc.TargetOnly && sc.Decision == "use"
+	return sc.AdapterAvailable && !sc.Intrusive && sc.Network != "target" && !sc.TargetOnly && sc.Decision == "use" && !scanners.IsGraphTool(sc.Key)
 }
 
 // TierSettings returns the settings of a tier: for every kind of check, the
@@ -228,7 +229,7 @@ func (s *Service) profileKinds(w http.ResponseWriter, r *http.Request) {
 			if !ok {
 				continue
 			}
-			if profileEligible(sc) || (sc.AdapterAvailable && !sc.TargetOnly && !sc.Intrusive && sc.Network != "target") {
+			if profileEligible(sc) || (sc.AdapterAvailable && !sc.TargetOnly && !sc.Intrusive && sc.Network != "target" && !scanners.IsGraphTool(sc.Key)) {
 				pk.Available++
 			}
 			if !selected[key] {

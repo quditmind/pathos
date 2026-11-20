@@ -343,6 +343,7 @@
     "osv-scanner": "dependencies",
     "pathos-depcheck": "supply-chain",
     "pathos-endpoints": "web-api",
+    "pathos-graph": "discovery",
     "pathos-reach": "dependencies",
     "phpstan": "sast-language",
     "pip-audit": "dependencies",
@@ -643,6 +644,11 @@
     {
       "key": "pathos-endpoints",
       "name": "PATHOS endpoint verification",
+      "first_party": true
+    },
+    {
+      "key": "pathos-graph",
+      "name": "PATHOS CodeGraph discovery (pathos-graph)",
       "first_party": true
     },
     {

@@ -64,7 +64,7 @@ With **automatic rediscovery** on (the default), each successful scan of a repos
 - the newest snapshot is older than the **minimum interval** (default 60 minutes);
 - the scanned commit differs from the newest ready snapshot's commit.
 
-Administrators change these settings (and retention) with [`PUT /api/v1/codegraph/settings`](../api-reference/codegraph.md#settings).
+Administrators (`settings.manage`) change these settings and retention under **CodeGraph settings** at the bottom of **3 · Discover › CodeGraph**, or with [`PUT /api/v1/codegraph/settings`](../api-reference/codegraph.md#settings).
 
 ## Views
 
