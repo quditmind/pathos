@@ -57,18 +57,25 @@ type View struct {
 	CreatedAt      time.Time  `json:"created_at"`
 	UpdatedAt      time.Time  `json:"updated_at"`
 	EvaluatedAt    *time.Time `json:"evaluated_at"`
+	// ManagedBy is "repository_pr_gate" for a policy generated from a
+	// repository's pull request settings (read-only here; PATHOS 3.0 M8).
+	ManagedBy           string     `json:"managed_by"`
+	ManagedRepositoryID *uuid.UUID `json:"managed_repository_id"`
+	// Gates counts the security gates that use the policy.
+	Gates int `json:"gates"`
 }
 
 const viewSelect = `SELECT p.id, p.name, p.description, p.enabled, p.conditions, p.actions, p.version,
 	(SELECT count(*) FROM policy_violations v WHERE v.policy_id = p.id AND v.resolved_at IS NULL),
-	COALESCE(cu.email, ''), COALESCE(uu.email, ''), p.created_at, p.updated_at, p.evaluated_at
+	COALESCE(cu.email, ''), COALESCE(uu.email, ''), p.created_at, p.updated_at, p.evaluated_at, p.managed_by, p.managed_repository_id,
+	(SELECT count(*) FROM security_gates g WHERE g.policy_id = p.id)
 	FROM security_policies p LEFT JOIN users cu ON cu.id = p.created_by LEFT JOIN users uu ON uu.id = p.updated_by`
 
 func scanView(row pgx.Row) (View, error) {
 	var v View
 	var c, a []byte
 	err := row.Scan(&v.ID, &v.Name, &v.Description, &v.Enabled, &c, &a, &v.Version, &v.OpenViolations, &v.CreatedBy, &v.UpdatedBy,
-		&v.CreatedAt, &v.UpdatedAt, &v.EvaluatedAt)
+		&v.CreatedAt, &v.UpdatedAt, &v.EvaluatedAt, &v.ManagedBy, &v.ManagedRepositoryID, &v.Gates)
 	if err != nil {
 		return v, err
 	}
@@ -93,6 +100,11 @@ func (s *Service) fail(w http.ResponseWriter, r *http.Request, err error) {
 	}
 	httpx.WriteError(w, r, s.Log, err)
 }
+
+// ErrManaged refuses changes to a policy generated from a repository's
+// pull request settings (PTH-GATE-1105).
+var ErrManaged = httpx.E(http.StatusConflict, "managed_policy",
+	"this policy is generated from a repository's pull request settings; change it there").WithDiag("PTH-GATE-1105")
 
 func (s *Service) requireRead(r *http.Request) (*authz.Principal, error) {
 	p := s.Principal(r.Context())
@@ -243,6 +255,9 @@ func (s *Service) update(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return err
 		}
+		if before.ManagedBy != "" {
+			return ErrManaged
+		}
 		enabled := before.Enabled
 		if in.Enabled != nil {
 			enabled = *in.Enabled
@@ -296,10 +311,20 @@ func (s *Service) remove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = db.InTx(r.Context(), s.DB, func(tx pgx.Tx) error {
-		var exists bool
-		if err := tx.QueryRow(r.Context(), `SELECT true FROM security_policies WHERE organization_id = $1 AND id = $2 FOR UPDATE`,
-			p.OrganizationID, id).Scan(&exists); err != nil {
+		var managed string
+		var gates int
+		if err := tx.QueryRow(r.Context(), `SELECT managed_by, (SELECT count(*) FROM security_gates g WHERE g.policy_id = p.id)
+			FROM security_policies p WHERE organization_id = $1 AND id = $2 FOR UPDATE`,
+			p.OrganizationID, id).Scan(&managed, &gates); err != nil {
 			return err
+		}
+		if managed != "" {
+			return ErrManaged
+		}
+		if gates > 0 {
+			// A gate cannot exist without its policy (rule 7): remove or
+			// re-point the gates first.
+			return httpx.E(http.StatusConflict, "policy_in_use", "the policy is used by security gates; delete or change those gates first").WithDiag("PTH-GATE-1108")
 		}
 		if err := RestoreSLA(r.Context(), tx, id); err != nil {
 			return err

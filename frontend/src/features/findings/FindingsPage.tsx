@@ -1,4 +1,5 @@
 import { RelatedFindings } from "@/features/vuln/RelatedFindings";
+import { CreateRemediationItems } from "@/features/remediation/CreateItems";
 import { categoryLabel } from "@/lib/findingCategories";
 import { FindingDependencyPaths } from "@/features/posture/DependencyPanel";
 import { IntroducedBy } from "./IntroducedBy";
@@ -378,6 +379,7 @@ function BulkBar({ ids, onDone }: { ids: string[]; onDone: () => void }) {
       <Button size="sm" variant="secondary" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: me.user.id }, done)}>Assign to me</Button>
       <Button size="sm" variant="ghost" disabled={bulk.isPending} onClick={() => bulk.mutate({ action: "assign", assignee_id: null }, done)}>Unassign</Button>
       </>}
+      <CreateRemediationItems findingIds={ids} onDone={onDone} />
       <Button size="sm" variant="ghost" className="ml-auto" aria-label="Clear selection" onClick={onDone}><X /></Button>
       {bulk.isError && <div className="w-full"><ErrorPanel error={bulk.error} /></div>}
       {sendToReview.isError && <div className="w-full"><ErrorPanel error={sendToReview.error} /></div>}

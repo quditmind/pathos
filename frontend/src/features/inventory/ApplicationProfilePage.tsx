@@ -39,18 +39,22 @@ export const profileTabs = [
   { key: "threat-model", label: "Threat model" },
   { key: "findings", label: "Findings" },
   { key: "sbom", label: "SBOM & components" },
-  { key: "remediation", label: "Remediation", arrives: "M8" },
+  { key: "remediation", label: "Remediation" },
   { key: "activity", label: "Activity & audit" },
 ] as const;
 export type ProfileTab = (typeof profileTabs)[number]["key"];
+/** A tab whose module is not built yet carries `arrives` (its milestone) and shows disabled; every tab is live since M8. */
+const tabList: readonly { key: ProfileTab; label: string; arrives?: string }[] = profileTabs;
 
 // The CodeGraph tab (M4) loads React Flow lazily, like the /codegraph route; the panel checks the codegraph flag.
 const CodeGraphPanel = lazy(() => import("@/features/codegraph/CodeGraphPanel").then((m) => ({ default: m.CodeGraphPanel })));
 // The Threat model tab (M5) loads with the threat-model pages; the panel checks the threat_models flag.
 const ThreatModelPanel = lazy(() => import("@/features/threatmodels/ThreatModelPanel").then((m) => ({ default: m.ThreatModelPanel })));
+// The Remediation tab (M8) loads with the remediation pages; the panel checks the remediation_workspace flag.
+const RemediationPanel = lazy(() => import("@/features/remediation/RemediationPanel").then((m) => ({ default: m.RemediationPanel })));
 
 export function validateProfileSearch(s: Record<string, unknown>): { tab?: ProfileTab } {
-  const t = profileTabs.find((x) => x.key === s.tab && !("arrives" in x));
+  const t = tabList.find((x) => x.key === s.tab && !x.arrives);
   return { tab: t?.key };
 }
 
@@ -123,8 +127,8 @@ export function ApplicationProfile({ id }: { id: string }) {
         {a.archived_at && <Badge tone="danger">Archived</Badge>}
       </div>
       <div role="tablist" aria-label="Application profile" className="mb-4 flex gap-0.5 overflow-x-auto border-b border-border">
-        {profileTabs.map((t) => {
-          const disabled = "arrives" in t;
+        {tabList.map((t) => {
+          const disabled = !!t.arrives;
           const active = t.key === tab;
           return (
             <button
@@ -165,6 +169,11 @@ export function ApplicationProfile({ id }: { id: string }) {
         )}
         {tab === "findings" && <FindingsTab a={a} />}
         {tab === "sbom" && <SbomTab a={a} />}
+        {tab === "remediation" && (
+          <Suspense fallback={<LoadingSkeleton rows={4} label="Loading remediation" />}>
+            <RemediationPanel applicationId={id} />
+          </Suspense>
+        )}
         {tab === "activity" && <ActivityTab a={a} />}
       </div>
     </>

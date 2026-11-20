@@ -84,6 +84,7 @@ func (s *Service) InternalHandler() http.Handler {
 	s.registerAIFixWorker(authed)
 	s.registerWorkerProvenance(authed)
 	s.registerWorkerSecretValidation(authed)
+	s.mountWorkerRoutes(authed)
 	mux.Handle("/internal/worker/v1/", s.workerAuth(authed))
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) { _, _ = w.Write([]byte("ok")) })
 	return mux

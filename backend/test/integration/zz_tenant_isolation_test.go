@@ -160,6 +160,9 @@ var paramTables = map[string]string{
 	"snapshots": "codegraph_snapshots", "nodes": "codegraph_nodes",
 	// Threat models (M5).
 	"threat-models": "threat_models", "threats": "threats",
+	// PATHOS 3.0 M8: remediation workspace and security gates.
+	"items": "remediation_items", "views": "remediation_views", "gates": "security_gates", "decisions": "gate_decisions",
+	"gate-exceptions": "gate_exceptions",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -575,6 +578,11 @@ func TestTenantIsolation(t *testing.T) {
 			VALUES ($1, $2, $3, $4, $5, 'high', 'manual', now() + interval '30 days')`, uuid.Must(uuid.NewV7()), orgA.ID, "ISO-A-"+uuid.NewString()[:8], f2, aRepo); err != nil {
 			t.Logf("seed A human review: %v", err)
 		}
+		// A security policy in A (security gates reference one).
+		if _, err := iso.Exec(actx, `INSERT INTO security_policies (id, organization_id, name, conditions, actions) VALUES ($1, $2, 'iso-a-policy', '{"min_severity":"critical"}', '{"notify":true}')`,
+			uuid.Must(uuid.NewV7()), orgA.ID); err != nil {
+			t.Logf("seed A security policy: %v", err)
+		}
 		if _, err := iso.Exec(actx, `INSERT INTO developer_insight_settings (organization_id, attribution_enabled) VALUES ($1, true)
 			ON CONFLICT (organization_id) DO UPDATE SET attribution_enabled = true`, orgA.ID); err != nil {
 			t.Logf("seed A attribution: %v", err)
@@ -773,9 +781,12 @@ func TestTenantIsolation(t *testing.T) {
 // organization check; 12 of the 17 parent-in-body creates have a control.
 // Measured 2026-11-20 with M2 (connectors) and M3 together: 144 of 145
 // reach the organization check; 12 of 17 parent-in-body controls.
+// Measured 2026-11-20 with M2, M3, M4, M5 and M8 (remediation and gates)
+// together: 163 of 164 reach the organization check; 14 of 22
+// parent-in-body controls (16 with row-level security).
 const (
-	minWriteRoutesReached = 144
-	minParentControls     = 12
+	minWriteRoutesReached = 163
+	minParentControls     = 14
 )
 
 // requiredWriteRoutes must reach the organization check with a valid body.
@@ -813,6 +824,10 @@ var requiredWriteRoutes = []string{
 	// human reviews: comments, decisions, assessment
 	"POST /api/v1/human-reviews/{id}/comments", "POST /api/v1/human-reviews/{id}/decision", "PUT /api/v1/human-reviews/{id}/assessment",
 	"POST /api/v1/human-reviews/{id}/assign", "PATCH /api/v1/human-reviews/{id}", "POST /api/v1/human-reviews/{id}/independent-review",
+	// remediation workspace and security gates (M8)
+	"PATCH /api/v1/remediation/items/{id}", "POST /api/v1/remediation/items/{id}/verify", "DELETE /api/v1/remediation/views/{id}",
+	"PUT /api/v1/gates/{id}", "DELETE /api/v1/gates/{id}", "POST /api/v1/gates/decisions/{id}/exceptions",
+	"POST /api/v1/gate-exceptions/{id}/approve", "POST /api/v1/gate-exceptions/{id}/reject", "POST /api/v1/gate-exceptions/{id}/revoke",
 }
 
 var uuidRe = regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
@@ -1067,6 +1082,37 @@ func isoWorker(t *testing.T, ctx context.Context, iso *pgxpool.Pool, wapi http.H
 			t.Errorf("worker API %s %s on B's job: %d %s", p.method, p.path, code, truncateBody(out))
 		}
 	}
+	// Fix verification (M8): a queued targeted rescan of B is neither leased
+	// nor answerable by A's worker.
+	{
+		var bItem uuid.UUID
+		if err := ownerPool.QueryRow(ctx, `SELECT id FROM remediation_items WHERE organization_id = $1 LIMIT 1`, orgB).Scan(&bItem); err != nil {
+			t.Fatal("B needs a remediation item:", err)
+		}
+		bVer := uuid.Must(uuid.NewV7())
+		if _, err := ownerPool.Exec(ctx, `INSERT INTO remediation_verifications (id, organization_id, item_id, repository_id, trigger, status, scanner_keys, files, after_ref)
+			VALUES ($1, $2, $3, $4, 'manual', 'queued', '{semgrep}', '{a.py}', 'main')`, bVer, orgB, bItem, bRepo); err != nil {
+			t.Fatal(err)
+		}
+		for range 2 {
+			code, out := call(reg.Token, "POST", "/internal/worker/v1/remediation-lease", map[string]any{})
+			if l := leak(out); l != "" || (code == 200 && bytes.Contains(out, []byte(bVer.String()))) {
+				t.Fatalf("worker of A leased B's fix verification: %d %s", code, truncateBody(out))
+			}
+		}
+		code, out := call(reg.Token, "POST", "/internal/worker/v1/remediation-jobs/"+bVer.String()+"/result", map[string]any{"status": "completed"})
+		if code != 404 || leak(out) != "" {
+			t.Errorf("worker of A answered B's fix verification: %d %s", code, truncateBody(out))
+		}
+		var st string
+		_ = ownerPool.QueryRow(ctx, `SELECT status FROM remediation_verifications WHERE id = $1`, bVer).Scan(&st)
+		if st != "queued" {
+			t.Errorf("B's fix verification changed to %q through A's worker", st)
+		}
+		if _, err := ownerPool.Exec(ctx, `DELETE FROM remediation_verifications WHERE id = $1`, bVer); err != nil {
+			t.Fatal(err)
+		}
+	}
 	var status string
 	_ = ownerPool.QueryRow(ctx, `SELECT status FROM scan_jobs WHERE id = $1`, res.JobID).Scan(&status)
 	if status != "queued" {
@@ -1262,11 +1308,11 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 	}
 }
 
+// isolationFlags are the feature flags switched on for the isolation run.
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace"}
+
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
-// isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models"}
-
 func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	t.Helper()
 	one := func(sql string) uuid.UUID {
@@ -1297,6 +1343,8 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 		ON CONFLICT (organization_id, name) DO UPDATE SET enabled = true`, uuid.Must(uuid.NewV7()), org); err != nil {
 		t.Fatal(err)
 	}
+	// Remediation and gates (M8) rows of B.
+	remItem, gatePolicy, gate, decision := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
 	stmts := []struct {
 		table, sql string
 		args       []any
@@ -1324,6 +1372,14 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 		{"connectors", `INSERT INTO connectors (id, organization_id, kind, name, config, status, last_check_at, last_error_code) VALUES ($1, $2, 'vault', $3, '{"address":"https://vault.b.example"}', 'failing', now(), 'PTH-CONN-1007')`, []any{connector, org, "iso-b-" + n()}},
 		{"connector_health_checks", `INSERT INTO connector_health_checks (id, organization_id, connector_id, status, trigger, error_code, message) VALUES ($1, $2, $3, 'failing', 'user', 'PTH-CONN-1007', 'B check')`, []any{uuid.Must(uuid.NewV7()), org, connector}},
 		{"application_versions", `INSERT INTO application_versions (id, organization_id, application_id, version) VALUES ($1, $2, $3, $4)`, []any{uuid.Must(uuid.NewV7()), org, app, "b-" + n()}},
+		{"remediation_items", `INSERT INTO remediation_items (id, organization_id, repository_id, title, kind, owner_id) VALUES ($1, $2, $3, 'B item', 'code_fix', $4)`, []any{remItem, org, repo, user}},
+		{"remediation_item_findings", `INSERT INTO remediation_item_findings (organization_id, item_id, finding_id) VALUES ($1, $2, $3)`, []any{org, remItem, finding}},
+		{"remediation_verifications", `INSERT INTO remediation_verifications (id, organization_id, item_id, repository_id, trigger, status, failure_reason, finished_at) VALUES ($1, $2, $3, $4, 'manual', 'failed', 'B verification', now())`, []any{uuid.Must(uuid.NewV7()), org, remItem, repo}},
+		{"remediation_views", `INSERT INTO remediation_views (id, organization_id, owner_id, name, filters, shared) VALUES ($1, $2, $3, $4, '{"status":"open"}', true)`, []any{uuid.Must(uuid.NewV7()), org, user, "iso-b-" + n()}},
+		{"security_gates", `WITH p AS (INSERT INTO security_policies (id, organization_id, name, conditions, actions) VALUES ($5, $2, $6, '{"min_severity":"critical"}', '{"block":true}') RETURNING id)
+			INSERT INTO security_gates (id, organization_id, name, stage, policy_id, mode, repository_id) SELECT $1, $2, $3, 'deploy', p.id, 'block', $4 FROM p`, []any{gate, org, "iso-b-gate-" + n(), repo, gatePolicy, "iso-b-gate-policy-" + n()}},
+		{"gate_decisions", `INSERT INTO gate_decisions (id, organization_id, stage, repository_id, outcome, gate_ids, policy_ids, reasons) VALUES ($1, $2, 'deploy', $3, 'block', ARRAY[$4::uuid], ARRAY[$5::uuid], '[{"code":"policy_matched","message":"B"}]')`, []any{decision, org, repo, gate, gatePolicy}},
+		{"gate_exceptions", `INSERT INTO gate_exceptions (id, organization_id, gate_id, decision_id, kind, repository_id, reason, requested_by, expires_at) VALUES ($1, $2, $3, $4, 'exception', $5, 'B exception', $6, now() + interval '30 days')`, []any{uuid.Must(uuid.NewV7()), org, gate, decision, repo, user}},
 	}
 	for _, st := range stmts {
 		var exists bool
