@@ -244,6 +244,8 @@ var refTables = map[string]string{
 	"configuration_id": "ai_configurations", "role_id": "roles", "ticket_connection_id": "ticket_connections",
 	"rule_id": "custom_rules", "policy_id": "security_policies", "upload_id": "source_uploads",
 	"conversation_id": "ai_conversations", "classification_id": "asset_classifications", "oauth_app_id": "scm_oauth_apps",
+	// PATHOS 3.0 M9: remediation items reference an M5 threat.
+	"threat_id": "threats",
 }
 
 func jsonName(f *ast.Field) (string, bool) {

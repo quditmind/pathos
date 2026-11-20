@@ -163,6 +163,8 @@ var paramTables = map[string]string{
 	// PATHOS 3.0 M8: remediation workspace and security gates.
 	"items": "remediation_items", "views": "remediation_views", "gates": "security_gates", "decisions": "gate_decisions",
 	"gate-exceptions": "gate_exceptions",
+	// PATHOS 3.0 M9: architecture drift.
+	"drift": "architecture_drifts",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -1309,7 +1311,8 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 }
 
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace",
+	"continuous_monitoring"}
 
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
@@ -1345,6 +1348,11 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	}
 	// Remediation and gates (M8) rows of B.
 	remItem, gatePolicy, gate, decision := uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7()), uuid.Must(uuid.NewV7())
+	// Monitoring feed and drift (M9) rows of B: a drift needs a snapshot of
+	// an application's repository.
+	driftApp := one(`SELECT application_id FROM repositories WHERE organization_id = $1 AND application_id IS NOT NULL LIMIT 1`)
+	driftRepo := one(`SELECT id FROM repositories WHERE organization_id = $1 AND application_id IS NOT NULL LIMIT 1`)
+	driftSnap := uuid.Must(uuid.NewV7())
 	stmts := []struct {
 		table, sql string
 		args       []any
@@ -1379,6 +1387,14 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 		{"security_gates", `WITH p AS (INSERT INTO security_policies (id, organization_id, name, conditions, actions) VALUES ($5, $2, $6, '{"min_severity":"critical"}', '{"block":true}') RETURNING id)
 			INSERT INTO security_gates (id, organization_id, name, stage, policy_id, mode, repository_id) SELECT $1, $2, $3, 'deploy', p.id, 'block', $4 FROM p`, []any{gate, org, "iso-b-gate-" + n(), repo, gatePolicy, "iso-b-gate-policy-" + n()}},
 		{"gate_decisions", `INSERT INTO gate_decisions (id, organization_id, stage, repository_id, outcome, gate_ids, policy_ids, reasons) VALUES ($1, $2, 'deploy', $3, 'block', ARRAY[$4::uuid], ARRAY[$5::uuid], '[{"code":"policy_matched","message":"B"}]')`, []any{decision, org, repo, gate, gatePolicy}},
+		{"monitoring_events", `INSERT INTO monitoring_events (id, organization_id, repository_id, event_type, feedback_loop, severity, title, evidence_label, evidence)
+			VALUES ($1, $2, $3, 'gate.failed', 6, 'high', 'B event', 'verified', '{"marker":"b"}')`, []any{uuid.Must(uuid.NewV7()), org, repo}},
+		{"architecture_drifts", `WITH s AS (INSERT INTO codegraph_snapshots (id, organization_id, application_id, repository_id, trigger, status, commit_sha)
+			VALUES ($3, $2, $4, $5, 'manual', 'ready', 'b0b0') RETURNING id)
+			INSERT INTO architecture_drifts (id, organization_id, application_id, repository_id, to_snapshot_id, severity, has_changes, counts, items)
+			SELECT $1, $2, $4, $5, s.id, 'high', true, '{"added_routes":1}', '[{"change":"added","category":"route","key":"route:B","label":"B"}]' FROM s`,
+			[]any{uuid.Must(uuid.NewV7()), org, driftSnap, driftApp, driftRepo}},
+		{"monitoring_settings", `INSERT INTO monitoring_settings (organization_id, drift_alerts) VALUES ($1, true)`, []any{org}},
 		{"gate_exceptions", `INSERT INTO gate_exceptions (id, organization_id, gate_id, decision_id, kind, repository_id, reason, requested_by, expires_at) VALUES ($1, $2, $3, $4, 'exception', $5, 'B exception', $6, now() + interval '30 days')`, []any{uuid.Must(uuid.NewV7()), org, gate, decision, repo, user}},
 	}
 	for _, st := range stmts {
