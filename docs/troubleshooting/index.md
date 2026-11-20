@@ -24,6 +24,7 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 | `ONB` | [Onboarding and imports](onb.md) | 12 |
 | `DISC` | [Discovery](disc.md) | 7 |
 | `GRAPH` | [CodeGraph](graph.md) | 5 |
+| `TM` | [Threat modelling](tm.md) | 14 |
 | `SCAN` | [Scanning](scan.md) | 10 |
 | `WORK` | [Workers](work.md) | 6 |
 | `AI` | [AI](ai.md) | 11 |
@@ -32,7 +33,7 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 | `REP` | [Reporting](rep.md) | 4 |
 | `MON` | [Monitoring](mon.md) | 3 |
 
-Areas without codes yet: `TM` (Threat modelling), `REA` (Reverse engineering). Their modules are planned; codes are added with them.
+Areas without codes yet: `REA` (Reverse engineering). Their modules are planned; codes are added with them.
 
 ## Confirmed and probable causes
 

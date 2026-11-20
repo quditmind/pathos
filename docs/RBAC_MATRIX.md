@@ -73,6 +73,9 @@ Generated from `backend/internal/authz/catalog.go` with `make rbac-matrix` (`scr
 | `findings.accept_risk` |  | ✓ |  | ✓ |  |  |  |  |  |  |  |  |
 | `findings.export` |  | ✓ |  | ✓ | ✓ | ✓ | ✓ |  | ✓ |  | ✓ |  |
 | `sbom.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `threats.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| `threats.manage` |  | ✓ |  | ✓ | ✓ | ✓ |  |  | ✓ |  |  |  |
+| `threats.approve` |  | ✓ |  | ✓ |  |  | ✓ |  |  |  |  |  |
 | `reviews.read` |  | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
 | `reviews.assess` |  | ✓ |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |
 | `reviews.assign` |  | ✓ | ✓ | ✓ |  |  |  |  |  |  |  |  |

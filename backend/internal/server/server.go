@@ -50,6 +50,7 @@ import (
 	"pathos/internal/search"
 	"pathos/internal/secrets"
 	"pathos/internal/tenancy"
+	"pathos/internal/threatmodel"
 	"pathos/internal/tickets"
 	"pathos/internal/vuln"
 )
@@ -159,6 +160,10 @@ func Build(d Deps) Handlers {
 	// and successful scans trigger rediscovery (rate-limited).
 	graphSvc := codegraph.NewService(d.DB, az, d.Log, auth.PrincipalFrom, d.Artifacts)
 	scanSvc.OnGraphResult = graphSvc.OnGraphResult
+	// Threat models (flag threat_models): a new snapshot regenerates the
+	// application's threat models in a draft (auto_update).
+	threatSvc := &threatmodel.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
+	graphSvc.OnSnapshotReady = threatSvc.OnSnapshotReady
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -247,6 +252,7 @@ func Build(d Deps) Handlers {
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
 	graphSvc.Register(protected)
+	threatSvc.Register(protected)
 	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)

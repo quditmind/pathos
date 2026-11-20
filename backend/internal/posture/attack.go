@@ -1,6 +1,7 @@
 package posture
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"pathos/internal/authz"
+	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
 	"pathos/internal/runtimectx"
 )
@@ -44,6 +46,15 @@ type AttackPath struct {
 	Entry     string    `json:"entry"` // dast_target | exposed_repository | runtime_exposure
 	Steps     []Step    `json:"steps"`
 	Reasons   []string  `json:"reasons"`
+	// Finding details (additive, used by threat modelling).
+	Title         string     `json:"title"`
+	Category      string     `json:"category"`
+	CVE           string     `json:"cve,omitempty"`
+	CWE           []string   `json:"cwe,omitempty"`
+	RepositoryID  uuid.UUID  `json:"repository_id"`
+	ApplicationID *uuid.UUID `json:"application_id,omitempty"`
+	FilePath      string     `json:"file_path,omitempty"`
+	Line          int        `json:"line,omitempty"`
 }
 
 func (s *Service) attackPaths(w http.ResponseWriter, r *http.Request) {
@@ -59,31 +70,61 @@ func (s *Service) attackPaths(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
-	cond, args, err := scope(p, authz.PermFindingsRead, 4)
+	var appID *uuid.UUID
+	if v := r.URL.Query().Get("application_id"); v != "" {
+		id, err := uuid.Parse(v)
+		if err != nil {
+			s.fail(w, r, httpx.BadRequest("application_id must be a UUID"))
+			return
+		}
+		appID = &id
+	}
+	out, entries, err := QueryAttackPaths(ctx, s.DB, p, AttackPathQuery{MinRisk: minRisk, Limit: limit, ApplicationID: appID})
 	if err != nil {
 		s.fail(w, r, err)
 		return
 	}
-	args = append([]any{p.OrganizationID, minRisk, limit}, args...)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"min_risk": minRisk, "items": out, "counts": entries, "truncated": len(out) >= limit})
+}
+
+// AttackPathQuery filters QueryAttackPaths.
+type AttackPathQuery struct {
+	MinRisk int
+	Limit   int
+	// ApplicationID narrows the paths to one application's repositories.
+	ApplicationID *uuid.UUID
+	// RepositoryID narrows them to one repository.
+	RepositoryID *uuid.UUID
+}
+
+// QueryAttackPaths computes the attack paths in the caller's findings.read
+// scope (also used by threat modelling, internal/threatmodel).
+func QueryAttackPaths(ctx context.Context, q db.Querier, p *authz.Principal, f AttackPathQuery) ([]AttackPath, map[string]int, error) {
+	minRisk, limit := f.MinRisk, f.Limit
+	cond, args, err := scope(p, authz.PermFindingsRead, 6)
+	if err != nil {
+		return nil, nil, err
+	}
+	args = append([]any{p.OrganizationID, minRisk, limit, f.ApplicationID, f.RepositoryID}, args...)
 	// #nosec G202 -- cond is built from placeholders
-	rows, err := s.DB.Query(ctx, `
+	rows, err := q.Query(ctx, `
 	SELECT f.id, f.title, f.severity, f.category, f.risk_score::float8, f.kev, f.exploit_available, f.reachability, f.reachability_basis,
 	       f.package_name, f.package_version, f.file_path, f.start_line, st.kind, st.name, st.reference,
 	       r.id, COALESCE(NULLIF(r.display_name, ''), r.full_name), r.repository_key, r.public_exposure,
 	       COALESCE((SELECT string_agg(e.value, ', ' ORDER BY e.position) FROM repository_public_endpoints e WHERE e.repository_id = r.id), ''),
-	       COALESCE(NULLIF(r.production_url, ''), ''), a.id, a.name, f.runtime_exposed, f.runtime_context
+	       COALESCE(NULLIF(r.production_url, ''), ''), a.id, a.name, f.runtime_exposed, f.runtime_context, f.cve, f.cwe
 	FROM findings f
 	JOIN repositories r ON r.id = f.repository_id
 	LEFT JOIN applications a ON a.id = r.application_id
 	LEFT JOIN scan_targets st ON st.id = f.scan_target_id
 	WHERE f.organization_id = $1 AND f.status IN `+openStatuses+` AND f.risk_score >= $2 AND r.archived_at IS NULL AND `+cond+`
+	  AND ($4::uuid IS NULL OR r.application_id = $4) AND ($5::uuid IS NULL OR r.id = $5)
 	  AND (st.kind IN ('url', 'api') OR f.runtime_exposed
 	       OR (r.public_exposure = 'yes' AND st.id IS NULL AND (f.category <> 'sca' OR f.reachability = 'reachable'))
 	       OR (r.public_exposure = 'yes' AND st.kind = 'image'))
 	ORDER BY f.risk_score DESC, f.kev DESC, f.id LIMIT $3`, args...)
 	if err != nil {
-		s.fail(w, r, err)
-		return
+		return nil, nil, err
 	}
 	defer rows.Close()
 	out := []AttackPath{}
@@ -99,9 +140,13 @@ func (s *Service) attackPaths(w http.ResponseWriter, r *http.Request) {
 		var rtExposed bool
 		var rtCtx []byte
 		if err := rows.Scan(&a.FindingID, &title, &a.Severity, &category, &risk, &a.KEV, &a.Exploit, &reach, &basis, &pkg, &ver, &file, &line,
-			&tKind, &tName, &tRef, &repoID, &repoName, &repoKey, &exposure, &endpoints, &prodURL, &appID, &appName, &rtExposed, &rtCtx); err != nil {
-			s.fail(w, r, err)
-			return
+			&tKind, &tName, &tRef, &repoID, &repoName, &repoKey, &exposure, &endpoints, &prodURL, &appID, &appName, &rtExposed, &rtCtx,
+			&a.CVE, &a.CWE); err != nil {
+			return nil, nil, err
+		}
+		a.Title, a.Category, a.RepositoryID, a.ApplicationID, a.FilePath = title, category, repoID, appID, file
+		if line != nil {
+			a.Line = *line
 		}
 		if risk != nil {
 			a.Risk = *risk
@@ -182,9 +227,5 @@ func (s *Service) attackPaths(w http.ResponseWriter, r *http.Request) {
 		entries[a.Entry]++
 		out = append(out, a)
 	}
-	if err := rows.Err(); err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	httpx.WriteJSON(w, http.StatusOK, map[string]any{"min_risk": minRisk, "items": out, "counts": entries, "truncated": len(out) >= limit})
+	return out, entries, rows.Err()
 }

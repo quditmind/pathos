@@ -151,7 +151,7 @@ export const groups: NavGroup[] = [
   {
     label: "4 · Threat model",
     items: [
-      { label: "Threat models", icon: <ShieldHalf />, phase: 5, flag: "threat_models" },
+      { label: "Threat models", to: "/threat-models", icon: <ShieldHalf />, perm: "threats.read", phase: 5, flag: "threat_models" },
       { label: "Attack paths", to: "/posture/attack-paths", icon: <Route />, perm: "findings.read" },
       { label: "Blast radius", to: "/posture/blast-radius", icon: <Crosshair />, perm: "findings.read" },
     ],

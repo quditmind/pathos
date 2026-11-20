@@ -158,6 +158,8 @@ var paramTables = map[string]string{
 	"reports": "saved_reports", "tag-rules": "tag_rules", "connectors": "connectors",
 	// CodeGraph (M4).
 	"snapshots": "codegraph_snapshots", "nodes": "codegraph_nodes",
+	// Threat models (M5).
+	"threat-models": "threat_models", "threats": "threats",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -177,6 +179,8 @@ var literalParams = map[string]string{
 	"cve":  "CVE-2021-44228",
 	"feed": "epss", "event": "findings.new", "key": "owasp_top10_2021", "scanner": "semgrep", "which": "before",
 	"n": "1", "action": "approve",
+	// Threat-model framework catalogue (bundled reference data).
+	"framework": "attack",
 }
 
 type isoUser struct {
@@ -1261,7 +1265,7 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models"}
 
 func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	t.Helper()

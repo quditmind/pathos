@@ -82,13 +82,14 @@ describe("application profile hub", () => {
     expect(screen.getByText("Onboarding: 6 of 9 fields")).toBeInTheDocument();
     const tabs = screen.getByRole("tablist", { name: "Application profile" });
     expect(within(tabs).getAllByRole("tab").map((t) => t.textContent?.replace(/,.*$/, ""))).toHaveLength(10);
-    for (const [label, m] of [["Threat model", "M5"], ["Remediation", "M8"]]) {
+    for (const [label, m] of [["Remediation", "M8"]]) {
       const t = within(tabs).getByRole("tab", { name: new RegExp(`^${label}`) });
       expect(t).toHaveAttribute("aria-disabled", "true");
       expect(t).toHaveAttribute("title", `${label}: arrives in ${m}`);
     }
-    // CodeGraph (M4) is a live tab; the panel inside checks the codegraph flag.
+    // CodeGraph (M4) and Threat model (M5) are live tabs; their panels check their flags.
     expect(within(tabs).getByRole("tab", { name: "CodeGraph" })).not.toHaveAttribute("aria-disabled");
+    expect(within(tabs).getByRole("tab", { name: "Threat model" })).not.toHaveAttribute("aria-disabled");
     const strip = await screen.findByRole("list", { name: "Lifecycle progress" });
     expect(within(strip).getAllByRole("listitem")).toHaveLength(9);
     const items = within(strip).getAllByRole("listitem");

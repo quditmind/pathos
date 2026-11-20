@@ -13,7 +13,7 @@ import type { CodeGraphView } from "./views";
 const verbatimAttrs = new Set(["file", "path", "qualified_name", "purl", "image", "version", "method", "line", "end_line"]);
 const redactAttrs = (a: Record<string, unknown>) =>
   Object.fromEntries(Object.entries(a).map(([k, v]) => [k, typeof v === "string" && !verbatimAttrs.has(k) ? redactToolNames(v) : v]));
-const redactRef = (r: EvidenceRef): EvidenceRef => ({
+export const redactRef = (r: EvidenceRef): EvidenceRef => ({
   ...r,
   ref: r.kind === "scan" ? redactToolNames(r.ref) : r.ref,
   ...(r.detail ? { detail: redactToolNames(r.detail) } : {}),
