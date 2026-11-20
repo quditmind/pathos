@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"slices"
@@ -17,6 +18,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/monitoring"
 	"pathos/internal/org"
 	"pathos/internal/platform/db"
 	"pathos/internal/platform/httpx"
@@ -599,6 +601,19 @@ func (s *Service) OnScanFinished(ctx context.Context, orgID, jobID uuid.UUID) {
 		WHERE q.finding_id = f.id AND q.status = 'queued' AND f.first_scan_job_id = $1`, jobID)
 	if n := tag.RowsAffected(); n > 0 {
 		s.Log.Info("queued findings for AI review", "job_id", jobID, "count", n)
+		// Feedback loop 7 (new findings → AI triage) in the monitoring
+		// feed. PATHOS 3.0 M7 (AI intelligence) hooks in here: the queue
+		// is the single entry point of automated AI review.
+		var repo uuid.UUID
+		_ = s.DB.QueryRow(ctx, `SELECT repository_id FROM scan_jobs WHERE id = $1`, jobID).Scan(&repo)
+		if _, err := monitoring.Record(ctx, s.DB, monitoring.Event{OrgID: orgID, RepositoryID: &repo, Type: monitoring.TypeAITriageQueued,
+			Severity: "info", Title: fmt.Sprintf("%d new finding%s queued for AI triage", n, map[bool]string{true: "", false: "s"}[n == 1]),
+			Summary: "AI review runs with the organization's AI configuration; its conclusions are labelled AI-inferred, never close or " +
+				"approve anything on their own, and secret values are never sent to the model.",
+			EvidenceLabel: monitoring.EvidenceVerified, Evidence: map[string]any{"scan_job_id": jobID, "ai_config_version_id": cv.ID},
+			SubjectType: "scan_job", SubjectID: &jobID, Details: map[string]any{"queued": n, "min_severity": cv.MinSeverity}}); err != nil {
+			s.Log.Warn("monitoring event not recorded", "err", err, "error_code", monitoring.CodeRecordFailed)
+		}
 	}
 }
 
@@ -716,6 +731,14 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 	var cvID *uuid.UUID
 	if cv != nil {
 		policy, cvID = cv.ApprovalPolicy, &cv.ID
+	}
+	// Continuous monitoring (PATHOS 3.0 M9, feedback loop 7): automated
+	// triage of new findings never approves anything on its own; every AI
+	// decision waits for a person, whatever the configuration's policy.
+	if source == "automated" {
+		if on, err := monitoring.Enabled(ctx, s.DB, orgID); err == nil && on {
+			policy = "always"
+		}
 	}
 	d := Decide(out, severity, policy)
 	status := "applied"
