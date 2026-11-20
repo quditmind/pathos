@@ -1,6 +1,8 @@
 package scm
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
 	"fmt"
 	"net"
@@ -82,7 +84,11 @@ func (p NetPolicy) ValidateBaseURL(raw string) (*url.URL, error) {
 
 // Client returns an HTTP client that refuses blocked destinations, does not
 // follow redirects to other hosts, and has sane timeouts.
-func (p NetPolicy) Client() *http.Client {
+func (p NetPolicy) Client() *http.Client { return p.client(nil) }
+
+// client builds the client; roots == nil means the system pool. TLS 1.2 is
+// the minimum and certificate verification is never disabled.
+func (p NetPolicy) client(roots *x509.CertPool) *http.Client {
 	dialer := &net.Dialer{
 		Timeout: 10 * time.Second,
 		Control: func(_, address string, _ syscall.RawConn) error {
@@ -105,6 +111,7 @@ func (p NetPolicy) Client() *http.Client {
 		MaxIdleConnsPerHost:   4,
 		IdleConnTimeout:       60 * time.Second,
 		ForceAttemptHTTP2:     true,
+		TLSClientConfig:       &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12},
 	}
 	return &http.Client{
 		Transport: tr,

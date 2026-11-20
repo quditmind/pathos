@@ -198,7 +198,18 @@ func TestRuntimeContext(t *testing.T) {
 		return id
 	}
 	shopTarget := target(shopRepo, shopImage+":1.0")
+	// The shop image is built from the shop repository's code (O10: only
+	// such targets link the repository's code findings).
+	_, _ = appPool.Exec(ctx, `UPDATE scan_targets SET config = '{"built_from_repository": true}' WHERE id = $1`, shopTarget)
 	idleTarget := target(idleRepo, "ghcr.io/acme-c4-"+tag+"/idle:2")
+	// The same image attached to an unrelated repository record, not
+	// marked as built from it.
+	otherRepo := createRepo(t, "rt-other-"+tag)
+	otherTarget := target(otherRepo, shopImage+":1.0")
+	if _, err := appPool.Exec(ctx, `INSERT INTO image_scan_digests (organization_id, scan_target_id, digest, reference) VALUES ($1, $2, $3, $4)`,
+		orgID, otherTarget, rtDigShop, shopImage+"@"+rtDigShop); err != nil {
+		t.Fatal(err)
+	}
 	// The digest the image scan resolved to (Trivy repoDigests).
 	if _, err := appPool.Exec(ctx, `INSERT INTO image_scan_digests (organization_id, scan_target_id, digest, reference) VALUES ($1, $2, $3, $4)`,
 		orgID, shopTarget, rtDigShop, shopImage+"@"+rtDigShop); err != nil {
@@ -214,6 +225,8 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	imgFinding := finding(shopRepo, &shopTarget, "container", "CVE in openssl", "high", "")
 	codeFinding := finding(shopRepo, nil, "sast", "SQL injection", "high", "app/db.go")
+	otherCode := finding(otherRepo, nil, "sast", "Unrelated code", "high", "x/y.go")
+	otherImg := finding(otherRepo, &otherTarget, "container", "CVE in openssl (other record)", "high", "")
 	iacFinding := finding(shopRepo, nil, "iac", "Bucket is public", "high", "infra/main.tf")
 	idleFinding := finding(idleRepo, &idleTarget, "container", "CVE in zlib", "high", "")
 	buildFinding := finding(buildRepo, nil, "sca", "Vulnerable dependency", "high", "go.mod")
@@ -274,8 +287,8 @@ func TestRuntimeContext(t *testing.T) {
 	if web["internet_exposed"] != true || web["application_name"] != "Shop "+tag || web["runtime_alerts"].(float64) != 1 {
 		t.Errorf("web workload: %v", web)
 	}
-	if fc := web["findings"].(map[string]any); fc["total"].(float64) != 2 || fc["high"].(float64) != 2 {
-		t.Errorf("web findings (image CVE + code finding; not IaC): %v", fc)
+	if fc := web["findings"].(map[string]any); fc["total"].(float64) != 3 || fc["high"].(float64) != 3 {
+		t.Errorf("web findings (image CVE + code finding + the other record's image CVE; not IaC, not the other record's code): %v", fc)
 	}
 	img := web["images"].([]any)[0].(map[string]any)
 	if img["digest"] != rtDigShop || img["links"].([]any)[0].(map[string]any)["basis"] != "digest" {
@@ -302,6 +315,12 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	if f := get(codeFinding); f.status != "deployed" || !f.exposed {
 		t.Errorf("code finding of the image's repository: %+v", f)
+	}
+	if f := get(otherCode); f.status != "" || f.exposed {
+		t.Errorf("an image target not marked built_from_repository does not deploy the repository's code (O10): %+v", f)
+	}
+	if f := get(otherImg); f.status != "deployed" {
+		t.Errorf("the unmarked target's own image finding: %+v", f)
 	}
 	if f := get(iacFinding); f.status != "" {
 		t.Errorf("IaC is not in the image: %+v", f)

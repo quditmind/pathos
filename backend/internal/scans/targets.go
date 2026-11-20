@@ -56,6 +56,10 @@ var targetKinds = []string{"image", "url", "api", "sbom", "artifact", "endpoints
 // to (they need an authorization statement).
 func liveKind(kind string) bool { return kind == "url" || kind == "api" || kind == "llm-endpoint" }
 
+// LiveTargetMinTimeout is the minimum execution timeout (seconds) of URL
+// and API target scans (90 minutes); a longer profile timeout applies as is.
+const LiveTargetMinTimeout = 5400
+
 // uploadedKind reports targets whose content is an uploaded file.
 func uploadedKind(kind string) bool {
 	return kind == "sbom" || kind == "artifact" || kind == "mobile-app"
@@ -95,6 +99,12 @@ type TargetConfig struct {
 	// Model is the model name sent to an llm-endpoint target (the "model"
 	// field of an OpenAI-compatible chat completions request).
 	Model string `json:"model,omitempty"`
+	// BuiltFromRepository (image targets): the image is built from this
+	// repository's code, so the repository's code findings are deployed
+	// where the image runs. Off by default (2.2.2, VALIDATION_REPORT O10);
+	// an image whose OCI source label names the repository is linked
+	// without it.
+	BuiltFromRepository bool `json:"built_from_repository,omitempty"`
 }
 
 // ScanTarget is the API representation (secrets are never returned).
@@ -1112,6 +1122,13 @@ func (s *Service) leaseTarget(ctx context.Context, tx pgx.Tx, orgID, targetID uu
 	var cfg TargetConfig
 	_ = json.Unmarshal(cfgRaw, &cfg)
 	t.RateLimit, t.MinSeverity = cfg.RateLimit, cfg.MinSeverity
+	// DAST of a URL or API target takes far longer than a code scan
+	// (Nuclei alone ran 10-30 minutes per target in the validation, O14):
+	// such targets get at least LiveTargetMinTimeout, whatever the
+	// repository profile's (code scan) timeout is.
+	if (t.Kind == "url" || t.Kind == "api") && job.TimeoutSeconds < LiveTargetMinTimeout {
+		job.TimeoutSeconds = LiveTargetMinTimeout
+	}
 	if t.Kind == "llm-endpoint" {
 		t.Model = cfg.Model
 	}

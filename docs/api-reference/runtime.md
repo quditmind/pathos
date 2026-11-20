@@ -83,7 +83,11 @@ Cluster object:
 | `GET` | `/api/v1/runtime/registries/{id}/runs` | The last 30 synchronisations (`stats`: `repositories`, `tags`, `warnings`) |
 | `GET` | `/api/v1/runtime/registries/{id}/images` | Up to 2,000 images: `{ items: [{ registry, repository, tag, digest, media_type, source_url, revision, created, last_seen_at, running }] }`; `running` is true when a connected cluster runs the digest |
 
-Request body: `name`, `base_url` (`https://`; `http://` only with `PATHOS_SCM_ALLOW_HTTP=true`), `repositories` (1–100 OCI repository names, `namespace/name`), `auth_type` (`none`, `basic` with `username` and `secret`, or `bearer` with `secret`), `max_tags` (1–500, default 50), `allow_private`, `enabled`, `sync_interval_minutes` (15–10080, default 360).
+Request body: `name`, `base_url` (`https://`; `http://` only with `PATHOS_SCM_ALLOW_HTTP=true`), `repositories` (1–100 OCI repository names, `namespace/name`), `auth_type` (`none`, `basic` with `username` and `secret`, or `bearer` with `secret`), `max_tags` (1–500, default 50), `allow_private`, `enabled`, `sync_interval_minutes` (15–10080, default 360), `ca_bundle_pem` (2.2.2; see [private CA bundles](#private-ca-bundles)).
+
+### Private CA bundles
+
+Registry connections, [outbound webhooks](notifications.md#outbound-webhooks) and [ticket connections](integrations-reporting.md) take `ca_bundle_pem`: one or more PEM `CERTIFICATE` blocks (at most 20, 64 KiB) of the private CA that issued the server's certificate. The bundle is **added** to the system trust store for that connection only; certificate verification is never disabled and TLS 1.2 is the minimum. It is configuration, not a secret (CA certificates are public): responses return `ca_bundle_pem` and `ca_certificates` (`subject`, `issuer`, `not_after`, `sha256_fingerprint`, `is_ca`, `expired`) so administrators can compare fingerprints. On update, an absent field keeps the stored bundle and `""` removes it. Anything but certificates (a private key, garbage) is refused with `400` and `error.error_code` `PTH-CONN-1701`. A connection to a server whose certificate is not trusted fails with a message that starts with `PTH-CONN-1702` and names this field.
 
 Only `GET` requests are sent: `/v2/<repository>/tags/list` (with `Link` pagination on the same host), `/v2/<repository>/manifests/<tag>` and, for the labels, the platform manifest and the image configuration blob. Token challenges (`WWW-Authenticate: Bearer`) are answered with `pull` scope; the realm must use `https`.
 
@@ -142,6 +146,10 @@ The most specific matching mapping wins: a cluster condition counts most, then a
 ```
 
 `status`: `""` (unknown), `deployed` or `not_deployed` (then `context.not_deployed_reason` names the clusters and images checked). At most 25 deployments are kept per finding (`total_deployments` counts all). The same facts are on the [finding object](findings.md#the-finding-object) (`runtime_status`, `runtime_exposed`) and filter the findings list (`deployed`, `internet_exposed`); the [risk explanation](risk-intelligence.md#risk-explanation) lists them as factors with evidence.
+
+### Images built from a repository (2.2.2)
+
+An image scan target is attached to a repository record, but that does not make the image the repository's build output. Repository **code** findings are linked to the workloads that run an image only when the image target has `config.built_from_repository: true` (*This image is built from the repository's code*) or when the registry image's OCI source label (`org.opencontainers.image.source`) names the repository. The target's own findings (image CVEs) are linked in any case. A tag match (no digest) needs a successful scan of the target. Before 2.2.2 every image target linked its repository's code findings, which marked thousands of unrelated findings as deployed.
 
 ## Image scan digests
 

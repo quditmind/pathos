@@ -58,6 +58,11 @@ function buildColumns(settings: AssetSettings | undefined): Column<Repository>[]
             <ColorDot color={r.color} label={r.color ? `Asset colour ${r.color}` : undefined} />
             <span className="truncate">{r.display_name || r.full_name}</span>
             {r.archived_at && <span className="rounded bg-surface-muted px-1 text-[10px] text-muted-foreground">archived</span>}
+            {r.source_type === "git" && (
+              <span className="rounded bg-warning-soft px-1 text-[10px] text-warning" title="Imported by URL without a token: public, read-only">
+                anonymous
+              </span>
+            )}
           </div>
           <div className="truncate text-[12px] text-muted-foreground">
             {r.full_name}

@@ -77,9 +77,10 @@ func parseCycloneDX(raw []byte) ([]Component, map[string]string, error) {
 		if c.Group != "" {
 			name = c.Group + "/" + c.Name
 		}
-		if name == "" || c.Type == "file" {
+		if name == "" || c.Type == "file" || pathLikeComponent(name, c.Version) {
 			continue
 		}
+		typ := componentType(c.Type, c.PURL)
 		key := name + "@" + c.Version + "|" + c.PURL
 		if kept, ok := seen[key]; ok {
 			if c.Ref != "" && kept != "" {
@@ -98,13 +99,37 @@ func parseCycloneDX(raw []byte) ([]Component, map[string]string, error) {
 		if lic == nil {
 			lic = []string{}
 		}
-		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(c.Type, 50), Licenses: lic,
+		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(typ, 50), Licenses: lic,
 			Ref: clip(c.Ref, 1000)})
 		if len(out) >= 50000 {
 			break
 		}
 	}
 	return out, aliases, nil
+}
+
+// pathLikeComponent reports SBOM entries that are repository files rather
+// than packages (VALIDATION_REPORT O12): generators list local workflow
+// files such as "$/.github/workflows/ci.yml" or "./.github/workflows/x.yml"
+// with no or an UNKNOWN version.
+func pathLikeComponent(name, version string) bool {
+	v := strings.ToUpper(strings.TrimSpace(version))
+	if v != "" && v != "UNKNOWN" && v != "NOASSERTION" {
+		return false
+	}
+	return strings.HasPrefix(name, "$/") || strings.HasPrefix(name, "./") || strings.HasPrefix(name, "../") ||
+		strings.HasPrefix(name, "/") || strings.Contains(name, ".github/workflows/")
+}
+
+// componentType classifies GitHub Actions (purl type github or
+// githubactions) as "github-action" instead of a library, so the
+// inventory does not list workflow steps among the application's
+// dependencies (VALIDATION_REPORT O12).
+func componentType(typ, purl string) string {
+	if strings.HasPrefix(purl, "pkg:github/") || strings.HasPrefix(purl, "pkg:githubactions/") {
+		return "github-action"
+	}
+	return typ
 }
 
 func firstNonEmpty(v ...string) string {

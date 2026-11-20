@@ -161,7 +161,8 @@ export interface TagRef {
   category_name: string;
 }
 
-export type SourceType = "scm" | "upload";
+/** "git": imported anonymously by URL (public repository, no SCM connection). */
+export type SourceType = "scm" | "upload" | "git";
 export type SyncStatus = "never" | "ok" | "failed" | "missing" | "permission_denied" | "archived_upstream";
 
 export interface Repository {
@@ -172,6 +173,8 @@ export interface Repository {
   /** Connection provider, or "upload". */
   provider: string;
   source_type: SourceType;
+  /** Imported anonymously by URL (public, read-only, no token). */
+  anonymous?: boolean;
   scm_organization: string;
   scm_project: string;
   external_id: string;
@@ -1325,6 +1328,10 @@ export interface ScanTypesResponse {
 export interface ProfileSettings {
   severity_threshold: Severity;
   exclusions: string[];
+  /** Drop secret findings in vendored code, test fixtures, lockfiles and minified files (default on). */
+  secret_default_exclusions?: boolean;
+  /** Further globs whose secret findings are dropped. */
+  secret_exclusions?: string[];
   timeout_seconds: number;
   sbom: boolean;
   fail_on_critical: boolean;

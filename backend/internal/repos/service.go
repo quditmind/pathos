@@ -43,6 +43,9 @@ type Service struct {
 	EnqueueScan func(ctx context.Context, orgID, repoID uuid.UUID, trigger string, requestedBy *uuid.UUID) error
 	// HTTP is the outbound client for SCM calls (defaults to Net.Client()).
 	HTTP *http.Client
+	// Public checks repositories for anonymous import (nil: the public
+	// SaaS APIs through HTTP; tests replace it).
+	Public *PublicProbe
 	// OnEvent is called for verified push / pull request / merge events on
 	// imported repositories (Phase 4 enqueues scans here).
 	OnEvent func(ctx context.Context, orgID, repoID uuid.UUID, ev scm.WebhookEvent)

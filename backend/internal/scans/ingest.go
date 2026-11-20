@@ -42,22 +42,31 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var repoID uuid.UUID
 	var targetID *uuid.UUID
 	var threshold, commit string
-	var exclusions []string
+	var exclusions, secretExclusions []string
+	var secretDefaults bool
 	var pr *int
-	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id, j.pull_request
+	if err := s.DB.QueryRow(ctx, `SELECT j.repository_id, j.commit_sha, v.severity_threshold, v.exclusions, j.target_id, j.pull_request,
+		v.secret_default_exclusions, v.secret_exclusions
 		FROM scan_jobs j JOIN scan_profile_versions v ON v.id = j.profile_version_id WHERE j.id = $1`, jobID).
-		Scan(&repoID, &commit, &threshold, &exclusions, &targetID, &pr); err != nil {
+		Scan(&repoID, &commit, &threshold, &exclusions, &targetID, &pr, &secretDefaults, &secretExclusions); err != nil {
 		return 0, err
 	}
 
 	var findings []scanners.Finding
 	parseErr := ""
+	secretDropped := 0
 	// SBOM generators (Syft, cdxgen, the AI-BOM) produce the component inventory, not
 	// findings.
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
 	// pathos-reach reports are reachability evidence, not findings.
 	reachTool := scanners.IsReachabilityTool(up.Scanner)
-	if up.Status == "succeeded" && !sbomTool && !reachTool && len(raw) > 0 {
+	// A tool that failed or timed out may still have written a usable
+	// report (a stopped Nuclei run, Dependency-Check on cached NVD data, a
+	// wrapper where one of several runs failed): its findings are kept.
+	// The result stays failed / timed out, so the execution is partial and
+	// nothing the tool covers is auto-resolved.
+	partial := up.Status == "failed" || up.Status == "timed_out"
+	if (up.Status == "succeeded" || partial) && !sbomTool && !reachTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -68,15 +77,27 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		default:
 			fs, err = scanners.Parse(up.Scanner, raw)
 		}
-		if err != nil {
-			if len(fs) == 0 {
-				up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
-			} else {
-				parseErr = err.Error() // truncated, keep what was parsed
-			}
+		switch {
+		case err != nil && partial:
+			// The tool's own error explains the result; an unreadable
+			// partial report adds nothing.
+		case err != nil && len(fs) == 0:
+			up.Status, parseErr = "failed", "could not parse output: "+safeErr(err)
+		case err != nil:
+			parseErr = err.Error() // truncated, keep what was parsed
+		}
+		if partial && len(fs) > 0 {
+			up.Error = strings.TrimSpace(up.Error + fmt.Sprintf(" (%d findings from the partial report kept)", len(fs)))
 		}
 		for _, f := range fs {
 			if scanners.SeverityRank(f.Severity) < scanners.SeverityRank(threshold) || scanners.Excluded(f.FilePath, exclusions) {
+				continue
+			}
+			// Secret findings in vendored code, fixtures, lockfiles and
+			// minified files (the profile's secret exclusions). Target
+			// scans (images, artifacts) keep theirs.
+			if f.Category == "secrets" && targetID == nil && scanners.SecretExcluded(f.FilePath, secretDefaults, secretExclusions) {
+				secretDropped++
 				continue
 			}
 			if targetID != nil {
@@ -89,6 +110,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			}
 			findings = append(findings, f)
 		}
+	}
+	if secretDropped > 0 {
+		s.Log.Info("secret findings dropped by the profile's secret exclusions", "job_id", jobID, "scanner", up.Scanner, "dropped", secretDropped)
 	}
 	if up.Parser != nil && up.Parser.Kind == "import" && len(raw) > 0 {
 		// A manifest tool parsed with an import parser (TruffleHog,
@@ -108,6 +132,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	var written []string // objects to remove if the transaction fails
 	licenseFindings := 0 // licence policy violations in files (licensecheck)
 	err := db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+		if err := lockRepositoryFindings(ctx, tx, repoID); err != nil {
+			return err
+		}
 		if pr == nil {
 			// Stored findings under a legacy fingerprint keep their rows.
 			if err := rekeyFindings(ctx, tx, repoID, findings); err != nil {
@@ -392,6 +419,14 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			return err
 		}
 		var repoID, orgID uuid.UUID
+		// The repository lock comes before the job's row lock, in the same
+		// order as Ingest (which locks the job row through its results).
+		if err := tx.QueryRow(ctx, `SELECT repository_id FROM scan_jobs WHERE id = $1`, jobID).Scan(&repoID); err != nil {
+			return err
+		}
+		if err := lockRepositoryFindings(ctx, tx, repoID); err != nil {
+			return err
+		}
 		var targetID *uuid.UUID
 		var failOnCritical bool
 		var pr *int
@@ -402,22 +437,26 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 			Scan(&repoID, &failOnCritical, &targetID, &orgID, &pr, &trigger, &commit, &targetKind); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT scanner_key, status FROM scan_results WHERE scan_job_id = $1`, jobID)
+		rows, err := tx.Query(ctx, `SELECT scanner_key, status, error FROM scan_results WHERE scan_job_id = $1`, jobID)
 		if err != nil {
 			return err
 		}
-		var ok, bad []string
+		var ok, bad, missing []string
 		for rows.Next() {
-			var k, st string
-			if err := rows.Scan(&k, &st); err != nil {
+			var k, st, e string
+			if err := rows.Scan(&k, &st, &e); err != nil {
 				rows.Close()
 				return err
 			}
-			switch st {
-			case "succeeded":
+			switch {
+			case st == "succeeded":
 				ok = append(ok, k)
-			case "failed", "timed_out":
+			case st == "failed" || st == "timed_out":
 				bad = append(bad, k)
+			case st == "skipped" && strings.HasPrefix(e, ToolUnavailable):
+				// The worker that ran the execution does not have the tool
+				// (no online worker of its family): not a success.
+				missing = append(missing, k)
 			}
 		}
 		rows.Close()
@@ -431,6 +470,14 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		}
 		if len(ok) == 0 && len(bad) > 0 {
 			status = "failed"
+		}
+		// O15: tools of the profile that no worker could run make the
+		// execution partial (failed when nothing ran), never succeeded.
+		if len(missing) > 0 && status == "succeeded" {
+			status = "partial"
+			if len(ok) == 0 {
+				status = "failed"
+			}
 		}
 
 		if pr != nil {
@@ -528,6 +575,17 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		if errText == "" && len(bad) > 0 {
 			errText = "scanners failed: " + joinSorted(bad)
 		}
+		if len(missing) > 0 {
+			msg := MissingToolsMessage(missing)
+			if errText == "" {
+				errText = msg
+			} else {
+				errText = truncate(errText+"; "+msg, 2000)
+			}
+			if err := AddEvent(ctx, tx, orgID, jobID, "finalize", "", "skipped", msg); err != nil {
+				return err
+			}
+		}
 		if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL,
 			findings_new = $3, findings_fixed = $4, gate_failed = $5, error = $6, change_summary = $7 WHERE id = $1`,
 			jobID, status, newCount, fixed, gate, errText, change); err != nil {
@@ -537,6 +595,28 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 		return nil
 	})
 	return job, err
+}
+
+// ToolUnavailable is the start of the error a worker reports for a profile
+// tool it does not have (worker.Agent).
+const ToolUnavailable = "scanner not available in this worker image"
+
+// MissingToolsMessage explains tools that no worker could run (PTH-SCAN-1101).
+func MissingToolsMessage(keys []string) string {
+	return fmt.Sprintf("PTH-SCAN-1101: %d tool(s) of the profile did not run because no online worker has them: %s. "+
+		"Start the worker family image that provides them (Administration > Scanners & workers) or remove them from the profile",
+		len(keys), joinSorted(keys))
+}
+
+// lockRepositoryFindings serializes the writes of results and the
+// finalization of executions of one repository for the rest of tx. A
+// repository scan, target scans and result imports of the same repository
+// may run at the same time (migration 00043); their findings upserts,
+// auto-resolution, reachability and policy evaluation then never
+// interleave or deadlock.
+func lockRepositoryFindings(ctx context.Context, tx pgx.Tx, repoID uuid.UUID) error {
+	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('pathos-repo-findings'), hashtext($1::text))`, repoID)
+	return err
 }
 
 func joinSorted(v []string) string {

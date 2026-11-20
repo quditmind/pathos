@@ -17,6 +17,8 @@ export interface TicketConnection {
   username?: string;
   config?: { project_key?: string; issue_type?: string; labels?: string[]; table?: string; assignment_group?: string; caller_id?: string };
   allow_private?: boolean;
+  /** Private CA bundle (PEM) added to the system trust store for this connection. */
+  ca_bundle_pem?: string;
   enabled: boolean;
   tickets?: number;
 }
@@ -42,12 +44,13 @@ export const useTicketConnections = () =>
 function ConnectionDialog({ open, onClose, conn }: { open: boolean; onClose: () => void; conn: TicketConnection | null }) {
   const qc = useQueryClient();
   const [f, setF] = useState({ kind: "jira" as TicketConnection["kind"], name: "", base_url: "", auth_type: "basic" as "basic" | "bearer", username: "", secret: "",
-    project_key: "", issue_type: "Bug", labels: "pathos", table: "incident", assignment_group: "", caller_id: "", allow_private: false });
+    project_key: "", issue_type: "Bug", labels: "pathos", table: "incident", assignment_group: "", caller_id: "", allow_private: false, ca_bundle_pem: "" });
   useEffect(() => {
     if (!open) return;
     setF({ kind: conn?.kind ?? "jira", name: conn?.name ?? "", base_url: conn?.base_url ?? "", auth_type: conn?.auth_type ?? "basic", username: conn?.username ?? "", secret: "",
       project_key: conn?.config?.project_key ?? "", issue_type: conn?.config?.issue_type ?? "Bug", labels: (conn?.config?.labels ?? ["pathos"]).join(", "),
-      table: conn?.config?.table ?? "incident", assignment_group: conn?.config?.assignment_group ?? "", caller_id: conn?.config?.caller_id ?? "", allow_private: conn?.allow_private ?? false });
+      table: conn?.config?.table ?? "incident", assignment_group: conn?.config?.assignment_group ?? "", caller_id: conn?.config?.caller_id ?? "", allow_private: conn?.allow_private ?? false,
+      ca_bundle_pem: conn?.ca_bundle_pem ?? "" });
   }, [open, conn]);
   const set = (p: Partial<typeof f>) => setF((x) => ({ ...x, ...p }));
   const save = useMutation({
@@ -55,6 +58,7 @@ function ConnectionDialog({ open, onClose, conn }: { open: boolean; onClose: () 
       method: conn ? "PUT" : "POST",
       body: {
         kind: f.kind, name: f.name, base_url: f.base_url, auth_type: f.auth_type, username: f.username, secret: f.secret || undefined, allow_private: f.allow_private, enabled: conn?.enabled ?? true,
+        ca_bundle_pem: f.ca_bundle_pem,
         config: f.kind === "jira"
           ? { project_key: f.project_key, issue_type: f.issue_type, labels: f.labels.split(",").map((x) => x.trim()).filter(Boolean) }
           : { table: f.table, assignment_group: f.assignment_group || undefined, caller_id: f.caller_id || undefined },
@@ -103,6 +107,9 @@ function ConnectionDialog({ open, onClose, conn }: { open: boolean; onClose: () 
             <div><Label htmlFor="tc-caller" hint="(sys_id)">Caller</Label><Input id="tc-caller" value={f.caller_id} onChange={(e) => set({ caller_id: e.target.value })} /></div>
           </div>
         )}
+        <div><Label htmlFor="tc-ca" hint="(optional; PEM certificates of a private CA, added to the system trust store for this connection only)">Private CA bundle</Label>
+          <textarea id="tc-ca" className="min-h-20 w-full rounded-md border border-border bg-surface px-2.5 py-1.5 font-mono text-[12px] focus:outline-none focus:ring-1 focus:ring-[color:var(--ring)]"
+            value={f.ca_bundle_pem} onChange={(e) => set({ ca_bundle_pem: e.target.value })} placeholder="-----BEGIN CERTIFICATE-----" /></div>
         <label className="flex items-center gap-1.5"><input type="checkbox" className="accent-[var(--primary)]" checked={f.allow_private} onChange={(e) => set({ allow_private: e.target.checked })} /> The server is on an internal (private network) address</label>
       </div>
     </Dialog>

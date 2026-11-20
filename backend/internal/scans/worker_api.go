@@ -74,6 +74,7 @@ func (s *Service) InternalHandler() http.Handler {
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/heartbeat", s.heartbeat)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/results", s.uploadResult)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/complete", s.complete)
+	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/release", s.release)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/source", s.jobSource)
 	authed.HandleFunc("GET /internal/worker/v1/jobs/{id}/target-file", s.jobTargetFile)
 	authed.HandleFunc("POST /internal/worker/v1/jobs/{id}/imports", s.jobImports)
@@ -420,6 +421,7 @@ func requeueExpired(ctx context.Context, q db.Querier) error {
 		               WHEN dup.id IS NOT NULL THEN 'worker lease expired; the same scan is queued again'
 		               ELSE j.error END,
 		  finished_at = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN now() ELSE NULL END,
+		  stage = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN 'finished' ELSE 'queued' END,
 		  leased_by = NULL, lease_expires_at = NULL
 		FROM scan_jobs j0 LEFT JOIN LATERAL (
 		  SELECT q.id FROM scan_jobs q
@@ -447,7 +449,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 			WHERE j.id = (
 			  SELECT q.id FROM scan_jobs q
 			  WHERE q.organization_id = $1 AND q.status = 'queued'
-			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.repository_id = q.repository_id AND x.status = 'running')
+			    AND NOT EXISTS (SELECT 1 FROM scan_jobs x WHERE x.status = 'running' AND `+runningConflict+`)
 			    AND `+routingCondition+`
 			  ORDER BY q.priority DESC, q.queued_at FOR UPDATE SKIP LOCKED LIMIT 1)
 			RETURNING j.id, j.repository_id, j.ref, j.commit_sha, j.profile_version_id`,
@@ -508,7 +510,9 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		}
 		return nil
 	})
-	if errors.Is(err, pgx.ErrNoRows) {
+	// A unique violation means another worker started a conflicting
+	// execution at the same moment (scan_jobs_running_uq): no job now.
+	if errors.Is(err, pgx.ErrNoRows) || db.IsUniqueViolation(err) {
 		w.WriteHeader(http.StatusNoContent)
 		return
 	}
@@ -537,6 +541,16 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 	s.Log.Info("scan leased", "job_id", job.JobID, "repository", job.FullName, "worker", wk.Name)
 	httpx.WriteJSON(w, http.StatusOK, job)
 }
+
+// runningConflict matches a running execution x that keeps the queued
+// execution q waiting (migration 00043, scan_jobs_running_uq and
+// scan_jobs_running_target_uq): a target scan waits only for a running
+// scan of the same target; a repository scan waits for a running
+// repository scan of the same repository and pull request. Result imports
+// and target scans never hold back a repository scan.
+const runningConflict = `CASE WHEN q.target_id IS NOT NULL THEN x.target_id = q.target_id
+	ELSE x.repository_id = q.repository_id AND x.target_id IS NULL AND x.trigger <> 'import'
+	     AND COALESCE(x.pull_request, 0) = COALESCE(q.pull_request, 0) END`
 
 func safeErr(err error) string {
 	msg := err.Error()
@@ -787,6 +801,70 @@ func (s *Service) complete(w http.ResponseWriter, r *http.Request) {
 		s.OnScanFinished(context.WithoutCancel(ctx), wk.orgID, id)
 	}
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{"status": job.Status})
+}
+
+// release returns a running job to the queue: its worker is stopping
+// (SIGTERM) and hands the job back instead of letting it wait for the lease
+// to expire (VALIDATION_REPORT O9). Like an expired lease, a job that has
+// used its attempts, or whose scan is already queued again, is failed.
+func (s *Service) release(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	wk := workerFrom(ctx)
+	id, err := pathID(r, "id")
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
+		return
+	}
+	if status, err := s.ownedJob(ctx, wk, id); err != nil || status != "running" {
+		if err == nil {
+			err = httpx.Conflict("job is " + status)
+		}
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	var req struct {
+		Reason string `json:"reason"`
+	}
+	if err := httpx.DecodeJSON(w, r, &req); err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	reason := truncate(strings.TrimSpace(req.Reason), 300)
+	if reason == "" {
+		reason = "worker " + wk.Name + " stopped"
+	}
+	var status string
+	err = s.DB.QueryRow(ctx, `
+		UPDATE scan_jobs j SET
+		  status = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN 'failed' ELSE 'queued' END,
+		  error = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN $3 ELSE '' END,
+		  finished_at = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN now() ELSE NULL END,
+		  started_at = CASE WHEN j.attempts >= j.max_attempts OR dup.id IS NOT NULL THEN j.started_at ELSE NULL END,
+		  leased_by = NULL, lease_expires_at = NULL
+		FROM scan_jobs j0 LEFT JOIN LATERAL (
+		  SELECT q.id FROM scan_jobs q
+		  WHERE q.repository_id = j0.repository_id AND q.profile_version_id = j0.profile_version_id
+		    AND q.target_id IS NOT DISTINCT FROM j0.target_id AND q.pull_request IS NOT DISTINCT FROM j0.pull_request
+		    AND q.status = 'queued' AND q.id <> j0.id LIMIT 1) dup ON true
+		WHERE j.id = j0.id AND j.id = $1 AND j.leased_by = $2 AND j.status = 'running'
+		RETURNING j.status`, id, wk.ID, reason).Scan(&status)
+	if errors.Is(err, pgx.ErrNoRows) {
+		httpx.WriteError(w, r, s.Log, httpx.Conflict("job is no longer leased by this worker"))
+		return
+	}
+	if err != nil {
+		httpx.WriteError(w, r, s.Log, err)
+		return
+	}
+	msg := reason + "; returned to the queue"
+	evStatus := "info"
+	if status == "failed" {
+		msg, evStatus = reason+"; failed (no attempts left or the same scan is queued again)", "failed"
+	}
+	_ = AddEvent(ctx, s.DB, wk.orgID, id, "leased", "", evStatus, msg)
+	_ = updateProgress(ctx, s.DB, id)
+	s.Log.Info("job released by its worker", "job_id", id, "worker", wk.Name, "status", status)
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{"status": status})
 }
 
 // --- admin -----------------------------------------------------------------

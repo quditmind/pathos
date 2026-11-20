@@ -59,9 +59,10 @@ func parseSPDX(raw []byte) ([]Component, map[string]string, error) {
 		if typ == "" {
 			typ = "library"
 		}
-		if typ == "file" {
+		if typ == "file" || pathLikeComponent(p.Name, p.VersionInfo) {
 			continue
 		}
+		typ = componentType(typ, purl)
 		key := p.Name + "@" + p.VersionInfo + "|" + purl
 		if kept, ok := seen[key]; ok {
 			if p.ID != "" && kept != "" {

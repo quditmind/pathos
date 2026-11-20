@@ -144,7 +144,7 @@ RUN set -eux; \
     /opt/pathos/iac/bin/conftest verify --no-color --policy /opt/pathos/iac/policy; \
     rm /opt/pathos/iac/policy/*_test.rego; \
     chmod -R go-w /opt/pathos/iac /opt/pathos/tools.d; \
-    for t in kics kics-scan kube-linter kubescape kubescape-scan tflint conftest conftest-tree kube-score scorecard polaris hadolint \
+    for t in kics kics-scan kube-linter kubescape kubescape-scan tflint tflint-tree conftest conftest-tree kube-score scorecard polaris hadolint \
              hadolint-tree cfn-lint-tree cfn-nag-tree kube-score-tree; do test -x "/opt/pathos/iac/bin/$t"; done; \
     /opt/pathos/iac/bin/cfn-nag-tree --version; /opt/pathos/iac/bin/hadolint-tree --version | grep -q 2.15.1; \
     # A repository without Kubernetes manifests is an empty result, not a
