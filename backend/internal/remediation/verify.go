@@ -422,6 +422,9 @@ func (s *Service) Queue(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, it Item
 			"scanners": pl.scanners, "files": pl.files}}); err != nil {
 		return uuid.Nil, err
 	}
+	if err := recordQueued(ctx, tx, orgID, it, id, trigger, pl, fixPR); err != nil {
+		return uuid.Nil, err
+	}
 	if scanJobID != nil {
 		if err := s.verifyWithScan(ctx, tx, orgID, it.ID, id, pl, *scanJobID); err != nil {
 			return uuid.Nil, err
@@ -552,6 +555,9 @@ func (s *Service) finish(ctx context.Context, tx pgx.Tx, orgID, itemID, vid uuid
 	}
 	if status == "completed" && result == "fixed" {
 		action = "remediation_item.closed"
+	}
+	if err := recordFinished(ctx, tx, orgID, itemID, vid, status, result, reason, afterCommit, len(ev.Regressions)); err != nil {
+		return err
 	}
 	return audit.Write(ctx, tx, audit.Entry{OrganizationID: orgID, Action: action, TargetType: "remediation_item", TargetID: itemID.String(), Metadata: meta})
 }
