@@ -160,6 +160,7 @@ Saved reports, exports, AI analyst reports and developer insights.
 | Category | validation |
 | HTTP status | 400 |
 | AI help | not offered |
+| Short codes | `unsupported_format` |
 | Raised in | internal/compliance/service.go |
 
 **What it means.** The compliance report export supports the formats json and csv only.

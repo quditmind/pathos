@@ -88,6 +88,7 @@ var m9Entries = []Entry{
 		Impact:         "No file was produced.",
 		Actions:        []string{"Use format=json or format=csv; print the page for a PDF."},
 		Verify:         []string{"The export downloads with the X-PATHOS-Generated-By header."},
+		Legacy:         []string{"unsupported_format"},
 		Source:         "internal/compliance/service.go",
 	},
 }
