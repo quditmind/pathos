@@ -25,7 +25,9 @@
  * verifications re-run the findings' own engines; and the PATHOS 3.0 M9
  * continuous monitoring page (the feed, the drift timeline and drift
  * detail), the hub's Monitoring card and the remediation item's threat
- * link, whose event texts and drift evidence quote engine output.
+ * link, whose event texts and drift evidence quote engine output; and the
+ * lifecycle evidence sections of the compliance report and the technical
+ * AI report.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -63,6 +65,8 @@ import { GatesPage } from "@/features/remediation/GatesPage";
 import { ExceptionsPage } from "@/features/remediation/ExceptionsPage";
 import { MonitoringPage } from "@/features/monitoring/MonitoringPage";
 import { MonitoringWidget } from "@/features/monitoring/MonitoringWidget";
+import { CompliancePage } from "@/features/compliance/CompliancePage";
+import { AIReportsPage } from "@/features/ai/AIReportsPage";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -738,6 +742,30 @@ describe("rule 3 on the PATHOS 3.0 M9 continuous monitoring", () => {
     });
     renderApp(<RemediationItemPage id="i1" />, { permissions: remPerms, path: "/remediation/items/i1" });
     expect(await screen.findByTestId("item-threat")).toHaveTextContent("Route found by engine reaches the store");
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M9 lifecycle evidence (example fixture data, test only) ---
+
+const lcSections = [
+  { key: "codegraph", title: "CodeGraph", available: true, evidence_label: "verified", evidence: `Counted from snapshots built by ${third[0]!.name} and ${ENGINE_KEYS[1]}`, metrics: { snapshots: 3 } },
+  { key: "gates", title: "Security gates", available: false, reason: `No gate decisions yet (${NOISY})`, evidence_label: "verified", evidence: "", metrics: {} },
+];
+
+describe("rule 3 on the PATHOS 3.0 M9 lifecycle evidence", () => {
+  it("compliance report and technical AI report", async () => {
+    const fw = { key: "asvs", name: "ASVS", version: "4", scope_key: "", description: "Example (test fixture).", repositories_in_scope: 1, failing: 0, attention: 0, passing: 0, controls: [], lifecycle_evidence: lcSections };
+    mockApi({ "GET /api/v1/compliance/frameworks": () => ({ items: [fw], note: "" }), "GET /api/v1/compliance/frameworks/asvs": () => fw });
+    const { unmount } = renderApp(<CompliancePage />, { permissions: ["findings.read", "findings.export"], path: "/compliance" });
+    expect(await screen.findAllByTestId("lifecycle-evidence-section")).toHaveLength(2);
+    expectNoToolNames();
+    unmount();
+    const rep = { id: "rp1", kind: "technical", scope_type: "organization", title: "Technical report (test fixture)", facts: { lifecycle: lcSections }, narrative: null, narrative_error: "", model: "", created_by: "", created_at: "2026-11-20T10:00:00Z" };
+    mockApi({ "GET /api/v1/ai/reports": () => ({ items: [rep] }), "GET /api/v1/ai/reports/rp1": () => rep, "GET /api/v1/applications": () => ({ items: [] }) });
+    renderApp(<AIReportsPage />, { permissions: ["findings.read"] });
+    fireEvent.click(await screen.findByRole("button", { name: "Technical report (test fixture)" }));
+    expect(await screen.findAllByTestId("lifecycle-evidence-section")).toHaveLength(2);
     expectNoToolNames();
   });
 });

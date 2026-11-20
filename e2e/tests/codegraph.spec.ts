@@ -32,9 +32,10 @@ async function pickApp(request: APIRequestContext): Promise<{ id: string; name: 
   const apps = ((await (await request.get("/api/v1/applications")).json()).items ?? []) as { id: string; name: string; repository_count?: number }[];
   const want = process.env.E2E_CODEGRAPH_APP;
   const app = want ? apps.find((a) => a.id === want || a.name === want) : apps.find((a) => (a.repository_count ?? 0) > 0);
-  // A named application must exist. Without one (CI has no seeded source),
-  // the real-build test is skipped with the reason; the integration test
-  // TestCodeGraph covers the worker path in CI.
+  // A named application must exist. CI seeds one (scripts/seed-e2e-app.py
+  // --github-env sets E2E_CODEGRAPH_APP) and starts the graph worker, so the
+  // real build runs there; on a stack without a seeded application the test
+  // is skipped with the reason.
   if (!want) test.skip(!app, "no application with a repository: set E2E_CODEGRAPH_APP to run the real CodeGraph build");
   expect(app, `application ${want ?? "(any with a repository)"}`).toBeTruthy();
   return app!;
