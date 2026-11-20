@@ -22,7 +22,11 @@
  * CodeGraph evidence and attack-path findings; and the PATHOS 3.0 M8
  * remediation workspace (the list, the item with its guidance and fix
  * verifications, gates and decisions, exceptions, and the hub tab), whose
- * verifications re-run the findings' own engines.
+ * verifications re-run the findings' own engines; and the PATHOS 3.0 M7 AI
+ * security intelligence (the AI evidence log, the AI evidence panel with
+ * its prompt, response and replay comparison, and the cross-phase
+ * correlation), whose prompts carry the finding's engine and whose model
+ * answers may repeat it.
  */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
@@ -58,6 +62,10 @@ import { RemediationPage } from "@/features/remediation/RemediationPage";
 import { RemediationItemPage } from "@/features/remediation/ItemDetailPage";
 import { GatesPage } from "@/features/remediation/GatesPage";
 import { ExceptionsPage } from "@/features/remediation/ExceptionsPage";
+import { AIEvidencePage } from "@/features/ai/AIEvidencePage";
+import { AIEvidencePanel } from "@/features/ai/AIEvidencePanel";
+import { CorrelationSection } from "@/features/ai/CorrelationSection";
+import type { Correlation, EvidenceRecord } from "@/features/ai/evidence";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -664,6 +672,91 @@ describe("rule 3 on the PATHOS 3.0 M8 remediation workspace and gates", () => {
     unmount();
     renderApp(<ExceptionsPage />, { permissions: remPerms, path: "/remediation/exceptions" });
     expect(await screen.findByText(/Compensating control until the fix ships/)).toBeInTheDocument();
+    expectNoToolNames();
+  });
+});
+
+// --- PATHOS 3.0 M7 AI security intelligence (example fixture data, test only) ---
+
+const aiNoisy = `${ENGINE_KEYS[0]} and ${third[1]!.name} report it; ${NOISY}`;
+const aiRecord = (over: Partial<EvidenceRecord> = {}): EvidenceRecord => ({
+  id: "ev1", task: "finding_validation", task_label: "Triage and review", operation: "ai_review", subject_kind: "finding", subject_id: "f1",
+  finding_id: "f1", related: { findings: ["f1"] }, parent_id: null, config_version_id: "cv1", provider: "self_hosted", provider_location: "local",
+  model: "example-local-model", model_reported: "example-local-model", model_digest: "", prompt_template: "finding_validation@1",
+  parameters: { temperature: 0 }, deterministic: true, determinism_note: "Self-hosted model called with temperature 0 and a fixed seed.",
+  sent_code: false, input_sha256: "a".repeat(64), response_sha256: "b".repeat(64),
+  steps: [`${ENGINE_KEYS[2]} flagged line 12 (test fixture)`, aiNoisy], conclusion: `false_positive: ${aiNoisy} (test fixture)`,
+  verdict: "false_positive", confidence: 0.8, status: "succeeded", error_code: "", error: "", input_tokens: 1, output_tokens: 1,
+  review_decision: "pending", reviewer_id: null, reviewer_name: null, reviewed_at: null, review_note: "", replay_of: null, comparison: null,
+  payload_expires_at: null, payload_purged_at: null, payload_available: true, requested_by: null, requested_by_name: null,
+  created_at: "2026-11-20T10:00:00Z", label: "ai_inferred", confirmed: false, proposes_suppression: true, replayable: true, can_review: true,
+  ...over,
+});
+const aiFailed = aiRecord({ id: "ev2", status: "failed", error_code: "PTH-AI-1004", error: `provider error while reviewing ${aiNoisy}`, conclusion: "", steps: [],
+  replayable: false, replay_unavailable: `the record of ${ENGINE_KEYS[3]} has no configuration version`, can_review: false });
+const aiCorr: Correlation = {
+  finding: { id: "f1", title: `S3 bucket allows public read (${ENGINE_KEYS[0]})`, severity: "high", status: "open", file_path: "infra/main.tf", start_line: 12, package_name: "" },
+  deterministic: true,
+  codegraph: { snapshot_id: "s1", snapshot_status: "ready", note: `nodes from ${ENGINE_KEYS[1]}`,
+    nodes: [{ key: "res:bucket", type: "resource", label: `bucket (${ENGINE_KEYS[4]})`, file_path: "infra/main.tf", start_line: 10, end_line: 20, match: "location", evidence: "verified" }], edges: [] },
+  threats: [{ id: "t1", threat_model_id: "m1", model_status: "approved", model_version: 1, title: `Public bucket read reported by ${ENGINE_KEYS[5]}`, category: "information_disclosure",
+    severity: "high", status: "open", link: "finding", evidence: "verified" }],
+  components: [], runtime: null,
+  related_findings: [{ id: "f2", relation: "same_location", title: `Same bucket (${aiNoisy})`, severity: "high", status: "open", evidence: "verified" }],
+};
+const aiRoutes = {
+  ...routes,
+  "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "3.0.0-test", feature_flags: { ai_intelligence: true } }),
+  "GET /api/v1/ai/evidence": () => ({ items: [aiRecord(), aiFailed], next_cursor: "" }),
+  "GET /api/v1/ai/evidence/ev1": () => ({
+    record: aiRecord(), related_records: [aiFailed],
+    prompt: { system: "You validate findings (test fixture).", user: `Scanner: ${ENGINE_KEYS[0]}\nRule: CKV_AWS_20\n${NOISY}` },
+    response: JSON.stringify({ verdict: "false_positive", reasoning: aiNoisy }),
+  }),
+  "POST /api/v1/ai/evidence/ev1/replay": () => ({
+    record: aiRecord({ id: "ev3", operation: "replay" }), original: aiRecord(),
+    comparison: { same_conclusion: false, same_verdict: true, identical_response: false, original_verdict: "false_positive", replay_verdict: "false_positive",
+      original_conclusion: aiNoisy, replay_conclusion: `still ${ENGINE_KEYS[6]}`, steps_added: [`${ENGINE_KEYS[7]} agrees`], steps_removed: [aiNoisy],
+      original_model: "m1", replay_model: "m1", model_changed: false, deterministic: true, determinism_note: "Same model.", original_confidence: 0.8, replay_confidence: 0.7 },
+  }),
+  "GET /api/v1/findings/f1/correlation": () => aiCorr,
+  "POST /api/v1/findings/f1/correlation/explain": () => ({
+    correlation: aiCorr, evidence_record_id: "ev4", label: "ai_inferred", review_decision: "pending", provider_location: "local", model: "m",
+    proposes_suppression: false, note: `explained without ${ENGINE_KEYS[8]}`,
+    explanation: { priority: "high", exploitability: "likely", confidence: 0.7, explanation: `Reachable; ${aiNoisy}`, reasoning: [aiNoisy] },
+  }),
+};
+const aiPerms = ["findings.read", "ai.evidence_read", "ai.review"];
+
+describe("rule 3 on the PATHOS 3.0 M7 AI security intelligence", () => {
+  it("AI evidence log and a record's details", async () => {
+    mockApi(aiRoutes);
+    renderApp(<AIEvidencePage />, { permissions: aiPerms, path: "/ai/evidence" });
+    const rows = await screen.findAllByRole("button", { name: /false_positive: engine and engine report it/ });
+    expectNoToolNames();
+    await userEvent.click(rows[0]!);
+    expect(await screen.findAllByTestId("ai-evidence-record")).not.toHaveLength(0);
+    expectNoToolNames();
+  });
+
+  it("AI evidence panel: steps, failure, prompt and response, and the replay comparison", async () => {
+    mockApi(aiRoutes);
+    renderApp(<AIEvidencePanel findingId="f1" />, { permissions: aiPerms });
+    const cards = await screen.findAllByTestId("ai-evidence-record");
+    expect(cards.length).toBeGreaterThan(0);
+    for (const b of screen.getAllByRole("button", { name: /Show prompt and response/ })) await userEvent.click(b);
+    expect(await screen.findAllByText(/Scanner: engine/)).not.toHaveLength(0);
+    await userEvent.click(screen.getAllByRole("button", { name: /Reproduce/ })[0]!);
+    expect(await screen.findByTestId("replay-comparison")).toHaveTextContent("engine agrees");
+    expectNoToolNames();
+  });
+
+  it("cross-phase correlation and its AI explanation", async () => {
+    mockApi(aiRoutes);
+    renderApp(<CorrelationSection findingId="f1" />, { permissions: aiPerms });
+    expect(await screen.findByText(/bucket \(engine\)/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Explain with AI/ }));
+    expect(await screen.findByTestId("correlation-explanation")).toHaveTextContent("Reachable; engine");
     expectNoToolNames();
   });
 });

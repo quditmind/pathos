@@ -27,6 +27,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"pathos/internal/ai"
 	"pathos/internal/authz"
 	"pathos/internal/notify"
 	"pathos/internal/org"
@@ -224,7 +225,13 @@ func rotate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *sl
 	store := &secrets.Store{Keys: kr}
 	var n int
 	err = db.InTx(ctx, pool, func(tx pgx.Tx) error {
-		n, err = store.RewrapAll(ctx, tx)
+		if n, err = store.RewrapAll(ctx, tx); err != nil {
+			return err
+		}
+		// AI evidence payloads (PATHOS 3.0 M7) use the same master key.
+		var m int
+		m, err = ai.RewrapPayloads(ctx, tx, kr)
+		n += m
 		return err
 	})
 	if err == nil {

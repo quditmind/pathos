@@ -25,7 +25,7 @@ One model exists per application (and repository). Its versions keep its history
 
 ## How threats are generated
 
-Generation is deterministic: the same graph always gives the same threats. **No AI is used to generate threats.** Each rule is documented, versioned and tested; the full catalogue with its exact logic is in [PATHOS_THREAT_MODELLING.md](../aspm/PATHOS_THREAT_MODELLING.md).
+Generation is deterministic: the same graph always gives the same threats. **No AI is used to generate threats.** Separately, with the **ai_intelligence** flag on, **Suggest threats with AI** on a draft adds AI-inferred threats that each wait for a person's acceptance ([AI threat suggestions](ai-security-intelligence.md#ai-threat-suggestions)). Each rule is documented, versioned and tested; the full catalogue with its exact logic is in [PATHOS_THREAT_MODELLING.md](../aspm/PATHOS_THREAT_MODELLING.md).
 
 | Rule | STRIDE category | What it looks for |
 |---|---|---|
@@ -140,5 +140,7 @@ An application-wide model needs the permission on every repository of the applic
 | `PTH-TM-1101` | The import file could not be parsed | Check it is a Threat Dragon v2 or PATHOS JSON file; the message names the position |
 | `PTH-TM-1102` | The import format is not supported | Use Threat Dragon v2 or PATHOS JSON |
 | `PTH-TM-1103` | The import file has too many elements or threats | Split the model or remove unused diagrams |
+| `PTH-AI-1301` | Suggest threats with AI: the draft has no diagram elements | Generate the model from CodeGraph first |
+| `PTH-AI-1302` | Submit refused: AI-suggested threats await a decision | Accept or reject each threat labelled *AI-inferred (awaiting decision)* in its AI evidence panel |
 
 More detail for each code: [Troubleshooting: threat modelling](../troubleshooting/tm.md).

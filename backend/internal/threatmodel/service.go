@@ -50,6 +50,8 @@ type Service struct {
 	Authz     *authz.Authorizer
 	Log       *slog.Logger
 	Principal func(context.Context) *authz.Principal
+	// AI suggests threats (M7; nil: suggestions unavailable).
+	AI ThreatSuggester
 }
 
 // Register mounts the API.
@@ -64,6 +66,7 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/threat-models/{id}", s.get)
 	mux.HandleFunc("PATCH /api/v1/threat-models/{id}", s.patch)
 	mux.HandleFunc("POST /api/v1/threat-models/{id}/generate", s.generate)
+	mux.HandleFunc("POST /api/v1/threat-models/{id}/suggest", s.suggest)
 	mux.HandleFunc("GET /api/v1/threat-models/{id}/versions", s.versions)
 	mux.HandleFunc("POST /api/v1/threat-models/{id}/versions", s.newVersion)
 	mux.HandleFunc("GET /api/v1/threat-models/{id}/threats", s.threats)
@@ -707,6 +710,11 @@ func (s *Service) submit(w http.ResponseWriter, r *http.Request) {
 	if n := m.Counts.Unverified; n > 0 {
 		s.fail(w, r, httpx.E(http.StatusUnprocessableEntity, "threat_unverified",
 			strconv.Itoa(n)+" manual or imported threat(s) are not linked to evidence; link them or set them not applicable").WithDiag(CodeUnverified))
+		return
+	}
+	if n := m.Counts.AIPending; n > 0 {
+		s.fail(w, r, httpx.E(http.StatusUnprocessableEntity, "threat_ai_pending",
+			strconv.Itoa(n)+" AI-suggested threat(s) await a person's decision; accept or reject them first").WithDiag(CodeAIPending))
 		return
 	}
 	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {

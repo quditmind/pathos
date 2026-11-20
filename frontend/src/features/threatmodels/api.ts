@@ -92,6 +92,8 @@ export interface ModelCounts {
   by_category?: Partial<Record<ThreatCategory, number>>;
   unverified: number;
   without_mitigation: number;
+  /** AI-suggested threats no person has decided yet (M7); they block submission. */
+  ai_pending?: number;
 }
 
 export interface ThreatModel {
@@ -218,6 +220,9 @@ export interface Threat {
   mappings?: ThreatMapping[];
   created_at?: string;
   updated_at?: string;
+  /** M7: the AI evidence record of an AI-suggested threat and its review decision. */
+  ai_evidence_id?: string | null;
+  ai_review?: "pending" | "accepted" | "rejected" | "not_required" | "";
 }
 
 export interface ThreatEvent {

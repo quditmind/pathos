@@ -187,6 +187,10 @@ Response `200 { "updated": 12 }`. When one finding fails, nothing changes and th
 
 `source` tells what made the change: `user`, `scanner`, `ai`, `expiry`, `suppression_rule` or `system`. `from_status` is `null` for the first entry.
 
+## Correlation
+
+`GET /api/v1/findings/{id}/correlation` (`findings.read`) joins the finding to its CodeGraph elements, threat-model threats, SBOM components, runtime context and related findings, deterministically, each with its evidence label; `POST /api/v1/findings/{id}/correlation/explain` (`ai.review`) adds an AI-inferred explanation that never changes the finding. Both are behind the `ai_intelligence` flag: [AI evidence, model per task and correlation](ai-evidence.md#get-apiv1findingsidcorrelation).
+
 ## Risk acceptances
 
 Accepted risk is reached only through this approval workflow (or a [Human Eye decision](human-reviews.md#decisions)).

@@ -66,6 +66,9 @@ type Counts struct {
 	ByChange          map[string]int `json:"by_change"`
 	Unverified        int            `json:"unverified"`
 	WithoutMitigation int            `json:"without_mitigation"`
+	// AIPending counts AI-suggested threats no person has accepted yet
+	// (PATHOS 3.0 M7); they block submission.
+	AIPending int `json:"ai_pending"`
 }
 
 const modelSelect = `SELECT m.id, m.lineage_id, m.version, m.previous_version_id, m.application_id, a.name, m.repository_id,
@@ -131,6 +134,19 @@ func fillCounts(ctx context.Context, q db.Querier, ms []*Model) error {
 		return err
 	}
 	defer rows.Close()
+	defer func() {
+		if prow, err := q.Query(ctx, `SELECT t.threat_model_id, count(*) FROM threats t JOIN ai_evidence_records e ON e.id = t.ai_evidence_id
+			WHERE t.threat_model_id = ANY($1) AND t.method = 'ai' AND e.review_decision = 'pending' GROUP BY 1`, ids); err == nil {
+			for prow.Next() {
+				var id uuid.UUID
+				var n int
+				if prow.Scan(&id, &n) == nil {
+					by[id].Counts.AIPending = n
+				}
+			}
+			prow.Close()
+		}
+	}()
 	for rows.Next() {
 		var id uuid.UUID
 		var status, sev, cat, evt, change string
@@ -199,6 +215,10 @@ type ThreatOut struct {
 	Mappings           []MappingOut `json:"mappings"`
 	CreatedAt          time.Time    `json:"created_at"`
 	UpdatedAt          time.Time    `json:"updated_at"`
+	// AIEvidenceID is the AI evidence record of an AI-suggested threat;
+	// AIReview is its review decision (pending until a person accepts).
+	AIEvidenceID *uuid.UUID `json:"ai_evidence_id"`
+	AIReview     string     `json:"ai_review,omitempty"`
 }
 
 // ElementOut is a diagram element.
@@ -252,8 +272,8 @@ func Label(evidenceType, method string) string {
 const threatSelect = `SELECT t.id, t.threat_model_id, t.fingerprint, t.title, t.description, t.category, t.method, t.rule_id, t.rule_version,
 	t.evidence_type, t.evidence, t.severity, t.severity_reason, t.severity_overridden, t.confidence::float8, t.confidence_reason,
 	t.status, t.status_reason, t.mitigation, t.mitigation_edited, t.change_state, t.owner_id, COALESCE(NULLIF(ou.display_name, ''), ou.email, ''),
-	t.created_at, t.updated_at
-	FROM threats t LEFT JOIN users ou ON ou.id = t.owner_id`
+	t.created_at, t.updated_at, t.ai_evidence_id, COALESCE(ae.review_decision, '')
+	FROM threats t LEFT JOIN users ou ON ou.id = t.owner_id LEFT JOIN ai_evidence_records ae ON ae.id = t.ai_evidence_id`
 
 func scanThreat(row pgx.Row) (ThreatOut, error) {
 	var t ThreatOut
@@ -262,7 +282,8 @@ func scanThreat(row pgx.Row) (ThreatOut, error) {
 	var ownerName string
 	err := row.Scan(&t.ID, &t.ThreatModelID, &t.Fingerprint, &t.Title, &t.Description, &t.Category, &t.Method, &t.RuleID, &t.RuleVersion,
 		&t.EvidenceType, &ev, &t.Severity, &t.SeverityReason, &t.SeverityOverridden, &t.Confidence, &t.ConfidenceReason,
-		&t.Status, &t.StatusReason, &t.Mitigation, &t.MitigationEdited, &t.ChangeState, &owner, &ownerName, &t.CreatedAt, &t.UpdatedAt)
+		&t.Status, &t.StatusReason, &t.Mitigation, &t.MitigationEdited, &t.ChangeState, &owner, &ownerName, &t.CreatedAt, &t.UpdatedAt,
+		&t.AIEvidenceID, &t.AIReview)
 	if err != nil {
 		return t, err
 	}
@@ -524,6 +545,7 @@ type threatRow struct {
 	ConfidenceReason, Status, StatusReason, Mitigation, ChangeState                      string
 	SeverityOverridden, MitigationEdited                                                 bool
 	OwnerID, CreatedBy                                                                   *uuid.UUID
+	AIEvidenceID                                                                         *uuid.UUID
 }
 
 func insertThreat(ctx context.Context, q db.Querier, orgID, modelID uuid.UUID, t threatRow) (uuid.UUID, error) {
@@ -537,11 +559,11 @@ func insertThreat(ctx context.Context, q db.Querier, orgID, modelID uuid.UUID, t
 	id := uuid.Must(uuid.NewV7())
 	_, err = q.Exec(ctx, `INSERT INTO threats (id, organization_id, threat_model_id, fingerprint, title, description, category, method, rule_id,
 		rule_version, evidence_type, evidence, severity, severity_reason, severity_overridden, confidence, confidence_reason, status, status_reason,
-		mitigation, mitigation_edited, change_state, evidence_hash, owner_id, created_by)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)`,
+		mitigation, mitigation_edited, change_state, evidence_hash, owner_id, created_by, ai_evidence_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)`,
 		id, orgID, modelID, clip(t.Fingerprint, 900), clip(t.Title, 300), clip(t.Description, 8000), t.Category, t.Method, t.RuleID, t.RuleVersion,
 		t.EvidenceType, ev, t.Severity, clip(t.SeverityReason, 2000), t.SeverityOverridden, t.Confidence, clip(t.ConfidenceReason, 2000), t.Status,
-		clip(t.StatusReason, 2000), clip(t.Mitigation, 8000), t.MitigationEdited, t.ChangeState, t.Evidence.Hash(), t.OwnerID, t.CreatedBy)
+		clip(t.StatusReason, 2000), clip(t.Mitigation, 8000), t.MitigationEdited, t.ChangeState, t.Evidence.Hash(), t.OwnerID, t.CreatedBy, t.AIEvidenceID)
 	return id, err
 }
 

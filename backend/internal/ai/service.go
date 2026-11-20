@@ -38,6 +38,11 @@ type Service struct {
 	LocalHTTP *http.Client
 	// NewProvider builds providers; tests replace it.
 	NewProvider func(Config) (Provider, error)
+	// SubjectAccess and SubjectReviewers connect evidence records to the
+	// modules that own their subjects (threat models), keyed by subject
+	// kind and by operation.
+	SubjectAccess    map[string]SubjectAccess
+	SubjectReviewers map[string]SubjectReviewer
 }
 
 var errNotFound = errors.New("not found")
@@ -101,6 +106,14 @@ func (s *Service) Register(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/ai/reviews", s.listReviews)
 	mux.HandleFunc("POST /api/v1/ai/reviews/{id}/approve", s.approve)
 	mux.HandleFunc("POST /api/v1/ai/reviews/{id}/reject", s.reject)
+	// PATHOS 3.0 M7 (ai_intelligence flag).
+	mux.HandleFunc("GET /api/v1/ai/evidence", s.listEvidence)
+	mux.HandleFunc("GET /api/v1/ai/evidence/{id}", s.getEvidence)
+	mux.HandleFunc("POST /api/v1/ai/evidence/{id}/review", s.reviewEvidence)
+	mux.HandleFunc("POST /api/v1/ai/evidence/{id}/replay", s.replayEvidence)
+	mux.HandleFunc("GET /api/v1/ai/task-assignments", s.getTaskAssignments)
+	mux.HandleFunc("PUT /api/v1/ai/task-assignments", s.putTaskAssignments)
+	mux.HandleFunc("PUT /api/v1/ai/evidence-settings", s.putEvidenceSettings)
 }
 
 // --- providers ---------------------------------------------------------------
@@ -550,9 +563,10 @@ func defaultConfig(ctx context.Context, q db.Querier, orgID uuid.UUID) (ConfigVe
 		WHERE c.organization_id = $1 AND c.is_default AND c.archived_at IS NULL`, orgID))
 }
 
-// Enqueue queues a finding for review with the default configuration.
+// Enqueue queues a finding for review with the triage task's
+// configuration (the default one unless model per task assigns another).
 func Enqueue(ctx context.Context, q db.Querier, orgID, findingID uuid.UUID, by *uuid.UUID) error {
-	cv, err := defaultConfig(ctx, q, orgID)
+	cv, _, _, err := taskConfig(ctx, q, orgID, TaskFindingValidation)
 	if err != nil {
 		return httpx.Conflict("no AI configuration: an administrator must add a provider and a default configuration")
 	}
@@ -570,7 +584,7 @@ func Enqueue(ctx context.Context, q db.Querier, orgID, findingID uuid.UUID, by *
 // OnScanFinished queues new findings of a scan for automatic review when
 // the default configuration enables it (within its daily limit).
 func (s *Service) OnScanFinished(ctx context.Context, orgID, jobID uuid.UUID) {
-	cv, err := defaultConfig(ctx, s.DB, orgID)
+	cv, _, _, err := taskConfig(ctx, s.DB, orgID, TaskFindingValidation)
 	if err != nil || !cv.AutoReview {
 		return
 	}
@@ -682,13 +696,9 @@ func (s *Service) review(ctx context.Context, orgID, findingID, cvID uuid.UUID) 
 	if err != nil {
 		return err
 	}
-	pvs, err := s.loadProviders(ctx, orgID, &cv.ProviderID)
-	if err != nil || len(pvs) == 0 {
-		return errors.New("ai provider no longer exists")
-	}
-	prov, err := s.provider(ctx, orgID, pvs[0])
+	rc, err := s.resolveVersion(ctx, orgID, cv, uuid.Nil, "queued")
 	if err != nil {
-		return err
+		return errors.New("ai provider no longer exists")
 	}
 	ev, severity, err := LoadEvidence(ctx, s.DB, orgID, findingID, cv.SendCodeContext)
 	if err != nil {
@@ -698,7 +708,10 @@ func (s *Service) review(ctx context.Context, orgID, findingID, cvID uuid.UUID) 
 	system, user, sha := Prompt(ev, cv.Instructions, extra)
 	cctx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer cancel()
-	resp, err := prov.Review(cctx, Request{Model: cv.Model, Effort: cv.Effort, System: system, User: user, Schema: Schema()})
+	fid := findingID
+	resp, _, eid, err := s.invoke(cctx, orgID, rc, callSpec{Task: TaskFindingValidation, Operation: "ai_review", Template: "finding_validation@1",
+		System: system, User: user, Schema: Schema(), Effort: cv.Effort, SentCode: ev.CodeContext != "" && ev.Category != "secrets",
+		Subject: Subject{Kind: "finding", ID: &fid, FindingID: &fid, Related: findingRelated(ctx, s.DB, findingID)}, Review: ReviewPending})
 	if err != nil {
 		return err
 	}
@@ -706,12 +719,43 @@ func (s *Service) review(ctx context.Context, orgID, findingID, cvID uuid.UUID) 
 	if err != nil {
 		return err
 	}
-	return s.record(ctx, orgID, findingID, severity, &cv, "automated", pvs[0].Kind, resp, out, sha, nil)
+	return s.record(ctx, orgID, findingID, severity, &cv, "automated", rc.PV.Kind, resp, out, sha, nil, &eid)
+}
+
+// findingRelated returns the CodeGraph nodes (latest ready snapshot of the
+// finding's repository) at the finding's location, as references.
+func findingRelated(ctx context.Context, q db.Querier, findingID uuid.UUID) map[string]any {
+	rows, err := q.Query(ctx, `SELECT n.snapshot_id, n.node_key, n.type FROM findings f
+		JOIN LATERAL (SELECT id FROM codegraph_snapshots s WHERE s.repository_id = f.repository_id AND s.status IN ('ready', 'partial') AND s.storage = 'rows'
+			ORDER BY s.created_at DESC LIMIT 1) s ON true
+		JOIN codegraph_nodes n ON n.snapshot_id = s.id
+		WHERE f.id = $1 AND (
+			(f.package_name <> '' AND n.type = 'component' AND lower(n.label) = lower(f.package_name))
+			OR (f.file_path <> '' AND n.file_path = f.file_path AND (n.type = 'file'
+				OR (f.start_line IS NOT NULL AND n.start_line IS NOT NULL AND n.end_line IS NOT NULL AND f.start_line BETWEEN n.start_line AND n.end_line))))
+		ORDER BY (n.type = 'file'), COALESCE(n.end_line - n.start_line, 0) LIMIT 10`, findingID)
+	out := map[string]any{"findings": []string{findingID.String()}}
+	if err != nil {
+		return out
+	}
+	defer rows.Close()
+	var nodes []map[string]string
+	for rows.Next() {
+		var snap uuid.UUID
+		var key, typ string
+		if rows.Scan(&snap, &key, &typ) == nil {
+			nodes = append(nodes, map[string]string{"snapshot_id": snap.String(), "key": key, "type": typ})
+		}
+	}
+	if len(nodes) > 0 {
+		out["codegraph_nodes"] = nodes
+	}
+	return out
 }
 
 // record stores a review and applies or queues the decision.
 func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severity string, cv *ConfigVersion, source, provider string,
-	resp Response, out Output, sha string, reviewer *uuid.UUID) error {
+	resp Response, out Output, sha string, reviewer *uuid.UUID, evidenceID *uuid.UUID) error {
 	policy := "always"
 	var cvID *uuid.UUID
 	if cv != nil {
@@ -737,10 +781,11 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 		}
 		id := uuid.Must(uuid.NewV7())
 		if _, err := tx.Exec(ctx, `INSERT INTO ai_reviews (id, organization_id, finding_id, config_version_id, source, provider, model, verdict,
-			confidence, suggested_severity, rationale, remediation, output, transmitted_sha256, input_tokens, output_tokens, status, reviewed_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+			confidence, suggested_severity, rationale, remediation, output, transmitted_sha256, input_tokens, output_tokens, status, reviewed_by,
+			evidence_record_id)
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)`,
 			id, orgID, findingID, cvID, source, provider, truncate(resp.Model, 200), out.Verdict, out.Confidence, out.SuggestedSeverity,
-			out.Rationale, out.Remediation, raw, sha, resp.InputTokens, resp.OutputTokens, status, reviewer); err != nil {
+			out.Rationale, out.Remediation, raw, sha, resp.InputTokens, resp.OutputTokens, status, reviewer, evidenceID); err != nil {
 			return err
 		}
 		aiStatus := "pending_approval"
@@ -755,7 +800,7 @@ func (s *Service) record(ctx context.Context, orgID, findingID uuid.UUID, severi
 		}
 		return audit.Write(ctx, tx, audit.Entry{OrganizationID: orgID, ActorID: reviewer, Action: "ai_review.create", TargetType: "finding",
 			TargetID: findingID.String(), Metadata: map[string]any{"review_id": id, "verdict": out.Verdict, "source": source,
-				"status": status, "transmitted_sha256": sha, "model": resp.Model}})
+				"status": status, "transmitted_sha256": sha, "model": resp.Model, "evidence_record_id": evidenceID}})
 	})
 }
 
@@ -941,7 +986,18 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 		s.fail(w, r, httpx.BadRequest("note must be at most 2000 characters"))
 		return
 	}
-	err = db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
+	if err := s.decideReview(ctx, p, id, approve, req.Note); err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// decideReview applies or rejects a pending AI review (and its evidence
+// record) as p.
+func (s *Service) decideReview(ctx context.Context, p *authz.Principal, id uuid.UUID, approve bool, note string) error {
+	req := decisionRequest{Note: note}
+	return db.InTx(ctx, s.DB, func(tx pgx.Tx) error {
 		var findingID uuid.UUID
 		var verdict, status, severity string
 		var reviewer *uuid.UUID
@@ -972,6 +1028,12 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 			id, newStatus, p.UserID, req.Note); err != nil {
 			return err
 		}
+		// The review's evidence record carries the same human decision.
+		if _, err := tx.Exec(ctx, `UPDATE ai_evidence_records e SET review_decision = $2, reviewer_id = $3, reviewed_at = now(), review_note = $4
+			FROM ai_reviews ar WHERE ar.id = $1 AND e.id = ar.evidence_record_id AND e.review_decision IN ('pending', 'not_required')`,
+			id, map[bool]string{true: ReviewAccepted, false: ReviewRejected}[approve], p.UserID, truncate(req.Note, 2000)); err != nil {
+			return err
+		}
 		if approve {
 			uid := [16]byte(p.UserID)
 			if err := db.SetChangeContext(ctx, tx, &uid, "ai", "AI review approved: "+req.Note); err != nil {
@@ -989,11 +1051,6 @@ func (s *Service) decide(w http.ResponseWriter, r *http.Request, approve bool) {
 			Action: "ai_review." + map[bool]string{true: "approve", false: "reject"}[approve], TargetType: "finding", TargetID: findingID.String(),
 			Metadata: map[string]any{"review_id": id, "verdict": verdict, "note": req.Note, "self_approved": self}})
 	})
-	if err != nil {
-		s.fail(w, r, err)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
 }
 
 // SubmitInteractive records a review a human produced with their own AI
@@ -1012,7 +1069,20 @@ func (s *Service) SubmitInteractive(ctx context.Context, p *authz.Principal, fin
 	if err == nil {
 		cvp = &cv
 	}
-	if err := s.record(ctx, p.OrganizationID, findingID, severity, cvp, "interactive_mcp", "mcp", Response{Model: "user-assistant"}, out, "", &p.UserID); err != nil {
+	// The review was produced outside PATHOS (the person's own assistant):
+	// its record holds the conclusion, not a prompt, and cannot be replayed.
+	fid := findingID
+	eid := uuid.Must(uuid.NewV7())
+	c := out.Confidence
+	rc := resolved{PV: ProviderView{Kind: "mcp"}, Location: LocationUser, CV: ConfigVersion{Model: "user-assistant"}}
+	if err := s.writeRecord(ctx, recordRow{ID: eid, OrgID: p.OrganizationID, RC: rc, Params: map[string]any{"source": "interactive_mcp"},
+		Spec: callSpec{Task: TaskFindingValidation, Operation: "interactive_mcp", Template: "interactive_mcp@1", Review: ReviewPending,
+			Subject: Subject{Kind: "finding", ID: &fid, FindingID: &fid, RequestedBy: &p.UserID, Related: map[string]any{"findings": []string{fid.String()}}}},
+		Status: "succeeded", Resp: Response{Model: "user-assistant"},
+		Interp: interpretation{Steps: out.Evidence, Conclusion: out.Verdict + ": " + out.Rationale, Verdict: out.Verdict, Confidence: &c}}, nil); err != nil {
+		return "", err
+	}
+	if err := s.record(ctx, p.OrganizationID, findingID, severity, cvp, "interactive_mcp", "mcp", Response{Model: "user-assistant"}, out, "", &p.UserID, &eid); err != nil {
 		return "", err
 	}
 	var st string

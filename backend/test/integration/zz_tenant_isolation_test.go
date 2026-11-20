@@ -170,6 +170,8 @@ func tableFor(path, seg string) string {
 	switch {
 	case strings.HasPrefix(path, "/api/v1/ai/reports/"):
 		return "ai_reports"
+	case strings.HasPrefix(path, "/api/v1/ai/evidence/"):
+		return "ai_evidence_records"
 	case strings.Contains(path, "/notifications/webhooks/{id}/deliveries"):
 		return "outbound_webhooks"
 	}
@@ -784,8 +786,12 @@ func TestTenantIsolation(t *testing.T) {
 // Measured 2026-11-20 with M2, M3, M4, M5 and M8 (remediation and gates)
 // together: 163 of 164 reach the organization check; 14 of 22
 // parent-in-body controls (16 with row-level security).
+// Measured 2026-11-20 with M7 (AI evidence review and replay, correlation
+// explanation, threat suggestions) on top: 167 of 168 reach the
+// organization check; 14 of 22 parent-in-body controls (16 with
+// row-level security).
 const (
-	minWriteRoutesReached = 163
+	minWriteRoutesReached = 167
 	minParentControls     = 14
 )
 
@@ -828,6 +834,9 @@ var requiredWriteRoutes = []string{
 	"PATCH /api/v1/remediation/items/{id}", "POST /api/v1/remediation/items/{id}/verify", "DELETE /api/v1/remediation/views/{id}",
 	"PUT /api/v1/gates/{id}", "DELETE /api/v1/gates/{id}", "POST /api/v1/gates/decisions/{id}/exceptions",
 	"POST /api/v1/gate-exceptions/{id}/approve", "POST /api/v1/gate-exceptions/{id}/reject", "POST /api/v1/gate-exceptions/{id}/revoke",
+	// AI evidence records, correlation and threat suggestions (M7)
+	"POST /api/v1/ai/evidence/{id}/review", "POST /api/v1/ai/evidence/{id}/replay", "POST /api/v1/findings/{id}/correlation/explain",
+	"POST /api/v1/threat-models/{id}/suggest",
 }
 
 var uuidRe = regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
@@ -1309,7 +1318,7 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 }
 
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph", "threat_models", "remediation_workspace", "ai_intelligence"}
 
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
@@ -1380,6 +1389,11 @@ func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 			INSERT INTO security_gates (id, organization_id, name, stage, policy_id, mode, repository_id) SELECT $1, $2, $3, 'deploy', p.id, 'block', $4 FROM p`, []any{gate, org, "iso-b-gate-" + n(), repo, gatePolicy, "iso-b-gate-policy-" + n()}},
 		{"gate_decisions", `INSERT INTO gate_decisions (id, organization_id, stage, repository_id, outcome, gate_ids, policy_ids, reasons) VALUES ($1, $2, 'deploy', $3, 'block', ARRAY[$4::uuid], ARRAY[$5::uuid], '[{"code":"policy_matched","message":"B"}]')`, []any{decision, org, repo, gate, gatePolicy}},
 		{"gate_exceptions", `INSERT INTO gate_exceptions (id, organization_id, gate_id, decision_id, kind, repository_id, reason, requested_by, expires_at) VALUES ($1, $2, $3, $4, 'exception', $5, 'B exception', $6, now() + interval '30 days')`, []any{uuid.Must(uuid.NewV7()), org, gate, decision, repo, user}},
+		// An AI evidence record about one of B's findings (M7).
+		{"ai_evidence_records", `INSERT INTO ai_evidence_records (id, organization_id, task, operation, subject_kind, subject_id, finding_id, provider,
+			provider_location, model, prompt_template, status, conclusion, verdict, steps, requested_by) VALUES ($1, $2, 'finding_validation', 'ai_review',
+			'finding', $3, $3, 'self_hosted', 'local', 'b-model', 'finding_validation@1', 'succeeded', 'B conclusion', 'false_positive', '["B step"]', $4)`,
+			[]any{uuid.Must(uuid.NewV7()), org, finding, user}},
 	}
 	for _, st := range stmts {
 		var exists bool

@@ -183,6 +183,9 @@ CodeGraph builds use the same job and lease system. A build is a scan execution 
 - AI is never on the critical path. If no provider is configured or a call fails, scanning continues and the finding keeps its status.
 - Guardrails: a Critical finding is **never** closed on an AI "false positive" verdict, and AI never overrides a human decision.
 - The AI Security Analyst, AI reports and Human Eye assistance use the same request path (default configuration, redaction, fencing, SHA-256 of the payload).
+- **AI evidence records (PATHOS 3.0 M7).** Every provider call goes through one function (`ai.Service.invoke`), which writes an `ai_evidence_records` row for every outcome: subject and related CodeGraph references, task and template, model and provider (local or cloud), parameters (temperature 0 and a seed for local models), the SHA-256 of what was sent and received, the validated steps, conclusion and confidence, and the reviewer's decision; the redacted prompt and response are kept envelope-encrypted for the organization's retention (180 days by default). A record can be replayed and compared. A unit test fails when a model call bypasses `invoke`.
+- **Model per task (M7, `ai_intelligence` flag).** Each task (triage and review, fix proposals, troubleshooting, threat suggestions, correlation, analyst chat, report narratives) can use its own configuration; code-bearing tasks default to a self-hosted model when one exists. Code is only sent where the configuration's *Send code context* allows it; a request that needs code is otherwise refused and recorded.
+- **No silent suppression (M7).** An AI false-positive verdict always waits for a person, whatever the approval policy; AI correlation conclusions ("not exploitable") and AI-suggested threats are proposals labelled AI-inferred until a person accepts them. See [PATHOS_AI_SECURITY_INTELLIGENCE.md](aspm/PATHOS_AI_SECURITY_INTELLIGENCE.md).
 
 ### Claude subscriptions
 

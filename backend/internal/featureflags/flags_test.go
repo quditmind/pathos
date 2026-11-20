@@ -7,7 +7,7 @@ import (
 )
 
 func TestKnownFlags(t *testing.T) {
-	want := []string{"connectors", "onboarding", "codegraph", "threat_models", "reverse_engineering", "remediation_workspace", "continuous_monitoring", "lifecycle_overview", "scan_profile_tiers"}
+	want := []string{"connectors", "onboarding", "codegraph", "threat_models", "ai_intelligence", "reverse_engineering", "remediation_workspace", "continuous_monitoring", "lifecycle_overview", "scan_profile_tiers"}
 	for _, n := range want {
 		if !IsKnown(n) {
 			t.Errorf("flag %s missing", n)

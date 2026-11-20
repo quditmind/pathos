@@ -1,6 +1,6 @@
 import { useCallback, useId, useMemo, useState } from "react";
 import { Link, useNavigate, useParams, useSearch } from "@tanstack/react-router";
-import { Download, GitBranchPlus, Plus, RefreshCw, Send, ShieldHalf } from "lucide-react";
+import { Download, GitBranchPlus, Plus, RefreshCw, Send, ShieldHalf, Sparkles } from "lucide-react";
 import { ApiError } from "@/api/client";
 import { GraphExplorer } from "@/components/graph";
 import { downloadUrl, exportFileName } from "@/components/graph/export";
@@ -10,7 +10,8 @@ import { Alert, Card, Label, PageHeader, Select, Table, Td, Th } from "@/compone
 import { EmptyStateCard, FeatureDisabled, LoadingSkeleton, PermissionDenied } from "@/components/ui/states";
 import { toast } from "@/components/ui/toast";
 import { useSession } from "@/features/auth/session";
-import { useFeatureFlags, useMeta } from "@/features/shell/meta";
+import { useFeatureFlag, useFeatureFlags, useMeta } from "@/features/shell/meta";
+import { useSuggestThreats } from "@/features/ai/evidence";
 import { formatDateTime } from "@/lib/utils";
 import {
   approveBlockedReason,
@@ -50,6 +51,7 @@ function Summary({ m }: { m: ThreatModel }) {
           ["Not applicable", c.not_applicable],
           ["Unverified", c.unverified],
           ["Without mitigation", c.without_mitigation],
+          ...(c.ai_pending ? ([["AI suggestions awaiting a decision", c.ai_pending]] as const) : []),
         ] as const
       ).map(([l, v]) => (
         <div key={l} className="flex gap-1">
@@ -249,6 +251,8 @@ export function ThreatModelView({ modelId, tab, threat, onNavigate }: { modelId:
   const q = useThreatModel(modelId);
   const threats = useThreats(modelId);
   const act = useModelAction(modelId);
+  const suggest = useSuggestThreats(modelId);
+  const aiOn = useFeatureFlag("ai_intelligence");
   const [adding, setAdding] = useState(false);
   const m = q.data?.model;
   const sorted = useMemo(() => threats.data ?? [], [threats.data]);
@@ -306,6 +310,12 @@ export function ThreatModelView({ modelId, tab, threat, onNavigate }: { modelId:
             <Button size="sm" variant="secondary" onClick={() => setAdding(true)}>
               <Plus /> Add manual threat
             </Button>
+            {aiOn && can("ai.review") && (
+              <Button size="sm" variant="secondary" disabled={suggest.isPending} onClick={() =>
+                suggest.mutate(undefined, { onSuccess: (r) => toast.success(`${r.items.length} AI-inferred threat(s) added; each needs a person's decision.`) })}>
+                <Sparkles /> {suggest.isPending ? "Asking the AI…" : "Suggest threats with AI"}
+              </Button>
+            )}
             <Button size="sm" variant="secondary" onClick={() => run("submit", "Submitted for review.")} disabled={act.isPending}>
               <Send /> Submit for review
             </Button>
@@ -316,6 +326,12 @@ export function ThreatModelView({ modelId, tab, threat, onNavigate }: { modelId:
         </span>
       </div>
       {act.isError && <ErrorPanel error={act.error} title="The action did not complete" />}
+      {suggest.isError && <ErrorPanel error={suggest.error} title="The AI did not suggest threats" />}
+      {editable && (m.counts?.ai_pending ?? 0) > 0 && (
+        <Alert tone="warning">
+          {m.counts!.ai_pending} AI-suggested threat(s) await a person's decision; accept or reject each before submitting.
+        </Alert>
+      )}
       {notes.length > 0 && (
         <Alert tone="warning">
           <ul className="list-disc pl-4">

@@ -18,6 +18,7 @@ import (
 	"pathos/internal/codegraph"
 	"pathos/internal/compliance"
 	"pathos/internal/connectors"
+	"pathos/internal/correlation"
 	"pathos/internal/dashboard"
 	"pathos/internal/diagnostics"
 	"pathos/internal/eol"
@@ -164,8 +165,12 @@ func Build(d Deps) Handlers {
 	scanSvc.OnGraphResult = graphSvc.OnGraphResult
 	// Threat models (flag threat_models): a new snapshot regenerates the
 	// application's threat models in a draft (auto_update).
-	threatSvc := &threatmodel.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
+	threatSvc := &threatmodel.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc}
 	graphSvc.OnSnapshotReady = threatSvc.OnSnapshotReady
+	// AI evidence records (M7): threat-model subjects are checked and
+	// decided by the threat-model module.
+	aiSvc.SubjectAccess = map[string]ai.SubjectAccess{"threat_model": threatSvc.EvidenceAccess, "threat": threatSvc.EvidenceAccess}
+	aiSvc.SubjectReviewers = map[string]ai.SubjectReviewer{"threat_suggestion_item": threatSvc.ReviewSuggestion}
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -260,6 +265,8 @@ func Build(d Deps) Handlers {
 	postureSvc.Register(protected)
 	graphSvc.Register(protected)
 	threatSvc.Register(protected)
+	// Cross-phase correlation (M7, ai_intelligence flag).
+	(&correlation.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom, AI: aiSvc, ThreatAccess: threatSvc.EvidenceAccess}).Register(protected)
 	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)

@@ -198,7 +198,10 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 		in.Assessment = map[string]any{"answers": a.Answers, "fields": a.Fields, "reproduction": a.Reproduction, "risk": a.Risk,
 			"assessed_severity": v.AssessedSeverity, "status": v.Status}
 	}
-	res, err := s.AI.Assist(ctx, p.OrganizationID, req.Kind, in, st.AISendCode)
+	fid, hid := v.FindingID, v.ID
+	actx := ai.WithSubject(ctx, ai.Subject{Kind: "human_review", ID: &hid, FindingID: &fid, RequestedBy: &p.UserID,
+		Related: map[string]any{"findings": []string{fid.String()}, "human_review": v.Key}})
+	res, err := s.AI.Assist(actx, p.OrganizationID, req.Kind, in, st.AISendCode)
 	if err != nil {
 		switch {
 		case errors.Is(err, ai.ErrNotConfigured):
@@ -226,10 +229,10 @@ func (s *Service) requestRecommendation(w http.ResponseWriter, r *http.Request) 
 	content, _ := json.Marshal(res.Output)
 	rid := uuid.Must(uuid.NewV7())
 	if _, err := s.DB.Exec(ctx, `INSERT INTO human_review_recommendations (id, organization_id, review_id, kind, provider, model, config_version_id,
-		content, transmitted_sha256, input_tokens, output_tokens, requested_by, patch_status)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		content, transmitted_sha256, input_tokens, output_tokens, requested_by, patch_status, evidence_record_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
 		rid, v.OrgID, v.ID, req.Kind, res.Provider, res.Model, res.ConfigVersionID, content, res.SHA256, res.InputTokens, res.OutputTokens, p.UserID,
-		patchStatus); err != nil {
+		patchStatus, res.EvidenceID); err != nil {
 		s.fail(w, r, err)
 		return
 	}

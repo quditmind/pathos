@@ -126,8 +126,8 @@ describe("sidebar regroup (prompt §5)", () => {
   it("new modules are roadmap items with a phase and a feature flag; only built ones have a route", () => {
     const roadmap = groups.flatMap((g) => g.items).filter((i) => i.phase);
     // Built modules (M2: Connectors; M3: Lifecycle overview, Onboard an
-    // application; M4: CodeGraph, API & endpoints; M5: Threat models; M8:
-    // Remediation workspace) carry their route and still their phase and flag.
+    // application; M4: CodeGraph, API & endpoints; M5: Threat models; M7: AI
+    // evidence log; M8: Remediation workspace) carry their route and still their phase and flag.
     expect(roadmap.filter((i) => i.to).map((i) => [i.label, i.to, i.flag])).toEqual([
       ["Lifecycle overview", "/lifecycle", "lifecycle_overview"],
       ["Connectors", "/connectors", "connectors"],
@@ -135,6 +135,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
     ]);
     // Not-yet-built modules have no route at all.
@@ -190,6 +191,7 @@ describe("sidebar regroup (prompt §5)", () => {
       ["CodeGraph", "/codegraph", "codegraph"],
       ["API & endpoints", "/api-endpoints", "codegraph"],
       ["Threat models", "/threat-models", "threat_models"],
+      ["AI evidence log", "/ai/evidence", "ai_intelligence"],
       ["Remediation workspace", "/remediation", "remediation_workspace"],
     ]);
     for (const i of flagged) expect(i.phase, i.label).toBeGreaterThan(0);
@@ -267,5 +269,31 @@ describe("sidebar regroup (prompt §5)", () => {
     const nav = await screen.findByRole("navigation", { name: "Main" });
     const link = await within(nav).findByRole("link", { name: "Remediation workspace" });
     expect(link).toHaveAttribute("href", "/remediation");
+  });
+
+  it("makes the AI evidence log a link only while the ai_intelligence flag is on", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { ai_intelligence: true } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read", "ai.evidence_read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    expect(await within(nav).findByRole("link", { name: "AI evidence log" })).toHaveAttribute("href", "/ai/evidence");
+  });
+
+  it("keeps the AI evidence log a disabled roadmap item while the flag is off", async () => {
+    mockApi({ "GET /api/v1/meta": () => ({ product: "PATHOS", vendor: "Quditmind", version: "dev", feature_flags: { ai_intelligence: false } }) });
+    renderApp(
+      <AppShell>
+        <div />
+      </AppShell>,
+      { permissions: ["findings.read", "ai.evidence_read"] },
+    );
+    const nav = await screen.findByRole("navigation", { name: "Main" });
+    const item = within(nav).getByText("AI evidence log").closest("[aria-disabled]");
+    expect(item).toHaveAttribute("title", "AI evidence log: arrives in roadmap phase 7");
+    expect(within(nav).queryByRole("link", { name: "AI evidence log" })).toBeNull();
   });
 });

@@ -72,6 +72,7 @@ export const routeHelp: Record<string, RouteArticle> = {
   "/ai/analyst": g("ai-analyst"),
   "/ai": g("ai-analyst"),
   "/ai/reports": g("ai-analyst"),
+  "/ai/evidence": g("ai-security-intelligence", "ai-evidence-log"),
   "/human-review": g("human-review"),
   "/human-review/queue": g("human-review"),
   "/human-review/assessments": g("human-review"),

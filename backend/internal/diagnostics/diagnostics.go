@@ -223,6 +223,8 @@ type TroubleshootResponse struct {
 	Model string `json:"model,omitempty"`
 	// AIUnavailable says why the catalogue answered (AI off or failed).
 	AIUnavailable string `json:"ai_unavailable,omitempty"`
+	// EvidenceRecordID is the AI evidence record of the answer (source "ai").
+	EvidenceRecordID string `json:"evidence_record_id,omitempty"`
 }
 
 var (
@@ -308,7 +310,8 @@ func (s *Service) troubleshoot(w http.ResponseWriter, r *http.Request) {
 	case !entry.AIHelp:
 		out.AIUnavailable = "AI help is not offered for this code; the catalogue steps apply"
 	default:
-		res, err := s.AI.Troubleshoot(ctx, p.OrganizationID, ai.TroubleshootInput{Code: entry.Code, Title: entry.Title, Description: entry.Description,
+		actx := ai.WithSubject(ctx, ai.Subject{Kind: "error", RequestedBy: &p.UserID, Related: map[string]any{"error_code": entry.Code, "request_id": reqID}})
+		res, err := s.AI.Troubleshoot(actx, p.OrganizationID, ai.TroubleshootInput{Code: entry.Code, Title: entry.Title, Description: entry.Description,
 			Message: msg, ProbableCauses: entry.ProbableCauses, Actions: entry.Actions, Verify: entry.Verify, Context: cleanCtx})
 		if err != nil {
 			code := ai.DiagCode(err)
@@ -321,6 +324,9 @@ func (s *Service) troubleshoot(w http.ResponseWriter, r *http.Request) {
 		}
 		o := res.Output
 		out.Source, out.Model = "ai", res.Model
+		if res.EvidenceID != uuid.Nil {
+			out.EvidenceRecordID = res.EvidenceID.String()
+		}
 		// AI conclusions are AI-inferred, never confirmed.
 		out.Cause = diag.Cause{Confirmed: false, Text: o.LikelyCause}
 		if len(o.ProbableCauses) > 0 {

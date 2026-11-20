@@ -95,11 +95,13 @@ Approve and reject take an optional `{ "note" }` (at most 2000 characters). Erro
 
 Review fields: `id`, `finding_id`, `finding_title`, `finding_severity`, `finding_status`, `repository_name`, `source` (`automated` or `interactive_mcp`), `provider`, `model`, `verdict` (`true_positive`, `false_positive`, `needs_review`), `confidence` (0–1), `suggested_severity`, `rationale`, `remediation`, `evidence_cited`, `status`, `reviewed_by` (MCP submitter), `decided_by`, `decided_at`, `decision_note`, `transmitted_sha256` (hash of what was sent to the provider), `created_at`.
 
-**What a verdict does.** `false_positive` sets the finding to `false_positive`, `needs_review` sets it to `needs_review`, `true_positive` leaves the status unchanged; only open findings (`open`, `needs_review`) change. Whether this happens at once or after approval follows the configuration's `approval_policy`. A false-positive verdict on a **Critical** finding always waits for approval and sets the finding to `needs_review` meanwhile. A new review supersedes a pending one for the same finding.
+**What a verdict does.** `false_positive` sets the finding to `false_positive`, `needs_review` sets it to `needs_review`, `true_positive` leaves the status unchanged; only open findings (`open`, `needs_review`) change. Whether this happens at once or after approval follows the configuration's `approval_policy`, except that a **false-positive verdict always waits for a person's approval** whatever the policy (PATHOS 3.0 M7: no silent suppression; `never` still applies `needs_review` at once). A false-positive verdict on a **Critical** finding is proposed as `needs_review`. A new review supersedes a pending one for the same finding.
 
 **Queue.** Reviews run in the background, one finding at a time, each with a 4-minute timeout. Provider rate limits are retried up to 5 times with growing delays; other errors set the finding's `ai_status` to `failed`.
 
 Audit actions: `ai_review.request`, `ai_review.create`, `ai_review.approve`, `ai_review.reject`.
+
+Every review has an AI evidence record (`evidence_record_id` on the review; approving or rejecting the review records the decision on it too): see [AI evidence, model per task and correlation](ai-evidence.md). With the `ai_intelligence` flag on, the configuration of a queued review is the triage task's ([model per task](ai-evidence.md#get-apiv1aitask-assignments)) instead of the default.
 
 ## AI-proposed fixes
 

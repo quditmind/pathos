@@ -125,6 +125,10 @@ Scope: a model narrowed to a repository needs the permission on that repository.
 
 `decision` is `submitted`, `approved`, `rejected` or `changes_requested`. Event actions: `created`, `regenerated`, `severity_changed`, `status_changed`, `mitigation_changed`, `linked`, `unlinked`, `mapping_added`, `mapping_removed`, `edited`, `copied`.
 
+## AI threat suggestions
+
+`POST /api/v1/threat-models/{id}/suggest` (`threats.manage` and `ai.review`; also behind the `ai_intelligence` flag) adds AI-inferred threats to a draft (`method: "ai"`, `evidence_type: "ai_inferred"`, label "AI-inferred"), each with its AI evidence record (`ai_evidence_id`) and `ai_review: "pending"` until a person accepts or rejects it through `POST /api/v1/ai/evidence/{id}/review` (rejected suggestions are removed from the draft). A version with pending suggestions cannot be submitted (`422`, `PTH-AI-1302`); `counts.ai_pending` counts them. Request, response and errors: [AI evidence, model per task and correlation](ai-evidence.md#post-apiv1threat-modelsidsuggest).
+
 ## Regeneration and the architecture feedback loop
 
 Each generated threat has a **fingerprint** (rule, repository, element). Regenerating matches fingerprints: a threat found again keeps its status, its reason, its owner, a severity a person changed and a mitigation a person wrote, and gets fresh evidence (`change_state` `changed` when the evidence differs, else `unchanged`); a threat not found again is kept with `change_state` `resolved`; a new one is `new`. Manual and imported threats are never touched.

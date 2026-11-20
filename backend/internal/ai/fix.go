@@ -133,6 +133,7 @@ type FixResult struct {
 	SHA256          string
 	InputTokens     int64
 	OutputTokens    int64
+	EvidenceID      uuid.UUID
 }
 
 // quotedRe matches string literal contents; tokenRe long opaque values.
@@ -235,10 +236,10 @@ func ValidateFix(raw []byte) (FixProposal, error) {
 	return out, nil
 }
 
-// FixAvailable reports whether fix proposals can be requested: a default
-// AI configuration exists and it allows sending code.
+// FixAvailable reports whether fix proposals can be requested: the fix
+// task has an AI configuration and it allows sending code.
 func (s *Service) FixAvailable(ctx context.Context, orgID uuid.UUID) error {
-	cv, err := defaultConfig(ctx, s.DB, orgID)
+	cv, _, _, err := taskConfig(ctx, s.DB, orgID, TaskFixProposal)
 	if err != nil {
 		return ErrNotConfigured
 	}
@@ -248,31 +249,33 @@ func (s *Service) FixAvailable(ctx context.Context, orgID uuid.UUID) error {
 	return nil
 }
 
-// ProposeFix asks the organization's default AI configuration for a fix.
+// ProposeFix asks the fix task's AI configuration (model per task) for a
+// fix. The call writes an AI evidence record (subject from WithSubject).
 func (s *Service) ProposeFix(ctx context.Context, orgID uuid.UUID, in FixInput) (FixResult, error) {
-	cv, err := defaultConfig(ctx, s.DB, orgID)
-	if err != nil {
-		return FixResult{}, ErrNotConfigured
-	}
-	if !cv.SendCodeContext {
-		return FixResult{}, ErrCodeNotAllowed
-	}
-	pvs, err := s.loadProviders(ctx, orgID, &cv.ProviderID)
-	if err != nil || len(pvs) == 0 {
-		return FixResult{}, ErrNotConfigured
-	}
-	prov, err := s.provider(ctx, orgID, pvs[0])
+	rc, err := s.resolve(ctx, orgID, TaskFixProposal)
 	if err != nil {
 		return FixResult{}, err
 	}
+	cv := rc.CV
+	res := FixResult{Provider: rc.PV.Kind, Model: cv.Model, ConfigVersionID: cv.ID}
 	extra, _ := CompilePatterns(cv.RedactionPatterns)
 	system, user, sha := FixPrompt(in, cv.Instructions, extra)
+	res.SHA256 = sha
 	cctx, cancel := context.WithTimeout(ctx, 8*time.Minute)
 	defer cancel()
-	resp, err := prov.Review(cctx, Request{Model: cv.Model, Effort: cv.Effort, System: system, User: user, Schema: FixSchema(), MaxOutputTokens: 8000})
-	res := FixResult{Provider: pvs[0].Kind, Model: cv.Model, ConfigVersionID: cv.ID, SHA256: sha}
+	// A fix always sends code: invoke refuses (and records) it when the
+	// configuration does not allow code.
+	resp, _, eid, err := s.invoke(cctx, orgID, rc, callSpec{Task: TaskFixProposal, Operation: "fix_proposal", Template: "fix_proposal@1",
+		System: system, User: user, Schema: FixSchema(), Effort: cv.Effort, MaxTokens: 8000, SentCode: true,
+		Subject: subjectFrom(ctx, TaskFixProposal), Review: ReviewPending})
+	res.EvidenceID = eid
 	if err != nil {
-		return res, err
+		if errors.Is(err, ErrCodeNotAllowed) {
+			return res, ErrCodeNotAllowed
+		}
+		if len(resp.JSON) == 0 {
+			return res, err
+		}
 	}
 	res.Model, res.InputTokens, res.OutputTokens = resp.Model, resp.InputTokens, resp.OutputTokens
 	res.Proposal, err = ValidateFix(resp.JSON)

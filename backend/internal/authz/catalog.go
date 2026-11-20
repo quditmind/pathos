@@ -66,6 +66,9 @@ const (
 	// before a pull request can be opened from them.
 	PermAIFix     Permission = "ai.fix"
 	PermMCPManage Permission = "mcp.manage"
+	// PermAIEvidenceRead views AI evidence records (PATHOS 3.0 M7); each
+	// record also needs read access to its subject.
+	PermAIEvidenceRead Permission = "ai.evidence_read"
 
 	PermNotificationsManage Permission = "notifications.manage"
 	PermSettingsManage      Permission = "settings.manage"
@@ -137,6 +140,7 @@ var Permissions = []PermissionInfo{
 	{PermAIReview, "AI & MCP", "Run and approve AI reviews", false},
 	{PermAIConfigure, "AI & MCP", "Manage AI providers and configurations", true},
 	{PermAIFix, "AI & MCP", "Request AI-proposed code fixes for findings (verified by a worker before a pull request can be opened)", false},
+	{PermAIEvidenceRead, "AI & MCP", "View AI evidence records (model, prompt and response, reasoning, conclusion, reviewer) of subjects one can read", false},
 	{PermMCPManage, "AI & MCP", "Manage MCP servers and tool permissions", true},
 
 	{PermRemediationRead, "Remediate & gate", "View remediation items, fix verifications, security gates, gate decisions and exceptions", false},
@@ -163,7 +167,7 @@ func all() []Permission {
 
 var readOnly = []Permission{
 	PermDashboardRead, PermOrgRead, PermReposRead, PermScannersRead,
-	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead, PermThreatsRead, PermRemediationRead,
+	PermScansRead, PermScansCompare, PermFindingsRead, PermSBOMRead, PermReviewsRead, PermThreatsRead, PermRemediationRead, PermAIEvidenceRead,
 }
 
 func with(base []Permission, extra ...Permission) []Permission {
