@@ -57,6 +57,7 @@ The PATHOS REST API is the same API the web interface uses. Everything in this r
 | [Administration and your account](administration.md) | `/me`, API tokens, in-app notifications, users, role assignments, roles, organization structure, audit log, workers, MFA |
 | [Notifications and outbound webhooks](notifications.md) | SMTP, notification rules, email templates, delivery history, outbound webhooks |
 | [Connectors](connectors.md) | Kinds catalogue, one list over every connection, health checks and history, AI troubleshooting of a connector (flag `connectors`) |
+| [Remediation and security gates](remediation-and-gates.md) | Remediation items, fix verification with before-and-after evidence, saved views, security gates at every stage, gate decisions, exceptions and approvals (flag `remediation_workspace`) |
 | [Product metadata, diagnostics and feature flags](diagnostics.md) | `GET /api/v1/meta`, the error catalogue, AI troubleshooting, feature flags |
 | [Worker protocol (internal)](worker-protocol.md) | The internal API scan workers use; not for API clients |
 

@@ -61,6 +61,7 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 | `pathos import --sbom --repo R --file F` | Uploads a CycloneDX or SPDX JSON SBOM; it replaces the repository's component inventory |
 | `pathos scan --repo R [--profile UUID] [--name NAME] [--no-wait] [--wait-timeout 30m]` | Starts a scan and follows its stages and progress until it finishes |
 | `pathos gate (--scan UUID \| --repo R) [--fail-on SEV] [--scope new\|all] [--allow-partial]` | Evaluates the security gate of an execution (with `--repo`: the repository's latest finished execution). See below |
+| `pathos gate --stage ide\|pre-commit\|pull-request\|ci\|release\|deploy (--repo R \| --application UUID) [--commit SHA] [--scan UUID] [--pull-request N]` | Asks the organization's [security gates](remediation.md#security-gates) of a stage for a decision (PATHOS 3.0, flag `remediation_workspace`). Exit 1 on *block* or *approval required*; 0 on *pass*, *warn* or *exception applied*. `--fail-on`, `--scope` and `--allow-partial` do not apply |
 | `pathos findings [--repo R] [--severity critical,high] [--status open] [--category C] [--scanner KEY] [--limit 100] [--output table\|json]` | Lists findings |
 | `pathos sbom export --repo R [--format cyclonedx\|spdx] [--output FILE]` | Downloads the repository's SBOM |
 | `pathos version` | Prints the CLI version and build, e.g. `Quditmind PATHOS v2.2.0 (build 0123456789ab, 2026-11-20T10:00:00Z)` (also `pathos --version`) |
@@ -73,7 +74,9 @@ The token is sent only as an `Authorization: Bearer` header to the configured se
 - the execution's own security gate failed: the profile's *fail on critical* setting or a blocking security policy
 - `--fail-on` is a severity and findings at or above it exist: findings **new** in this execution (`--scope new`, the default), or **all** open findings of the repository (`--scope all`)
 
-It prints the reasons, so the build log says why the build failed.
+It prints the reasons, so the build log says why the build failed. `--fail-on` is the pipeline's own explicit threshold (decision C6 of the lifecycle design): it never applies unless you pass it.
+
+With `--stage`, the decision comes from the organization's [security gates](remediation.md#security-gates) instead: each gate applies a security policy at a stage, and no gate blocks without a policy. With no gate configured the decision is *pass*. Every decision is recorded in **Remediate & gate → Gates & decisions**.
 
 ### Exit codes
 

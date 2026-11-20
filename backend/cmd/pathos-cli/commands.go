@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -357,14 +358,32 @@ type gateResult struct {
 }
 
 func (a *app) cmdGate(args []string) error {
-	fs := a.commandFlags("gate", "pathos gate (--scan UUID | --repo <repository>) [--fail-on critical|high|medium|low|none] [--scope new|all] [--allow-partial]")
+	fs := a.commandFlags("gate", "pathos gate (--scan UUID | --repo <repository>) [--fail-on critical|high|medium|low|none] [--scope new|all] [--allow-partial]\n"+
+		"       pathos gate --stage ide|pre-commit|pull-request|ci|release|deploy (--repo <repository> | --application UUID) [--commit SHA] [--pull-request N] [--scan UUID]")
 	scanID := fs.String("scan", "", "scan execution UUID")
 	repoRef := fs.String("repo", "", "repository: evaluate its latest finished execution")
-	failOn := fs.String("fail-on", "none", "fail when findings at or above this severity exist: critical, high, medium, low or none")
+	failOn := fs.String("fail-on", "none", "fail when findings at or above this severity exist: critical, high, medium, low or none (the caller's own threshold; not with --stage)")
 	scope := fs.String("scope", "new", "new: findings first detected by the execution; all: the repository's open findings")
 	allowPartial := fs.Bool("allow-partial", false, "a partial execution (some scanners failed) may pass")
+	stage := fs.String("stage", "", "evaluate the organization's security gates of this stage (POST /api/v1/gates/evaluate): ide, pre-commit, pull-request, ci, release or deploy")
+	appID := fs.String("application", "", "with --stage: application UUID (instead of --repo)")
+	commit := fs.String("commit", "", "with --stage: commit SHA being gated")
+	pr := fs.Int("pull-request", 0, "with --stage pull-request: pull request number")
 	if err := parse(fs, args); err != nil {
 		return err
+	}
+	if *stage != "" {
+		set := map[string]bool{}
+		fs.Visit(func(f *flag.Flag) { set[f.Name] = true })
+		for _, legacy := range []string{"fail-on", "scope", "allow-partial"} {
+			if set[legacy] {
+				return usagef("--%s applies to the scan gate without --stage; with --stage the organization's security gates and policies decide", legacy)
+			}
+		}
+		return a.gateStage(*stage, *repoRef, *appID, *commit, *scanID, *pr)
+	}
+	if *appID != "" || *commit != "" || *pr != 0 {
+		return usagef("--application, --commit and --pull-request need --stage")
 	}
 	switch *failOn {
 	case "critical", "high", "medium", "low", "none":
@@ -433,6 +452,117 @@ func (a *app) cmdGate(args []string) error {
 		}
 	}
 	if !g.Passed {
+		return exitErr{exitGateFailed, ""}
+	}
+	return nil
+}
+
+// stageDecision is the part of a gate decision the CLI prints.
+type stageDecision struct {
+	ID             string `json:"id"`
+	Stage          string `json:"stage"`
+	Outcome        string `json:"outcome"`
+	RepositoryName string `json:"repository_name"`
+	Gates          []struct {
+		Name   string `json:"name"`
+		Mode   string `json:"mode"`
+		Effect string `json:"effect"`
+		Count  int    `json:"count"`
+		Policy struct {
+			Name    string `json:"name"`
+			Version int    `json:"version"`
+		} `json:"policy"`
+	} `json:"gates"`
+	Reasons []struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"reasons"`
+	DocsURL string `json:"docs_url"`
+}
+
+var gateStages = map[string]string{"ide": "ide", "pre-commit": "pre_commit", "pre_commit": "pre_commit", "pull-request": "pull_request",
+	"pull_request": "pull_request", "ci": "ci", "release": "release", "deploy": "deploy"}
+
+// gateStage evaluates the security gates of a stage. Exit 1 when the
+// decision is block or approval_required; pass, warn and exception_applied
+// exit 0 (warnings are printed). Without a gate the decision is pass.
+func (a *app) gateStage(stage, repoRef, appID, commit, scanID string, pr int) error {
+	st, ok := gateStages[strings.ToLower(stage)]
+	if !ok {
+		return usagef("--stage must be ide, pre-commit, pull-request, ci, release or deploy")
+	}
+	if (repoRef == "") == (appID == "") {
+		return usagef("with --stage give exactly one of --repo or --application")
+	}
+	if appID != "" && !uuidRe.MatchString(appID) {
+		return usagef("--application must be an application UUID")
+	}
+	if commit != "" && !commitRe.MatchString(commit) {
+		return usagef("--commit must be a hexadecimal commit SHA")
+	}
+	if scanID != "" && !uuidRe.MatchString(scanID) {
+		return usagef("--scan must be a scan execution UUID")
+	}
+	if pr < 0 || (pr > 0 && st != "pull_request") {
+		return usagef("--pull-request needs --stage pull-request")
+	}
+	c, err := a.newClient()
+	if err != nil {
+		return err
+	}
+	ctx := context.Background()
+	body := map[string]any{"stage": st}
+	if repoRef != "" {
+		id, err := c.resolveRepo(ctx, repoRef)
+		if err != nil {
+			return err
+		}
+		body["repository_id"] = id
+	} else {
+		body["application_id"] = strings.ToLower(appID)
+	}
+	if commit != "" {
+		body["commit_sha"] = strings.ToLower(commit)
+	}
+	if scanID != "" {
+		body["scan_id"] = strings.ToLower(scanID)
+	}
+	if pr > 0 {
+		body["pull_request"] = pr
+	}
+	b, _ := json.Marshal(body)
+	data, _, err := c.do(ctx, http.MethodPost, "/api/v1/gates/evaluate", nil, bytes.NewReader(b), "application/json", maxJSONResponse)
+	if err != nil {
+		return err
+	}
+	var d stageDecision
+	if err := decode(data, &d); err != nil {
+		return err
+	}
+	if a.cfg.JSON {
+		if _, err := a.stdout.Write(append(bytes.TrimSpace(data), '\n')); err != nil {
+			return err
+		}
+	} else {
+		what := d.RepositoryName
+		if what == "" {
+			what = "application " + appID
+		}
+		fmt.Fprintf(a.stdout, "Security gate %s for %s: %s (decision %s)\n", strings.ReplaceAll(d.Stage, "_", "-"), what,
+			strings.ToUpper(strings.ReplaceAll(d.Outcome, "_", " ")), d.ID)
+		for _, g := range d.Gates {
+			if g.Effect == "skipped" || g.Effect == "pass" {
+				continue
+			}
+			fmt.Fprintf(a.stdout, "  - %s: %s (policy %s v%d, %d finding(s))\n", g.Name, strings.ReplaceAll(g.Effect, "_", " "), g.Policy.Name, g.Policy.Version, g.Count)
+		}
+		for _, r := range d.Reasons {
+			if r.Code == "no_policy" || r.Code == "exception_applied" || r.Code == "approval_granted" || r.Code == "no_policy_downgraded" {
+				fmt.Fprintln(a.stdout, "  - "+r.Message)
+			}
+		}
+	}
+	if d.Outcome == "block" || d.Outcome == "approval_required" {
 		return exitErr{exitGateFailed, ""}
 	}
 	return nil

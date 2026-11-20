@@ -94,10 +94,10 @@ Select an application name on **Applications** to open its profile (`/applicatio
 | Classification & tags | The classification form with detected fields and tags |
 | Versions | Release versions (the existing versions page) |
 | CodeGraph | The application's [CodeGraph](codegraph.md) (views, inspector, path tracing, snapshots); "not enabled" while the `codegraph` flag is off |
-| Threat model | Arrives in M5 (disabled) |
+| Threat model | The application's [threat models](threat-models.md), their status and top open threats; "not enabled" while the `threat_models` flag is off |
 | Findings | Open findings of the application's repositories, with the kind of check; **Open in Findings** applies the application filter |
 | SBOM & components | Components of the application's repositories |
-| Remediation | Arrives in M8 (disabled) |
+| Remediation | The application's [remediation items](remediation.md#remediation-workspace) (open, overdue and unassigned counts; status, priority, owner, due date and last verification) with **Open in the remediation workspace**, which filters the workspace to the application; "not enabled" while the `remediation_workspace` flag is off |
 | Activity & audit | Tag changes, and audit entries of the application and its repositories for people with the audit log permission |
 
 The **lifecycle progress strip** shows the nine phases and which of them hold real data for the application. Phases without data say so; Threat model and Reverse engineering are not available yet.

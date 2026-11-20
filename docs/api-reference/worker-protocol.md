@@ -202,3 +202,11 @@ These verify [AI-proposed fixes](ai-and-mcp.md#ai-proposed-fixes). The agent ask
 - **test:** clone `commit_sha` (the verified commit), apply the diff and run `pathos-fixtest <runner>` through the sandbox runner without and with the fix. Result: `{ "phase": "test", "status", "failure_reason", "steps": [{ "key": "tests", … }], "test_log" }` (the API keeps at most 256 KiB of the log, redacted).
 
 `POST /internal/worker/v1/ai-fix-jobs/{id}/result` → `204`. A result for the wrong phase is `400`; another worker gets `409 lease_lost`. The worker never pushes.
+
+### Fix verification jobs (remediation)
+
+These verify the fix of a [remediation item](remediation-and-gates.md#fix-verification) with a targeted rescan (PATHOS 3.0 M8, flag `remediation_workspace`). The agent asks for one after the AI fix lease returned `204`.
+
+`POST /internal/worker/v1/remediation-lease` (empty JSON object) returns `204` or `200` with `{ verification_id, full_name, clone_url, ref, before_commit, credential, public, scanners: { "<key>": <config> }, files: ["app/db.go"], timeout_seconds }`. Only a worker that registered **every** scanner in `scanners` gets the job; the lease lasts 20 minutes, an expired lease returns it to the queue, at most 3 attempts (then `failed`).
+
+The worker clones `ref` at `before_commit` and at the head of `ref` (both hardened as for scans), reads the affected `files` that exist as regular files in each checkout, and runs each scanner on them in fresh directories (the same step as AI fix verification). Result: `POST /internal/worker/v1/remediation-jobs/{id}/result` with `{ "status": "completed"|"failed", "failure_reason", "before_commit", "after_commit", "scanner_versions": { "<key>": "<version>" }, "results": { "<key>": { "before": [{ "rule_id", "file", "line", "title" }], "after": [...] } } }` → `204`. The API keeps only results in the affected files (titles redacted, at most 5,000 per side), compares them and records the verdict; another worker gets `409 lease_lost`, a verification of another organization `404`. The worker never changes the repository.

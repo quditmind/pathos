@@ -28,8 +28,8 @@ Every error PATHOS reports carries a code of the form `PTH-<AREA>-<NNNN>` and a 
 | `SCAN` | [Scanning](scan.md) | 10 |
 | `WORK` | [Workers](work.md) | 6 |
 | `AI` | [AI](ai.md) | 11 |
-| `GATE` | [Security gates](gate.md) | 2 |
-| `REM` | [Remediation](rem.md) | 5 |
+| `GATE` | [Security gates](gate.md) | 10 |
+| `REM` | [Remediation](rem.md) | 11 |
 | `REP` | [Reporting](rep.md) | 4 |
 | `MON` | [Monitoring](mon.md) | 3 |
 
