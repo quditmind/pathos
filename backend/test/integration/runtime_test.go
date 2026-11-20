@@ -160,6 +160,17 @@ func TestRuntimeContext(t *testing.T) {
 	if bytes.Contains(stored, []byte("c4-sa-token")) {
 		t.Error("the token is stored encrypted")
 	}
+	// Editing the cluster without pasting the CA certificate again keeps it
+	// (the form shows "a certificate is stored; paste to replace").
+	if code, out := call(admin, "PUT", "/api/v1/runtime/clusters/"+clusterID.String(), map[string]any{"name": "prod-" + tag, "auth_type": "token",
+		"api_server": "https://k8s.example.test", "sync_interval_minutes": 120}); code != 200 || out["has_ca_cert"] != true {
+		t.Errorf("update keeps the CA certificate: %d %v", code, out)
+	}
+	var keptCA string
+	_ = appPool.QueryRow(ctx, `SELECT ca_cert FROM runtime_clusters WHERE id = $1`, clusterID).Scan(&keptCA)
+	if strings.TrimSpace(keptCA) != strings.TrimSpace(caPEM) {
+		t.Error("the stored CA certificate changed")
+	}
 	_, _ = appPool.Exec(ctx, `UPDATE runtime_clusters SET api_server = $2 WHERE id = $1`, clusterID, srv.URL)
 	if code, out := call(admin, "POST", "/api/v1/runtime/clusters/"+clusterID.String()+"/sync", nil); code != 202 || out["sync_requested_at"] == nil {
 		t.Fatalf("sync request: %d %v", code, out)
@@ -187,7 +198,18 @@ func TestRuntimeContext(t *testing.T) {
 		return id
 	}
 	shopTarget := target(shopRepo, shopImage+":1.0")
+	// The shop image is built from the shop repository's code (O10: only
+	// such targets link the repository's code findings).
+	_, _ = appPool.Exec(ctx, `UPDATE scan_targets SET config = '{"built_from_repository": true}' WHERE id = $1`, shopTarget)
 	idleTarget := target(idleRepo, "ghcr.io/acme-c4-"+tag+"/idle:2")
+	// The same image attached to an unrelated repository record, not
+	// marked as built from it.
+	otherRepo := createRepo(t, "rt-other-"+tag)
+	otherTarget := target(otherRepo, shopImage+":1.0")
+	if _, err := appPool.Exec(ctx, `INSERT INTO image_scan_digests (organization_id, scan_target_id, digest, reference) VALUES ($1, $2, $3, $4)`,
+		orgID, otherTarget, rtDigShop, shopImage+"@"+rtDigShop); err != nil {
+		t.Fatal(err)
+	}
 	// The digest the image scan resolved to (Trivy repoDigests).
 	if _, err := appPool.Exec(ctx, `INSERT INTO image_scan_digests (organization_id, scan_target_id, digest, reference) VALUES ($1, $2, $3, $4)`,
 		orgID, shopTarget, rtDigShop, shopImage+"@"+rtDigShop); err != nil {
@@ -203,6 +225,8 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	imgFinding := finding(shopRepo, &shopTarget, "container", "CVE in openssl", "high", "")
 	codeFinding := finding(shopRepo, nil, "sast", "SQL injection", "high", "app/db.go")
+	otherCode := finding(otherRepo, nil, "sast", "Unrelated code", "high", "x/y.go")
+	otherImg := finding(otherRepo, &otherTarget, "container", "CVE in openssl (other record)", "high", "")
 	iacFinding := finding(shopRepo, nil, "iac", "Bucket is public", "high", "infra/main.tf")
 	idleFinding := finding(idleRepo, &idleTarget, "container", "CVE in zlib", "high", "")
 	buildFinding := finding(buildRepo, nil, "sca", "Vulnerable dependency", "high", "go.mod")
@@ -263,8 +287,8 @@ func TestRuntimeContext(t *testing.T) {
 	if web["internet_exposed"] != true || web["application_name"] != "Shop "+tag || web["runtime_alerts"].(float64) != 1 {
 		t.Errorf("web workload: %v", web)
 	}
-	if fc := web["findings"].(map[string]any); fc["total"].(float64) != 2 || fc["high"].(float64) != 2 {
-		t.Errorf("web findings (image CVE + code finding; not IaC): %v", fc)
+	if fc := web["findings"].(map[string]any); fc["total"].(float64) != 3 || fc["high"].(float64) != 3 {
+		t.Errorf("web findings (image CVE + code finding + the other record's image CVE; not IaC, not the other record's code): %v", fc)
 	}
 	img := web["images"].([]any)[0].(map[string]any)
 	if img["digest"] != rtDigShop || img["links"].([]any)[0].(map[string]any)["basis"] != "digest" {
@@ -291,6 +315,12 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	if f := get(codeFinding); f.status != "deployed" || !f.exposed {
 		t.Errorf("code finding of the image's repository: %+v", f)
+	}
+	if f := get(otherCode); f.status != "" || f.exposed {
+		t.Errorf("an image target not marked built_from_repository does not deploy the repository's code (O10): %+v", f)
+	}
+	if f := get(otherImg); f.status != "deployed" {
+		t.Errorf("the unmarked target's own image finding: %+v", f)
 	}
 	if f := get(iacFinding); f.status != "" {
 		t.Errorf("IaC is not in the image: %+v", f)
@@ -450,7 +480,7 @@ func TestRuntimeContext(t *testing.T) {
 	}
 	var audits int
 	_ = appPool.QueryRow(ctx, `SELECT count(*) FROM audit_logs WHERE target_id = $1 AND action LIKE 'runtime_cluster.%'`, clusterID.String()).Scan(&audits)
-	if audits != 3 {
-		t.Errorf("create, sync request and delete audited: %d", audits)
+	if audits != 4 {
+		t.Errorf("create, update, sync request and delete audited: %d", audits)
 	}
 }

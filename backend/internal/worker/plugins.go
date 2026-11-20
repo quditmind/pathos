@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -77,6 +78,12 @@ type PluginDef struct {
 	Sandbox bool              `yaml:"sandbox" json:"sandbox"`
 	Parser  string            `yaml:"parser" json:"parser"`
 	JSONMap *scanners.JSONMap `yaml:"jsonmap" json:"jsonmap,omitempty"`
+	// RequiresFiles: file name patterns (filepath.Match, e.g. "*.go") of
+	// which a repository must contain at least one; otherwise a repository
+	// scan skips the tool ("no matching files") instead of running a
+	// language-specific tool that fails on a repository without that
+	// language. Empty: always run.
+	RequiresFiles []string `yaml:"requires_files" json:"requires_files,omitempty"`
 
 	// FirstParty marks a manifest from the image's trusted directory.
 	FirstParty     bool `yaml:"-" json:"first_party"`
@@ -216,6 +223,14 @@ func (d *PluginDef) validateSpec() error {
 	}
 	if d.Intrusive && d.Network != "target" {
 		return errors.New("intrusive tools send traffic to the target: set network: target")
+	}
+	if len(d.RequiresFiles) > 30 {
+		return errors.New("requires_files: at most 30 patterns")
+	}
+	for _, p := range d.RequiresFiles {
+		if _, err := filepath.Match(p, ""); err != nil || p == "" || len(p) > 100 || strings.ContainsRune(p, '/') {
+			return fmt.Errorf("requires_files: %q must be a file name pattern such as *.go", p)
+		}
 	}
 	if d.Timeout != "" {
 		to, err := time.ParseDuration(d.Timeout)
@@ -535,6 +550,9 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 	if t.def.Intrusive && (in.Target == nil || !in.Target.IntrusiveAuthorized) {
 		return "intrusive testing of this target is not authorized", nil
 	}
+	if kind == "" && len(t.def.RequiresFiles) > 0 && !hasMatchingFile(in.Src, t.def.RequiresFiles) {
+		return "no matching files in the repository (" + strings.Join(t.def.RequiresFiles, ", ") + ")", nil
+	}
 	if strings.Contains(strings.Join(t.def.Args, " "), "{openapi}") && kind == "api" && in.TargetFile == "" {
 		return "", errors.New("the API target has no OpenAPI document")
 	}
@@ -607,4 +625,36 @@ func (t pluginTool) Run(ctx context.Context, in RunInput) (string, error) {
 		return "", os.WriteFile(in.Out, nil, 0o600)
 	}
 	return "", nil
+}
+
+// requiresSkipDirs are not searched for requires_files (dependencies and
+// VCS data).
+var requiresSkipDirs = map[string]bool{".git": true, "node_modules": true, "vendor": true, "bower_components": true}
+
+// hasMatchingFile reports whether the tree under dir has a regular file
+// whose name matches one of the patterns. Symbolic links are not followed.
+func hasMatchingFile(dir string, patterns []string) bool {
+	found := false
+	_ = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil // unreadable entries are ignored
+		}
+		if d.IsDir() {
+			if p != dir && requiresSkipDirs[d.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.Type().IsRegular() {
+			return nil
+		}
+		for _, pat := range patterns {
+			if ok, _ := filepath.Match(pat, d.Name()); ok {
+				found = true
+				return filepath.SkipAll
+			}
+		}
+		return nil
+	})
+	return found
 }

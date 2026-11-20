@@ -575,8 +575,8 @@ func (s *Service) putPRSettings(w http.ResponseWriter, r *http.Request) {
 		if req.GateMode != nil {
 			mode = req.GateMode
 		}
-		if req.Enabled && source == "upload" {
-			return httpx.BadRequest("uploaded repositories have no pull requests")
+		if req.Enabled && (source == "upload" || source == "git") {
+			return httpx.BadRequest("uploaded and anonymous repositories have no SCM connection for pull request checks")
 		}
 		// Decision C6: no default that blocks. Enabling needs an explicit
 		// block or warn; a "none" threshold cannot block, so it is report

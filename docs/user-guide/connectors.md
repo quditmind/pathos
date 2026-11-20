@@ -259,7 +259,8 @@ With `PATHOS_OFFLINE=true`, connections that need the internet (github.com, gitl
 | `PTH-CONN-1001` | Host not reachable | Check the URL, DNS and firewall from the api or jobs container |
 | `PTH-CONN-1002` | Request timed out | Retry; check proxies and latency |
 | `PTH-CONN-1003` | Destination address not allowed | Enable *Allow private network* for an internal system, or fix the URL |
-| `PTH-CONN-1004` | Untrusted certificate | For an SCM connection, add the private CA bundle on its card (SCM connections → Private CA bundle); otherwise install the private CA in the api and jobs containers |
+| `PTH-CONN-1004` | Untrusted certificate | For an SCM connection, add the private CA bundle on its card (SCM connections → Private CA bundle); for a registry, webhook or Jira/ServiceNow connection see `PTH-CONN-1702`; otherwise install the private CA in the api and jobs containers |
+| `PTH-CONN-1702` | Untrusted certificate of a registry connection, outbound webhook or Jira/ServiceNow connection | Add the private CA bundle on the connection (Runtime, Notifications › Webhooks, Integrations); the card's metadata shows `ca_bundle_set` |
 | `PTH-CONN-1005` | Certificate name or validity mismatch | Use the host name of the certificate; renew it |
 | `PTH-CONN-1006` | Proxy refused or failed the connection | Allow the host on the proxy, or add it to `NO_PROXY` |
 | `PTH-CONN-1007` | The vendor rejected the credential | Create a new token and update the connection |

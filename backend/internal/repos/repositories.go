@@ -27,6 +27,7 @@ func (s *Service) registerRepositories(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/repositories", s.listRepositories)
 	mux.HandleFunc("POST /api/v1/repositories/import", s.importRepositories)
 	mux.HandleFunc("POST /api/v1/repositories/import-csv", s.importCSV)
+	mux.HandleFunc("POST /api/v1/repositories/import-url", s.importAnonymous)
 	mux.HandleFunc("POST /api/v1/repositories/bulk-tags", s.bulkTags)
 	mux.HandleFunc("GET /api/v1/repositories/{id}", s.getRepository)
 	mux.HandleFunc("PATCH /api/v1/repositories/{id}", s.updateRepository)
@@ -71,6 +72,9 @@ type Repository struct {
 	ConnectionName string     `json:"scm_connection_name"`
 	Provider       string     `json:"provider"`
 	SourceType     string     `json:"source_type"`
+	// Anonymous: imported by URL without a token (source_type "git"):
+	// public, read-only, cloned without credentials.
+	Anonymous      bool       `json:"anonymous"`
 	SCMOrg         string     `json:"scm_organization"`
 	SCMProject     string     `json:"scm_project"`
 	ExternalID     string     `json:"external_id"`
@@ -151,7 +155,7 @@ const userJSON = `json_build_object('id', u.id, 'name', COALESCE(NULLIF(u.displa
 
 // repoSelectTmpl takes the can_manage expression and the ownership expression.
 const repoSelectTmpl = `
-	SELECT r.id, r.scm_connection_id, COALESCE(c.name, ''), COALESCE(c.provider, 'upload'), r.source_type, r.scm_organization, r.scm_project,
+	SELECT r.id, r.scm_connection_id, COALESCE(c.name, ''), COALESCE(c.provider, NULLIF(r.source_provider, ''), 'upload'), r.source_type, r.scm_organization, r.scm_project,
 	       r.external_id, r.full_name, r.name, r.url,
 	       r.default_branch, r.scan_branch, r.visibility, r.description, r.technologies,
 	       a.id, a.name, b.id, b.name, co.id, co.name, co.code, rg.id, rg.name,
@@ -253,6 +257,7 @@ func scanRepo(row pgx.Row) (Repository, error) {
 	if err != nil {
 		return r, err
 	}
+	r.Anonymous = r.SourceType == "git"
 	r.Application, r.BusinessUnit, r.Region = ref(appID, appName), ref(buID, buName), ref(rgID, rgName)
 	if coID != nil {
 		r.Country = &Ref{ID: *coID, Name: *coName, Code: *coCode}
@@ -443,7 +448,7 @@ func repoListFilter(r *http.Request, where *[]string, args *[]any) error {
 		if v == "upload" {
 			*where = append(*where, "r.source_type = 'upload'")
 		} else {
-			add("c.provider = ?", v)
+			add("COALESCE(c.provider, NULLIF(r.source_provider, '')) = ?", v)
 		}
 	}
 	if v := q.Get("compliance"); v != "" {

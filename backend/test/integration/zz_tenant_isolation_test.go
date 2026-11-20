@@ -391,7 +391,7 @@ func TestTenantIsolation(t *testing.T) {
 	}
 
 	routes := scanRoutes(t)
-	if len(routes) < 530 { // measured with M9 (2026-11-20)
+	if len(routes) < 531 { // measured with M9 and the 2.2.x forward port (2026-11-20)
 		t.Fatalf("route scan found only %d routes", len(routes))
 	}
 	paramRe := regexp.MustCompile(`\{([a-zA-Z_.]+)\}`)
@@ -835,6 +835,11 @@ func TestTenantIsolation(t *testing.T) {
 // addresses a B resource; remediation items created with a threat_id, an
 // A threat seeded for the control) on top of M7 and M10: 530 routes, 7,352
 // requests per layer; 172 of 173 reach the organization check; 14 of 25
+// parent-in-body controls (16 with row-level security).
+// Measured 2026-11-20 with the 2.2.1–2.2.3 forward port (anonymous import
+// POST /api/v1/repositories/import-url, a parent-in-body create without a
+// control because it contacts the provider) on top of M9: 531 routes, 7,363
+// requests per layer; 172 of 173 reach the organization check; 14 of 26
 // parent-in-body controls (16 with row-level security).
 const (
 	minWriteRoutesReached = 172

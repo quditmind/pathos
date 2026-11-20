@@ -268,7 +268,7 @@ Item fields (`ImportItemRequest`):
 
 Metadata rules for new repositories: the same field rules as [Update a repository](repositories.md#update-a-repository), with every required field enforced:
 
-- Always required: `business_owner_id`, `business_unit_id`, `business_region_id`, `public_exposure`, plus the organization's `required_fields`.
+- Always required: `business_owner_id`, `business_unit_id`, `business_region_id`, `public_exposure`, plus the organization's `required_fields`. A new organization's `required_fields` are business owner, technical owner, business unit, business region, criticality, data classification and environment, so `technical_owner_id` and `data_classification` are needed too unless an administrator relaxes them ([asset settings](assets.md#get-asset-settings)).
 - `criticality` and `environment` must be sent (no default is applied in imports).
 - Defaults when absent: `internet_exposure: "unknown"`, `lifecycle_status: "active"`.
 - Authorization: `repos.manage` at the placement (the business unit; without one, the region of the country; else the organization).
@@ -393,9 +393,11 @@ Example: an uploaded archive (after [completing the upload](#complete-an-upload)
   "idempotency_key": "upload-8c2e6a1b-77d4-4f0e",
   "metadata": {
     "business_owner_id": "0190c0de-2222-7000-8000-000000000001",
+    "technical_owner_id": "0190c0de-2222-7000-8000-000000000002",
     "business_unit_id": "0190c0de-1111-7000-8000-000000000101",
     "business_region_id": "0190c0de-1111-7000-8000-000000000201",
     "criticality": "medium",
+    "data_classification": "internal",
     "environment": "production",
     "public_exposure": "no",
     "new_application": { "name": "Billing Batch", "external_ref": "APP-0193" }

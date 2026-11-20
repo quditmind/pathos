@@ -51,6 +51,7 @@ type syncTarget struct {
 	PushedAt      *time.Time
 	Provider      string
 	BaseURL       string
+	SourceType    string // scm | upload | git (anonymous public repository)
 }
 
 func (t syncTarget) ref() scm.RepoRef {
@@ -67,10 +68,10 @@ func (t syncTarget) branch() string {
 func loadSyncTarget(ctx context.Context, q db.Querier, orgID, repoID uuid.UUID) (syncTarget, error) {
 	t := syncTarget{ID: repoID, OrgID: orgID}
 	err := q.QueryRow(ctx, `SELECT r.scm_connection_id, r.full_name, r.external_id, r.scm_organization, r.scm_project, r.scan_branch, r.default_branch,
-		r.latest_commit_sha, r.sync_status, r.last_pushed_at, COALESCE(c.provider, ''), COALESCE(c.base_url, '')
+		r.latest_commit_sha, r.sync_status, r.last_pushed_at, COALESCE(c.provider, r.source_provider), COALESCE(c.base_url, ''), r.source_type
 		FROM repositories r LEFT JOIN scm_connections c ON c.id = r.scm_connection_id WHERE r.organization_id = $1 AND r.id = $2`, orgID, repoID).
 		Scan(&t.ConnID, &t.FullName, &t.ExternalID, &t.Org, &t.Project, &t.ScanBranch, &t.DefaultBranch, &t.LatestSHA, &t.SyncStatus, &t.PushedAt,
-			&t.Provider, &t.BaseURL)
+			&t.Provider, &t.BaseURL, &t.SourceType)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return t, errNotFound
 	}
@@ -94,6 +95,9 @@ func (s *Service) SyncRepository(ctx context.Context, orgID, repoID uuid.UUID, t
 	t, err := loadSyncTarget(ctx, s.DB, orgID, repoID)
 	if err != nil {
 		return SyncRun{}, err
+	}
+	if t.ConnID == nil && t.SourceType == "git" {
+		return s.syncAnonymous(ctx, t, trigger, by)
 	}
 	if t.ConnID == nil {
 		return SyncRun{}, httpx.Conflict("uploaded repositories are updated by uploading a new version")

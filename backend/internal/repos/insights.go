@@ -146,7 +146,7 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 		limit                        int
 	}
 	for _, bd := range []breakdown{
-		{"by_provider", "COALESCE(c.provider, 'upload')", "COALESCE(c.provider, 'upload')", "", "", 20},
+		{"by_provider", "COALESCE(c.provider, NULLIF(r.source_provider, ''), 'upload')", "COALESCE(c.provider, NULLIF(r.source_provider, ''), 'upload')", "", "", 20},
 		{"by_business_region", "brg.id::text", "brg.name", "LEFT JOIN regions brg ON brg.id = r.business_region_id", "", 50},
 		{"by_business_unit", "bu.id::text", "bu.name", "LEFT JOIN business_units bu ON bu.id = r.business_unit_id", "", 50},
 		{"by_business_owner", "bo.id::text", "COALESCE(NULLIF(bo.display_name, ''), bo.email)", "LEFT JOIN users bo ON bo.id = r.business_owner_id", "", 10},
@@ -176,6 +176,8 @@ func (s *Service) repositoryInsights(w http.ResponseWriter, r *http.Request) {
 					b[i].Label = info.Label
 				} else if b[i].Key == "upload" {
 					b[i].Label = "Local upload"
+				} else if b[i].Key == "git" {
+					b[i].Label = "Git URL (anonymous)"
 				}
 			}
 		default:

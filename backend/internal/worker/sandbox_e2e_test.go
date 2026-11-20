@@ -102,7 +102,12 @@ func TestSandboxE2E(t *testing.T) {
 			out := filepath.Join(work, c.tool+".json")
 			start := time.Now()
 			skipped, err := (pluginTool{def: d, sandbox: s}).Run(context.Background(), RunInput{Src: src, Out: out})
-			if err != nil || skipped != "" {
+			// The malicious probe harness never completes as a normal fuzz
+			// target, so pathos-fuzz reports the run as partial (exit 3).
+			// That is accepted only when every target that did not run is
+			// one of the probes (checked below on the report).
+			partial := err != nil && strings.Contains(err.Error(), "exited with 3")
+			if (err != nil && !partial) || skipped != "" {
 				t.Fatalf("run: %q %v", skipped, err)
 			}
 			t.Logf("%s ran in the sandbox in %s", c.tool, time.Since(start).Round(time.Second))
@@ -141,6 +146,10 @@ func TestSandboxE2E(t *testing.T) {
 			for _, tg := range rep.Targets {
 				text += tg.Detail + "\n"
 				t.Logf("target %s: %s", tg.Name, tg.Status)
+				// A partial run is allowed only because of the probe.
+				if partial && tg.Status != "passed" && tg.Status != "crashed" && !strings.Contains(tg.Name, "sandbox-probe") && !strings.Contains(tg.Name, "SandboxProbe") {
+					t.Errorf("target %s did not run (%s), not only the probe", tg.Name, tg.Status)
+				}
 			}
 			for _, f := range rep.Findings {
 				text += f.Output + "\n"

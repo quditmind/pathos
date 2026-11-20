@@ -8,9 +8,11 @@ import (
 func TestValidateImageRef(t *testing.T) {
 	ok := map[string]string{
 		"ghcr.io/acme/api:1.4.2":                            "ghcr.io",
-		"nginx":                                             "registry-1.docker.io",
-		"library/nginx:1.27":                                "registry-1.docker.io",
-		"docker.io/library/nginx:latest":                    "registry-1.docker.io",
+		"nginx":                                             "index.docker.io",
+		"library/nginx:1.27":                                "index.docker.io",
+		"docker.io/library/nginx:latest":                    "index.docker.io",
+		"registry-1.docker.io/library/nginx:1.25":           "index.docker.io",
+		"team-registry/app/web:1.0":                         "index.docker.io", // no dot or port: a Docker Hub namespace
 		"registry.corp.example:5000/team/svc:v2":            "registry.corp.example",
 		"localhost:5000/svc":                                "localhost",
 		"quay.io/org/app@sha256:" + strings.Repeat("a", 64): "quay.io",

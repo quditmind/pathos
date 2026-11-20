@@ -21,6 +21,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/scanners"
 )
 
 // Component is one SBOM entry.
@@ -76,9 +77,10 @@ func parseCycloneDX(raw []byte) ([]Component, map[string]string, error) {
 		if c.Group != "" {
 			name = c.Group + "/" + c.Name
 		}
-		if name == "" || c.Type == "file" {
+		if name == "" || c.Type == "file" || pathLikeComponent(name, c.Version) {
 			continue
 		}
+		typ := componentType(c.Type, c.PURL)
 		key := name + "@" + c.Version + "|" + c.PURL
 		if kept, ok := seen[key]; ok {
 			if c.Ref != "" && kept != "" {
@@ -97,13 +99,37 @@ func parseCycloneDX(raw []byte) ([]Component, map[string]string, error) {
 		if lic == nil {
 			lic = []string{}
 		}
-		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(c.Type, 50), Licenses: lic,
+		out = append(out, Component{Name: clip(name, 300), Version: clip(c.Version, 100), PURL: clip(c.PURL, 500), Type: clip(typ, 50), Licenses: lic,
 			Ref: clip(c.Ref, 1000)})
 		if len(out) >= 50000 {
 			break
 		}
 	}
 	return out, aliases, nil
+}
+
+// pathLikeComponent reports SBOM entries that are repository files rather
+// than packages (VALIDATION_REPORT O12): generators list local workflow
+// files such as "$/.github/workflows/ci.yml" or "./.github/workflows/x.yml"
+// with no or an UNKNOWN version.
+func pathLikeComponent(name, version string) bool {
+	v := strings.ToUpper(strings.TrimSpace(version))
+	if v != "" && v != "UNKNOWN" && v != "NOASSERTION" {
+		return false
+	}
+	return strings.HasPrefix(name, "$/") || strings.HasPrefix(name, "./") || strings.HasPrefix(name, "../") ||
+		strings.HasPrefix(name, "/") || strings.Contains(name, ".github/workflows/")
+}
+
+// componentType classifies GitHub Actions (purl type github or
+// githubactions) as "github-action" instead of a library, so the
+// inventory does not list workflow steps among the application's
+// dependencies (VALIDATION_REPORT O12).
+func componentType(typ, purl string) string {
+	if strings.HasPrefix(purl, "pkg:github/") || strings.HasPrefix(purl, "pkg:githubactions/") {
+		return "github-action"
+	}
+	return typ
 }
 
 func firstNonEmpty(v ...string) string {
@@ -301,7 +327,9 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// format: cyclonedx (default: the latest scan's SBOM file, else generated
-	// from the inventory) or spdx (generated from the inventory).
+	// from the inventory) or spdx (generated from the inventory). The scan's
+	// SBOM file is Syft's or cdxgen's, never the AI-BOM (which lists only AI
+	// frameworks, models and services and is stored with the same kind).
 	format := r.URL.Query().Get("format")
 	if format == "spdx" || format == "cyclonedx-inventory" {
 		s.exportInventory(w, r, id, format)
@@ -316,7 +344,8 @@ func (s *Service) repoSBOM(w http.ResponseWriter, r *http.Request) {
 	var name string
 	err = s.DB.QueryRow(ctx, `SELECT a.data_gzip, a.object_key, r.name FROM scan_artifacts a JOIN scan_results sr ON sr.id = a.scan_result_id
 		JOIN scan_jobs j ON j.id = sr.scan_job_id JOIN repositories r ON r.id = j.repository_id
-		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID).Scan(&data, &key, &name)
+		WHERE j.repository_id = $1 AND j.organization_id = $2 AND a.kind = 'sbom' AND j.target_id IS NULL
+		  AND sr.scanner_key <> $3 ORDER BY a.created_at DESC LIMIT 1`, id, p.OrganizationID, scanners.AIBOM).Scan(&data, &key, &name)
 	if errors.Is(err, pgx.ErrNoRows) {
 		// No scan SBOM (e.g. an imported one): generate from the inventory.
 		s.exportInventory(w, r, id, "cyclonedx-inventory")
