@@ -26,7 +26,7 @@ ARG CORE_IMAGE=pathos-worker-core:dev
 # dependencies (Go checksum database), for fixable HIGH/CRITICAL CVEs in the
 # versions the releases require: KubeLinter 0.8.3 (containerd,
 # klauspost/compress, x/crypto, x/net, x/text, grpc, oras-go), Conftest
-# 0.71.1 (go-jose, x/net), kube-score 1.20.0 (x/net, x/text) and Polaris
+# 0.71.1 (go-jose, x/net), Kubescape 4.0.21 (containerd v2), kube-score 1.20.0 (x/net, x/text) and Polaris
 # 10.2.6 (x/net).
 FROM golang:1.27.4-alpine@sha256:0a5f7fe796599ff487605987432e7619ae45beeb2fba4c2ce0b907879932aebf AS gotools
 ARG KICS=2.2.1 KUBE_LINTER=0.8.3 KUBESCAPE=4.0.21 TFLINT=0.66.0 CONFTEST=0.71.1 KUBE_SCORE=1.20.0 SCORECARD=5.7.0
@@ -47,7 +47,8 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
     build "golang.stackrox.io/kube-linter@v${KUBE_LINTER}" ./cmd/kube-linter "-X golang.stackrox.io/kube-linter/internal/version.version=${KUBE_LINTER}" kube-linter \
       github.com/containerd/containerd@v1.7.33 github.com/klauspost/compress@v1.18.7 golang.org/x/crypto@v0.58.0 golang.org/x/net@v0.62.0 \
       golang.org/x/text@v0.43.0 google.golang.org/grpc@v1.83.2 oras.land/oras-go/v2@v2.6.2; \
-    build "github.com/kubescape/kubescape/v4@v${KUBESCAPE}" . "-X main.version=v${KUBESCAPE}" kubescape; \
+    build "github.com/kubescape/kubescape/v4@v${KUBESCAPE}" . "-X main.version=v${KUBESCAPE}" kubescape \
+      github.com/containerd/containerd/v2@v2.4.2; \
     build "github.com/terraform-linters/tflint@v${TFLINT}" . "" tflint; \
     build "github.com/open-policy-agent/conftest@v${CONFTEST}" . "-X github.com/open-policy-agent/conftest/internal/version.Version=${CONFTEST}" conftest \
       github.com/go-jose/go-jose/v4@v4.1.6 golang.org/x/net@v0.62.0; \

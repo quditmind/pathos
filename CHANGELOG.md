@@ -4,6 +4,15 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+## [2.2.3] — 2026-11-20
+
+Security patch for the family worker images. Rebuild `worker-iac`, `worker-sast` and `worker-mobile`; no migrations, no API or configuration changes.
+
+### Security
+- **CVE-2026-95839** (HIGH, containerd/v2 2.4.1): Kubescape 4.0.21 in `worker-iac` is now built with `github.com/containerd/containerd/v2` 2.4.2.
+- **CVE-2026-115563** (HIGH, mcp 1.28.1): the Semgrep dependency `mcp` in `worker-sast` (njsscan) and `worker-mobile` (mobsfscan) is now 1.30.0 (hash-pinned). It is not used by `semgrep scan`.
+- Trivy: 0 fixable HIGH/CRITICAL vulnerabilities in the iac, sast and mobile images.
+
 ## [2.2.2] — 2026-11-20
 
 2.2.2 hardening: the open issues of the end-to-end validation ([docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md) §9). Migrations **00043** (scan concurrency indexes) and **00044** (anonymous repositories, private CA bundles, secret exclusions) are additive. Rebuild the family worker images (sast, iac, sca, fuzz, ai) and the API and worker-core images.
