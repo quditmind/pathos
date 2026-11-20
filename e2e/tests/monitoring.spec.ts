@@ -148,6 +148,8 @@ test("lifecycle overview: no 'arrives in' copy for built modules", async ({ page
   await page.goto("/lifecycle");
   await expect(page.getByRole("heading", { level: 1, name: "Lifecycle overview" })).toBeVisible();
   await page.waitForLoadState("networkidle");
-  await expect(page.locator("main")).not.toContainText(/arrives in M\d/);
+  // Built modules (M1-M9) never say "arrives in"; reverse engineering
+  // (M10) is not part of this build yet and may still say so.
+  await expect(page.locator("main")).not.toContainText(/arrives in M[1-9]\b/);
   await shot(page, "08-lifecycle-overview");
 });
