@@ -736,6 +736,15 @@ Not shipped:
 | promptfoo `redteam generate` plugins | Need a generator model or promptfoo's remote generation service |
 | binwalk (firmware extraction) | Not evaluated in this pack; CVE Binary Tool extracts common archive and package formats itself |
 
+## Family image: CodeGraph discovery (worker-graph)
+
+`worker-graph` (Compose profile `graph`) extends `worker-core` with one tool, `pathos-graph` (PATHOS CodeGraph discovery, Apache-2.0, manifest `workers/graph/tools.d/pathos-graph.yaml`). It builds a repository's code graph (`pathos.codegraph/v1`), not findings, and is not a kind of check: it covers no scan type and cannot be added to a scan profile; CodeGraph builds run it through a system profile ([CodeGraph](user-guide/codegraph.md)).
+
+- Go is parsed with the Go parser; Java, Python, JavaScript/TypeScript/TSX, C#, PHP and Ruby with tree-sitter; languages with go-enry; OpenAPI and Swagger with kin-openapi.
+- Routes (net/http, chi, gin/echo/fiber, Spring, Flask, FastAPI, Django, Express, Fastify, Koa, NestJS, ASP.NET, Laravel, Rails, Sinatra), database and ORM access, queues and outbound HTTP calls come from the PATHOS graph rules (`workers/graph/rules`, ids `pathos-graph-*`, fixtures in `workers/graph/rules-tests`, tested by `scripts/test-opengrep-rules.py --pack graph`), run by the worker-core Opengrep; SBOM components from Syft; containers and infrastructure from Dockerfiles, Compose, Kubernetes and Terraform.
+- Reads source only, never builds or runs code, `network: none`, timeout 30 minutes, off by default. Image size 1.82 GB (worker-core 1.77 GB); Trivy gate passed on 2026-11-20 (0 fixable high or critical vulnerabilities).
+- Joern (code property graph, ADR-006 tier 2) is not included ([decision](aspm/PATHOS_CODEGRAPH_ARCHITECTURE.md#decisions)).
+
 ## Import-only integrations: DAST, API, infrastructure, cloud, container, mobile, runtime, AI, pentest and fuzzing
 
 These tools are not run by PATHOS workers; their reports are imported ([Result imports](api-reference/result-imports.md#dast-api-infrastructure-cloud-container-mobile-runtime-ai-pentest-and-fuzzing-formats)). The Category column names the default finding category of the import in brackets ("per finding": each finding keeps its own category, see the format notes). Nothing of these tools is bundled, so their licences do not restrict redistribution of PATHOS; commercial tools are never required. Licences are listed as published by each project (not re-checked against the repositories for this change). "Test report" says whether the import format was checked against a report produced by running the tool against a local test service, or built from the published format only.

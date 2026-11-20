@@ -156,6 +156,8 @@ var paramTables = map[string]string{
 	"organizations": "organizations", "providers": "ai_providers", "reviews": "ai_reviews",
 	"ai": "human_review_recommendations", "rules": "notification_rules", "deliveries": "notifications",
 	"reports": "saved_reports", "tag-rules": "tag_rules", "connectors": "connectors",
+	// CodeGraph (M4).
+	"snapshots": "codegraph_snapshots", "nodes": "codegraph_nodes",
 }
 
 // specialTables resolves segments whose table depends on the full path.
@@ -1259,7 +1261,7 @@ func isoInstallation(t *testing.T, ctx context.Context, iso *pgxpool.Pool, api h
 // seedVictim adds B rows for resource types the earlier tests do not leave
 // behind, so that every parameterised route addresses a real B resource.
 // isolationFlags are the feature flags switched on for the isolation run.
-var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers"}
+var isolationFlags = []string{"onboarding", "lifecycle_overview", "scan_profile_tiers", "codegraph"}
 
 func seedVictim(t *testing.T, ctx context.Context, org uuid.UUID) {
 	t.Helper()

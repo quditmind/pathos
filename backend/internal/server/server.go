@@ -15,6 +15,7 @@ import (
 	"pathos/internal/analyst"
 	"pathos/internal/auth"
 	"pathos/internal/authz"
+	"pathos/internal/codegraph"
 	"pathos/internal/compliance"
 	"pathos/internal/connectors"
 	"pathos/internal/dashboard"
@@ -154,6 +155,10 @@ func Build(d Deps) Handlers {
 	}
 	scanSvc.ClamAVAddress, scanSvc.ClamAVRequired = d.Limits.ClamAVAddress, d.Limits.ClamAVRequired
 	scanSvc.Offline = d.Offline
+	// CodeGraph (flag codegraph): discovery results become graph snapshots,
+	// and successful scans trigger rediscovery (rate-limited).
+	graphSvc := codegraph.NewService(d.DB, az, d.Log, auth.PrincipalFrom, d.Artifacts)
+	scanSvc.OnGraphResult = graphSvc.OnGraphResult
 	scanSvc.OnScanFinished = func(ctx context.Context, orgID, jobID uuid.UUID) {
 		// Developer attribution (no-op unless enabled) before the queues.
 		if _, _, err := insights.Attribute(ctx, d.DB, orgID, jobID); err != nil {
@@ -166,6 +171,7 @@ func Build(d Deps) Handlers {
 		}
 		aiSvc.OnScanFinished(ctx, orgID, jobID)
 		reviewSvc.OnScanFinished(ctx, orgID, jobID)
+		graphSvc.OnScanFinished(ctx, orgID, jobID)
 	}
 	mcpSvc := &mcp.Service{DB: d.DB, Authz: az, AI: aiSvc, Log: d.Log, Principal: auth.PrincipalFrom, PublicURL: d.PublicURL}
 	// The MCP endpoint authenticates with personal API tokens, not sessions.
@@ -240,6 +246,7 @@ func Build(d Deps) Handlers {
 	NewRuntimeService(d, az).Register(protected)
 	postureSvc := &posture.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}
 	postureSvc.Register(protected)
+	graphSvc.Register(protected)
 	(&insights.Service{DB: d.DB, Authz: az, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	(&analyst.Service{DB: d.DB, Authz: az, AI: aiSvc, Posture: postureSvc, Log: d.Log, Principal: auth.PrincipalFrom}).Register(protected)
 	NewIntelService(d).Register(protected)

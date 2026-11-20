@@ -203,6 +203,8 @@ The lifecycle release extends the existing stack (Go API and jobs, PostgreSQL 18
 
 **Consequences.** One new worker family image and one more Compose profile. Memory: tier 1 fits the default 4 GB worker; Joern needs an operator choice for large repositories. Not measured yet: build time and graph size for the PATHOS repository.
 
+**M4 outcome (measured 2026-11-20, owner approval still pending).** Tier 1 is built in `worker-graph` ([PATHOS_CODEGRAPH_ARCHITECTURE.md](PATHOS_CODEGRAPH_ARCHITECTURE.md#discovery-engines)); calls come from the engine's own Go and tree-sitter resolution rather than `pathos-reach` output. On the PATHOS repository discovery takes about 9 s and under 1 GiB (10,750 nodes, 27,173 edges). Joern (tier 2) is not included in M4: see [Decisions](PATHOS_CODEGRAPH_ARCHITECTURE.md#decisions).
+
 **Status.** Proposed, needs owner approval.
 
 ---

@@ -72,6 +72,7 @@ func LeaseInfo(ctx context.Context, q db.Querier, orgID, jobID uuid.UUID) (prev 
 	// not show the whole branch difference as material changes.
 	_ = q.QueryRow(ctx, `SELECT commit_sha FROM scan_jobs
 		WHERE repository_id = $1 AND id <> $2 AND ref = $3 AND status IN ('succeeded', 'partial') AND pull_request IS NULL
+		  AND trigger <> 'codegraph'
 		  AND target_id IS NULL AND snapshot_id IS NULL AND commit_sha ~ '^[0-9a-f]{40}([0-9a-f]{24})?$'
 		ORDER BY finished_at DESC NULLS LAST LIMIT 1`, repoID, jobID, ref).Scan(&prev)
 	return prev, AttributionEnabled(ctx, q, orgID)

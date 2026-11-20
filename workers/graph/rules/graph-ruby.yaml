@@ -1,0 +1,102 @@
+# PATHOS CodeGraph rules: Ruby (Rails routes, Sinatra, ActiveRecord,
+# Redis, Sidekiq, Kafka, outbound HTTP). Graph facts, not findings (see
+# graph-go.yaml).
+rules:
+  - id: pathos-graph-ruby-route
+    languages: [ruby]
+    severity: INFO
+    message: "route|$M|$PATH|$TO"
+    metadata: {pathos_graph: {kind: route, framework: rails}}
+    paths:
+      include: ["*/config/routes.rb", "config/routes.rb", "*routes*.rb"]
+    patterns:
+      - pattern-either:
+          - pattern: '$M "$PATH", to: "$TO"'
+          - pattern: '$M "$PATH" => "$TO"'
+          - pattern: '$M("$PATH", to: "$TO")'
+          - pattern: '$M "$PATH", ...'
+      - metavariable-regex: {metavariable: $M, regex: ^(get|post|put|patch|delete|match)$}
+  - id: pathos-graph-ruby-route-sinatra
+    languages: [ruby]
+    severity: INFO
+    message: "route|$M|$PATH|"
+    metadata: {pathos_graph: {kind: route, framework: sinatra, requires_import: "sinatra"}}
+    patterns:
+      - pattern: |
+          $M "$PATH" do
+            ...
+          end
+      - metavariable-regex: {metavariable: $M, regex: ^(get|post|put|patch|delete|options)$}
+  - id: pathos-graph-ruby-db-activerecord
+    languages: [ruby]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: sql}}
+    patterns:
+      - pattern: $MODEL.$M(...)
+      - metavariable-regex: {metavariable: $MODEL, regex: '^[A-Z][A-Za-z0-9]*$'}
+      - metavariable-regex: {metavariable: $MODEL, regex: ^(?!(File|Dir|IO|Array|Hash|JSON|YAML|Time|Date|DateTime|URI|Net|ENV|Rails|Struct|Set|String|Integer|Kernel|Process|Thread|Logger|Regexp|Base64|Digest|OpenSSL|SecureRandom|ERB|CSV|Pathname|Tempfile|Open3|Socket|Sidekiq|Redis)$)}
+      - metavariable-regex: {metavariable: $M, regex: ^(where|find_by|find_by!|find|create|create!|update_all|destroy_all|delete_all|pluck|find_each|find_or_create_by|find_or_create_by!|insert_all|upsert_all|exists\?|order|joins|includes)$}
+  - id: pathos-graph-ruby-db-sql-read
+    languages: [ruby]
+    severity: INFO
+    message: "db|sql"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: read}}
+    patterns:
+      - pattern-either:
+          - pattern: $C.execute("$SQL", ...)
+          - pattern: $C.exec_query("$SQL", ...)
+          - pattern: $C.find_by_sql("$SQL", ...)
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(select|with|show|explain)\b}
+  - id: pathos-graph-ruby-db-sql-write
+    languages: [ruby]
+    severity: INFO
+    message: "db|sql"
+    metadata: {pathos_graph: {kind: db, technology: sql, operation: write}}
+    patterns:
+      - pattern-either:
+          - pattern: $C.execute("$SQL", ...)
+          - pattern: $C.exec_query("$SQL", ...)
+          - pattern: $C.find_by_sql("$SQL", ...)
+      - metavariable-regex: {metavariable: $SQL, regex: (?is)^\s*\(?\s*(insert|update|delete|merge|call)\b}
+  - id: pathos-graph-ruby-db-redis
+    languages: [ruby]
+    severity: INFO
+    message: "db|$M"
+    metadata: {pathos_graph: {kind: db, technology: redis, requires_import: "redis"}}
+    patterns:
+      - pattern: $R.$M(...)
+      - metavariable-regex: {metavariable: $R, regex: (?i)redis}
+      - metavariable-regex: {metavariable: $M, regex: ^(get|set|setex|del|exists|expire|incr|decr|hget|hset|hgetall|lpush|rpush|lrange|sadd|smembers|zadd|zrange|mget|mset|publish)$}
+  - id: pathos-graph-ruby-queue-sidekiq
+    languages: [ruby]
+    severity: INFO
+    message: "queue|$W"
+    metadata: {pathos_graph: {kind: queue_publish, technology: sidekiq}}
+    pattern-either:
+      - pattern: $W.perform_async(...)
+      - pattern: $W.perform_in(...)
+      - pattern: $W.perform_later(...)
+  - id: pathos-graph-ruby-queue-kafka
+    languages: [ruby]
+    severity: INFO
+    message: "queue|$T"
+    metadata: {pathos_graph: {kind: queue_publish, technology: kafka, requires_import: "kafka|rdkafka|karafka"}}
+    pattern-either:
+      - pattern: '$K.deliver_message($MSG, topic: "$T", ...)'
+      - pattern: '$K.produce($MSG, topic: "$T", ...)'
+      - pattern: '$K.produce_sync(topic: "$T", ...)'
+  - id: pathos-graph-ruby-http-call
+    languages: [ruby]
+    severity: INFO
+    message: "http|$URL"
+    metadata: {pathos_graph: {kind: external_call}}
+    patterns:
+      - pattern-either:
+          - pattern: Net::HTTP.get(URI("$URL"), ...)
+          - pattern: URI("$URL")
+          - pattern: URI.parse("$URL")
+          - pattern: HTTParty.$M("$URL", ...)
+          - pattern: 'Faraday.new(url: "$URL", ...)'
+          - pattern: RestClient.$M("$URL", ...)
+      - metavariable-regex: {metavariable: $URL, regex: ^https?://}

@@ -52,9 +52,10 @@ func TestScanTypeRegistry(t *testing.T) {
 			t.Errorf("category %s has no scan type", c)
 		}
 	}
-	// Every available catalog tool covers at least one scan type.
+	// Every available catalog tool covers at least one scan type, except
+	// CodeGraph discovery (it builds a graph, it is not a kind of check).
 	for _, sc := range Catalog {
-		if sc.AdapterAvailable && len(ScanTypesOf(sc.Key)) == 0 {
+		if sc.AdapterAvailable && len(ScanTypesOf(sc.Key)) == 0 && !IsGraphTool(sc.Key) {
 			t.Errorf("%s covers no scan type", sc.Key)
 		}
 	}

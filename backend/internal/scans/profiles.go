@@ -351,6 +351,9 @@ func (req *profileRequest) validate() error {
 		if sc.Decision == "restricted" {
 			return httpx.BadRequest(sc.Name + " is license-restricted")
 		}
+		if scanners.IsGraphTool(sc.Key) {
+			return httpx.BadRequest(sc.Name + " builds CodeGraph snapshots: start it from CodeGraph, not from a scan profile")
+		}
 		if seen[ps.Key] {
 			continue
 		}

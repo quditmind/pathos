@@ -308,6 +308,8 @@ There is no `GET /api/v1/applications/{id}` today (applications are read through
 
 ### M4: CodeGraph
 
+> **As built in M4:** the endpoints follow the engine ↔ UI contract of the M4 brief (application-scoped paths under `/api/v1/codegraph/applications/{id}`, permission `findings.read`, `graph` instead of `view`, `focus` on aggregate ids instead of `/expand`, synchronous `GET …/diff`); see [api-reference/codegraph.md](../api-reference/codegraph.md). Saved graph views, search and stored diffs below are not built.
+
 All graph reads are limited by repository scope (`graph.read`, resolved like `findings.read` through `authz`).
 
 | Method and path | Permission | Request | Response | Errors |

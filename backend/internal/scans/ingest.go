@@ -57,7 +57,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 	sbomTool := scanners.IsSBOMTool(up.Scanner)
 	// pathos-reach reports are reachability evidence, not findings.
 	reachTool := scanners.IsReachabilityTool(up.Scanner)
-	if up.Status == "succeeded" && !sbomTool && !reachTool && len(raw) > 0 {
+	// pathos-graph output is a CodeGraph (stored by OnGraphResult), not findings.
+	graphTool := scanners.IsGraphTool(up.Scanner)
+	if up.Status == "succeeded" && !sbomTool && !reachTool && !graphTool && len(raw) > 0 {
 		var fs []scanners.Finding
 		var err error
 		switch {
@@ -134,6 +136,9 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			case scanners.ClamAV, scanners.LicenseCheck, scanners.BinaryHardening, scanners.Actionlint, scanners.PathosReach:
 				ct = "application/json"
 			}
+			if graphTool {
+				ct = "application/json"
+			}
 			if sbomTool {
 				kind, ct = "sbom", "application/vnd.cyclonedx+json"
 			}
@@ -144,7 +149,7 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 			// Manifest tools with another parser: the parser is kept with
 			// the tool's original output.
 			var parser []byte
-			if up.Parser != nil {
+			if up.Parser != nil && !graphTool {
 				ct = scanners.ToolContentType(*up.Parser)
 				parser, _ = json.Marshal(up.Parser)
 			}
@@ -253,6 +258,13 @@ func (s *Service) Ingest(ctx context.Context, orgID, jobID uuid.UUID, up ResultU
 		if derr := s.Artifacts.Delete(context.WithoutCancel(ctx), written); derr != nil {
 			s.Log.Warn("orphaned artifact objects after a failed ingest", "keys", written, "err", derr)
 		}
+	}
+	if err == nil && graphTool && s.OnGraphResult != nil && targetID == nil && pr == nil {
+		// The graph is loaded after the result row is stored, in its own
+		// transaction: a graph that cannot be loaded fails its snapshot
+		// (PTH-GRAPH codes), not the result upload.
+		s.OnGraphResult(context.WithoutCancel(ctx), orgID, jobID, GraphResult{Status: up.Status, Error: errText,
+			Version: up.Version, Commit: commit, Raw: raw})
 	}
 	return len(findings) + licenseFindings, err
 }
@@ -435,6 +447,20 @@ func (s *Service) FinalizeWith(ctx context.Context, jobID uuid.UUID, workerFaile
 
 		if pr != nil {
 			return finalizePR(ctx, tx, orgID, jobID, repoID, status, workerErr, bad, &job)
+		}
+		if trigger == "codegraph" {
+			// CodeGraph discovery: no findings, inventory or gate; the
+			// graph itself was stored when its result arrived.
+			errText := logging.RedactString(truncate(workerErr, 2000))
+			if errText == "" && len(bad) > 0 {
+				errText = "scanners failed: " + joinSorted(bad)
+			}
+			if _, err := tx.Exec(ctx, `UPDATE scan_jobs SET status = $2, finished_at = now(), lease_expires_at = NULL, error = $3 WHERE id = $1`,
+				jobID, status, errText); err != nil {
+				return err
+			}
+			job.Status = status
+			return nil
 		}
 		// Auto-resolve: open findings that a scanner which succeeded in this
 		// run no longer reports, unless a scanner that failed also covers it.
