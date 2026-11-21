@@ -25,6 +25,15 @@ psql_admin() { compose exec -T postgres psql -v ON_ERROR_STOP=1 -U postgres -d "
 
 schema_version() { psql_admin pathos "SELECT COALESCE(max(version_id), 0) FROM goose_db_version WHERE is_applied" 2>/dev/null || echo 0; }
 
-app_version() { compose run --rm --no-deps -T --entrypoint /usr/local/bin/pathos api version 2>/dev/null | tail -1; }
+# The version of the running api container; only when api is not running, the
+# version of the configured image. (Before a --pull upgrade the configured image
+# is already the new release, so asking it would report the target version.)
+app_version() {
+  if compose ps --status running --services 2>/dev/null | grep -qx api; then
+    compose exec -T api /usr/local/bin/pathos version 2>/dev/null | tail -1
+  else
+    compose run --rm --no-deps -T --entrypoint /usr/local/bin/pathos api version 2>/dev/null | tail -1
+  fi
+}
 
 sha256() { if command -v sha256sum >/dev/null; then sha256sum "$1" | cut -d' ' -f1; else shasum -a 256 "$1" | cut -d' ' -f1; fi; }
