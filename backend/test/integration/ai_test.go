@@ -168,6 +168,14 @@ func TestAIReviewAndMCP(t *testing.T) {
 	if code, _ := call(analyst, "POST", "/api/v1/ai/reviews/"+rc["id"].(string)+"/approve", map[string]any{}); code != 400 {
 		t.Errorf("closing a critical FP needs a note: %d", code)
 	}
+	// Approving closes the finding: like a manual change, a critical false
+	// positive needs findings.accept_risk (the analyst role has none).
+	if code, _ := call(analyst, "POST", "/api/v1/ai/reviews/"+rc["id"].(string)+"/approve", map[string]any{"note": "test fixture"}); code != 403 {
+		t.Errorf("approving a critical FP without accept_risk: %d", code)
+	}
+	if _ = appPool.QueryRow(ctx, `SELECT status FROM findings WHERE id = $1`, fc).Scan(&st); st != "open" {
+		t.Fatalf("critical finding was closed: %s", st)
+	}
 	if code, _ := call(analyst, "POST", "/api/v1/ai/reviews/"+rc["id"].(string)+"/reject", map[string]any{"note": "real issue"}); code != 204 {
 		t.Errorf("reject: %d", code)
 	}

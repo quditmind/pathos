@@ -163,6 +163,9 @@ func (s *Service) planImport(ctx context.Context, p *authz.Principal, req *impor
 		if err := s.Authz.Require(ctx, p, authz.PermReposManage, target); err != nil {
 			return nil, nil, nil, nil, err
 		}
+		if err := s.requireAppManage(ctx, p, base.ApplicationID); err != nil {
+			return nil, nil, nil, nil, err
+		}
 	} else if err := req.Metadata.mustBeEmpty(); err != nil {
 		return nil, nil, nil, nil, err
 	}

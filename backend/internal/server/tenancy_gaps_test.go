@@ -101,6 +101,8 @@ var systemScopeAllowed = []string{
 	"cmd/pathos/main.go:tenancyStartup",                // default organization lookup at startup
 	"internal/auth/oidc.go:Service.tokenPrincipal",     // API token hash lookup, then the token's organization
 	"internal/identity/http.go:hasOtherMemberships",    // does the same person belong elsewhere (boolean only)
+	"internal/identity/http.go:sharedAccount",          // is the same person's IdP account used by another organization (boolean only)
+	"internal/identity/http.go:multiTenant",            // installation-wide multi-tenancy switch (boolean only)
 	"internal/mcp/tokens.go:Service.authenticate",      // MCP token hash lookup, then the token's organization
 	"internal/repos/service.go:Service.webhookScope",   // connection id -> organization, then signature check
 	"internal/scans/worker_api.go:Service.workerAuth",  // worker token hash lookup, then the worker's organization

@@ -86,7 +86,7 @@ export interface AuditRecord {
 export interface CreateUserResponse {
   user: User;
   role_assignments: RoleAssignment[];
-  provisioning: { status: "created" | "linked_existing" | "skipped" | "failed"; message?: string };
+  provisioning: { status: "created" | "linked_existing" | "invited" | "skipped" | "failed"; message?: string };
 }
 
 export type KpiStatus = "ok" | "not_yet_available" | "restricted";

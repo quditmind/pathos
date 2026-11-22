@@ -1074,10 +1074,13 @@ func (s *Service) decideReview(ctx context.Context, p *authz.Principal, id uuid.
 			Scan(&findingID, &verdict, &status, &severity, &reviewer, &selfOK); err != nil {
 			return errNotFound
 		}
+		var repo uuid.UUID
 		for _, perm := range []authz.Permission{authz.PermAIReview, authz.PermFindingsTriage} {
-			if _, err := s.requireFinding(ctx, p, perm, findingID); err != nil {
+			r, err := s.requireFinding(ctx, p, perm, findingID)
+			if err != nil {
 				return err
 			}
+			repo = r
 		}
 		if status != "pending_approval" {
 			return httpx.Conflict("review is " + status)
@@ -1086,8 +1089,19 @@ func (s *Service) decideReview(ctx context.Context, p *authz.Principal, id uuid.
 		if self && !selfOK {
 			return httpx.Conflict("a different person must approve a review you submitted (single-person installs: enable self-approval in the AI configuration)")
 		}
-		if approve && verdict == FalsePositive && severity == "critical" && strings.TrimSpace(req.Note) == "" {
-			return httpx.BadRequest("closing a Critical finding as a false positive requires a note")
+		if approve && verdict == FalsePositive && severity == "critical" {
+			if strings.TrimSpace(req.Note) == "" {
+				return httpx.BadRequest("closing a Critical finding as a false positive requires a note")
+			}
+			// Same rule as a manual status change: closing a Critical
+			// finding as a false positive needs findings.accept_risk on
+			// its repository.
+			if err := s.Authz.Require(ctx, p, authz.PermFindingsAcceptRisk, authz.Scope{Type: authz.ScopeRepository, ID: repo}); err != nil {
+				if errors.Is(err, authz.ErrForbidden) {
+					return httpx.E(http.StatusForbidden, "forbidden", "closing a Critical finding as a false positive requires findings.accept_risk on its repository")
+				}
+				return err
+			}
 		}
 		newStatus := map[bool]string{true: "applied", false: "rejected"}[approve]
 		if _, err := tx.Exec(ctx, `UPDATE ai_reviews SET status = $2, decided_by = $3, decided_at = now(), decision_note = $4 WHERE id = $1`,
