@@ -9,7 +9,7 @@
   <img src="docs/user-guide/images/findings.png" alt="PATHOS findings list with severity, kind of check, risk score and de-duplication across scanners" width="49%">
 </p>
 
-> **Status: 3.0.1 (stable).** 3.0 adds the nine-phase application security lifecycle. The new modules are behind feature flags, off by default; an administrator turns them on under Administration › Feature flags. The platform phases P1–P8, the ten ASPM phases, the 1.1 gap closure and the 2.0–2.2 work are implemented and tested, all 100 [register](docs/aspm/PATHOS_FEATURE_GAP_ANALYSIS.md) capabilities included.
+> **Status: 3.0.2 (stable).** 3.0 adds the nine-phase application security lifecycle. The new modules are behind feature flags, off by default; an administrator turns them on under Administration › Feature flags. The platform phases P1–P8, the ten ASPM phases, the 1.1 gap closure and the 2.0–2.2 work are implemented and tested, all 100 [register](docs/aspm/PATHOS_FEATURE_GAP_ANALYSIS.md) capabilities included.
 
 ## Features
 
