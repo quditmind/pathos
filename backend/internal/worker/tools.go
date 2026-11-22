@@ -353,9 +353,7 @@ func Tools(cfg Config) map[string]Tool {
 		"checkov": simpleTool{"checkov", []string{"--version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			dir := filepath.Dir(in.Out)
 			_, err := command(ctx, []string{"BC_SKIP_MAPPING=TRUE", "CHECKOV_RUN_SCA_PACKAGE_SCAN_V2=false"}, []int{0, 1}, bin,
-				"-d", in.Src, "-o", "sarif", "--output-file-path", filepath.Join(dir, "checkov"), "--quiet", "--soft-fail",
-				"--skip-download", "--download-external-modules", "false", "--framework",
-				"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines,bitbucket_pipelines")
+				checkovArgs(in.Src, filepath.Join(dir, "checkov"))...)
 			if err != nil {
 				return "", err
 			}
@@ -558,4 +556,18 @@ func writeCustomRules(raw json.RawMessage) (string, error) {
 		}
 	}
 	return dir, nil
+}
+
+// checkovArgs are checkov's arguments for scanning src into outDir.
+//
+// The directory is passed as "--directory=<src>", never as "-d <src>":
+// checkov reads .checkov.yaml/.checkov.yml from every directory given as a
+// bare -d/--directory argument and applies it as defaults, so a scanned
+// repository could set external-checks-dir and have checkov execute its
+// Python files in the worker. The "=" form is not matched by that lookup, and
+// the working directory is the worker's, not the repository.
+func checkovArgs(src, outDir string) []string {
+	return []string{"--directory=" + src, "-o", "sarif", "--output-file-path", outDir, "--quiet", "--soft-fail",
+		"--skip-download", "--download-external-modules", "false", "--framework",
+		"terraform,cloudformation,kubernetes,helm,dockerfile,arm,bicep,serverless,github_actions,gitlab_ci,azure_pipelines,bitbucket_pipelines"}
 }

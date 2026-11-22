@@ -572,7 +572,7 @@ func (s *Service) fixLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.CloneCredential != nil {
-		cred, err := s.CloneCredential(ctx, wk.orgID, *connID)
+		cred, err := s.CloneCredential(ctx, wk.orgID, *connID, job.FullName)
 		if err != nil {
 			fail("could not obtain a clone credential: " + safeErr(err))
 			return
@@ -620,10 +620,10 @@ func (s *Service) fixResult(w http.ResponseWriter, r *http.Request) {
 		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
 		return
 	}
-	var status string
+	var status, ecosystem string
 	var leasedBy *uuid.UUID
-	if err := s.DB.QueryRow(ctx, `SELECT status, leased_by FROM fix_pull_requests WHERE id = $1 AND organization_id = $2`, id, wk.orgID).
-		Scan(&status, &leasedBy); err != nil {
+	if err := s.DB.QueryRow(ctx, `SELECT status, leased_by, ecosystem FROM fix_pull_requests WHERE id = $1 AND organization_id = $2`, id, wk.orgID).
+		Scan(&status, &leasedBy, &ecosystem); err != nil {
 		httpx.WriteError(w, r, s.Log, httpx.ErrNotFound)
 		return
 	}
@@ -656,6 +656,9 @@ func (s *Service) fixResult(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	files, err := decodeFixFiles(res.Files)
+	if err == nil {
+		err = manifestsOnly(files, ecosystem)
+	}
 	if err != nil {
 		finish("failed", "worker result rejected: "+err.Error())
 		return
@@ -695,6 +698,19 @@ func decodeFixFiles(in []FixFile) ([]scm.FileChange, error) {
 		out = append(out, scm.FileChange{Path: f.Path, Content: b})
 	}
 	return out, nil
+}
+
+// manifestsOnly accepts a dependency fix only if every changed file is a
+// manifest or lockfile of the fix's ecosystem. The API pushes the files as a
+// branch of the repository, so a compromised worker must not be able to add
+// CI workflows or source code.
+func manifestsOnly(files []scm.FileChange, ecosystem string) error {
+	for _, f := range files {
+		if ecosystem == "" || depfix.FromPath(f.Path) != ecosystem {
+			return fmt.Errorf("%s is not a %s manifest or lockfile", f.Path, ecosystem)
+		}
+	}
+	return nil
 }
 
 func (s *Service) auditFix(ctx context.Context, q db.Querier, orgID, id uuid.UUID, action string, meta map[string]any) error {

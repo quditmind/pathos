@@ -145,6 +145,26 @@ func TestFixPullRequests(t *testing.T) {
 		t.Errorf("path traversal must be rejected: %s", msg)
 	}
 
+	// A dependency fix may change only manifests and lockfiles: a worker
+	// cannot slip a CI workflow into the branch PATHOS pushes.
+	code, fix = h.user(admin, "POST", fp, map[string]any{})
+	if code != 202 {
+		t.Fatalf("workflow request: %d %v", code, fix)
+	}
+	fixID = fix["id"].(string)
+	if code, lease = h.worker(token, "POST", "/internal/worker/v1/fix-lease", map[string]any{}); code != 200 || lease["fix_id"] != fixID {
+		t.Fatalf("workflow lease: %d %v", code, lease)
+	}
+	if code, r := h.worker(token, "POST", "/internal/worker/v1/fix-jobs/"+fixID+"/result", map[string]any{
+		"status": "ok", "base_commit": base, "files": []map[string]string{
+			{"path": "package.json", "content_base64": content},
+			{"path": ".github/workflows/x.yml", "content_base64": content}}}); code != 204 {
+		t.Fatalf("workflow result: %d %v", code, r)
+	}
+	if msg := waitFixStatus(t, fixID, "failed"); !strings.Contains(msg, "is not a npm manifest or lockfile") {
+		t.Errorf("a workflow file must be rejected: %s", msg)
+	}
+
 	// A new request (the failed one no longer blocks), done properly.
 	code, fix = h.user(admin, "POST", fp, map[string]any{"grouping": "finding"})
 	if code != 202 || len(fix["finding_ids"].([]any)) != 1 {
@@ -217,7 +237,7 @@ func TestFixPullRequests(t *testing.T) {
 		"status": "not_supported", "error": "not supported: package-lock.json must be regenerated"})
 	waitFixStatus(t, fixID, "not_supported")
 	_, list := h.user(admin, "GET", "/api/v1/repositories/"+repo.String()+"/fix-prs", nil)
-	if n := len(list["items"].([]any)); n != 4 {
+	if n := len(list["items"].([]any)); n != 5 {
 		t.Errorf("repository fix PR list: %d", n)
 	}
 }

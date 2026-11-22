@@ -37,7 +37,7 @@ type scanHarness struct {
 func newScanHarness(t *testing.T) *scanHarness {
 	svc := &scans.Service{DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}}, Log: log,
 		Principal: auth.PrincipalFrom, BootstrapToken: bootstrap, OrgID: orgID,
-		CloneCredential: func(context.Context, uuid.UUID, uuid.UUID) (scm.Credential, error) {
+		CloneCredential: func(context.Context, uuid.UUID, uuid.UUID, string) (scm.Credential, error) {
 			return scm.Credential{Username: "x-access-token", Token: "ghs_short_lived"}, nil
 		}}
 	h := &scanHarness{t: t, api: http.NewServeMux(), internal: svc.InternalHandler(), svc: svc}

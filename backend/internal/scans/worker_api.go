@@ -550,7 +550,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.CloneCredential != nil && connID != nil && job.Source == nil {
-		cred, err := s.CloneCredential(ctx, wk.orgID, *connID)
+		cred, err := s.CloneCredential(ctx, wk.orgID, *connID, job.FullName)
 		if err != nil {
 			s.Log.Warn("scan failed: no clone credential", "job_id", job.JobID, "request_id", httpx.RequestID(r), "error_code", "PTH-SCAN-1001", "err", err)
 			s.failJob(ctx, job.JobID, "could not obtain clone credential: "+safeErr(err))

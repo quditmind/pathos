@@ -49,7 +49,7 @@ type Service struct {
 	ScannerConfig func(ctx context.Context, jobID *uuid.UUID, key string) json.RawMessage
 	// CloneCredential resolves the clone credential of an SCM connection
 	// for the worker (repos.Service.CloneCredential).
-	CloneCredential func(ctx context.Context, orgID, connectionID uuid.UUID) (scm.Credential, error)
+	CloneCredential func(ctx context.Context, orgID, connectionID uuid.UUID, repoFullName string) (scm.Credential, error)
 }
 
 // Register mounts the user-facing API.

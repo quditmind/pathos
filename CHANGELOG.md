@@ -5,6 +5,13 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ## [Unreleased]
 
 ### Security
+Manual security review (worker isolation and shared data):
+- **Critical: a scanned repository could run code in the worker through checkov.** checkov read `.checkov.yaml` from the scanned directory and accepted `external-checks-dir` from it, then executed the Python files found there. Checkov now gets the directory as `--directory=<src>`, which that lookup does not match.
+- **Critical: the worker bootstrap token was readable by every scanner.** `os.Unsetenv` left it in `/proc/1/environ` (same UID as the tools). The worker is now non-dumpable (`PR_SET_DUMPABLE=0`), so its `/proc` files and memory are closed to the scanners.
+- **High: workers received the GitHub App installation token for every repository.** A worker now gets an installation token for the scanned repository only, with `contents: read`. PAT and OAuth connections still hand over their token (no narrower credential exists).
+- **Medium: a worker could push any file in a dependency fix.** A dependency fix result may change only manifests and lockfiles of its ecosystem; anything else (CI workflows, source) is rejected.
+- **Medium (multi-tenant): any organization administrator could change the shared vulnerability-intelligence feeds** (KEV, EPSS, OSV, deps.dev, end-of-life) that every organization's risk scores use. With multi-tenancy on, changing, running or importing a feed now needs an installation administrator.
+
 Manual security review (outbound network policy):
 - **Multi-tenancy: organizations could reach the platform's internal network** through integrations with "allow private network" (webhooks, ticketing, Kubernetes and registries, Vault), self-hosted AI providers and the SMTP relay. With multi-tenancy these now reach private addresses only when the operator sets the new `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=true`. **Behaviour change:** multi-tenant installations whose organizations use a private self-hosted AI (such as the bundled Ollama), SMTP relay or integration must set it. Single-organization installations are unchanged.
 - **The destination check was skipped behind an outbound proxy** (`PATHOS_HTTPS_PROXY`): the dialer saw only the proxy. PATHOS now resolves and checks the destination before handing a request to the proxy.
