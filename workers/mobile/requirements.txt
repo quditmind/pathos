@@ -13,6 +13,8 @@
 # 1.45.2 / 0.66b2 instead, including opentelemetry-exporter-http-transport
 # and opentelemetry-exporter-otlp-common, which the 1.45 OTLP HTTP exporter
 # requires (see workers/sast/requirements.txt).
+# wcmatch is installed at 11.2 instead of semgrep's ~=8.3 (ReDoS,
+# CVE-2026-132276; see workers/sast/requirements.txt).
 alembic==1.20.1 \
     --hash=sha256:9970712cfb81ea26c8658d378aaa5b8f6ff9146e5bb111d70497c164016cf598
 androguard==4.1.4 \
@@ -247,8 +249,8 @@ urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3
 uvicorn==0.54.0 \
     --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf
-wcmatch==8.5.2 \
-    --hash=sha256:17d3ad3758f9d0b5b4dedc770b65420d4dac62e680229c287bf24c9db856a478
+wcmatch==11.2 \
+    --hash=sha256:952bab83c75c233836007a69550a3a8753cf06964c1eb3b84ff11ad5bff1c272
 wcwidth==0.9.4 \
     --hash=sha256:b185c8b927b23af2721be1783499d1cfa5c028b098b0858951b4ae224477f1c2
 wrapt==1.17.3 \
