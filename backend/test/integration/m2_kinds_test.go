@@ -152,7 +152,7 @@ func TestM2ConnectorKinds(t *testing.T) {
 	if code != 200 || len(disc["items"].([]any)) != 1 {
 		t.Fatalf("discover: %d %v", code, disc)
 	}
-	cred, err := svc.CloneCredential(ctx, orgID, uuid.MustParse(gid))
+	cred, err := svc.CloneCredential(ctx, orgID, uuid.MustParse(gid), "")
 	if err != nil || cred.Token != "tok-"+sfx || cred.CABundle == "" {
 		t.Fatalf("clone credential must carry the token and the CA bundle: %v", err)
 	}

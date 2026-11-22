@@ -57,6 +57,15 @@ type Client interface {
 	CloneCredential(ctx context.Context) (Credential, error)
 }
 
+// RepoCloner is implemented by clients that can issue a credential limited
+// to reading one repository (GitHub Apps: an installation token for that
+// repository with contents:read). Workers get such a credential when the
+// client supports it, so a compromised scan cannot use it on other
+// repositories or to push.
+type RepoCloner interface {
+	RepoCloneCredential(ctx context.Context, fullName string) (Credential, error)
+}
+
 // Credential is an HTTPS git credential handed to a worker for one job.
 type Credential struct {
 	Username string `json:"username"`

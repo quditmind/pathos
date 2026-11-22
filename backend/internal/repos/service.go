@@ -391,8 +391,9 @@ func (s *Service) client(ctx context.Context, c Connection) (scm.FullClient, err
 }
 
 // CloneCredential returns a clone credential for a repository's connection.
-// Used by the scan service when handing a job to a worker.
-func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.UUID) (scm.Credential, error) {
+// Used when handing a job to a worker, which only reads: clients that can
+// issue a credential limited to reading this one repository do so.
+func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.UUID, repoFullName string) (scm.Credential, error) {
 	c, err := s.getConn(ctx, s.DB, orgID, connectionID)
 	if err != nil {
 		return scm.Credential{}, err
@@ -403,7 +404,12 @@ func (s *Service) CloneCredential(ctx context.Context, orgID, connectionID uuid.
 	}
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
-	cred, err := cl.CloneCredential(ctx)
+	var cred scm.Credential
+	if rc, ok := cl.(scm.RepoCloner); ok && repoFullName != "" {
+		cred, err = rc.RepoCloneCredential(ctx, repoFullName)
+	} else {
+		cred, err = cl.CloneCredential(ctx)
+	}
 	if err == nil && c.Provider == scm.AzureDevOps && (c.AuthType == scm.AuthOAuth || c.AuthType == scm.AuthServicePrincipal) {
 		cred.Scheme = "bearer"
 	}

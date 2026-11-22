@@ -20,6 +20,7 @@ import (
 	"pathos/internal/repos"
 	"pathos/internal/risk"
 	"pathos/internal/scans"
+	"pathos/internal/tenancy"
 )
 
 const testEPSS = "#model_version:v2025.03.14,score_date:2026-11-16T00:00:00Z\ncve,epss,percentile\nCVE-2021-44228,0.94358,0.99962\nCVE-2020-0001,0.00100,0.05000\n"
@@ -85,6 +86,16 @@ func TestIntelligenceAndRisk(t *testing.T) {
 	// --- feeds: offline import (admin only), online fetch -----------------
 	if code, _ := upload(analyst, "epss", testEPSS); code != 403 {
 		t.Errorf("only administrators import feeds: %d", code)
+	}
+	// The feeds are shared by every organization: with multi-tenancy on (as
+	// in this suite), an organization administrator may not change them,
+	// only an installation administrator.
+	admin.Subject = "kc-intel-" + uuid.NewString()[:8]
+	if code, _ := upload(admin, "epss", testEPSS); code != 403 {
+		t.Errorf("an organization administrator changed the shared feeds: %d", code)
+	}
+	if _, err := tenancy.GrantInstallationAdmin(ctx, appPool, admin.Subject, admin.Email, "test"); err != nil {
+		t.Fatal(err)
 	}
 	if code, out := upload(admin, "epss", "not,a,feed\n"); code != 422 {
 		t.Errorf("invalid feed: %d %v", code, out)
