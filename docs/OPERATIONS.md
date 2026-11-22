@@ -44,9 +44,9 @@ Each tagged release publishes these images to the GitHub Container Registry, bui
 Use them instead of building locally:
 
 ```bash
-git clone --branch v3.0.1 https://github.com/quditmind/pathos.git && cd pathos
+git clone --branch v3.0.2 https://github.com/quditmind/pathos.git && cd pathos
 ./deploy/scripts/install.sh                 # new installs only
-# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=3.0.1
+# in .env:  PATHOS_IMAGE_PREFIX=ghcr.io/quditmind/   PATHOS_VERSION=3.0.2
 deploy/scripts/upgrade.sh --pull
 ```
 
@@ -55,8 +55,8 @@ Upgrading to a later release works the same way: check out the new tag, set `PAT
 **Verify before you deploy.** Every image is signed with cosign (keyless) by the release workflow at its tag:
 
 ```bash
-cosign verify ghcr.io/quditmind/pathos:3.0.1 \
-  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v3.0.1" \
+cosign verify ghcr.io/quditmind/pathos:3.0.2 \
+  --certificate-identity "https://github.com/quditmind/pathos/.github/workflows/release.yml@refs/tags/v3.0.2" \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com
 ```
 
@@ -78,7 +78,7 @@ Where to read them:
 
 - `GET /healthz` → `{"status":"ok","version":"…"}` (unchanged).
 - `GET /api/v1/meta` → product, vendor and version without authentication; with a session or token also `commit`, `build_date`, `api_version`, feature flags and the versions of the registered workers and their families (docs/api-reference/diagnostics.md).
-- `pathos --version` / `pathos version` (CLI) and `docker compose exec api pathosctl version` → `Quditmind PATHOS v3.0.1 (build 0123456789ab, 2026-11-20T10:00:00Z)`.
+- `pathos --version` / `pathos version` (CLI) and `docker compose exec api pathosctl version` → `Quditmind PATHOS v3.0.2 (build 0123456789ab, 2026-11-20T10:00:00Z)`.
 - The API and worker log every line with `version`; the startup line also has `commit`.
 - Exports carry the stamp `Quditmind PATHOS v{version} · build {commit} · generated {UTC timestamp}`: CycloneDX SBOM and VEX (`metadata.tools` and the `pathos:generated-by` property), SPDX (`creationInfo.creators` and `creationInfo.comment`), OpenVEX (`tooling`), AI analyst Markdown reports (last line), notification e-mails (footer), the JSON of saved reports (`generated_by`), and CSV exports as the `X-PATHOS-Generated-By` response header (the file itself still starts with its header row, so spreadsheets and scripts read it unchanged).
 
