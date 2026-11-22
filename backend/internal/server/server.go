@@ -422,7 +422,7 @@ func NewAIService(d Deps, az *authz.Authorizer) *ai.Service {
 	client := d.SCMNet.Client()
 	client.Timeout = 5 * time.Minute
 	// Self-hosted model servers (Ollama, vLLM) live on private networks.
-	local := scm.NetPolicy{AllowPrivate: true, AllowHTTP: true}.Client()
+	local := scm.NetPolicy{AllowPrivate: true, AllowHTTP: true, OrgChosen: true}.Client()
 	local.Timeout = 10 * time.Minute // CPU inference can be slow
 	// Model servers answer a non-streaming request only when the whole
 	// response is generated: wait for headers as long as for the request

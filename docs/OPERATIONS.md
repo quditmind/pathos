@@ -377,6 +377,7 @@ The Connectors page (feature flag `connectors`, [user guide](user-guide/connecto
 | `PATHOS_RATE_LIMIT_SCALE` | api | `1` | Multiplies every rate limit; `0` disables |
 | `PATHOS_SMTP_HOST`, `_PORT`, `_FROM`, `_STARTTLS`, `_AUTH`, `_USER`, `_PASSWORD` | keycloak, migrate (first run only) | Mailpit | Mail relay; afterwards PATHOS e-mail is managed in the UI |
 | `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS` | api, jobs | `false` | Allow providers on private addresses |
+| `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS` | api, jobs | `false` | Multi-tenancy only: let organizations' integrations (webhooks, ticketing, Kubernetes and registries, Vault, self-hosted AI, SMTP) reach private addresses when they choose "allow private network". Off: such destinations are refused, so an organization administrator cannot reach the platform's internal network. Without multi-tenancy the per-integration option applies as before |
 | `PATHOS_SCM_ALLOW_HTTP` | api, jobs (*code only*) | `false` | Allow `http` provider URLs (development) |
 | `PATHOS_HTTPS_PROXY` | api, jobs | empty | Outbound proxy for provider APIs, feeds and integrations |
 | `PATHOS_OFFLINE` | api, jobs, worker-core | `false` | Air-gapped mode ([AIRGAP.md](AIRGAP.md)); also disables declared endpoint verification and keyless signature verification |

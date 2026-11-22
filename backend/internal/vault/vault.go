@@ -165,7 +165,7 @@ type Config struct {
 // Validate normalizes a configuration (without the secret ID).
 func (c *Config) Validate(allowHTTP bool) error {
 	c.Address = strings.TrimRight(strings.TrimSpace(c.Address), "/")
-	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: allowHTTP}).ValidateBaseURL(c.Address)
+	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: allowHTTP, OrgChosen: true}).ValidateBaseURL(c.Address)
 	if err != nil {
 		return fmt.Errorf("address: %w", err)
 	}
@@ -231,7 +231,7 @@ type Client struct {
 func NewClient(cfg Config, hc *http.Client, allowHTTP bool) (*Client, error) {
 	if hc == nil {
 		var err error
-		if hc, err = (scm.NetPolicy{AllowPrivate: cfg.AllowPrivate, AllowHTTP: allowHTTP}).ClientWithCA(cfg.CABundle); err != nil {
+		if hc, err = (scm.NetPolicy{AllowPrivate: cfg.AllowPrivate, AllowHTTP: allowHTTP, OrgChosen: true}).ClientWithCA(cfg.CABundle); err != nil {
 			return nil, err
 		}
 	}

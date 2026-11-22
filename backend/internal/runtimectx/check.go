@@ -98,7 +98,7 @@ func (s *Service) CheckCluster(ctx context.Context, orgID, id uuid.UUID) (Cluste
 		return h, err
 	}
 	h.LongLived = c.Creds.Token != ""
-	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate}).ValidateBaseURL(c.Creds.Server)
+	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, OrgChosen: true}).ValidateBaseURL(c.Creds.Server)
 	if err != nil && s.NewHTTP == nil {
 		return h, fmt.Errorf("API server URL: %w", err)
 	}
@@ -166,7 +166,7 @@ func (s *Service) CheckRegistry(ctx context.Context, orgID, id uuid.UUID) (Regis
 	if err != nil {
 		return h, err
 	}
-	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: s.AllowHTTP}).ValidateBaseURL(c.BaseURL)
+	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: s.AllowHTTP, OrgChosen: true}).ValidateBaseURL(c.BaseURL)
 	if err != nil && s.NewHTTP == nil {
 		return h, fmt.Errorf("registry URL: %w", err)
 	}

@@ -231,7 +231,7 @@ func (s *Service) createProvider(w http.ResponseWriter, r *http.Request) {
 		}
 	case SelfHosted:
 		// Local servers usually speak plain http on a private network.
-		if _, err := (scm.NetPolicy{AllowPrivate: true, AllowHTTP: true}).ValidateBaseURL(req.BaseURL); err != nil {
+		if _, err := (scm.NetPolicy{AllowPrivate: true, AllowHTTP: true, OrgChosen: true}).ValidateBaseURL(req.BaseURL); err != nil {
 			s.fail(w, r, httpx.BadRequest("base_url: "+err.Error()+" (e.g. http://host.docker.internal:11434/v1 for Ollama on this host)"))
 			return
 		}

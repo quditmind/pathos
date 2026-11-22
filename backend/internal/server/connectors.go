@@ -90,7 +90,7 @@ func ConnectorEnv(d Deps, role string, repoSvc *repos.Service, aiSvc *ai.Service
 		Notify:      notifyChecker{&notify.Service{DB: d.DB, Secrets: d.Secrets, Log: d.Log}},
 		EgressProxy: d.EgressProxyURL, Interval: d.ConnectorCheckInterval,
 		HTTP: func(allowPrivate bool) *http.Client {
-			return scm.NetPolicy{AllowPrivate: allowPrivate, AllowHTTP: d.SCMNet.AllowHTTP}.Client()
+			return scm.NetPolicy{AllowPrivate: allowPrivate, AllowHTTP: d.SCMNet.AllowHTTP, OrgChosen: true}.Client()
 		},
 	}
 	if repoSvc != nil {

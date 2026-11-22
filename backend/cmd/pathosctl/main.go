@@ -236,6 +236,10 @@ func rotate(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config, log *sl
 	})
 	if err == nil {
 		log.Info("rotation complete", "rewrapped", n, "key_version", kr.CurrentVersion())
+		// Stored source archives and Human Eye evidence files seal their
+		// data keys with the master key too and are not rewrapped: they
+		// stay readable only while their key version is configured.
+		log.Warn("keep the previous master keys in PATHOS_MASTER_KEYS_PREVIOUS: stored source archives and evidence files are not rewrapped and need them until they are deleted by retention")
 	}
 	return err
 }

@@ -175,7 +175,7 @@ func (in *webhookInput) validate(update bool) (*url.URL, error) {
 		return nil, httpx.BadRequest("Office 365 connector webhooks (webhook.office.com) were retired in May 2026: create a Workflows flow with " +
 			"the trigger \"When a Teams webhook request is received\" and use its URL").WithDiag("PTH-CONN-1310")
 	}
-	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate}).ValidateBaseURL(u.Scheme + "://" + u.Host); err != nil {
+	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, OrgChosen: true}).ValidateBaseURL(u.Scheme + "://" + u.Host); err != nil {
 		return nil, httpx.BadRequest("url: " + err.Error())
 	}
 	return u, nil
@@ -479,7 +479,7 @@ func endpointClient(ep endpoint) *http.Client {
 	if HTTPOverride != nil {
 		return HTTPOverride
 	}
-	pol := scm.NetPolicy{AllowPrivate: ep.allowPrivate}
+	pol := scm.NetPolicy{AllowPrivate: ep.allowPrivate, OrgChosen: true}
 	c, err := pol.ClientWithCA(ep.caBundle)
 	if err != nil {
 		// A stored bundle was validated on save; fall back to the system

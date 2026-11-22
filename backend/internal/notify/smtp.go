@@ -43,7 +43,7 @@ type Message struct {
 
 // smtpNet allows private relays (common in enterprises) but never loopback,
 // link-local or cloud metadata addresses.
-var smtpNet = scm.NetPolicy{AllowPrivate: true}
+var smtpNet = scm.NetPolicy{AllowPrivate: true, OrgChosen: true}
 
 // ValidateAddress checks a single bare email address.
 func ValidateAddress(s string) error {
