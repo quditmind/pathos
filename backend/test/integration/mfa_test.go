@@ -187,8 +187,12 @@ func TestInviteDoesNotLinkExistingAccountWhenMultiTenant(t *testing.T) {
 	rec := httptest.NewRecorder()
 	mux.ServeHTTP(rec, req)
 	var out struct {
-		User         struct{ ID uuid.UUID `json:"id"` } `json:"user"`
-		Provisioning struct{ Status string `json:"status"` } `json:"provisioning"`
+		User struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"user"`
+		Provisioning struct {
+			Status string `json:"status"`
+		} `json:"provisioning"`
 	}
 	_ = json.Unmarshal(rec.Body.Bytes(), &out)
 	if rec.Code != 201 || out.Provisioning.Status != "invited" {
