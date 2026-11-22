@@ -334,6 +334,15 @@ func TestRepositoryLifecycle(t *testing.T) {
 	if code, _ := h.do(eng, "POST", "/api/v1/applications", map[string]any{"name": "Org-wide " + sfx}); code != 403 {
 		t.Errorf("BU engineer creating an org-level app: want 403, got %d", code)
 	}
+	// Another unit's application: attaching to it needs repos.manage there
+	// (it would otherwise become visible through the repository).
+	code, hrApp := h.do(admin, "POST", "/api/v1/applications", map[string]any{"name": "HR app " + sfx, "business_unit_id": hr})
+	if code != 201 {
+		t.Fatalf("create HR app: %d %v", code, hrApp)
+	}
+	if code, _ := h.do(eng, "PATCH", "/api/v1/repositories/"+repo1, map[string]any{"application_id": id(hrApp, "id")}); code != 403 {
+		t.Errorf("attaching to another unit's application: want 403, got %d", code)
+	}
 	h.do(eng, "PATCH", "/api/v1/repositories/"+repo1, map[string]any{"application_id": id(app, "id")})
 	_, apps := h.do(analyst, "GET", "/api/v1/applications", nil)
 	found := false

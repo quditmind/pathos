@@ -12,6 +12,14 @@ Manual security review (worker isolation and shared data):
 - **Medium: a worker could push any file in a dependency fix.** A dependency fix result may change only manifests and lockfiles of its ecosystem; anything else (CI workflows, source) is rejected.
 - **Medium (multi-tenant): any organization administrator could change the shared vulnerability-intelligence feeds** (KEV, EPSS, OSV, deps.dev, end-of-life) that every organization's risk scores use. With multi-tenancy on, changing, running or importing a feed now needs an installation administrator.
 
+Manual security review (access control):
+- **A Critical finding could be closed as a false positive with `findings.accept_risk` on another repository.** The permission is now checked on the finding's own repository.
+- **Approving an AI review closed a Critical finding as a false positive without `findings.accept_risk`.** Approving such a review now needs it on the finding's repository, like a manual status change.
+- **A repository manager could attach their repository to another unit's application** and so read that application's data. Attaching a repository to an application (edit or import) now needs `repos.manage` where the application is placed.
+- **The MCP server's `get_finding_evidence` and `list_pending_findings` tools ignored the organization's AI data controls.** They now apply the default AI configuration's "send code context" switch and redaction patterns.
+- **Human-review CSV export** now contains only repositories where the caller holds `findings.export`; the monitoring CSV also escapes the evidence label.
+- **Multi-tenancy: inviting an email whose Keycloak account already exists linked it immediately.** It is now linked when the person signs in to the organization with that verified email. No organization changes a Keycloak account shared with another organization: MFA and recovery-code requirements are refused (`PTH-AUTH-1019`), and reactivating a membership no longer re-enables the account.
+
 Manual security review (outbound network policy):
 - **Multi-tenancy: organizations could reach the platform's internal network** through integrations with "allow private network" (webhooks, ticketing, Kubernetes and registries, Vault), self-hosted AI providers and the SMTP relay. With multi-tenancy these now reach private addresses only when the operator sets the new `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=true`. **Behaviour change:** multi-tenant installations whose organizations use a private self-hosted AI (such as the bundled Ollama), SMTP relay or integration must set it. Single-organization installations are unchanged.
 - **The destination check was skipped behind an outbound proxy** (`PATHOS_HTTPS_PROXY`): the dialer saw only the proxy. PATHOS now resolves and checks the destination before handing a request to the proxy.

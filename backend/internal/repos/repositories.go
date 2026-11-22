@@ -754,6 +754,14 @@ func (s *Service) updateRepository(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, fe.Err())
 		return
 	}
+	// Attaching the repository to an application needs repos.manage where
+	// that application is placed.
+	if slices.Contains(changed, "application_id") {
+		if err := s.requireAppManage(ctx, p, cur.ApplicationID); err != nil {
+			s.fail(w, r, err)
+			return
+		}
+	}
 	// Moving placement or creating an application needs repos.manage at
 	// the destination too.
 	if slices.Contains(changed, "business_unit_id") || slices.Contains(changed, "country_id") || cur.NewApplication != nil {

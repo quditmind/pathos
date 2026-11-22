@@ -161,7 +161,7 @@ type statusRequest struct {
 }
 
 func (s *Service) setStatus(ctx context.Context, tx pgx.Tx, p *authz.Principal, id uuid.UUID, req statusRequest) error {
-	from, severity, _, err := s.finding(ctx, tx, p, authz.PermFindingsTriage, id, true)
+	from, severity, repo, err := s.finding(ctx, tx, p, authz.PermFindingsTriage, id, true)
 	if err != nil {
 		return err
 	}
@@ -171,8 +171,15 @@ func (s *Service) setStatus(ctx context.Context, tx pgx.Tx, p *authz.Principal, 
 	if slices.Contains(reasonRequired, req.Status) && len(strings.TrimSpace(req.Reason)) < 5 {
 		return httpx.BadRequest("a reason is required for " + strings.ReplaceAll(req.Status, "_", " "))
 	}
-	if req.Status == "false_positive" && severity == "critical" && !p.HasAnywhere(authz.PermFindingsAcceptRisk) {
-		return httpx.E(http.StatusForbidden, "forbidden", "closing a Critical finding as a false positive requires findings.accept_risk")
+	// findings.accept_risk on this finding's repository, not anywhere: a
+	// grant on another repository must not close this one.
+	if req.Status == "false_positive" && severity == "critical" {
+		if err := s.Authz.Require(ctx, p, authz.PermFindingsAcceptRisk, authz.Scope{Type: authz.ScopeRepository, ID: repo}); err != nil {
+			if errors.Is(err, authz.ErrForbidden) {
+				return httpx.E(http.StatusForbidden, "forbidden", "closing a Critical finding as a false positive requires findings.accept_risk on its repository")
+			}
+			return err
+		}
 	}
 	if err := db.SetChangeContext(ctx, tx, uid(p), "user", req.Reason); err != nil {
 		return err

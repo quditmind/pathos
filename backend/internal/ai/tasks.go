@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -390,4 +391,26 @@ func RewrapPayloads(ctx context.Context, tx pgx.Tx, keys *crypto.Keyring) (int, 
 		}
 	}
 	return len(all), nil
+}
+
+// ExternalDataControls returns the organization's AI data controls for data
+// leaving PATHOS for an AI the organization does not run (the MCP server's
+// tools): whether code context may be sent and the organization's extra
+// redaction patterns, from the default configuration. Without a
+// configuration no controls were set: code is allowed and only the built-in
+// redaction applies, as before.
+func ExternalDataControls(ctx context.Context, q db.Querier, orgID uuid.UUID) (sendCode bool, extra []*regexp.Regexp, err error) {
+	var cid uuid.UUID
+	cv, err := scanCVWith(q.QueryRow(ctx, cvSelectWithConfig+` JOIN ai_configurations c ON c.current_version_id = v.id
+		JOIN ai_providers p ON p.id = v.provider_id AND p.organization_id = c.organization_id
+		WHERE c.organization_id = $1 AND c.archived_at IS NULL AND p.archived_at IS NULL AND c.is_default
+		ORDER BY c.created_at LIMIT 1`, orgID), &cid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return true, nil, nil
+	}
+	if err != nil {
+		return false, nil, err
+	}
+	extra, _ = CompilePatterns(cv.RedactionPatterns)
+	return cv.SendCodeContext, extra, nil
 }

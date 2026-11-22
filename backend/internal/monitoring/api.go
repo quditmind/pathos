@@ -411,7 +411,7 @@ func writeEventsCSV(w http.ResponseWriter, items []FeedEvent) {
 			loop = strconv.Itoa(*e.Loop)
 		}
 		ev, _ := json.Marshal(e.Evidence)
-		_ = cw.Write([]string{e.CreatedAt.UTC().Format(time.RFC3339), e.Type, loop, e.Severity, csvSafe(e.Title), csvSafe(e.Summary), e.EvidenceLabel,
+		_ = cw.Write([]string{e.CreatedAt.UTC().Format(time.RFC3339), e.Type, loop, e.Severity, csvSafe(e.Title), csvSafe(e.Summary), csvSafe(e.EvidenceLabel),
 			csvSafe(e.ApplicationName), csvSafe(e.RepositoryName), string(ev)})
 	}
 	cw.Flush()
