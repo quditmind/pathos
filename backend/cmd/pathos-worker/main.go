@@ -42,6 +42,9 @@ func env(k, def string) string {
 	return def
 }
 
+// prSetDumpable is PR_SET_DUMPABLE (linux/prctl.h).
+const prSetDumpable = 4
+
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "sandbox-runner" {
 		log := logging.New(os.Stdout, env("PATHOS_LOG_LEVEL", "info")).With("service", "pathos-sandbox-runner")
@@ -62,7 +65,16 @@ func main() {
 		fmt.Fprintln(os.Stderr, "PATHOS_WORKER_BOOTSTRAP_TOKEN is required")
 		os.Exit(2)
 	}
-	// The registration secret must not leak into scanner processes.
+	// The registration secret must not leak into scanner processes. Unsetenv
+	// only changes Go's copy of the environment: the original stays in
+	// /proc/self/environ, which every scanner (same UID) could read, as it
+	// could the worker's memory (its token). A non-dumpable process's /proc
+	// files belong to root and it cannot be ptraced by its UID; the flag is
+	// reset by execve, so the scanners themselves stay ordinary processes.
+	if _, _, e := syscall.RawSyscall(syscall.SYS_PRCTL, prSetDumpable, 0, 0); e != 0 {
+		fmt.Fprintln(os.Stderr, "prctl(PR_SET_DUMPABLE, 0):", e)
+		os.Exit(2)
+	}
 	os.Unsetenv("PATHOS_WORKER_BOOTSTRAP_TOKEN")
 	host, _ := os.Hostname()
 	cfg := worker.Config{

@@ -22,6 +22,7 @@ import (
 	"pathos/internal/authz"
 	"pathos/internal/eol"
 	"pathos/internal/platform/httpx"
+	"pathos/internal/tenancy"
 )
 
 // Service exposes feed management and CVE lookups.
@@ -163,6 +164,14 @@ func (s *Service) admin(r *http.Request) (*authz.Principal, string, error) {
 	p := s.Principal(r.Context())
 	if !p.HasOrgWide(authz.PermSettingsManage) {
 		return p, "", authz.ErrForbidden
+	}
+	// The feeds and their data (intel_feeds, intel_kev, intel_epss,
+	// intel_vulns) are shared by every organization of the installation.
+	// With multi-tenancy on, only an installation administrator may change
+	// them; an organization administrator would otherwise alter the risk
+	// data of every other organization.
+	if err := s.requireInstallationAdmin(r.Context(), p); err != nil {
+		return p, "", err
 	}
 	feed := r.PathValue("feed")
 	if !validFeed(feed) {
@@ -446,4 +455,25 @@ func (s *Service) RunBackground(ctx context.Context) {
 		case <-t.C:
 		}
 	}
+}
+
+// requireInstallationAdmin allows p when multi-tenancy is off (the
+// organization administrator is then the operator) or p is an installation
+// administrator.
+func (s *Service) requireInstallationAdmin(ctx context.Context, p *authz.Principal) error {
+	on, err := tenancy.MultiTenant(ctx, s.DB)
+	if err != nil || !on {
+		return err
+	}
+	if p.Subject == "" {
+		return authz.ErrForbidden
+	}
+	ok, err := tenancy.IsInstallationAdmin(ctx, s.DB, p.Subject)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return authz.ErrForbidden
+	}
+	return nil
 }

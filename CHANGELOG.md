@@ -4,6 +4,14 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Security
+Manual security review (worker isolation and shared data):
+- **Critical: a scanned repository could run code in the worker through checkov.** checkov read `.checkov.yaml` from the scanned directory and accepted `external-checks-dir` from it, then executed the Python files found there. Checkov now gets the directory as `--directory=<src>`, which that lookup does not match.
+- **Critical: the worker bootstrap token was readable by every scanner.** `os.Unsetenv` left it in `/proc/1/environ` (same UID as the tools). The worker is now non-dumpable (`PR_SET_DUMPABLE=0`), so its `/proc` files and memory are closed to the scanners.
+- **High: workers received the GitHub App installation token for every repository.** A worker now gets an installation token for the scanned repository only, with `contents: read`. PAT and OAuth connections still hand over their token (no narrower credential exists).
+- **Medium: a worker could push any file in a dependency fix.** A dependency fix result may change only manifests and lockfiles of its ecosystem; anything else (CI workflows, source) is rejected.
+- **Medium (multi-tenant): any organization administrator could change the shared vulnerability-intelligence feeds** (KEV, EPSS, OSV, deps.dev, end-of-life) that every organization's risk scores use. With multi-tenancy on, changing, running or importing a feed now needs an installation administrator.
+
 ### Fixed
 - **upgrade.sh and backup.sh reported the target version as the current one**: with `--pull`, the "current" version came from the configured image (already the new release), so the log said e.g. "3.0.1 -> 3.0.1" and the pre-upgrade backup manifest recorded the new version. Both now ask the running api container and fall back to the image only when api is not running. Restores were not affected (they use the schema version).
 

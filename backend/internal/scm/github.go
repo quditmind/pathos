@@ -80,6 +80,31 @@ func (g *gitHub) CloneCredential(ctx context.Context) (Credential, error) {
 	return Credential{Username: "x-access-token", Token: tok, ExpiresAt: exp}, nil
 }
 
+// RepoCloneCredential implements RepoCloner: for a GitHub App, a fresh
+// installation token for this one repository with contents:read only. Other
+// authentication types fall back to CloneCredential.
+func (g *gitHub) RepoCloneCredential(ctx context.Context, fullName string) (Credential, error) {
+	app, ok := g.auth.(*githubAppAuth)
+	if !ok || !g.isApp() {
+		return g.CloneCredential(ctx)
+	}
+	name := fullName
+	if i := strings.LastIndex(name, "/"); i >= 0 {
+		name = name[i+1:]
+	}
+	if name == "" {
+		return Credential{}, errors.New("scm: repository name required")
+	}
+	tok, exp, err := app.fetchScoped(ctx, map[string]any{
+		"repositories": []string{name},
+		"permissions":  map[string]string{"contents": "read"},
+	})
+	if err != nil {
+		return Credential{}, err
+	}
+	return Credential{Username: "x-access-token", Token: tok, ExpiresAt: &exp}, nil
+}
+
 func (g *gitHub) user(ctx context.Context) (string, int64, error) {
 	var u struct {
 		Login string `json:"login"`

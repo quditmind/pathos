@@ -715,7 +715,7 @@ func (s *Service) lease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.CloneCredential != nil {
-		cred, err := s.CloneCredential(ctx, wk.OrganizationID, *conn)
+		cred, err := s.CloneCredential(ctx, wk.OrganizationID, *conn, job.FullName)
 		if err != nil {
 			fail("could not obtain a clone credential: " + logging.RedactString(err.Error()))
 			return
