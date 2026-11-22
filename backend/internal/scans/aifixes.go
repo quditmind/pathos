@@ -917,7 +917,7 @@ func (s *Service) aiFixLease(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if s.CloneCredential != nil {
-		cred, err := s.CloneCredential(ctx, wk.orgID, *connID)
+		cred, err := s.CloneCredential(ctx, wk.orgID, *connID, job.FullName)
 		if err != nil {
 			fail("could not obtain a clone credential: " + safeErr(err))
 			return

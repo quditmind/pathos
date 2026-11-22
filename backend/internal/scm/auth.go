@@ -1,6 +1,7 @@
 package scm
 
 import (
+	"bytes"
 	"context"
 	"crypto"
 	"crypto/rand"
@@ -13,6 +14,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -198,13 +200,30 @@ func (a *githubAppAuth) secret(ctx context.Context) (string, *time.Time, error) 
 }
 
 func (a *githubAppAuth) fetch(ctx context.Context) (string, time.Time, error) {
+	return a.fetchScoped(ctx, nil)
+}
+
+// fetchScoped requests an installation token; a non-nil body limits it
+// (repositories, permissions). Scoped tokens are not cached.
+func (a *githubAppAuth) fetchScoped(ctx context.Context, body map[string]any) (string, time.Time, error) {
 	jwt, err := githubAppJWT(a.key, a.appID, time.Now())
 	if err != nil {
 		return "", time.Time{}, err
 	}
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/installations/%d/access_tokens", a.base, a.instID), nil)
+	var rd io.Reader
+	if body != nil {
+		b, err := json.Marshal(body)
+		if err != nil {
+			return "", time.Time{}, err
+		}
+		rd = bytes.NewReader(b)
+	}
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/app/installations/%d/access_tokens", a.base, a.instID), rd)
 	if err != nil {
 		return "", time.Time{}, errors.New("scm: invalid base URL")
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
 	}
 	req.Header.Set("Authorization", "Bearer "+jwt)
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")

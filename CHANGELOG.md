@@ -5,6 +5,13 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ## [Unreleased]
 
 ### Security
+Manual security review (worker isolation and shared data):
+- **Critical: a scanned repository could run code in the worker through checkov.** checkov read `.checkov.yaml` from the scanned directory and accepted `external-checks-dir` from it, then executed the Python files found there. Checkov now gets the directory as `--directory=<src>`, which that lookup does not match.
+- **Critical: the worker bootstrap token was readable by every scanner.** `os.Unsetenv` left it in `/proc/1/environ` (same UID as the tools). The worker is now non-dumpable (`PR_SET_DUMPABLE=0`), so its `/proc` files and memory are closed to the scanners.
+- **High: workers received the GitHub App installation token for every repository.** A worker now gets an installation token for the scanned repository only, with `contents: read`. PAT and OAuth connections still hand over their token (no narrower credential exists).
+- **Medium: a worker could push any file in a dependency fix.** A dependency fix result may change only manifests and lockfiles of its ecosystem; anything else (CI workflows, source) is rejected.
+- **Medium (multi-tenant): any organization administrator could change the shared vulnerability-intelligence feeds** (KEV, EPSS, OSV, deps.dev, end-of-life) that every organization's risk scores use. With multi-tenancy on, changing, running or importing a feed now needs an installation administrator.
+
 Manual security review (access control):
 - **A Critical finding could be closed as a false positive with `findings.accept_risk` on another repository.** The permission is now checked on the finding's own repository.
 - **Approving an AI review closed a Critical finding as a false positive without `findings.accept_risk`.** Approving such a review now needs it on the finding's repository, like a manual status change.
@@ -15,6 +22,14 @@ Manual security review (access control):
 
 ### Fixed
 - **upgrade.sh and backup.sh reported the target version as the current one**: with `--pull`, the "current" version came from the configured image (already the new release), so the log said e.g. "3.0.1 -> 3.0.1" and the pre-upgrade backup manifest recorded the new version. Both now ask the running api container and fall back to the image only when api is not running. Restores were not affected (they use the schema version).
+
+### Security
+Findings from a PATHOS self-scan (Comprehensive profile on this repository):
+- **Release workflow**: GitHub expressions (`github.ref`, matrix values, step outputs) are no longer expanded inside `run:` scripts; they are passed as environment variables (zizmor template-injection, 4 high). The release job no longer restores a Go build cache, so a poisoned cache entry cannot reach the signed CLI binaries (zizmor cache-poisoning, high).
+- **golang.org/x/crypto 0.58.0 → 0.59.0** (GO-2026-5932, the deprecated `openpgp` package; PATHOS does not import it).
+- **wcmatch 8.5.2 → 11.2** in the sast and mobile workers (CVE-2026-132276, a ReDoS on file names, which scanned repositories control). Semgrep gives the same results with both versions.
+- **Smoke test verifies TLS certificates** (against `PATHOS_CA_CERT`, the bundled Caddy proxy's local CA, or the system trust store) instead of disabling verification.
+- **Bitbucket Pipelines template** and its user-guide example pin the Semgrep image by version and digest instead of an untagged image.
 
 ## [3.0.1] — 2026-11-21
 

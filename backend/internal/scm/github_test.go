@@ -350,3 +350,53 @@ func TestIsTransient(t *testing.T) {
 		}
 	}
 }
+
+// Workers get an installation token limited to the scanned repository with
+// contents:read, not the installation-wide cached token.
+func TestGitHubAppRepoCloneCredentialIsScoped(t *testing.T) {
+	key, _ := rsa.GenerateKey(rand.Reader, 2048)
+	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	var bodies []map[string]any
+	srv := newFake(t, func(f *fake, w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/app/installations/7/access_tokens" {
+			status(w, 404)
+			return
+		}
+		var b map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&b)
+		bodies = append(bodies, b)
+		tok := "ghs_wide"
+		if b != nil {
+			tok = "ghs_scoped"
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(201)
+		_ = json.NewEncoder(w).Encode(map[string]any{"token": tok, "expires_at": time.Now().Add(time.Hour)})
+	})
+	c := mustNew(t, Config{Provider: GitHub, BaseURL: srv.URL, AuthType: AuthGitHubApp, Secret: pemKey, AppID: 3, InstallationID: 7, HTTP: srv.Client()})
+	rc, ok := c.(RepoCloner)
+	if !ok {
+		t.Fatal("the GitHub client must implement RepoCloner")
+	}
+	cred, err := rc.RepoCloneCredential(context.Background(), "acme/api")
+	if err != nil || cred.Token != "ghs_scoped" || cred.Username != "x-access-token" || cred.ExpiresAt == nil {
+		t.Fatalf("scoped clone: %+v %v", cred, err)
+	}
+	if len(bodies) != 1 {
+		t.Fatalf("want one token request, got %d", len(bodies))
+	}
+	repos, _ := bodies[0]["repositories"].([]any)
+	perms, _ := bodies[0]["permissions"].(map[string]any)
+	if len(repos) != 1 || repos[0] != "api" || len(perms) != 1 || perms["contents"] != "read" {
+		t.Fatalf("token request not scoped to one repository with contents:read: %v", bodies[0])
+	}
+}
+
+// PAT connections keep their credential (no scoping is possible).
+func TestGitHubPATRepoCloneCredentialFallsBack(t *testing.T) {
+	c := mustNew(t, Config{Provider: GitHub, BaseURL: "https://api.github.com", AuthType: AuthPAT, Secret: []byte("ghp_x"), HTTP: http.DefaultClient})
+	cred, err := c.(RepoCloner).RepoCloneCredential(context.Background(), "acme/api")
+	if err != nil || cred.Token != "ghp_x" {
+		t.Fatalf("PAT fallback: %+v %v", cred, err)
+	}
+}

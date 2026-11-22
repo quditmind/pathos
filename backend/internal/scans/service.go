@@ -29,7 +29,7 @@ type Service struct {
 	Log       *slog.Logger
 	Principal func(context.Context) *authz.Principal
 	// CloneCredential resolves a clone credential for a connection.
-	CloneCredential func(ctx context.Context, orgID, connectionID uuid.UUID) (scm.Credential, error)
+	CloneCredential func(ctx context.Context, orgID, connectionID uuid.UUID, repoFullName string) (scm.Credential, error)
 	// BootstrapToken lets workers register (PATHOS_WORKER_BOOTSTRAP_TOKEN).
 	BootstrapToken string
 	OrgID          uuid.UUID
