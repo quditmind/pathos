@@ -182,6 +182,22 @@ func (req *appRequest) validate(create bool) error {
 	return nil
 }
 
+// requireAppManage authorizes attaching a repository to application id: the
+// caller needs repos.manage where the application is placed, as for
+// creating it. Without this check a repository manager could attach their
+// repository to another unit's application and so gain read access to it
+// (applications are visible through their repositories).
+func (s *Service) requireAppManage(ctx context.Context, p *authz.Principal, id *uuid.UUID) error {
+	if id == nil {
+		return nil
+	}
+	var bu *uuid.UUID
+	if err := s.DB.QueryRow(ctx, `SELECT business_unit_id FROM applications WHERE organization_id = $1 AND id = $2`, p.OrganizationID, *id).Scan(&bu); err != nil {
+		return httpx.BadRequest("application does not exist or is archived")
+	}
+	return s.Authz.Require(ctx, p, authz.PermReposManage, s.appScope(p, bu))
+}
+
 func (s *Service) appScope(p *authz.Principal, bu *uuid.UUID) authz.Scope {
 	if bu != nil {
 		return authz.Scope{Type: authz.ScopeBusinessUnit, ID: *bu}

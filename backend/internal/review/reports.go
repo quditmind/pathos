@@ -15,6 +15,7 @@ import (
 
 	"pathos/internal/audit"
 	"pathos/internal/authz"
+	"pathos/internal/org"
 	"pathos/internal/platform/httpx"
 )
 
@@ -437,6 +438,12 @@ func (s *Service) exportCSV(w http.ResponseWriter, r *http.Request) {
 		s.fail(w, r, err)
 		return
 	}
+	// Only repositories where the caller may export, not every repository
+	// they can read because they may export somewhere.
+	ef := authz.FilterFor(p, authz.PermFindingsExport)
+	escope, eargs := org.ScopeSQL(ef, "r.id", "r.business_unit_id", "r.country_id", len(f.args)+1)
+	f.args = append(f.args, eargs...)
+	f.where = append(f.where, escope)
 	rows, err := s.DB.Query(ctx, `SELECT h.review_key, h.finding_id::text, f.title, f.category, h.original_severity, COALESCE(h.assessed_severity, ''),
 		COALESCE(h.assessed_cvss::text, ''), h.assessed_cvss_vector, h.scanner_key, r.full_name, COALESCE(a.name, ''), h.branch, h.commit_sha,
 		h.file_path, COALESCE(h.start_line::text, ''), h.status, COALESCE(h.disposition, ''), COALESCE(h.remediation_status, ''), h.priority,

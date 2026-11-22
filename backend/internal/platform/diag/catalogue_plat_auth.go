@@ -539,4 +539,17 @@ var authEntries = []Entry{
 		AIHelp:         true, Legacy: []string{"login:provisioning_failed"},
 		Source: "internal/auth/oidc.go (HandleCallback)",
 	},
+	{
+		Code: "PTH-AUTH-1019", Area: "AUTH", Category: "authorization", Severity: SevInfo, HTTPStatus: 409,
+		Title:          "Shared identity account",
+		Description:    "The person also belongs to another organization of this installation, so their Keycloak account is shared; one organization does not change its MFA or recovery codes.",
+		ConfirmedCause: "The person has a membership in another organization.",
+		Proven:         true,
+		ProbableCauses: []string{"Multi-tenancy is on and the person was invited by more than one organization"},
+		Impact:         "MFA and recovery-code requirements cannot be set from this organization; the MFA status can still be read.",
+		Actions:        []string{"Ask the person to manage MFA and recovery codes themselves (account settings at sign-in), or ask an installation administrator."},
+		Verify:         []string{"The person's MFA panel shows the status they set."},
+		Legacy:         []string{"shared_account"},
+		Source:         "internal/identity/http.go",
+	},
 }

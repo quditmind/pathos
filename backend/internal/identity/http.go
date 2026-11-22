@@ -300,6 +300,14 @@ func (h *Handlers) createUser(w http.ResponseWriter, r *http.Request) {
 	if h.Provisioner != nil {
 		sub, created, perr := h.Provisioner.EnsureUser(ctx, resp.User.Email, resp.User.DisplayName)
 		switch {
+		case sub != "" && !created && multiTenant(ctx, h.DB):
+			// Multi-tenancy: the identity provider account already exists
+			// and may belong to a person of another organization. It is
+			// not linked here: the person joins this organization when they
+			// sign in to it with this verified email address. Linking now
+			// would add them without their consent and let this
+			// organization act on their shared account.
+			resp.Provisioning = provisioningResult{Status: "invited", Message: "invitation recorded; the person joins when they sign in to this organization"}
 		case sub == "":
 			resp.Provisioning = provisioningResult{Status: "failed", Message: "identity provider account could not be created"}
 			h.Log.Error("keycloak provisioning failed", "err", perr, "user_id", resp.User.ID)
@@ -413,6 +421,11 @@ func (h *Handlers) setStatus(w http.ResponseWriter, r *http.Request, status stri
 		// account stays enabled; sign-in to this organization is refused
 		// because the membership is deactivated.
 		h.Log.Info("identity provider account kept: the person belongs to other organizations", "user_id", id)
+	} else if h.Provisioner != nil && u.KeycloakSubject != nil && status != StatusDeactivated && sharedAccount(ctx, h.DB, *u.KeycloakSubject, p.OrganizationID) {
+		// The account is shared with another organization, which may have
+		// disabled it: reactivating the membership here must not re-enable
+		// it there.
+		h.Log.Info("identity provider account left unchanged: the person belongs to other organizations", "user_id", id)
 	} else if h.Provisioner != nil && u.KeycloakSubject != nil {
 		enabled := status != StatusDeactivated
 		if err := h.Provisioner.SetEnabled(ctx, *u.KeycloakSubject, enabled); err != nil {
@@ -423,6 +436,28 @@ func (h *Handlers) setStatus(w http.ResponseWriter, r *http.Request, status stri
 		}
 	}
 	httpx.WriteJSON(w, http.StatusOK, u)
+}
+
+// sharedAccount reports whether subject has a users row in an organization
+// other than orgID, in any status: its identity provider account is then not
+// this organization's alone to change. Unknown counts as shared.
+func sharedAccount(ctx context.Context, q db.Querier, subject string, orgID uuid.UUID) bool {
+	var ok bool
+	if err := q.QueryRow(tenant.WithSystem(ctx), `SELECT EXISTS (SELECT 1 FROM users
+		WHERE keycloak_subject = $1 AND organization_id <> $2)`, subject, orgID).Scan(&ok); err != nil {
+		return true
+	}
+	return ok
+}
+
+// multiTenant reports whether multi-tenancy is on (installation_settings;
+// the tenancy package depends on this one). Unknown counts as on.
+func multiTenant(ctx context.Context, q db.Querier) bool {
+	var on bool
+	if err := q.QueryRow(tenant.WithSystem(ctx), `SELECT multi_tenant FROM installation_settings`).Scan(&on); err != nil {
+		return true
+	}
+	return on
 }
 
 // hasOtherMemberships reports whether subject has a membership that is not
@@ -657,6 +692,12 @@ func (h *Handlers) mfaUser(r *http.Request, perm authz.Permission) (*authz.Princ
 	}
 	if u.KeycloakSubject == nil {
 		return nil, User{}, nil, httpx.E(http.StatusConflict, "mfa_unavailable", "this user has no Keycloak account yet")
+	}
+	// Changing the shared identity provider account (MFA, recovery codes)
+	// is not this organization's alone when the person also belongs to
+	// another one; reading the status is.
+	if perm != authz.PermUsersRead && sharedAccount(r.Context(), h.DB, *u.KeycloakSubject, p.OrganizationID) {
+		return nil, User{}, nil, httpx.E(http.StatusConflict, "shared_account", "this person also belongs to another organization; they manage MFA and recovery codes themselves")
 	}
 	return p, u, m, nil
 }

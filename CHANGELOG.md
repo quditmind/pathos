@@ -4,6 +4,15 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Security
+Manual security review (access control):
+- **A Critical finding could be closed as a false positive with `findings.accept_risk` on another repository.** The permission is now checked on the finding's own repository.
+- **Approving an AI review closed a Critical finding as a false positive without `findings.accept_risk`.** Approving such a review now needs it on the finding's repository, like a manual status change.
+- **A repository manager could attach their repository to another unit's application** and so read that application's data. Attaching a repository to an application (edit or import) now needs `repos.manage` where the application is placed.
+- **The MCP server's `get_finding_evidence` and `list_pending_findings` tools ignored the organization's AI data controls.** They now apply the default AI configuration's "send code context" switch and redaction patterns.
+- **Human-review CSV export** now contains only repositories where the caller holds `findings.export`; the monitoring CSV also escapes the evidence label.
+- **Multi-tenancy: inviting an email whose Keycloak account already exists linked it immediately.** It is now linked when the person signs in to the organization with that verified email. No organization changes a Keycloak account shared with another organization: MFA and recovery-code requirements are refused (`PTH-AUTH-1019`), and reactivating a membership no longer re-enables the account.
+
 ### Fixed
 - **upgrade.sh and backup.sh reported the target version as the current one**: with `--pull`, the "current" version came from the configured image (already the new release), so the log said e.g. "3.0.1 -> 3.0.1" and the pre-upgrade backup manifest recorded the new version. Both now ask the running api container and fall back to the image only when api is not running. Restores were not affected (they use the schema version).
 

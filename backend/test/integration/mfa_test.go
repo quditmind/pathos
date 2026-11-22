@@ -3,6 +3,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/http/httptest"
@@ -125,5 +126,76 @@ func TestMFAManagement(t *testing.T) {
 	}
 	if again, _ := identity.EnforceMFA(ctx, appPool, idp, log); again != 0 {
 		t.Errorf("enforcement must be idempotent, changed %d", again)
+	}
+
+	// A person who also belongs to another organization: their identity
+	// provider account is shared, so this organization may read its MFA
+	// status but not change it.
+	otherOrg := uuid.Must(uuid.NewV7())
+	if _, err := ownerPool.Exec(ctx, `INSERT INTO organizations (id, name, slug) VALUES ($1, 'Other MFA', $2)`, otherOrg, "mfa-"+otherOrg.String()[:8]); err != nil {
+		t.Fatal(err)
+	}
+	shared := "kc-shared-" + uuid.NewString()
+	if _, err := ownerPool.Exec(ctx, `INSERT INTO users (id, organization_id, email, status, keycloak_subject) VALUES (gen_random_uuid(), $1, $2, 'active', $3)`,
+		otherOrg, "shared-"+uuid.NewString()[:8]+"@other.test", shared); err != nil {
+		t.Fatal(err)
+	}
+	here := mk(&shared)
+	// Later tests roll the schema back below multi-tenancy, where a
+	// Keycloak subject was unique across the table.
+	t.Cleanup(func() {
+		_, _ = ownerPool.Exec(context.Background(), `DELETE FROM users WHERE keycloak_subject = $1`, shared)
+		_, _ = ownerPool.Exec(context.Background(), `DELETE FROM organizations WHERE id = $1`, otherOrg)
+	})
+	if code, _ := call(admin, "GET", "/api/v1/users/"+here.String()+"/mfa"); code != 200 {
+		t.Errorf("reading the MFA status of a shared account: %d", code)
+	}
+	for _, path := range []string{"/require-mfa", "/recovery-codes"} {
+		if code, out := call(admin, "POST", "/api/v1/users/"+here.String()+path); code != 409 {
+			t.Errorf("%s on a shared account: want 409, got %d %v", path, code, out)
+		}
+	}
+	if idp.pending[shared] || idp.codes[shared] {
+		t.Error("the shared account was changed")
+	}
+}
+
+// existingIdP reports every account as already existing in the identity
+// provider (created=false).
+type existingIdP struct {
+	fakeIdP
+	sub string
+}
+
+func (f *existingIdP) EnsureUser(context.Context, string, string) (string, bool, error) {
+	return f.sub, false, nil
+}
+
+// With multi-tenancy on (this suite), inviting an email whose identity
+// provider account already exists does not link it: the person joins when
+// they sign in to the organization, not when another organization's
+// administrator types their address.
+func TestInviteDoesNotLinkExistingAccountWhenMultiTenant(t *testing.T) {
+	ctx := t.Context()
+	idp := &existingIdP{fakeIdP: fakeIdP{pending: map[string]bool{}, configured: map[string]bool{}, codes: map[string]bool{}}, sub: "kc-existing-" + uuid.NewString()}
+	h := &identity.Handlers{DB: appPool, Authz: &authz.Authorizer{H: &org.Hierarchy{DB: appPool, OrgID: orgID}}, Provisioner: idp, Log: log,
+		Principal: auth.PrincipalFrom, CSRFToken: func(context.Context) string { return "" }}
+	mux := newMux(h.Register)
+	body, _ := json.Marshal(map[string]any{"email": "existing-" + uuid.NewString()[:8] + "@other.test", "display_name": "Existing Person"})
+	req := httptest.NewRequest("POST", "/api/v1/users", bytes.NewReader(body)).WithContext(auth.WithPrincipal(ctx, principalWithRole(t, "platform_admin")))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	var out struct {
+		User         struct{ ID uuid.UUID `json:"id"` } `json:"user"`
+		Provisioning struct{ Status string `json:"status"` } `json:"provisioning"`
+	}
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	if rec.Code != 201 || out.Provisioning.Status != "invited" {
+		t.Fatalf("create: %d %s", rec.Code, rec.Body.String())
+	}
+	var sub *string
+	if err := appPool.QueryRow(ctx, `SELECT keycloak_subject FROM users WHERE id = $1`, out.User.ID).Scan(&sub); err != nil || sub != nil {
+		t.Errorf("the existing account must not be linked: %v %v", sub, err)
 	}
 }

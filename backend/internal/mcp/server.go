@@ -194,11 +194,17 @@ func (s *Service) call(ctx context.Context, p *authz.Principal, name string, arg
 		if err := s.requireFinding(ctx, p, authz.PermFindingsRead, id); err != nil {
 			return "", err
 		}
-		ev, _, err := ai.LoadEvidence(ctx, s.DB, p.OrganizationID, id, true)
+		// The organization's AI data controls apply: the evidence leaves
+		// PATHOS for the caller's AI assistant.
+		sendCode, extra, err := ai.ExternalDataControls(ctx, s.DB, p.OrganizationID)
+		if err != nil {
+			return "", err
+		}
+		ev, _, err := ai.LoadEvidence(ctx, s.DB, p.OrganizationID, id, sendCode)
 		if err != nil {
 			return "", errors.New("finding not found")
 		}
-		_, user, _ := ai.Prompt(ev, "", nil) // same redaction and fencing as automated review
+		_, user, _ := ai.Prompt(ev, "", extra) // same redaction and fencing as automated review
 		return user, nil
 	case "submit_review":
 		var in struct {
@@ -300,8 +306,12 @@ func (s *Service) listPending(ctx context.Context, p *authz.Principal, args json
 	if err != nil {
 		return "", err
 	}
+	_, extra, err := ai.ExternalDataControls(ctx, s.DB, p.OrganizationID)
+	if err != nil {
+		return "", err
+	}
 	for i := range items {
-		items[i].Title = ai.Redact(items[i].Title, nil)
+		items[i].Title = ai.Redact(items[i].Title, extra)
 	}
 	b, _ := json.MarshalIndent(map[string]any{"findings": items, "count": len(items)}, "", "  ")
 	return string(b), nil

@@ -4,7 +4,7 @@ section: troubleshooting
 order: 102
 version: "1.0"
 updated: 2026-11-20
-summary: Sign-in, sessions, CSRF, API tokens, permissions, organizations and the identity provider (18 codes, PTH-AUTH-*)
+summary: Sign-in, sessions, CSRF, API tokens, permissions, organizations and the identity provider (19 codes, PTH-AUTH-*)
 ---
 
 # Troubleshooting: Authentication and access
@@ -35,6 +35,7 @@ Sign-in, sessions, CSRF, API tokens, permissions, organizations and the identity
 | [PTH-AUTH-1016](#PTH-AUTH-1016) | Sign-in token exchange or validation failed | error |
 | [PTH-AUTH-1017](#PTH-AUTH-1017) | No organization membership | warning |
 | [PTH-AUTH-1018](#PTH-AUTH-1018) | Account provisioning failed | error |
+| [PTH-AUTH-1019](#PTH-AUTH-1019) | Shared identity account | info |
 
 <a id="PTH-AUTH-1001"></a>
 
@@ -638,4 +639,36 @@ Sign-in, sessions, CSRF, API tokens, permissions, organizations and the identity
 **Verify**
 
 1. Sign-in completes.
+
+
+<a id="PTH-AUTH-1019"></a>
+
+## PTH-AUTH-1019: Shared identity account
+
+| | |
+|---|---|
+| Severity | info |
+| Category | authorization |
+| HTTP status | 409 |
+| AI help | not offered |
+| Short codes | `shared_account` |
+| Raised in | internal/identity/http.go |
+
+**What it means.** The person also belongs to another organization of this installation, so their Keycloak account is shared; one organization does not change its MFA or recovery codes.
+
+**Confirmed cause.** The person has a membership in another organization. Confirmed automatically when this code is raised.
+
+**Probable causes**
+
+1. Multi-tenancy is on and the person was invited by more than one organization
+
+**Impact.** MFA and recovery-code requirements cannot be set from this organization; the MFA status can still be read.
+
+**How to fix**
+
+1. Ask the person to manage MFA and recovery codes themselves (account settings at sign-in), or ask an installation administrator.
+
+**Verify**
+
+1. The person's MFA panel shows the status they set.
 

@@ -81,6 +81,18 @@ func TestVulnerabilityManagement(t *testing.T) {
 	if code, _ := call(principalWithRole(t, "viewer"), "POST", "/api/v1/findings/"+f.String()+"/status", map[string]any{"status": "open"}); code != 403 {
 		t.Errorf("viewer cannot triage: %d", code)
 	}
+	// findings.accept_risk on another repository does not count: the
+	// grant must cover this finding's repository.
+	elsewhere := scoped("security_analyst", authz.Scope{Type: authz.ScopeRepository, ID: repo})
+	elsewhere.UserID, elsewhere.Email = analyst.UserID, analyst.Email
+	elsewhere.Grants = append(elsewhere.Grants, authz.Grant{Permission: authz.PermFindingsAcceptRisk,
+		Scope: authz.Scope{Type: authz.ScopeRepository, ID: createRepo(t, "vm-other-"+uuid.NewString()[:6])}})
+	if code, _ := call(elsewhere, "POST", "/api/v1/findings/"+f.String()+"/status", map[string]any{"status": "false_positive", "reason": "test fixture only"}); code != 403 {
+		t.Errorf("critical FP with accept_risk on another repository only: %d", code)
+	}
+	if st, _, _ := statusOf(f); st == "false_positive" {
+		t.Fatal("finding was closed")
+	}
 
 	// Assignment.
 	if code, _ := call(analyst, "POST", "/api/v1/findings/"+f.String()+"/assign", map[string]any{"assignee_id": analyst.UserID}); code != 204 {
