@@ -60,12 +60,14 @@ jobs:
           persist-credentials: false
       - name: Version from tag
         id: v
+        env:
+          NAME: ${{ matrix.name }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           {
             echo "version=$version"
             echo "minor=${version%.*}"
-            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${{ matrix.name }}"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/${NAME}"
             # Build date = commit date, so a rebuild of the tag is reproducible.
             echo "build_date=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
@@ -108,11 +110,13 @@ jobs:
       - name: Verify the signature
         env:
           REF: ${{ steps.v.outputs.image }}@${{ steps.build.outputs.digest }}
+          NAME: ${{ matrix.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           cosign verify "$REF" \
-            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-identity "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
-          echo "${{ matrix.name }}: ${{ steps.build.outputs.digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "${NAME}: ${DIGEST}" | tee -a "$GITHUB_STEP_SUMMARY"
 
   # Family worker images extend the worker-core image of the same release.
   family-images:
@@ -133,13 +137,15 @@ jobs:
           persist-credentials: false
       - name: Version from tag
         id: v
+        env:
+          FAMILY: ${{ matrix.family }}
         run: |
           version="${GITHUB_REF_NAME#v}"
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           {
             echo "version=$version"
             echo "minor=${version%.*}"
-            echo "image=ghcr.io/${owner}/pathos-worker-${{ matrix.family }}"
+            echo "image=ghcr.io/${owner}/pathos-worker-${FAMILY}"
             echo "core=ghcr.io/${owner}/pathos-worker-core:${version}"
             echo "build_date=$(TZ=UTC git log -1 --format=%cd --date=format-local:%Y-%m-%dT%H:%M:%SZ)"
           } >> "$GITHUB_OUTPUT"
@@ -158,7 +164,7 @@ jobs:
           CORE: ${{ steps.v.outputs.core }}
         run: |
           cosign verify "$CORE" \
-            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-identity "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
           digest="$(docker buildx imagetools inspect "$CORE" --format '{{json .Manifest}}' | jq -r .digest)"
           echo "ref=${CORE%:*}@${digest}" >> "$GITHUB_OUTPUT"
@@ -193,11 +199,13 @@ jobs:
       - name: Verify the signature
         env:
           REF: ${{ steps.v.outputs.image }}@${{ steps.build.outputs.digest }}
+          FAMILY: ${{ matrix.family }}
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           cosign verify "$REF" \
-            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-identity "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com > /dev/null
-          echo "pathos-worker-${{ matrix.family }}: ${{ steps.build.outputs.digest }}" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "pathos-worker-${FAMILY}: ${DIGEST}" | tee -a "$GITHUB_STEP_SUMMARY"
 
   cli:
     needs: ci
@@ -213,7 +221,8 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: "1.27.4"
-          cache-dependency-path: backend/go.sum
+          # No build cache in the release job: a poisoned cache entry could reach the signed binaries.
+          cache: false
       # Tested and verified by the CI run above; built here with the release version.
       - name: Build the JetBrains plugin
         run: |
@@ -244,7 +253,7 @@ jobs:
         run: |
           cosign sign-blob --yes --bundle checksums.txt.sigstore.json checksums.txt
           cosign verify-blob checksums.txt --bundle checksums.txt.sigstore.json \
-            --certificate-identity "${{ github.server_url }}/${{ github.repository }}/.github/workflows/release.yml@${{ github.ref }}" \
+            --certificate-identity "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/.github/workflows/release.yml@${GITHUB_REF}" \
             --certificate-oidc-issuer https://token.actions.githubusercontent.com
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

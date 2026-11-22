@@ -20,6 +20,12 @@
 # which the 1.45 OTLP HTTP exporter requires. Semgrep's telemetry modules
 # import with them, `semgrep scan --trace` sets up and shuts down its span and
 # log exporters, and the fixture tests exercise njsscan with these versions.
+#
+# semgrep 1.172.0 pins wcmatch~=8.3; wcmatch < 11.2 has a ReDoS when matching
+# file names against multi-star patterns (CVE-2026-132276), and scanned
+# repositories control the file names. wcmatch is installed at 11.2 instead
+# (pip --no-deps); `semgrep scan` over workers/rules-tests with the PATHOS
+# rules gives the same 231 results and no errors with 8.5.2 and 11.2.
 annotated-types==0.8.0 \
     --hash=sha256:f072f4d804ea359e4eaf198b1af7a8b0943881a87f31bb764f8bf219bb9419e0
 anyio==4.16.0 \
@@ -198,8 +204,8 @@ urllib3==2.8.0 \
     --hash=sha256:0cf3cae568d36aa9576b28dfb35f11328f1cb974ca7647d9475ebb86c75ac6e3
 uvicorn==0.54.0 \
     --hash=sha256:505bdb0f318731d45f1f712071fc781a8981f6847a31c902c9f5e652d4f67faf
-wcmatch==8.5.2 \
-    --hash=sha256:17d3ad3758f9d0b5b4dedc770b65420d4dac62e680229c287bf24c9db856a478
+wcmatch==11.2 \
+    --hash=sha256:952bab83c75c233836007a69550a3a8753cf06964c1eb3b84ff11ad5bff1c272
 wrapt==1.17.3 \
     --hash=sha256:6fd1ad24dc235e4ab88cda009e19bf347aabb975e44fd5c2fb22a3f6e4141277
 zipp==4.1.2 \

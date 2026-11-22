@@ -7,6 +7,14 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 ### Fixed
 - **upgrade.sh and backup.sh reported the target version as the current one**: with `--pull`, the "current" version came from the configured image (already the new release), so the log said e.g. "3.0.1 -> 3.0.1" and the pre-upgrade backup manifest recorded the new version. Both now ask the running api container and fall back to the image only when api is not running. Restores were not affected (they use the schema version).
 
+### Security
+Findings from a PATHOS self-scan (Comprehensive profile on this repository):
+- **Release workflow**: GitHub expressions (`github.ref`, matrix values, step outputs) are no longer expanded inside `run:` scripts; they are passed as environment variables (zizmor template-injection, 4 high). The release job no longer restores a Go build cache, so a poisoned cache entry cannot reach the signed CLI binaries (zizmor cache-poisoning, high).
+- **golang.org/x/crypto 0.58.0 → 0.59.0** (GO-2026-5932, the deprecated `openpgp` package; PATHOS does not import it).
+- **wcmatch 8.5.2 → 11.2** in the sast and mobile workers (CVE-2026-132276, a ReDoS on file names, which scanned repositories control). Semgrep gives the same results with both versions.
+- **Smoke test verifies TLS certificates** (against `PATHOS_CA_CERT`, the bundled Caddy proxy's local CA, or the system trust store) instead of disabling verification.
+- **Bitbucket Pipelines template** and its user-guide example pin the Semgrep image by version and digest instead of an untagged image.
+
 ## [3.0.1] — 2026-11-21
 
 ### Fixed

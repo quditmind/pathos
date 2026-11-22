@@ -9,8 +9,9 @@ Usage:
   scripts/smoke-test.py                      # reads .env for URL and admin creds
   PATHOS_ADMIN_NEW_PASSWORD=... scripts/smoke-test.py
 
-Standard library only. TLS verification is disabled because the default
-deployment uses Caddy's internal CA.
+Standard library only. TLS certificates are verified: against PATHOS_CA_CERT,
+else the local CA of the bundled Caddy proxy (the default deployment), else
+the system trust store.
 """
 import html
 import http.cookiejar
@@ -20,6 +21,7 @@ import os
 import re
 import secrets
 import ssl
+import subprocess
 import sys
 import urllib.error
 import urllib.parse
@@ -50,9 +52,28 @@ NEW_PW = ENV.get("PATHOS_ADMIN_NEW_PASSWORD") or "Smoke-" + TEMP_PW[::-1] + "!9"
 # the published UI port.
 MAILPIT = (ENV.get("PATHOS_MAILPIT_URL") or f"http://127.0.0.1:{ENV.get('MAILPIT_UI_PORT', '8025')}").rstrip("/")
 
-CTX = ssl.create_default_context()
-CTX.check_hostname = False
-CTX.verify_mode = ssl.CERT_NONE
+def tls_context():
+    """Verify the server certificate. PATHOS_CA_CERT (environment or .env)
+    names a CA file; otherwise the local CA of the bundled Caddy proxy is
+    read with `docker compose exec`; without either, the system trust store
+    is used (a public certificate)."""
+    ca = ENV.get("PATHOS_CA_CERT", "")
+    if ca:
+        return ssl.create_default_context(cafile=ca)
+    ctx = ssl.create_default_context()
+    try:
+        pem = subprocess.run(
+            ["docker", "compose", "exec", "-T", "proxy", "cat", "/data/caddy/pki/authorities/local/root.crt"],
+            capture_output=True, check=True, timeout=60,
+        ).stdout.decode()
+        if "BEGIN CERTIFICATE" in pem:
+            ctx.load_verify_locations(cadata=pem)
+    except (OSError, subprocess.SubprocessError):
+        pass
+    return ctx
+
+
+CTX = tls_context()
 
 passed = failed = 0
 
