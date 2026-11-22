@@ -635,6 +635,15 @@ func tenancyStartup(ctx context.Context, pool *pgxpool.Pool, cfg *config.Config,
 		return orgID, multi, err
 	}
 	db.SetRowLevelSecurity(multi)
+	// Organization-chosen private destinations (an integration's "allow
+	// private network", self-hosted AI, SMTP relay): with multi-tenancy an
+	// organization administrator must not reach the platform's internal
+	// network unless the operator allows it.
+	allowOrgPrivate := !multi || cfg.MultiTenantAllowPrivate
+	scm.SetOrgPrivateGate(func() bool { return allowOrgPrivate })
+	if multi && !cfg.MultiTenantAllowPrivate {
+		log.Info("multi-tenancy: organizations' integrations cannot reach private addresses (PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=false)")
+	}
 	if multi {
 		log.Info("multi-tenancy enabled: row-level security enforced on every tenant table")
 	} else {

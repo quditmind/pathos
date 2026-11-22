@@ -44,7 +44,7 @@ func (s *Service) client(allowPrivate bool, tlsCfg *tls.Config) *http.Client {
 	if s.NewHTTP != nil {
 		return s.NewHTTP(allowPrivate, tlsCfg)
 	}
-	c := scm.NetPolicy{AllowPrivate: allowPrivate, AllowHTTP: s.AllowHTTP}.Client()
+	c := scm.NetPolicy{AllowPrivate: allowPrivate, AllowHTTP: s.AllowHTTP, OrgChosen: true}.Client()
 	if tr, ok := c.Transport.(*http.Transport); ok && tlsCfg != nil {
 		tr = tr.Clone()
 		tr.TLSClientConfig = tlsCfg
@@ -187,7 +187,7 @@ func (s *Service) syncCluster(ctx context.Context, id uuid.UUID, st *SyncStats) 
 	if err != nil {
 		return err
 	}
-	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: false}).ValidateBaseURL(c.Creds.Server)
+	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: false, OrgChosen: true}).ValidateBaseURL(c.Creds.Server)
 	if err != nil && s.NewHTTP == nil {
 		return fmt.Errorf("API server URL: %w", err)
 	}
@@ -369,7 +369,7 @@ func (s *Service) syncRegistry(ctx context.Context, id uuid.UUID, st *SyncStats)
 	if err != nil {
 		return err
 	}
-	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: s.AllowHTTP}).ValidateBaseURL(c.BaseURL)
+	u, err := (scm.NetPolicy{AllowPrivate: c.AllowPrivate, AllowHTTP: s.AllowHTTP, OrgChosen: true}).ValidateBaseURL(c.BaseURL)
 	if err != nil && s.NewHTTP == nil {
 		return fmt.Errorf("registry URL: %w", err)
 	}

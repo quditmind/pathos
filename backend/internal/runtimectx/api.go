@@ -200,7 +200,7 @@ func (in *clusterInput) validate(update bool) (secret []byte, err error) {
 		ns = append(ns, n)
 	}
 	in.Namespaces = ns
-	policy := scm.NetPolicy{AllowPrivate: in.AllowPrivate}
+	policy := scm.NetPolicy{AllowPrivate: in.AllowPrivate, OrgChosen: true}
 	switch in.AuthType {
 	case "token":
 		in.APIServer = strings.TrimRight(strings.TrimSpace(in.APIServer), "/")
@@ -344,7 +344,7 @@ func (s *Service) updateCluster(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.AuthType == "kubeconfig" && secret == nil {
 		// Kept kubeconfig: re-check the stored server against the policy.
-		if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate}).ValidateBaseURL(curServer); err != nil {
+		if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, OrgChosen: true}).ValidateBaseURL(curServer); err != nil {
 			s.fail(w, r, httpx.BadRequest("kubeconfig server: "+err.Error()))
 			return
 		}
@@ -620,7 +620,7 @@ func (s *Service) validateRegistry(in *registryInput, update, hadSecret bool) er
 	if in.Name == "" || len(in.Name) > 120 {
 		return httpx.BadRequest("name is required (at most 120 characters)")
 	}
-	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, AllowHTTP: s.AllowHTTP}).ValidateBaseURL(in.BaseURL); err != nil {
+	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, AllowHTTP: s.AllowHTTP, OrgChosen: true}).ValidateBaseURL(in.BaseURL); err != nil {
 		return httpx.BadRequest("base_url: " + err.Error())
 	}
 	if in.CABundlePEM != nil {

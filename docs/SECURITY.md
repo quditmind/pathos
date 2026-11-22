@@ -77,8 +77,8 @@ Residual risks (row-level security query plans, installation-wide sequence numbe
 - **Master key rotation:**
   1. Generate a key: `docker compose run --rm --entrypoint pathosctl migrate gen-key`.
   2. In `.env`, set `PATHOS_MASTER_KEY=v2:<new>` and `PATHOS_MASTER_KEYS_PREVIOUS=v1:<old>`.
-  3. Run `docker compose run --rm --entrypoint pathosctl migrate rotate-master-key`. Only the data keys are rewrapped, in one transaction.
-  4. Remove the old key from `PATHOS_MASTER_KEYS_PREVIOUS` and run `docker compose up -d`.
+  3. Run `docker compose run --rm --entrypoint pathosctl migrate rotate-master-key`. The data keys of stored secrets and AI evidence payloads are rewrapped, in one transaction.
+  4. Run `docker compose up -d`. **Keep the old key in `PATHOS_MASTER_KEYS_PREVIOUS`.** Stored source archives and Human Eye evidence files (object storage) seal their data keys with the master key and are not rewrapped: they need the old key version until they are deleted by retention. Removing it makes them unreadable. Remove an old version only after the longest retention period has passed since the rotation.
 
 ### Secret references (Vault / OpenBao)
 
@@ -132,6 +132,8 @@ slog JSON with redaction of sensitive keys (password, secret, token, cookie, aut
   - RFC 1918 and ULA ranges are refused unless `PATHOS_SCM_ALLOW_PRIVATE_NETWORKS=true` (needed for self-hosted servers on a private network).
   - Only `https` is accepted (`http` only with `PATHOS_SCM_ALLOW_HTTP=true`, for development). Redirects, pagination links and page tokens are followed only to the configured host.
   - The same policy protects outbound webhooks and ticket connections (see below).
+  - Integrations an organization configures (webhooks, ticketing, Kubernetes and registries, Vault, self-hosted AI, SMTP relay) may have their own "allow private network" option. With multi-tenancy, it takes effect only when the operator sets `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=true`; otherwise private addresses are refused for them.
+  - With an outbound proxy (`PATHOS_HTTPS_PROXY`), the dialer only sees the proxy, so PATHOS resolves and checks the destination before handing the request to the proxy. The proxy resolves it again: configure it to refuse private and metadata addresses as well (the bundled egress proxy does).
 - **Inbound webhooks** (`/api/webhooks/*`) are unauthenticated endpoints that require proof of origin:
   - GitHub: HMAC-SHA256 `X-Hub-Signature-256` over the raw body, compared in constant time. GitLab and Bitbucket use their own secret mechanisms; Azure DevOps uses a basic-auth password equal to the webhook secret.
   - Secrets are per connection, random 256-bit, rotatable and shown once.

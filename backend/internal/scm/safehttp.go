@@ -1,6 +1,7 @@
 package scm
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -28,6 +30,38 @@ type NetPolicy struct {
 	AllowPrivate bool
 	// AllowHTTP permits plain-http base URLs (development only).
 	AllowHTTP bool
+	// OrgChosen marks AllowPrivate as an organization's choice (an
+	// integration's "allow private network" option, a self-hosted AI
+	// provider, the SMTP relay), not the operator's. It is honoured only
+	// while the installation allows it (SetOrgPrivateGate): with
+	// multi-tenancy, an organization administrator must not reach the
+	// platform's internal network unless the operator allows it.
+	OrgChosen bool
+}
+
+// orgPrivateGate reports whether organization-chosen private destinations
+// are allowed now; nil allows them (single installation, tests).
+var orgPrivateGate atomic.Pointer[func() bool]
+
+// SetOrgPrivateGate installs the installation-wide rule for
+// organization-chosen private destinations. It is consulted at connect
+// time, so a change (multi-tenancy switched on) applies to existing clients.
+func SetOrgPrivateGate(f func() bool) {
+	if f == nil {
+		orgPrivateGate.Store(nil)
+		return
+	}
+	orgPrivateGate.Store(&f)
+}
+
+func orgPrivateAllowed() bool {
+	g := orgPrivateGate.Load()
+	return g == nil || (*g)()
+}
+
+// allowPrivate is the effective AllowPrivate.
+func (p NetPolicy) allowPrivate() bool {
+	return p.AllowPrivate && (!p.OrgChosen || orgPrivateAllowed())
 }
 
 var alwaysBlocked = []netip.Prefix{
@@ -60,7 +94,7 @@ func (p NetPolicy) Allowed(ip netip.Addr) bool {
 			return false
 		}
 	}
-	if !p.AllowPrivate {
+	if !p.allowPrivate() {
 		for _, b := range privateRanges {
 			if b.Contains(ip) {
 				return false
@@ -109,12 +143,46 @@ func (p NetPolicy) Dialer() *net.Dialer {
 	}
 }
 
+// proxy is http.ProxyFromEnvironment plus the destination check: through a
+// proxy, the dialer only sees the proxy's address, so the target host is
+// resolved and checked here (every address must be allowed). The proxy
+// resolves it again; an outbound proxy should enforce the same block.
+func (p NetPolicy) proxy(req *http.Request) (*url.URL, error) {
+	return p.proxyVia(http.ProxyFromEnvironment, req)
+}
+
+func (p NetPolicy) proxyVia(fromEnv func(*http.Request) (*url.URL, error), req *http.Request) (*url.URL, error) {
+	pu, err := fromEnv(req)
+	if err != nil || pu == nil {
+		return pu, err
+	}
+	host := req.URL.Hostname()
+	if ip, err := netip.ParseAddr(host); err == nil {
+		if !p.Allowed(ip) {
+			return nil, fmt.Errorf("%w: %s", ErrBlockedAddress, host)
+		}
+		return pu, nil
+	}
+	ctx, cancel := context.WithTimeout(req.Context(), 10*time.Second)
+	defer cancel()
+	ips, err := net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+	if err != nil {
+		return nil, err
+	}
+	for _, ip := range ips {
+		if !p.Allowed(ip) {
+			return nil, fmt.Errorf("%w: %s", ErrBlockedAddress, host)
+		}
+	}
+	return pu, nil
+}
+
 // client builds the client; roots == nil means the system pool.
 func (p NetPolicy) client(roots *x509.CertPool) *http.Client {
 	dialer := p.Dialer()
 	tr := &http.Transport{
 		DialContext:           dialer.DialContext,
-		Proxy:                 http.ProxyFromEnvironment,
+		Proxy:                 p.proxy,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ResponseHeaderTimeout: 30 * time.Second,
 		MaxIdleConnsPerHost:   4,

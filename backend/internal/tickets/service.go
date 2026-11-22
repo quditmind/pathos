@@ -153,7 +153,7 @@ func (in *input) validate(update bool) error {
 	if in.Name == "" || len(in.Name) > 120 {
 		return httpx.BadRequest("name is required (at most 120 characters)")
 	}
-	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate}).ValidateBaseURL(in.BaseURL); err != nil {
+	if _, err := (scm.NetPolicy{AllowPrivate: in.AllowPrivate, OrgChosen: true}).ValidateBaseURL(in.BaseURL); err != nil {
 		return httpx.BadRequest("base_url: " + err.Error())
 	}
 	if in.AuthType != "basic" && in.AuthType != "bearer" {
@@ -665,7 +665,7 @@ func (s *Service) Sync(ctx context.Context) (int, error) {
 // minimum). A stored bundle was validated on save; if it no longer parses,
 // the system trust store is used, never an unverified connection.
 func connClient(allowPrivate bool, caBundle string) *http.Client {
-	pol := scm.NetPolicy{AllowPrivate: allowPrivate}
+	pol := scm.NetPolicy{AllowPrivate: allowPrivate, OrgChosen: true}
 	c, err := pol.ClientWithCA(caBundle)
 	if err != nil {
 		return pol.Client()

@@ -50,6 +50,11 @@ type Config struct {
 
 	// SCM network policy (see internal/scm/safehttp.go).
 	SCMAllowPrivate bool
+	// MultiTenantAllowPrivate (PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS):
+	// with multi-tenancy, organizations may point integrations (webhooks,
+	// ticketing, Kubernetes and registries, Vault, self-hosted AI, SMTP) at
+	// private addresses only when the operator sets this.
+	MultiTenantAllowPrivate bool
 	// Offline (PATHOS_OFFLINE): air-gapped operation. Intelligence feeds are
 	// imported from files only; nothing is downloaded.
 	Offline      bool
@@ -171,35 +176,36 @@ func LoadFrom(getenv func(string) string) (*Config, error) {
 	}
 
 	c := &Config{
-		Env:                    get("PATHOS_ENV", "production"),
-		Role:                   Role(get("PATHOS_ROLE", string(RoleAPI))),
-		HTTPAddr:               get("PATHOS_HTTP_ADDR", ":8080"),
-		LogLevel:               get("PATHOS_LOG_LEVEL", "info"),
-		DatabaseURL:            get("PATHOS_DATABASE_URL", ""),
-		RedisURL:               get("PATHOS_REDIS_URL", ""),
-		SessionIdleTTL:         dur("PATHOS_SESSION_IDLE_TTL", "8h"),
-		SessionAbsoluteTTL:     dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
-		WorkerAPIAddr:          get("PATHOS_WORKER_API_ADDR", ":8081"),
-		WorkerBootstrapToken:   get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
-		SCMAllowPrivate:        get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
-		Offline:                get("PATHOS_OFFLINE", "false") == "true",
-		SCMAllowHTTP:           get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
-		EgressProxyURL:         get("PATHOS_EGRESS_PROXY_URL", ""),
-		ConnectorCheckInterval: dur("PATHOS_CONNECTOR_CHECK_INTERVAL", "1h"),
-		OTLPEndpoint:           get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
-		RequireMFA:             get("PATHOS_REQUIRE_MFA", "false") == "true",
-		S3Endpoint:             get("PATHOS_S3_ENDPOINT", ""),
-		S3Region:               get("PATHOS_S3_REGION", "us-east-1"),
-		S3Bucket:               get("PATHOS_S3_BUCKET", ""),
-		S3AccessKey:            get("PATHOS_S3_ACCESS_KEY", ""),
-		S3SecretKey:            get("PATHOS_S3_SECRET_KEY", ""),
-		S3PathStyle:            get("PATHOS_S3_PATH_STYLE", "true") == "true",
-		OrgName:                get("PATHOS_ORG_NAME", "Default Organization"),
-		OrgSlug:                get("PATHOS_ORG_SLUG", "default"),
-		BootstrapAdminEmail:    strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
-		InstallationAdminEmail: strings.ToLower(get("PATHOS_INSTALLATION_ADMIN_EMAIL", "")),
-		OrgClaim:               get("PATHOS_OIDC_ORGANIZATION_CLAIM", "groups"),
-		OrgGroupPrefix:         get("PATHOS_OIDC_ORGANIZATION_PREFIX", "/pathos/"),
+		Env:                     get("PATHOS_ENV", "production"),
+		Role:                    Role(get("PATHOS_ROLE", string(RoleAPI))),
+		HTTPAddr:                get("PATHOS_HTTP_ADDR", ":8080"),
+		LogLevel:                get("PATHOS_LOG_LEVEL", "info"),
+		DatabaseURL:             get("PATHOS_DATABASE_URL", ""),
+		RedisURL:                get("PATHOS_REDIS_URL", ""),
+		SessionIdleTTL:          dur("PATHOS_SESSION_IDLE_TTL", "8h"),
+		SessionAbsoluteTTL:      dur("PATHOS_SESSION_ABSOLUTE_TTL", "24h"),
+		WorkerAPIAddr:           get("PATHOS_WORKER_API_ADDR", ":8081"),
+		WorkerBootstrapToken:    get("PATHOS_WORKER_BOOTSTRAP_TOKEN", ""),
+		SCMAllowPrivate:         get("PATHOS_SCM_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		MultiTenantAllowPrivate: get("PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS", "false") == "true",
+		Offline:                 get("PATHOS_OFFLINE", "false") == "true",
+		SCMAllowHTTP:            get("PATHOS_SCM_ALLOW_HTTP", "false") == "true",
+		EgressProxyURL:          get("PATHOS_EGRESS_PROXY_URL", ""),
+		ConnectorCheckInterval:  dur("PATHOS_CONNECTOR_CHECK_INTERVAL", "1h"),
+		OTLPEndpoint:            get("OTEL_EXPORTER_OTLP_ENDPOINT", ""),
+		RequireMFA:              get("PATHOS_REQUIRE_MFA", "false") == "true",
+		S3Endpoint:              get("PATHOS_S3_ENDPOINT", ""),
+		S3Region:                get("PATHOS_S3_REGION", "us-east-1"),
+		S3Bucket:                get("PATHOS_S3_BUCKET", ""),
+		S3AccessKey:             get("PATHOS_S3_ACCESS_KEY", ""),
+		S3SecretKey:             get("PATHOS_S3_SECRET_KEY", ""),
+		S3PathStyle:             get("PATHOS_S3_PATH_STYLE", "true") == "true",
+		OrgName:                 get("PATHOS_ORG_NAME", "Default Organization"),
+		OrgSlug:                 get("PATHOS_ORG_SLUG", "default"),
+		BootstrapAdminEmail:     strings.ToLower(get("PATHOS_BOOTSTRAP_ADMIN_EMAIL", "")),
+		InstallationAdminEmail:  strings.ToLower(get("PATHOS_INSTALLATION_ADMIN_EMAIL", "")),
+		OrgClaim:                get("PATHOS_OIDC_ORGANIZATION_CLAIM", "groups"),
+		OrgGroupPrefix:          get("PATHOS_OIDC_ORGANIZATION_PREFIX", "/pathos/"),
 		OIDC: OIDCConfig{
 			Issuer:                  get("PATHOS_OIDC_ISSUER", ""),
 			DiscoveryURL:            get("PATHOS_OIDC_DISCOVERY_URL", ""),

@@ -20,6 +20,11 @@ Manual security review (access control):
 - **Human-review CSV export** now contains only repositories where the caller holds `findings.export`; the monitoring CSV also escapes the evidence label.
 - **Multi-tenancy: inviting an email whose Keycloak account already exists linked it immediately.** It is now linked when the person signs in to the organization with that verified email. No organization changes a Keycloak account shared with another organization: MFA and recovery-code requirements are refused (`PTH-AUTH-1019`), and reactivating a membership no longer re-enables the account.
 
+Manual security review (outbound network policy):
+- **Multi-tenancy: organizations could reach the platform's internal network** through integrations with "allow private network" (webhooks, ticketing, Kubernetes and registries, Vault), self-hosted AI providers and the SMTP relay. With multi-tenancy these now reach private addresses only when the operator sets the new `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=true`. **Behaviour change:** multi-tenant installations whose organizations use a private self-hosted AI (such as the bundled Ollama), SMTP relay or integration must set it. Single-organization installations are unchanged.
+- **The destination check was skipped behind an outbound proxy** (`PATHOS_HTTPS_PROXY`): the dialer saw only the proxy. PATHOS now resolves and checks the destination before handing a request to the proxy.
+- **Master key rotation:** stored source archives and Human Eye evidence files are not rewrapped and need the previous key; the documentation told operators to remove it. The procedure now says to keep previous keys until retention has deleted those objects, and `rotate-master-key` warns about it.
+
 ### Fixed
 - **upgrade.sh and backup.sh reported the target version as the current one**: with `--pull`, the "current" version came from the configured image (already the new release), so the log said e.g. "3.0.1 -> 3.0.1" and the pre-upgrade backup manifest recorded the new version. Both now ask the running api container and fall back to the image only when api is not running. Restores were not affected (they use the schema version).
 
