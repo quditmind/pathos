@@ -41,7 +41,7 @@ The lifecycle release extends the existing stack (Go API and jobs, PostgreSQL 18
 - The worker agent: `-X main.version=${VERSION}` (`workers/core/Dockerfile:17`); it reports the version at registration (`backend/internal/worker/agent.go:178`) into `workers.version` (`00003_scanning.sql:98`).
 - The CLI: `-X main.version=${version}` in the release job (`.github/workflows/release.yml:223`); `pathos --version` prints it (`backend/cmd/pathos-cli/main.go:131`).
 - Two helper binaries in the SCA family image have a hard-coded version: `-X main.version=1.0.0` for `pathos-depcheck` and `pathos-reach` (`workers/sca/Dockerfile:65`, `:67`). They report 1.0.0 in a 2.2.0 image.
-- The release workflow builds `pathos`, `pathos-proxy` and `pathos-worker-core` with `build-args: VERSION=<tag>` (`release.yml:83`), then the eight family images with `VERSION` and `CORE_IMAGE` (`release.yml:166-168`). Images carry OCI labels `version` and `revision=${{ github.sha }}` (`release.yml:87-90`), SBOM and provenance attestations, and cosign signatures.
+- The release workflow builds `pathos`, `pathos-proxy` and `pathos-worker-core` with `build-args: VERSION=<tag>` (`release.yml:83`), then the eight family images (M0 state; since 3.0 also `graph` and `rea`) with `VERSION` and `CORE_IMAGE` (`release.yml:166-168`). Images carry OCI labels `version` and `revision=${{ github.sha }}` (`release.yml:87-90`), SBOM and provenance attestations, and cosign signatures.
 - Docker Compose passes `VERSION: "${PATHOS_VERSION:-dev}"` for local builds (`docker-compose.yml:128`, `:380`).
 - The frontend is built inside `deploy/caddy/Dockerfile` (`npm run build`); `frontend/package.json` holds `"version": "2.2.0"`; `vite.config.ts` has no `define`.
 

@@ -167,7 +167,7 @@ By method: 197 GET, 146 POST, 33 PUT, 30 DELETE, 9 PATCH. There is no `/api/v1/m
 Nine worker images, each with its own Dockerfile and pinned base-image digests:
 
 - `workers/core` (the Go agent and the core tools)
-- eight family images built on the pushed worker-core image by digest: `sast`, `iac`, `sca`, `dast`, `mobile`, `binary`, `ai`, `fuzz`.
+- (state at M0; 3.0 adds `graph` and `rea`, ten in total) eight family images built on the pushed worker-core image by digest: `sast`, `iac`, `sca`, `dast`, `mobile`, `binary`, `ai`, `fuzz`.
 
 `workers/rules`, `rules-extra` and `rules-tests` are rule packs, not images. The release workflow (`.github/workflows/release.yml`) builds `pathos`, `pathos-proxy`, `pathos-worker-core` and the eight family images, signs each digest with cosign keyless and attaches SBOM and provenance attestations.
 
