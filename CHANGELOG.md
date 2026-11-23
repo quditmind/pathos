@@ -4,6 +4,10 @@ All notable changes are listed here. Versions follow [Semantic Versioning](https
 
 ## [Unreleased]
 
+### Fixed
+- **Container image scans of Docker Hub images failed with "the egress proxy denied access to index.docker.io".** Docker Hub (its registry, token service and layer CDNs) is now in the default egress allowlist, like `ghcr.io`. Installations that must not pull from Docker Hub can remove those lines from `deploy/egress/allowlist.txt`.
+- **An image that does not exist was reported as a raw Trivy error.** The scan now says that the registry has no such image or that it is private (Docker Hub answers both the same way), names the reference, and tells you to check the name and tag or add credentials; with credentials, it says the registry refused them.
+
 ## [3.0.2] — 2026-11-23
 
 Security release. A manual security review and a PATHOS self-scan found two critical issues in the scan workers (a scanned repository could run code in the worker through checkov's configuration file, and scanners could read the worker bootstrap token), plus access-control and network-policy issues. Everyone running 3.0.x should upgrade. **Multi-tenant installations:** organizations' integrations no longer reach private addresses unless the operator sets `PATHOS_MULTI_TENANT_ALLOW_PRIVATE_NETWORKS=true` (see below).

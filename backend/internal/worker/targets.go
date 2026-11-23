@@ -183,6 +183,31 @@ func registryDenied(err error) error {
 	return err
 }
 
+// imageMissingRe matches a registry answer for an image that does not
+// exist or that the request may not pull. Docker Hub answers UNAUTHORIZED
+// for a repository that does not exist, so the two cannot be told apart.
+var imageMissingRe = regexp.MustCompile(`MANIFEST_UNKNOWN|NAME_UNKNOWN|UNAUTHORIZED|DENIED: requested access`)
+
+// imageError explains why an image target could not be pulled: a host the
+// egress proxy refused, or an image the registry did not hand out.
+func imageError(err error, ref string, withCredentials bool) error {
+	if err == nil {
+		return nil
+	}
+	if denied := registryDenied(err); denied != err {
+		return denied
+	}
+	if !imageMissingRe.MatchString(err.Error()) {
+		return err
+	}
+	if withCredentials {
+		return fmt.Errorf("the registry refused %q with the target's credentials: check the image name and tag, and that the token "+
+			"may pull it (%s)", ref, lastLine(err.Error()))
+	}
+	return fmt.Errorf("the registry has no image %q, or it is private: check the name and tag (for example nginx:1.27 or "+
+		"ghcr.io/org/app:1.2), or add registry credentials to the target (%s)", ref, lastLine(err.Error()))
+}
+
 func egressDenied(host string) error {
 	return fmt.Errorf("the egress proxy denied access to %s: add it to deploy/egress/allowlist.txt "+
 		"(private addresses also need an override in deploy/egress/conf.d) and restart the egress service", host)
@@ -352,7 +377,7 @@ func targetTools(cache func(string) string, cfg Config) map[string]Tool {
 				_, err := command(ctx, env, []int{0}, bin, append(append(args, extra...), in.Target.Reference)...)
 				return err
 			})
-			return "", registryDenied(err)
+			return "", imageError(err, in.Target.Reference, in.Target.AuthType == "basic" && in.Target.Username != "")
 		}},
 		"nuclei": simpleTool{"nuclei", []string{"-version"}, func(ctx context.Context, bin string, in RunInput) (string, error) {
 			if in.Target == nil || (in.Target.Kind != "url" && in.Target.Kind != "api" && in.Target.Kind != "endpoints") {

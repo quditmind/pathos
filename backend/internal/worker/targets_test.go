@@ -150,3 +150,25 @@ func TestRegistryDenied(t *testing.T) {
 		t.Error("other errors are returned unchanged")
 	}
 }
+
+func TestImageError(t *testing.T) {
+	// Docker Hub answers UNAUTHORIZED for a repository that does not exist.
+	missing := errors.New("trivy exited with 1: \t* remote error: GET https://index.docker.io/v2/library/ddd/manifests/latest: " +
+		"UNAUTHORIZED: authentication required; [map[Action:pull Class: Name:library/ddd Type:repository]]")
+	err := imageError(missing, "ddd", false)
+	if err == nil || !strings.Contains(err.Error(), `the registry has no image "ddd", or it is private`) {
+		t.Fatalf("missing image: %v", err)
+	}
+	err = imageError(missing, "ddd", true)
+	if err == nil || !strings.Contains(err.Error(), "refused \"ddd\" with the target's credentials") {
+		t.Fatalf("with credentials: %v", err)
+	}
+	denied := errors.New(`trivy exited with 1: remote error: Get "https://index.docker.io/v2/": Forbidden`)
+	if err := imageError(denied, "nginx:1.27", false); err == nil || !strings.Contains(err.Error(), "egress proxy denied access to index.docker.io") {
+		t.Fatalf("denied: %v", err)
+	}
+	other := errors.New("trivy exited with 1: context deadline exceeded")
+	if imageError(other, "x", false) != other || imageError(nil, "x", false) != nil {
+		t.Error("other errors are returned unchanged")
+	}
+}

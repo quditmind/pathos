@@ -702,7 +702,7 @@ function TargetDialog({ open, onClose, target, initialKind }: { open: boolean; o
         )}
         {!uploaded(f.kind) && (
           <p className="text-[11.5px] text-muted-foreground">
-            Workers reach targets only through the egress proxy. Add the host ({f.kind === "image" ? "the registry, e.g. ghcr.io" : "the application's host name"}) to <code>deploy/egress/allowlist.txt</code>; private addresses also need an
+            Workers reach targets only through the egress proxy. {f.kind === "image" ? "Docker Hub and ghcr.io are allowed by default; add any other registry" : "Add the application's host name"} to <code>deploy/egress/allowlist.txt</code>; private addresses also need an
             override in <code>deploy/egress/conf.d</code>.
           </p>
         )}
