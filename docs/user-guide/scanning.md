@@ -218,7 +218,7 @@ garak sends one request at a time; promptfoo waits between requests when **Reque
 ### Notes
 
 - **Mobile apps:** choose **Mobile app (APK, AAB, IPA)** and upload the package, then select the mobile tools under **Additional tools** (shown when the `worker-mobile` family worker runs). For an Android App Bundle, mobsfscan and APKLeaks read the code; the manifest checks need an APK (for example the universal APK from bundletool).
-- **Container images:** for private registries choose **Registry username and token**. `ghcr.io` is allowed out of the box; Docker Hub and other registries need their hosts in the egress allowlist.
+- **Container images:** for private registries choose **Registry username and token**. `ghcr.io` and Docker Hub are allowed out of the box; other registries need their hosts in the egress allowlist. A name without a registry (for example `nginx:1.27`) is pulled from Docker Hub. If the scan reports that the registry "has no image" or that it is private, check the name and tag, or add credentials.
 - **Findings** of a target are kept apart from the repository's own findings. Filter them with **Asset** on the Findings page. Only a successful scan of the same target marks them fixed.
 - **Changing the address** of a web or API target needs a new authorization statement, and removes the intrusive testing authorization.
 - **Targets with findings** cannot be deleted (their evidence is kept). Disable them instead.

@@ -14,6 +14,15 @@ dev.azure.com
 mirror.gcr.io
 ghcr.io
 pkg-containers.githubusercontent.com
+# Docker Hub (container image targets): registry, token service and the
+# CDNs that serve image layers (which one depends on the region). Other
+# registries go in a conf.d override.
+index.docker.io
+registry-1.docker.io
+auth.docker.io
+production.cloudflare.docker.com
+production.cloudfront.docker.com
+docker-images-prod.6aa30f8b08e16409b46e0173d6de2f56.r2.cloudflarestorage.com
 # Grype vulnerability database
 grype.anchore.io
 # OSV-Scanner
